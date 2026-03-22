@@ -103,44 +103,52 @@ Deno.serve(async (req) => {
   const existingEmails = new Map((existingUsers?.users || []).map((x: any) => [x.email, x.id]));
 
   for (const u of users) {
-    let userId: string;
+    try {
+      let userId: string;
 
-    if (existingEmails.has(u.email)) {
-      userId = existingEmails.get(u.email)!;
-      results.push({ email: u.email, status: "already_exists", id: userId });
-    } else {
-      const { data, error } = await supabase.auth.admin.createUser({
-        id: u.id,
-        email: u.email,
-        password: u.password,
-        email_confirm: true,
-        user_metadata: u.meta,
-      });
+      if (existingEmails.has(u.email)) {
+        userId = existingEmails.get(u.email)!;
+        results.push({ email: u.email, status: "already_exists", id: userId });
+      } else {
+        console.log(`Creating user: ${u.email}`);
+        const { data, error } = await supabase.auth.admin.createUser({
+          id: u.id,
+          email: u.email,
+          password: u.password,
+          email_confirm: true,
+          user_metadata: u.meta,
+        });
 
-      if (error) {
-        results.push({ email: u.email, status: "error", error: error.message });
-        continue;
+        if (error) {
+          console.error(`Error creating ${u.email}:`, error.message);
+          results.push({ email: u.email, status: "error", error: error.message });
+          continue;
+        }
+        userId = data.user.id;
+        results.push({ email: u.email, status: "created", id: userId });
       }
-      userId = data.user.id;
-      results.push({ email: u.email, status: "created", id: userId });
-    }
 
-    // Upsert profile to ensure it exists
-    await supabase.from("profiles").upsert({
-      id: userId,
-      nome_usuario: u.meta.nome_usuario,
-      nome_completo: u.meta.nome_completo,
-      email: u.meta.email_contato,
-      telefone: u.meta.telefone,
-      cpf_cnpj: u.meta.cpf_cnpj,
-      verificado: true,
-    }, { onConflict: "id" });
+      // Upsert profile
+      const { error: profileErr } = await supabase.from("profiles").upsert({
+        id: userId,
+        nome_usuario: u.meta.nome_usuario,
+        nome_completo: u.meta.nome_completo,
+        email: u.meta.email_contato,
+        telefone: u.meta.telefone,
+        cpf_cnpj: u.meta.cpf_cnpj,
+        verificado: true,
+      }, { onConflict: "id" });
+      if (profileErr) console.error(`Profile error for ${u.email}:`, profileErr.message);
 
-    if (u.role === "admin") {
-      await supabase.from("user_roles").upsert(
-        { user_id: userId, role: "admin" },
-        { onConflict: "user_id,role" }
-      );
+      if (u.role === "admin") {
+        await supabase.from("user_roles").upsert(
+          { user_id: userId, role: "admin" },
+          { onConflict: "user_id,role" }
+        );
+      }
+    } catch (err) {
+      console.error(`Exception for ${u.email}:`, err);
+      results.push({ email: u.email, status: "exception", error: String(err) });
     }
   }
 
