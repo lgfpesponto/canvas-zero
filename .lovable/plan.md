@@ -1,37 +1,58 @@
 
-Objetivo: corrigir o prazo mostrado na ficha de produção/formulário para pedidos de ficha "bota", porque ainda há telas usando a regra antiga de 10/30 dias.
 
-Implementação proposta:
+## Problem Diagnosis
 
-1. Ajustar a exibição do prazo em `src/pages/OrderPage.tsx`
-- Hoje a tela mostra:
-  `Prazo de Produção: {hasAnyLaser ? '30' : '10'} dias úteis`
-- Trocar para a regra nova de bota:
-  `15 dias úteis`
-- Isso garante que, ao criar pedido de bota, a ficha/formulário não continue exibindo o prazo antigo por causa do laser.
+There are **two issues** preventing login:
 
-2. Ajustar a exibição do prazo em `src/pages/EditOrderPage.tsx`
-- Hoje a edição também mostra:
-  `Prazo de Produção: {hasAnyLaser ? '30' : '10'} dias úteis`
-- Trocar para `15 dias úteis` para manter consistência entre criação, edição e detalhes do pedido.
+### 1. No users exist in auth.users
+The Supabase `auth.users` table is empty. The `seed-users` edge function exists but was never invoked, so there are no accounts to log into. The login attempts for `7estrivos@7estrivos.app` return "Invalid login credentials" because the user simply does not exist.
 
-3. Manter a lógica limitada à ficha “bota”
-- Como essas telas são a ficha principal de produção de bota, a mudança deve afetar apenas esse fluxo.
-- Não mexer no comportamento de extras e cintos nessas telas sem necessidade.
+### 2. Table name mismatch: `profiles` vs `Users`
+The code references `supabase.from('profiles')` throughout `AuthContext.tsx` and `UsersManagementPage.tsx`, but the actual database table is named `Users` (capital U). This causes:
+- All TypeScript build errors (the generated types don't know about a `profiles` table)
+- Runtime failures when loading user profile data after login
 
-4. Validar consistência com o restante do sistema
-- Confirmar que a página de detalhes já está usando 15 dias úteis.
-- Garantir que não reste nenhuma outra exibição visível da regra antiga “10/30 dias” no fluxo de ficha de bota.
+---
 
-Detalhes técnicos:
-- Arquivos a alterar:
-  - `src/pages/OrderPage.tsx`
-  - `src/pages/EditOrderPage.tsx`
-- Trecho atual encontrado:
-  - `hasAnyLaser ? '30' : '10'`
-- Novo comportamento:
-  - exibir prazo fixo de `15 dias úteis` para pedidos da ficha de produção bota, independentemente de laser ou bordado.
+## Plan
 
-Resultado esperado:
-- Ao criar ou editar uma ficha de produção de bota, o prazo exibido passa a ser 15 dias úteis.
-- O prazo antigo deixa de aparecer na ficha.
+### Step 1: Rename the `Users` table to `profiles`
+Create a migration to rename the table from `Users` to `profiles` so it matches all the code references. This is cleaner than changing all the code since `profiles` is the conventional name.
+
+```sql
+ALTER TABLE "Users" RENAME TO profiles;
+```
+
+### Step 2: Add a foreign key from profiles.id to auth.users(id)
+The `profiles` table has an `id` column but no foreign key to `auth.users`. Add one so profile rows are tied to auth accounts.
+
+```sql
+ALTER TABLE profiles
+  ADD CONSTRAINT profiles_id_fkey
+  FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+```
+
+### Step 3: Add a trigger to auto-create profiles on signup
+When a new user signs up via Supabase Auth, automatically insert a row into `profiles` using the metadata provided during registration.
+
+### Step 4: Add RLS policies to profiles, orders, user_roles, verification_codes
+Currently none of these tables have RLS policies. Add policies so:
+- Users can read/update their own profile
+- Admins can read all profiles
+- Orders are visible to their owner and to admins
+- user_roles readable by the user themselves
+
+### Step 5: Run the seed-users edge function
+Invoke the existing `seed-users` function to create the initial admin accounts (`7estrivos`, `fernanda`) and the demo user in `auth.users`, and insert corresponding rows into `profiles`.
+
+### Step 6: Fix TypeScript types
+After the migration runs, the Supabase types will auto-regenerate with the `profiles` table, resolving all build errors.
+
+---
+
+### Technical details
+
+- The `Users` table columns (`id`, `nome_completo`, `nome_usuario`, `telefone`, `email`, `cpf_cnpj`, `verificado`, `created_at`) already match what the code expects from `profiles`
+- The `seed-users` function creates auth users and assigns admin roles, but does NOT insert into `profiles` -- we need to update it or rely on the trigger
+- The login flow constructs email as `${username}@7estrivos.app` and uses `signInWithPassword` -- this is correct once users exist
+
