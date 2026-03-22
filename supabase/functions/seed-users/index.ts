@@ -18,56 +18,39 @@ Deno.serve(async (req) => {
 
   const users = [
     {
-      email: "7estrivos@7estrivos.app",
-      password: "admin123",
-      meta: {
-        nome_completo: "Juliana Cristina Ribeiro",
-        nome_usuario: "7estrivos",
-        telefone: "(16) 99114-9227",
-        email_contato: "lgfpesponto@gmail.com",
-        cpf_cnpj: "02139487000113",
-      },
-      role: "admin" as const,
+      email: "site@7estrivos.app", password: "156651",
+      meta: { nome_completo: "Rancho Chique", nome_usuario: "site", telefone: "16991344590", email_contato: "suporte7estrivos@gmail.com", cpf_cnpj: "26830599814" },
     },
     {
-      email: "fernanda@7estrivos.app",
-      password: "admin123",
-      meta: {
-        nome_completo: "Fernanda ADM",
-        nome_usuario: "fernanda",
-        telefone: "",
-        email_contato: "fernanda@7estrivos.com",
-        cpf_cnpj: "",
-      },
-      role: "admin" as const,
+      email: "gabi@7estrivos.app", password: "gabi123",
+      meta: { nome_completo: "Maria Gabriela", nome_usuario: "gabi", telefone: "16 99344-4945", email_contato: "gabiplacido1906@hotmail.com", cpf_cnpj: "474.084.698-50" },
     },
     {
-      email: "demo@7estrivos.app",
-      password: "123456",
-      meta: {
-        nome_completo: "Revendedor Demo",
-        nome_usuario: "demo",
-        telefone: "(11) 99999-9999",
-        email_contato: "demo@7estrivos.com",
-        cpf_cnpj: "12345678900",
-      },
-      role: "user" as const,
+      email: "rafa@7estrivos.app", password: "rafa123",
+      meta: { nome_completo: "Rafael Silva", nome_usuario: "rafa", telefone: "16 99284-9865", email_contato: "rafaelsplacido@hotmail.com", cpf_cnpj: "443.985.348-06" },
+    },
+    {
+      email: "denise@7estrivos.app", password: "denise123",
+      meta: { nome_completo: "Denise Garcia Feliciano", nome_usuario: "denise", telefone: "16 99154-7740", email_contato: "denisegfeliciano@gmail.com", cpf_cnpj: "290.564.758-27" },
+    },
+    {
+      email: "samuel@7estrivos.app", password: "samuel123",
+      meta: { nome_completo: "Samuel Silva Plácido", nome_usuario: "samuel", telefone: "16 99113-6042", email_contato: "samuelsilvaplacido@gmail.com", cpf_cnpj: "472.701.008-96" },
+    },
+    {
+      email: "larissa@7estrivos.app", password: "larissa123",
+      meta: { nome_completo: "Larissa Silva", nome_usuario: "larissa", telefone: "16 99345-2386", email_contato: "lalaplacido2018@gmail.com", cpf_cnpj: "472.701.188-33" },
+    },
+    {
+      email: "fabi@7estrivos.app", password: "fabi123",
+      meta: { nome_completo: "Fabiana Silva", nome_usuario: "fabi", telefone: "16 99313-3977", email_contato: "fabisilva78@hotmail.com", cpf_cnpj: "281.307.198-60" },
     },
   ];
 
   const results = [];
 
   for (const u of users) {
-    // Check if user already exists by email
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existing = existingUsers?.users?.find((x: any) => x.email === u.email);
-
-    let userId: string;
-
-    if (existing) {
-      userId = existing.id;
-      results.push({ email: u.email, status: "already_exists", id: userId });
-    } else {
+    try {
       const { data, error } = await supabase.auth.admin.createUser({
         email: u.email,
         password: u.password,
@@ -77,18 +60,11 @@ Deno.serve(async (req) => {
 
       if (error) {
         results.push({ email: u.email, status: "error", error: error.message });
-        continue;
+      } else {
+        results.push({ email: u.email, status: "created", id: data.user.id });
       }
-      userId = data.user.id;
-      results.push({ email: u.email, status: "created", id: userId });
-    }
-
-    // Ensure admin role if needed
-    if (u.role === "admin") {
-      await supabase.from("user_roles").upsert(
-        { user_id: userId, role: "admin" },
-        { onConflict: "user_id,role" }
-      );
+    } catch (err) {
+      results.push({ email: u.email, status: "exception", error: String(err) });
     }
   }
 
