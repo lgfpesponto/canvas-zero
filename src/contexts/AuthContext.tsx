@@ -543,7 +543,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .like('cpf_cnpj', `${digits}%`)
       .limit(1);
 
-    return (data && data.length > 0) || digits === '123';
+    return (data && data.length > 0);
   }, []);
 
   /* ───── Add Order ───── */
