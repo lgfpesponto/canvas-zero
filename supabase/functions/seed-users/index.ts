@@ -98,14 +98,15 @@ Deno.serve(async (req) => {
 
   const results = [];
 
-  for (const u of users) {
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existing = existingUsers?.users?.find((x: any) => x.email === u.email);
+  // Fetch all existing users once
+  const { data: existingUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const existingEmails = new Map((existingUsers?.users || []).map((x: any) => [x.email, x.id]));
 
+  for (const u of users) {
     let userId: string;
 
-    if (existing) {
-      userId = existing.id;
+    if (existingEmails.has(u.email)) {
+      userId = existingEmails.get(u.email)!;
       results.push({ email: u.email, status: "already_exists", id: userId });
     } else {
       const { data, error } = await supabase.auth.admin.createUser({
