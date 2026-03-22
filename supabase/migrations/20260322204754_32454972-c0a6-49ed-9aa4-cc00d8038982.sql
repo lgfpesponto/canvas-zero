@@ -1,0 +1,1 @@
+UPDATE profiles SET email = 'expedicaoestrivos@gmail.com', telefone = '16997391071' WHERE nome_usuario = 'fernanda';
