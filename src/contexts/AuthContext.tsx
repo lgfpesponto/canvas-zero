@@ -582,7 +582,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         numero,
       };
 
-      const dbRow = orderToDbRow(newOrder, user.id);
+      // If admin is creating order for a different vendedor, use vendedor's user_id
+      let targetUserId = user.id;
+      if (isAdmin && rest.vendedor && rest.vendedor !== user.nomeCompleto) {
+        const { data: vendorProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('nome_completo', rest.vendedor)
+          .maybeSingle();
+        if (vendorProfile) {
+          targetUserId = vendorProfile.id;
+        }
+      }
+
+      const dbRow = orderToDbRow(newOrder, targetUserId);
 
       const { data, error } = await supabase.from('orders').insert(dbRow).select().single();
       if (error) {
