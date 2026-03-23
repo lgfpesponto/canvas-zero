@@ -1,58 +1,60 @@
 
 
-## Problem Diagnosis
+## Fix: Orders created by admin appear in the selected vendor's portal
 
-There are **two issues** preventing login:
+### Problem
+When an admin creates an order selecting a vendedor, the order is saved with `user_id = admin's ID`. The vendedor can't see it because RLS filters by `user_id = auth.uid()`.
 
-### 1. No users exist in auth.users
-The Supabase `auth.users` table is empty. The `seed-users` edge function exists but was never invoked, so there are no accounts to log into. The login attempts for `7estrivos@7estrivos.app` return "Invalid login credentials" because the user simply does not exist.
+### Changes
 
-### 2. Table name mismatch: `profiles` vs `Users`
-The code references `supabase.from('profiles')` throughout `AuthContext.tsx` and `UsersManagementPage.tsx`, but the actual database table is named `Users` (capital U). This causes:
-- All TypeScript build errors (the generated types don't know about a `profiles` table)
-- Runtime failures when loading user profile data after login
+#### 1. Code: `src/contexts/AuthContext.tsx` — `addOrder` function (line ~585)
 
----
+Before building `dbRow`, if the user is admin and the `vendedor` name differs from the admin's own name, look up the vendedor's profile ID by `nome_completo` and use it as `user_id`:
 
-## Plan
-
-### Step 1: Rename the `Users` table to `profiles`
-Create a migration to rename the table from `Users` to `profiles` so it matches all the code references. This is cleaner than changing all the code since `profiles` is the conventional name.
-
-```sql
-ALTER TABLE "Users" RENAME TO profiles;
+```typescript
+let targetUserId = user.id;
+if (isAdmin && rest.vendedor && rest.vendedor !== user.nomeCompleto) {
+  const { data: vendorProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('nome_completo', rest.vendedor)
+    .maybeSingle();
+  if (vendorProfile) {
+    targetUserId = vendorProfile.id;
+  }
+}
+const dbRow = orderToDbRow(newOrder, targetUserId);
 ```
 
-### Step 2: Add a foreign key from profiles.id to auth.users(id)
-The `profiles` table has an `id` column but no foreign key to `auth.users`. Add one so profile rows are tied to auth accounts.
+#### 2. Database migration: Allow admins to INSERT orders for any user
+
+Current INSERT policy only allows `auth.uid() = user_id`. Add:
 
 ```sql
-ALTER TABLE profiles
-  ADD CONSTRAINT profiles_id_fkey
-  FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+CREATE POLICY "Admins can insert orders for any user"
+ON public.orders
+FOR INSERT
+TO authenticated
+WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
 ```
 
-### Step 3: Add a trigger to auto-create profiles on signup
-When a new user signs up via Supabase Auth, automatically insert a row into `profiles` using the metadata provided during registration.
+#### 3. Data migration: Reassign existing orders to correct vendors
 
-### Step 4: Add RLS policies to profiles, orders, user_roles, verification_codes
-Currently none of these tables have RLS policies. Add policies so:
-- Users can read/update their own profile
-- Admins can read all profiles
-- Orders are visible to their owner and to admins
-- user_roles readable by the user themselves
+Update all existing orders so `user_id` matches the vendedor's profile:
 
-### Step 5: Run the seed-users edge function
-Invoke the existing `seed-users` function to create the initial admin accounts (`7estrivos`, `fernanda`) and the demo user in `auth.users`, and insert corresponding rows into `profiles`.
+```sql
+UPDATE orders o
+SET user_id = p.id
+FROM profiles p
+WHERE o.vendedor = p.nome_completo
+  AND o.user_id != p.id;
+```
 
-### Step 6: Fix TypeScript types
-After the migration runs, the Supabase types will auto-regenerate with the `profiles` table, resolving all build errors.
+This runs once to fix all historical orders. Admins (7estrivos, fernanda) retain full visibility via the existing "Admins can view all orders" RLS policy -- no change needed there.
 
----
-
-### Technical details
-
-- The `Users` table columns (`id`, `nome_completo`, `nome_usuario`, `telefone`, `email`, `cpf_cnpj`, `verificado`, `created_at`) already match what the code expects from `profiles`
-- The `seed-users` function creates auth users and assigns admin roles, but does NOT insert into `profiles` -- we need to update it or rely on the trigger
-- The login flow constructs email as `${username}@7estrivos.app` and uses `signInWithPassword` -- this is correct once users exist
+### What stays the same
+- Admin users (7estrivos, fernanda) continue seeing ALL orders via admin RLS policies
+- Fernanda keeps her specialized dashboard with limited reports
+- Juliana (7estrivos) keeps full dashboard with alert orders and all reports
+- Vendedores see only their own orders
 
