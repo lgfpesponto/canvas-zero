@@ -1,46 +1,23 @@
 
 
-## Fix: Orders created by admin appear in the selected vendor's portal
+## Problem
 
-### Problem
-When an admin creates an order selecting a vendedor, the order is saved with `user_id = admin's ID`. The vendedor can't see it because RLS filters by `user_id = auth.uid()`.
+The recent orders created by Fernanda selecting other vendedores (Larissa, Denise, Samuel) still have `user_id = Fernanda's ID` instead of the vendedor's ID. This is confirmed by the database query:
 
-### Changes
-
-#### 1. Code: `src/contexts/AuthContext.tsx` — `addOrder` function (line ~585)
-
-Before building `dbRow`, if the user is admin and the `vendedor` name differs from the admin's own name, look up the vendedor's profile ID by `nome_completo` and use it as `user_id`:
-
-```typescript
-let targetUserId = user.id;
-if (isAdmin && rest.vendedor && rest.vendedor !== user.nomeCompleto) {
-  const { data: vendorProfile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('nome_completo', rest.vendedor)
-    .maybeSingle();
-  if (vendorProfile) {
-    targetUserId = vendorProfile.id;
-  }
-}
-const dbRow = orderToDbRow(newOrder, targetUserId);
+```text
+numero | vendedor                  | user_id (profile)
+60334  | Samuel Silva Plácido      | Fernanda ADM
+30014  | Larissa Silva             | Fernanda ADM  
+30013  | Larissa Silva             | Fernanda ADM
+30012  | Larissa Silva             | Fernanda ADM
+1887   | Denise Garcia Feliciano   | Fernanda ADM
 ```
 
-#### 2. Database migration: Allow admins to INSERT orders for any user
+The code fix is already in place in `AuthContext.tsx`. These orders were likely created before the latest build deployed.
 
-Current INSERT policy only allows `auth.uid() = user_id`. Add:
+## Solution
 
-```sql
-CREATE POLICY "Admins can insert orders for any user"
-ON public.orders
-FOR INSERT
-TO authenticated
-WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
-```
-
-#### 3. Data migration: Reassign existing orders to correct vendors
-
-Update all existing orders so `user_id` matches the vendedor's profile:
+Run a data migration to reassign all mismatched orders to the correct vendedor's profile, exactly as we did before:
 
 ```sql
 UPDATE orders o
@@ -50,11 +27,10 @@ WHERE o.vendedor = p.nome_completo
   AND o.user_id != p.id;
 ```
 
-This runs once to fix all historical orders. Admins (7estrivos, fernanda) retain full visibility via the existing "Admins can view all orders" RLS policy -- no change needed there.
+This will fix all 5 recent orders (and any others that may be mismatched). No code changes needed -- the `addOrder` function already has the correct logic for future orders.
 
-### What stays the same
-- Admin users (7estrivos, fernanda) continue seeing ALL orders via admin RLS policies
-- Fernanda keeps her specialized dashboard with limited reports
-- Juliana (7estrivos) keeps full dashboard with alert orders and all reports
-- Vendedores see only their own orders
+## What this changes
+- Orders 60334, 30014, 30013, 30012, 1887 will be reassigned to their respective vendedores
+- Vendedores (Larissa, Samuel, Denise) will see these orders in their portal
+- Admins (Fernanda, Juliana) continue seeing ALL orders via admin RLS policies
 
