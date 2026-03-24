@@ -36,12 +36,8 @@ const OrderDetailPage = () => {
 
   const handleScanSubmit = useCallback(() => {
     if (!scanValue.trim()) return;
-    const cleanVal = scanValue.trim().replace(/\D/g, '');
     const sourceOrders = isAdmin ? allOrders : orders;
-    const match = sourceOrders.find(o => {
-      const bcVal = orderBarcodeValue(o.numero);
-      return bcVal === cleanVal || o.numero === scanValue.trim() || o.numero.replace(/\D/g, '') === cleanVal;
-    });
+    const match = sourceOrders.find(o => matchOrderBarcode(scanValue.trim(), o));
     if (match) {
       setScanValue('');
       setShowScanner(false);

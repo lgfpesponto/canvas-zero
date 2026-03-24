@@ -598,7 +598,7 @@ const ReportsPage = () => {
 
       const stubAreaW = pw - m * 2;
       const stubW = stubAreaW / 3;
-      const bcVal = orderBarcodeValue(order.numero);
+      const bcVal = orderBarcodeValue(order.numero, order.id);
       const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
 
       // Stub 1: BORDADO / LASER
