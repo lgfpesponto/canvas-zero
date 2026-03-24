@@ -131,10 +131,7 @@ const ReportsPage = () => {
     const trimmed = code.trim();
     if (!trimmed) return;
     const source = isAdmin ? allOrders : orders;
-    const match = source.find(o => {
-      const bv = orderBarcodeValue(o.numero);
-      return bv === trimmed || o.numero === trimmed || trimmed.endsWith(o.numero.replace(/\D/g, ''));
-    });
+    const match = source.find(o => matchOrderBarcode(trimmed, o));
     if (match) {
       if (isAdmin) {
         setSelectedIds(prev => {
