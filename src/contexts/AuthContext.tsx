@@ -165,9 +165,40 @@ export function businessDaysRemaining(startDate: Date, totalBusinessDays: number
   return count;
 }
 
-export function orderBarcodeValue(numero: string): string {
+/** Legacy barcode from numero (kept for scanning old printed labels) */
+export function orderBarcodeValueLegacy(numero: string): string {
   const digits = numero.replace(/\D/g, '');
+  if (!digits) return ''; // avoid 0000000000 collision
   return digits.padStart(10, '0');
+}
+
+/** Generate a unique barcode value from the order's UUID id.
+ *  Extracts hex digits and pads to 12 chars — always unique per order. */
+export function orderBarcodeValue(idOrNumero: string, orderId?: string): string {
+  const id = orderId ?? idOrNumero;
+  // Use the UUID hex digits (strip dashes) → take last 12 for a compact unique code
+  const hex = id.replace(/-/g, '');
+  if (hex.length >= 12) return hex.slice(-12).toUpperCase();
+  // Fallback: if somehow not a UUID, use legacy
+  return orderBarcodeValueLegacy(idOrNumero) || hex.padStart(12, '0').toUpperCase();
+}
+
+/** Centralized barcode/scan matcher. Checks new barcode, legacy barcode, and raw numero. */
+export function matchOrderBarcode(scannedCode: string, order: { id: string; numero: string }): boolean {
+  if (!scannedCode) return false;
+  const code = scannedCode.trim();
+  // Match by new unique barcode (based on id)
+  if (code === orderBarcodeValue(order.numero, order.id)) return true;
+  // Match by raw order numero
+  if (code === order.numero) return true;
+  // Match by legacy barcode (digits of numero)
+  const legacy = orderBarcodeValueLegacy(order.numero);
+  if (legacy && code === legacy) return true;
+  // Match digits-only input against digits of numero (only if both have digits)
+  const codeDigits = code.replace(/\D/g, '');
+  const numDigits = order.numero.replace(/\D/g, '');
+  if (codeDigits && numDigits && codeDigits === numDigits) return true;
+  return false;
 }
 
 /* ───── DB row → Order mapping ───── */

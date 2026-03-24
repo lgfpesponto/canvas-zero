@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
+import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare } from 'lucide-react';
@@ -36,12 +36,8 @@ const OrderDetailPage = () => {
 
   const handleScanSubmit = useCallback(() => {
     if (!scanValue.trim()) return;
-    const cleanVal = scanValue.trim().replace(/\D/g, '');
     const sourceOrders = isAdmin ? allOrders : orders;
-    const match = sourceOrders.find(o => {
-      const bcVal = orderBarcodeValue(o.numero);
-      return bcVal === cleanVal || o.numero === scanValue.trim() || o.numero.replace(/\D/g, '') === cleanVal;
-    });
+    const match = sourceOrders.find(o => matchOrderBarcode(scanValue.trim(), o));
     if (match) {
       setScanValue('');
       setShowScanner(false);

@@ -1,4 +1,4 @@
-import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue } from '@/contexts/AuthContext';
+import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue, matchOrderBarcode } from '@/contexts/AuthContext';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -131,10 +131,7 @@ const ReportsPage = () => {
     const trimmed = code.trim();
     if (!trimmed) return;
     const source = isAdmin ? allOrders : orders;
-    const match = source.find(o => {
-      const bv = orderBarcodeValue(o.numero);
-      return bv === trimmed || o.numero === trimmed || trimmed.endsWith(o.numero.replace(/\D/g, ''));
-    });
+    const match = source.find(o => matchOrderBarcode(trimmed, o));
     if (match) {
       if (isAdmin) {
         setSelectedIds(prev => {
@@ -344,7 +341,7 @@ const ReportsPage = () => {
 
         const stubAreaW = pw - m * 2;
         const stubW = stubAreaW / 2;
-        const bcVal = orderBarcodeValue(order.numero);
+        const bcVal = orderBarcodeValue(order.numero, order.id);
         const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
 
         // Stub 1: PESPONTO
@@ -601,7 +598,7 @@ const ReportsPage = () => {
 
       const stubAreaW = pw - m * 2;
       const stubW = stubAreaW / 3;
-      const bcVal = orderBarcodeValue(order.numero);
+      const bcVal = orderBarcodeValue(order.numero, order.id);
       const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
 
       // Stub 1: BORDADO / LASER
