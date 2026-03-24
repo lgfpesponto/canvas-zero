@@ -187,7 +187,7 @@ const OrderDetailPage = () => {
               </label>
             )}
             <Button variant="outline" size="sm" onClick={() => { setShowScanner(!showScanner); setTimeout(() => scanInputRef.current?.focus(), 100); }}>
-              <ScanBarcode size={16} /> Escanear
+              <ScanBarcode size={16} /> Buscar Pedido
             </Button>
           </div>
         </div>
