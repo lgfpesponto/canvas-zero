@@ -1,23 +1,16 @@
 
 
-## Problem
+## Corrigir pedidos 60335 e 60336 + garantir deploy
 
-The recent orders created by Fernanda selecting other vendedores (Larissa, Denise, Samuel) still have `user_id = Fernanda's ID` instead of the vendedor's ID. This is confirmed by the database query:
+### Problema
+Os pedidos 60335 e 60336 foram criados com `user_id` da Fernanda ao invés do Samuel. Isso acontece porque a Fernanda está usando a versão publicada do site (`portal7estrivos.lovable.app`) que ainda não tem o código atualizado.
 
-```text
-numero | vendedor                  | user_id (profile)
-60334  | Samuel Silva Plácido      | Fernanda ADM
-30014  | Larissa Silva             | Fernanda ADM  
-30013  | Larissa Silva             | Fernanda ADM
-30012  | Larissa Silva             | Fernanda ADM
-1887   | Denise Garcia Feliciano   | Fernanda ADM
-```
+O código-fonte já está correto — mas o build publicado pode não estar atualizado.
 
-The code fix is already in place in `AuthContext.tsx`. These orders were likely created before the latest build deployed.
+### Ações
 
-## Solution
-
-Run a data migration to reassign all mismatched orders to the correct vendedor's profile, exactly as we did before:
+#### 1. Migração de dados — corrigir pedidos 60335 e 60336
+Executar novamente o UPDATE para reatribuir todos os pedidos com `vendedor` diferente do `user_id`:
 
 ```sql
 UPDATE orders o
@@ -27,10 +20,11 @@ WHERE o.vendedor = p.nome_completo
   AND o.user_id != p.id;
 ```
 
-This will fix all 5 recent orders (and any others that may be mismatched). No code changes needed -- the `addOrder` function already has the correct logic for future orders.
+#### 2. Republicar o site
+Após a migração, republicar o projeto para garantir que a versão publicada (`portal7estrivos.lovable.app`) tenha o código com a lógica de atribuição correta. Isso fará com que **todos os próximos pedidos** já entrem corretamente.
 
-## What this changes
-- Orders 60334, 30014, 30013, 30012, 1887 will be reassigned to their respective vendedores
-- Vendedores (Larissa, Samuel, Denise) will see these orders in their portal
-- Admins (Fernanda, Juliana) continue seeing ALL orders via admin RLS policies
+### Resultado
+- Pedidos 60335 e 60336 serão reatribuídos ao Samuel imediatamente
+- Qualquer outro pedido com mismatch também será corrigido
+- Após republicar, novos pedidos criados por admin com outro vendedor irão automaticamente para o portal do vendedor correto
 
