@@ -731,7 +731,7 @@ const ReportsPage = () => {
         )}
 
         {/* Filters */}
-        <div className="bg-card rounded-xl p-4 western-shadow mb-6">
+        <form onSubmit={(e) => { e.preventDefault(); applyFilters(); }} className="bg-card rounded-xl p-4 western-shadow mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Filter size={16} className="text-primary" />
             <span className="text-sm font-bold">Filtros</span>
@@ -839,7 +839,7 @@ const ReportsPage = () => {
               </button>
             </div>
           </div>
-        </div>
+        </form>
 
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
