@@ -59,7 +59,6 @@ const ReportsPage = () => {
 
   const applyFilters = () => {
     setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus, filterVendedor, filterProduto: new Set(filterProduto) });
-    setSelectedIds(new Set());
   };
 
   const toggleProdutoFilter = (val: string) => {

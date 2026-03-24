@@ -39,13 +39,17 @@ const OrderDetailPage = () => {
     const sourceOrders = isAdmin ? allOrders : orders;
     const match = sourceOrders.find(o => matchOrderBarcode(scanValue.trim(), o));
     if (match) {
+      // Selecionar pedido atual antes de navegar
+      if (order && !isSelected(order.id)) {
+        toggle(order.id);
+      }
       setScanValue('');
-      setShowScanner(false);
       navigate('/pedido/' + match.id);
     } else {
+      toast.error('Pedido não encontrado.');
       setScanValue('');
     }
-  }, [scanValue, isAdmin, allOrders, orders, navigate]);
+  }, [scanValue, isAdmin, allOrders, orders, navigate, order, isSelected, toggle]);
 
   if (!order) {
     return (
@@ -183,7 +187,7 @@ const OrderDetailPage = () => {
               </label>
             )}
             <Button variant="outline" size="sm" onClick={() => { setShowScanner(!showScanner); setTimeout(() => scanInputRef.current?.focus(), 100); }}>
-              <ScanBarcode size={16} /> Escanear
+              <ScanBarcode size={16} /> Buscar Pedido
             </Button>
           </div>
         </div>
@@ -244,7 +248,7 @@ const OrderDetailPage = () => {
               value={scanValue}
               onChange={e => setScanValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleScanSubmit(); }}
-              placeholder="Escaneie o código de barras..."
+              placeholder="Digite o nº do pedido ou escaneie..."
               className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               autoFocus
             />
