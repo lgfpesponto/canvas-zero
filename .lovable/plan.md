@@ -1,53 +1,19 @@
 
 
-## Ajustes na busca e seleção de pedidos
+## Adicionar Enter para filtrar na página de pedidos
 
-### O que o usuário quer
-1. **Lista de pedidos**: Ao buscar por número e selecionar, buscar outro número sem perder a seleção anterior (manter contagem acumulativa).
-2. **Pedido detalhado**: Adicionar campo de busca manual por número (não só scanner de código de barras), e ao navegar para outro pedido, manter o anterior selecionado.
+### Problema
+Os campos de filtro (nº do pedido, datas, etc.) não respondem à tecla Enter. O usuário precisa clicar no botão "FILTRAR" manualmente.
 
-### Alterações
+### Solução
+Envolver a seção de filtros (linha 734-843 aprox.) em um `<form>` com `onSubmit` que chama `applyFilters` e previne o comportamento padrão do formulário.
 
-#### 1. ReportsPage — Não limpar seleção ao aplicar filtros
-- **Arquivo**: `src/pages/ReportsPage.tsx`, linha 62
-- Remover `setSelectedIds(new Set())` da função `applyFilters` para que a seleção persista ao buscar novos pedidos.
+### Alteração
 
-#### 2. OrderDetailPage — Campo de busca manual + seleção acumulativa
-- **Arquivo**: `src/pages/OrderDetailPage.tsx`
-- Renomear botão "Escanear" para "Buscar Pedido" e alterar placeholder do input de `"Escaneie o código de barras..."` para `"Digite o nº do pedido ou escaneie..."`.
-- No `handleScanSubmit`: antes de navegar para o novo pedido, chamar `toggle(order.id)` para selecionar/manter o pedido atual. Não fechar o scanner após busca (remover `setShowScanner(false)`), permitindo buscas consecutivas.
-- Isso usa o contexto `useSelectedOrders` que já está importado e funcional na página.
+**Arquivo**: `src/pages/ReportsPage.tsx`
 
-#### Detalhes técnicos
-
-**ReportsPage.tsx** (linha 62):
-```
-// Antes:
-setSelectedIds(new Set());
-// Depois: remover esta linha
-```
-
-**OrderDetailPage.tsx** (`handleScanSubmit`, linha 37-48):
-```typescript
-const handleScanSubmit = useCallback(() => {
-  if (!scanValue.trim()) return;
-  const sourceOrders = isAdmin ? allOrders : orders;
-  const match = sourceOrders.find(o => matchOrderBarcode(scanValue.trim(), o));
-  if (match) {
-    // Selecionar pedido atual antes de navegar
-    if (order && !isSelected(order.id)) {
-      toggle(order.id);
-    }
-    setScanValue('');
-    navigate('/pedido/' + match.id);
-  } else {
-    toast.error('Pedido não encontrado.');
-    setScanValue('');
-  }
-}, [scanValue, isAdmin, allOrders, orders, navigate, order, isSelected, toggle]);
-```
-
-- Botão: `"Escanear"` → `"Buscar Pedido"`
-- Placeholder: `"Escaneie o código de barras..."` → `"Digite o nº do pedido ou escaneie..."`
-- Remover `setShowScanner(false)` do submit para manter campo aberto
+- Substituir a `<div>` container dos filtros (linha 734) por um `<form onSubmit={(e) => { e.preventDefault(); applyFilters(); }}>`.
+- Fechar o `</form>` onde fecha o `</div>` correspondente.
+- O botão "FILTRAR" continua funcionando normalmente (já está dentro do form).
+- Todos os inputs de texto, data e select passam a disparar `applyFilters` ao pressionar Enter automaticamente pelo comportamento nativo do `<form>`.
 
