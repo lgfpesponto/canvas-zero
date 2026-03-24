@@ -39,13 +39,17 @@ const OrderDetailPage = () => {
     const sourceOrders = isAdmin ? allOrders : orders;
     const match = sourceOrders.find(o => matchOrderBarcode(scanValue.trim(), o));
     if (match) {
+      // Selecionar pedido atual antes de navegar
+      if (order && !isSelected(order.id)) {
+        toggle(order.id);
+      }
       setScanValue('');
-      setShowScanner(false);
       navigate('/pedido/' + match.id);
     } else {
+      toast.error('Pedido não encontrado.');
       setScanValue('');
     }
-  }, [scanValue, isAdmin, allOrders, orders, navigate]);
+  }, [scanValue, isAdmin, allOrders, orders, navigate, order, isSelected, toggle]);
 
   if (!order) {
     return (
