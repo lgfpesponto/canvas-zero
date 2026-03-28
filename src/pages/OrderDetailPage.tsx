@@ -311,7 +311,7 @@ const OrderDetailPage = () => {
               )}
               {isAdmin && <span className="text-sm text-muted-foreground">— {order.vendedor}</span>}
             </div>
-            <span className="text-2xl font-bold text-primary">{formatCurrency(totalCalc)}</span>
+            <span className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</span>
           </div>
           <p className="text-sm text-muted-foreground mb-1">
             {formatDateBR(order.dataCriacao)} — {order.horaCriacao || ''}
