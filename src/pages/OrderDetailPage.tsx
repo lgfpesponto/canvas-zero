@@ -167,6 +167,50 @@ const OrderDetailPage = () => {
   if (order.adicionalValor && order.adicionalValor > 0) priceItems.push(['Adicional: ' + (order.adicionalDesc || ''), order.adicionalValor]);
   const totalCalc = priceItems.reduce((s, [, v]) => s + v, 0);
 
+  // Compute extras/belt total for header consistency
+  const computeExtraTotal = (): number => {
+    if (!order.tipoExtra) return 0;
+    const det: any = order.extraDetalhes || {};
+    let t = 0;
+    switch (order.tipoExtra) {
+      case 'cinto': {
+        const sizeItem = BELT_SIZES.find((s: any) => det.tamanhoCinto?.startsWith(s.label));
+        if (sizeItem) t += sizeItem.preco;
+        if (det.bordadoP === 'Tem') t += BORDADO_P_PRECO;
+        if (det.nomeBordado === 'Tem') t += NOME_BORDADO_CINTO_PRECO;
+        if (det.carimbo) { const car = BELT_CARIMBO.find((c: any) => c.label === det.carimbo); if (car) t += car.preco; }
+        break;
+      }
+      case 'tiras_laterais': t += 15; break;
+      case 'desmanchar':
+        t += 65;
+        if (det.qualSola === 'Preta borracha') t += 25;
+        else if (det.qualSola === 'De cor borracha') t += 40;
+        else if (det.qualSola === 'De couro') t += 60;
+        if (det.trocaGaspea === 'Sim') t += 35;
+        break;
+      case 'kit_canivete': t += 30; if (det.vaiCanivete === 'Sim') t += 30; break;
+      case 'kit_faca': t += 35; if (det.vaiCanivete === 'Sim') t += 35; break;
+      case 'carimbo_fogo': { const qty = parseInt(det.qtdCarimbos) || 1; t += qty >= 4 ? 40 : 20; break; }
+      case 'revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
+      case 'kit_revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 26 * qty; break; }
+      case 'gravata_country': t += 30; break;
+      case 'adicionar_metais': {
+        const sel = (det.metaisSelecionados as string[]) || [];
+        if (sel.includes('Bola grande')) t += 15;
+        if (sel.includes('Strass')) { const qty = parseInt(det.qtdStrass) || 1; t += 0.60 * qty; }
+        break;
+      }
+      case 'chaveiro_carimbo': t += 50; break;
+      case 'bainha_cartao': t += 15; break;
+      case 'regata': t += 50; break;
+      case 'bota_pronta_entrega': t += order.preco; break;
+    }
+    return t;
+  };
+  const extraTotalCalc = computeExtraTotal();
+  const displayTotal = order.tipoExtra ? (extraTotalCalc || order.preco * order.quantidade) : (totalCalc || order.preco * order.quantidade);
+
   const alteracoes = order.alteracoes || [];
 
   return (
@@ -267,7 +311,7 @@ const OrderDetailPage = () => {
               )}
               {isAdmin && <span className="text-sm text-muted-foreground">— {order.vendedor}</span>}
             </div>
-            <span className="text-2xl font-bold text-primary">{formatCurrency(totalCalc)}</span>
+            <span className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</span>
           </div>
           <p className="text-sm text-muted-foreground mb-1">
             {formatDateBR(order.dataCriacao)} — {order.horaCriacao || ''}
