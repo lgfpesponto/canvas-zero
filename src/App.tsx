@@ -14,6 +14,7 @@ import OrderPage from "./pages/OrderPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import EditOrderPage from "./pages/EditOrderPage";
+import EditExtrasPage from "./pages/EditExtrasPage";
 import ReportsPage from "./pages/ReportsPage";
 import PiecesReportPage from "./pages/PiecesReportPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/pedido-cinto" element={<BeltOrderPage />} />
             <Route path="/pedido/:id" element={<OrderDetailPage />} />
             <Route path="/pedido/:id/editar" element={<EditOrderPage />} />
+            <Route path="/pedido/:id/editar-extra" element={<EditExtrasPage />} />
             <Route path="/acompanhar" element={<TrackOrderPage />} />
             <Route path="/relatorios" element={<ReportsPage />} />
             <Route path="/relatorio-pecas" element={<PiecesReportPage />} />

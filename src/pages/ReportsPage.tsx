@@ -934,7 +934,7 @@ const ReportsPage = () => {
 
               {isAdmin && (
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => navigate(`/pedido/${order.id}/editar`)} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
+                  <button onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`)} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
                     <Pencil size={16} />
                   </button>
                   {confirmDeleteId === order.id ? (
