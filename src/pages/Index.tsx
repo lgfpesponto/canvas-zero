@@ -236,7 +236,7 @@ const Index = () => {
       {/* Specialized reports section */}
       <div className="mt-8">
         <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={3}>
-          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'bordados', 'expedicao', 'cobranca', 'extras_cintos']} />
+          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'expedicao', 'cobranca', 'extras_cintos']} />
         </motion.div>
       </div>
     </section>
