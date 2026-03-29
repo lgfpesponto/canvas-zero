@@ -447,6 +447,7 @@ const OrderPage = () => {
     try {
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
+        cliente: cliente.trim(),
         vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
         tamanho, genero, modelo, sobMedida, sobMedidaDesc,
         solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
