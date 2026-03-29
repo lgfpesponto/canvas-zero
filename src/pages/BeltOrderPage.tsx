@@ -224,6 +224,7 @@ const BeltOrderPage = () => {
   const mirrorRows: [string, string][] = [
     ['Vendedor', isAdminUser ? vendedor : (user?.nomeCompleto || '')],
     ['Número do Pedido', numeroPedido],
+    ['Cliente', cliente],
     ['Tamanho', tamanho ? `${tamanho} (${formatCurrency(tamanhoPreco)})` : ''],
     ['Tipo de Couro', tipoCouro],
     ['Cor do Couro', corCouro],
