@@ -844,6 +844,10 @@ const OrderPage = () => {
                 <ToggleField label="Bridão (R$3/un)" value={bridaoMetal} onChange={setBridaoMetal} />
                 {bridaoMetal && <input type="number" min={0} value={bridaoMetalQtd} onChange={e => setBridaoMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <ToggleField label="Cavalo (R$5/un)" value={cavaloMetal} onChange={setCavaloMetal} />
+                {cavaloMetal && <input type="number" min={0} value={cavaloMetalQtd} onChange={e => setCavaloMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+              </div>
             </div>
           </Section>
 
