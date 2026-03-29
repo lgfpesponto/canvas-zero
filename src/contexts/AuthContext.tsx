@@ -695,6 +695,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       corSola: 'Cor Sola', costuraAtras: 'Costura Atrás', carimbo: 'Carimbo',
       carimboDesc: 'Descrição Carimbo', adicionalDesc: 'Adicional', formatoBico: 'Formato Bico',
       preco: 'Valor total', desconto: 'Desconto', descontoJustificativa: 'Justificativa do Desconto',
+      vendedor: 'Vendedor',
     };
 
     for (const key of Object.keys(data)) {
