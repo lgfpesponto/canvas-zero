@@ -618,9 +618,18 @@ const OrderPage = () => {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* 1-2 Vendedor + Número */}
+          {/* Template name field */}
+          {mode === 'template' && (
+            <div>
+              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
+              <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+            </div>
+          )}
+
+          {/* 1-2 Vendedor + Número (hidden in template mode) */}
+          {mode === 'order' && (
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className={cls.label}>Vendedor</label>
