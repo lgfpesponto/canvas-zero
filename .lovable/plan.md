@@ -1,79 +1,64 @@
 
 
-## Novo Produto "Gravata Pronta Entrega" com Controle de Estoque
+## Estoque Gravata: Abater para todos + Editar/Excluir (Admin)
 
-### Resumo
+### Problema atual
 
-Criar um novo produto extra com estoque gerenciado por admins. Requer uma nova tabela no Supabase para o estoque, novo produto no config, e UI especial no ExtrasPage com fluxo de compra por variação e painel de estoque para admins.
+1. **RLS bloqueia abatimento**: A policy de UPDATE na `gravata_stock` só permite admins. Quando um revendedor compra, o `update({ quantidade: quantidade - 1 })` falha silenciosamente.
+2. **Painel de estoque**: Admins só podem adicionar estoque, não editar quantidade existente nem excluir variações.
 
-### 1. Nova tabela `gravata_stock` (migração SQL)
+### Alterações
+
+#### 1. Migração SQL — Permitir qualquer autenticado decrementar estoque
+
+Criar uma função `security definer` que decrementa o estoque de forma segura (qualquer usuário autenticado pode chamar):
 
 ```sql
-CREATE TABLE public.gravata_stock (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  cor_tira text NOT NULL,
-  tipo_metal text NOT NULL,
-  quantidade integer NOT NULL DEFAULT 0,
-  UNIQUE (cor_tira, tipo_metal)
-);
-ALTER TABLE public.gravata_stock ENABLE ROW LEVEL SECURITY;
--- Todos autenticados podem ver o estoque
-CREATE POLICY "Authenticated can view stock" ON public.gravata_stock FOR SELECT TO authenticated USING (true);
--- Apenas admins podem gerenciar
-CREATE POLICY "Admins can insert stock" ON public.gravata_stock FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Admins can update stock" ON public.gravata_stock FOR UPDATE TO authenticated USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Admins can delete stock" ON public.gravata_stock FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
+CREATE OR REPLACE FUNCTION public.decrement_stock(stock_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE gravata_stock
+  SET quantidade = quantidade - 1
+  WHERE id = stock_id AND quantidade > 0;
+END;
+$$;
 ```
 
-### 2. `src/lib/extrasConfig.ts` — Novo produto + constantes
+Isso evita dar permissão de UPDATE geral a todos — apenas a função controlada pode decrementar.
 
-- Adicionar produto `gravata_pronta_entrega` ao `EXTRA_PRODUCTS`:
-  ```ts
-  { id: 'gravata_pronta_entrega', nome: 'Gravata Pronta Entrega', descricao: 'Gravata pronta com controle de estoque', precoBase: 30, precoLabel: 'R$ 30,00' }
-  ```
-- Exportar constantes reutilizáveis:
-  ```ts
-  export const GRAVATA_COR_TIRA = ['Preto', 'Marrom', 'Off White', 'Laranja'];
-  export const GRAVATA_TIPO_METAL = ['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora'];
-  ```
-- Atualizar `EXTRA_PRODUCT_NAME_MAP` automaticamente (já é dinâmico)
+#### 2. `src/pages/ExtrasPage.tsx` — Usar RPC para decrementar
 
-### 3. `src/pages/ExtrasPage.tsx` — Fluxo de compra + painel de estoque
+Na linha 222, trocar:
+```ts
+await supabase.from('gravata_stock').update(...)
+```
+por:
+```ts
+await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
+```
 
-**Novos states:**
-- `stockItems`: array de `{ id, cor_tira, tipo_metal, quantidade }` carregado do Supabase
-- `selectedStockId`: variação selecionada para compra
-- `showStockManager`: boolean para abrir painel de estoque (admin)
-- `stockCorTira`, `stockTipoMetal`, `stockQtd`: campos do formulário de estoque
+Após o decremento, chamar `fetchStock()` para atualizar a lista local.
 
-**Card do produto:** Adicionar botão "Organizar estoque" visível apenas para admins, abaixo do botão "Comprar".
+#### 3. `src/pages/ExtrasPage.tsx` — Editar/Excluir no painel de estoque (admin)
 
-**Fluxo de compra (renderForm para `gravata_pronta_entrega`):**
-1. Campo "Número do pedido" (obrigatório) + campo "Cliente" (opcional)
-2. Vendedor (admin only) — igual aos outros extras
-3. Listar variações com estoque > 0: `Marrom + Touro (3 disponíveis)` — radio buttons
-4. Botão "Finalizar Pedido" — cria o pedido com preço fixo R$30 e reduz 1 do estoque via `supabase.from('gravata_stock').update({ quantidade: item.quantidade - 1 }).eq('id', selectedStockId)`
+No dialog "Organizar Estoque", para cada item na lista de estoque atual (linhas 603-608), adicionar:
+- **Botão editar** (ícone lápis): abre inline um Input para alterar a quantidade, com botão Salvar → `supabase.from('gravata_stock').update({ quantidade }).eq('id', item.id)`
+- **Botão excluir** (ícone lixeira): confirma e executa `supabase.from('gravata_stock').delete().eq('id', item.id)`
 
-**Painel "Organizar estoque" (Dialog separado, admin only):**
-- Listar estoque atual (todas as variações com quantidade)
-- Form: selecionar cor_tira + tipo_metal + quantidade → Salvar
-- Ao salvar: upsert — se a combinação já existe, somar quantidade; senão, inserir nova linha
-- Usar `supabase.rpc` ou fazer select + update/insert manualmente
+Ambos chamam `fetchStock()` após a operação.
 
-**calcPrice:** Adicionar `case 'gravata_pronta_entrega': return 30;`
+#### 4. Tipos TypeScript
 
-**PRODUCT_FIELDS:** Adicionar `gravata_pronta_entrega: ['corTira', 'tipoMetal']`
+Adicionar `decrement_stock` ao `types.ts` (será regenerado automaticamente pela migração).
 
-**handleSubmit para `gravata_pronta_entrega`:**
-- Validar que uma variação foi selecionada
-- Criar pedido normalmente via `addOrder`
-- Decrementar estoque: update quantidade - 1
-
-### 4. Arquivos alterados
+### Resumo de arquivos
 
 | Arquivo | Alteração |
 |---------|-----------|
-| Migração SQL | Tabela `gravata_stock` com RLS |
-| `src/lib/extrasConfig.ts` | Novo produto, constantes de variações |
-| `src/pages/ExtrasPage.tsx` | Fluxo de compra com estoque, painel admin |
+| Migração SQL | Função `decrement_stock` |
+| `src/pages/ExtrasPage.tsx` | RPC para decrementar, botões editar/excluir no painel admin |
 
