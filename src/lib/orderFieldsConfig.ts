@@ -283,6 +283,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
     );
     // Montaria só até 40
     if (t <= 40) allowed.push('Bota Montaria (40)');
+    allowed.push('Cano Inteiro');
   }
   // 33-40: bico fino feminino + capota bico fino
   if (t >= 33 && t <= 40) {
