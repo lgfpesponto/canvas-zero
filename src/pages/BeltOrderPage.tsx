@@ -116,7 +116,8 @@ const BeltOrderPage = () => {
   const bordadoPPreco = bordadoP ? BORDADO_P_PRECO : 0;
   const nomeBordadoPreco = nomeBordado ? NOME_BORDADO_CINTO_PRECO : 0;
   const carimboPreco = BELT_CARIMBO.find(c => c.label === carimbo)?.preco || 0;
-  const total = tamanhoPreco + bordadoPPreco + nomeBordadoPreco + carimboPreco;
+  const adicionalPreco = parseFloat(adicionalValor) || 0;
+  const total = tamanhoPreco + bordadoPPreco + nomeBordadoPreco + carimboPreco + adicionalPreco;
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
