@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      order_templates: {
+        Row: {
+          created_at: string
+          form_data: Json
+          id: string
+          nome: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          form_data?: Json
+          id?: string
+          nome: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          form_data?: Json
+          id?: string
+          nome?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           acessorios: string
