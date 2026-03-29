@@ -60,7 +60,7 @@ const ReportsPage = () => {
 
   const applyFilters = () => {
     setScanFilterId(null);
-    setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus, filterVendedor, filterProduto: new Set(filterProduto) });
+    setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) });
   };
 
   const toggleProdutoFilter = (val: string) => {
