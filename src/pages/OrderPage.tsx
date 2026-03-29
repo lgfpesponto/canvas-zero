@@ -86,12 +86,18 @@ const OrderPage = () => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const draftState = (location.state as { draft?: Draft })?.draft;
+  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string } | null;
+  const draftState = locState?.draft;
+  const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
   const [draftId, setDraftId] = useState(draftId_init);
-  const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : null);
-  // Restore draft form data
-  const df = draftState?.form || {};
+  const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
+  const [mode, setMode] = useState<'order' | 'template'>('order');
+  const [templateName, setTemplateName] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<{ id: string; nome: string; form_data: Record<string, string> }[]>([]);
+  // Restore draft or template form data
+  const df = templateInit || draftState?.form || {};
 
   /* form state */
   const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
