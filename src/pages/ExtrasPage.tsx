@@ -201,6 +201,11 @@ const ExtrasPage = () => {
           <Label>Nº do pedido *</Label>
           <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" />
         </div>
+        {/* Cliente — opcional */}
+        <div>
+          <Label>Cliente</Label>
+          <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
+        </div>
 
         {/* Product-specific fields */}
         {productId === 'tiras_laterais' && (
