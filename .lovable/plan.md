@@ -1,64 +1,47 @@
 
 
-## Estoque Gravata: Abater para todos + Editar/Excluir (Admin)
+## Reordenar por data + Filtros multi-select para Status e Vendedor
 
-### Problema atual
+### 1. Ordenação por data/hora (mais recentes primeiro)
 
-1. **RLS bloqueia abatimento**: A policy de UPDATE na `gravata_stock` só permite admins. Quando um revendedor compra, o `update({ quantidade: quantidade - 1 })` falha silenciosamente.
-2. **Painel de estoque**: Admins só podem adicionar estoque, não editar quantidade existente nem excluir variações.
+**Arquivo**: `src/pages/ReportsPage.tsx`
 
-### Alterações
+Alterar o `.sort()` no `filteredOrders` (linha 90-96) para ordenar por data + hora em vez de número do pedido:
 
-#### 1. Migração SQL — Permitir qualquer autenticado decrementar estoque
-
-Criar uma função `security definer` que decrementa o estoque de forma segura (qualquer usuário autenticado pode chamar):
-
-```sql
-CREATE OR REPLACE FUNCTION public.decrement_stock(stock_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  UPDATE gravata_stock
-  SET quantidade = quantidade - 1
-  WHERE id = stock_id AND quantidade > 0;
-END;
-$$;
-```
-
-Isso evita dar permissão de UPDATE geral a todos — apenas a função controlada pode decrementar.
-
-#### 2. `src/pages/ExtrasPage.tsx` — Usar RPC para decrementar
-
-Na linha 222, trocar:
 ```ts
-await supabase.from('gravata_stock').update(...)
+.sort((a, b) => {
+  if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
+  if (a.horaCriacao && b.horaCriacao) return b.horaCriacao.localeCompare(a.horaCriacao);
+  return 0;
+});
 ```
-por:
-```ts
-await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
-```
 
-Após o decremento, chamar `fetchStock()` para atualizar a lista local.
+### 2. Filtro "Progresso da Produção" multi-select
 
-#### 3. `src/pages/ExtrasPage.tsx` — Editar/Excluir no painel de estoque (admin)
+Converter `filterStatus` de `string` para `Set<string>` (mesmo padrão do filtro Produto):
 
-No dialog "Organizar Estoque", para cada item na lista de estoque atual (linhas 603-608), adicionar:
-- **Botão editar** (ícone lápis): abre inline um Input para alterar a quantidade, com botão Salvar → `supabase.from('gravata_stock').update({ quantidade }).eq('id', item.id)`
-- **Botão excluir** (ícone lixeira): confirma e executa `supabase.from('gravata_stock').delete().eq('id', item.id)`
+- **State**: `filterStatus` → `useState<Set<string>>(new Set())` (vazio = todos)
+- **appliedFilters**: `filterStatus` passa a ser `Set<string>`
+- **Filtro lógico** (linha 83): Se o set não está vazio, checar `appliedFilters.filterStatus.has(o.status)`
+- **UI** (linhas 766-772): Trocar o `<select>` por um `<Popover>` com checkboxes, igual ao filtro Produto. Botões "Todos" e "Nenhum" no topo
+- **Limpar filtros**: resetar para `new Set()`
 
-Ambos chamam `fetchStock()` após a operação.
+### 3. Filtro "Vendedor" multi-select (admin)
 
-#### 4. Tipos TypeScript
+Converter `filterVendedor` de `string` para `Set<string>`:
 
-Adicionar `decrement_stock` ao `types.ts` (será regenerado automaticamente pela migração).
+- **State**: `filterVendedor` → `useState<Set<string>>(new Set())` (vazio = todos)
+- **appliedFilters**: `filterVendedor` passa a ser `Set<string>`
+- **displayOrders** (linha 74-76): Se set não vazio, filtrar `allOrders` por `filterVendedor.has(o.vendedor)`
+- **UI** (linhas 773-780): Trocar o `<select>` por `<Popover>` com checkboxes, mesmo padrão
+- **Limpar filtros**: resetar para `new Set()`
 
-### Resumo de arquivos
+### Resumo
 
-| Arquivo | Alteração |
-|---------|-----------|
-| Migração SQL | Função `decrement_stock` |
-| `src/pages/ExtrasPage.tsx` | RPC para decrementar, botões editar/excluir no painel admin |
+| Alteração | Detalhe |
+|-----------|---------|
+| Ordenação | Data + hora desc (mais recente primeiro) |
+| filterStatus | `string` → `Set<string>` + Popover com checkboxes |
+| filterVendedor | `string` → `Set<string>` + Popover com checkboxes |
+| Arquivo | `src/pages/ReportsPage.tsx` apenas |
 
