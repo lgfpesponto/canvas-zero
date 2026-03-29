@@ -636,12 +636,12 @@ const ReportsPage = () => {
       const stub3Line1 = formaVal ? `${line1Parts} | forma: ${formaVal}` : line1Parts;
       const bicoText = (order.formatoBico || 'quadrado').toLowerCase().replace(/\bfino\b/gi, 'BF');
       const viraText = (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
-      const stub3Line2 = `${bicoText}${viraText} | pedido: ${orderNumClean}`;
-      doc.setFont('helvetica', 'normal');
+      const stub3Line2 = `${bicoText}${viraText}`;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(stub3Line1, stubX + stubW / 2, stubTop + 6, { align: 'center' });
       doc.setFontSize(8);
-      doc.text(stub3Line1, stubX + stubW / 2, stubTop + 5, { align: 'center' });
-      doc.setFontSize(7);
-      doc.text(stub3Line2, stubX + stubW / 2, stubTop + 10, { align: 'center' });
+      doc.text(stub3Line2, stubX + stubW / 2, stubTop + 12, { align: 'center' });
       if (bcUrl) {
         try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 13, stubW - 12, 10); } catch {}
       }
