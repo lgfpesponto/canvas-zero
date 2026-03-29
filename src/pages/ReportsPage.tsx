@@ -88,10 +88,8 @@ const ReportsPage = () => {
       }
       return true;
     }).sort((a, b) => {
-      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
-      if (numB !== numA) return numB - numA;
       if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
+      if (a.horaCriacao && b.horaCriacao) return b.horaCriacao.localeCompare(a.horaCriacao);
       return 0;
     });
   }, [displayOrders, appliedFilters]);
