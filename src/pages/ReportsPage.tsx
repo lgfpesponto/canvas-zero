@@ -887,7 +887,7 @@ const ReportsPage = () => {
           <div className="mb-6">
             <SpecializedReports
               reports={isAdmin
-                ? ['escalacao', 'forro', 'pesponto', 'bordados', 'expedicao', 'cobranca', 'extras_cintos']
+                ? ['escalacao', 'forro', 'palmilha', 'pesponto', 'bordados', 'expedicao', 'cobranca', 'extras_cintos']
                 : ['expedicao', 'cobranca']
               }
               showTitle={true}
