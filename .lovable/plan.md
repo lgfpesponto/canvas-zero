@@ -1,33 +1,32 @@
 
 
-## Ordenação decrescente nos PDFs com pedidos
+## Botão "Conferido" nos Pedidos em Alerta
 
-### Alteração
+### Abordagem
 
-Aplicar `.sort()` por número do pedido (decrescente) + data de criação (decrescente) em todos os PDFs que listam pedidos individualmente.
+Usar `localStorage` para persistir os IDs dos pedidos conferidos. Isso é simples, não requer migração de banco, e funciona por dispositivo/admin.
 
-**Função de ordenação** (reutilizada em todos os locais):
-```ts
-(a, b) => {
-  const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
-  const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
-  if (numB !== numA) return numB - numA;
-  return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime();
-}
-```
+### Alterações
 
-### Locais afetados
+**Arquivo**: `src/pages/Index.tsx`
 
-**`src/pages/ReportsPage.tsx`**:
-1. **Relatório de pedidos** (linha 177): `ordersToExport` → aplicar `.slice().sort(...)` antes do `forEach`
-2. **Fichas de produção** (linha 204): `ordersToExport` → aplicar `.slice().sort(...)` antes da iteração
+#### 1. State para pedidos conferidos
+- Adicionar state `checkedAlertIds` (Set de IDs) inicializado a partir de `localStorage` key `'alert_checked_orders'`
+- Função `handleChecked(orderId)`: adiciona ID ao set, persiste no localStorage, atualiza state
 
-**`src/components/SpecializedReports.tsx`**:
-3. **Pesponto** (linha 562): `filtered` → `.sort(...)` antes do `for`
-4. **Metais** (linha 643): `filtered` → `.sort(...)`
-5. **Bordados** (linha 711): `filtered` → `.sort(...)`
-6. **Expedição** (linha 749-752): `filtered` → `.sort(...)`
-7. **Cobrança**: `filtered` → `.sort(...)`
+#### 2. Filtrar pedidos conferidos na lista de alerta (linhas 204-208)
+- Após o filtro existente de `alertOrders`, adicionar `.filter(o => !checkedAlertIds.has(o.id))`
 
-Os relatórios agregados (Escalação, Forro, Palmilha, Forma) agrupam dados e não listam pedidos individuais, portanto não precisam desta ordenação.
+#### 3. Botão "Conferido" em cada pedido (linhas 218-228)
+- Adicionar botão "Conferido" (com ícone Check) ao lado direito de cada item
+- `onClick` com `e.preventDefault()` + `e.stopPropagation()` (para não navegar pelo Link)
+- Chamar `handleChecked(o.id)`
+
+#### 4. Visibilidade
+- O botão já está dentro do bloco `user?.nomeUsuario?.toLowerCase() === '7estrivos'` que é só para Juliana/admin. Manter assim — apenas admins veem a seção de alerta.
+
+### Detalhes técnicos
+- localStorage key: `'alert_checked_orders'` — array JSON de IDs
+- Quando um pedido sai do estado de alerta naturalmente (status muda para Expedição/Entregue/etc), ele já não apareceria — o ID conferido no localStorage fica inerte
+- Não requer migração SQL
 
