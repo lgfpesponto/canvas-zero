@@ -295,10 +295,22 @@ const EditOrderPage = () => {
 
   const fotos = fotoUrl.trim() ? [fotoUrl.trim()] : [];
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateOrder(order.id, {
+
+    // Check for duplicate order number if changed
+    if (numeroPedido !== order.numero) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: existing } = await supabase.from('orders').select('id').eq('numero', numeroPedido).neq('id', order.id).maybeSingle();
+      if (existing) {
+        toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
+        return;
+      }
+    }
+
+    await updateOrder(order.id, {
       numero: numeroPedido, tamanho, genero, modelo, sobMedida, sobMedidaDesc,
+      ...(isAdmin ? { vendedor } : {}),
       solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
       couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
       corCouroGaspea, corCouroCano, corCouroTaloneira,
