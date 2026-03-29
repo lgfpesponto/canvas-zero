@@ -234,6 +234,8 @@ const BeltOrderPage = () => {
       bordadoP: String(bordadoP), bordadoPDesc, bordadoPCor,
       nomeBordado: String(nomeBordado), nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte,
       carimbo, carimboDesc, carimboOnde,
+      fivela, fivelaOutroDesc,
+      adicionalValor, adicionalDesc,
       observacao,
     };
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
