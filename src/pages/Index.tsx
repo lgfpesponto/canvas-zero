@@ -19,6 +19,21 @@ const Index = () => {
   const [receberVendedor, setReceberVendedor] = useState<string>('todos');
   const [chartProductFilter, setChartProductFilter] = useState<string>('todos');
   const [chartVendedorFilter, setChartVendedorFilter] = useState<string>('todos');
+  const [checkedAlertIds, setCheckedAlertIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('alert_checked_orders');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const handleChecked = (orderId: string) => {
+    setCheckedAlertIds(prev => {
+      const next = new Set(prev);
+      next.add(orderId);
+      localStorage.setItem('alert_checked_orders', JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const sourceOrders = isAdmin ? allOrders : orders;
 
