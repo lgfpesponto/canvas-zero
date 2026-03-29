@@ -419,8 +419,10 @@ const OrderPage = () => {
       [tipoCouroTaloneira, 'Tipo do Couro da Taloneira'],
       [corCouroTaloneira, 'Cor do Couro da Taloneira'],
       [corLinha, 'Cor da Linha'],
-      [corBorrachinha, 'Cor da Borrachinha'],
-      [corVivo, 'Cor do Vivo'],
+      ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
+        [corBorrachinha, 'Cor da Borrachinha'] as [string, string],
+        [corVivo, 'Cor do Vivo'] as [string, string],
+      ] : []),
       [solado, 'Tipo do Solado'],
       [formatoBico, 'Formato do Bico'],
       ...(getCorSolaOptions(modelo, solado, formatoBico) !== null ? [[corSola, 'Cor da Sola'] as [string, string]] : []),
