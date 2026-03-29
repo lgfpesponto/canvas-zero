@@ -290,7 +290,7 @@ const OrderPage = () => {
     window.location.reload();
   };
 
-
+  if (!isLoggedIn) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
