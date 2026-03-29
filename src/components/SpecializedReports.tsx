@@ -137,7 +137,7 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   const pageW = 182; // area útil entre margens
   const rowH = 7;
   const labelW = 30;
-  const cellW = 14;
+  const cellW = 11;
   const numCols = block.sizes.length;
   const tableW = labelW + numCols * cellW;
 
