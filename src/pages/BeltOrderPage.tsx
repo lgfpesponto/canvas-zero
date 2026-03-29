@@ -128,6 +128,7 @@ const BeltOrderPage = () => {
       [tamanho, 'Tamanho'],
       [tipoCouro, 'Tipo de Couro'],
       [corCouro, 'Cor do Couro'],
+      [fivela, 'Fivela'],
     ];
     const missing = required.filter(([val]) => !val);
     if (missing.length > 0) {
