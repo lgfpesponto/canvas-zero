@@ -374,6 +374,7 @@ const OrderPage = () => {
   const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * CRUZ_METAL_PRECO : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * BRIDAO_METAL_PRECO : 0;
+  const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * CAVALO_METAL_PRECO : 0;
   const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
   const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
