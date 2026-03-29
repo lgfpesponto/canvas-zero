@@ -57,6 +57,14 @@ const BeltOrderPage = () => {
   const [carimboDesc, setCarimboDesc] = useState('');
   const [carimboOnde, setCarimboOnde] = useState('');
 
+  // Fivela
+  const [fivela, setFivela] = useState('');
+  const [fivelaOutroDesc, setFivelaOutroDesc] = useState('');
+
+  // Adicional
+  const [adicionalValor, setAdicionalValor] = useState('');
+  const [adicionalDesc, setAdicionalDesc] = useState('');
+
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [showMirror, setShowMirror] = useState(false);
