@@ -181,7 +181,7 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   doc.setFillColor(245, 245, 245);
   doc.rect(mx, y, labelW, rowH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.text('QUANTIDADE', mx + 2, y + 5);
   block.sizes.forEach((s, i) => {
     const cx = mx + labelW + i * cellW;
