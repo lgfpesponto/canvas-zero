@@ -96,6 +96,7 @@ const OrderPage = () => {
   const [templateName, setTemplateName] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<{ id: string; nome: string; form_data: Record<string, string> }[]>([]);
+  const [templateSearch, setTemplateSearch] = useState('');
   // Restore draft or template form data
   const df = templateInit || draftState?.form || {};
 
