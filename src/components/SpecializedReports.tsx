@@ -349,100 +349,133 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     });
   };
 
-  // ── Escalação: tabular format ──
+  // ── Escalação: compact block layout ──
   const generateEscalacaoPDF = () => {
-    const filtered = sourceOrders.filter(o => o.status.toLowerCase() === 'pespontando' && !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-');
-    const groups: Record<string, { tamanho: string; solado: string; formatoBico: string; corSola: string; quantidade: number }> = {};
+    const filtered = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-'
+    );
+    // Group by solado+formatoBico+corSola+corVira
+    const groups: Record<string, { solado: string; formatoBico: string; corSola: string; corVira: string; sizes: Record<string, number> }> = {};
     filtered.forEach(o => {
-      const key = `${o.tamanho}|${o.solado}|${o.formatoBico}|${o.corSola || ''}`;
-      if (!groups[key]) groups[key] = { tamanho: o.tamanho, solado: o.solado, formatoBico: o.formatoBico, corSola: o.corSola || '', quantidade: 0 };
-      groups[key].quantidade += o.quantidade;
+      const key = `${o.solado}|${o.formatoBico}|${o.corSola || ''}|${o.corVira || ''}`;
+      if (!groups[key]) groups[key] = { solado: o.solado, formatoBico: o.formatoBico, corSola: o.corSola || '', corVira: o.corVira || '', sizes: {} };
+      groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
     });
-    const rows = Object.values(groups).sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
+    const blocks: BlockData[] = Object.values(groups).map(g => ({
+      badgeLabel: 'SOLA',
+      description: `${g.solado} bico ${g.formatoBico} cor ${g.corSola}${g.corVira && !['Bege', 'Neutra'].includes(g.corVira) ? ` vira ${g.corVira}` : ''}`,
+      sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
+    })).sort((a, b) => a.description.localeCompare(b.description));
+
+    const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
+    const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
 
     const doc = new jsPDF();
     const mx = 14;
-    const cw = 182;
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Escalação — 7ESTRIVOS', mx, 20);
+    doc.text(`ESCALAÇÃO — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
-    doc.text(`Filtro: Pespontando | Total de pares: ${rows.reduce((s, r) => s + r.quantidade, 0)}`, mx, 32);
+    doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
 
-    const cols = [30, 55, 45, 35, 17];
-    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3]];
-
-    let y = drawTableHeader(doc, 38, mx, cw, [
-      { label: 'TAMANHO', x: cx[0] + 2 },
-      { label: 'TIPO DE SOLA', x: cx[1] + 2 },
-      { label: 'FORMATO BICO', x: cx[2] + 2 },
-      { label: 'COR DA SOLA', x: cx[3] + 2 },
-      { label: 'QTD', x: cx[4] + 2 },
-    ]);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    const rowH = 7;
-    rows.forEach(r => {
-      if (y + rowH > 280) { doc.addPage(); y = 20; }
-      drawTableRow(doc, y, mx, cw, cols, rowH);
-      doc.text(r.tamanho, cx[0] + 2, y + 5);
-      doc.text(r.solado, cx[1] + 2, y + 5);
-      doc.text(r.formatoBico, cx[2] + 2, y + 5);
-      doc.text(r.corSola, cx[3] + 2, y + 5);
-      doc.text(String(r.quantidade), cx[4] + 2, y + 5);
-      y += rowH;
+    let y = 32;
+    blocks.forEach(block => {
+      const bh = estimateBlockHeight(block);
+      if (y + bh > 275) { doc.addPage(); y = 18; }
+      y = drawBlockLayout(doc, y, mx, block);
     });
 
-    doc.save('relatorio-escalacao.pdf');
+    const dateFile = dataBR.replace(/\//g, '-');
+    doc.save(`Escalação - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
-  // ── Forro: tabular format ──
+  // ── Forro: compact block layout ──
   const generateForroPDF = () => {
-    const filtered = sourceOrders.filter(o => (filterProgresso === 'todos' || o.status === filterProgresso) && !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-');
-    const groups: Record<string, { modelo: string; tamanho: string; quantidade: number }> = {};
+    const filtered = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
+    );
+    const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
     filtered.forEach(o => {
-      const key = `${o.modelo}|${o.tamanho}`;
-      if (!groups[key]) groups[key] = { modelo: o.modelo, tamanho: o.tamanho, quantidade: 0 };
-      groups[key].quantidade += o.quantidade;
+      const forma = getForma(o.modelo, o.formatoBico);
+      const key = `${o.modelo}|${forma}`;
+      if (!groups[key]) groups[key] = { modelo: o.modelo, forma, sizes: {} };
+      groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
     });
-    const rows = Object.values(groups).sort((a, b) => a.modelo.localeCompare(b.modelo) || Number(a.tamanho) - Number(b.tamanho));
+    const blocks: BlockData[] = Object.values(groups).map(g => ({
+      badgeLabel: 'MODELO',
+      description: `${g.modelo} — Forma ${g.forma || '—'}`,
+      sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
+    })).sort((a, b) => a.description.localeCompare(b.description));
+
+    const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
+    const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
 
     const doc = new jsPDF();
     const mx = 14;
-    const cw = 182;
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Forro — 7ESTRIVOS', mx, 20);
+    doc.text(`FORRO — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
-    doc.text(`Filtro progresso: ${filterProgresso === 'todos' ? 'Todos' : filterProgresso}`, mx, 32);
+    doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
 
-    const cols = [100, 50, 32];
-    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1]];
-
-    let y = drawTableHeader(doc, 38, mx, cw, [
-      { label: 'MODELO', x: cx[0] + 2 },
-      { label: 'TAMANHO', x: cx[1] + 2 },
-      { label: 'QTD', x: cx[2] + 2 },
-    ]);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    const rowH = 7;
-    rows.forEach(r => {
-      if (y + rowH > 280) { doc.addPage(); y = 20; }
-      drawTableRow(doc, y, mx, cw, cols, rowH);
-      doc.text(r.modelo, cx[0] + 2, y + 5);
-      doc.text(r.tamanho, cx[1] + 2, y + 5);
-      doc.text(String(r.quantidade), cx[2] + 2, y + 5);
-      y += rowH;
+    let y = 32;
+    blocks.forEach(block => {
+      const bh = estimateBlockHeight(block);
+      if (y + bh > 275) { doc.addPage(); y = 18; }
+      y = drawBlockLayout(doc, y, mx, block);
     });
 
-    doc.save('relatorio-forro.pdf');
+    const dateFile = dataBR.replace(/\//g, '-');
+    doc.save(`Forro - ${progressoLabel} - ${dateFile}.pdf`);
+  };
+
+  // ── Palmilha: same layout as Forro ──
+  const generatePalmilhaPDF = () => {
+    const filtered = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
+    );
+    const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
+    filtered.forEach(o => {
+      const forma = getForma(o.modelo, o.formatoBico);
+      const key = `${o.modelo}|${forma}`;
+      if (!groups[key]) groups[key] = { modelo: o.modelo, forma, sizes: {} };
+      groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
+    });
+    const blocks: BlockData[] = Object.values(groups).map(g => ({
+      badgeLabel: 'MODELO',
+      description: `${g.modelo} — Forma ${g.forma || '—'}`,
+      sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
+    })).sort((a, b) => a.description.localeCompare(b.description));
+
+    const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
+    const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+
+    const doc = new jsPDF();
+    const mx = 14;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`PALMILHA — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
+
+    let y = 32;
+    blocks.forEach(block => {
+      const bh = estimateBlockHeight(block);
+      if (y + bh > 275) { doc.addPage(); y = 18; }
+      y = drawBlockLayout(doc, y, mx, block);
+    });
+
+    const dateFile = dataBR.replace(/\//g, '-');
+    doc.save(`Palmilha - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
   // ── Metais (formerly Pesponto): tabular format with QR ──
