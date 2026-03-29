@@ -159,7 +159,7 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   doc.setFillColor(245, 245, 245);
   doc.rect(mx, y, labelW, rowH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(0, 0, 0);
   doc.text('TAMANHO', mx + 2, y + 5);
   block.sizes.forEach((s, i) => {
