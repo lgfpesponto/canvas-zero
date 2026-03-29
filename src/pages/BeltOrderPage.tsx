@@ -203,16 +203,20 @@ const BeltOrderPage = () => {
 
   const handleSaveDraft = () => {
     if (!user) return;
+    if (!numeroPedido.trim() && !cliente.trim()) {
+      toast.error('Preencha o Número do Pedido ou o Cliente para salvar o rascunho.');
+      return;
+    }
     const id = `draft-belt-${Date.now()}`;
     const form: Record<string, string> = {
-      vendedor, tamanho, tipoCouro, corCouro,
+      vendedor, tamanho, tipoCouro, corCouro, cliente,
       bordadoP: String(bordadoP), bordadoPDesc, bordadoPCor,
       nomeBordado: String(nomeBordado), nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte,
       carimbo, carimboDesc, carimboOnde,
       observacao,
     };
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida: false, quantidade: 1, numeroPedido, fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [] });
+    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida: false, quantidade: 1, numeroPedido, cliente, fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [] });
     toast.success('Rascunho salvo!');
   };
 
