@@ -157,6 +157,7 @@ const BeltOrderPage = () => {
 
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
+        cliente: cliente.trim(),
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
         tamanho: '-',
         modelo: '-',
