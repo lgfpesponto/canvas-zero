@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      gravata_stock: {
+        Row: {
+          cor_tira: string
+          id: string
+          quantidade: number
+          tipo_metal: string
+        }
+        Insert: {
+          cor_tira: string
+          id?: string
+          quantidade?: number
+          tipo_metal: string
+        }
+        Update: {
+          cor_tira?: string
+          id?: string
+          quantidade?: number
+          tipo_metal?: string
+        }
+        Relationships: []
+      }
       order_templates: {
         Row: {
           created_at: string

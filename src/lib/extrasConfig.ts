@@ -22,6 +22,7 @@ export const EXTRA_PRODUCTS: ExtraProduct[] = [
   { id: 'bainha_cartao', nome: 'Bainha de Cartão', descricao: 'Bainha de cartão em couro', precoBase: 15, precoLabel: 'R$ 15,00' },
   { id: 'regata', nome: 'Regata', descricao: 'Regata bordada personalizada', precoBase: 50, precoLabel: 'R$ 50,00' },
   { id: 'bota_pronta_entrega', nome: 'Bota Pronta Entrega', descricao: 'Bota pronta para entrega imediata', precoBase: null, precoLabel: 'Valor manual' },
+  { id: 'gravata_pronta_entrega', nome: 'Gravata Pronta Entrega', descricao: 'Gravata pronta com controle de estoque', precoBase: 30, precoLabel: 'R$ 30,00' },
 ];
 
 /** Map tipoExtra id → product name */
@@ -85,6 +86,9 @@ export const FIVELA_OPTIONS = [
   'Prata com Strass', 'Preta com Strass', 'Prata Touro', 'Prata Flor',
   'Infantil', 'Quadrada', 'Outro',
 ];
+
+export const GRAVATA_COR_TIRA = ['Preto', 'Marrom', 'Off White', 'Laranja'];
+export const GRAVATA_TIPO_METAL = ['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora'];
 
 // ==================== BELT (CINTO) CONFIG ====================
 export const BELT_SIZES: { label: string; preco: number }[] = [

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,10 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import SearchableSelect from '@/components/SearchableSelect';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
-import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
-import { ShoppingCart, Package } from 'lucide-react';
+import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL } from '@/lib/extrasConfig';
+import { ShoppingCart, Package, Settings } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+interface StockItem {
+  id: string;
+  cor_tira: string;
+  tipo_metal: string;
+  quantidade: number;
+}
 
 const emptyForm = (): Record<string, any> => ({
   numeroPedidoBota: '',
@@ -47,6 +56,21 @@ const ExtrasPage = () => {
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
 
+  // Gravata stock
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [selectedStockId, setSelectedStockId] = useState('');
+  const [showStockManager, setShowStockManager] = useState(false);
+  const [stockCorTira, setStockCorTira] = useState('');
+  const [stockTipoMetal, setStockTipoMetal] = useState('');
+  const [stockQtd, setStockQtd] = useState('');
+
+  const fetchStock = useCallback(async () => {
+    const { data } = await supabase.from('gravata_stock').select('*');
+    if (data) setStockItems(data as StockItem[]);
+  }, []);
+
+  useEffect(() => { fetchStock(); }, [fetchStock]);
+
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
   const openModal = (productId: string) => {
@@ -56,7 +80,9 @@ const ExtrasPage = () => {
       return;
     }
     setForm(emptyForm());
+    setSelectedStockId('');
     setOpenProduct(productId);
+    if (productId === 'gravata_pronta_entrega') fetchStock();
   };
 
   const calcPrice = (productId: string): number => {
@@ -79,6 +105,7 @@ const ExtrasPage = () => {
       case 'revitalizador': return 10 * (parseInt(form.quantidade) || 1);
       case 'kit_revitalizador': return 26 * (parseInt(form.quantidade) || 1);
       case 'gravata_country': return 30;
+      case 'gravata_pronta_entrega': return 30;
       case 'adicionar_metais': {
         let total = 0;
         const sel = form.metaisSelecionados as string[];
@@ -110,6 +137,18 @@ const ExtrasPage = () => {
         }
       }
 
+      if (productId === 'gravata_pronta_entrega') {
+        if (!selectedStockId) {
+          toast({ title: 'Selecione uma variação disponível', variant: 'destructive' });
+          return;
+        }
+        const stockItem = stockItems.find(s => s.id === selectedStockId);
+        if (!stockItem || stockItem.quantidade <= 0) {
+          toast({ title: 'Variação sem estoque disponível', variant: 'destructive' });
+          return;
+        }
+      }
+
       const price = calcPrice(productId);
 
       const PRODUCT_FIELDS: Record<string, string[]> = {
@@ -121,16 +160,24 @@ const ExtrasPage = () => {
         revitalizador: ['tipoRevitalizador', 'quantidade'],
         kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
         gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
+        gravata_pronta_entrega: ['corTira', 'tipoMetal'],
         adicionar_metais: ['metaisSelecionados', 'qtdStrass'],
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
         bainha_cartao: ['tipoCouro', 'corCouro'],
         regata: ['corRegata', 'descBordadoRegata'],
         bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
       };
-      const relevantKeys = PRODUCT_FIELDS[productId] || [];
-      const detalhes: Record<string, any> = {};
-      for (const key of relevantKeys) {
-        if (form[key] !== undefined && form[key] !== '') detalhes[key] = form[key];
+
+      let detalhes: Record<string, any> = {};
+
+      if (productId === 'gravata_pronta_entrega') {
+        const stockItem = stockItems.find(s => s.id === selectedStockId)!;
+        detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
+      } else {
+        const relevantKeys = PRODUCT_FIELDS[productId] || [];
+        for (const key of relevantKeys) {
+          if (form[key] !== undefined && form[key] !== '') detalhes[key] = form[key];
+        }
       }
 
       const success = await addOrder({
@@ -169,6 +216,11 @@ const ExtrasPage = () => {
       });
 
       if (success) {
+        // Decrement stock for gravata_pronta_entrega
+        if (productId === 'gravata_pronta_entrega') {
+          const stockItem = stockItems.find(s => s.id === selectedStockId)!;
+          await supabase.from('gravata_stock').update({ quantidade: stockItem.quantidade - 1 }).eq('id', selectedStockId);
+        }
         setOpenProduct(null);
         toast({ title: `Pedido de ${product.nome} criado com sucesso!` });
         navigate('/relatorios');
@@ -179,6 +231,26 @@ const ExtrasPage = () => {
       console.error('handleSubmit error:', err);
       toast({ title: 'Erro inesperado ao salvar o pedido.', variant: 'destructive' });
     }
+  };
+
+  const handleSaveStock = async () => {
+    if (!stockCorTira || !stockTipoMetal || !stockQtd || parseInt(stockQtd) <= 0) {
+      toast({ title: 'Preencha todos os campos do estoque', variant: 'destructive' });
+      return;
+    }
+    const qty = parseInt(stockQtd);
+    // Check if combination exists
+    const existing = stockItems.find(s => s.cor_tira === stockCorTira && s.tipo_metal === stockTipoMetal);
+    if (existing) {
+      await supabase.from('gravata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
+    } else {
+      await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty });
+    }
+    setStockCorTira('');
+    setStockTipoMetal('');
+    setStockQtd('');
+    await fetchStock();
+    toast({ title: 'Estoque atualizado com sucesso!' });
   };
 
   const renderForm = (productId: string) => {
@@ -334,11 +406,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Cor da tira *</Label>
-              <SearchableSelect options={['Preto', 'Marrom', 'Off White', 'Laranja']} value={form.corTira} onValueChange={v => set('corTira', v)} placeholder="Selecione" />
+              <SearchableSelect options={GRAVATA_COR_TIRA} value={form.corTira} onValueChange={v => set('corTira', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Tipo de metal *</Label>
-              <SearchableSelect options={['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora']} value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }} placeholder="Selecione" />
+              <SearchableSelect options={GRAVATA_TIPO_METAL} value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }} placeholder="Selecione" />
             </div>
             {form.tipoMetal?.startsWith('Bridão') && (
               <div>
@@ -346,6 +418,32 @@ const ExtrasPage = () => {
                 <SearchableSelect options={['Cristal', 'Rosa', 'Azul', 'Preto']} value={form.corBridao} onValueChange={v => set('corBridao', v)} placeholder="Selecione" />
               </div>
             )}
+          </>
+        )}
+
+        {productId === 'gravata_pronta_entrega' && (
+          <>
+            {(() => {
+              const available = stockItems.filter(s => s.quantidade > 0);
+              if (available.length === 0) {
+                return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
+              }
+              return (
+                <div>
+                  <Label>Selecione a variação *</Label>
+                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="mt-2 space-y-2">
+                    {available.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
+                        <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
+                        <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
+                          {item.cor_tira} + {item.tipo_metal} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              );
+            })()}
           </>
         )}
 
@@ -460,10 +558,18 @@ const ExtrasPage = () => {
                 </div>
                 <p className="text-sm text-muted-foreground mb-2 flex-1">{product.descricao}</p>
                 <p className="text-sm font-bold text-primary mb-4">{product.precoLabel}</p>
-                <Button onClick={() => openModal(product.id)} className="w-full">
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Comprar
-                </Button>
+                <div className="space-y-2">
+                  <Button onClick={() => openModal(product.id)} className="w-full">
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Comprar
+                  </Button>
+                  {product.id === 'gravata_pronta_entrega' && isAdmin && (
+                    <Button variant="outline" className="w-full" onClick={() => { fetchStock(); setShowStockManager(true); }}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Organizar estoque
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -481,6 +587,54 @@ const ExtrasPage = () => {
           </DialogContent>
         </Dialog>
       ))}
+
+      {/* Stock Manager Dialog */}
+      <Dialog open={showStockManager} onOpenChange={setShowStockManager}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Organizar Estoque — Gravata Pronta Entrega</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {/* Current stock */}
+            {stockItems.length > 0 && (
+              <div>
+                <Label className="text-base font-semibold">Estoque atual</Label>
+                <div className="mt-2 space-y-1">
+                  {stockItems.map(item => (
+                    <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm">
+                      <span>{item.cor_tira} + {item.tipo_metal}</span>
+                      <span className="font-bold">{item.quantidade} un</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {stockItems.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma variação cadastrada.</p>
+            )}
+
+            {/* Add stock form */}
+            <div className="pt-4 border-t border-border space-y-3">
+              <Label className="text-base font-semibold">Adicionar ao estoque</Label>
+              <div>
+                <Label>Cor da tira *</Label>
+                <SearchableSelect options={GRAVATA_COR_TIRA} value={stockCorTira} onValueChange={setStockCorTira} placeholder="Selecione" />
+              </div>
+              <div>
+                <Label>Tipo de metal *</Label>
+                <SearchableSelect options={GRAVATA_TIPO_METAL} value={stockTipoMetal} onValueChange={setStockTipoMetal} placeholder="Selecione" />
+              </div>
+              <div>
+                <Label>Quantidade *</Label>
+                <Input type="number" min="1" value={stockQtd} onChange={e => setStockQtd(e.target.value)} placeholder="Ex: 5" />
+              </div>
+              <Button className="w-full" onClick={handleSaveStock}>
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
