@@ -87,6 +87,9 @@ export const FIVELA_OPTIONS = [
   'Infantil', 'Quadrada', 'Outro',
 ];
 
+export const GRAVATA_COR_TIRA = ['Preto', 'Marrom', 'Off White', 'Laranja'];
+export const GRAVATA_TIPO_METAL = ['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora'];
+
 // ==================== BELT (CINTO) CONFIG ====================
 export const BELT_SIZES: { label: string; preco: number }[] = [
   { label: '1,10 cm', preco: 100 },
