@@ -175,6 +175,8 @@ const OrderPage = () => {
   const [cruzMetalQtd, setCruzMetalQtd] = useState(Number(df.cruzMetalQtd) || 0);
   const [bridaoMetal, setBridaoMetal] = useState(df.bridaoMetal === 'true');
   const [bridaoMetalQtd, setBridaoMetalQtd] = useState(Number(df.bridaoMetalQtd) || 0);
+  const [cavaloMetal, setCavaloMetal] = useState(df.cavaloMetal === 'true');
+  const [cavaloMetalQtd, setCavaloMetalQtd] = useState(Number(df.cavaloMetalQtd) || 0);
 
   // extras (tiras + tricê)
   const [trice, setTrice] = useState(df.trice === 'true');
