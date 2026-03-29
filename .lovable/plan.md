@@ -1,71 +1,62 @@
 
 
-## Controle de criação de usuários e vendedor "Estoque"
+## Sistema de Modelos para Ficha de Produção de Bota
 
 ### Resumo
+Criar uma tabela `order_templates` no Supabase para armazenar modelos reutilizáveis de fichas de produção. Cada usuário só vê seus próprios modelos. Adicionar botões "Criar Modelo" e "Modelos" na página da ficha, e uma página/dialog para listar e usar modelos salvos.
 
-Bloquear registro publico, remover paginas de cadastro/recuperar senha, adicionar criacao de usuarios pela admin na pagina Usuarios, e adicionar "Estoque" como vendedor especial.
+### Alterações
 
-### Alteracoes
+#### 1. Nova tabela `order_templates` (migração SQL)
+```sql
+CREATE TABLE public.order_templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  nome text NOT NULL,
+  form_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.order_templates ENABLE ROW LEVEL SECURITY;
 
-#### 1. Remover rotas e links publicos de cadastro/recuperar senha
+CREATE POLICY "Users can view own templates" ON public.order_templates
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own templates" ON public.order_templates
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own templates" ON public.order_templates
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own templates" ON public.order_templates
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+```
 
-**`src/App.tsx`**:
-- Remover rotas `/cadastro` e `/recuperar-senha`
-- Remover imports de `RegisterPage` e `RecoverPasswordPage`
+O campo `form_data` armazena todos os campos da ficha (modelo, couros, bordados, etc.) como JSON — mesmo formato usado nos rascunhos (`Draft.form`).
 
-**`src/pages/LoginPage.tsx`**:
-- Remover link "Esqueci minha senha" e "Criar conta"
+#### 2. Modificar `src/pages/OrderPage.tsx`
 
-**`src/contexts/AuthContext.tsx`**:
-- Manter a funcao `register` (sera usada internamente pela admin) mas remover `recoverPassword` do contexto publico
+**Título + botões** (linha 535):
+- Trocar o `<h1>` simples por um flex container com título + botões "Criar Modelo" e "Modelos"
 
-#### 2. Criar edge function `create-user` para admin criar usuarios
+**Estado `mode`**:
+- Novo state: `mode: 'order' | 'template'` (default `'order'`)
+- Novo state: `templateName: string`
+- Quando `mode === 'template'`:
+  - Esconder campos: Vendedor, Número do Pedido, Tamanho, Gênero (cliente)
+  - Mostrar campo "Nome do Modelo" no topo do form
+  - Trocar botões do rodapé por único botão "CRIAR MODELO"
+  - Ao salvar: inserir na tabela `order_templates` com `form_data` = todos os campos preenchidos
 
-**`supabase/functions/create-user/index.ts`**:
-- Verificar que o caller e admin (mesmo padrao do `delete-user`)
-- Receber: `nomeCompleto`, `nomeUsuario`, `email`, `cpfCnpj`, `senha`
-- Usar `supabase.auth.admin.createUser()` com service role (mesmo padrao do seed-users)
-- Email gerado: `${nomeUsuario}@7estrivos.app`
-- Retornar o user criado
+**Carregar modelo** (via `location.state.templateData`):
+- Quando navegar de "Modelos" com `templateData`, preencher todos os states do form a partir dele (mesmo padrão do draft)
+- Campos de vendedor/número/tamanho ficam vazios para preenchimento manual
 
-#### 3. Criar edge function `update-user-password` para admin alterar senha
+**Dialog "Modelos"**:
+- Botão "Modelos" abre um Dialog listando templates do usuário (query `order_templates` WHERE `user_id = auth.uid()`)
+- Cada item mostra nome + botão "Preencher" + botão "Excluir"
+- "Preencher" navega para `/pedido` com `state: { templateData: form_data }` e `productChoice: 'bota'`
 
-**`supabase/functions/update-user-password/index.ts`**:
-- Verificar admin
-- Receber `userId` e `newPassword`
-- Usar `supabase.auth.admin.updateUserById()` com service role
+#### 3. Detalhes técnicos
 
-#### 4. Expandir `UsersManagementPage.tsx`
-
-Adicionar ao topo um botao "Criar Usuário" que abre um Dialog com campos:
-- Nome Completo, Nome de Usuario (login), Email, CPF/CNPJ, Senha
-- Chamar edge function `create-user`
-
-No dialog de editar, adicionar:
-- Campo "Nome de Usuario" (editavel, atualiza `nome_usuario` no profiles)
-- Campo "Nova Senha" (opcional — se preenchido, chama edge function `update-user-password`)
-
-#### 5. Vendedor "Estoque" no formulario de pedido
-
-**`src/pages/OrderPage.tsx`** (e `BeltOrderPage.tsx`, `ExtrasPage.tsx` se tiverem vendedor):
-- Quando admin, adicionar opcao "Estoque" na lista de vendedores (alem dos perfis existentes)
-- Quando "Estoque" e selecionado, o `user_id` do pedido sera o do proprio admin (Juliana)
-- O campo `vendedor` no pedido tera valor `"Estoque"`
-
-**`src/contexts/AuthContext.tsx`** (`addOrder`):
-- Quando `vendedor === 'Estoque'`, manter `targetUserId = user.id` (admin) em vez de buscar perfil
-
-**Visibilidade**: Ja funciona corretamente porque revendedores so veem seus proprios pedidos (RLS `user_id = auth.uid()`), e pedidos "Estoque" terao `user_id` do admin.
-
-#### 6. Nao mexer nos usuarios existentes
-
-Nenhuma migracao de dados. Todos os usuarios, senhas e perfis permanecem iguais.
-
-### Detalhes tecnicos
-
-- Edge functions usam `SUPABASE_SERVICE_ROLE_KEY` (ja configurado) para operacoes admin
-- O padrao de email `${username}@7estrivos.app` e mantido
-- A funcao `register` do AuthContext pode ser removida do contexto publico ja que a criacao sera via edge function
-- Nao e necessaria nenhuma migracao de banco de dados
+- Reutilizar o mesmo `Record<string, string>` do `handleSaveDraft` para montar o `form_data` do template
+- Para carregar template: mesma lógica de restauração do draft (`df.campo || ''`)
+- A RLS garante que cada usuário só vê seus próprios modelos
+- Não é necessária edge function — operações CRUD diretas via Supabase client
 
