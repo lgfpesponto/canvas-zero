@@ -599,7 +599,24 @@ const OrderPage = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-display font-bold mb-6">Ficha de Produção</h1>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <h1 className="text-3xl font-display font-bold">{mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}</h1>
+          {mode === 'order' && (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
+                <Plus size={16} /> Criar Modelo
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); }}>
+                <List size={16} /> Modelos
+              </Button>
+            </>
+          )}
+          {mode === 'template' && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMode('order')}>
+              Voltar para Pedido
+            </Button>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
