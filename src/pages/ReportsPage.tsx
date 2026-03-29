@@ -37,9 +37,9 @@ const ReportsPage = () => {
   const navigate = useNavigate();
   const [filterDate, setFilterDate] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterVendedor, setFilterVendedor] = useState('');
+  const [filterVendedor, setFilterVendedor] = useState<Set<string>>(new Set());
   const [filterProduto, setFilterProduto] = useState<Set<string>>(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -55,12 +55,12 @@ const ReportsPage = () => {
   const [scanFilterId, setScanFilterId] = useState<string | null>(null);
 
   const [appliedFilters, setAppliedFilters] = useState({
-    searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: '', filterVendedor: '', filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]),
+    searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set<string>(), filterVendedor: new Set<string>(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]),
   });
 
   const applyFilters = () => {
     setScanFilterId(null);
-    setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus, filterVendedor, filterProduto: new Set(filterProduto) });
+    setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) });
   };
 
   const toggleProdutoFilter = (val: string) => {
@@ -71,8 +71,8 @@ const ReportsPage = () => {
     });
   };
 
-  const displayOrders = isAdmin && appliedFilters.filterVendedor
-    ? allOrders.filter(o => o.vendedor === appliedFilters.filterVendedor)
+  const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
+    ? allOrders.filter(o => appliedFilters.filterVendedor.has(o.vendedor))
     : orders;
 
   const filteredOrders = useMemo(() => {
@@ -80,7 +80,7 @@ const ReportsPage = () => {
       if (appliedFilters.searchQuery && !o.numero.toLowerCase().includes(appliedFilters.searchQuery.toLowerCase())) return false;
       if (appliedFilters.filterDate && o.dataCriacao < appliedFilters.filterDate) return false;
       if (appliedFilters.filterDateEnd && o.dataCriacao > appliedFilters.filterDateEnd) return false;
-      if (appliedFilters.filterStatus && o.status !== appliedFilters.filterStatus) return false;
+      if (appliedFilters.filterStatus.size > 0 && !appliedFilters.filterStatus.has(o.status)) return false;
       if (o.tipoExtra) {
         if (!appliedFilters.filterProduto.has(o.tipoExtra)) return false;
       } else {
@@ -88,10 +88,8 @@ const ReportsPage = () => {
       }
       return true;
     }).sort((a, b) => {
-      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
-      if (numB !== numA) return numB - numA;
       if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
+      if (a.horaCriacao && b.horaCriacao) return b.horaCriacao.localeCompare(a.horaCriacao);
       return 0;
     });
   }, [displayOrders, appliedFilters]);
@@ -765,18 +763,74 @@ const ReportsPage = () => {
             </div>
             <div>
               <label className="block text-xs font-semibold mb-1">Progresso da Produção</label>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none">
-                <option value="">Todos</option>
-                {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px] text-left">
+                    {filterStatus.size === 0
+                      ? 'Todos'
+                      : `${filterStatus.size} selecionado${filterStatus.size > 1 ? 's' : ''}`}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setFilterStatus(new Set(allStatuses))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                    <button type="button" onClick={() => setFilterStatus(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                  </div>
+                  <div className="space-y-2">
+                    {allStatuses.map(s => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={filterStatus.has(s)}
+                          onCheckedChange={() => {
+                            setFilterStatus(prev => {
+                              const next = new Set(prev);
+                              next.has(s) ? next.delete(s) : next.add(s);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             {isAdmin && (
               <div>
                 <label className="block text-xs font-semibold mb-1">Vendedor</label>
-                <select value={filterVendedor} onChange={e => setFilterVendedor(e.target.value)} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none">
-                  <option value="">Todos</option>
-                  {allVendedores.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px] text-left">
+                      {filterVendedor.size === 0
+                        ? 'Todos'
+                        : `${filterVendedor.size} selecionado${filterVendedor.size > 1 ? 's' : ''}`}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                    <div className="flex gap-2 mb-3">
+                      <button type="button" onClick={() => setFilterVendedor(new Set(allVendedores))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                      <button type="button" onClick={() => setFilterVendedor(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                    </div>
+                    <div className="space-y-2">
+                      {allVendedores.map(v => (
+                        <label key={v} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={filterVendedor.has(v)}
+                            onCheckedChange={() => {
+                              setFilterVendedor(prev => {
+                                const next = new Set(prev);
+                                next.has(v) ? next.delete(v) : next.add(v);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span className="text-sm">{v}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
             <div>
@@ -843,10 +897,10 @@ const ReportsPage = () => {
                 setSearchQuery('');
                 setFilterDate('');
                 setFilterDateEnd('');
-                setFilterStatus('');
-                setFilterVendedor('');
+                setFilterStatus(new Set());
+                setFilterVendedor(new Set());
                 setFilterProduto(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
-                setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: '', filterVendedor: '', filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
+                setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
               }} className="border border-border text-muted-foreground px-4 py-2 rounded-lg font-bold text-sm hover:bg-muted transition-colors flex items-center gap-2">
                 <RefreshCw size={14} /> LIMPAR
