@@ -642,6 +642,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
 
+    filtered.sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
+
     for (const o of filtered) {
       const metalParts: string[] = [];
       if (o.metais) metalParts.push(`Área: ${o.metais}`);
