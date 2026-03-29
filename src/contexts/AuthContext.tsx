@@ -720,6 +720,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const updatedOrder = { ...current, ...data, alteracoes: [...(current.alteracoes || []), ...changes] };
 
+    // If vendedor changed, update user_id to the new vendedor's profile
+    let newUserId: string | undefined;
+    if (data.vendedor && data.vendedor !== current.vendedor) {
+      if (data.vendedor === 'Estoque') {
+        // Estoque uses current admin's user_id
+        const { data: { session } } = await supabase.auth.getSession();
+        newUserId = session?.user?.id;
+      } else {
+        const { data: vendorProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('nome_completo', data.vendedor)
+          .maybeSingle();
+        if (vendorProfile) {
+          newUserId = vendorProfile.id;
+        }
+      }
+    }
+
     // Build DB update payload
     const dbUpdate: any = {};
     const camelToSnake: Record<string, string> = {
