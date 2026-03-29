@@ -755,7 +755,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const filtered = sourceOrders.filter(o =>
       o.status.toLowerCase() === 'expedição' &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
-    );
+    ).sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const pw = 210;
