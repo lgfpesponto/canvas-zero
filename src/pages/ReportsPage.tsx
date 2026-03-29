@@ -763,18 +763,74 @@ const ReportsPage = () => {
             </div>
             <div>
               <label className="block text-xs font-semibold mb-1">Progresso da Produção</label>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none">
-                <option value="">Todos</option>
-                {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px] text-left">
+                    {filterStatus.size === 0
+                      ? 'Todos'
+                      : `${filterStatus.size} selecionado${filterStatus.size > 1 ? 's' : ''}`}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setFilterStatus(new Set(allStatuses))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                    <button type="button" onClick={() => setFilterStatus(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                  </div>
+                  <div className="space-y-2">
+                    {allStatuses.map(s => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={filterStatus.has(s)}
+                          onCheckedChange={() => {
+                            setFilterStatus(prev => {
+                              const next = new Set(prev);
+                              next.has(s) ? next.delete(s) : next.add(s);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             {isAdmin && (
               <div>
                 <label className="block text-xs font-semibold mb-1">Vendedor</label>
-                <select value={filterVendedor} onChange={e => setFilterVendedor(e.target.value)} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none">
-                  <option value="">Todos</option>
-                  {allVendedores.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px] text-left">
+                      {filterVendedor.size === 0
+                        ? 'Todos'
+                        : `${filterVendedor.size} selecionado${filterVendedor.size > 1 ? 's' : ''}`}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                    <div className="flex gap-2 mb-3">
+                      <button type="button" onClick={() => setFilterVendedor(new Set(allVendedores))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                      <button type="button" onClick={() => setFilterVendedor(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                    </div>
+                    <div className="space-y-2">
+                      {allVendedores.map(v => (
+                        <label key={v} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={filterVendedor.has(v)}
+                            onCheckedChange={() => {
+                              setFilterVendedor(prev => {
+                                const next = new Set(prev);
+                                next.has(v) ? next.delete(v) : next.add(v);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span className="text-sm">{v}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
             <div>
