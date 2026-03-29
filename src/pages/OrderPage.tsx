@@ -501,6 +501,12 @@ const OrderPage = () => {
         adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
         personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
         personalizacaoBordado: '',
+        extraDetalhes: {
+          cavaloMetal: cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
+          franja, franjaCouro, franjaCor,
+          corrente, correnteCor,
+          corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
+        },
       } as any);
       if (success) {
         if (draftId) deleteDraft(draftId);
