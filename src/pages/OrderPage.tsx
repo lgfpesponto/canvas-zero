@@ -104,6 +104,7 @@ const OrderPage = () => {
   /* form state */
   const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
+  const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
   const [modelo, setModelo] = useState(df.modelo || '');
