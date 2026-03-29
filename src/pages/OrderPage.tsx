@@ -232,7 +232,65 @@ const OrderPage = () => {
     setCorSola(cso === null ? '' : cso.length === 1 ? cso[0].label : (cso.find(c => c.label === corSola) ? corSola : ''));
   };
 
-  if (!isLoggedIn) {
+  // Template functions
+  const loadTemplates = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('order_templates').select('id, nome, form_data').eq('user_id', user.id).order('created_at', { ascending: false });
+    setTemplates((data as any) || []);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!user) return;
+    if (!templateName.trim()) { toast.error('Preencha o nome do modelo'); return; }
+    const form: Record<string, string> = {
+      modelo, sobMedidaDesc,
+      acessorios: acessorios.join('||'),
+      tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira,
+      desenvolvimento,
+      bordadoCano: bordadoCano.join('||'), corBordadoCano,
+      bordadoGaspea: bordadoGaspea.join('||'), corBordadoGaspea,
+      bordadoTaloneira: bordadoTaloneira.join('||'), corBordadoTaloneira,
+      bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
+      nomeBordado: String(nomeBordado), nomeBordadoDesc,
+      laserCano: laserCano.join('||'), corGlitterCano,
+      laserGaspea: laserGaspea.join('||'), corGlitterGaspea,
+      laserTaloneira: laserTaloneira.join('||'), corGlitterTaloneira,
+      laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText,
+      pintura: String(pintura), pinturaDesc,
+      estampa: String(estampa), estampaDesc,
+      corLinha, corBorrachinha, corVivo,
+      areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
+      strass: String(strass), strassQtd: String(strassQtd),
+      cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
+      bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
+      trice: String(trice), triceDesc,
+      tiras: String(tiras), tirasDesc,
+      solado, formatoBico, corSola, corVira, costuraAtras: String(costuraAtras),
+      carimbo, carimboDesc,
+      adicionalDesc, adicionalValor: String(adicionalValor),
+      observacao, sobMedida: String(sobMedida),
+    };
+    const { error } = await supabase.from('order_templates').insert({ user_id: user.id, nome: templateName.trim(), form_data: form } as any);
+    if (error) { toast.error('Erro ao salvar modelo'); console.error(error); return; }
+    toast.success('Modelo criado com sucesso!');
+    setMode('order');
+    setTemplateName('');
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    await supabase.from('order_templates').delete().eq('id', id);
+    loadTemplates();
+    toast.success('Modelo excluído');
+  };
+
+  const handleUseTemplate = (formData: Record<string, string>) => {
+    setShowTemplates(false);
+    navigate('/pedido', { state: { templateData: formData, productChoice: 'bota' } });
+    // Force reload to apply template data
+    window.location.reload();
+  };
+
+
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
