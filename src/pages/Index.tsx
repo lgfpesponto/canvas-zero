@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
