@@ -1,47 +1,29 @@
 
 
-## Criar relatório especializado "PESPONTO" (tabular)
-
-### Situação atual
-O tipo `'pesponto'` já existe mas está sendo usado para o relatório de **Metais** (label "Metais"). Preciso renomear o existente e criar o novo Pesponto.
+## Edição do relatório "Cobrança" — PDF
 
 ### Alterações
 
-**Arquivo**: `src/components/SpecializedReports.tsx`
+**Arquivo**: `src/components/SpecializedReports.tsx` — função `generateCobrancaPDF` (linhas 848-1031)
 
-#### 1. Renomear o tipo existente `'pesponto'` → `'metais'`
-- No `ReportType`: trocar `'pesponto'` por `'metais'`
-- No `REPORT_LABELS`: trocar key `pesponto` por `metais`
-- Renomear função `generatePespontoPDF` → `generateMetaisPDF`
-- No switch `generateReport`: `case 'metais': generateMetaisPDF()`
-- No `needsProgressFilter`: trocar `'pesponto'` por `'metais'`
+#### 1. Remover coluna "PAGO" e redistribuir larguras (linha 848)
+- De: `cols = [25, 22, 68, 15, 28, cw - 25 - 22 - 68 - 15 - 28]` (6 colunas)
+- Para: `cols = [45, 22, 68, 15, 28]` (5 colunas — coluna Nº Pedido ampliada de 25 para ~45mm)
+- Atualizar `cx` para 5 posições
 
-#### 2. Adicionar novo tipo `'pesponto'` com label "Pesponto"
-- Adicionar `'pesponto'` ao `ReportType`
-- Adicionar `pesponto: 'Pesponto'` ao `REPORT_LABELS`
-- Adicionar `'pesponto'` ao `needsProgressFilter`
+#### 2. Remover "PAGO" do cabeçalho (linhas 857-862)
+- Remover `doc.text('PAGO', cx[5]...)` 
+- Manter apenas: Nº PEDIDO, DATA, COMPOSIÇÃO, QTD, PREÇO
 
-#### 3. Criar função `generatePespontoPDF` (novo relatório tabular)
-Layout em tabela com 4 colunas:
+#### 3. Adicionar código de barras na coluna Nº Pedido (linhas 1002-1003)
+- Linha 1: número do pedido (como hoje)
+- Linha 2: código de barras usando `barcodeDataUrl(orderBarcodeValue(o.numero, o.id))` e `doc.addImage`
+- Barcode centralizado na largura da coluna, abaixo do número
+- Ajustar `rowH` mínimo para acomodar barcode (~14mm no mínimo)
 
-| Nº PEDIDO | CÓDIGO DE BARRAS | INFORMAÇÕES DE SOLADO | QTD |
-|-----------|------------------|----------------------|-----|
-| 10452 | [barcode image] | Sola borracha bico quadrado cor marrom vira rosa forma 2300 | 2 |
+#### 4. Remover checkbox "PAGO" (linhas 1014-1015)
+- Remover o `doc.rect` que desenhava o quadrado de checkbox na coluna PAGO
 
-- Filtrar pedidos por `filterProgresso` (somente botas, sem extras/cintos)
-- Colunas: `[25, 45, 85, 27]` (nº pedido, código barras, solado info, qtd)
-- Coluna código de barras: usar `barcodeDataUrl(orderBarcodeValue(o.numero, o.id))` e `doc.addImage`
-- Coluna solado: concatenar `solado + formato_bico + cor_sola + cor_vira + forma`
-- Linha final: TOTAL com soma das quantidades
-- Título: `PESPONTO — {PROGRESSO} — {DATA}`
-- Nome arquivo: `Pesponto - {Progresso} - {Data}.pdf`
-- Usar helpers `drawTableHeader` e `drawTableRow` já existentes
-
-**Arquivos**: `src/pages/Index.tsx` e `src/pages/ReportsPage.tsx`
-
-#### 4. Atualizar listas de relatórios
-- Trocar `'pesponto'` por `'metais'` e adicionar `'pesponto'` em todas as listas:
-  - `Index.tsx` Fernanda (linha 100): `[..., 'forma', 'pesponto', 'metais', 'bordados', ...]`
-  - `Index.tsx` Admin (linha 239): `[..., 'forma', 'pesponto', 'metais', 'bordados', ...]`
-  - `ReportsPage.tsx` admin (linha 890): `[..., 'forma', 'pesponto', 'metais', 'bordados', ...]`
+#### 5. Linha de total (linhas 1027-1029)
+- Ajustar índices de `cx[3]`/`cx[4]` para os novos 5 cols (índices 3 e 4 permanecem os mesmos)
 
