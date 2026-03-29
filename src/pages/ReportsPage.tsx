@@ -52,12 +52,14 @@ const ReportsPage = () => {
   const [showScanner, setShowScanner] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const [scanValue, setScanValue] = useState('');
+  const [scanFilterId, setScanFilterId] = useState<string | null>(null);
 
   const [appliedFilters, setAppliedFilters] = useState({
     searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: '', filterVendedor: '', filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]),
   });
 
   const applyFilters = () => {
+    setScanFilterId(null);
     setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus, filterVendedor, filterProduto: new Set(filterProduto) });
   };
 
@@ -79,15 +81,25 @@ const ReportsPage = () => {
       if (appliedFilters.filterDate && o.dataCriacao < appliedFilters.filterDate) return false;
       if (appliedFilters.filterDateEnd && o.dataCriacao > appliedFilters.filterDateEnd) return false;
       if (appliedFilters.filterStatus && o.status !== appliedFilters.filterStatus) return false;
-      // Produto filter: bota or specific extra type
       if (o.tipoExtra) {
         if (!appliedFilters.filterProduto.has(o.tipoExtra)) return false;
       } else {
         if (!appliedFilters.filterProduto.has('bota')) return false;
       }
       return true;
+    }).sort((a, b) => {
+      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
+      if (numB !== numA) return numB - numA;
+      if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
+      return 0;
     });
   }, [displayOrders, appliedFilters]);
+
+  const visibleOrders = useMemo(() => {
+    if (scanFilterId) return filteredOrders.filter(o => o.id === scanFilterId);
+    return filteredOrders;
+  }, [filteredOrders, scanFilterId]);
 
   const totalValue = filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0);
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -105,10 +117,10 @@ const ReportsPage = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredOrders.length) {
+    if (selectedIds.size === visibleOrders.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredOrders.map(o => o.id)));
+      setSelectedIds(new Set(visibleOrders.map(o => o.id)));
     }
   };
 
@@ -143,6 +155,7 @@ const ReportsPage = () => {
           }
           return next;
         });
+        setScanFilterId(match.id);
       } else {
         navigate(`/pedido/${match.id}`);
         toast.success(`Pedido ${match.numero} encontrado.`);
@@ -692,7 +705,7 @@ const ReportsPage = () => {
             <FileText size={16} /> Fazer pedido
           </button>
           {/* Barcode scanner for all users */}
-          <button onClick={() => setShowScanner(v => !v)} className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
+          <button onClick={() => { setShowScanner(v => !v); if (showScanner) setScanFilterId(null); }} className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
             <ScanBarcode size={16} /> {showScanner ? 'Fechar Scanner' : 'Escanear Código'}
           </button>
           {/* Admin bulk progress button */}
@@ -851,7 +864,7 @@ const ReportsPage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Pedidos</p>
-            <p className="text-2xl font-bold">{filteredOrders.length}</p>
+            <p className="text-2xl font-bold">{visibleOrders.length}</p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
@@ -904,8 +917,8 @@ const ReportsPage = () => {
         {/* Select All - admin only */}
         {isAdmin && (
           <div className="flex items-center gap-3 mb-3">
-            <button onClick={toggleSelectAll} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedIds.size === filteredOrders.length && filteredOrders.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
-              {selectedIds.size === filteredOrders.length && filteredOrders.length > 0 && <CheckCircle size={14} className="text-primary-foreground" />}
+            <button onClick={toggleSelectAll} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedIds.size === visibleOrders.length && visibleOrders.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
+              {selectedIds.size === visibleOrders.length && visibleOrders.length > 0 && <CheckCircle size={14} className="text-primary-foreground" />}
             </button>
             <span className="text-sm font-semibold">Selecionar todos</span>
             {selectedIds.size > 0 && <span className="text-xs text-muted-foreground">({selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''})</span>}
@@ -914,7 +927,7 @@ const ReportsPage = () => {
 
         {/* Orders list */}
         <div className="space-y-3">
-          {filteredOrders.map(order => (
+          {visibleOrders.map(order => (
             <div key={order.id} className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
               {isAdmin && (
                 <button onClick={() => toggleSelect(order.id)} className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selectedIds.has(order.id) ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
@@ -959,8 +972,8 @@ const ReportsPage = () => {
           ))}
         </div>
 
-        {filteredOrders.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado com esses filtros.</p>
+        {visibleOrders.length === 0 && (
+          <p className="text-center text-muted-foreground py-8">{scanFilterId ? 'Pedido escaneado não encontrado nos filtros atuais.' : 'Nenhum pedido encontrado com esses filtros.'}</p>
         )}
       </motion.div>
 
