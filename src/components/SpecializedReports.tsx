@@ -1040,6 +1040,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       case 'escalacao': generateEscalacaoPDF(); break;
       case 'forro': generateForroPDF(); break;
       case 'palmilha': generatePalmilhaPDF(); break;
+      case 'forma': generateFormaPDF(); break;
       case 'pesponto': generatePespontoPDF(); break;
       case 'bordados': generateBordadosPDF(); break;
       case 'expedicao': generateExpedicaoPDF(); break;
