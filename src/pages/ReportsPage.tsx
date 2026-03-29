@@ -155,6 +155,7 @@ const ReportsPage = () => {
           }
           return next;
         });
+        setScanFilterId(match.id);
       } else {
         navigate(`/pedido/${match.id}`);
         toast.success(`Pedido ${match.numero} encontrado.`);
