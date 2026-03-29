@@ -542,6 +542,7 @@ const OrderPage = () => {
   const mirrorRows: [string, string][] = [
     ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
     ['Número do Pedido', numeroPedido],
+    ['Cliente', cliente],
     ['Tamanho', tamanho ? `${tamanho}${genero ? ' — ' + genero : ''}` : ''],
     ['Modelo', modelo],
     ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
