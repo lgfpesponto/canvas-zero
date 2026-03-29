@@ -85,11 +85,12 @@ const LASER_ITEMS: { label: string; preco: number }[] = LASER_OPTIONS.map(l => (
 
 const EditOrderPage = () => {
   const { id } = useParams();
-  const { isAdmin, allOrders, updateOrder } = useAuth();
+  const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
   const navigate = useNavigate();
   const order = allOrders.find(o => o.id === id);
 
   const [numeroPedido, setNumeroPedido] = useState('');
+  const [vendedor, setVendedor] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [genero, setGenero] = useState('');
   const [modelo, setModelo] = useState('');
