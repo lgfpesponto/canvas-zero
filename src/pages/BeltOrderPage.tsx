@@ -201,6 +201,8 @@ const BeltOrderPage = () => {
         observacao,
         quantidade: 1,
         preco: total,
+        adicionalValor: adicionalPreco || null,
+        adicionalDesc: adicionalDesc.trim() || null,
         temLaser: false,
         fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [],
         tipoExtra: 'cinto',
