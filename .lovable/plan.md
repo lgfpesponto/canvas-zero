@@ -1,32 +1,46 @@
 
 
-## Botão "Conferido" nos Pedidos em Alerta
+## Alterações na Ficha de Produção "Cinto"
 
-### Abordagem
+### 1. Nova categoria "Fivela" (`BeltOrderPage.tsx`)
 
-Usar `localStorage` para persistir os IDs dos pedidos conferidos. Isso é simples, não requer migração de banco, e funciona por dispositivo/admin.
+**Novo state**: `fivela` (string, default `''`), `fivelaOutroDesc` (string, default `''`)
 
-### Alterações
+**Constante** (no topo do arquivo ou em `extrasConfig.ts`):
+```ts
+const FIVELA_OPTIONS = ['Prata com Strass', 'Preta com Strass', 'Prata Touro', 'Prata Flor', 'Infantil', 'Quadrada', 'Outro'];
+```
 
-**Arquivo**: `src/pages/Index.tsx`
+**UI**: Nova `<Section title="Fivela">` após a seção Couro, com `<select>` das opções. Se `fivela === 'Outro'`, mostrar campo texto "Descrever fivela".
 
-#### 1. State para pedidos conferidos
-- Adicionar state `checkedAlertIds` (Set de IDs) inicializado a partir de `localStorage` key `'alert_checked_orders'`
-- Função `handleChecked(orderId)`: adiciona ID ao set, persiste no localStorage, atualiza state
+**Integração**: Salvar em `extraDetalhes.fivela` e `extraDetalhes.fivelaOutroDesc`. Adicionar ao mirror, draft e restauração de draft.
 
-#### 2. Filtrar pedidos conferidos na lista de alerta (linhas 204-208)
-- Após o filtro existente de `alertOrders`, adicionar `.filter(o => !checkedAlertIds.has(o.id))`
+### 2. Novo campo "Adicional" (`BeltOrderPage.tsx`)
 
-#### 3. Botão "Conferido" em cada pedido (linhas 218-228)
-- Adicionar botão "Conferido" (com ícone Check) ao lado direito de cada item
-- `onClick` com `e.preventDefault()` + `e.stopPropagation()` (para não navegar pelo Link)
-- Chamar `handleChecked(o.id)`
+**Novos states**: `adicionalValor` (string, default `''`), `adicionalDesc` (string, default `''`)
 
-#### 4. Visibilidade
-- O botão já está dentro do bloco `user?.nomeUsuario?.toLowerCase() === '7estrivos'` que é só para Juliana/admin. Manter assim — apenas admins veem a seção de alerta.
+**UI**: Nova seção antes de "Observação" com dois campos: valor (input number) e descrição (input text).
 
-### Detalhes técnicos
-- localStorage key: `'alert_checked_orders'` — array JSON de IDs
-- Quando um pedido sai do estado de alerta naturalmente (status muda para Expedição/Entregue/etc), ele já não apareceria — o ID conferido no localStorage fica inerte
-- Não requer migração SQL
+**Preço**: Somar `parseFloat(adicionalValor) || 0` ao `total`.
+
+**Integração**: Salvar `adicional_valor` e `adicional_desc` no pedido (campos já existem na tabela `orders`). Adicionar ao mirror, draft e restauração.
+
+### 3. Novo canhoto "Bordado" no PDF (`ReportsPage.tsx`)
+
+Na seção de stubs do cinto (linhas 347-378), alterar de 2 canhotos para 3:
+- Dividir `stubAreaW` por 3 em vez de 2
+- Inserir stub "BORDADO" como primeiro, seguido de "PESPONTO" e "EXPEDIÇÃO"
+- Cada stub mantém o mesmo padrão: título em bold, código de barras e número do pedido
+
+### 4. Labels em `extrasConfig.ts`
+
+Adicionar labels para `fivela` e `fivelaOutroDesc` em `EXTRA_DETAIL_LABELS`.
+
+### Resumo de arquivos
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/BeltOrderPage.tsx` | States fivela + adicional, UI sections, mirror, draft, confirmOrder |
+| `src/pages/ReportsPage.tsx` | 3 canhotos no PDF do cinto (Bordado + Pesponto + Expedição) |
+| `src/lib/extrasConfig.ts` | FIVELA_OPTIONS, labels para fivela/fivelaOutroDesc |
 
