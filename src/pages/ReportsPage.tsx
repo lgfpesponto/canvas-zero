@@ -927,7 +927,7 @@ const ReportsPage = () => {
 
         {/* Orders list */}
         <div className="space-y-3">
-          {filteredOrders.map(order => (
+          {visibleOrders.map(order => (
             <div key={order.id} className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
               {isAdmin && (
                 <button onClick={() => toggleSelect(order.id)} className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selectedIds.has(order.id) ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
