@@ -481,6 +481,49 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.save(`Palmilha - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
+  // ── Forma: same as Palmilha ──
+  const generateFormaPDF = () => {
+    const filtered = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
+    );
+    const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
+    filtered.forEach(o => {
+      const forma = getForma(o.modelo, o.formatoBico);
+      const key = forma || 'sem-forma';
+      if (!groups[key]) groups[key] = { modelo: '', forma, sizes: {} };
+      groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
+    });
+    const blocks: BlockData[] = Object.values(groups).map(g => ({
+      badgeLabel: 'FORMA',
+      description: `Forma ${g.forma || '—'}`,
+      sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
+    })).sort((a, b) => a.description.localeCompare(b.description));
+
+    const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
+    const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+
+    const doc = new jsPDF();
+    const mx = 14;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`FORMA — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
+
+    let y = 32;
+    blocks.forEach(block => {
+      const bh = estimateBlockHeight(block);
+      if (y + bh > 275) { doc.addPage(); y = 18; }
+      y = drawBlockLayout(doc, y, mx, block);
+    });
+
+    const dateFile = dataBR.replace(/\//g, '-');
+    doc.save(`Forma - ${progressoLabel} - ${dateFile}.pdf`);
+  };
+
   // ── Metais (formerly Pesponto): tabular format with QR ──
   const generatePespontoPDF = async () => {
     const filtered = sourceOrders.filter(o => {
