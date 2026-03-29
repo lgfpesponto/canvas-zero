@@ -4,7 +4,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
-import { Link2, X, Eye } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Link2, X, Eye, Plus, List, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -83,12 +86,18 @@ const OrderPage = () => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const draftState = (location.state as { draft?: Draft })?.draft;
+  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string } | null;
+  const draftState = locState?.draft;
+  const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
   const [draftId, setDraftId] = useState(draftId_init);
-  const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : null);
-  // Restore draft form data
-  const df = draftState?.form || {};
+  const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
+  const [mode, setMode] = useState<'order' | 'template'>('order');
+  const [templateName, setTemplateName] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<{ id: string; nome: string; form_data: Record<string, string> }[]>([]);
+  // Restore draft or template form data
+  const df = templateInit || draftState?.form || {};
 
   /* form state */
   const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
@@ -221,6 +230,64 @@ const OrderPage = () => {
     if (newSolado !== solado) setSolado(newSolado);
     const cso = getCorSolaOptions(modelo, newSolado, newBico);
     setCorSola(cso === null ? '' : cso.length === 1 ? cso[0].label : (cso.find(c => c.label === corSola) ? corSola : ''));
+  };
+
+  // Template functions
+  const loadTemplates = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('order_templates').select('id, nome, form_data').eq('user_id', user.id).order('created_at', { ascending: false });
+    setTemplates((data as any) || []);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!user) return;
+    if (!templateName.trim()) { toast.error('Preencha o nome do modelo'); return; }
+    const form: Record<string, string> = {
+      modelo, sobMedidaDesc,
+      acessorios: acessorios.join('||'),
+      tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira,
+      desenvolvimento,
+      bordadoCano: bordadoCano.join('||'), corBordadoCano,
+      bordadoGaspea: bordadoGaspea.join('||'), corBordadoGaspea,
+      bordadoTaloneira: bordadoTaloneira.join('||'), corBordadoTaloneira,
+      bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
+      nomeBordado: String(nomeBordado), nomeBordadoDesc,
+      laserCano: laserCano.join('||'), corGlitterCano,
+      laserGaspea: laserGaspea.join('||'), corGlitterGaspea,
+      laserTaloneira: laserTaloneira.join('||'), corGlitterTaloneira,
+      laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText,
+      pintura: String(pintura), pinturaDesc,
+      estampa: String(estampa), estampaDesc,
+      corLinha, corBorrachinha, corVivo,
+      areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
+      strass: String(strass), strassQtd: String(strassQtd),
+      cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
+      bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
+      trice: String(trice), triceDesc,
+      tiras: String(tiras), tirasDesc,
+      solado, formatoBico, corSola, corVira, costuraAtras: String(costuraAtras),
+      carimbo, carimboDesc,
+      adicionalDesc, adicionalValor: String(adicionalValor),
+      observacao, sobMedida: String(sobMedida),
+    };
+    const { error } = await supabase.from('order_templates').insert({ user_id: user.id, nome: templateName.trim(), form_data: form } as any);
+    if (error) { toast.error('Erro ao salvar modelo'); console.error(error); return; }
+    toast.success('Modelo criado com sucesso!');
+    setMode('order');
+    setTemplateName('');
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    await supabase.from('order_templates').delete().eq('id', id);
+    loadTemplates();
+    toast.success('Modelo excluído');
+  };
+
+  const handleUseTemplate = (formData: Record<string, string>) => {
+    setShowTemplates(false);
+    navigate('/pedido', { state: { templateData: formData, productChoice: 'bota' } });
+    // Force reload to apply template data
+    window.location.reload();
   };
 
   if (!isLoggedIn) {
@@ -532,11 +599,37 @@ const OrderPage = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-display font-bold mb-6">Ficha de Produção</h1>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <h1 className="text-3xl font-display font-bold">{mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}</h1>
+          {mode === 'order' && (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
+                <Plus size={16} /> Criar Modelo
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); }}>
+                <List size={16} /> Modelos
+              </Button>
+            </>
+          )}
+          {mode === 'template' && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMode('order')}>
+              Voltar para Pedido
+            </Button>
+          )}
+        </div>
 
-        <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* 1-2 Vendedor + Número */}
+          {/* Template name field */}
+          {mode === 'template' && (
+            <div>
+              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
+              <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+            </div>
+          )}
+
+          {/* 1-2 Vendedor + Número (hidden in template mode) */}
+          {mode === 'order' && (
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className={cls.label}>Vendedor</label>
@@ -556,13 +649,18 @@ const OrderPage = () => {
               <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={cls.input} />
             </div>
           </div>
+          )}
 
           {/* 3-4 Tamanho + Gênero + Modelo */}
-          <div className="grid sm:grid-cols-3 gap-4">
-            <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
-            <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
-            <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
-          </div>
+          {mode === 'order' ? (
+            <div className="grid sm:grid-cols-3 gap-4">
+              <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
+              <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
+              <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
+            </div>
+          ) : (
+            <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={MODELOS} />
+          )}
 
           {/* 5 Sob Medida */}
           <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
@@ -736,57 +834,92 @@ const OrderPage = () => {
             <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
           </div>
 
-          {/* Link da Foto */}
-          <div>
-            <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
-            <div className="flex items-center gap-2">
-              <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-              <input
-                type="url"
-                value={fotoUrl}
-                onChange={e => setFotoUrl(e.target.value)}
-                placeholder="Cole o link do Google Drive aqui..."
-                className={cls.input}
-              />
+          {mode === 'order' && (
+            <>
+              <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+              <div className="flex items-center gap-2">
+                <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                <input
+                  type="url"
+                  value={fotoUrl}
+                  onChange={e => setFotoUrl(e.target.value)}
+                  placeholder="Cole o link do Google Drive aqui..."
+                  className={cls.input}
+                />
+                {fotoUrl && (
+                  <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
               {fotoUrl && (
-                <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
-                  <X size={16} />
-                </button>
+                <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
+                  Abrir link ↗
+                </a>
               )}
-            </div>
-            {fotoUrl && (
-              <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
-                Abrir link ↗
-              </a>
-            )}
-          </div>
+            </>
+          )}
 
-          {/* Quantidade */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-semibold">Quantidade:</label>
-            <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
-          </div>
+          {mode === 'order' && (
+            <>
+              {/* Quantidade */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold">Quantidade:</label>
+                <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
+              </div>
 
-          {/* Prazo */}
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 15 dias úteis</p>
-          </div>
+              {/* Prazo */}
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 15 dias úteis</p>
+              </div>
 
-          {/* Valor Total */}
-          <div className="bg-muted rounded-lg p-4">
-            <div className="flex justify-between text-lg font-bold">
-              <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
-            </div>
-          </div>
+              {/* Valor Total */}
+              <div className="bg-muted rounded-lg p-4">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
+                </div>
+              </div>
 
-          <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
-            <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
-          </button>
-          <button type="button" onClick={handleSaveDraft} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2">
-            SALVAR RASCUNHO
-          </button>
+              <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+                <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
+              </button>
+              <button type="button" onClick={handleSaveDraft} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2">
+                SALVAR RASCUNHO
+              </button>
+            </>
+          )}
+
+          {mode === 'template' && (
+            <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+              <Plus size={20} /> CRIAR MODELO
+            </button>
+          )}
         </form>
       </motion.div>
+
+      {/* ───── Templates Dialog ───── */}
+      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modelos Salvos</DialogTitle>
+          </DialogHeader>
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {templates.map(t => (
+                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
+                  <span className="font-semibold text-sm">{t.nome}</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ───── Mirror ───── */}
       {showMirror && (
