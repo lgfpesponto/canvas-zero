@@ -15,7 +15,8 @@ import {
   GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO, GLITTER_TALONEIRA_PRECO,
   COR_GLITTER, COR_LINHA, COR_BORRACHINHA,
   COR_VIVO, DESENVOLVIMENTO, AREA_METAL, TIPO_METAL, COR_METAL,
-  STRASS_PRECO, CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, SOLADO, COR_SOLA, COR_VIRA,
+  STRASS_PRECO, CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO,
+  FRANJA_PRECO, CORRENTE_PRECO, SOLADO, COR_SOLA, COR_VIRA,
   CARIMBO, SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO,
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, FORMATO_BICO,
   getModelosForTamanho,
@@ -147,6 +148,9 @@ const OrderPage = () => {
   const [corGlitterGaspea, setCorGlitterGaspea] = useState(df.corGlitterGaspea || '');
   const [laserTaloneira, setLaserTaloneira] = useState<string[]>(df.laserTaloneira ? df.laserTaloneira.split('||') : []);
   const [corGlitterTaloneira, setCorGlitterTaloneira] = useState(df.corGlitterTaloneira || '');
+  const [corBordadoLaserCano, setCorBordadoLaserCano] = useState(df.corBordadoLaserCano || '');
+  const [corBordadoLaserGaspea, setCorBordadoLaserGaspea] = useState(df.corBordadoLaserGaspea || '');
+  const [corBordadoLaserTaloneira, setCorBordadoLaserTaloneira] = useState(df.corBordadoLaserTaloneira || '');
 
   // pintura (inside laser section)
   const [pintura, setPintura] = useState(df.pintura === 'true');
@@ -171,12 +175,19 @@ const OrderPage = () => {
   const [cruzMetalQtd, setCruzMetalQtd] = useState(Number(df.cruzMetalQtd) || 0);
   const [bridaoMetal, setBridaoMetal] = useState(df.bridaoMetal === 'true');
   const [bridaoMetalQtd, setBridaoMetalQtd] = useState(Number(df.bridaoMetalQtd) || 0);
+  const [cavaloMetal, setCavaloMetal] = useState(df.cavaloMetal === 'true');
+  const [cavaloMetalQtd, setCavaloMetalQtd] = useState(Number(df.cavaloMetalQtd) || 0);
 
   // extras (tiras + tricê)
   const [trice, setTrice] = useState(df.trice === 'true');
   const [triceDesc, setTriceDesc] = useState(df.triceDesc || '');
   const [tiras, setTiras] = useState(df.tiras === 'true');
   const [tirasDesc, setTirasDesc] = useState(df.tirasDesc || '');
+  const [franja, setFranja] = useState(df.franja === 'true');
+  const [franjaCouro, setFranjaCouro] = useState(df.franjaCouro || '');
+  const [franjaCor, setFranjaCor] = useState(df.franjaCor || '');
+  const [corrente, setCorrente] = useState(df.corrente === 'true');
+  const [correnteCor, setCorrenteCor] = useState(df.correnteCor || '');
 
   // solados
   const [solado, setSolado] = useState(df.solado || '');
@@ -200,6 +211,8 @@ const OrderPage = () => {
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
 
+  const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno'];
+
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
     setModelo(newModelo);
@@ -213,6 +226,10 @@ const OrderPage = () => {
     setCorSola(cso === null ? '' : cso.length === 1 ? cso[0].label : (cso.find(c => c.label === corSola) ? corSola : ''));
     const cv = getCorViraOptions(newModelo, newSolado);
     setCorVira(cv.length === 1 ? cv[0].label : (cv.find(c => c.label === corVira) ? corVira : ''));
+    if (HIDE_PESPONTO_EXTRAS.includes(newModelo)) {
+      setCorBorrachinha('');
+      setCorVivo('');
+    }
   };
 
   const handleSoladoChange = (newSolado: string) => {
@@ -266,8 +283,12 @@ const OrderPage = () => {
       strass: String(strass), strassQtd: String(strassQtd),
       cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
       bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
+      cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
       trice: String(trice), triceDesc,
       tiras: String(tiras), tirasDesc,
+      franja: String(franja), franjaCouro, franjaCor,
+      corrente: String(corrente), correnteCor,
+      corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
       solado, formatoBico, corSola, corVira, costuraAtras: String(costuraAtras),
       carimbo, carimboDesc,
       adicionalDesc, adicionalValor: String(adicionalValor),
@@ -357,6 +378,7 @@ const OrderPage = () => {
   const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * CRUZ_METAL_PRECO : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * BRIDAO_METAL_PRECO : 0;
+  const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * CAVALO_METAL_PRECO : 0;
   const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
   const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
@@ -372,9 +394,11 @@ const OrderPage = () => {
     + totalLaserPreco
     + (pintura ? PINTURA_PRECO : 0)
     + (estampa ? ESTAMPA_PRECO : 0)
-    + desenvPreco + areaMetalPreco + strassPreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal
+    + desenvPreco + areaMetalPreco + strassPreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
     + (trice ? TRICE_PRECO : 0)
     + (tiras ? TIRAS_PRECO : 0)
+    + (franja ? FRANJA_PRECO : 0)
+    + (corrente ? CORRENTE_PRECO : 0)
     + soladoPreco + corSolaPreco + corViraPreco
     + (costuraAtras ? COSTURA_ATRAS_PRECO : 0)
     + carimboPreco
@@ -399,8 +423,10 @@ const OrderPage = () => {
       [tipoCouroTaloneira, 'Tipo do Couro da Taloneira'],
       [corCouroTaloneira, 'Cor do Couro da Taloneira'],
       [corLinha, 'Cor da Linha'],
-      [corBorrachinha, 'Cor da Borrachinha'],
-      [corVivo, 'Cor do Vivo'],
+      ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
+        [corBorrachinha, 'Cor da Borrachinha'] as [string, string],
+        [corVivo, 'Cor do Vivo'] as [string, string],
+      ] : []),
       [solado, 'Tipo do Solado'],
       [formatoBico, 'Formato do Bico'],
       ...(getCorSolaOptions(modelo, solado, formatoBico) !== null ? [[corSola, 'Cor da Sola'] as [string, string]] : []),
@@ -479,6 +505,12 @@ const OrderPage = () => {
         adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
         personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
         personalizacaoBordado: '',
+        extraDetalhes: {
+          cavaloMetal: cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
+          franja, franjaCouro, franjaCor,
+          corrente, correnteCor,
+          corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
+        },
       } as any);
       if (success) {
         if (draftId) deleteDraft(draftId);
@@ -521,8 +553,12 @@ const OrderPage = () => {
       strass: String(strass), strassQtd: String(strassQtd),
       cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
       bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
+      cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
       trice: String(trice), triceDesc,
       tiras: String(tiras), tirasDesc,
+      franja: String(franja), franjaCouro, franjaCor,
+      corrente: String(corrente), correnteCor,
+      corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
       solado, formatoBico, corSola, corVira, costuraAtras: String(costuraAtras),
       carimbo, carimboDesc,
       adicionalDesc, adicionalValor: String(adicionalValor),
@@ -567,19 +603,27 @@ const OrderPage = () => {
     ['Cor Glitter/Tecido Gáspea', corGlitterGaspea],
     ['Laser Taloneira', laserTaloneira.join(', ')],
     ['Cor Glitter/Tecido Taloneira', corGlitterTaloneira],
+    ['Cor Bordado Laser Cano', corBordadoLaserCano],
+    ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
+    ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],
     ['Pintura', pintura ? pinturaDesc || 'Sim' : ''],
     ['Estampa', estampa ? (estampaDesc ? `Sim — ${estampaDesc}` : 'Sim') : ''],
     ['Cor da Linha', corLinha],
-    ['Cor Borrachinha', corBorrachinha],
-    ['Cor do Vivo', corVivo],
+    ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
+      ['Cor Borrachinha', corBorrachinha] as [string, string],
+      ['Cor do Vivo', corVivo] as [string, string],
+    ] : []),
     ['Área Metal', areaMetal],
     ['Tipo Metal', tipoMetal.join(', ')],
     ['Cor Metal', corMetal],
     ['Strass', strass ? `${strassQtd} un.` : ''],
     ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
     ['Bridão (metal)', bridaoMetal ? `${bridaoMetalQtd} un.` : ''],
+    ['Cavalo (metal)', cavaloMetal ? `${cavaloMetalQtd} un.` : ''],
     ['Tricê', trice ? triceDesc || 'Sim' : ''],
     ['Tiras', tiras ? tirasDesc || 'Sim' : ''],
+    ['Franja', franja ? `Sim${franjaCouro ? ' — ' + franjaCouro : ''}${franjaCor ? ' / ' + franjaCor : ''}` : ''],
+    ['Corrente', corrente ? `Sim${correnteCor ? ' — ' + correnteCor : ''}` : ''],
     ['Solado', solado],
     ['Formato do Bico', formatoBico],
     ['Cor da Sola', corSola],
@@ -728,18 +772,21 @@ const OrderPage = () => {
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={COR_GLITTER} />
+            <div><label className={cls.label}>Cor do Bordado (Cano)</label><input type="text" value={corBordadoLaserCano} onChange={e => setCorBordadoLaserCano(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
 
             <MultiSelect label="Laser da Gáspea (+R$50)" items={LASER_ITEMS} selected={laserGaspea} onChange={setLaserGaspea} />
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
+            <div><label className={cls.label}>Cor do Bordado (Gáspea)</label><input type="text" value={corBordadoLaserGaspea} onChange={e => setCorBordadoLaserGaspea(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
 
             <MultiSelect label="Laser da Taloneira (sem custo)" items={LASER_ITEMS} selected={laserTaloneira} onChange={setLaserTaloneira} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={COR_GLITTER} />
+            <div><label className={cls.label}>Cor do Bordado (Taloneira)</label><input type="text" value={corBordadoLaserTaloneira} onChange={e => setCorBordadoLaserTaloneira(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
 
             {/* Pintura inside Laser section */}
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
@@ -753,10 +800,14 @@ const OrderPage = () => {
 
           {/* Pesponto */}
           <Section title="Pesponto">
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
               <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} required />
-              <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} required />
-              <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} required />
+              {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
+                <>
+                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} required />
+                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} required />
+                </>
+              )}
             </div>
           </Section>
 
@@ -793,6 +844,10 @@ const OrderPage = () => {
                 <ToggleField label="Bridão (R$3/un)" value={bridaoMetal} onChange={setBridaoMetal} />
                 {bridaoMetal && <input type="number" min={0} value={bridaoMetalQtd} onChange={e => setBridaoMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <ToggleField label="Cavalo (R$5/un)" value={cavaloMetal} onChange={setCavaloMetal} />
+                {cavaloMetal && <input type="number" min={0} value={cavaloMetalQtd} onChange={e => setCavaloMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+              </div>
             </div>
           </Section>
 
@@ -800,6 +855,24 @@ const OrderPage = () => {
           <Section title="Extras">
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
+            <div className="space-y-2">
+              <ToggleField label={`Franja (+R$${FRANJA_PRECO})`} value={franja} onChange={setFranja} />
+              {franja && (
+                <div className="grid sm:grid-cols-2 gap-3 pl-4">
+                  <div><label className={cls.label}>Tipo de couro da franja</label><input type="text" value={franjaCouro} onChange={e => setFranjaCouro(e.target.value)} placeholder="Tipo de couro..." className={cls.input} /></div>
+                  <div><label className={cls.label}>Cor da franja</label><input type="text" value={franjaCor} onChange={e => setFranjaCor(e.target.value)} placeholder="Cor da franja..." className={cls.input} /></div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <ToggleField label={`Corrente (+R$${CORRENTE_PRECO})`} value={corrente} onChange={setCorrente} />
+              {corrente && (
+                <div className="pl-4">
+                  <label className={cls.label}>Cor da corrente</label>
+                  <input type="text" value={correnteCor} onChange={e => setCorrenteCor(e.target.value)} placeholder="Cor da corrente..." className={cls.input} />
+                </div>
+              )}
+            </div>
           </Section>
 
           {/* Solados */}

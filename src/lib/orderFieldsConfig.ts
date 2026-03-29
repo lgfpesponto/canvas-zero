@@ -20,6 +20,7 @@ export const MODELOS: { label: string; preco: number }[] = [
   { label: 'Tradicional Bico Fino', preco: 260 },
   { label: 'Cano Médio Infantil', preco: 160 },
   { label: 'City', preco: 270 },
+  { label: 'Cano Inteiro', preco: 260 },
 ];
 
 // ==================== TAMANHOS ====================
@@ -61,7 +62,7 @@ export const CORES_COURO = [
   'Nescau','Café','Marrom','Preto','Telha','Mostarda','Bege','Azul',
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
-  'Laranja','Cru','Havana','Petróleo','Malhado',
+  'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate',
 ];
 
 // ==================== BORDADOS (legacy – kept for backward compatibility) ====================
@@ -202,6 +203,9 @@ export const COR_METAL = ['Níquel', 'Ouro Velho', 'Dourado'];
 export const STRASS_PRECO = 0.60;
 export const CRUZ_METAL_PRECO = 6;
 export const BRIDAO_METAL_PRECO = 3;
+export const CAVALO_METAL_PRECO = 5;
+export const FRANJA_PRECO = 15;
+export const CORRENTE_PRECO = 10;
 
 // ==================== SOLADO ====================
 export const SOLADO: { label: string; preco: number }[] = [
@@ -279,6 +283,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
     );
     // Montaria só até 40
     if (t <= 40) allowed.push('Bota Montaria (40)');
+    allowed.push('Cano Inteiro');
   }
   // 33-40: bico fino feminino + capota bico fino
   if (t >= 33 && t <= 40) {
@@ -297,7 +302,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
 export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino' | 'perfilado';
 
 const INFANTIL_MODELOS = ['Bota Infantil', 'Botina Infantil', 'Cano Médio Infantil'];
-const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano'];
+const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano', 'Cano Inteiro'];
 const BF_FEMININO_MODELOS = ['Bota Bico Fino Feminino', 'Capota Bico Fino'];
 const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Ouver Perfilado', 'Capota Bico Fino Perfilado', 'Tradicional Bico Fino'];
 
