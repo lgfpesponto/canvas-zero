@@ -525,7 +525,90 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.save(`Forma - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
-  // ── Metais: tabular format with QR ──
+  // ── Pesponto: tabular report for costura sector ──
+  const generateNewPespontoPDF = () => {
+    const filtered = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      !o.tipoExtra
+    );
+
+    const doc = new jsPDF();
+    const mx = 14;
+    const cw = 182;
+    const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`PESPONTO — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total: ${filtered.length} pedidos`, mx, 25);
+
+    const cols = [25, 45, 85, 27];
+    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2]];
+
+    let y = drawTableHeader(doc, 32, mx, cw, [
+      { label: 'Nº PEDIDO', x: cx[0] + 2 },
+      { label: 'CÓDIGO DE BARRAS', x: cx[1] + 2 },
+      { label: 'INFORMAÇÕES DE SOLADO', x: cx[2] + 2 },
+      { label: 'QTD', x: cx[3] + 2 },
+    ]);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    let totalQtd = 0;
+
+    for (const o of filtered) {
+      const soladoParts: string[] = [];
+      if (o.solado) soladoParts.push(o.solado);
+      if (o.formatoBico) soladoParts.push(o.formatoBico);
+      if (o.corSola) soladoParts.push(`cor ${o.corSola}`);
+      if (o.corVira) soladoParts.push(`vira ${o.corVira}`);
+      const forma = getForma(o.modelo, o.formatoBico);
+      if (forma) soladoParts.push(`forma ${forma}`);
+      const soladoText = soladoParts.join(' ') || '—';
+      const lines = doc.splitTextToSize(soladoText, cols[2] - 4);
+      const rowH = Math.max(14, lines.length * 3.5 + 6);
+
+      if (y + rowH > 280) { doc.addPage(); y = 20; }
+      drawTableRow(doc, y, mx, cw, cols, rowH);
+
+      doc.setFontSize(8);
+      doc.text(o.numero, cx[0] + 2, y + 5);
+
+      // Barcode
+      const barcodeVal = orderBarcodeValue(o.numero, o.id);
+      const barcodeImg = barcodeDataUrl(barcodeVal, { width: 1, height: 30 });
+      if (barcodeImg) {
+        try { doc.addImage(barcodeImg, 'PNG', cx[1] + 2, y + 1, 40, 10); } catch {}
+      }
+
+      doc.setFontSize(7);
+      doc.text(lines, cx[2] + 2, y + 5);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text(String(o.quantidade), cx[3] + 2, y + 5);
+      doc.setFont('helvetica', 'normal');
+
+      totalQtd += o.quantidade;
+      y += rowH;
+    }
+
+    // Footer total
+    if (y + 10 > 285) { doc.addPage(); y = 20; }
+    doc.setFillColor(232, 232, 232);
+    doc.rect(mx, y, cw, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('TOTAL', mx + 2, y + 7);
+    doc.text(`${totalQtd} pares`, cx[3] + 2, y + 7);
+
+    const dateFile = dataBR.replace(/\//g, '-');
+    doc.save(`Pesponto - ${progressoLabel} - ${dateFile}.pdf`);
+  };
+
+
   const generateMetaisPDF = async () => {
     const filtered = sourceOrders.filter(o => {
       if (filterProgresso !== 'todos' && o.status !== filterProgresso) return false;
