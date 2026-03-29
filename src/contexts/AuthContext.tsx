@@ -111,6 +111,7 @@ export interface Order {
   tipoExtra?: string;
   extraDetalhes?: Record<string, any>;
   numeroPedidoBota?: string;
+  cliente?: string;
 }
 
 export const PRODUCTION_STATUSES = [
@@ -281,6 +282,7 @@ function dbRowToOrder(row: any): Order {
     tipoExtra: row.tipo_extra || undefined,
     extraDetalhes: row.extra_detalhes || undefined,
     numeroPedidoBota: row.numero_pedido_bota || undefined,
+    cliente: row.cliente || '',
   };
 }
 
@@ -364,6 +366,7 @@ function orderToDbRow(order: any, userId: string) {
     tipo_extra: order.tipoExtra || null,
     extra_detalhes: order.extraDetalhes || null,
     numero_pedido_bota: order.numeroPedidoBota || null,
+    cliente: order.cliente || '',
   };
 }
 

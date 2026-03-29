@@ -53,6 +53,7 @@ export type Database = {
           bridao_metal_qtd: number | null
           carimbo: string | null
           carimbo_desc: string | null
+          cliente: string
           cor_bordado_cano: string | null
           cor_bordado_gaspea: string | null
           cor_bordado_taloneira: string | null
@@ -134,6 +135,7 @@ export type Database = {
           bridao_metal_qtd?: number | null
           carimbo?: string | null
           carimbo_desc?: string | null
+          cliente?: string
           cor_bordado_cano?: string | null
           cor_bordado_gaspea?: string | null
           cor_bordado_taloneira?: string | null
@@ -215,6 +217,7 @@ export type Database = {
           bridao_metal_qtd?: number | null
           carimbo?: string | null
           carimbo_desc?: string | null
+          cliente?: string
           cor_bordado_cano?: string | null
           cor_bordado_gaspea?: string | null
           cor_bordado_taloneira?: string | null

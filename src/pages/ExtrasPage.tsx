@@ -16,6 +16,7 @@ import { ShoppingCart, Package } from 'lucide-react';
 
 const emptyForm = (): Record<string, any> => ({
   numeroPedidoBota: '',
+  cliente: '',
   corTiras: '',
   qualSola: '',
   trocaGaspea: 'Não',
@@ -133,6 +134,7 @@ const ExtrasPage = () => {
 
       const success = await addOrder({
         vendedor: isAdmin ? (form.vendedorSelecionado || user?.nomeCompleto || '') : (user?.nomeCompleto || ''),
+        cliente: (form.cliente || '').trim(),
         tamanho: '-',
         modelo: `Extra — ${product.nome}`,
         solado: '-',
@@ -200,6 +202,11 @@ const ExtrasPage = () => {
         <div>
           <Label>Nº do pedido *</Label>
           <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" />
+        </div>
+        {/* Cliente — opcional */}
+        <div>
+          <Label>Cliente</Label>
+          <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
         </div>
 
         {/* Product-specific fields */}

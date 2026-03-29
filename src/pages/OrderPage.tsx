@@ -104,6 +104,7 @@ const OrderPage = () => {
   /* form state */
   const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
+  const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
   const [modelo, setModelo] = useState(df.modelo || '');
@@ -446,6 +447,7 @@ const OrderPage = () => {
     try {
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
+        cliente: cliente.trim(),
         vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
         tamanho, genero, modelo, sobMedida, sobMedidaDesc,
         solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
@@ -493,6 +495,10 @@ const OrderPage = () => {
 
   const handleSaveDraft = () => {
     if (!user) return;
+    if (!numeroPedido.trim() && !cliente.trim()) {
+      toast.error('Preencha o Número do Pedido ou o Cliente para salvar o rascunho.');
+      return;
+    }
     const id = draftId || `draft-${Date.now()}`;
     const form: Record<string, string> = {
       tamanho, genero, modelo, sobMedidaDesc,
@@ -521,9 +527,10 @@ const OrderPage = () => {
       carimbo, carimboDesc,
       adicionalDesc, adicionalValor: String(adicionalValor),
       observacao,
+      cliente,
     };
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida, quantidade: 1, numeroPedido, fotos });
+    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida, quantidade: 1, numeroPedido, cliente, fotos });
     setDraftId(id);
     toast.success('Rascunho salvo!');
   };
@@ -535,6 +542,7 @@ const OrderPage = () => {
   const mirrorRows: [string, string][] = [
     ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
     ['Número do Pedido', numeroPedido],
+    ['Cliente', cliente],
     ['Tamanho', tamanho ? `${tamanho}${genero ? ' — ' + genero : ''}` : ''],
     ['Modelo', modelo],
     ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
@@ -649,6 +657,10 @@ const OrderPage = () => {
             <div>
               <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
               <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={cls.input} />
+            </div>
+            <div>
+              <label className={cls.label}>Cliente</label>
+              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
             </div>
           </div>
           )}

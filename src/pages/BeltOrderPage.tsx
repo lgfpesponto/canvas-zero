@@ -35,6 +35,7 @@ const BeltOrderPage = () => {
   // Form state
   const [vendedor, setVendedor] = useState(user?.nomeCompleto || '');
   const [numeroPedido, setNumeroPedido] = useState('');
+  const [cliente, setCliente] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [tipoCouro, setTipoCouro] = useState('');
   const [corCouro, setCorCouro] = useState('');
@@ -66,6 +67,7 @@ const BeltOrderPage = () => {
       const f = draftData.form || {};
       setVendedor(f.vendedor || user?.nomeCompleto || '');
       setNumeroPedido(draftData.numeroPedido || '');
+      setCliente(f.cliente || '');
       setTamanho(f.tamanho || '');
       setTipoCouro(f.tipoCouro || '');
       setCorCouro(f.corCouro || '');
@@ -155,6 +157,7 @@ const BeltOrderPage = () => {
 
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
+        cliente: cliente.trim(),
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
         tamanho: '-',
         modelo: '-',
@@ -201,22 +204,27 @@ const BeltOrderPage = () => {
 
   const handleSaveDraft = () => {
     if (!user) return;
+    if (!numeroPedido.trim() && !cliente.trim()) {
+      toast.error('Preencha o Número do Pedido ou o Cliente para salvar o rascunho.');
+      return;
+    }
     const id = `draft-belt-${Date.now()}`;
     const form: Record<string, string> = {
-      vendedor, tamanho, tipoCouro, corCouro,
+      vendedor, tamanho, tipoCouro, corCouro, cliente,
       bordadoP: String(bordadoP), bordadoPDesc, bordadoPCor,
       nomeBordado: String(nomeBordado), nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte,
       carimbo, carimboDesc, carimboOnde,
       observacao,
     };
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida: false, quantidade: 1, numeroPedido, fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [] });
+    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida: false, quantidade: 1, numeroPedido, cliente, fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [] });
     toast.success('Rascunho salvo!');
   };
 
   const mirrorRows: [string, string][] = [
     ['Vendedor', isAdminUser ? vendedor : (user?.nomeCompleto || '')],
     ['Número do Pedido', numeroPedido],
+    ['Cliente', cliente],
     ['Tamanho', tamanho ? `${tamanho} (${formatCurrency(tamanhoPreco)})` : ''],
     ['Tipo de Couro', tipoCouro],
     ['Cor do Couro', corCouro],
@@ -252,6 +260,10 @@ const BeltOrderPage = () => {
             <div>
               <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
               <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={cls.input} />
+            </div>
+            <div>
+              <label className={cls.label}>Cliente</label>
+              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
             </div>
           </div>
 
