@@ -80,15 +80,25 @@ const ReportsPage = () => {
       if (appliedFilters.filterDate && o.dataCriacao < appliedFilters.filterDate) return false;
       if (appliedFilters.filterDateEnd && o.dataCriacao > appliedFilters.filterDateEnd) return false;
       if (appliedFilters.filterStatus && o.status !== appliedFilters.filterStatus) return false;
-      // Produto filter: bota or specific extra type
       if (o.tipoExtra) {
         if (!appliedFilters.filterProduto.has(o.tipoExtra)) return false;
       } else {
         if (!appliedFilters.filterProduto.has('bota')) return false;
       }
       return true;
+    }).sort((a, b) => {
+      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
+      if (numB !== numA) return numB - numA;
+      if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
+      return 0;
     });
   }, [displayOrders, appliedFilters]);
+
+  const visibleOrders = useMemo(() => {
+    if (scanFilterId) return filteredOrders.filter(o => o.id === scanFilterId);
+    return filteredOrders;
+  }, [filteredOrders, scanFilterId]);
 
   const totalValue = filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0);
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
