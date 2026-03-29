@@ -824,7 +824,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text(String(totalQtd), cx[3] + 1, y + 7);
     doc.text(formatCurrency(totalValor), cx[4] + 1, y + 7);
 
-    doc.save('relatorio-expedicao.pdf');
+    const dateFile = geradoEm.replace(/\//g, '-');
+    const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
+    doc.save(`Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
   };
 
   // ── Cobrança: tabular A4 layout ──
