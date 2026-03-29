@@ -253,6 +253,8 @@ const BeltOrderPage = () => {
     ['Bordado P', bordadoP ? `Tem — ${bordadoPDesc}${bordadoPCor ? ' | Cor: ' + bordadoPCor : ''}` : ''],
     ['Nome Bordado', nomeBordado ? `Tem — ${nomeBordadoDesc}${nomeBordadoCor ? ' | Cor: ' + nomeBordadoCor : ''}${nomeBordadoFonte ? ' | Fonte: ' + nomeBordadoFonte : ''}` : ''],
     ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}${carimboOnde ? ' | Local: ' + carimboOnde : ''}` : ''],
+    ['Fivela', fivela ? (fivela === 'Outro' && fivelaOutroDesc ? `Outro — ${fivelaOutroDesc}` : fivela) : ''],
+    ['Adicional', adicionalPreco ? `${formatCurrency(adicionalPreco)}${adicionalDesc ? ' — ' + adicionalDesc : ''}` : ''],
     ['Observação', observacao],
     ['Quantidade', '1'],
   ].filter(([, v]) => v) as [string, string][];
