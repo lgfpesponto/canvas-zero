@@ -72,8 +72,10 @@ const OrderDetailPage = () => {
   const daysLeft = businessDaysRemaining(createdDate, totalBizDays);
 
   // Build details list (only filled fields)
+  const showCliente = !isAdmin || order.vendedor === 'Rancho Chique';
   const details: [string, string][] = [
     ['Modelo', order.modelo],
+    ...(showCliente && order.cliente ? [['Cliente', order.cliente] as [string, string]] : []),
     ['Tamanho', order.tamanho ? `${order.tamanho}${order.genero ? ' — ' + order.genero : ''}` : ''],
     ['Sob Medida', order.sobMedida ? `Sim${order.sobMedidaDesc ? ' — ' + order.sobMedidaDesc : ''}` : ''],
     ['Acessórios', order.acessorios],
