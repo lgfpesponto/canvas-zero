@@ -859,7 +859,6 @@ const OrderPage = () => {
               )}
             </>
           )}
-          </div>
 
           {mode === 'order' && (
             <>
