@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL } from '@/lib/extrasConfig';
-import { ShoppingCart, Package, Settings } from 'lucide-react';
+import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface StockItem {
@@ -63,6 +63,8 @@ const ExtrasPage = () => {
   const [stockCorTira, setStockCorTira] = useState('');
   const [stockTipoMetal, setStockTipoMetal] = useState('');
   const [stockQtd, setStockQtd] = useState('');
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
+  const [editingStockQtd, setEditingStockQtd] = useState('');
 
   const fetchStock = useCallback(async () => {
     const { data } = await supabase.from('gravata_stock').select('*');
@@ -218,8 +220,8 @@ const ExtrasPage = () => {
       if (success) {
         // Decrement stock for gravata_pronta_entrega
         if (productId === 'gravata_pronta_entrega') {
-          const stockItem = stockItems.find(s => s.id === selectedStockId)!;
-          await supabase.from('gravata_stock').update({ quantidade: stockItem.quantidade - 1 }).eq('id', selectedStockId);
+          await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
+          fetchStock();
         }
         setOpenProduct(null);
         toast({ title: `Pedido de ${product.nome} criado com sucesso!` });
@@ -600,12 +602,48 @@ const ExtrasPage = () => {
               <div>
                 <Label className="text-base font-semibold">Estoque atual</Label>
                 <div className="mt-2 space-y-1">
-                  {stockItems.map(item => (
-                    <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm">
-                      <span>{item.cor_tira} + {item.tipo_metal}</span>
-                      <span className="font-bold">{item.quantidade} un</span>
-                    </div>
-                  ))}
+                  {stockItems.map(item => {
+                    const isEditing = editingStockId === item.id;
+                    return (
+                      <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm gap-2">
+                        <span className="flex-1">{item.cor_tira} + {item.tipo_metal}</span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              className="w-20 h-8"
+                              value={editingStockQtd}
+                              onChange={e => setEditingStockQtd(e.target.value)}
+                            />
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={async () => {
+                              await supabase.from('gravata_stock').update({ quantidade: parseInt(editingStockQtd) || 0 }).eq('id', item.id);
+                              setEditingStockId(null);
+                              fetchStock();
+                            }}>
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingStockId(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold">{item.quantidade} un</span>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingStockId(item.id); setEditingStockQtd(String(item.quantidade)); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={async () => {
+                              await supabase.from('gravata_stock').delete().eq('id', item.id);
+                              fetchStock();
+                            }}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
