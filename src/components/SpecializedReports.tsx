@@ -126,6 +126,74 @@ const PRODUCT_GROUPABLE_FIELDS: Record<string, { key: string; label: string }[]>
   ],
 };
 
+// ── Helper: compact block layout for production PDFs ──
+interface BlockData {
+  badgeLabel: string;
+  description: string;
+  sizes: { tamanho: string; quantidade: number }[];
+}
+
+function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): number {
+  const pageW = 182;
+  const badgeW = doc.getTextWidth(block.badgeLabel) + 8;
+  const badgeH = 7;
+  const boxSize = 12;
+  const labelW = 32;
+
+  // Line 1: Badge + description
+  doc.setFillColor(30, 30, 30);
+  doc.roundedRect(mx, y, badgeW, badgeH, 1.5, 1.5, 'F');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text(block.badgeLabel, mx + 4, y + 5);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const descLines = doc.splitTextToSize(block.description, pageW - badgeW - 6);
+  doc.text(descLines, mx + badgeW + 4, y + 5);
+  const descH = Math.max(badgeH, descLines.length * 4);
+  y += descH + 2;
+
+  // Line 2: TAMANHO + boxes
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('TAMANHO', mx + 2, y + 5);
+  block.sizes.forEach((s, i) => {
+    const bx = mx + labelW + i * (boxSize + 2);
+    doc.setFillColor(30, 30, 30);
+    doc.roundedRect(bx, y, boxSize, 7, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7);
+    doc.text(s.tamanho, bx + boxSize / 2, y + 5, { align: 'center' });
+  });
+  doc.setTextColor(0, 0, 0);
+  y += 9;
+
+  // Line 3: QUANTIDADE + boxes
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('QUANTIDADE', mx + 2, y + 5);
+  block.sizes.forEach((s, i) => {
+    const bx = mx + labelW + i * (boxSize + 2);
+    doc.setFillColor(30, 30, 30);
+    doc.roundedRect(bx, y, boxSize, 7, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7);
+    doc.text(String(s.quantidade), bx + boxSize / 2, y + 5, { align: 'center' });
+  });
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  return y;
+}
+
+function estimateBlockHeight(block: BlockData): number {
+  return 7 + 2 + 9 + 12; // badge + gap + tamanho + quantidade
+}
+
 // ── Helper: draw a tabular header row ──
 function drawTableHeader(doc: jsPDF, y: number, mx: number, cw: number, headers: { label: string; x: number }[]) {
   doc.setFillColor(232, 232, 232);
