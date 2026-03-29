@@ -545,6 +545,7 @@ const OrderPage = () => {
                   {allProfiles.map(p => (
                     <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
                   ))}
+                  <option value="Estoque">Estoque</option>
                 </select>
               ) : (
                 <input type="text" value={user?.nomeCompleto || ''} readOnly className={cls.input + ' opacity-70'} />

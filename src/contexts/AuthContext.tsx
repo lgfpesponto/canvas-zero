@@ -616,13 +616,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // If admin is creating order for a different vendedor, use vendedor's user_id
       let targetUserId = user.id;
       if (isAdmin && rest.vendedor && rest.vendedor !== user.nomeCompleto) {
-        const { data: vendorProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('nome_completo', rest.vendedor)
-          .maybeSingle();
-        if (vendorProfile) {
-          targetUserId = vendorProfile.id;
+        // "Estoque" is a special internal vendor — keep admin's user_id
+        if (rest.vendedor !== 'Estoque') {
+          const { data: vendorProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('nome_completo', rest.vendedor)
+            .maybeSingle();
+          if (vendorProfile) {
+            targetUserId = vendorProfile.id;
+          }
         }
       }
 
