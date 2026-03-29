@@ -111,6 +111,7 @@ export interface Order {
   tipoExtra?: string;
   extraDetalhes?: Record<string, any>;
   numeroPedidoBota?: string;
+  cliente?: string;
 }
 
 export const PRODUCTION_STATUSES = [
