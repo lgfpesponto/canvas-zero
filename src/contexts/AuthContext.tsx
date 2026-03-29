@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'; // v5-session-fix
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 /* ───── Brasilia helpers (unchanged) ───── */
 function nowBrasilia(): Date {
