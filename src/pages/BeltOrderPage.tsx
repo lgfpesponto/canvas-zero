@@ -67,7 +67,7 @@ const BeltOrderPage = () => {
       const f = draftData.form || {};
       setVendedor(f.vendedor || user?.nomeCompleto || '');
       setNumeroPedido(draftData.numeroPedido || '');
-      setTamanho(f.tamanho || '');
+      setCliente(f.cliente || '');
       setTipoCouro(f.tipoCouro || '');
       setCorCouro(f.corCouro || '');
       setBordadoP(f.bordadoP === 'true');
