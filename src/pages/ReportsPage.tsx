@@ -897,10 +897,10 @@ const ReportsPage = () => {
                 setSearchQuery('');
                 setFilterDate('');
                 setFilterDateEnd('');
-                setFilterStatus('');
-                setFilterVendedor('');
+                setFilterStatus(new Set());
+                setFilterVendedor(new Set());
                 setFilterProduto(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
-                setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: '', filterVendedor: '', filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
+                setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
               }} className="border border-border text-muted-foreground px-4 py-2 rounded-lg font-bold text-sm hover:bg-muted transition-colors flex items-center gap-2">
                 <RefreshCw size={14} /> LIMPAR
