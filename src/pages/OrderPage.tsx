@@ -148,6 +148,9 @@ const OrderPage = () => {
   const [corGlitterGaspea, setCorGlitterGaspea] = useState(df.corGlitterGaspea || '');
   const [laserTaloneira, setLaserTaloneira] = useState<string[]>(df.laserTaloneira ? df.laserTaloneira.split('||') : []);
   const [corGlitterTaloneira, setCorGlitterTaloneira] = useState(df.corGlitterTaloneira || '');
+  const [corBordadoLaserCano, setCorBordadoLaserCano] = useState(df.corBordadoLaserCano || '');
+  const [corBordadoLaserGaspea, setCorBordadoLaserGaspea] = useState(df.corBordadoLaserGaspea || '');
+  const [corBordadoLaserTaloneira, setCorBordadoLaserTaloneira] = useState(df.corBordadoLaserTaloneira || '');
 
   // pintura (inside laser section)
   const [pintura, setPintura] = useState(df.pintura === 'true');
