@@ -834,57 +834,93 @@ const OrderPage = () => {
             <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
           </div>
 
-          {/* Link da Foto */}
-          <div>
-            <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
-            <div className="flex items-center gap-2">
-              <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-              <input
-                type="url"
-                value={fotoUrl}
-                onChange={e => setFotoUrl(e.target.value)}
-                placeholder="Cole o link do Google Drive aqui..."
-                className={cls.input}
-              />
+          {mode === 'order' && (
+            <>
+              <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+              <div className="flex items-center gap-2">
+                <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                <input
+                  type="url"
+                  value={fotoUrl}
+                  onChange={e => setFotoUrl(e.target.value)}
+                  placeholder="Cole o link do Google Drive aqui..."
+                  className={cls.input}
+                />
+                {fotoUrl && (
+                  <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
               {fotoUrl && (
-                <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
-                  <X size={16} />
-                </button>
+                <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
+                  Abrir link ↗
+                </a>
               )}
-            </div>
-            {fotoUrl && (
-              <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
-                Abrir link ↗
-              </a>
-            )}
+            </>
+          )}
           </div>
 
-          {/* Quantidade */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-semibold">Quantidade:</label>
-            <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
-          </div>
+          {mode === 'order' && (
+            <>
+              {/* Quantidade */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold">Quantidade:</label>
+                <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
+              </div>
 
-          {/* Prazo */}
-          <div className="bg-muted rounded-lg p-3">
-            <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 15 dias úteis</p>
-          </div>
+              {/* Prazo */}
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 15 dias úteis</p>
+              </div>
 
-          {/* Valor Total */}
-          <div className="bg-muted rounded-lg p-4">
-            <div className="flex justify-between text-lg font-bold">
-              <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
-            </div>
-          </div>
+              {/* Valor Total */}
+              <div className="bg-muted rounded-lg p-4">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
+                </div>
+              </div>
 
-          <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
-            <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
-          </button>
-          <button type="button" onClick={handleSaveDraft} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2">
-            SALVAR RASCUNHO
-          </button>
+              <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+                <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
+              </button>
+              <button type="button" onClick={handleSaveDraft} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2">
+                SALVAR RASCUNHO
+              </button>
+            </>
+          )}
+
+          {mode === 'template' && (
+            <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+              <Plus size={20} /> CRIAR MODELO
+            </button>
+          )}
         </form>
       </motion.div>
+
+      {/* ───── Templates Dialog ───── */}
+      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modelos Salvos</DialogTitle>
+          </DialogHeader>
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {templates.map(t => (
+                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
+                  <span className="font-semibold text-sm">{t.nome}</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ───── Mirror ───── */}
       {showMirror && (
