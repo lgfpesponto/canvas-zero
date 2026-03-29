@@ -137,7 +137,7 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   const pageW = 182; // area útil entre margens
   const rowH = 7;
   const labelW = 30;
-  const cellW = 14;
+  const cellW = 11;
   const numCols = block.sizes.length;
   const tableW = labelW + numCols * cellW;
 
@@ -159,7 +159,7 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   doc.setFillColor(245, 245, 245);
   doc.rect(mx, y, labelW, rowH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(0, 0, 0);
   doc.text('TAMANHO', mx + 2, y + 5);
   block.sizes.forEach((s, i) => {
@@ -181,7 +181,7 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   doc.setFillColor(245, 245, 245);
   doc.rect(mx, y, labelW, rowH, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.text('QUANTIDADE', mx + 2, y + 5);
   block.sizes.forEach((s, i) => {
     const cx = mx + labelW + i * cellW;
@@ -410,13 +410,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
     filtered.forEach(o => {
       const forma = getForma(o.modelo, o.formatoBico);
-      const key = `${o.modelo}|${forma}`;
-      if (!groups[key]) groups[key] = { modelo: o.modelo, forma, sizes: {} };
+      const key = o.modelo;
+      if (!groups[key]) groups[key] = { modelo: o.modelo, forma: '', sizes: {} };
       groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
     });
     const blocks: BlockData[] = Object.values(groups).map(g => ({
       badgeLabel: 'MODELO',
-      description: `${g.modelo} — Forma ${g.forma || '—'}`,
+      description: g.modelo,
       sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
     })).sort((a, b) => a.description.localeCompare(b.description));
 
@@ -453,13 +453,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
     filtered.forEach(o => {
       const forma = getForma(o.modelo, o.formatoBico);
-      const key = `${o.modelo}|${forma}`;
-      if (!groups[key]) groups[key] = { modelo: o.modelo, forma, sizes: {} };
+      const key = forma || 'sem-forma';
+      if (!groups[key]) groups[key] = { modelo: '', forma, sizes: {} };
       groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
     });
     const blocks: BlockData[] = Object.values(groups).map(g => ({
-      badgeLabel: 'MODELO',
-      description: `${g.modelo} — Forma ${g.forma || '—'}`,
+      badgeLabel: 'FORMA',
+      description: `Forma ${g.forma || '—'}`,
       sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
     })).sort((a, b) => a.description.localeCompare(b.description));
 
