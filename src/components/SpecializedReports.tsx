@@ -31,7 +31,7 @@ function barcodeDataUrl(value: string, opts?: { width?: number; height?: number 
   } catch { return ''; }
 }
 
-type ReportType = 'escalacao' | 'forro' | 'pesponto' | 'bordados' | 'expedicao' | 'cobranca' | 'extras_cintos';
+type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'pesponto' | 'bordados' | 'expedicao' | 'cobranca' | 'extras_cintos';
 
 interface SpecializedReportsProps {
   reports: ReportType[];
@@ -41,6 +41,7 @@ interface SpecializedReportsProps {
 const REPORT_LABELS: Record<ReportType, string> = {
   escalacao: 'Escalação',
   forro: 'Forro',
+  palmilha: 'Palmilha',
   pesponto: 'Metais',
   bordados: 'Bordados',
   expedicao: 'Expedição',
