@@ -495,6 +495,10 @@ const OrderPage = () => {
 
   const handleSaveDraft = () => {
     if (!user) return;
+    if (!numeroPedido.trim() && !cliente.trim()) {
+      toast.error('Preencha o Número do Pedido ou o Cliente para salvar o rascunho.');
+      return;
+    }
     const id = draftId || `draft-${Date.now()}`;
     const form: Record<string, string> = {
       tamanho, genero, modelo, sobMedidaDesc,
@@ -523,9 +527,10 @@ const OrderPage = () => {
       carimbo, carimboDesc,
       adicionalDesc, adicionalValor: String(adicionalValor),
       observacao,
+      cliente,
     };
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida, quantidade: 1, numeroPedido, fotos });
+    saveDraft({ id, userId: user.id, savedAt: now.toISOString(), form, sobMedida, quantidade: 1, numeroPedido, cliente, fotos });
     setDraftId(id);
     toast.success('Rascunho salvo!');
   };
