@@ -218,8 +218,8 @@ const ExtrasPage = () => {
       if (success) {
         // Decrement stock for gravata_pronta_entrega
         if (productId === 'gravata_pronta_entrega') {
-          const stockItem = stockItems.find(s => s.id === selectedStockId)!;
-          await supabase.from('gravata_stock').update({ quantidade: stockItem.quantidade - 1 }).eq('id', selectedStockId);
+          await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
+          fetchStock();
         }
         setOpenProduct(null);
         toast({ title: `Pedido de ${product.nome} criado com sucesso!` });
