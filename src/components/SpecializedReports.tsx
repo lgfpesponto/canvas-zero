@@ -134,12 +134,58 @@ interface BlockData {
 }
 
 function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): number {
-  const pageW = 182; // area útil entre margens
   const rowH = 7;
-  const labelW = 30;
+  const labelW = 18;
   const cellW = 11;
   const numCols = block.sizes.length;
   const tableW = labelW + numCols * cellW;
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.3);
+
+  // Row 1: Título (fundo escuro, texto branco, largura = tableW)
+  doc.setFillColor(30, 30, 30);
+  doc.rect(mx, y, tableW, rowH, 'FD');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  const titleText = `${block.badgeLabel}: ${block.description}`;
+  doc.text(titleText, mx + 3, y + 5);
+  doc.setTextColor(0, 0, 0);
+  y += rowH;
+
+  // Row 2: TAM.
+  doc.setFillColor(245, 245, 245);
+  doc.rect(mx, y, labelW, rowH, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text('TAM.', mx + 2, y + 5);
+  block.sizes.forEach((s, i) => {
+    const cx = mx + labelW + i * cellW;
+    doc.setFillColor(255, 255, 255);
+    doc.rect(cx, y, cellW, rowH, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(s.tamanho, cx + cellW / 2, y + 5, { align: 'center' });
+  });
+  y += rowH;
+
+  // Row 3: QTD.
+  doc.setFillColor(245, 245, 245);
+  doc.rect(mx, y, labelW, rowH, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('QTD.', mx + 2, y + 5);
+  block.sizes.forEach((s, i) => {
+    const cx = mx + labelW + i * cellW;
+    doc.setFillColor(255, 255, 255);
+    doc.rect(cx, y, cellW, rowH, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(String(s.quantidade), cx + cellW / 2, y + 5, { align: 'center' });
+  });
+  y += rowH + 4;
 
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);
