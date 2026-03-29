@@ -8,6 +8,7 @@ import { Link2, X, Eye } from 'lucide-react';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
+  FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
 
 const cls = {
