@@ -705,7 +705,7 @@ const ReportsPage = () => {
             <FileText size={16} /> Fazer pedido
           </button>
           {/* Barcode scanner for all users */}
-          <button onClick={() => setShowScanner(v => !v)} className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
+          <button onClick={() => { setShowScanner(v => !v); if (showScanner) setScanFilterId(null); }} className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
             <ScanBarcode size={16} /> {showScanner ? 'Fechar Scanner' : 'Escanear Código'}
           </button>
           {/* Admin bulk progress button */}
