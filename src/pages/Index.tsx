@@ -230,16 +230,25 @@ const Index = () => {
               <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {alertOrders.map(o => (
-                  <Link key={o.id} to={`/pedido/${o.id}`} className="flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
-                    <div>
-                      <span className="font-bold text-sm">{o.numero}</span>
-                      <span className="text-xs text-muted-foreground ml-2">— {o.vendedor}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
-                      {o.diasRestantes === 0 && <span className="text-xs text-destructive ml-2">Prazo atingido</span>}
-                    </div>
-                  </Link>
+                  <div key={o.id} className="flex items-center gap-2">
+                    <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
+                      <div>
+                        <span className="font-bold text-sm">{o.numero}</span>
+                        <span className="text-xs text-muted-foreground ml-2">— {o.vendedor}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
+                        {o.diasRestantes === 0 && <span className="text-xs text-destructive ml-2">Prazo atingido</span>}
+                      </div>
+                    </Link>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
+                      className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                      title="Marcar como conferido"
+                    >
+                      <Check size={14} /> Conferido
+                    </button>
+                  </div>
                 ))}
               </div>
             </motion.div>
