@@ -926,7 +926,8 @@ const OrderPage = () => {
                 </div>
               ))}
             </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
