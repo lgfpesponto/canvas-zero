@@ -904,11 +904,19 @@ const OrderPage = () => {
           <DialogHeader>
             <DialogTitle>Modelos Salvos</DialogTitle>
           </DialogHeader>
-          {templates.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>
-          ) : (
+          <Input
+            placeholder="Pesquisar modelo..."
+            value={templateSearch}
+            onChange={e => setTemplateSearch(e.target.value)}
+            className="mb-2"
+          />
+          {(() => {
+            const filtered = templates.filter(t => t.nome.toLowerCase().includes(templateSearch.toLowerCase()));
+            if (templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
+            if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
+            return (
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {templates.map(t => (
+              {filtered.map(t => (
                 <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
                   <span className="font-semibold text-sm">{t.nome}</span>
                   <div className="flex gap-2">
