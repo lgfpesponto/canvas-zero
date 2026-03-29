@@ -16,6 +16,7 @@ import { ShoppingCart, Package } from 'lucide-react';
 
 const emptyForm = (): Record<string, any> => ({
   numeroPedidoBota: '',
+  cliente: '',
   corTiras: '',
   qualSola: '',
   trocaGaspea: 'Não',
