@@ -972,8 +972,8 @@ const ReportsPage = () => {
           ))}
         </div>
 
-        {filteredOrders.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado com esses filtros.</p>
+        {visibleOrders.length === 0 && (
+          <p className="text-center text-muted-foreground py-8">{scanFilterId ? 'Pedido escaneado não encontrado nos filtros atuais.' : 'Nenhum pedido encontrado com esses filtros.'}</p>
         )}
       </motion.div>
 
