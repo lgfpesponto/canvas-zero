@@ -845,21 +845,21 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'bold');
     doc.text(`Cobrança  [${geradoEm} — ${vendedorLabel}]`, mx, 20);
 
-    const cols = [25, 22, 68, 15, 28, cw - 25 - 22 - 68 - 15 - 28];
-    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3], mx + cols[0] + cols[1] + cols[2] + cols[3] + cols[4]];
+    const cols = [45, 22, 68, 15, 32];
+    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3]];
+    const tableW = cols.reduce((a, b) => a + b, 0);
 
     let y = 30;
 
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
     doc.setFillColor(232, 232, 232);
-    doc.rect(mx, y, cw, 8, 'F');
+    doc.rect(mx, y, tableW, 8, 'F');
     doc.text('Nº PEDIDO', cx[0] + 1, y + 5.5);
     doc.text('DATA', cx[1] + 1, y + 5.5);
     doc.text('COMPOSIÇÃO', cx[2] + 1, y + 5.5);
     doc.text('QTD', cx[3] + 1, y + 5.5);
     doc.text('PREÇO', cx[4] + 1, y + 5.5);
-    doc.text('PAGO', cx[5] + 1, y + 5.5);
     y += 8;
 
     let totalValor = 0;
@@ -991,16 +991,30 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       doc.setFontSize(6);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);
-      const rowH = Math.max(12, lines.length * 3.5 + 6);
+      const rowH = Math.max(14, lines.length * 3.5 + 6);
 
       if (y + rowH > 280) { doc.addPage(); y = 20; }
 
       doc.setLineWidth(0.2);
-      doc.rect(mx, y, cw, rowH);
-      cols.reduce((x, w) => { doc.line(x + w, y, x + w, y + rowH); return x + w; }, mx);
+      doc.rect(mx, y, tableW, rowH);
+      let colX = mx;
+      for (let i = 0; i < cols.length - 1; i++) {
+        colX += cols[i];
+        doc.line(colX, y, colX, y + rowH);
+      }
 
       doc.setFontSize(8);
       doc.text(o.numero, cx[0] + 1, y + 5);
+
+      // Barcode below order number
+      try {
+        const bcVal = orderBarcodeValue(o.numero, o.id);
+        const bcUrl = barcodeDataUrl(bcVal);
+        const bcW = cols[0] - 4;
+        const bcH = 7;
+        doc.addImage(bcUrl, 'PNG', cx[0] + 2, y + 6, bcW, bcH);
+      } catch (_) {}
+
       doc.setFontSize(7);
       doc.text(formatDateBR(o.dataCriacao), cx[1] + 1, y + 5);
 
@@ -1011,9 +1025,6 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       doc.text(String(o.quantidade), cx[3] + 1, y + 5);
       doc.text(formatCurrency(orderTotal), cx[4] + 1, y + 5);
 
-      const cbSize = 4;
-      doc.rect(cx[5] + (cols[5] - cbSize) / 2, y + (rowH - cbSize) / 2, cbSize, cbSize);
-
       y += rowH;
       totalValor += orderTotal;
       totalQtd += o.quantidade;
@@ -1021,7 +1032,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     if (y + 10 > 285) { doc.addPage(); y = 20; }
     doc.setFillColor(232, 232, 232);
-    doc.rect(mx, y, cw, 10, 'F');
+    doc.rect(mx, y, tableW, 10, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.text('TOTAL', cx[0] + 1, y + 7);
