@@ -301,7 +301,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
 export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino' | 'perfilado';
 
 const INFANTIL_MODELOS = ['Bota Infantil', 'Botina Infantil', 'Cano Médio Infantil'];
-const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano'];
+const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano', 'Cano Inteiro'];
 const BF_FEMININO_MODELOS = ['Bota Bico Fino Feminino', 'Capota Bico Fino'];
 const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Ouver Perfilado', 'Capota Bico Fino Perfilado', 'Tradicional Bico Fino'];
 
