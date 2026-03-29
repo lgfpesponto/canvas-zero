@@ -183,6 +183,11 @@ const OrderPage = () => {
   const [triceDesc, setTriceDesc] = useState(df.triceDesc || '');
   const [tiras, setTiras] = useState(df.tiras === 'true');
   const [tirasDesc, setTirasDesc] = useState(df.tirasDesc || '');
+  const [franja, setFranja] = useState(df.franja === 'true');
+  const [franjaCouro, setFranjaCouro] = useState(df.franjaCouro || '');
+  const [franjaCor, setFranjaCor] = useState(df.franjaCor || '');
+  const [corrente, setCorrente] = useState(df.corrente === 'true');
+  const [correnteCor, setCorrenteCor] = useState(df.correnteCor || '');
 
   // solados
   const [solado, setSolado] = useState(df.solado || '');
