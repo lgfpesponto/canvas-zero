@@ -855,6 +855,24 @@ const OrderPage = () => {
           <Section title="Extras">
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
+            <div className="space-y-2">
+              <ToggleField label={`Franja (+R$${FRANJA_PRECO})`} value={franja} onChange={setFranja} />
+              {franja && (
+                <div className="grid sm:grid-cols-2 gap-3 pl-4">
+                  <div><label className={cls.label}>Tipo de couro da franja</label><input type="text" value={franjaCouro} onChange={e => setFranjaCouro(e.target.value)} placeholder="Tipo de couro..." className={cls.input} /></div>
+                  <div><label className={cls.label}>Cor da franja</label><input type="text" value={franjaCor} onChange={e => setFranjaCor(e.target.value)} placeholder="Cor da franja..." className={cls.input} /></div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <ToggleField label={`Corrente (+R$${CORRENTE_PRECO})`} value={corrente} onChange={setCorrente} />
+              {corrente && (
+                <div className="pl-4">
+                  <label className={cls.label}>Cor da corrente</label>
+                  <input type="text" value={correnteCor} onChange={e => setCorrenteCor(e.target.value)} placeholder="Cor da corrente..." className={cls.input} />
+                </div>
+              )}
+            </div>
           </Section>
 
           {/* Solados */}
