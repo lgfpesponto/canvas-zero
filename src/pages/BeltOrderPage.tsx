@@ -309,17 +309,11 @@ const BeltOrderPage = () => {
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className={cls.label}>Tipo de Couro<span className="text-destructive ml-0.5">*</span></label>
-                <select value={tipoCouro} onChange={e => setTipoCouro(e.target.value)} className={cls.select}>
-                  <option value="">Selecione...</option>
-                  {TIPOS_COURO.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
               </div>
               <div>
                 <label className={cls.label}>Cor do Couro<span className="text-destructive ml-0.5">*</span></label>
-                <select value={corCouro} onChange={e => setCorCouro(e.target.value)} className={cls.select}>
-                  <option value="">Selecione...</option>
-                  {CORES_COURO.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <SearchableSelect options={CORES_COURO} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
           </Section>
