@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import logo from '@/assets/logo-7estrivos.png';
 
@@ -65,12 +65,6 @@ const LoginPage = () => {
             </button>
           </form>
 
-          <div className="mt-4 text-center space-y-2">
-            <Link to="/recuperar-senha" className="text-sm text-primary hover:underline block">Esqueci minha senha</Link>
-            <p className="text-sm text-muted-foreground">
-              Não tem conta? <Link to="/cadastro" className="text-primary font-semibold hover:underline">Criar conta</Link>
-            </p>
-          </div>
         </div>
       </motion.div>
     </div>

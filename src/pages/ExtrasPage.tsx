@@ -191,6 +191,7 @@ const ExtrasPage = () => {
               <SelectTrigger><SelectValue placeholder="Selecione vendedor" /></SelectTrigger>
               <SelectContent>
                 {allProfiles.map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
+                <SelectItem value="Estoque">Estoque</SelectItem>
               </SelectContent>
             </Select>
           </div>

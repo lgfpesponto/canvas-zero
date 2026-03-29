@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Pencil, Trash2, Users, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, Users, Loader2, Plus } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -28,11 +28,20 @@ const UsersManagementPage = () => {
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Edit state
   const [editProfile, setEditProfile] = useState<Profile | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Profile>>({});
+  const [editForm, setEditForm] = useState<Partial<Profile & { newPassword: string }>>({});
   const [saving, setSaving] = useState(false);
+
+  // Delete state
   const [deleteProfile, setDeleteProfile] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Create state
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
+  const [creating, setCreating] = useState(false);
 
   const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
 
@@ -56,16 +65,62 @@ const UsersManagementPage = () => {
     setLoading(false);
   };
 
+  /* ── Create user ── */
+  const handleCreate = async () => {
+    if (!createForm.nomeUsuario || !createForm.senha) {
+      toast({ title: 'Preencha pelo menos o nome de usuário e senha.', variant: 'destructive' });
+      return;
+    }
+    setCreating(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
+    const res = await supabase.functions.invoke('create-user', {
+      body: {
+        nomeCompleto: createForm.nomeCompleto,
+        nomeUsuario: createForm.nomeUsuario,
+        email: createForm.email,
+        cpfCnpj: createForm.cpfCnpj,
+        senha: createForm.senha,
+      },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (res.error) {
+      toast({ title: 'Erro ao criar usuário', description: res.error.message, variant: 'destructive' });
+    } else if (res.data?.error) {
+      toast({ title: 'Erro ao criar usuário', description: res.data.error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Usuário criado com sucesso!' });
+      setShowCreate(false);
+      setCreateForm({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
+      fetchProfiles();
+    }
+    setCreating(false);
+  };
+
+  /* ── Edit user ── */
   const openEdit = (p: Profile) => {
     setEditProfile(p);
-    setEditForm({ nome_completo: p.nome_completo, email: p.email, telefone: p.telefone, cpf_cnpj: p.cpf_cnpj });
+    setEditForm({
+      nome_completo: p.nome_completo,
+      nome_usuario: p.nome_usuario,
+      email: p.email,
+      telefone: p.telefone,
+      cpf_cnpj: p.cpf_cnpj,
+      newPassword: '',
+    });
   };
 
   const handleSave = async () => {
     if (!editProfile) return;
     setSaving(true);
+
+    // Update profile fields
     const { error } = await supabase.from('profiles').update({
       nome_completo: editForm.nome_completo || '',
+      nome_usuario: editForm.nome_usuario || '',
       email: editForm.email || '',
       telefone: editForm.telefone || '',
       cpf_cnpj: editForm.cpf_cnpj || '',
@@ -73,14 +128,36 @@ const UsersManagementPage = () => {
 
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Usuário atualizado com sucesso!' });
-      setEditProfile(null);
-      fetchProfiles();
+      setSaving(false);
+      return;
     }
+
+    // Update password if provided
+    if (editForm.newPassword && editForm.newPassword.length > 0) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const res = await supabase.functions.invoke('update-user-password', {
+        body: { userId: editProfile.id, newPassword: editForm.newPassword },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (res.error || res.data?.error) {
+        toast({ title: 'Perfil salvo, mas erro ao alterar senha', description: res.error?.message || res.data?.error, variant: 'destructive' });
+        setSaving(false);
+        setEditProfile(null);
+        fetchProfiles();
+        return;
+      }
+    }
+
+    toast({ title: 'Usuário atualizado com sucesso!' });
+    setEditProfile(null);
+    fetchProfiles();
     setSaving(false);
   };
 
+  /* ── Delete user ── */
   const handleDelete = async () => {
     if (!deleteProfile) return;
     setDeleting(true);
@@ -117,11 +194,15 @@ const UsersManagementPage = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-primary">
             <Users size={24} />
             Gerenciamento de Usuários
           </CardTitle>
+          <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Plus size={16} />
+            Criar Usuário
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -175,6 +256,45 @@ const UsersManagementPage = () => {
         </CardContent>
       </Card>
 
+      {/* Create Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Usuário</DialogTitle>
+            <DialogDescription>Preencha os dados do novo usuário.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome Completo</Label>
+              <Input value={createForm.nomeCompleto} onChange={(e) => setCreateForm({ ...createForm, nomeCompleto: e.target.value })} placeholder="Nome completo" />
+            </div>
+            <div>
+              <Label>Nome de Usuário (login) *</Label>
+              <Input value={createForm.nomeUsuario} onChange={(e) => setCreateForm({ ...createForm, nomeUsuario: e.target.value })} placeholder="Nome de usuário" />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="Email de contato" />
+            </div>
+            <div>
+              <Label>CPF/CNPJ</Label>
+              <Input value={createForm.cpfCnpj} onChange={(e) => setCreateForm({ ...createForm, cpfCnpj: e.target.value })} placeholder="CPF ou CNPJ" />
+            </div>
+            <div>
+              <Label>Senha *</Label>
+              <Input type="password" value={createForm.senha} onChange={(e) => setCreateForm({ ...createForm, senha: e.target.value })} placeholder="Senha do usuário" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
+              Criar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={!!editProfile} onOpenChange={() => setEditProfile(null)}>
         <DialogContent>
@@ -188,6 +308,10 @@ const UsersManagementPage = () => {
               <Input value={editForm.nome_completo || ''} onChange={(e) => setEditForm({ ...editForm, nome_completo: e.target.value })} />
             </div>
             <div>
+              <Label>Nome de Usuário (login)</Label>
+              <Input value={editForm.nome_usuario || ''} onChange={(e) => setEditForm({ ...editForm, nome_usuario: e.target.value })} />
+            </div>
+            <div>
               <Label>Email</Label>
               <Input value={editForm.email || ''} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
             </div>
@@ -198,6 +322,10 @@ const UsersManagementPage = () => {
             <div>
               <Label>CPF/CNPJ</Label>
               <Input value={editForm.cpf_cnpj || ''} onChange={(e) => setEditForm({ ...editForm, cpf_cnpj: e.target.value })} />
+            </div>
+            <div>
+              <Label>Nova Senha (deixe vazio para manter a atual)</Label>
+              <Input type="password" value={editForm.newPassword || ''} onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })} placeholder="Nova senha" />
             </div>
           </div>
           <DialogFooter>

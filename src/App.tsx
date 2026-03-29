@@ -8,8 +8,6 @@ import { SelectedOrdersProvider } from "@/hooks/useSelectedOrders";
 import Header from "@/components/Header";
 import Index from "./pages/Index.tsx";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import RecoverPasswordPage from "./pages/RecoverPasswordPage";
 import OrderPage from "./pages/OrderPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
@@ -39,8 +37,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/cadastro" element={<RegisterPage />} />
-            <Route path="/recuperar-senha" element={<RecoverPasswordPage />} />
+            
+            
             <Route path="/pedido" element={<OrderPage />} />
             <Route path="/extras" element={<ExtrasPage />} />
             <Route path="/pedido-cinto" element={<BeltOrderPage />} />
