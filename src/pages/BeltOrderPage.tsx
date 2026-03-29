@@ -8,6 +8,7 @@ import { Link2, X, Eye } from 'lucide-react';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
+  FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
 
 const cls = {
@@ -56,6 +57,14 @@ const BeltOrderPage = () => {
   const [carimboDesc, setCarimboDesc] = useState('');
   const [carimboOnde, setCarimboOnde] = useState('');
 
+  // Fivela
+  const [fivela, setFivela] = useState('');
+  const [fivelaOutroDesc, setFivelaOutroDesc] = useState('');
+
+  // Adicional
+  const [adicionalValor, setAdicionalValor] = useState('');
+  const [adicionalDesc, setAdicionalDesc] = useState('');
+
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [showMirror, setShowMirror] = useState(false);
@@ -81,6 +90,10 @@ const BeltOrderPage = () => {
       setCarimbo(f.carimbo || '');
       setCarimboDesc(f.carimboDesc || '');
       setCarimboOnde(f.carimboOnde || '');
+      setFivela(f.fivela || '');
+      setFivelaOutroDesc(f.fivelaOutroDesc || '');
+      setAdicionalValor(f.adicionalValor || '');
+      setAdicionalDesc(f.adicionalDesc || '');
       setObservacao(f.observacao || '');
       setFotoUrl(draftData.fotos?.[0] || '');
       setLoadedDraftId(draftData.id);
@@ -103,7 +116,8 @@ const BeltOrderPage = () => {
   const bordadoPPreco = bordadoP ? BORDADO_P_PRECO : 0;
   const nomeBordadoPreco = nomeBordado ? NOME_BORDADO_CINTO_PRECO : 0;
   const carimboPreco = BELT_CARIMBO.find(c => c.label === carimbo)?.preco || 0;
-  const total = tamanhoPreco + bordadoPPreco + nomeBordadoPreco + carimboPreco;
+  const adicionalPreco = parseFloat(adicionalValor) || 0;
+  const total = tamanhoPreco + bordadoPPreco + nomeBordadoPreco + carimboPreco + adicionalPreco;
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -154,6 +168,10 @@ const BeltOrderPage = () => {
         if (carimboDesc) extraDetalhes.carimboDesc = carimboDesc;
         if (carimboOnde) extraDetalhes.ondeAplicado = carimboOnde;
       }
+      if (fivela) {
+        extraDetalhes.fivela = fivela;
+        if (fivela === 'Outro' && fivelaOutroDesc) extraDetalhes.fivelaOutroDesc = fivelaOutroDesc;
+      }
 
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
@@ -183,6 +201,8 @@ const BeltOrderPage = () => {
         observacao,
         quantidade: 1,
         preco: total,
+        adicionalValor: adicionalPreco || null,
+        adicionalDesc: adicionalDesc.trim() || null,
         temLaser: false,
         fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [],
         tipoExtra: 'cinto',
@@ -214,6 +234,8 @@ const BeltOrderPage = () => {
       bordadoP: String(bordadoP), bordadoPDesc, bordadoPCor,
       nomeBordado: String(nomeBordado), nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte,
       carimbo, carimboDesc, carimboOnde,
+      fivela, fivelaOutroDesc,
+      adicionalValor, adicionalDesc,
       observacao,
     };
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
@@ -231,6 +253,8 @@ const BeltOrderPage = () => {
     ['Bordado P', bordadoP ? `Tem — ${bordadoPDesc}${bordadoPCor ? ' | Cor: ' + bordadoPCor : ''}` : ''],
     ['Nome Bordado', nomeBordado ? `Tem — ${nomeBordadoDesc}${nomeBordadoCor ? ' | Cor: ' + nomeBordadoCor : ''}${nomeBordadoFonte ? ' | Fonte: ' + nomeBordadoFonte : ''}` : ''],
     ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}${carimboOnde ? ' | Local: ' + carimboOnde : ''}` : ''],
+    ['Fivela', fivela ? (fivela === 'Outro' && fivelaOutroDesc ? `Outro — ${fivelaOutroDesc}` : fivela) : ''],
+    ['Adicional', adicionalPreco ? `${formatCurrency(adicionalPreco)}${adicionalDesc ? ' — ' + adicionalDesc : ''}` : ''],
     ['Observação', observacao],
     ['Quantidade', '1'],
   ].filter(([, v]) => v) as [string, string][];
@@ -366,6 +390,34 @@ const BeltOrderPage = () => {
                 </div>
               </div>
             )}
+          </Section>
+
+          {/* Fivela */}
+          <Section title="Fivela">
+            <select value={fivela} onChange={e => setFivela(e.target.value)} className={cls.select}>
+              <option value="">Sem fivela</option>
+              {FIVELA_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            {fivela === 'Outro' && (
+              <div className="mt-3">
+                <label className={cls.label}>Descrever fivela</label>
+                <input type="text" value={fivelaOutroDesc} onChange={e => setFivelaOutroDesc(e.target.value)} placeholder="Descreva a fivela..." className={cls.input} />
+              </div>
+            )}
+          </Section>
+
+          {/* Adicional */}
+          <Section title="Adicional">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className={cls.label}>Valor do Adicional (R$)</label>
+                <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} placeholder="0,00" className={cls.input} />
+              </div>
+              <div>
+                <label className={cls.label}>Descrição do Adicional</label>
+                <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
+              </div>
+            </div>
           </Section>
 
           {/* Observação */}

@@ -63,6 +63,9 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   nomeBordadoFonte: 'Fonte Nome Bordado',
   carimbo: 'Carimbo a Fogo',
   carimboDesc: 'Descrição Carimbos',
+  fivela: 'Fivela',
+  fivelaOutroDesc: 'Descrição da Fivela',
+  carimboOnde: 'Onde Aplicado (Carimbo)',
 };
 
 /** Keys to exclude from display in order details */
@@ -77,6 +80,11 @@ export function isExtraValueEmpty(val: any): boolean {
   if (Array.isArray(val) && val.length === 0) return true;
   return false;
 }
+
+export const FIVELA_OPTIONS = [
+  'Prata com Strass', 'Preta com Strass', 'Prata Touro', 'Prata Flor',
+  'Infantil', 'Quadrada', 'Outro',
+];
 
 // ==================== BELT (CINTO) CONFIG ====================
 export const BELT_SIZES: { label: string; preco: number }[] = [

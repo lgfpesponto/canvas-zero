@@ -352,29 +352,24 @@ const ReportsPage = () => {
         (doc as any).setLineDash([]);
 
         const stubAreaW = pw - m * 2;
-        const stubW = stubAreaW / 2;
+        const stubW = stubAreaW / 3;
         const bcVal = orderBarcodeValue(order.numero, order.id);
         const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
 
-        // Stub 1: PESPONTO
-        let stubX = m;
-        doc.setLineWidth(0.3);
-        doc.line(stubX + stubW, stubTop, stubX + stubW, ph - m);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('PESPONTO', stubX + stubW / 2, stubTop + 4, { align: 'center' });
-        if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {} }
-        doc.setFontSize(10);
-        doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
-
-        // Stub 2: EXPEDIÇÃO
-        stubX += stubW;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.text('EXPEDIÇÃO', stubX + stubW / 2, stubTop + 4, { align: 'center' });
-        if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {} }
-        doc.setFontSize(10);
-        doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
+        const beltStubs = ['BORDADO', 'PESPONTO', 'EXPEDIÇÃO'];
+        beltStubs.forEach((stubName, si) => {
+          const stubX = m + si * stubW;
+          if (si > 0) {
+            doc.setLineWidth(0.3);
+            doc.line(stubX, stubTop, stubX, ph - m);
+          }
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(stubName, stubX + stubW / 2, stubTop + 4, { align: 'center' });
+          if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {} }
+          doc.setFontSize(10);
+          doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
+        });
 
         continue; // skip boot layout below
       }
