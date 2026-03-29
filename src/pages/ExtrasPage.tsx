@@ -334,31 +334,16 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Cor da tira *</Label>
-              <Select value={form.corTira} onValueChange={v => set('corTira', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {['Preto', 'Marrom', 'Off White', 'Laranja'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={['Preto', 'Marrom', 'Off White', 'Laranja']} value={form.corTira} onValueChange={v => set('corTira', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Tipo de metal *</Label>
-              <Select value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz'].map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora']} value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }} placeholder="Selecione" />
             </div>
             {form.tipoMetal?.startsWith('Bridão') && (
               <div>
                 <Label>Cor do bridão *</Label>
-                <Select value={form.corBridao} onValueChange={v => set('corBridao', v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {['Cristal', 'Rosa', 'Azul', 'Preto'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={['Cristal', 'Rosa', 'Azul', 'Preto']} value={form.corBridao} onValueChange={v => set('corBridao', v)} placeholder="Selecione" />
               </div>
             )}
           </>
