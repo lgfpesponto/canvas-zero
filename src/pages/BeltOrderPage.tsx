@@ -90,6 +90,10 @@ const BeltOrderPage = () => {
       setCarimbo(f.carimbo || '');
       setCarimboDesc(f.carimboDesc || '');
       setCarimboOnde(f.carimboOnde || '');
+      setFivela(f.fivela || '');
+      setFivelaOutroDesc(f.fivelaOutroDesc || '');
+      setAdicionalValor(f.adicionalValor || '');
+      setAdicionalDesc(f.adicionalDesc || '');
       setObservacao(f.observacao || '');
       setFotoUrl(draftData.fotos?.[0] || '');
       setLoadedDraftId(draftData.id);
