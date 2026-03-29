@@ -993,6 +993,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     switch (activeReport) {
       case 'escalacao': generateEscalacaoPDF(); break;
       case 'forro': generateForroPDF(); break;
+      case 'palmilha': generatePalmilhaPDF(); break;
       case 'pesponto': generatePespontoPDF(); break;
       case 'bordados': generateBordadosPDF(); break;
       case 'expedicao': generateExpedicaoPDF(); break;
@@ -1001,7 +1002,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const needsProgressFilter = activeReport === 'forro' || activeReport === 'pesponto' || activeReport === 'bordados';
+  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'pesponto' || activeReport === 'bordados';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
