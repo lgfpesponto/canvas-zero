@@ -453,13 +453,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
     filtered.forEach(o => {
       const forma = getForma(o.modelo, o.formatoBico);
-      const key = `${o.modelo}|${forma}`;
-      if (!groups[key]) groups[key] = { modelo: o.modelo, forma, sizes: {} };
+      const key = forma || 'sem-forma';
+      if (!groups[key]) groups[key] = { modelo: '', forma, sizes: {} };
       groups[key].sizes[o.tamanho] = (groups[key].sizes[o.tamanho] || 0) + o.quantidade;
     });
     const blocks: BlockData[] = Object.values(groups).map(g => ({
-      badgeLabel: 'MODELO',
-      description: `${g.modelo} — Forma ${g.forma || '—'}`,
+      badgeLabel: 'FORMA',
+      description: `Forma ${g.forma || '—'}`,
       sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
     })).sort((a, b) => a.description.localeCompare(b.description));
 
