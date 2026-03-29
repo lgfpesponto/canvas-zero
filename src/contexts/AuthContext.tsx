@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'; // v5-session-fix
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 /* ───── Brasilia helpers (unchanged) ───── */
 function nowBrasilia(): Date {
@@ -605,6 +606,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
       const numero = numeroPedido || `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
 
+      // Check for duplicate order number
+      const { data: existingOrder } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
+      if (existingOrder) {
+        toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
+        return false;
+      }
+
       const newOrder = {
         ...rest,
         dataCriacao: dataHoje,
@@ -688,6 +696,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       corSola: 'Cor Sola', costuraAtras: 'Costura Atrás', carimbo: 'Carimbo',
       carimboDesc: 'Descrição Carimbo', adicionalDesc: 'Adicional', formatoBico: 'Formato Bico',
       preco: 'Valor total', desconto: 'Desconto', descontoJustificativa: 'Justificativa do Desconto',
+      vendedor: 'Vendedor',
     };
 
     for (const key of Object.keys(data)) {
@@ -711,6 +720,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const updatedOrder = { ...current, ...data, alteracoes: [...(current.alteracoes || []), ...changes] };
+
+    // If vendedor changed, update user_id to the new vendedor's profile
+    let newUserId: string | undefined;
+    if (data.vendedor && data.vendedor !== current.vendedor) {
+      if (data.vendedor === 'Estoque') {
+        // Estoque uses current admin's user_id
+        const { data: { session } } = await supabase.auth.getSession();
+        newUserId = session?.user?.id;
+      } else {
+        const { data: vendorProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('nome_completo', data.vendedor)
+          .maybeSingle();
+        if (vendorProfile) {
+          newUserId = vendorProfile.id;
+        }
+      }
+    }
 
     // Build DB update payload
     const dbUpdate: any = {};
@@ -744,6 +772,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Always update alteracoes
     dbUpdate.alteracoes = updatedOrder.alteracoes;
+
+    // Update user_id if vendedor changed
+    if (newUserId) {
+      dbUpdate.user_id = newUserId;
+    }
 
     const { error } = await supabase.from('orders').update(dbUpdate).eq('id', id);
     if (error) {

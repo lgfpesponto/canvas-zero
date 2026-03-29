@@ -85,11 +85,12 @@ const LASER_ITEMS: { label: string; preco: number }[] = LASER_OPTIONS.map(l => (
 
 const EditOrderPage = () => {
   const { id } = useParams();
-  const { isAdmin, allOrders, updateOrder } = useAuth();
+  const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
   const navigate = useNavigate();
   const order = allOrders.find(o => o.id === id);
 
   const [numeroPedido, setNumeroPedido] = useState('');
+  const [vendedor, setVendedor] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [genero, setGenero] = useState('');
   const [modelo, setModelo] = useState('');
@@ -158,6 +159,7 @@ const EditOrderPage = () => {
   useEffect(() => {
     if (!order) return;
     setNumeroPedido(order.numero);
+    setVendedor(order.vendedor || '');
     setTamanho(order.tamanho);
     setGenero(order.genero || '');
     setModelo(order.modelo);
@@ -293,10 +295,22 @@ const EditOrderPage = () => {
 
   const fotos = fotoUrl.trim() ? [fotoUrl.trim()] : [];
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateOrder(order.id, {
+
+    // Check for duplicate order number if changed
+    if (numeroPedido !== order.numero) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: existing } = await supabase.from('orders').select('id').eq('numero', numeroPedido).neq('id', order.id).maybeSingle();
+      if (existing) {
+        toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
+        return;
+      }
+    }
+
+    await updateOrder(order.id, {
       numero: numeroPedido, tamanho, genero, modelo, sobMedida, sobMedidaDesc,
+      ...(isAdmin ? { vendedor } : {}),
       solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
       couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
       corCouroGaspea, corCouroCano, corCouroTaloneira,
@@ -338,7 +352,15 @@ const EditOrderPage = () => {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className={cls.label}>Vendedor</label>
-              <input type="text" value={order.vendedor} readOnly className={cls.input + ' opacity-70'} />
+              {isAdmin ? (
+                <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
+                  <option value="">Selecione...</option>
+                  {allProfiles.map(p => <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>)}
+                  <option value="Estoque">Estoque</option>
+                </select>
+              ) : (
+                <input type="text" value={order.vendedor} readOnly className={cls.input + ' opacity-70'} />
+              )}
             </div>
             <div>
               <label className={cls.label}>Número do Pedido</label>
