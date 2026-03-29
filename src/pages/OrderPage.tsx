@@ -390,9 +390,11 @@ const OrderPage = () => {
     + totalLaserPreco
     + (pintura ? PINTURA_PRECO : 0)
     + (estampa ? ESTAMPA_PRECO : 0)
-    + desenvPreco + areaMetalPreco + strassPreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal
+    + desenvPreco + areaMetalPreco + strassPreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
     + (trice ? TRICE_PRECO : 0)
     + (tiras ? TIRAS_PRECO : 0)
+    + (franja ? FRANJA_PRECO : 0)
+    + (corrente ? CORRENTE_PRECO : 0)
     + soladoPreco + corSolaPreco + corViraPreco
     + (costuraAtras ? COSTURA_ATRAS_PRECO : 0)
     + carimboPreco
