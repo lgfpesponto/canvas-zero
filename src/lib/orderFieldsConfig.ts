@@ -20,6 +20,7 @@ export const MODELOS: { label: string; preco: number }[] = [
   { label: 'Tradicional Bico Fino', preco: 260 },
   { label: 'Cano Médio Infantil', preco: 160 },
   { label: 'City', preco: 270 },
+  { label: 'Cano Inteiro', preco: 260 },
 ];
 
 // ==================== TAMANHOS ====================
