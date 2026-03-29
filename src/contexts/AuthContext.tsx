@@ -605,6 +605,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
       const numero = numeroPedido || `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
 
+      // Check for duplicate order number
+      const { data: existingOrder } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
+      if (existingOrder) {
+        toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
+        return false;
+      }
+
       const newOrder = {
         ...rest,
         dataCriacao: dataHoje,
