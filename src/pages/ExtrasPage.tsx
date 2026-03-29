@@ -379,17 +379,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Tipo de couro *</Label>
-              <Select value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{TIPOS_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Cor do couro *</Label>
-              <Select value={form.corCouro} onValueChange={v => set('corCouro', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{CORES_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={CORES_COURO} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
             </div>
             {productId === 'chaveiro_carimbo' && (
               <div>
