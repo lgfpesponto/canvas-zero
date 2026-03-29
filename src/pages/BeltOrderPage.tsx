@@ -35,7 +35,7 @@ const BeltOrderPage = () => {
   // Form state
   const [vendedor, setVendedor] = useState(user?.nomeCompleto || '');
   const [numeroPedido, setNumeroPedido] = useState('');
-  const [tamanho, setTamanho] = useState('');
+  const [cliente, setCliente] = useState('');
   const [tipoCouro, setTipoCouro] = useState('');
   const [corCouro, setCorCouro] = useState('');
 
