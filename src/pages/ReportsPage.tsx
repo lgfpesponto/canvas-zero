@@ -117,10 +117,10 @@ const ReportsPage = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredOrders.length) {
+    if (selectedIds.size === visibleOrders.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredOrders.map(o => o.id)));
+      setSelectedIds(new Set(visibleOrders.map(o => o.id)));
     }
   };
 
