@@ -1,40 +1,33 @@
 
 
-## Organização e filtro por scanner na página "Meus Pedidos"
+## Ordenação decrescente nos PDFs com pedidos
 
-### Alterações
+### Alteração
 
-**Arquivo**: `src/pages/ReportsPage.tsx`
+Aplicar `.sort()` por número do pedido (decrescente) + data de criação (decrescente) em todos os PDFs que listam pedidos individualmente.
 
-#### 1. Ordenação automática por número do pedido (decrescente) + data
+**Função de ordenação** (reutilizada em todos os locais):
+```ts
+(a, b) => {
+  const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
+  const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
+  if (numB !== numA) return numB - numA;
+  return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime();
+}
+```
 
-Na `filteredOrders` (linha 76-90), adicionar `.sort()` após o `.filter()`:
-- Ordenar por número do pedido (extrair parte numérica com `parseInt`) em ordem **decrescente** (maior primeiro = mais recente)
-- Critério secundário: `dataCriacao` decrescente
+### Locais afetados
 
-Nota: o usuário pediu "do menor para o maior" mas o exemplo mostra 103, 102, 101, 100 — que é decrescente. Seguirei o exemplo (decrescente).
+**`src/pages/ReportsPage.tsx`**:
+1. **Relatório de pedidos** (linha 177): `ordersToExport` → aplicar `.slice().sort(...)` antes do `forEach`
+2. **Fichas de produção** (linha 204): `ordersToExport` → aplicar `.slice().sort(...)` antes da iteração
 
-#### 2. Scanner como filtro automático na lista
+**`src/components/SpecializedReports.tsx`**:
+3. **Pesponto** (linha 562): `filtered` → `.sort(...)` antes do `for`
+4. **Metais** (linha 643): `filtered` → `.sort(...)`
+5. **Bordados** (linha 711): `filtered` → `.sort(...)`
+6. **Expedição** (linha 749-752): `filtered` → `.sort(...)`
+7. **Cobrança**: `filtered` → `.sort(...)`
 
-Atualmente o `handleScan` (linhas 128-154) seleciona o pedido mas não filtra a lista.
-
-Alterações:
-- Adicionar state `scanFilterId` (string | null)
-- No `handleScan` (admin): além de adicionar ao `selectedIds`, setar `scanFilterId = match.id` para filtrar a lista mostrando apenas esse pedido
-- Na `filteredOrders`: quando `scanFilterId` estiver setado, adicionar filtro `o.id === scanFilterId` — mas apenas como override visual temporário
-- Melhor abordagem: aplicar `scanFilterId` como filtro pós-`filteredOrders`:
-  - Criar `visibleOrders = scanFilterId ? filteredOrders.filter(o => o.id === scanFilterId) : filteredOrders`
-  - Usar `visibleOrders` para renderização da lista e contagem visual
-  - Manter `filteredOrders` para seleção bulk e export (preservar seleções anteriores)
-- Ao escanear novo pedido: o `scanFilterId` muda para o novo, mas as seleções anteriores permanecem no `selectedIds`
-- Limpar `scanFilterId` quando: usuário fecha scanner, aplica filtros manualmente, ou limpa busca — para voltar a ver todos
-
-#### Resumo
-
-| O quê | Como |
-|-------|------|
-| Ordenação | `.sort()` no `filteredOrders` por número desc + data desc |
-| Scanner filtra | Novo state `scanFilterId`, `visibleOrders` derivado, lista renderiza `visibleOrders` |
-| Seleções persistem | `selectedIds` não é afetado pelo `scanFilterId` |
-| Reset filtro scanner | Fechar scanner ou aplicar filtros manuais limpa `scanFilterId` |
+Os relatórios agregados (Escalação, Forro, Palmilha, Forma) agrupam dados e não listam pedidos individuais, portanto não precisam desta ordenação.
 
