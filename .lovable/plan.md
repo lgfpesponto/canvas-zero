@@ -1,12 +1,21 @@
 
 
-## Ajustes visuais na tabela dos PDFs de produção
+## Novo relatório especializado "FORMA"
+
+### O que será feito
+Adicionar um novo relatório "Forma" que é uma cópia exata do relatório "Palmilha", mudando apenas o nome/título.
 
 ### Alterações
 
-**Arquivo**: `src/components/SpecializedReports.tsx` — função `drawBlockLayout` (linhas 136-200)
+**Arquivo**: `src/components/SpecializedReports.tsx`
 
-1. **Aumentar fonte dos números**: Mudar fontSize das células de `6` para `7`
-2. **Reduzir label e abreviar**: Mudar `labelW` de `30` para `18`, trocar `'TAMANHO'` por `'TAM.'` e `'QUANTIDADE'` por `'QTD.'`
-3. **Fechar grade junto ao conteúdo**: Em vez de preencher até `pageW` (182mm), fechar a tabela na largura real `tableW` (labelW + numCols * cellW). Remover os blocos que preenchem o espaço restante. O título também usará `tableW` ao invés de `pageW`.
+1. **Tipo**: Adicionar `'forma'` ao `ReportType` (linha 34)
+2. **Label**: Adicionar `forma: 'Forma'` ao `REPORT_LABELS` (linha 41-50)
+3. **Função**: Criar `generateFormaPDF` copiando `generatePalmilhaPDF` (linhas 441-481), trocando `'PALMILHA'` por `'FORMA'` no título e `'Palmilha'` por `'Forma'` no nome do arquivo
+4. **Switch**: Adicionar `case 'forma': generateFormaPDF(); break;` no `generateReport` (linha 996)
+5. **Filtro de progresso**: Adicionar `'forma'` à condição `needsProgressFilter` (linha 1007)
+
+**Arquivo**: `src/pages/ReportsPage.tsx`
+
+6. Adicionar `'forma'` à lista de reports do admin (linha 890), após `'palmilha'`
 
