@@ -8,8 +8,6 @@ import { SelectedOrdersProvider } from "@/hooks/useSelectedOrders";
 import Header from "@/components/Header";
 import Index from "./pages/Index.tsx";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import RecoverPasswordPage from "./pages/RecoverPasswordPage";
 import OrderPage from "./pages/OrderPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
