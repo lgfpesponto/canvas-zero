@@ -607,7 +607,7 @@ const OrderPage = () => {
               <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
                 <Plus size={16} /> Criar Modelo
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); setTemplateSearch(''); }}>
                 <List size={16} /> Modelos
               </Button>
             </>
