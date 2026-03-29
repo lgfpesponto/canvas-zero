@@ -517,7 +517,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     ]);
 
     doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6);
+    doc.setFontSize(7);
 
     for (const o of filtered) {
       const metalParts: string[] = [];
