@@ -37,9 +37,9 @@ const ReportsPage = () => {
   const navigate = useNavigate();
   const [filterDate, setFilterDate] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterVendedor, setFilterVendedor] = useState('');
+  const [filterVendedor, setFilterVendedor] = useState<Set<string>>(new Set());
   const [filterProduto, setFilterProduto] = useState<Set<string>>(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
