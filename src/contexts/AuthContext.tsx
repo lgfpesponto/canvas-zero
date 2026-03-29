@@ -366,6 +366,7 @@ function orderToDbRow(order: any, userId: string) {
     tipo_extra: order.tipoExtra || null,
     extra_detalhes: order.extraDetalhes || null,
     numero_pedido_bota: order.numeroPedidoBota || null,
+    cliente: order.cliente || '',
   };
 }
 

@@ -6,6 +6,7 @@ export interface Draft {
   sobMedida: boolean;
   quantidade: number;
   numeroPedido: string;
+  cliente: string;
   fotos: string[];
 }
 
