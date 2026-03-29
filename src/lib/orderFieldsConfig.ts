@@ -89,6 +89,10 @@ export const BORDADOS: { label: string; preco: number }[] = [
   { label: 'Bandeira P', preco: 15 },
   { label: 'Bordado Variado R$5', preco: 5 },
   { label: 'Bordado Variado R$10', preco: 10 },
+  { label: 'Bordado Variado R$15', preco: 15 },
+  { label: 'Bordado Variado R$25', preco: 25 },
+  { label: 'Bordado Variado R$30', preco: 30 },
+  { label: 'Bordado Variado R$35', preco: 35 },
 ];
 
 // ==================== BORDADOS POR REGIÃO ====================
@@ -115,6 +119,10 @@ export const BORDADOS_CANO: { label: string; preco: number }[] = [
   { label: 'Bandeira P', preco: 15 },
   { label: 'Bordado Variado R$5', preco: 5 },
   { label: 'Bordado Variado R$10', preco: 10 },
+  { label: 'Bordado Variado R$15', preco: 15 },
+  { label: 'Bordado Variado R$25', preco: 25 },
+  { label: 'Bordado Variado R$30', preco: 30 },
+  { label: 'Bordado Variado R$35', preco: 35 },
 ];
 
 export const BORDADOS_GASPEA: { label: string; preco: number }[] = [
@@ -138,6 +146,10 @@ export const BORDADOS_GASPEA: { label: string; preco: number }[] = [
   { label: 'Bandeira P', preco: 15 },
   { label: 'Bordado Variado R$5', preco: 5 },
   { label: 'Bordado Variado R$10', preco: 10 },
+  { label: 'Bordado Variado R$15', preco: 15 },
+  { label: 'Bordado Variado R$25', preco: 25 },
+  { label: 'Bordado Variado R$30', preco: 30 },
+  { label: 'Bordado Variado R$35', preco: 35 },
 ];
 
 export const BORDADOS_TALONEIRA: { label: string; preco: number }[] = [
@@ -154,6 +166,10 @@ export const BORDADOS_TALONEIRA: { label: string; preco: number }[] = [
   { label: 'Bandeira P', preco: 15 },
   { label: 'Bordado Variado R$5', preco: 5 },
   { label: 'Bordado Variado R$10', preco: 10 },
+  { label: 'Bordado Variado R$15', preco: 15 },
+  { label: 'Bordado Variado R$25', preco: 25 },
+  { label: 'Bordado Variado R$30', preco: 30 },
+  { label: 'Bordado Variado R$35', preco: 35 },
 ];
 
 // ==================== LASER ====================
