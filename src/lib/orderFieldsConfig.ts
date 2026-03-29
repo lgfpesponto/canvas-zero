@@ -62,7 +62,7 @@ export const CORES_COURO = [
   'Nescau','Café','Marrom','Preto','Telha','Mostarda','Bege','Azul',
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
-  'Laranja','Cru','Havana','Petróleo','Malhado',
+  'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate',
 ];
 
 // ==================== BORDADOS (legacy – kept for backward compatibility) ====================
