@@ -217,11 +217,10 @@ const Index = () => {
       {user?.nomeUsuario?.toLowerCase() === '7estrivos' && (() => {
         const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago'];
         const alertOrders = sourceOrders.filter(o => {
-          
           const overdue = o.diasRestantes === 0 && !FINAL_STAGES.includes(o.status);
           const regressed = o.historico.some(h => FINAL_STAGES.includes(h.local)) && !FINAL_STAGES.includes(o.status);
           return overdue || regressed;
-        });
+        }).filter(o => !checkedAlertIds.has(o.id));
         return alertOrders.length > 0 ? (
           <div className="mt-8">
             <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-6 western-shadow">
