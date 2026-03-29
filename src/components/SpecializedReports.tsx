@@ -31,7 +31,7 @@ function barcodeDataUrl(value: string, opts?: { width?: number; height?: number 
   } catch { return ''; }
 }
 
-type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'pesponto' | 'bordados' | 'expedicao' | 'cobranca' | 'extras_cintos';
+type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'forma' | 'pesponto' | 'bordados' | 'expedicao' | 'cobranca' | 'extras_cintos';
 
 interface SpecializedReportsProps {
   reports: ReportType[];
