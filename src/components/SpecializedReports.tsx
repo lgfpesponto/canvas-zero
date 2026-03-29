@@ -143,13 +143,15 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);
 
-  // Row 1: Título (fundo escuro, texto branco, largura = tableW)
-  doc.setFillColor(30, 30, 30);
-  doc.rect(mx, y, tableW, rowH, 'FD');
+  // Row 1: Título (fundo escuro, texto branco, largura baseada no texto)
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
   const titleText = `${block.badgeLabel}: ${block.description}`;
+  const titleTextW = doc.getTextWidth(titleText) + 6; // 3mm padding each side
+  const titleW = Math.max(titleTextW, tableW);
+  doc.setFillColor(30, 30, 30);
+  doc.rect(mx, y, titleW, rowH, 'FD');
+  doc.setTextColor(255, 255, 255);
   doc.text(titleText, mx + 3, y + 5);
   doc.setTextColor(0, 0, 0);
   y += rowH;
