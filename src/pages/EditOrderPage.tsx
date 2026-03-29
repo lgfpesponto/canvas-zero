@@ -352,7 +352,15 @@ const EditOrderPage = () => {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className={cls.label}>Vendedor</label>
-              <input type="text" value={order.vendedor} readOnly className={cls.input + ' opacity-70'} />
+              {isAdmin ? (
+                <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
+                  <option value="">Selecione...</option>
+                  {allProfiles.map(p => <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>)}
+                  <option value="Estoque">Estoque</option>
+                </select>
+              ) : (
+                <input type="text" value={order.vendedor} readOnly className={cls.input + ' opacity-70'} />
+              )}
             </div>
             <div>
               <label className={cls.label}>Número do Pedido</label>

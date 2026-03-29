@@ -122,6 +122,17 @@ const EditExtrasPage = () => {
       return;
     }
 
+    // Check for duplicate order number if changed
+    const newNumero = form.numeroPedidoBota.trim();
+    if (newNumero !== order.numero) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: existing } = await supabase.from('orders').select('id').eq('numero', newNumero).neq('id', order.id).maybeSingle();
+      if (existing) {
+        toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
+        return;
+      }
+    }
+
     const price = calcPrice();
     const relevantKeys = PRODUCT_FIELDS[productId] || [];
     const detalhes: Record<string, any> = {};

@@ -772,6 +772,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Always update alteracoes
     dbUpdate.alteracoes = updatedOrder.alteracoes;
 
+    // Update user_id if vendedor changed
+    if (newUserId) {
+      dbUpdate.user_id = newUserId;
+    }
+
     const { error } = await supabase.from('orders').update(dbUpdate).eq('id', id);
     if (error) {
       console.error('Error updating order:', error);
