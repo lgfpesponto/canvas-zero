@@ -211,6 +211,8 @@ const OrderPage = () => {
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
 
+  const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno'];
+
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
     setModelo(newModelo);
@@ -224,6 +226,10 @@ const OrderPage = () => {
     setCorSola(cso === null ? '' : cso.length === 1 ? cso[0].label : (cso.find(c => c.label === corSola) ? corSola : ''));
     const cv = getCorViraOptions(newModelo, newSolado);
     setCorVira(cv.length === 1 ? cv[0].label : (cv.find(c => c.label === corVira) ? corVira : ''));
+    if (HIDE_PESPONTO_EXTRAS.includes(newModelo)) {
+      setCorBorrachinha('');
+      setCorVivo('');
+    }
   };
 
   const handleSoladoChange = (newSolado: string) => {
