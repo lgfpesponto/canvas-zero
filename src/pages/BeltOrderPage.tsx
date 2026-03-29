@@ -392,6 +392,34 @@ const BeltOrderPage = () => {
             )}
           </Section>
 
+          {/* Fivela */}
+          <Section title="Fivela">
+            <select value={fivela} onChange={e => setFivela(e.target.value)} className={cls.select}>
+              <option value="">Sem fivela</option>
+              {FIVELA_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            {fivela === 'Outro' && (
+              <div className="mt-3">
+                <label className={cls.label}>Descrever fivela</label>
+                <input type="text" value={fivelaOutroDesc} onChange={e => setFivelaOutroDesc(e.target.value)} placeholder="Descreva a fivela..." className={cls.input} />
+              </div>
+            )}
+          </Section>
+
+          {/* Adicional */}
+          <Section title="Adicional">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className={cls.label}>Valor do Adicional (R$)</label>
+                <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} placeholder="0,00" className={cls.input} />
+              </div>
+              <div>
+                <label className={cls.label}>Descrição do Adicional</label>
+                <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
+              </div>
+            </div>
+          </Section>
+
           {/* Observação */}
           <div>
             <label className={cls.label}>Observação</label>
