@@ -201,7 +201,7 @@ const ReportsPage = () => {
   };
 
   const generateProductionSheetPDF = async () => {
-    const list = ordersToExport;
+    const list = ordersToExport.slice().sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [148.5, 210] });
     const pw = 210;
     const ph = 148.5;
