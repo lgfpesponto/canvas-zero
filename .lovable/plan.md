@@ -1,79 +1,49 @@
 
 
-## Campo "Cliente" nos pedidos + busca nos rascunhos
+## 1. Permitir editar vendedor (ADM) + 2. Bloquear número duplicado
 
-### Resumo
+### Alterações
 
-Adicionar campo opcional "Cliente" nas fichas de bota, cinto e extras. O campo e visivel para revendedores e oculto para admins (exceto pedidos do vendedor "Rancho Chique"). Atualizar regra de rascunho e adicionar busca na pagina de rascunhos.
+#### 1. `src/pages/EditOrderPage.tsx` — Vendedor editável para ADM
 
-### Alteracoes
+**Linhas 338-342**: Substituir o `<input readOnly>` do vendedor por um `<select>` condicional:
+- Se `isAdmin`: mostrar `<select>` com `allProfiles` + opção "Estoque", com state `vendedor` inicializado com `order.vendedor`
+- Se não admin: manter input readOnly
+- Adicionar state `vendedor` e incluir no `handleSave`: `vendedor` no payload do `updateOrder`
 
-#### 1. Migracao SQL — adicionar coluna `cliente` na tabela `orders`
+#### 2. `src/contexts/AuthContext.tsx` — updateOrder: atualizar user_id ao mudar vendedor
 
-```sql
-ALTER TABLE public.orders ADD COLUMN cliente text DEFAULT '' NOT NULL;
-```
+**Função `updateOrder` (linhas 665-756)**: Quando `data.vendedor` for diferente do `current.vendedor`:
+- Buscar o profile do novo vendedor via `supabase.from('profiles').select('id').eq('nome_completo', data.vendedor)`
+- Se vendedor = "Estoque", manter o user_id do admin atual
+- Atualizar `dbUpdate.user_id` com o id do novo vendedor
+- Adicionar `vendedor` ao `camelToSnake` map (já existe como `vendedor: 'vendedor'` implicitamente, mas `user_id` precisa ser incluído)
+- Adicionar `'vendedor'` ao `fieldLabels` para tracking de alterações
 
-Coluna texto, default vazio, nao obrigatoria.
+#### 3. Validação de número duplicado — `addOrder` em `AuthContext.tsx`
 
-#### 2. `src/contexts/AuthContext.tsx`
+**Função `addOrder` (linha 604-606)**: Após gerar o `numero`, antes do insert:
+- Consultar `supabase.from('orders').select('id').eq('numero', numero).maybeSingle()`
+- Se existir, mostrar `toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.')` e retornar `false`
 
-- **Order interface** (linha 36): adicionar `cliente?: string`
-- **dbRowToOrder** (linha 205): adicionar `cliente: row.cliente || ''`
-- **orderToDbRow** (linha 288): adicionar `cliente: order.cliente || ''`
+#### 4. Validação de número duplicado nos formulários (proteção extra)
 
-#### 3. `src/pages/OrderPage.tsx` — Ficha de Bota
+Adicionar verificação antes do submit em:
+- **`src/pages/OrderPage.tsx`** (confirmOrder): antes de chamar `addOrder`, verificar duplicata
+- **`src/pages/BeltOrderPage.tsx`** (confirmOrder): mesma verificação
+- **`src/pages/ExtrasPage.tsx`** (handleSubmit): mesma verificação
 
-- **State**: adicionar `const [cliente, setCliente] = useState(df.cliente || '')`
-- **Campo no formulario** (apos "Numero do Pedido", ~linha 651): campo de texto opcional, escondido quando `mode === 'template'` (igual ao vendedor/numero)
-- **mirrorRows**: adicionar `['Cliente', cliente]`
-- **confirmOrder**: incluir `cliente` no payload do `addOrder`
-- **handleSaveDraft**: incluir `cliente` no objeto `form`
-- **Regra de rascunho**: validar que `numeroPedido.trim() || cliente.trim()` antes de salvar, senao mostrar erro
-- **Restauracao de draft**: carregar `setCliente(df.cliente || '')`
+A verificação será feita dentro do `addOrder` no AuthContext (ponto central), cobrindo todos os fluxos automaticamente. Não precisa duplicar nos formulários.
 
-#### 4. `src/pages/BeltOrderPage.tsx` — Ficha de Cinto
+#### 5. Validação de número duplicado na edição
 
-- **State**: adicionar `const [cliente, setCliente] = useState('')`
-- **Campo no formulario** (apos "Numero do Pedido", ~linha 254): campo texto opcional
-- **mirrorRows**: adicionar `['Cliente', cliente]`
-- **confirmOrder**: incluir `cliente` no payload
-- **handleSaveDraft**: incluir `cliente` no form
-- **Regra de rascunho**: mesma validacao (numero ou cliente)
-- **Restauracao de draft**: carregar `setCliente(f.cliente || '')`
+**`src/pages/EditOrderPage.tsx`** e **`src/pages/EditExtrasPage.tsx`**: No `handleSave`, se o número mudou (`numeroPedido !== order.numero`), verificar duplicata antes de salvar. Query: `supabase.from('orders').select('id').eq('numero', newNumero).neq('id', order.id).maybeSingle()`.
 
-#### 5. `src/pages/ExtrasPage.tsx` — Extras
+### Resumo das alterações por arquivo
 
-- **Form state**: adicionar `cliente: ''` ao `emptyForm()`
-- **Campo no formulario** (apos "No do pedido", ~linha 203): campo texto opcional
-- **handleSubmit**: incluir `cliente: form.cliente` no payload do `addOrder`
-- Extras nao usa rascunhos, sem alteracao nessa parte
-
-#### 6. `src/lib/drafts.ts` — Interface Draft
-
-- Adicionar `cliente: string` ao interface `Draft`
-
-#### 7. `src/pages/DraftsPage.tsx` — Busca + exibicao do cliente
-
-- Adicionar state `search` (string)
-- Adicionar campo `<Input>` com placeholder "Pesquisar por numero ou cliente..." no topo
-- Filtrar `drafts` pela busca: `numeroPedido` ou `form.cliente` contendo o texto digitado
-- Na listagem, mostrar o campo `cliente` ao lado do numero quando preenchido:
-  `{draft.numeroPedido || 'Sem número'} {draft.form.cliente && `— ${draft.form.cliente}`}`
-
-#### 8. Visibilidade do campo "Cliente" nos pedidos existentes
-
-**Regra nos locais onde pedidos sao exibidos** (OrderDetailPage, ReportsPage, fichas PDF):
-- Para admins: ocultar campo `cliente` EXCETO quando `order.vendedor === 'Rancho Chique'`
-- Para revendedores: mostrar normalmente
-
-Isso sera aplicado em:
-- `src/pages/OrderDetailPage.tsx`: na exibicao dos detalhes do pedido
-- `src/pages/ReportsPage.tsx`: na ficha de producao PDF (se relevante)
-
-### Detalhes tecnicos
-
-- A coluna `cliente` no banco e `text NOT NULL DEFAULT ''` — nao quebra pedidos existentes
-- O campo `cliente` do draft e salvo dentro de `draft.form.cliente` (mesmo padrao dos outros campos)
-- A verificacao de "Rancho Chique" usa `order.vendedor === 'Rancho Chique'` (nome completo do perfil "site")
+| Arquivo | Alteração |
+|---------|-----------|
+| `AuthContext.tsx` | addOrder: checar duplicata. updateOrder: atualizar user_id ao mudar vendedor. Adicionar vendedor ao fieldLabels |
+| `EditOrderPage.tsx` | State vendedor + select para ADM + incluir vendedor no handleSave + checar duplicata se número mudou |
+| `EditExtrasPage.tsx` | Checar duplicata se número mudou |
 
