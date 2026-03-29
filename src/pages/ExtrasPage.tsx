@@ -63,6 +63,8 @@ const ExtrasPage = () => {
   const [stockCorTira, setStockCorTira] = useState('');
   const [stockTipoMetal, setStockTipoMetal] = useState('');
   const [stockQtd, setStockQtd] = useState('');
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
+  const [editingStockQtd, setEditingStockQtd] = useState('');
 
   const fetchStock = useCallback(async () => {
     const { data } = await supabase.from('gravata_stock').select('*');
