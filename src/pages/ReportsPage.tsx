@@ -864,7 +864,7 @@ const ReportsPage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Pedidos</p>
-            <p className="text-2xl font-bold">{filteredOrders.length}</p>
+            <p className="text-2xl font-bold">{visibleOrders.length}</p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
