@@ -71,8 +71,8 @@ const ReportsPage = () => {
     });
   };
 
-  const displayOrders = isAdmin && appliedFilters.filterVendedor
-    ? allOrders.filter(o => o.vendedor === appliedFilters.filterVendedor)
+  const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
+    ? allOrders.filter(o => appliedFilters.filterVendedor.has(o.vendedor))
     : orders;
 
   const filteredOrders = useMemo(() => {
