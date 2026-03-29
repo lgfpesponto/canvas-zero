@@ -168,6 +168,10 @@ const BeltOrderPage = () => {
         if (carimboDesc) extraDetalhes.carimboDesc = carimboDesc;
         if (carimboOnde) extraDetalhes.ondeAplicado = carimboOnde;
       }
+      if (fivela) {
+        extraDetalhes.fivela = fivela;
+        if (fivela === 'Outro' && fivelaOutroDesc) extraDetalhes.fivelaOutroDesc = fivelaOutroDesc;
+      }
 
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
