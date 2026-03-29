@@ -78,6 +78,11 @@ export function isExtraValueEmpty(val: any): boolean {
   return false;
 }
 
+export const FIVELA_OPTIONS = [
+  'Prata com Strass', 'Preta com Strass', 'Prata Touro', 'Prata Flor',
+  'Infantil', 'Quadrada', 'Outro',
+];
+
 // ==================== BELT (CINTO) CONFIG ====================
 export const BELT_SIZES: { label: string; preco: number }[] = [
   { label: '1,10 cm', preco: 100 },
