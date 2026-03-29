@@ -128,6 +128,7 @@ const BeltOrderPage = () => {
       [tamanho, 'Tamanho'],
       [tipoCouro, 'Tipo de Couro'],
       [corCouro, 'Cor do Couro'],
+      [fivela, 'Fivela'],
     ];
     const missing = required.filter(([val]) => !val);
     if (missing.length > 0) {
@@ -322,6 +323,23 @@ const BeltOrderPage = () => {
             </div>
           </Section>
 
+          {/* Fivela */}
+          <Section title="Fivela">
+            <div>
+              <label className={cls.label}>Fivela<span className="text-destructive ml-0.5">*</span></label>
+              <select value={fivela} onChange={e => setFivela(e.target.value)} className={cls.select}>
+                <option value="">Selecione...</option>
+                {FIVELA_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            {fivela === 'Outro' && (
+              <div className="mt-3">
+                <label className={cls.label}>Descrever fivela</label>
+                <input type="text" value={fivelaOutroDesc} onChange={e => setFivelaOutroDesc(e.target.value)} placeholder="Descreva a fivela..." className={cls.input} />
+              </div>
+            )}
+          </Section>
+
           {/* Bordado P */}
           <Section title={`Bordado P (+R$${BORDADO_P_PRECO})`}>
             <div className="flex flex-wrap items-center gap-3">
@@ -392,19 +410,6 @@ const BeltOrderPage = () => {
             )}
           </Section>
 
-          {/* Fivela */}
-          <Section title="Fivela">
-            <select value={fivela} onChange={e => setFivela(e.target.value)} className={cls.select}>
-              <option value="">Sem fivela</option>
-              {FIVELA_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-            {fivela === 'Outro' && (
-              <div className="mt-3">
-                <label className={cls.label}>Descrever fivela</label>
-                <input type="text" value={fivelaOutroDesc} onChange={e => setFivelaOutroDesc(e.target.value)} placeholder="Descreva a fivela..." className={cls.input} />
-              </div>
-            )}
-          </Section>
 
           {/* Adicional */}
           <Section title="Adicional">
