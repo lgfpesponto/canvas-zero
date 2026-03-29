@@ -282,6 +282,7 @@ function dbRowToOrder(row: any): Order {
     tipoExtra: row.tipo_extra || undefined,
     extraDetalhes: row.extra_detalhes || undefined,
     numeroPedidoBota: row.numero_pedido_bota || undefined,
+    cliente: row.cliente || '',
   };
 }
 
