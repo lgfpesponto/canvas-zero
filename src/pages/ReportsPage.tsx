@@ -649,7 +649,13 @@ const ReportsPage = () => {
       doc.text(orderNumClean, stubX + stubW / 2, stubTop + 27, { align: 'center' });
     }
 
-    doc.save('fichas-producao.pdf');
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
   };
 
   const [showReportOptions, setShowReportOptions] = useState(false);
