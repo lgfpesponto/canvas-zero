@@ -322,10 +322,7 @@ const BeltOrderPage = () => {
           <Section title="Fivela">
             <div>
               <label className={cls.label}>Fivela<span className="text-destructive ml-0.5">*</span></label>
-              <select value={fivela} onChange={e => setFivela(e.target.value)} className={cls.select}>
-                <option value="">Selecione...</option>
-                {FIVELA_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+              <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
             </div>
             {fivela === 'Outro' && (
               <div className="mt-3">
