@@ -159,6 +159,7 @@ const EditOrderPage = () => {
   useEffect(() => {
     if (!order) return;
     setNumeroPedido(order.numero);
+    setVendedor(order.vendedor || '');
     setTamanho(order.tamanho);
     setGenero(order.genero || '');
     setModelo(order.modelo);
