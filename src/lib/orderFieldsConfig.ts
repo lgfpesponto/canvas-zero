@@ -203,6 +203,9 @@ export const COR_METAL = ['Níquel', 'Ouro Velho', 'Dourado'];
 export const STRASS_PRECO = 0.60;
 export const CRUZ_METAL_PRECO = 6;
 export const BRIDAO_METAL_PRECO = 3;
+export const CAVALO_METAL_PRECO = 5;
+export const FRANJA_PRECO = 15;
+export const CORRENTE_PRECO = 10;
 
 // ==================== SOLADO ====================
 export const SOLADO: { label: string; preco: number }[] = [
