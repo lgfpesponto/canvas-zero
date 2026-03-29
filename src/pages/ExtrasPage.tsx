@@ -398,12 +398,7 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Cor *</Label>
-              <Select value={form.corRegata} onValueChange={v => set('corRegata', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {['Preto', 'Marrom', 'Bege', 'Azul', 'Rosa', 'Verde'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={['Preto', 'Marrom', 'Bege', 'Azul', 'Rosa', 'Verde']} value={form.corRegata} onValueChange={v => set('corRegata', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Descrição do bordado + cor *</Label>
