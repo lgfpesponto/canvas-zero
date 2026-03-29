@@ -174,7 +174,7 @@ const ReportsPage = () => {
 
   const generateReportPDF = () => {
     const doc = new jsPDF();
-    const list = ordersToExport;
+    const list = ordersToExport.slice().sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
     doc.setFontSize(18);
     doc.text('Relatório de Pedidos — 7ESTRIVOS', 14, 20);
     doc.setFontSize(10);
