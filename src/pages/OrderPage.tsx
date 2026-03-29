@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Link2, X, Eye, Plus, List, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -96,6 +97,7 @@ const OrderPage = () => {
   const [templateName, setTemplateName] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<{ id: string; nome: string; form_data: Record<string, string> }[]>([]);
+  const [templateSearch, setTemplateSearch] = useState('');
   // Restore draft or template form data
   const df = templateInit || draftState?.form || {};
 
@@ -606,7 +608,7 @@ const OrderPage = () => {
               <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
                 <Plus size={16} /> Criar Modelo
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); setTemplateSearch(''); }}>
                 <List size={16} /> Modelos
               </Button>
             </>
@@ -903,11 +905,19 @@ const OrderPage = () => {
           <DialogHeader>
             <DialogTitle>Modelos Salvos</DialogTitle>
           </DialogHeader>
-          {templates.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>
-          ) : (
+          <Input
+            placeholder="Pesquisar modelo..."
+            value={templateSearch}
+            onChange={e => setTemplateSearch(e.target.value)}
+            className="mb-2"
+          />
+          {(() => {
+            const filtered = templates.filter(t => t.nome.toLowerCase().includes(templateSearch.toLowerCase()));
+            if (templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
+            if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
+            return (
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {templates.map(t => (
+              {filtered.map(t => (
                 <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
                   <span className="font-semibold text-sm">{t.nome}</span>
                   <div className="flex gap-2">
@@ -917,7 +927,8 @@ const OrderPage = () => {
                 </div>
               ))}
             </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
