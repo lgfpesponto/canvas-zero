@@ -97,7 +97,7 @@ const Index = () => {
   const renderFernandaDashboard = () => (
     <section className="container mx-auto px-4 py-8">
       <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={0}>
-        <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'bordados', 'expedicao', 'extras_cintos']} />
+        <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'expedicao', 'extras_cintos']} />
       </motion.div>
     </section>
   );
@@ -236,7 +236,7 @@ const Index = () => {
       {/* Specialized reports section */}
       <div className="mt-8">
         <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={3}>
-          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'bordados', 'expedicao', 'cobranca', 'extras_cintos']} />
+          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'expedicao', 'cobranca', 'extras_cintos']} />
         </motion.div>
       </div>
     </section>
