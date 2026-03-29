@@ -525,8 +525,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.save(`Forma - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
-  // ── Metais (formerly Pesponto): tabular format with QR ──
-  const generatePespontoPDF = async () => {
+  // ── Metais: tabular format with QR ──
+  const generateMetaisPDF = async () => {
     const filtered = sourceOrders.filter(o => {
       if (filterProgresso !== 'todos' && o.status !== filterProgresso) return false;
       // Only include orders that have metal fields filled
