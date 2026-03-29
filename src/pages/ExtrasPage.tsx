@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SearchableSelect from '@/components/SearchableSelect';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -247,17 +248,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Tipo de couro *</Label>
-              <Select value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{TIPOS_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Cor do couro *</Label>
-              <Select value={form.corCouro} onValueChange={v => set('corCouro', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{CORES_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={CORES_COURO} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Vai o canivete?</Label>
@@ -339,31 +334,16 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Cor da tira *</Label>
-              <Select value={form.corTira} onValueChange={v => set('corTira', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {['Preto', 'Marrom', 'Off White', 'Laranja'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={['Preto', 'Marrom', 'Off White', 'Laranja']} value={form.corTira} onValueChange={v => set('corTira', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Tipo de metal *</Label>
-              <Select value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz'].map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora']} value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }} placeholder="Selecione" />
             </div>
             {form.tipoMetal?.startsWith('Bridão') && (
               <div>
                 <Label>Cor do bridão *</Label>
-                <Select value={form.corBridao} onValueChange={v => set('corBridao', v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {['Cristal', 'Rosa', 'Azul', 'Preto'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={['Cristal', 'Rosa', 'Azul', 'Preto']} value={form.corBridao} onValueChange={v => set('corBridao', v)} placeholder="Selecione" />
               </div>
             )}
           </>
@@ -399,17 +379,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Tipo de couro *</Label>
-              <Select value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{TIPOS_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Cor do couro *</Label>
-              <Select value={form.corCouro} onValueChange={v => set('corCouro', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{CORES_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchableSelect options={CORES_COURO} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
             </div>
             {productId === 'chaveiro_carimbo' && (
               <div>
@@ -424,12 +398,7 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Cor *</Label>
-              <Select value={form.corRegata} onValueChange={v => set('corRegata', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {['Preto', 'Marrom', 'Bege', 'Azul', 'Rosa', 'Verde'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={['Preto', 'Marrom', 'Bege', 'Azul', 'Rosa', 'Verde']} value={form.corRegata} onValueChange={v => set('corRegata', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Descrição do bordado + cor *</Label>

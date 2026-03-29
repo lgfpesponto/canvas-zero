@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
 import { Link2, X, Eye } from 'lucide-react';
+import SearchableSelect from '@/components/SearchableSelect';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
@@ -308,17 +309,11 @@ const BeltOrderPage = () => {
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className={cls.label}>Tipo de Couro<span className="text-destructive ml-0.5">*</span></label>
-                <select value={tipoCouro} onChange={e => setTipoCouro(e.target.value)} className={cls.select}>
-                  <option value="">Selecione...</option>
-                  {TIPOS_COURO.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
               </div>
               <div>
                 <label className={cls.label}>Cor do Couro<span className="text-destructive ml-0.5">*</span></label>
-                <select value={corCouro} onChange={e => setCorCouro(e.target.value)} className={cls.select}>
-                  <option value="">Selecione...</option>
-                  {CORES_COURO.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <SearchableSelect options={CORES_COURO} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
           </Section>
@@ -327,10 +322,7 @@ const BeltOrderPage = () => {
           <Section title="Fivela">
             <div>
               <label className={cls.label}>Fivela<span className="text-destructive ml-0.5">*</span></label>
-              <select value={fivela} onChange={e => setFivela(e.target.value)} className={cls.select}>
-                <option value="">Selecione...</option>
-                {FIVELA_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+              <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
             </div>
             {fivela === 'Outro' && (
               <div className="mt-3">
