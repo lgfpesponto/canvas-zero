@@ -187,61 +187,6 @@ function drawBlockLayout(doc: jsPDF, y: number, mx: number, block: BlockData): n
   });
   y += rowH + 4;
 
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.3);
-
-  // Row 1: Título (fundo escuro, texto branco, largura total)
-  doc.setFillColor(30, 30, 30);
-  doc.rect(mx, y, pageW, rowH, 'FD');
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  const titleText = `${block.badgeLabel}: ${block.description}`;
-  doc.text(titleText, mx + 3, y + 5);
-  doc.setTextColor(0, 0, 0);
-  y += rowH;
-
-  // Row 2: TAMANHO
-  doc.setFillColor(245, 245, 245);
-  doc.rect(mx, y, labelW, rowH, 'FD');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6);
-  doc.setTextColor(0, 0, 0);
-  doc.text('TAMANHO', mx + 2, y + 5);
-  block.sizes.forEach((s, i) => {
-    const cx = mx + labelW + i * cellW;
-    doc.setFillColor(255, 255, 255);
-    doc.rect(cx, y, cellW, rowH, 'FD');
-    doc.setFont('helvetica', 'normal');
-    doc.text(s.tamanho, cx + cellW / 2, y + 5, { align: 'center' });
-  });
-  // Fill remaining width with empty bordered area
-  const usedW = labelW + numCols * cellW;
-  if (usedW < pageW) {
-    doc.setFillColor(255, 255, 255);
-    doc.rect(mx + usedW, y, pageW - usedW, rowH, 'FD');
-  }
-  y += rowH;
-
-  // Row 3: QUANTIDADE
-  doc.setFillColor(245, 245, 245);
-  doc.rect(mx, y, labelW, rowH, 'FD');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6);
-  doc.text('QUANTIDADE', mx + 2, y + 5);
-  block.sizes.forEach((s, i) => {
-    const cx = mx + labelW + i * cellW;
-    doc.setFillColor(255, 255, 255);
-    doc.rect(cx, y, cellW, rowH, 'FD');
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(s.quantidade), cx + cellW / 2, y + 5, { align: 'center' });
-  });
-  if (usedW < pageW) {
-    doc.setFillColor(255, 255, 255);
-    doc.rect(mx + usedW, y, pageW - usedW, rowH, 'FD');
-  }
-  y += rowH + 4; // espaço entre blocos
-
   return y;
 }
 
