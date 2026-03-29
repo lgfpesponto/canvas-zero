@@ -1,58 +1,40 @@
 
 
-## Alterações na Ficha de Produção "Bota"
+## Organização e filtro por scanner na página "Meus Pedidos"
 
-### 1. Nova cor "Chocolate" nos couros (`orderFieldsConfig.ts`)
-- Adicionar `'Chocolate'` ao array `CORES_COURO`
+### Alterações
 
-### 2. Desativar Cor Borrachinha e Cor Vivo para modelos específicos (`OrderPage.tsx`)
-- Criar constante: `const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno']`
-- Na seção Pesponto (linha 755-761): renderizar Cor da Borrachinha e Cor do Vivo condicionalmente — ocultar quando `HIDE_PESPONTO_EXTRAS.includes(modelo)`
-- Remover `corBorrachinha` e `corVivo` da validação obrigatória (linhas 402-403) quando modelo está na lista
-- Limpar valores ao trocar modelo em `handleModeloChange` se novo modelo estiver na lista
+**Arquivo**: `src/pages/ReportsPage.tsx`
 
-### 3. Novo metal "Cavalo" (R$5/un) (`OrderPage.tsx`)
-- Adicionar constante `CAVALO_METAL_PRECO = 5` em `orderFieldsConfig.ts`
-- Novos states: `cavaloMetal` (boolean), `cavaloMetalQtd` (number)
-- Na seção Metais (após Bridão, linha 795): adicionar ToggleField "Cavalo (R$5/un)" com campo quantidade
-- Preço: `cavaloMetal ? cavaloMetalQtd * 5 : 0` — somar ao total
-- Incluir no `confirmOrder`, `handleSaveDraft`, `mirrorRows` e restauração de draft/template
+#### 1. Ordenação automática por número do pedido (decrescente) + data
 
-### 4. Novo extra "Franja" (R$15) (`OrderPage.tsx`)
-- Adicionar constante `FRANJA_PRECO = 15` em `orderFieldsConfig.ts`
-- Novos states: `franja` (boolean), `franjaCouro` (string), `franjaCor` (string)
-- Na seção Extras (após Tiras, linha 802): ToggleField "Franja (+R$15)" — quando ativo, mostrar 2 inputs: "Tipo de couro da franja" e "Cor da franja"
-- Somar R$15 ao total quando ativo
-- Incluir no `confirmOrder`, `handleSaveDraft`, `mirrorRows`
+Na `filteredOrders` (linha 76-90), adicionar `.sort()` após o `.filter()`:
+- Ordenar por número do pedido (extrair parte numérica com `parseInt`) em ordem **decrescente** (maior primeiro = mais recente)
+- Critério secundário: `dataCriacao` decrescente
 
-### 5. Novo extra "Corrente" (R$10) (`OrderPage.tsx`)
-- Adicionar constante `CORRENTE_PRECO = 10` em `orderFieldsConfig.ts`
-- Novos states: `corrente` (boolean), `correnteCor` (string)
-- Na seção Extras (após Franja): ToggleField "Corrente (+R$10)" — quando ativo, mostrar input "Cor da corrente"
-- Somar R$10 ao total
-- Incluir no `confirmOrder`, `handleSaveDraft`, `mirrorRows`
+Nota: o usuário pediu "do menor para o maior" mas o exemplo mostra 103, 102, 101, 100 — que é decrescente. Seguirei o exemplo (decrescente).
 
-### 6. "Cor do bordado" abaixo de cada Glitter/Tecido na seção Laser (`OrderPage.tsx`)
-- Novos states: `corBordadoLaserCano`, `corBordadoLaserGaspea`, `corBordadoLaserTaloneira`
-- Após cada "Cor Glitter/Tecido do X" (linhas 730, 736, 742): adicionar input texto "Cor do Bordado"
-- Campos informativos, sem valor
-- Incluir no `confirmOrder`, `handleSaveDraft`, `mirrorRows`
+#### 2. Scanner como filtro automático na lista
 
-### 7. Novo modelo "Cano Inteiro" R$260 (`orderFieldsConfig.ts`)
-- Adicionar `{ label: 'Cano Inteiro', preco: 260 }` ao array `MODELOS`
-- Em `getModelosForTamanho`: adicionar `'Cano Inteiro'` na faixa 34-45
-- Adicionar `'Cano Inteiro'` ao array `TRADICIONAL_MODELOS` (mesmo bloco que Bota Tradicional) — herda solados do bloco `tradicional` (Borracha, Couro Reta, etc.) e bicos (Quadrado, Redondo), o que exclui automaticamente Infantil, PVC, Borracha City e os bicos finos
+Atualmente o `handleScan` (linhas 128-154) seleciona o pedido mas não filtra a lista.
 
-### 8. Persistência dos novos campos
-- `confirmOrder`: adicionar `cavaloMetalQtd`, `franja`, `franjaCouro`, `franjaCor`, `corrente`, `correnteCor`, `corBordadoLaserCano/Gaspea/Taloneira` ao payload via campo `observacao` ou `adicionalDesc` (ou campos dedicados se existirem na tabela)
-- Como não existem colunas dedicadas no banco, os novos dados serão armazenados no campo `observacao` como texto estruturado, ou no `adicionalDesc`/`adicionalValor`. Alternativa: usar colunas existentes e adicionar migração se necessário.
+Alterações:
+- Adicionar state `scanFilterId` (string | null)
+- No `handleScan` (admin): além de adicionar ao `selectedIds`, setar `scanFilterId = match.id` para filtrar a lista mostrando apenas esse pedido
+- Na `filteredOrders`: quando `scanFilterId` estiver setado, adicionar filtro `o.id === scanFilterId` — mas apenas como override visual temporário
+- Melhor abordagem: aplicar `scanFilterId` como filtro pós-`filteredOrders`:
+  - Criar `visibleOrders = scanFilterId ? filteredOrders.filter(o => o.id === scanFilterId) : filteredOrders`
+  - Usar `visibleOrders` para renderização da lista e contagem visual
+  - Manter `filteredOrders` para seleção bulk e export (preservar seleções anteriores)
+- Ao escanear novo pedido: o `scanFilterId` muda para o novo, mas as seleções anteriores permanecem no `selectedIds`
+- Limpar `scanFilterId` quando: usuário fecha scanner, aplica filtros manualmente, ou limpa busca — para voltar a ver todos
 
-Verificação: os campos `observacao` (text) já existe. Melhor abordagem: armazenar os novos dados como parte do JSON em `extra_detalhes` (jsonb) ou criar novas colunas. Vou usar `extra_detalhes` para os novos campos da ficha de bota, já que é jsonb e flexível.
+#### Resumo
 
-### Resumo de arquivos alterados
-
-| Arquivo | Alterações |
-|---------|-----------|
-| `src/lib/orderFieldsConfig.ts` | Chocolate em CORES_COURO, Cano Inteiro em MODELOS/TRADICIONAL_MODELOS/getModelosForTamanho, constantes CAVALO/FRANJA/CORRENTE |
-| `src/pages/OrderPage.tsx` | 6 novos states, seção Pesponto condicional, Cavalo em Metais, Franja+Corrente em Extras, Cor bordado em Laser, draft/template/mirror/confirmOrder |
+| O quê | Como |
+|-------|------|
+| Ordenação | `.sort()` no `filteredOrders` por número desc + data desc |
+| Scanner filtra | Novo state `scanFilterId`, `visibleOrders` derivado, lista renderiza `visibleOrders` |
+| Seleções persistem | `selectedIds` não é afetado pelo `scanFilterId` |
+| Reset filtro scanner | Fechar scanner ou aplicar filtros manuais limpa `scanFilterId` |
 
