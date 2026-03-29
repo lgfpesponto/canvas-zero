@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
 import { Link2, X, Eye } from 'lucide-react';
+import SearchableSelect from '@/components/SearchableSelect';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
