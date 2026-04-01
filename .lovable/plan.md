@@ -1,16 +1,26 @@
 
 
-## Adicionar novos bordados variados
+## Corrigir política INSERT da tabela `profiles`
 
-**Arquivo**: `src/lib/orderFieldsConfig.ts`
+### O que muda
 
-Seguindo o padrão dos existentes (`Bordado Variado R$5` e `Bordado Variado R$10`), adicionar ao final de cada array:
+Substituir a política atual aberta ao público por uma restrita a usuários autenticados inserindo apenas seu próprio perfil.
 
-**`BORDADOS_CANO`**, **`BORDADOS_GASPEA`**, **`BORDADOS_TALONEIRA`** e **`BORDADOS`** (legado):
-- `{ label: 'Bordado Variado R$15', preco: 15 }`
-- `{ label: 'Bordado Variado R$25', preco: 25 }`
-- `{ label: 'Bordado Variado R$30', preco: 30 }`
-- `{ label: 'Bordado Variado R$35', preco: 35 }`
+### Migração SQL
 
-Nenhuma outra alteração — o `OrderPage.tsx` já renderiza a partir desses arrays.
+```sql
+DROP POLICY "Service role can insert profiles" ON profiles;
+
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = id);
+```
+
+### Por que funciona
+
+- O trigger `handle_new_user` roda como `SECURITY DEFINER` e ignora RLS — continua criando perfis normalmente
+- A Edge Function `create-user` usa service role key — também ignora RLS
+- A nova política só permite que um usuário autenticado insira um perfil com seu próprio `id`, o que é seguro
+
+### Nenhum outro arquivo precisa ser alterado
 
