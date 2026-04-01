@@ -7,13 +7,14 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode } from 'lucide-react';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
 import SpecializedReports from '@/components/SpecializedReports';
-import JsBarcode from 'jsbarcode';
-import QRCode from 'qrcode';
+import OrderCard from '@/components/OrderCard';
+import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+
+const PAGE_SIZE = 50;
 
 const formatDateBR = (date: string, time?: string) => {
   const [y, m, d] = date.split('-');
