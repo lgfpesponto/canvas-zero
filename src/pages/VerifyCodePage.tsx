@@ -118,7 +118,7 @@ const VerifyCodePage = () => {
               </button>
 
               <button
-                onClick={() => { setStep('choose'); setCode(''); setDevCode(null); }}
+                onClick={() => { setStep('choose'); setCode(''); }}
                 className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
               >
                 Reenviar código
