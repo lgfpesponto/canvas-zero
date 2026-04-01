@@ -5,11 +5,9 @@ import { useState } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const Header = () => {
-  const { isLoggedIn, user, logout } = useAuth();
+  const { isLoggedIn, user, isAdmin, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-
-  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
 
   const navItems = isLoggedIn
     ? [
