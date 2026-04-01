@@ -1,26 +1,29 @@
 
 
-## Corrigir política INSERT da tabela `profiles`
+## Resolver os 3 avisos de segurança restantes
 
-### O que muda
+### 1. Leaked Password Protection (manual)
 
-Substituir a política atual aberta ao público por uma restrita a usuários autenticados inserindo apenas seu próprio perfil.
+Não é alteração de código. Ativar no painel do Supabase:
+**Authentication → Settings → Leaked Password Protection → Enable**
 
-### Migração SQL
+### 2. Política DELETE para `verification_codes` (migração SQL)
 
 ```sql
-DROP POLICY "Service role can insert profiles" ON profiles;
-
-CREATE POLICY "Users can insert own profile" ON profiles
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can delete own verification codes" ON verification_codes
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
 ```
 
-### Por que funciona
+### 3. Restringir função `has_role` (opcional)
 
-- O trigger `handle_new_user` roda como `SECURITY DEFINER` e ignora RLS — continua criando perfis normalmente
-- A Edge Function `create-user` usa service role key — também ignora RLS
-- A nova política só permite que um usuário autenticado insira um perfil com seu próprio `id`, o que é seguro
+Alterar a função para não aceitar `_user_id` externo e sempre usar `auth.uid()`. Porém isso quebraria o uso atual nas policies que passam `auth.uid()` explicitamente — o scanner reconhece que não é diretamente explorável. **Recomendação: ignorar este aviso** pois as policies estão corretas e a função é `SECURITY DEFINER` read-only.
 
-### Nenhum outro arquivo precisa ser alterado
+### Resumo
+
+| Item | Ação | Tipo |
+|------|------|------|
+| Leaked Password Protection | Ativar no painel Supabase | Manual |
+| verification_codes DELETE | Migração SQL | Automático |
+| has_role _user_id | Sem alteração (falso positivo) | Ignorar |
 
