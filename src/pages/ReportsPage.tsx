@@ -100,13 +100,13 @@ const ReportsPage = () => {
   const allStatuses = [...statuses];
   const allVendedores = isAdmin ? [...new Set(allOrders.map(o => o.vendedor))].sort() : [];
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === visibleOrders.length) {
