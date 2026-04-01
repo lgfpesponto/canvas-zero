@@ -21,18 +21,6 @@ const formatDateBR = (date: string, time?: string) => {
   return `${d}/${m}/${y}${time ? ` — ${time}` : ''}`;
 };
 
-/** Generate barcode as data URL for PDF embedding */
-function barcodeDataUrl(value: string, opts?: { width?: number; height?: number }): string {
-  const canvas = document.createElement('canvas');
-  try {
-    JsBarcode(canvas, value, {
-      format: 'CODE128', width: opts?.width ?? 2, height: opts?.height ?? 50,
-      displayValue: false, margin: 2,
-    });
-    return canvas.toDataURL('image/png');
-  } catch { return ''; }
-}
-
 const ReportsPage = () => {
   const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, updateOrderStatus } = useAuth();
   const navigate = useNavigate();
