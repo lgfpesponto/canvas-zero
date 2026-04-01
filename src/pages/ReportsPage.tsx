@@ -83,10 +83,14 @@ const ReportsPage = () => {
     });
   }, [displayOrders, appliedFilters]);
 
+  const [page, setPage] = useState(1);
   const visibleOrders = useMemo(() => {
     if (scanFilterId) return filteredOrders.filter(o => o.id === scanFilterId);
     return filteredOrders;
   }, [filteredOrders, scanFilterId]);
+
+  const paginatedOrders = useMemo(() => visibleOrders.slice(0, page * PAGE_SIZE), [visibleOrders, page]);
+  const hasMore = paginatedOrders.length < visibleOrders.length;
 
   const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
   const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
