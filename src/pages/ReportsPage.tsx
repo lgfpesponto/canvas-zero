@@ -90,8 +90,16 @@ const ReportsPage = () => {
     return filteredOrders;
   }, [filteredOrders, scanFilterId]);
 
-  const paginatedOrders = useMemo(() => visibleOrders.slice(0, page * PAGE_SIZE), [visibleOrders, page]);
-  const hasMore = paginatedOrders.length < visibleOrders.length;
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return visibleOrders.slice(start, start + PAGE_SIZE);
+  }, [visibleOrders, page]);
+  const totalPages = Math.ceil(visibleOrders.length / PAGE_SIZE);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
   const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
@@ -495,10 +503,24 @@ const ReportsPage = () => {
           ))}
         </div>
 
-        {hasMore && (
-          <div className="flex justify-center mt-4">
-            <button onClick={() => setPage(p => p + 1)} className="px-6 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
-              Carregar mais ({visibleOrders.length - paginatedOrders.length} restantes)
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+              className="px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <span className="text-sm font-medium text-muted-foreground">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+              className="px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Próxima
             </button>
           </div>
         )}
