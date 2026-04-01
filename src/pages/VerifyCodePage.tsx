@@ -95,12 +95,6 @@ const VerifyCodePage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {devCode && (
-                <div className="bg-accent/50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Código de verificação (dev):</p>
-                  <p className="text-2xl font-bold font-mono tracking-widest">{devCode}</p>
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-semibold mb-2 text-center">Digite o código de 6 dígitos</label>
