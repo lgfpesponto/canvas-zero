@@ -49,6 +49,7 @@ const ReportsPage = () => {
 
   const applyFilters = () => {
     setScanFilterId(null);
+    setPage(1);
     setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) });
   };
 
