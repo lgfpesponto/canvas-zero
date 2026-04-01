@@ -88,8 +88,8 @@ const ReportsPage = () => {
     return filteredOrders;
   }, [filteredOrders, scanFilterId]);
 
-  const totalValue = filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0);
-  const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
+  const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
 
   const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
   const allStatuses = [...statuses];
