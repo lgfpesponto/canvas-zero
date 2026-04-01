@@ -43,16 +43,14 @@ const UsersManagementPage = () => {
   const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
   const [creating, setCreating] = useState(false);
 
-  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
-
   useEffect(() => {
     if (authLoading) return;
-    if (!isLoggedIn || !isJuliana) {
+    if (!isLoggedIn || !isAdmin) {
       navigate('/');
       return;
     }
     fetchProfiles();
-  }, [isLoggedIn, isJuliana, authLoading]);
+  }, [isLoggedIn, isAdmin, authLoading]);
 
   const fetchProfiles = async () => {
     setLoading(true);
