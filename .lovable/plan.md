@@ -1,53 +1,33 @@
 
 
-## Corrigir tela branca ao selecionar pedidos em "Meus Pedidos"
+## Trocar "Carregar mais" por paginação real (50 pedidos por página)
 
-### Causa raiz
+### Arquivo: `src/pages/ReportsPage.tsx`
 
-O componente `ReportsPage.tsx` (1077 linhas) recria funções pesadas de geração de PDF (~500 linhas) e recalcula valores não-memoizados a cada mudança de seleção. Com muitos pedidos em memória, isso causa acúmulo de memória até o navegador crashar.
-
-### Solução
-
-#### 1. Memoizar valores derivados (`ReportsPage.tsx`)
-
+#### 1. Alterar lógica de `paginatedOrders`
+Substituir acumulação por fatia fixa:
 ```ts
-// Linha 102 — envolver em useMemo
-const totalValue = useMemo(() => 
-  filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0),
-  [filteredOrders]
-);
+const paginatedOrders = useMemo(() => {
+  const start = (page - 1) * PAGE_SIZE;
+  return visibleOrders.slice(start, start + PAGE_SIZE);
+}, [visibleOrders, page]);
 
-// Linha 125 — envolver em useMemo
-const ordersToExport = useMemo(() => 
-  selectedIds.size > 0
-    ? filteredOrders.filter(o => selectedIds.has(o.id))
-    : filteredOrders,
-  [selectedIds, filteredOrders]
-);
+const totalPages = Math.ceil(visibleOrders.length / PAGE_SIZE);
 ```
 
-#### 2. Extrair funções de PDF para fora do componente
+#### 2. Substituir botão "Carregar mais" por controles de paginação
+- Botões "Anterior" e "Próxima"
+- Indicador "Página X de Y"
+- Usar componentes `Pagination` já existentes no projeto (`src/components/ui/pagination.tsx`)
 
-Mover `generateReportPDF` e `generateProductionSheetPDF` para um arquivo separado `src/lib/pdfGenerators.ts`. Essas funções recebem os dados como parâmetros em vez de capturar closures pesadas. No componente, chamá-las com `useCallback`.
+#### 3. Scroll to top ao mudar de página
+```ts
+window.scrollTo({ top: 0, behavior: 'smooth' });
+```
 
-#### 3. Paginação da lista visível
+#### 4. Reset de página ao filtrar
+Já existe — `setPage(1)` ao aplicar filtros (manter).
 
-Adicionar `PAGE_SIZE = 50` e estado `page`. Renderizar apenas `visibleOrders.slice(0, page * PAGE_SIZE)` com botão "Carregar mais". Isso limita os nós DOM mesmo quando todos os filtros estão limpos.
-
-#### 4. Extrair card de pedido como `React.memo`
-
-Criar componente `OrderCard` com `React.memo` para que cards não-afetados por uma seleção não re-renderizem.
-
-### Arquivos alterados
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/lib/pdfGenerators.ts` | Novo — funções de PDF extraídas |
-| `src/pages/ReportsPage.tsx` | Memoizar valores, usar pdfGenerators, paginação, OrderCard memo |
-
-### Detalhes técnicos
-
-- As funções de PDF atualmente ocupam ~500 linhas inline no componente. Cada re-render recria essas funções e captura `allOrders` (potencialmente milhares de pedidos) na closure, causando pressão de memória
-- `React.memo` no `OrderCard` compara `order.id`, `isSelected`, e `isAdmin` — evita re-render de cards quando só a seleção de outro card muda
-- A paginação reseta para `page = 1` ao aplicar filtros ou escanear
+### Resultado
+DOM sempre com no máximo 50 cards → peso constante, sem risco de tela branca.
 
