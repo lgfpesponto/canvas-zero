@@ -7,30 +7,19 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode } from 'lucide-react';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
 import SpecializedReports from '@/components/SpecializedReports';
-import JsBarcode from 'jsbarcode';
-import QRCode from 'qrcode';
+import OrderCard from '@/components/OrderCard';
+import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+
+const PAGE_SIZE = 50;
 
 const formatDateBR = (date: string, time?: string) => {
   const [y, m, d] = date.split('-');
   return `${d}/${m}/${y}${time ? ` — ${time}` : ''}`;
 };
-
-/** Generate barcode as data URL for PDF embedding */
-function barcodeDataUrl(value: string, opts?: { width?: number; height?: number }): string {
-  const canvas = document.createElement('canvas');
-  try {
-    JsBarcode(canvas, value, {
-      format: 'CODE128', width: opts?.width ?? 2, height: opts?.height ?? 50,
-      displayValue: false, margin: 2,
-    });
-    return canvas.toDataURL('image/png');
-  } catch { return ''; }
-}
 
 const ReportsPage = () => {
   const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, updateOrderStatus } = useAuth();
@@ -60,6 +49,7 @@ const ReportsPage = () => {
 
   const applyFilters = () => {
     setScanFilterId(null);
+    setPage(1);
     setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) });
   };
 
@@ -94,25 +84,29 @@ const ReportsPage = () => {
     });
   }, [displayOrders, appliedFilters]);
 
+  const [page, setPage] = useState(1);
   const visibleOrders = useMemo(() => {
     if (scanFilterId) return filteredOrders.filter(o => o.id === scanFilterId);
     return filteredOrders;
   }, [filteredOrders, scanFilterId]);
 
-  const totalValue = filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0);
-  const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const paginatedOrders = useMemo(() => visibleOrders.slice(0, page * PAGE_SIZE), [visibleOrders, page]);
+  const hasMore = paginatedOrders.length < visibleOrders.length;
+
+  const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
+  const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
 
   const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
   const allStatuses = [...statuses];
   const allVendedores = isAdmin ? [...new Set(allOrders.map(o => o.vendedor))].sort() : [];
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === visibleOrders.length) {
@@ -122,9 +116,9 @@ const ReportsPage = () => {
     }
   };
 
-  const ordersToExport = selectedIds.size > 0
+  const ordersToExport = useMemo(() => selectedIds.size > 0
     ? filteredOrders.filter(o => selectedIds.has(o.id))
-    : filteredOrders;
+    : filteredOrders, [selectedIds, filteredOrders]);
 
   const handleBulkProgressUpdate = () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
@@ -170,499 +164,8 @@ const ReportsPage = () => {
     }
   }, [showScanner]);
 
-  const generateReportPDF = () => {
-    const doc = new jsPDF();
-    const list = ordersToExport.slice().sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
-    doc.setFontSize(18);
-    doc.text('Relatório de Pedidos — 7ESTRIVOS', 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, 14, 28);
-
-    let y = 38;
-    list.forEach((o, i) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${i + 1}. ${o.numero}`, 14, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Vendedor: ${o.vendedor} | Data: ${formatDateBR(o.dataCriacao, o.horaCriacao)} | Status: ${o.status}`, 14, y + 5);
-      doc.text(`Valor: ${formatCurrency(o.preco * o.quantidade)} | Qtd: ${o.quantidade}`, 14, y + 10);
-      y += 18;
-    });
-
-    if (y > 260) { doc.addPage(); y = 20; }
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total de Pedidos: ${list.length}`, 14, y + 5);
-    doc.text(`Valor Total: ${formatCurrency(list.reduce((s, o) => s + o.preco * o.quantidade, 0))}`, 14, y + 12);
-    doc.save('relatorio-pedidos.pdf');
-  };
-
-  const generateProductionSheetPDF = async () => {
-    const list = ordersToExport.slice().sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [148.5, 210] });
-    const pw = 210;
-    const ph = 148.5;
-    const m = 6;
-
-    for (let idx = 0; idx < list.length; idx++) {
-      const order = list[idx];
-      if (idx > 0) doc.addPage();
-
-      const orderNumClean = order.numero.replace('7E-', '');
-
-      // ─── HEADER (shared by boots and belts) ───
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('7ESTRIVOS', m + 2, m + 8);
-
-      // QR Code top right
-      const qrSize = 30;
-      const qrX = pw - qrSize - m - 2;
-      const qrY = m + 2;
-      let hasQR = false;
-      if (order.fotos && order.fotos.length > 0 && order.fotos[0].startsWith('http')) {
-        try {
-          const qrDataUrl = await QRCode.toDataURL(order.fotos[0], { width: 300, margin: 1 });
-          doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
-          hasQR = true;
-        } catch { /* skip */ }
-      }
-
-      // Header columns
-      const hx = m + 2;
-      const hx2 = 105;
-      let hy = m + 16;
-      const hGap = 6;
-
-      const printHeaderField = (label: string, value: string, x: number, y: number) => {
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(label, x, y);
-        doc.setFont('helvetica', 'normal');
-        doc.text(value, x + doc.getTextWidth(label), y);
-      };
-
-      // Left column
-      printHeaderField('Código:    ', orderNumClean, hx, hy);
-      printHeaderField('Vendedor:  ', order.vendedor, hx, hy + hGap);
-      const dateStr = `${order.dataCriacao.slice(8, 10)}/${order.dataCriacao.slice(5, 7)} ${order.horaCriacao}`;
-      printHeaderField('Data:      ', dateStr, hx, hy + hGap * 2);
-
-      // ─── BELT-SPECIFIC LAYOUT ───
-      if (order.tipoExtra === 'cinto') {
-        const rhMaxW = qrX - hx2 - 4;
-
-        // Right column: Produto + Tamanho
-        let rhY = hy;
-        printHeaderField('Produto:   ', 'CINTO', hx2, rhY);
-        rhY += hGap;
-        const det = order.extraDetalhes || {};
-        if (det.tamanhoCinto) {
-          printHeaderField('Tamanho:   ', String(det.tamanhoCinto), hx2, rhY);
-          rhY += hGap;
-        }
-        if (hasQR) {
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'italic');
-          doc.text('Escaneie para ver a foto ->', hx2, rhY);
-        }
-
-        // Separator
-        const headerBottom = m + 37;
-        doc.setLineWidth(0.4);
-        doc.line(m, headerBottom, pw - m, headerBottom);
-
-        // Description area
-        const descTop = headerBottom + 5;
-        const fs = 11;
-        const fieldGap = 5.5;
-        const catGap = 3;
-        const descBottom = (ph - 34) - 4;
-
-        type CatField = { label: string; value: string };
-        type Category = { title: string; fields: CatField[] };
-        const categories: Category[] = [];
-
-        // COURO
-        const couroFields: CatField[] = [];
-        if (det.tipoCouro) couroFields.push({ label: 'Tipo:', value: String(det.tipoCouro).toLowerCase() });
-        if (det.corCouro) couroFields.push({ label: 'Cor:', value: String(det.corCouro).toLowerCase() });
-        if (couroFields.length) categories.push({ title: 'COURO', fields: couroFields });
-
-        // BORDADOS
-        const bordFields: CatField[] = [];
-        if (det.bordadoP === 'Tem') bordFields.push({ label: 'Bordado P:', value: `${det.bordadoPDesc || ''}${det.bordadoPCor ? ' ' + det.bordadoPCor : ''}`.toLowerCase() });
-        if (det.nomeBordado === 'Tem') bordFields.push({ label: 'Nome:', value: `${det.nomeBordadoDesc || ''}${det.nomeBordadoCor ? ' cor: ' + det.nomeBordadoCor : ''}${det.nomeBordadoFonte ? ' fonte: ' + det.nomeBordadoFonte : ''}`.toLowerCase() });
-        if (bordFields.length) categories.push({ title: 'BORDADOS', fields: bordFields });
-
-        // CARIMBO
-        const carFields: CatField[] = [];
-        if (det.carimbo) carFields.push({ label: 'Carimbo:', value: `${det.carimbo}${det.carimboDesc ? ' - ' + det.carimboDesc : ''}` });
-        if (det.ondeAplicado) carFields.push({ label: 'Onde:', value: String(det.ondeAplicado) });
-        if (carFields.length) categories.push({ title: 'CARIMBO', fields: carFields });
-
-        // OBS
-        if (order.observacao) categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
-
-        // Render categories in a single column for belts (simpler layout)
-        const colWidth = (pw - m * 2 - 4);
-        const startX = m + 3;
-        let cy = descTop;
-        categories.forEach(cat => {
-          if (cy > descBottom) return;
-          doc.setFillColor(232, 232, 232);
-          doc.rect(startX - 1, cy - 3.5, colWidth, 5, 'F');
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(cat.title, startX, cy);
-          cy += fieldGap;
-          cat.fields.forEach(f => {
-            if (cy > descBottom) return;
-            doc.setFontSize(fs);
-            if (f.label) {
-              doc.setFont('helvetica', 'bold');
-              doc.text(f.label, startX, cy);
-              const lw = doc.getTextWidth(f.label) + 3;
-              doc.setFont('helvetica', 'normal');
-              const valLines = doc.splitTextToSize(f.value, colWidth - lw - 3);
-              valLines.forEach((line: string, li: number) => {
-                if (cy + li * (fieldGap * 0.8) <= descBottom) doc.text(line, startX + lw, cy + li * (fieldGap * 0.8));
-              });
-              cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
-            } else {
-              doc.setFont('helvetica', 'normal');
-              const valLines = doc.splitTextToSize(f.value, colWidth - 3);
-              valLines.forEach((line: string, li: number) => {
-                if (cy + li * (fieldGap * 0.8) <= descBottom) doc.text(line, startX, cy + li * (fieldGap * 0.8));
-              });
-              cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
-            }
-          });
-          cy += catGap;
-        });
-
-        // ─── STUBS (2 for belts: PESPONTO + EXPEDIÇÃO) ───
-        const stubTop = ph - 34;
-        doc.setLineWidth(0.3);
-        (doc as any).setLineDash([1, 1]);
-        doc.line(m, stubTop - 2, pw - m, stubTop - 2);
-        (doc as any).setLineDash([]);
-
-        const stubAreaW = pw - m * 2;
-        const stubW = stubAreaW / 3;
-        const bcVal = orderBarcodeValue(order.numero, order.id);
-        const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
-
-        const beltStubs = ['BORDADO', 'PESPONTO', 'EXPEDIÇÃO'];
-        beltStubs.forEach((stubName, si) => {
-          const stubX = m + si * stubW;
-          if (si > 0) {
-            doc.setLineWidth(0.3);
-            doc.line(stubX, stubTop, stubX, ph - m);
-          }
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(stubName, stubX + stubW / 2, stubTop + 4, { align: 'center' });
-          if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {} }
-          doc.setFontSize(10);
-          doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
-        });
-
-        continue; // skip boot layout below
-      }
-
-      // ─── BOOT LAYOUT (existing) ───
-
-      // Right column — dynamic Y with wrapping
-      const rhMaxW = qrX - hx2 - 4;
-      let rhY = hy;
-
-      let tamText = `${order.tamanho || ''}${order.genero ? ' ' + order.genero.substring(0, 3).toLowerCase() + '.' : ''}`;
-      if (order.sobMedida) {
-        tamText += ` | sob medida${order.sobMedidaDesc ? ': ' + order.sobMedidaDesc : ''}`;
-      }
-
-      // Render Tamanho with wrapping
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      const tamLabel = 'Tamanho:  ';
-      doc.text(tamLabel, hx2, rhY);
-      doc.setFont('helvetica', 'normal');
-      const tamLabelW = doc.getTextWidth(tamLabel);
-      const tamLines = doc.splitTextToSize(tamText, rhMaxW - tamLabelW);
-      tamLines.forEach((line: string, li: number) => {
-        doc.text(line, hx2 + tamLabelW, rhY + li * 4);
-      });
-      rhY += Math.max(tamLines.length, 1) * 4 + 2;
-
-      // Modelo
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      const modLabel = 'Modelo:   ';
-      doc.text(modLabel, hx2, rhY);
-      doc.setFont('helvetica', 'normal');
-      const modLabelW = doc.getTextWidth(modLabel);
-      const modeloText = (order.modelo || '').toLowerCase();
-      const modLines = doc.splitTextToSize(modeloText, rhMaxW - modLabelW);
-      modLines.forEach((line: string, li: number) => {
-        doc.text(line, hx2 + modLabelW, rhY + li * 4);
-      });
-      rhY += Math.max(modLines.length, 1) * 4 + 2;
-
-      // QR phrase
-      if (hasQR) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.text('Escaneie para ver a foto ->', hx2, rhY);
-      }
-
-      // Separator
-      const headerBottom = m + 37;
-      doc.setLineWidth(0.4);
-      doc.line(m, headerBottom, pw - m, headerBottom);
-
-      // ─── DESCRIPTION AREA (dynamic 3-column categories) ───
-      const descTop = headerBottom + 5;
-      const fs = 11;
-      const fieldGap = 5.5;
-      const catGap = 3;
-      const descBottom = (ph - 34) - 4;
-
-      type CatField = { label: string; value: string };
-      type Category = { title: string; fields: CatField[] };
-      const categories: Category[] = [];
-
-      // COUROS
-      const courosFields: CatField[] = [];
-      if (order.couroCano) courosFields.push({ label: 'Cano:', value: `${order.couroCano.toLowerCase()}${order.corCouroCano ? ' ' + order.corCouroCano.toLowerCase() : ''}` });
-      if (order.couroGaspea) courosFields.push({ label: 'Gáspea:', value: `${order.couroGaspea.toLowerCase()}${order.corCouroGaspea ? ' ' + order.corCouroGaspea.toLowerCase() : ''}` });
-      if (order.couroTaloneira) courosFields.push({ label: 'Taloneira:', value: `${order.couroTaloneira.toLowerCase()}${order.corCouroTaloneira ? ' ' + order.corCouroTaloneira.toLowerCase() : ''}` });
-      if (courosFields.length) categories.push({ title: 'COUROS', fields: courosFields });
-
-      // BORDADOS — replace "Bordado Variado R$X" with description
-      const bordadoFields: CatField[] = [];
-      const replaceBordadoVariado = (text: string, desc?: string) => {
-        if (!text) return text;
-        return text.split(', ').map(b => {
-          if (b.includes('Bordado Variado') && desc) return desc;
-          return b;
-        }).join(', ');
-      };
-      const bordCanoText = replaceBordadoVariado(order.bordadoCano, order.bordadoVariadoDescCano);
-      const bordGaspeaText = replaceBordadoVariado(order.bordadoGaspea, order.bordadoVariadoDescGaspea);
-      const bordTaloneiraText = replaceBordadoVariado(order.bordadoTaloneira, order.bordadoVariadoDescTaloneira);
-      if (bordCanoText) bordadoFields.push({ label: 'Cano:', value: `${bordCanoText.toLowerCase()}${order.corBordadoCano ? ' ' + order.corBordadoCano.toLowerCase() : ''}` });
-      if (bordGaspeaText) bordadoFields.push({ label: 'Gáspea:', value: `${bordGaspeaText.toLowerCase()}${order.corBordadoGaspea ? ' ' + order.corBordadoGaspea.toLowerCase() : ''}` });
-      if (bordTaloneiraText) bordadoFields.push({ label: 'Taloneira:', value: `${bordTaloneiraText.toLowerCase()}${order.corBordadoTaloneira ? ' ' + order.corBordadoTaloneira.toLowerCase() : ''}` });
-      if (order.nomeBordadoDesc || order.personalizacaoNome) bordadoFields.push({ label: 'Nome:', value: (order.nomeBordadoDesc || order.personalizacaoNome || '').toLowerCase() });
-      if (bordadoFields.length) categories.push({ title: 'BORDADOS', fields: bordadoFields });
-
-      // LASER
-      const laserFields: CatField[] = [];
-      if (order.laserCano) laserFields.push({ label: 'Cano:', value: `${order.laserCano.toLowerCase()}${order.corGlitterCano ? ' ' + order.corGlitterCano.toLowerCase() : ''}` });
-      if (order.laserGaspea) laserFields.push({ label: 'Gáspea:', value: `${order.laserGaspea.toLowerCase()}${order.corGlitterGaspea ? ' ' + order.corGlitterGaspea.toLowerCase() : ''}` });
-      if (order.laserTaloneira) laserFields.push({ label: 'Taloneira:', value: `${(order.laserTaloneira || '').toLowerCase()}${order.corGlitterTaloneira ? ' ' + order.corGlitterTaloneira.toLowerCase() : ''}` });
-      if (laserFields.length) categories.push({ title: 'LASER', fields: laserFields });
-
-      // PESPONTO
-      const pespontoFields: CatField[] = [];
-      if (order.corLinha) pespontoFields.push({ label: 'Linha:', value: order.corLinha.toLowerCase() });
-      if (order.corBorrachinha) pespontoFields.push({ label: 'Borrachinha:', value: order.corBorrachinha.toLowerCase() });
-      if (order.corVivo) pespontoFields.push({ label: 'Vivo:', value: order.corVivo.toLowerCase() });
-      if (pespontoFields.length) categories.push({ title: 'PESPONTO', fields: pespontoFields });
-
-      // SOLADOS
-      const soladoFields: CatField[] = [];
-      const solaType = `${order.solado || 'Borracha'} ${order.formatoBico || 'quadrada'}`.toLowerCase();
-      soladoFields.push({ label: 'Tipo:', value: solaType });
-      if (order.corSola) soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
-      if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
-      categories.push({ title: 'SOLADOS', fields: soladoFields });
-
-      // METAIS
-      const metaisFields: CatField[] = [];
-      if (order.metais) {
-        const metalParts = [order.metais.toLowerCase()];
-        if (order.tipoMetal) metalParts.push(order.tipoMetal.toLowerCase());
-        if (order.corMetal) metalParts.push(order.corMetal.toLowerCase());
-        metaisFields.push({ label: 'Metais:', value: metalParts.join(', ') });
-        const metalExtras: string[] = [];
-        if (order.strassQtd) metalExtras.push(`strass x${order.strassQtd}`);
-        if (order.cruzMetalQtd) metalExtras.push(`cruz x${order.cruzMetalQtd}`);
-        if (order.bridaoMetalQtd) metalExtras.push(`bridao x${order.bridaoMetalQtd}`);
-        if (metalExtras.length) metaisFields.push({ label: '', value: metalExtras.join(', ') });
-      }
-      if (metaisFields.length) categories.push({ title: 'METAIS', fields: metaisFields });
-
-      // ACESSÓRIOS
-      const acessorioFields: CatField[] = [];
-      if (order.acessorios) acessorioFields.push({ label: '', value: order.acessorios });
-      if (acessorioFields.length) categories.push({ title: 'ACESSÓRIOS', fields: acessorioFields });
-
-      // EXTRAS
-      const extrasFields: CatField[] = [];
-      if (order.trisce === 'Sim' && order.triceDesc) extrasFields.push({ label: 'Tricê:', value: order.triceDesc.toLowerCase() });
-      if (order.tiras === 'Sim' && order.tirasDesc) extrasFields.push({ label: 'Tiras:', value: order.tirasDesc.toLowerCase() });
-      if (order.costuraAtras === 'Sim') extrasFields.push({ label: 'Costura atrás:', value: 'sim' });
-      if (order.estampa === 'Sim') extrasFields.push({ label: 'Estampa:', value: order.estampaDesc || 'sim' });
-      if (order.pintura === 'Sim') extrasFields.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });
-      if (order.carimbo) extrasFields.push({ label: 'Carimbo:', value: `${order.carimbo}${order.carimboDesc ? ' - ' + order.carimboDesc : ''}` });
-      if (order.adicionalDesc) extrasFields.push({ label: 'Adicional:', value: `${order.adicionalDesc} R$${order.adicionalValor || 0}` });
-      if (extrasFields.length) categories.push({ title: 'EXTRAS', fields: extrasFields });
-
-      // OBS
-      if (order.observacao) {
-        categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
-      }
-
-      // 3-column layout
-      const colWidth = (pw - m * 2 - 8) / 3;
-      const col1X = m + 3;
-      const col2X = col1X + colWidth + 2;
-      const col3X = col2X + colWidth + 2;
-
-      // Estimate height for each category (considering text wrapping)
-      const estimateCatHeight = (cat: Category): number => {
-        let h = fieldGap; // title line
-        cat.fields.forEach(f => {
-          const labelW = f.label ? doc.getTextWidth(f.label) + 3 : 0;
-          doc.setFontSize(fs);
-          const valLines = doc.splitTextToSize(f.value, colWidth - labelW - 5);
-          h += Math.max(valLines.length, 1) * (fieldGap * 0.8);
-        });
-        h += catGap;
-        return h;
-      };
-
-      const catHeights = categories.map(c => estimateCatHeight(c));
-
-      // Greedy distribution into 3 columns
-      const colHeights = [0, 0, 0];
-      const colCats: number[][] = [[], [], []];
-      catHeights.forEach((h, i) => {
-        const minCol = colHeights.indexOf(Math.min(...colHeights));
-        colCats[minCol].push(i);
-        colHeights[minCol] += h;
-      });
-
-      // Render categories with text wrapping
-      const renderCats = (catIndices: number[], startX: number) => {
-        let cy = descTop;
-        catIndices.forEach(ci => {
-          const cat = categories[ci];
-          if (cy > descBottom) return;
-          // Title with background box
-          doc.setFillColor(232, 232, 232);
-          doc.rect(startX - 1, cy - 3.5, colWidth, 5, 'F');
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(cat.title, startX, cy);
-          cy += fieldGap;
-
-          cat.fields.forEach(f => {
-            if (cy > descBottom) return;
-            doc.setFontSize(fs);
-            if (f.label) {
-              doc.setFont('helvetica', 'bold');
-              doc.text(f.label, startX, cy);
-              const lw = doc.getTextWidth(f.label) + 3;
-              doc.setFont('helvetica', 'normal');
-              const valLines = doc.splitTextToSize(f.value, colWidth - lw - 3);
-              valLines.forEach((line: string, li: number) => {
-                if (cy + li * (fieldGap * 0.8) <= descBottom) {
-                  doc.text(line, startX + lw, cy + li * (fieldGap * 0.8));
-                }
-              });
-              cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
-            } else {
-              doc.setFont('helvetica', 'normal');
-              const valLines = doc.splitTextToSize(f.value, colWidth - 3);
-              valLines.forEach((line: string, li: number) => {
-                if (cy + li * (fieldGap * 0.8) <= descBottom) {
-                  doc.text(line, startX, cy + li * (fieldGap * 0.8));
-                }
-              });
-              cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
-            }
-          });
-          cy += catGap;
-        });
-      };
-
-      renderCats(colCats[0], col1X);
-      renderCats(colCats[1], col2X);
-      renderCats(colCats[2], col3X);
-
-      // ─── STUBS AT BOTTOM ───
-      const stubTop = ph - 34;
-      doc.setLineWidth(0.3);
-      (doc as any).setLineDash([1, 1]);
-      doc.line(m, stubTop - 2, pw - m, stubTop - 2);
-      (doc as any).setLineDash([]);
-
-      const stubAreaW = pw - m * 2;
-      const stubW = stubAreaW / 3;
-      const bcVal = orderBarcodeValue(order.numero, order.id);
-      const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
-
-      // Stub 1: BORDADO / LASER
-      let stubX = m;
-      doc.setLineWidth(0.3);
-      doc.line(stubX + stubW, stubTop, stubX + stubW, ph - m);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('BORDADO / LASER', stubX + stubW / 2, stubTop + 4, { align: 'center' });
-      if (bcUrl) {
-        try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {}
-      }
-      doc.setFontSize(10);
-      doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
-
-      // Stub 2: PESPONTO
-      stubX += stubW;
-      doc.line(stubX + stubW, stubTop, stubX + stubW, ph - m);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('PESPONTO', stubX + stubW / 2, stubTop + 4, { align: 'center' });
-      if (bcUrl) {
-        try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {}
-      }
-      doc.setFontSize(10);
-      doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
-
-      // Stub 3: Tamanho + sola + cor sola | forma: X / bico | pedido: X + barcode
-      stubX += stubW;
-      const line1Parts = [
-        order.tamanho,
-        (order.solado || 'borracha').toLowerCase(),
-        order.corSola ? order.corSola.toLowerCase() : '',
-      ].filter(Boolean).join(' ');
-      const formaVal = (order as any).forma || '';
-      const stub3Line1 = formaVal ? `${line1Parts} | forma: ${formaVal}` : line1Parts;
-      const bicoText = (order.formatoBico || 'quadrado').toLowerCase().replace(/\bfino\b/gi, 'BF');
-      const viraText = (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
-      const stub3Line2 = `${bicoText}${viraText}`;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text(stub3Line1.toUpperCase(), stubX + stubW / 2, stubTop + 6, { align: 'center' });
-      doc.setFontSize(8);
-      doc.text(stub3Line2.toUpperCase(), stubX + stubW / 2, stubTop + 12, { align: 'center' });
-      if (bcUrl) {
-        try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 13, stubW - 12, 10); } catch {}
-      }
-      doc.setFontSize(9);
-      doc.text(orderNumClean, stubX + stubW / 2, stubTop + 27, { align: 'center' });
-    }
-
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const yyyy = now.getFullYear();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
-  };
+  const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport), [ordersToExport]);
+  const handleGenerateProductionSheetPDF = useCallback(() => generateProductionSheetPDF(ordersToExport), [ordersToExport]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
@@ -926,7 +429,7 @@ const ReportsPage = () => {
               </button>
               {showReportOptions && (
                 <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg western-shadow p-2 z-20 min-w-[220px]">
-                  <button onClick={() => { generateReportPDF(); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
+                  <button onClick={() => { handleGenerateReportPDF(); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
                     <Download size={14} /> Relatório por Filtros
                   </button>
                   {isAdmin && (
@@ -943,7 +446,7 @@ const ReportsPage = () => {
           </div>
           {isAdmin && (
             <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-              <button onClick={generateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <button onClick={handleGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
                 <Printer size={16} /> IMPRIMIR FICHAS
               </button>
             </div>
@@ -976,50 +479,29 @@ const ReportsPage = () => {
 
         {/* Orders list */}
         <div className="space-y-3">
-          {visibleOrders.map(order => (
-            <div key={order.id} className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
-              {isAdmin && (
-                <button onClick={() => toggleSelect(order.id)} className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selectedIds.has(order.id) ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
-                  {selectedIds.has(order.id) && <CheckCircle size={14} className="text-primary-foreground" />}
-                </button>
-              )}
-
-              <div className="flex-1 cursor-pointer" onClick={() => navigate(`/pedido/${order.id}`)}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <span className="font-display font-bold">{order.numero}</span>
-                    {order.tipoExtra && <span className="text-xs font-semibold text-primary ml-2">— {EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}</span>}
-                    {isAdmin && <span className="text-sm text-muted-foreground ml-2">— {order.vendedor}</span>}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm flex-wrap">
-                    <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
-                    <span className="font-bold text-primary">{formatCurrency(order.preco * order.quantidade)}</span>
-                    <span className="text-xs text-muted-foreground">{order.diasRestantes > 0 ? `${order.diasRestantes}d úteis` : '✓'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {isAdmin && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`)} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
-                    <Pencil size={16} />
-                  </button>
-                  {confirmDeleteId === order.id ? (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleDelete(order.id)} className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90">Confirmar</button>
-                      <button onClick={() => setConfirmDeleteId(null)} className="px-2 py-1 rounded-lg bg-muted text-xs font-bold hover:opacity-80">Cancelar</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setConfirmDeleteId(order.id)} className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors" title="Excluir pedido">
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+          {paginatedOrders.map(order => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              isAdmin={isAdmin}
+              isSelected={selectedIds.has(order.id)}
+              onToggle={toggleSelect}
+              confirmDeleteId={confirmDeleteId}
+              onConfirmDelete={setConfirmDeleteId}
+              onDelete={handleDelete}
+              formatCurrency={formatCurrency}
+              formatDateBR={formatDateBR}
+            />
           ))}
         </div>
+
+        {hasMore && (
+          <div className="flex justify-center mt-4">
+            <button onClick={() => setPage(p => p + 1)} className="px-6 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
+              Carregar mais ({visibleOrders.length - paginatedOrders.length} restantes)
+            </button>
+          </div>
+        )}
 
         {visibleOrders.length === 0 && (
           <p className="text-center text-muted-foreground py-8">{scanFilterId ? 'Pedido escaneado não encontrado nos filtros atuais.' : 'Nenhum pedido encontrado com esses filtros.'}</p>
