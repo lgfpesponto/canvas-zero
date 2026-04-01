@@ -12,7 +12,7 @@ const VerifyCodePage = () => {
   const [maskedDest, setMaskedDest] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
+  
 
   const sendCode = async (selectedType: 'email' | 'sms') => {
     setLoading(true);
