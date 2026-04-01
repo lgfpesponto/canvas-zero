@@ -111,9 +111,9 @@ const ReportsPage = () => {
     }
   };
 
-  const ordersToExport = selectedIds.size > 0
+  const ordersToExport = useMemo(() => selectedIds.size > 0
     ? filteredOrders.filter(o => selectedIds.has(o.id))
-    : filteredOrders;
+    : filteredOrders, [selectedIds, filteredOrders]);
 
   const handleBulkProgressUpdate = () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
