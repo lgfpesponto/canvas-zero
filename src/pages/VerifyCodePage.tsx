@@ -30,7 +30,7 @@ const VerifyCodePage = () => {
     }
 
     setMaskedDest(data.destination);
-    if (data.devCode) setDevCode(data.devCode);
+    
     setStep('input');
     toast.success(data.message);
   };
