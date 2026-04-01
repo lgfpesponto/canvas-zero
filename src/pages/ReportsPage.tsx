@@ -90,8 +90,16 @@ const ReportsPage = () => {
     return filteredOrders;
   }, [filteredOrders, scanFilterId]);
 
-  const paginatedOrders = useMemo(() => visibleOrders.slice(0, page * PAGE_SIZE), [visibleOrders, page]);
-  const hasMore = paginatedOrders.length < visibleOrders.length;
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return visibleOrders.slice(start, start + PAGE_SIZE);
+  }, [visibleOrders, page]);
+  const totalPages = Math.ceil(visibleOrders.length / PAGE_SIZE);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
   const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
