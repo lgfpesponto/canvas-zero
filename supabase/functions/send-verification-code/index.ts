@@ -127,7 +127,7 @@ serve(async (req) => {
         ? `Código enviado para ${maskedDest}` 
         : 'Código gerado mas envio não configurado. Use o código de teste.',
       // In development/when email not configured, return code for testing
-      ...(type === 'email' && !Deno.env.get('EMAIL_CONFIGURED') ? { devCode: code } : {}),
+      
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

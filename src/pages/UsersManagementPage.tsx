@@ -24,7 +24,7 @@ interface Profile {
 const PROTECTED_USERNAMES = ['7estrivos', 'fernanda', 'demo'];
 
 const UsersManagementPage = () => {
-  const { isLoggedIn, user, loading: authLoading } = useAuth();
+  const { isLoggedIn, user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,16 +43,14 @@ const UsersManagementPage = () => {
   const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
   const [creating, setCreating] = useState(false);
 
-  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
-
   useEffect(() => {
     if (authLoading) return;
-    if (!isLoggedIn || !isJuliana) {
+    if (!isLoggedIn || !isAdmin) {
       navigate('/');
       return;
     }
     fetchProfiles();
-  }, [isLoggedIn, isJuliana, authLoading]);
+  }, [isLoggedIn, isAdmin, authLoading]);
 
   const fetchProfiles = async () => {
     setLoading(true);
@@ -189,7 +187,7 @@ const UsersManagementPage = () => {
       </div>
     );
   }
-  if (!isLoggedIn || !isJuliana) return null;
+  if (!isLoggedIn || !isAdmin) return null;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">

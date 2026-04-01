@@ -12,7 +12,7 @@ const VerifyCodePage = () => {
   const [maskedDest, setMaskedDest] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
+  
 
   const sendCode = async (selectedType: 'email' | 'sms') => {
     setLoading(true);
@@ -30,7 +30,7 @@ const VerifyCodePage = () => {
     }
 
     setMaskedDest(data.destination);
-    if (data.devCode) setDevCode(data.devCode);
+    
     setStep('input');
     toast.success(data.message);
   };
@@ -95,12 +95,6 @@ const VerifyCodePage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {devCode && (
-                <div className="bg-accent/50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Código de verificação (dev):</p>
-                  <p className="text-2xl font-bold font-mono tracking-widest">{devCode}</p>
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-semibold mb-2 text-center">Digite o código de 6 dígitos</label>
@@ -124,7 +118,7 @@ const VerifyCodePage = () => {
               </button>
 
               <button
-                onClick={() => { setStep('choose'); setCode(''); setDevCode(null); }}
+                onClick={() => { setStep('choose'); setCode(''); }}
                 className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
               >
                 Reenviar código
