@@ -441,7 +441,7 @@ const ReportsPage = () => {
           </div>
           {isAdmin && (
             <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-              <button onClick={generateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <button onClick={handleGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
                 <Printer size={16} /> IMPRIMIR FICHAS
               </button>
             </div>
