@@ -673,8 +673,14 @@ const ExtrasPage = () => {
               </div>
               <div>
                 <Label>Tipo de metal *</Label>
-                <SearchableSelect options={GRAVATA_TIPO_METAL} value={stockTipoMetal} onValueChange={setStockTipoMetal} placeholder="Selecione" />
+                <SearchableSelect options={GRAVATA_TIPO_METAL} value={stockTipoMetal} onValueChange={v => { setStockTipoMetal(v); if (v !== 'Bridão Flor' && v !== 'Bridão Estrela') setStockCorBrilho(''); }} placeholder="Selecione" />
               </div>
+              {(stockTipoMetal === 'Bridão Flor' || stockTipoMetal === 'Bridão Estrela') && (
+                <div>
+                  <Label>Cor do brilho *</Label>
+                  <SearchableSelect options={COR_BRILHO_GRAVATA} value={stockCorBrilho} onValueChange={setStockCorBrilho} placeholder="Selecione" />
+                </div>
+              )}
               <div>
                 <Label>Quantidade *</Label>
                 <Input type="number" min="1" value={stockQtd} onChange={e => setStockQtd(e.target.value)} placeholder="Ex: 5" />
