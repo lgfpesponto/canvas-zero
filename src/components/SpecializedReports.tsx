@@ -1157,7 +1157,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados';
+  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
