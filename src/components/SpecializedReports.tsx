@@ -796,7 +796,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (y + rowH > 280) { doc.addPage(); y = 20; }
       drawTableRow(doc, y, mx, cw, cols, rowH);
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 2, y + 5);
+      const numLinesBord = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesBord.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 2, y + 5 + li * 3);
+      });
       doc.setFontSize(6);
       doc.text(lines, cx[1] + 2, y + 4);
 
