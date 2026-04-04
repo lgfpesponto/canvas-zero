@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
-import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL } from '@/lib/extrasConfig';
+import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,6 +23,7 @@ interface StockItem {
   cor_tira: string;
   tipo_metal: string;
   quantidade: number;
+  cor_brilho?: string;
 }
 
 const emptyForm = (): Record<string, any> => ({
@@ -65,6 +66,7 @@ const ExtrasPage = () => {
   const [stockCorTira, setStockCorTira] = useState('');
   const [stockTipoMetal, setStockTipoMetal] = useState('');
   const [stockQtd, setStockQtd] = useState('');
+  const [stockCorBrilho, setStockCorBrilho] = useState('');
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockQtd, setEditingStockQtd] = useState('');
 
@@ -177,6 +179,7 @@ const ExtrasPage = () => {
       if (productId === 'gravata_pronta_entrega') {
         const stockItem = stockItems.find(s => s.id === selectedStockId)!;
         detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
+        if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
       } else {
         const relevantKeys = PRODUCT_FIELDS[productId] || [];
         for (const key of relevantKeys) {
@@ -242,17 +245,24 @@ const ExtrasPage = () => {
       toast({ title: 'Preencha todos os campos do estoque', variant: 'destructive' });
       return;
     }
+    const needsBrilho = stockTipoMetal === 'Bridão Flor' || stockTipoMetal === 'Bridão Estrela';
+    if (needsBrilho && !stockCorBrilho) {
+      toast({ title: 'Selecione a cor do brilho', variant: 'destructive' });
+      return;
+    }
     const qty = parseInt(stockQtd);
+    const corBrilhoVal = needsBrilho ? stockCorBrilho : null;
     // Check if combination exists
-    const existing = stockItems.find(s => s.cor_tira === stockCorTira && s.tipo_metal === stockTipoMetal);
+    const existing = stockItems.find(s => s.cor_tira === stockCorTira && s.tipo_metal === stockTipoMetal && (s.cor_brilho || null) === corBrilhoVal);
     if (existing) {
       await supabase.from('gravata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
     } else {
-      await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty });
+      await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty, cor_brilho: corBrilhoVal } as any);
     }
     setStockCorTira('');
     setStockTipoMetal('');
     setStockQtd('');
+    setStockCorBrilho('');
     await fetchStock();
     toast({ title: 'Estoque atualizado com sucesso!' });
   };
@@ -441,7 +451,7 @@ const ExtrasPage = () => {
                       <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
                         <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
                         <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                          {item.cor_tira} + {item.tipo_metal} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
                         </Label>
                       </div>
                     ))}
@@ -609,7 +619,7 @@ const ExtrasPage = () => {
                     const isEditing = editingStockId === item.id;
                     return (
                       <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm gap-2">
-                        <span className="flex-1">{item.cor_tira} + {item.tipo_metal}</span>
+                        <span className="flex-1">{item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''}</span>
                         {isEditing ? (
                           <div className="flex items-center gap-1">
                             <Input
@@ -663,8 +673,14 @@ const ExtrasPage = () => {
               </div>
               <div>
                 <Label>Tipo de metal *</Label>
-                <SearchableSelect options={GRAVATA_TIPO_METAL} value={stockTipoMetal} onValueChange={setStockTipoMetal} placeholder="Selecione" />
+                <SearchableSelect options={GRAVATA_TIPO_METAL} value={stockTipoMetal} onValueChange={v => { setStockTipoMetal(v); if (v !== 'Bridão Flor' && v !== 'Bridão Estrela') setStockCorBrilho(''); }} placeholder="Selecione" />
               </div>
+              {(stockTipoMetal === 'Bridão Flor' || stockTipoMetal === 'Bridão Estrela') && (
+                <div>
+                  <Label>Cor do brilho *</Label>
+                  <SearchableSelect options={COR_BRILHO_GRAVATA} value={stockCorBrilho} onValueChange={setStockCorBrilho} placeholder="Selecione" />
+                </div>
+              )}
               <div>
                 <Label>Quantidade *</Label>
                 <Input type="number" min="1" value={stockQtd} onChange={e => setStockQtd(e.target.value)} placeholder="Ex: 5" />

@@ -16,18 +16,21 @@ export type Database = {
     Tables: {
       gravata_stock: {
         Row: {
+          cor_brilho: string | null
           cor_tira: string
           id: string
           quantidade: number
           tipo_metal: string
         }
         Insert: {
+          cor_brilho?: string | null
           cor_tira: string
           id?: string
           quantidade?: number
           tipo_metal: string
         }
         Update: {
+          cor_brilho?: string | null
           cor_tira?: string
           id?: string
           quantidade?: number
