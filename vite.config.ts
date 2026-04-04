@@ -18,4 +18,11 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: [
+      "@radix-ui/react-alert-dialog",
+      "@radix-ui/react-tooltip",
+      "@radix-ui/react-dialog",
+    ],
+  },
 }));
