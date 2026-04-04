@@ -50,7 +50,7 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
                   key={o.label}
                   value={o.label}
                   onSelect={() => {
-                    onValueChange(o.label);
+                    onValueChange(value === o.label ? '' : o.label);
                     setOpen(false);
                   }}
                 >
