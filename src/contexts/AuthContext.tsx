@@ -744,6 +744,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAllOrders(prev => prev.filter(o => o.id !== id));
   }, []);
 
+  /* ───── Delete Order Batch ───── */
+  const deleteOrderBatch = useCallback(async (ids: string[]) => {
+    const { error } = await supabase.from('orders').delete().in('id', ids);
+    if (error) {
+      console.error('Error deleting orders batch:', error);
+      toast.error('Erro ao excluir pedidos');
+      return;
+    }
+    const idSet = new Set(ids);
+    setOrders(prev => prev.filter(o => !idSet.has(o.id)));
+    setAllOrders(prev => prev.filter(o => !idSet.has(o.id)));
+  }, []);
+
   /* ───── Update Order ───── */
   const updateOrder = useCallback(async (id: string, data: Partial<Order>) => {
     const dataHoje = formatBrasiliaDate();
