@@ -436,7 +436,7 @@ const EditExtrasPage = () => {
             </div>
           </div>
 
-          <Button className="w-full" onClick={handleSave}>
+          <Button className="w-full" onClick={handleSave} disabled={orderDuplicate}>
             <Save className="mr-2 h-4 w-4" />
             Salvar Alterações
           </Button>
