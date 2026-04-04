@@ -59,9 +59,35 @@ const Index = () => {
     return { aReceber };
   }, [sourceOrders, receberVendedor]);
 
-  const botasProducao = useMemo(() => {
-    return sourceOrders.filter((o) => PRODUCTION_STATUSES_IN_PROD.some((s) => s.toLowerCase() === o.status.toLowerCase())).reduce((s, o) => s + o.quantidade, 0);
-  }, [sourceOrders]);
+  const EXCLUDED_PREFIXES = ['TROCA', 'REFAZENDO', 'ERRO', 'INFLUENCER'];
+  const isExcludedOrder = (numero: string) => EXCLUDED_PREFIXES.some(p => numero.toUpperCase().startsWith(p));
+
+  const PROD_PRODUCT_OPTIONS = [
+    { value: 'bota', label: 'Bota' },
+    { value: 'regata', label: 'Regata' },
+    { value: 'bota_pronta_entrega', label: 'Bota P.E.' },
+    { value: 'cinto', label: 'Cinto' },
+  ];
+
+  const getProductType = (o: { tipoExtra?: string | null }) => {
+    if (!o.tipoExtra) return 'bota';
+    return o.tipoExtra;
+  };
+
+  const produtosProducao = useMemo(() => {
+    return sourceOrders
+      .filter((o) => PRODUCTION_STATUSES_IN_PROD.some((s) => s.toLowerCase() === o.status.toLowerCase()))
+      .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
+
+  const totalProducao = useMemo(() => {
+    return sourceOrders
+      .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
 
   const chartData = useMemo(() => {
     const data: { name: string; vendas: number }[] = [];
