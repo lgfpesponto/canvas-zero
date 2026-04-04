@@ -181,14 +181,16 @@ const ReportsPage = () => {
     if (match) {
       if (isAdmin) {
         setSelectedIds(prev => {
-          const next = new Set(prev);
-          if (!next.has(match.id)) {
-            next.add(match.id);
+          if (prev.has(match.id)) {
+            toast.warning('Esse pedido já está selecionado');
+            return prev;
           }
+          const next = new Set(prev);
+          next.add(match.id);
+          setLastScannedNumero(match.numero);
+          playBeep();
           return next;
         });
-        setLastScannedNumero(match.numero);
-        playBeep();
         setScanFilterId(match.id);
       } else {
         navigate(`/pedido/${match.id}`);
