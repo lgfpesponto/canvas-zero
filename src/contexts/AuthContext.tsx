@@ -388,6 +388,7 @@ interface AuthContextType {
   updateProfile: (data: Partial<Omit<User, 'id' | 'isAdmin'>>) => void;
   orders: Order[];
   addOrder: (order: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes'> & { numeroPedido?: string }) => Promise<boolean>;
+  addOrderBatch: (orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes' | 'tamanho'>, gradeItems: { tamanho: string; quantidade: number }[], numeroPedidoBase: string) => Promise<boolean>;
   deleteOrder: (id: string) => void;
   updateOrder: (id: string, data: Partial<Order>) => void;
   updateOrderStatus: (id: string, newStatus: string, observacao?: string) => void;
