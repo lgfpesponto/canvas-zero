@@ -14,10 +14,11 @@ interface GradeEstoqueProps {
   onOpenChange: (open: boolean) => void;
   numeroPedidoBase: string;
   onConfirm: (items: GradeItem[]) => void;
+  initialItems?: GradeItem[];
 }
 
-const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, onConfirm }: GradeEstoqueProps) => {
-  const [items, setItems] = useState<GradeItem[]>([{ tamanho: '', quantidade: 1 }]);
+const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, onConfirm, initialItems }: GradeEstoqueProps) => {
+  const [items, setItems] = useState<GradeItem[]>(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1 }]);
   const [showPreview, setShowPreview] = useState(false);
 
   const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: 1 }]);
