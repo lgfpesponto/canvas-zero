@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SpecializedReports from '@/components/SpecializedReports';
+import CommissionPanel from '@/components/CommissionPanel';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
