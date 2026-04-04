@@ -179,6 +179,7 @@ const ExtrasPage = () => {
       if (productId === 'gravata_pronta_entrega') {
         const stockItem = stockItems.find(s => s.id === selectedStockId)!;
         detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
+        if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
       } else {
         const relevantKeys = PRODUCT_FIELDS[productId] || [];
         for (const key of relevantKeys) {
