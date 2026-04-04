@@ -578,7 +578,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       drawTableRow(doc, y, mx, cw, cols, rowH);
 
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 2, y + 5);
+      const numLinesPesp = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesPesp.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 2, y + 5 + li * 3);
+      });
 
       // Barcode
       const barcodeVal = orderBarcodeValue(o.numero, o.id);
