@@ -1150,6 +1150,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       case 'pesponto': generateNewPespontoPDF(); break;
       case 'metais': generateMetaisPDF(); break;
       case 'bordados': generateBordadosPDF(); break;
+      case 'corte': generateCortePDF(); break;
       case 'expedicao': generateExpedicaoPDF(); break;
       case 'cobranca': generateCobrancaPDF(); break;
       case 'extras_cintos': generateExtrasCintosPDF(); break;
