@@ -245,17 +245,24 @@ const ExtrasPage = () => {
       toast({ title: 'Preencha todos os campos do estoque', variant: 'destructive' });
       return;
     }
+    const needsBrilho = stockTipoMetal === 'Bridão Flor' || stockTipoMetal === 'Bridão Estrela';
+    if (needsBrilho && !stockCorBrilho) {
+      toast({ title: 'Selecione a cor do brilho', variant: 'destructive' });
+      return;
+    }
     const qty = parseInt(stockQtd);
+    const corBrilhoVal = needsBrilho ? stockCorBrilho : null;
     // Check if combination exists
-    const existing = stockItems.find(s => s.cor_tira === stockCorTira && s.tipo_metal === stockTipoMetal);
+    const existing = stockItems.find(s => s.cor_tira === stockCorTira && s.tipo_metal === stockTipoMetal && (s.cor_brilho || null) === corBrilhoVal);
     if (existing) {
       await supabase.from('gravata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
     } else {
-      await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty });
+      await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty, cor_brilho: corBrilhoVal } as any);
     }
     setStockCorTira('');
     setStockTipoMetal('');
     setStockQtd('');
+    setStockCorBrilho('');
     await fetchStock();
     toast({ title: 'Estoque atualizado com sucesso!' });
   };
