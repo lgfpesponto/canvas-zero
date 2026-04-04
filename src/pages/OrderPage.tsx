@@ -474,55 +474,73 @@ const OrderPage = () => {
     setShowMirror(true);
   };
 
+  const buildOrderData = () => ({
+    cliente: cliente.trim(),
+    vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
+    genero, modelo, sobMedida, sobMedidaDesc,
+    solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
+    couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
+    corCouroGaspea, corCouroCano, corCouroTaloneira,
+    bordadoCano: bordadoCano.join(', '), bordadoGaspea: bordadoGaspea.join(', '),
+    bordadoTaloneira: bordadoTaloneira.join(', '),
+    corBordadoCano, corBordadoGaspea, corBordadoTaloneira,
+    bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
+    nomeBordadoDesc: nomeBordado ? nomeBordadoDesc : '',
+    laserCano: laserCano.map(l => l === 'Outro' && laserOutroCanoText ? laserOutroCanoText : l).join(', '), corGlitterCano,
+    laserGaspea: laserGaspea.map(l => l === 'Outro' && laserOutroGaspeaText ? laserOutroGaspeaText : l).join(', '), corGlitterGaspea,
+    laserTaloneira: laserTaloneira.map(l => l === 'Outro' && laserOutroTaloneiraText ? laserOutroTaloneiraText : l).join(', '), corGlitterTaloneira,
+    pintura: pintura ? 'Sim' : '', pinturaDesc,
+    estampa: estampa ? 'Sim' : '', estampaDesc,
+    corLinha, corBorrachinha,
+    trisce: trice ? 'Sim' : 'Não', triceDesc,
+    tiras: tiras ? 'Sim' : 'Não', tirasDesc,
+    metais: areaMetal, tipoMetal: tipoMetal.join(', '), corMetal,
+    strassQtd: strass ? strassQtd : 0,
+    cruzMetalQtd: cruzMetal ? cruzMetalQtd : 0,
+    bridaoMetalQtd: bridaoMetal ? bridaoMetalQtd : 0,
+    acessorios: acessorios.join(', '),
+    desenvolvimento, observacao,
+    corVira, corVivo, corSola,
+    forma: getForma(modelo, formatoBico),
+    costuraAtras: costuraAtras ? 'Sim' : '',
+    carimbo, carimboDesc,
+    adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
+    personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
+    personalizacaoBordado: '',
+    extraDetalhes: {
+      cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
+      franja, franjaCouro, franjaCor,
+      corrente, correnteCor,
+      corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
+    },
+  });
+
   const confirmOrder = async () => {
     try {
-      const success = await addOrder({
-        numeroPedido: numeroPedido.trim(),
-        cliente: cliente.trim(),
-        vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
-        tamanho, genero, modelo, sobMedida, sobMedidaDesc,
-        solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
-        couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
-        corCouroGaspea, corCouroCano, corCouroTaloneira,
-        bordadoCano: bordadoCano.join(', '), bordadoGaspea: bordadoGaspea.join(', '),
-        bordadoTaloneira: bordadoTaloneira.join(', '),
-        corBordadoCano, corBordadoGaspea, corBordadoTaloneira,
-        bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
-        nomeBordadoDesc: nomeBordado ? nomeBordadoDesc : '',
-        laserCano: laserCano.map(l => l === 'Outro' && laserOutroCanoText ? laserOutroCanoText : l).join(', '), corGlitterCano,
-        laserGaspea: laserGaspea.map(l => l === 'Outro' && laserOutroGaspeaText ? laserOutroGaspeaText : l).join(', '), corGlitterGaspea,
-        laserTaloneira: laserTaloneira.map(l => l === 'Outro' && laserOutroTaloneiraText ? laserOutroTaloneiraText : l).join(', '), corGlitterTaloneira,
-        pintura: pintura ? 'Sim' : '', pinturaDesc,
-        estampa: estampa ? 'Sim' : '', estampaDesc,
-        corLinha, corBorrachinha,
-        trisce: trice ? 'Sim' : 'Não', triceDesc,
-        tiras: tiras ? 'Sim' : 'Não', tirasDesc,
-        metais: areaMetal, tipoMetal: tipoMetal.join(', '), corMetal,
-        strassQtd: strass ? strassQtd : 0,
-        cruzMetalQtd: cruzMetal ? cruzMetalQtd : 0,
-        bridaoMetalQtd: bridaoMetal ? bridaoMetalQtd : 0,
-        acessorios: acessorios.join(', '),
-        desenvolvimento, observacao,
-        corVira, corVivo, corSola,
-        forma: getForma(modelo, formatoBico),
-        costuraAtras: costuraAtras ? 'Sim' : '',
-        carimbo, carimboDesc,
-        adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
-        personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
-        personalizacaoBordado: '',
-        extraDetalhes: {
-          cavaloMetal: cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
-          franja, franjaCouro, franjaCor,
-          corrente, correnteCor,
-          corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
-        },
-      } as any);
-      if (success) {
-        if (draftId) deleteDraft(draftId);
-        toast.success('Pedido criado com sucesso!');
-        navigate('/relatorios');
+      const isEstoqueGrade = isAdmin && vendedorSelecionado === 'Estoque' && gradeItems.length > 0;
+
+      if (isEstoqueGrade) {
+        const orderData = buildOrderData() as any;
+        const success = await addOrderBatch(orderData, gradeItems, numeroPedido.trim());
+        if (success) {
+          const totalPedidos = gradeItems.reduce((s, i) => s + i.quantidade, 0);
+          if (draftId) deleteDraft(draftId);
+          toast.success(`Grade criada com sucesso! ${totalPedidos} pedidos gerados.`);
+          navigate('/relatorios');
+        }
       } else {
-        toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
+        const success = await addOrder({
+          ...buildOrderData(),
+          numeroPedido: numeroPedido.trim(),
+          tamanho,
+        } as any);
+        if (success) {
+          if (draftId) deleteDraft(draftId);
+          toast.success('Pedido criado com sucesso!');
+          navigate('/relatorios');
+        } else {
+          toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
+        }
       }
     } catch (err) {
       console.error('confirmOrder error:', err);
