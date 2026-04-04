@@ -36,7 +36,8 @@ const BeltOrderPage = () => {
   const isAdminUser = isAdmin;
 
   // Form state
-  const [vendedor, setVendedor] = useState(user?.nomeCompleto || '');
+  const isFernanda = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+  const [vendedor, setVendedor] = useState(isFernanda ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState('');
@@ -126,6 +127,10 @@ const BeltOrderPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFernanda && (!vendedor || vendedor === user?.nomeCompleto)) {
+      toast.error('Por favor, selecione um vendedor válido.');
+      return;
+    }
     const required: [string, string][] = [
       [numeroPedido.trim(), 'Número do Pedido'],
       [tamanho, 'Tamanho'],
@@ -276,7 +281,8 @@ const BeltOrderPage = () => {
               <label className={cls.label}>Vendedor</label>
               {isAdminUser ? (
                 <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
-                  {allProfiles.map(p => (
+                  {isFernanda && !vendedor && <option value="">Selecione um vendedor</option>}
+                  {allProfiles.filter(p => !(isFernanda && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
                     <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
                   ))}
                   <option value="Estoque">Estoque</option>

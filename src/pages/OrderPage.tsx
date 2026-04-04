@@ -108,7 +108,8 @@ const OrderPage = () => {
   const df = templateInit || draftState?.form || {};
 
   /* form state */
-  const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
+  const isFernanda = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+  const [vendedorSelecionado, setVendedorSelecionado] = useState(isFernanda ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
@@ -419,6 +420,10 @@ const OrderPage = () => {
     e.preventDefault();
     const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
     const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
+    if (isFernanda && (!vendedorSelecionado || vendedorSelecionado === user?.nomeCompleto)) {
+      toast.error('Por favor, selecione um vendedor válido.');
+      return;
+    }
     const required: [string, string][] = [
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
@@ -710,7 +715,8 @@ const OrderPage = () => {
               <label className={cls.label}>Vendedor</label>
               {isAdmin ? (
                 <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select}>
-                  {allProfiles.map(p => (
+                  {isFernanda && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
+                  {allProfiles.filter(p => !(isFernanda && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
                     <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
                   ))}
                   <option value="Estoque">Estoque</option>

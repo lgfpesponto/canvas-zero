@@ -131,6 +131,11 @@ const ExtrasPage = () => {
     try {
       const product = EXTRA_PRODUCTS.find(p => p.id === productId)!;
 
+      const isFernandaUser = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+      if (isFernandaUser && (!form.vendedorSelecionado || form.vendedorSelecionado === user?.nomeCompleto)) {
+        toast({ title: 'Por favor, selecione um vendedor válido.', variant: 'destructive' });
+        return;
+      }
       if (!form.numeroPedidoBota.trim()) {
         toast({ title: 'Preencha o Nº do pedido', variant: 'destructive' });
         return;
@@ -276,10 +281,10 @@ const ExtrasPage = () => {
         {isAdmin && (
           <div>
             <Label>Vendedor</Label>
-            <Select value={form.vendedorSelecionado || user?.nomeCompleto || ''} onValueChange={v => set('vendedorSelecionado', v)}>
+            <Select value={form.vendedorSelecionado || (user?.nomeUsuario?.toLowerCase() === 'fernanda' ? '' : (user?.nomeCompleto || ''))} onValueChange={v => set('vendedorSelecionado', v)}>
               <SelectTrigger><SelectValue placeholder="Selecione vendedor" /></SelectTrigger>
               <SelectContent>
-                {allProfiles.map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
+                {allProfiles.filter(p => !(user?.nomeUsuario?.toLowerCase() === 'fernanda' && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
                 <SelectItem value="Estoque">Estoque</SelectItem>
               </SelectContent>
             </Select>
