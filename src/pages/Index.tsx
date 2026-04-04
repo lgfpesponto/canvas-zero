@@ -298,6 +298,11 @@ const Index = () => {
             <Progress value={botasProducao > 0 ? Math.min(botasProducao / Math.max(sourceOrders.reduce((s, o) => s + o.quantidade, 0), 1) * 100, 100) : 0} className="h-3" />
             <p className="text-xs text-muted-foreground mt-2">{botasProducao} de {sourceOrders.reduce((s, o) => s + o.quantidade, 0)} botas totais estão em produção</p>
           </motion.div>
+
+          {/* Commission panel — only for "site" user */}
+          {isSiteUser && (
+            <CommissionPanel orders={orders} />
+          )}
         </div>
 
         {/* Right column: Sales chart */}
