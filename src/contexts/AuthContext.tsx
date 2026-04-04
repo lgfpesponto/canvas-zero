@@ -659,6 +659,78 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, logout]);
 
+  /* ───── Add Order Batch (Grade de Estoque) ───── */
+  const addOrderBatch = useCallback(async (
+    orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes' | 'tamanho'>,
+    gradeItems: { tamanho: string; quantidade: number }[],
+    numeroPedidoBase: string,
+  ): Promise<boolean> => {
+    try {
+      if (!user) return false;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { await logout(); return false; }
+
+      // Sort by size ascending
+      const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
+
+      // Build all order numbers
+      const numbers: { tamanho: string; numero: string }[] = [];
+      let seq = 1;
+      for (const item of sorted) {
+        for (let i = 0; i < item.quantidade; i++) {
+          numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${seq}` });
+          seq++;
+        }
+      }
+
+      // Check ALL numbers for duplicates in one query
+      const allNums = numbers.map(n => n.numero);
+      const { data: existing } = await supabase.from('orders').select('numero').in('numero', allNums);
+      if (existing && existing.length > 0) {
+        const dupes = existing.map(e => e.numero).join(', ');
+        toast.error(`Números já existentes: ${dupes}`);
+        return false;
+      }
+
+      const dataHoje = formatBrasiliaDate();
+      const horaAgora = formatBrasiliaTime();
+
+      // Estoque always uses admin's user_id
+      const targetUserId = user.id;
+
+      const rows = numbers.map(({ tamanho, numero }) => {
+        const newOrder = {
+          ...orderData,
+          tamanho,
+          dataCriacao: dataHoje,
+          horaCriacao: horaAgora,
+          diasRestantes: 15,
+          status: 'Em aberto',
+          historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado (grade)' }],
+          alteracoes: [],
+          numero,
+        };
+        return orderToDbRow(newOrder, targetUserId);
+      });
+
+      const { data, error } = await supabase.from('orders').insert(rows).select();
+      if (error) {
+        console.error('Error adding batch orders:', error);
+        toast.error('Erro ao gerar grade de pedidos.');
+        return false;
+      }
+
+      const mapped = (data || []).map(dbRowToOrder);
+      setOrders(prev => [...mapped, ...prev]);
+      setAllOrders(prev => [...mapped, ...prev]);
+      return true;
+    } catch (err) {
+      console.error('addOrderBatch exception:', err);
+      toast.error('Erro inesperado ao gerar grade.');
+      return false;
+    }
+  }, [user, logout]);
+
   /* ───── Delete Order ───── */
   const deleteOrder = useCallback(async (id: string) => {
     const { error } = await supabase.from('orders').delete().eq('id', id);
