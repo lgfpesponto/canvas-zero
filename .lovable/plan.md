@@ -1,45 +1,39 @@
 
 
-## Bloquear "Fernanda ADM" como vendedor nos pedidos
+## Corrigir seleção de cor do brilho no estoque de Gravata Pronta Entrega
 
 ### Problema
 
-A usuária Fernanda ADM pode criar pedidos com ela mesma selecionada como vendedora. Ela deve ser obrigada a selecionar outro vendedor.
+O `SearchableSelect` usa internamente um `Popover` que renderiza via Portal fora do DOM do `Dialog`. Como o `Dialog` do Radix é modal por padrão, ele pode interceptar cliques em elementos portalizados, impedindo a seleção de opções no dropdown de "Cor do brilho" (que aparece condicionalmente após selecionar Bridão Estrela/Flor).
 
-### Alterações
+### Solução
 
-#### 1. `src/pages/OrderPage.tsx`
+Substituir os 3 `SearchableSelect` do formulário de estoque (dentro do Dialog "Organizar Estoque") por elementos `<select>` nativos. Isso elimina o conflito entre Portal do Popover e modal do Dialog.
 
-- **Inicialização (~linha 111):** Se `isFernanda`, iniciar `vendedorSelecionado` como `''` em vez de `user?.nomeCompleto`
-- **Lista de vendedores (~linha 712-715):** Filtrar `allProfiles` para excluir o perfil da Fernanda (`p.nomeUsuario !== 'fernanda'` ou `p.nomeCompleto` diferente do nome da Fernanda)
-- **Validação (~linha 422):** Adicionar validação: se `isFernanda` e vendedor vazio/igual ao nome dela, mostrar erro
+### Alteração: `src/pages/ExtrasPage.tsx` (linhas 675-688)
 
-#### 2. `src/pages/BeltOrderPage.tsx`
+Trocar os SearchableSelect por selects nativos para:
+- **Cor da tira** (linha 677)
+- **Tipo de metal** (linha 681)
+- **Cor do brilho** (linha 686)
 
-- **Inicialização (~linha 39):** Se `isFernanda`, iniciar `vendedor` como `''`
-- **Lista de vendedores (~linha 278-280):** Filtrar perfil da Fernanda da lista
-- **Validação no submit:** Bloquear se vendedor vazio
+Exemplo:
+```typescript
+<select
+  value={stockCorTira}
+  onChange={e => setStockCorTira(e.target.value)}
+  className="w-full bg-muted rounded-lg px-3 py-2 text-sm border border-border"
+>
+  <option value="">Selecione</option>
+  {GRAVATA_COR_TIRA.map(c => <option key={c} value={c}>{c}</option>)}
+</select>
+```
 
-#### 3. `src/pages/ExtrasPage.tsx`
+Mesma abordagem para tipo_metal (mantendo a lógica de limpar corBrilho) e cor_brilho.
 
-- **Inicialização:** Se `isFernanda`, não pré-selecionar o vendedor dela
-- **Lista de vendedores (~linha 282):** Filtrar perfil da Fernanda
-- **Validação no submit (~linha 189):** Bloquear se vendedor é o da Fernanda ou vazio
-
-#### 4. `src/pages/EditExtrasPage.tsx`
-
-- **Lista de vendedores (~linha 175):** Filtrar perfil da Fernanda (ela não pode trocar para ela mesma ao editar)
-
-### Lógica de identificação
-
-Usar `isFernanda` do `useAuth()` (já existe: `user?.nomeUsuario?.toLowerCase() === 'fernanda'`) e filtrar por `nomeCompleto` do user logado.
-
-### Arquivos alterados
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderPage.tsx` | Filtrar Fernanda da lista, iniciar vazio, validar |
-| `src/pages/BeltOrderPage.tsx` | Filtrar Fernanda da lista, iniciar vazio, validar |
-| `src/pages/ExtrasPage.tsx` | Filtrar Fernanda da lista, iniciar vazio, validar |
-| `src/pages/EditExtrasPage.tsx` | Filtrar Fernanda da lista de vendedores |
+| `src/pages/ExtrasPage.tsx` | Trocar SearchableSelect por select nativo no formulário de estoque dentro do Dialog |
 
