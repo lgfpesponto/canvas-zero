@@ -1,67 +1,43 @@
 
 
-## Reforçar regra de número de pedido único em todos os fluxos
+## Alterações em variações e campos do sistema
 
-### Situação atual
+### 1. Renomear variações em `src/lib/orderFieldsConfig.ts`
 
-| Fluxo | Validação duplicata no submit | Validação em tempo real | Validação no rascunho |
-|-------|------------------------------|------------------------|----------------------|
-| Bota (OrderPage) | ✅ via `addOrder` | ❌ | ❌ |
-| Cinto (BeltOrderPage) | ✅ via `addOrder` | ❌ | ❌ |
-| Extras (ExtrasPage) | ✅ via `addOrder` | ❌ | ❌ |
-| Grade Estoque (batch) | ✅ via `addOrderBatch` | ❌ | N/A |
-| Edição (EditOrderPage) | ✅ | ❌ | N/A |
-| Edição Extras | ✅ | ❌ | N/A |
+- **Modelo**: `'Bota Ouver Perfilado'` → `'Bota Over'` (linha 16, e nas referências em `getModelosForTamanho` linha 296 e `PERFILADO_MODELOS` linha 323)
+- **Cor da linha**: `'Marrom'` → `'Café'` no array `COR_LINHA` (linha 196)
+- **Cor do vivo**: `'Escuro'` → `'Preto'` no array `COR_VIVO` (linha 203)
 
-A validação no submit já existe em todos os fluxos. O que falta: **validação em tempo real** (ao digitar) e **bloqueio de rascunhos duplicados**.
+### 2. Nova cor de couro: "Castor"
 
-### Alterações
+Adicionar `'Castor'` ao array `CORES_COURO` em `src/lib/orderFieldsConfig.ts` (linha ~85 do bloco de cores). Como `CORES_COURO` é importado em todos os formulários (botas, extras, cintos), a adição aparece automaticamente em todos.
 
-#### 1. Novo hook: `src/hooks/useCheckDuplicateOrder.ts`
+### 3. Gravata Pronta Entrega — Campo "Cor do brilho"
 
-Hook reutilizável com debounce (500ms) que consulta o Supabase ao digitar o número do pedido:
+**Banco de dados**: Adicionar coluna `cor_brilho` (text, nullable, default null) à tabela `gravata_stock` via migração.
 
-```ts
-// Retorna { isDuplicate, checking }
-// Consulta: supabase.from('orders').select('id').eq('numero', numero).maybeSingle()
-// Aceita excludeId opcional (para edição)
-```
+**Config** (`src/lib/extrasConfig.ts`):
+- Adicionar constante: `COR_BRILHO_GRAVATA = ['Preto', 'Azul', 'Rosa', 'Cristal']`
+- Adicionar label em `EXTRA_DETAIL_LABELS`: `corBrilho: 'Cor do Brilho'`
 
-#### 2. Mensagem de erro padronizada
+**UI — Organizar estoque** (`src/pages/ExtrasPage.tsx`):
+- Adicionar state `stockCorBrilho`
+- No form de adicionar estoque, quando `stockTipoMetal` for `'Bridão Flor'` ou `'Bridão Estrela'`, mostrar campo "Cor do brilho" com as 4 opções
+- Incluir `cor_brilho` no insert/update do estoque
+- Exibir `cor_brilho` na lista de variações cadastradas (quando presente)
 
-Atualizar todas as mensagens para:
-> "Este número de pedido já existe no sistema. Não é permitido criar pedidos com números duplicados. Por favor, utilize outro número de pedido."
+**UI — Compra da gravata**:
+- Na lista de variações disponíveis (linha 444), exibir a cor do brilho quando presente: `{item.cor_tira} + {item.tipo_metal} + {item.cor_brilho}`
+- Incluir `corBrilho` nos detalhes do pedido gravata quando o item selecionado tiver `cor_brilho`
 
-#### 3. `src/pages/OrderPage.tsx` — Validação em tempo real + rascunho
+**Tipo StockItem**: Atualizar a interface local para incluir `cor_brilho?: string`
 
-- Usar `useCheckDuplicateOrder(numeroPedido)`
-- Exibir alerta vermelho abaixo do campo "Nº do pedido" quando duplicado
-- Bloquear botão "CONFERIR E FINALIZAR" se `isDuplicate`
-- Bloquear botão "SALVAR RASCUNHO" se `isDuplicate`
+### Arquivos alterados
 
-#### 4. `src/pages/BeltOrderPage.tsx` — Mesma validação
-
-- Usar `useCheckDuplicateOrder(numeroPedido)`
-- Exibir alerta + bloquear botões submit e rascunho
-
-#### 5. `src/pages/ExtrasPage.tsx` — Mesma validação
-
-- Usar `useCheckDuplicateOrder(form.numeroPedidoBota)`
-- Exibir alerta + bloquear botão de submit
-
-#### 6. `src/pages/EditOrderPage.tsx` e `src/pages/EditExtrasPage.tsx`
-
-- Usar `useCheckDuplicateOrder(numero, order.id)` (excluindo o próprio pedido)
-- Exibir alerta + bloquear botão salvar
-
-#### 7. `src/components/GradeEstoque.tsx`
-
-- Na pré-visualização dos números gerados, verificar duplicatas em batch e marcar os que já existem
-
-### Resultado
-
-- Campo de número mostra erro em tempo real ao digitar número duplicado
-- Botões de finalizar e rascunho ficam desabilitados enquanto número for duplicado
-- Mensagem de erro clara e padronizada em todos os fluxos
-- Validação dupla: tempo real + antes de salvar (segurança)
+| Arquivo | O que muda |
+|---------|-----------|
+| `src/lib/orderFieldsConfig.ts` | Renomear modelo, cor linha, cor vivo; adicionar "Castor" |
+| `src/lib/extrasConfig.ts` | Adicionar `COR_BRILHO_GRAVATA` e label |
+| `src/pages/ExtrasPage.tsx` | Campo cor do brilho no estoque e na compra |
+| Migração SQL | Coluna `cor_brilho` em `gravata_stock` |
 
