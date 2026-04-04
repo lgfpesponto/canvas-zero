@@ -753,15 +753,33 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
           parts.push(`Nome: ${det.nomeBordadoDesc || ''}${det.nomeBordadoCor ? ' cor: ' + det.nomeBordadoCor : ''}${det.nomeBordadoFonte ? ' fonte: ' + det.nomeBordadoFonte : ''}`);
         }
       } else {
-        if (o.bordadoCano) parts.push(`Cano: ${o.bordadoCano}`);
-        if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
-        if (o.bordadoVariadoDescCano) parts.push(`Desc Cano: ${o.bordadoVariadoDescCano}`);
-        if (o.bordadoGaspea) parts.push(`Gáspea: ${o.bordadoGaspea}`);
-        if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
-        if (o.bordadoVariadoDescGaspea) parts.push(`Desc Gáspea: ${o.bordadoVariadoDescGaspea}`);
-        if (o.bordadoTaloneira) parts.push(`Taloneira: ${o.bordadoTaloneira}`);
-        if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
-        if (o.bordadoVariadoDescTaloneira) parts.push(`Desc Talon.: ${o.bordadoVariadoDescTaloneira}`);
+        if (o.bordadoCano) {
+          if (o.bordadoCano.includes('Bordado Variado')) {
+            if (o.bordadoVariadoDescCano) parts.push(`Cano: ${o.bordadoVariadoDescCano}`);
+            if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
+          } else {
+            parts.push(`Cano: ${o.bordadoCano}`);
+            if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
+          }
+        }
+        if (o.bordadoGaspea) {
+          if (o.bordadoGaspea.includes('Bordado Variado')) {
+            if (o.bordadoVariadoDescGaspea) parts.push(`Gáspea: ${o.bordadoVariadoDescGaspea}`);
+            if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
+          } else {
+            parts.push(`Gáspea: ${o.bordadoGaspea}`);
+            if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
+          }
+        }
+        if (o.bordadoTaloneira) {
+          if (o.bordadoTaloneira.includes('Bordado Variado')) {
+            if (o.bordadoVariadoDescTaloneira) parts.push(`Taloneira: ${o.bordadoVariadoDescTaloneira}`);
+            if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
+          } else {
+            parts.push(`Taloneira: ${o.bordadoTaloneira}`);
+            if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
+          }
+        }
         if (o.nomeBordadoDesc || o.personalizacaoNome) parts.push(`Nome: ${o.nomeBordadoDesc || o.personalizacaoNome}`);
       }
       if (o.observacao) parts.push(`Obs: ${o.observacao}`);
