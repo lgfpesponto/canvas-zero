@@ -5,7 +5,8 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Plus, List, Trash2 } from 'lucide-react';
+import { Link2, X, Eye, Plus, List, Trash2, Grid3X3 } from 'lucide-react';
+import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -86,7 +87,8 @@ const MultiSelect = ({
 
 /* ───── main component ───── */
 const OrderPage = () => {
-  const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
+  const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
+  const [showGrade, setShowGrade] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string } | null;
@@ -964,6 +966,43 @@ const OrderPage = () => {
               <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
                 <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
               </button>
+              {isAdmin && vendedorSelecionado === 'Estoque' && (
+                <button type="button" onClick={() => {
+                  // Validate form (same as submit but skip tamanho)
+                  const required: [string, string][] = [
+                    [numeroPedido.trim(), 'Número do Pedido'],
+                    [genero, 'Gênero'],
+                    [modelo, 'Modelo'],
+                    [tipoCouroCano, 'Tipo do Couro do Cano'],
+                    [corCouroCano, 'Cor do Couro do Cano'],
+                    [tipoCouroGaspea, 'Tipo do Couro da Gáspea'],
+                    [corCouroGaspea, 'Cor do Couro da Gáspea'],
+                    [tipoCouroTaloneira, 'Tipo do Couro da Taloneira'],
+                    [corCouroTaloneira, 'Cor do Couro da Taloneira'],
+                    [corLinha, 'Cor da Linha'],
+                    ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
+                      [corBorrachinha, 'Cor da Borrachinha'] as [string, string],
+                      [corVivo, 'Cor do Vivo'] as [string, string],
+                    ] : []),
+                    [solado, 'Tipo do Solado'],
+                    [formatoBico, 'Formato do Bico'],
+                    ...(getCorSolaOptions(modelo, solado, formatoBico) !== null ? [[corSola, 'Cor da Sola'] as [string, string]] : []),
+                    [corVira, 'Cor da Vira'],
+                  ];
+                  const missing = required.filter(([val]) => !val);
+                  if (missing.length > 0) {
+                    toast.error(`Preencha os campos obrigatórios: ${missing.map(([, l]) => l).join(', ')}`);
+                    return;
+                  }
+                  if (!fotoUrl.trim()) {
+                    toast.error('Cole o link da foto de referência!');
+                    return;
+                  }
+                  setShowGrade(true);
+                }} className="w-full bg-secondary text-secondary-foreground py-3 rounded-lg font-bold tracking-wider hover:bg-secondary/80 transition-colors text-lg flex items-center justify-center gap-2">
+                  <Grid3X3 size={20} /> GERAR GRADE
+                </button>
+              )}
               <button type="button" onClick={handleSaveDraft} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2">
                 SALVAR RASCUNHO
               </button>
@@ -1010,6 +1049,62 @@ const OrderPage = () => {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* ───── Grade de Estoque ───── */}
+      <GradeEstoque
+        open={showGrade}
+        onOpenChange={setShowGrade}
+        numeroPedidoBase={numeroPedido.trim()}
+        onConfirm={async (gradeItems: GradeItem[]) => {
+          const orderData = {
+            cliente: cliente.trim(),
+            vendedor: 'Estoque',
+            genero, modelo, sobMedida, sobMedidaDesc,
+            solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
+            couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
+            corCouroGaspea, corCouroCano, corCouroTaloneira,
+            bordadoCano: bordadoCano.join(', '), bordadoGaspea: bordadoGaspea.join(', '),
+            bordadoTaloneira: bordadoTaloneira.join(', '),
+            corBordadoCano, corBordadoGaspea, corBordadoTaloneira,
+            bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
+            nomeBordadoDesc: nomeBordado ? nomeBordadoDesc : '',
+            laserCano: laserCano.map(l => l === 'Outro' && laserOutroCanoText ? laserOutroCanoText : l).join(', '), corGlitterCano,
+            laserGaspea: laserGaspea.map(l => l === 'Outro' && laserOutroGaspeaText ? laserOutroGaspeaText : l).join(', '), corGlitterGaspea,
+            laserTaloneira: laserTaloneira.map(l => l === 'Outro' && laserOutroTaloneiraText ? laserOutroTaloneiraText : l).join(', '), corGlitterTaloneira,
+            pintura: pintura ? 'Sim' : '', pinturaDesc,
+            estampa: estampa ? 'Sim' : '', estampaDesc,
+            corLinha, corBorrachinha,
+            trisce: trice ? 'Sim' : 'Não', triceDesc,
+            tiras: tiras ? 'Sim' : 'Não', tirasDesc,
+            metais: areaMetal, tipoMetal: tipoMetal.join(', '), corMetal,
+            strassQtd: strass ? strassQtd : 0,
+            cruzMetalQtd: cruzMetal ? cruzMetalQtd : 0,
+            bridaoMetalQtd: bridaoMetal ? bridaoMetalQtd : 0,
+            acessorios: acessorios.join(', '),
+            desenvolvimento, observacao,
+            corVira, corVivo, corSola,
+            forma: getForma(modelo, formatoBico),
+            costuraAtras: costuraAtras ? 'Sim' : '',
+            carimbo, carimboDesc,
+            adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
+            personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
+            personalizacaoBordado: '',
+            extraDetalhes: {
+              cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
+              franja, franjaCouro, franjaCor,
+              corrente, correnteCor,
+              corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
+            },
+          } as any;
+          const success = await addOrderBatch(orderData, gradeItems, numeroPedido.trim());
+          if (success) {
+            const total = gradeItems.reduce((s, i) => s + i.quantidade, 0);
+            if (draftId) deleteDraft(draftId);
+            toast.success(`Grade criada com sucesso! ${total} pedidos gerados.`);
+            navigate('/relatorios');
+          }
+        }}
+      />
 
       {/* ───── Mirror ───── */}
       {showMirror && (
