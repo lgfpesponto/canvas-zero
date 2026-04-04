@@ -38,6 +38,7 @@ const ReportsPage = () => {
 
   // Bulk progress modal
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
 
