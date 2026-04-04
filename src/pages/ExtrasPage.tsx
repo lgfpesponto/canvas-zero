@@ -56,6 +56,7 @@ const ExtrasPage = () => {
   const { toast } = useToast();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
 
   // Gravata stock
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
