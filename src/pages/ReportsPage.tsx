@@ -232,7 +232,7 @@ const ReportsPage = () => {
             <ScanBarcode size={16} /> {showScanner ? 'Fechar Scanner' : 'Escanear Código'}
           </button>
           {/* Admin bulk progress button */}
-          {isAdmin && selectedIds.size > 0 && (
+          {isAdmin && selectedIds.size > 0 && !(showScanner && selectedIds.size > 0) && (
             <>
               <button onClick={() => setShowProgressModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity ml-auto">
                 <RefreshCw size={16} /> Mudar progresso de produção
