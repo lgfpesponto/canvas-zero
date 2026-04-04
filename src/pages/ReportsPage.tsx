@@ -155,6 +155,8 @@ const ReportsPage = () => {
     setShowProgressModal(false);
     setSelectedProgress('');
     setProgressObservacao('');
+    setSelectedIds(new Set());
+    setLastScannedNumero(null);
   };
 
   // Barcode scan handler
