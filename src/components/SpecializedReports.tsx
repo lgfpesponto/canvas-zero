@@ -679,6 +679,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateBordadosPDF = async () => {
     const filtered = sourceOrders.filter(o => {
       if (filterProgresso !== 'todos' && o.status !== filterProgresso) return false;
+      if (o.tipoExtra === 'cinto') {
+        const det = (o.extraDetalhes as any) || {};
+        return det.bordadoP === 'Tem' || det.bordadoP === 'Sim' || det.nomeBordado === 'Tem' || det.nomeBordado === 'Sim';
+      }
       const hasBordado =
         (o.bordadoCano && o.bordadoCano !== '' && o.bordadoCano !== 'Não' && o.bordadoCano !== '-') ||
         (o.bordadoGaspea && o.bordadoGaspea !== '' && o.bordadoGaspea !== 'Não' && o.bordadoGaspea !== '-') ||
