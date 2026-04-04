@@ -36,7 +36,8 @@ const BeltOrderPage = () => {
   const isAdminUser = isAdmin;
 
   // Form state
-  const [vendedor, setVendedor] = useState(user?.nomeCompleto || '');
+  const isFernanda = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+  const [vendedor, setVendedor] = useState(isFernanda ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState('');
