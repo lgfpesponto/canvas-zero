@@ -93,8 +93,8 @@ const Index = () => {
     const data: { name: string; vendas: number }[] = [];
     const now = new Date();
 
-    // Filter orders for chart based on product and vendor filters
-    const chartOrders = sourceOrders.filter(o => {
+    // Exclude special orders from sales count
+    const chartOrders = sourceOrders.filter(o => !isExcludedOrder(o.numero)).filter(o => {
       // Product filter
       if (chartProductFilter === 'bota') return !o.tipoExtra;
       if (chartProductFilter === 'regata') return o.tipoExtra === 'regata';
