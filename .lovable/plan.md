@@ -1,25 +1,28 @@
 
 
-## Ajustar lógica de comissão — meta mínima de 60
+## Ajustes no Painel de Comissão e PDF
 
-### Problema
+### Alterações
 
-A barra de progresso para no 60 (100%) e sempre mostra valor de comissão. A regra correta é:
-- **60 é o mínimo** para ganhar comissão. Abaixo de 60, comissão = R$0 e não deve ser exibida.
-- Acima de 60, a barra continua crescendo (não trava em 100%).
+#### 1. `src/components/CommissionPanel.tsx`
 
-### Alteração: `src/components/CommissionPanel.tsx`
+**Remover mensagem "Meta mínima"** (linhas 108-111): substituir o bloco `else` por `null` — quando não bateu a meta, não mostra nada abaixo do número de vendas.
 
-**Lógica:**
-- `comissao`: se `vendas < 60` → `0`, senão → `vendas * 10`
-- `progresso`: remover o `Math.min(..., 100)` — deixar a barra refletir o progresso real até a meta (mas manter cap em 100 para o componente Progress que aceita 0-100)
-- No bloco `bg-muted`: esconder a linha "Comissão: R$X" quando `vendas < 60`
+#### 2. `src/lib/pdfGenerators.ts` — `generateCommissionPDF`
 
-**Mensagem dinâmica (já existe, ajustar):**
-- `vendas < 60`: "Faltam X vendas para bater a meta" (sem valor de comissão)
-- `vendas >= 60`: "🎉 Meta batida! Comissão atual: R$X" (mostra valor)
+**Adicionar coluna "Código de Barras"** na tabela do relatório:
 
-**Mudanças específicas:**
-1. Linha 66: `const comissao = vendas >= MONTHLY_GOAL ? vendas * COMMISSION_PER_SALE : 0;`
-2. Linhas 104-106: Mostrar "Comissão: R$X" somente quando `metaBatida`, senão mostrar "Meta mínima: 60 vendas para ganhar comissão"
+- Atualizar a assinatura para receber `id` além de `numero` e `dataCriacao`
+- Ajustar colunas: Qtd | Nº do Pedido | Código de Barras | Data do Pedido
+- Para cada pedido, gerar a imagem do código de barras via `barcodeDataUrl(orderBarcodeValue(o.numero, o.id))` e inserir como imagem na célula correspondente
+
+#### 3. `src/components/CommissionPanel.tsx` — interface Order
+
+Garantir que `id` é passado na interface e no `handleGeneratePDF`.
+
+### Detalhes técnicos
+
+- Colunas do PDF: `seq: 14`, `numero: 30`, `barcode: 75` (imagem ~40x15), `data: 140`
+- Usar `barcodeDataUrl` e `orderBarcodeValue` já existentes em `pdfGenerators.ts`
+- Altura da linha aumenta para ~18 para acomodar a imagem do código de barras
 
