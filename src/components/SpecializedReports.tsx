@@ -717,7 +717,29 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
 
-    filtered.sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
+    filtered.sort((a, b) => {
+      const isBeltA = a.tipoExtra === 'cinto' ? 1 : 0;
+      const isBeltB = b.tipoExtra === 'cinto' ? 1 : 0;
+      if (isBeltA !== isBeltB) return isBeltA - isBeltB;
+
+      if (!isBeltA) {
+        const keyA = `${a.bordadoCano || ''}|${a.corBordadoCano || ''}|${a.bordadoGaspea || ''}|${a.corBordadoGaspea || ''}`;
+        const keyB = `${b.bordadoCano || ''}|${b.corBordadoCano || ''}|${b.bordadoGaspea || ''}|${b.corBordadoGaspea || ''}`;
+        const cmp = keyA.localeCompare(keyB);
+        if (cmp !== 0) return cmp;
+      } else {
+        const detA = (a.extraDetalhes as any) || {};
+        const detB = (b.extraDetalhes as any) || {};
+        const keyA = `${detA.bordadoPDesc || ''}|${detA.bordadoPCor || ''}`;
+        const keyB = `${detB.bordadoPDesc || ''}|${detB.bordadoPCor || ''}`;
+        const cmp = keyA.localeCompare(keyB);
+        if (cmp !== 0) return cmp;
+      }
+
+      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
 
     for (const o of filtered) {
       const parts: string[] = [];
