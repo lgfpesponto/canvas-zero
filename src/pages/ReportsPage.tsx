@@ -26,7 +26,7 @@ const formatDateBR = (date: string, time?: string) => {
 };
 
 const ReportsPage = () => {
-  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, updateOrderStatus } = useAuth();
+  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, deleteOrderBatch, updateOrderStatus } = useAuth();
   const navigate = useNavigate();
   const [filterDate, setFilterDate] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
