@@ -10,6 +10,7 @@ import SpecializedReports from '@/components/SpecializedReports';
 import CommissionPanel from '@/components/CommissionPanel';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
