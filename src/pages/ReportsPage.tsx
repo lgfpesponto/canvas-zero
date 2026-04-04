@@ -277,7 +277,7 @@ const ReportsPage = () => {
                           <span className="font-bold text-green-300">{o.numero}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-gray-400">{o.status}</span>
-                            <button onClick={() => toggle(o.id)} className="text-red-400 hover:text-red-300 ml-2">
+                            <button onClick={() => toggleSelect(o.id)} className="text-red-400 hover:text-red-300 ml-2">
                               <X size={16} />
                             </button>
                           </div>
