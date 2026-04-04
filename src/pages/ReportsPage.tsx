@@ -158,6 +158,7 @@ const ReportsPage = () => {
     setProgressObservacao('');
     setSelectedIds(new Set());
     setLastScannedNumero(null);
+    setShowSelectedList(false);
   };
 
   // Barcode scan handler
