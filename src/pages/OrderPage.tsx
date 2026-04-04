@@ -709,7 +709,27 @@ const OrderPage = () => {
           {/* 3-4 Tamanho + Gênero + Modelo */}
           {mode === 'order' ? (
             <div className="grid sm:grid-cols-3 gap-4">
-              <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
+              {isAdmin && vendedorSelecionado === 'Estoque' ? (
+                <div>
+                  <label className={cls.label}>Tamanho / Grade</label>
+                  {gradeItems.length > 0 ? (
+                    <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border hover:border-primary text-left flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2">
+                        <Grid3X3 size={14} className="text-primary" />
+                        <span className="font-semibold">{gradeItems.length} tam.</span>
+                        <span className="text-muted-foreground">({gradeItems.reduce((s, i) => s + i.quantidade, 0)} pedidos)</span>
+                      </span>
+                      <span className="text-xs text-primary font-medium">Editar</span>
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-dashed border-primary/50 hover:border-primary text-primary font-semibold flex items-center justify-center gap-2 transition-colors">
+                      <Grid3X3 size={16} /> Gerar Grade
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
+              )}
               <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
               <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
             </div>
