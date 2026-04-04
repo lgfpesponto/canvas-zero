@@ -420,6 +420,10 @@ const OrderPage = () => {
     e.preventDefault();
     const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
     const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
+    if (isFernanda && (!vendedorSelecionado || vendedorSelecionado === user?.nomeCompleto)) {
+      toast.error('Por favor, selecione um vendedor válido.');
+      return;
+    }
     const required: [string, string][] = [
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
