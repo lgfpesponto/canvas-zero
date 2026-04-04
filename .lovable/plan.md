@@ -1,28 +1,56 @@
 
 
-## Ajustes no Painel de Comissão e PDF
+## Ajustes nos Graficos do Dashboard
 
-### Alterações
+### Constante compartilhada
 
-#### 1. `src/components/CommissionPanel.tsx`
+Criar uma constante para prefixos de exclusao, usada em todos os pontos:
 
-**Remover mensagem "Meta mínima"** (linhas 108-111): substituir o bloco `else` por `null` — quando não bateu a meta, não mostra nada abaixo do número de vendas.
+```typescript
+const EXCLUDED_PREFIXES = ['TROCA', 'REFAZENDO', 'ERRO', 'INFLUENCER'];
+const isExcludedOrder = (numero: string) => EXCLUDED_PREFIXES.some(p => numero.toUpperCase().startsWith(p));
+```
 
-#### 2. `src/lib/pdfGenerators.ts` — `generateCommissionPDF`
+### Alteracoes
 
-**Adicionar coluna "Código de Barras"** na tabela do relatório:
+#### 1. `src/pages/Index.tsx` — "Botas na producao" → "Produtos na producao"
 
-- Atualizar a assinatura para receber `id` além de `numero` e `dataCriacao`
-- Ajustar colunas: Qtd | Nº do Pedido | Código de Barras | Data do Pedido
-- Para cada pedido, gerar a imagem do código de barras via `barcodeDataUrl(orderBarcodeValue(o.numero, o.id))` e inserir como imagem na célula correspondente
+**Admin dashboard (linhas 202-213):**
+- Renomear titulo para "Produtos na producao" e texto para "produtos" em vez de "botas"
+- Adicionar state `prodProductFilter` (multi-select com checkboxes via Popover) com opcoes: Bota, Regata, Bota P.E., Cinto, e outros extras
+- Adicionar state `prodVendedorFilter` (multi-select) — somente no admin
+- Filtrar `botasProducao` com base nesses filtros (produto por `tipoExtra` e vendedor)
 
-#### 3. `src/components/CommissionPanel.tsx` — interface Order
+**Vendedor dashboard (linhas 289-300):**
+- Renomear titulo para "Produtos na producao"
+- Adicionar filtro de produto (sem filtro de vendedor)
+- Mesma logica de filtragem por `tipoExtra`
 
-Garantir que `id` é passado na interface e no `handleGeneratePDF`.
+**Implementacao dos filtros multi-select:**
+Usar Popover + Checkbox (mesmo padrao ja usado nos filtros de "Meus Pedidos"). Cada filtro mostra chips com a quantidade selecionada.
 
-### Detalhes técnicos
+#### 2. `src/pages/Index.tsx` — "Quantidade de vendas" exclusao
 
-- Colunas do PDF: `seq: 14`, `numero: 30`, `barcode: 75` (imagem ~40x15), `data: 140`
-- Usar `barcodeDataUrl` e `orderBarcodeValue` já existentes em `pdfGenerators.ts`
-- Altura da linha aumenta para ~18 para acomodar a imagem do código de barras
+**No `chartData` useMemo (linha 67):**
+- Adicionar filtro `.filter(o => !isExcludedOrder(o.numero))` antes dos filtros de produto/vendedor
+
+Isso se aplica tanto ao admin quanto ao vendedor (ambos usam o mesmo `chartData`).
+
+#### 3. `src/components/CommissionPanel.tsx` — exclusao na comissao
+
+**No `qualifyingOrders` useMemo (linha 50):**
+- Adicionar filtro `.filter(o => !isExcludedOrder(o.numero))` para excluir pedidos TROCA/REFAZENDO/ERRO/INFLUENCER da contagem de vendas e comissao
+
+### Arquivos alterados
+
+| Arquivo | O que muda |
+|---------|-----------|
+| `src/pages/Index.tsx` | Renomear card, adicionar filtros multi-select no card de producao, excluir pedidos especiais do grafico de vendas |
+| `src/components/CommissionPanel.tsx` | Excluir pedidos especiais da contagem de comissao |
+
+### Resultado
+
+- Card "Produtos na producao" com filtros de produto e vendedor (ADM)
+- Grafico de vendas ignora pedidos TROCA/REFAZENDO/ERRO/INFLUENCER
+- Comissao do Rancho Chique ignora os mesmos pedidos
 
