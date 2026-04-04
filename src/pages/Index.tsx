@@ -10,6 +10,7 @@ import SpecializedReports from '@/components/SpecializedReports';
 import CommissionPanel from '@/components/CommissionPanel';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -64,8 +65,7 @@ const Index = () => {
 
   const PROD_PRODUCT_OPTIONS = [
     { value: 'bota', label: 'Bota' },
-    { value: 'regata', label: 'Regata' },
-    { value: 'bota_pronta_entrega', label: 'Bota P.E.' },
+    ...EXTRA_PRODUCTS.map(p => ({ value: p.id, label: p.nome })),
     { value: 'cinto', label: 'Cinto' },
   ];
 
@@ -241,7 +241,7 @@ const Index = () => {
                     Produto {prodProductFilter.size > 0 && `(${prodProductFilter.size})`} <ChevronDown size={14} />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-2">
+                <PopoverContent className="w-56 p-2 max-h-60 overflow-y-auto">
                   {PROD_PRODUCT_OPTIONS.map(opt => (
                     <label key={opt.value} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
                       <Checkbox checked={prodProductFilter.has(opt.value)} onCheckedChange={(checked) => {
@@ -364,7 +364,7 @@ const Index = () => {
                     Produto {prodProductFilter.size > 0 && `(${prodProductFilter.size})`} <ChevronDown size={14} />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-2">
+                <PopoverContent className="w-56 p-2 max-h-60 overflow-y-auto">
                   {PROD_PRODUCT_OPTIONS.map(opt => (
                     <label key={opt.value} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
                       <Checkbox checked={prodProductFilter.has(opt.value)} onCheckedChange={(checked) => {
