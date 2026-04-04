@@ -1,43 +1,61 @@
 
 
-## Alterações em variações e campos do sistema
+## Sistema de Comissao — Estilo "Botas na producao" + PDF
 
-### 1. Renomear variações em `src/lib/orderFieldsConfig.ts`
+### Resumo
 
-- **Modelo**: `'Bota Ouver Perfilado'` → `'Bota Over'` (linha 16, e nas referências em `getModelosForTamanho` linha 296 e `PERFILADO_MODELOS` linha 323)
-- **Cor da linha**: `'Marrom'` → `'Café'` no array `COR_LINHA` (linha 196)
-- **Cor do vivo**: `'Escuro'` → `'Preto'` no array `COR_VIVO` (linha 203)
+O painel de comissao usara o mesmo estilo visual do card "Botas na producao" (card com `bg-card rounded-xl p-6 western-shadow`, bloco `bg-muted rounded-lg p-4`, numero grande em `text-3xl font-bold text-primary`, barra de progresso `Progress` e texto descritivo abaixo). O relatorio sera exportado em PDF via jsPDF, seguindo o padrao dos outros relatorios do sistema.
 
-### 2. Nova cor de couro: "Castor"
+### Arquivos
 
-Adicionar `'Castor'` ao array `CORES_COURO` em `src/lib/orderFieldsConfig.ts` (linha ~85 do bloco de cores). Como `CORES_COURO` é importado em todos os formulários (botas, extras, cintos), a adição aparece automaticamente em todos.
-
-### 3. Gravata Pronta Entrega — Campo "Cor do brilho"
-
-**Banco de dados**: Adicionar coluna `cor_brilho` (text, nullable, default null) à tabela `gravata_stock` via migração.
-
-**Config** (`src/lib/extrasConfig.ts`):
-- Adicionar constante: `COR_BRILHO_GRAVATA = ['Preto', 'Azul', 'Rosa', 'Cristal']`
-- Adicionar label em `EXTRA_DETAIL_LABELS`: `corBrilho: 'Cor do Brilho'`
-
-**UI — Organizar estoque** (`src/pages/ExtrasPage.tsx`):
-- Adicionar state `stockCorBrilho`
-- No form de adicionar estoque, quando `stockTipoMetal` for `'Bridão Flor'` ou `'Bridão Estrela'`, mostrar campo "Cor do brilho" com as 4 opções
-- Incluir `cor_brilho` no insert/update do estoque
-- Exibir `cor_brilho` na lista de variações cadastradas (quando presente)
-
-**UI — Compra da gravata**:
-- Na lista de variações disponíveis (linha 444), exibir a cor do brilho quando presente: `{item.cor_tira} + {item.tipo_metal} + {item.cor_brilho}`
-- Incluir `corBrilho` nos detalhes do pedido gravata quando o item selecionado tiver `cor_brilho`
-
-**Tipo StockItem**: Atualizar a interface local para incluir `cor_brilho?: string`
-
-### Arquivos alterados
-
-| Arquivo | O que muda |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/lib/orderFieldsConfig.ts` | Renomear modelo, cor linha, cor vivo; adicionar "Castor" |
-| `src/lib/extrasConfig.ts` | Adicionar `COR_BRILHO_GRAVATA` e label |
-| `src/pages/ExtrasPage.tsx` | Campo cor do brilho no estoque e na compra |
-| Migração SQL | Coluna `cor_brilho` em `gravata_stock` |
+| `src/components/CommissionPanel.tsx` | **Novo** — painel de comissao com estilo "Botas na producao" + botao PDF |
+| `src/lib/pdfGenerators.ts` | Nova funcao `generateCommissionPDF` |
+| `src/pages/Index.tsx` | Renderizar `CommissionPanel` no dashboard do usuario "site" |
+
+### Detalhes
+
+#### 1. `CommissionPanel.tsx` — Visual
+
+Seguir exatamente o estilo do card "Botas na producao":
+
+```text
+┌─────────────────────────────────────────┐  bg-card rounded-xl p-6 western-shadow
+│ 💰 Comissao Mensal    [Filtro mes ▼]    │
+│                                         │
+│ ┌─────────────────────────────────┐     │  bg-muted rounded-lg p-4
+│ │ VENDAS NO MES                   │     │
+│ │ 25 vendas                       │     │  text-3xl font-bold text-primary
+│ │ Comissao: R$250,00              │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ ████████████░░░░░░░  Progress h-3       │  barra de progresso ate 60
+│ 25 de 60 vendas para a meta             │  texto descritivo
+│                                         │
+│ Faltam 35 vendas para bater a meta      │  mensagem dinamica
+│ (ou) 🎉 Meta batida! Comissao: R$650    │
+│                                         │
+│ [Gerar relatorio de comissao] (PDF)     │  botao que gera PDF
+└─────────────────────────────────────────┘
+```
+
+- Usar componente `Progress` existente (mesmo do "Botas na producao")
+- Quando `vendas >= 60`: emoji 🎉 na mensagem, barra cheia
+- Filtro de mes com `Select` no canto superior direito do card
+
+#### 2. `generateCommissionPDF` em `pdfGenerators.ts`
+
+Funcao que recebe os pedidos filtrados e gera PDF com jsPDF:
+
+- **Cabecalho**: "Relatorio de Comissao — Rancho Chique / Site — Mes/Ano"
+- **Tabela** com colunas: Nº do Pedido | Data do Pedido | Quantidade (sequencial)
+- **Rodape da tabela**: Total de pedidos, Comissao por pedido (R$10), Valor total
+- **Nome do arquivo**: `Comissao - Rancho Chique - MM-YYYY.pdf`
+- Seguir mesmo padrao de fonte, margens e paginacao dos outros relatorios
+
+#### 3. `Index.tsx`
+
+No `renderVendedorDashboard`, quando `isSiteUser`:
+- Adicionar `<CommissionPanel orders={orders} />` apos o card "Botas na producao"
 
