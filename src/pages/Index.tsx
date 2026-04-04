@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SpecializedReports from '@/components/SpecializedReports';
+import CommissionPanel from '@/components/CommissionPanel';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -297,6 +298,11 @@ const Index = () => {
             <Progress value={botasProducao > 0 ? Math.min(botasProducao / Math.max(sourceOrders.reduce((s, o) => s + o.quantidade, 0), 1) * 100, 100) : 0} className="h-3" />
             <p className="text-xs text-muted-foreground mt-2">{botasProducao} de {sourceOrders.reduce((s, o) => s + o.quantidade, 0)} botas totais estão em produção</p>
           </motion.div>
+
+          {/* Commission panel — only for "site" user */}
+          {isSiteUser && (
+            <CommissionPanel orders={orders} />
+          )}
         </div>
 
         {/* Right column: Sales chart */}
