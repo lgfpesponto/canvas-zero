@@ -743,16 +743,27 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     for (const o of filtered) {
       const parts: string[] = [];
-      if (o.bordadoCano) parts.push(`Cano: ${o.bordadoCano}`);
-      if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
-      if (o.bordadoVariadoDescCano) parts.push(`Desc Cano: ${o.bordadoVariadoDescCano}`);
-      if (o.bordadoGaspea) parts.push(`Gáspea: ${o.bordadoGaspea}`);
-      if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
-      if (o.bordadoVariadoDescGaspea) parts.push(`Desc Gáspea: ${o.bordadoVariadoDescGaspea}`);
-      if (o.bordadoTaloneira) parts.push(`Taloneira: ${o.bordadoTaloneira}`);
-      if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
-      if (o.bordadoVariadoDescTaloneira) parts.push(`Desc Talon.: ${o.bordadoVariadoDescTaloneira}`);
-      if (o.nomeBordadoDesc || o.personalizacaoNome) parts.push(`Nome: ${o.nomeBordadoDesc || o.personalizacaoNome}`);
+      if (o.tipoExtra === 'cinto') {
+        const det = (o.extraDetalhes as any) || {};
+        parts.push('CINTO');
+        if (det.bordadoP === 'Tem' || det.bordadoP === 'Sim') {
+          parts.push(`Bordado P: ${det.bordadoPDesc || ''} ${det.bordadoPCor || ''}`);
+        }
+        if (det.nomeBordado === 'Tem' || det.nomeBordado === 'Sim') {
+          parts.push(`Nome: ${det.nomeBordadoDesc || ''}${det.nomeBordadoCor ? ' cor: ' + det.nomeBordadoCor : ''}${det.nomeBordadoFonte ? ' fonte: ' + det.nomeBordadoFonte : ''}`);
+        }
+      } else {
+        if (o.bordadoCano) parts.push(`Cano: ${o.bordadoCano}`);
+        if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
+        if (o.bordadoVariadoDescCano) parts.push(`Desc Cano: ${o.bordadoVariadoDescCano}`);
+        if (o.bordadoGaspea) parts.push(`Gáspea: ${o.bordadoGaspea}`);
+        if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
+        if (o.bordadoVariadoDescGaspea) parts.push(`Desc Gáspea: ${o.bordadoVariadoDescGaspea}`);
+        if (o.bordadoTaloneira) parts.push(`Taloneira: ${o.bordadoTaloneira}`);
+        if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
+        if (o.bordadoVariadoDescTaloneira) parts.push(`Desc Talon.: ${o.bordadoVariadoDescTaloneira}`);
+        if (o.nomeBordadoDesc || o.personalizacaoNome) parts.push(`Nome: ${o.nomeBordadoDesc || o.personalizacaoNome}`);
+      }
       if (o.observacao) parts.push(`Obs: ${o.observacao}`);
       const descText = parts.join('\n');
       const lines = doc.splitTextToSize(descText, cols[1] - 4);
