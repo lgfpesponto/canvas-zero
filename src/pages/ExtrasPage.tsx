@@ -444,7 +444,7 @@ const ExtrasPage = () => {
                       <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
                         <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
                         <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                          {item.cor_tira} + {item.tipo_metal} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
                         </Label>
                       </div>
                     ))}
