@@ -366,7 +366,8 @@ const EditOrderPage = () => {
             </div>
             <div>
               <label className={cls.label}>Número do Pedido</label>
-              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={cls.input} />
+              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+              {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
             </div>
           </div>
 
