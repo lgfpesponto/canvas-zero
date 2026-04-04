@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 
 const EditExtrasPage = () => {
   const { id } = useParams();
-  const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
+  const { isAdmin, allOrders, updateOrder, allProfiles, user } = useAuth();
   const navigate = useNavigate();
   const order = allOrders.find(o => o.id === id);
 
