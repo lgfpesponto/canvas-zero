@@ -48,9 +48,13 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
 
   // Filter qualifying orders for selected month
   const qualifyingOrders = useMemo(() => {
+    const EXCLUDED_PREFIXES = ['TROCA', 'REFAZENDO', 'ERRO', 'INFLUENCER'];
+    const isExcluded = (numero: string) => EXCLUDED_PREFIXES.some(p => numero.toUpperCase().startsWith(p));
     return orders.filter(o => {
       // Must be in selected month
       if (!o.dataCriacao?.startsWith(selectedMonth)) return false;
+      // Exclude special orders
+      if (isExcluded(o.numero)) return false;
       // Bota (ficha producao normal), Bota Pronta Entrega, or Regata
       const tipo = o.tipoExtra;
       return !tipo || tipo === 'bota_pronta_entrega' || tipo === 'regata';
