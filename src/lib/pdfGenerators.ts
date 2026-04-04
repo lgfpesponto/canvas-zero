@@ -56,10 +56,13 @@ export function generateReportPDF(ordersToExport: any[]) {
 
 export async function generateProductionSheetPDF(ordersToExport: any[]) {
   const list = ordersToExport.slice().sort((a, b) => {
+    const keyA = `${a.couroCano || ''}|${a.corCouroCano || ''}`;
+    const keyB = `${b.couroCano || ''}|${b.corCouroCano || ''}`;
+    const cmp = keyA.localeCompare(keyB);
+    if (cmp !== 0) return cmp;
     const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
     const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
-    if (numB !== numA) return numB - numA;
-    return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime();
+    return numA - numB;
   });
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [148.5, 210] });
   const pw = 210;
