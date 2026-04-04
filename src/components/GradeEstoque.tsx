@@ -21,6 +21,13 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, onConfirm, initial
   const [items, setItems] = useState<GradeItem[]>(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1 }]);
   const [showPreview, setShowPreview] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setItems(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1 }]);
+      setShowPreview(false);
+    }
+  }, [open]);
+
   const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: 1 }]);
 
   const removeRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
