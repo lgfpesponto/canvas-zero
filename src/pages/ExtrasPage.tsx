@@ -674,16 +674,25 @@ const ExtrasPage = () => {
               <Label className="text-base font-semibold">Adicionar ao estoque</Label>
               <div>
                 <Label>Cor da tira *</Label>
-                <SearchableSelect options={GRAVATA_COR_TIRA} value={stockCorTira} onValueChange={setStockCorTira} placeholder="Selecione" />
+                <select value={stockCorTira} onChange={e => setStockCorTira(e.target.value)} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                  <option value="">Selecione</option>
+                  {GRAVATA_COR_TIRA.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div>
                 <Label>Tipo de metal *</Label>
-                <SearchableSelect options={GRAVATA_TIPO_METAL} value={stockTipoMetal} onValueChange={v => { setStockTipoMetal(v); if (v !== 'Bridão Flor' && v !== 'Bridão Estrela') setStockCorBrilho(''); }} placeholder="Selecione" />
+                <select value={stockTipoMetal} onChange={e => { const v = e.target.value; setStockTipoMetal(v); if (v !== 'Bridão Flor' && v !== 'Bridão Estrela') setStockCorBrilho(''); }} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                  <option value="">Selecione</option>
+                  {GRAVATA_TIPO_METAL.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               {(stockTipoMetal === 'Bridão Flor' || stockTipoMetal === 'Bridão Estrela') && (
                 <div>
                   <Label>Cor do brilho *</Label>
-                  <SearchableSelect options={COR_BRILHO_GRAVATA} value={stockCorBrilho} onValueChange={setStockCorBrilho} placeholder="Selecione" />
+                  <select value={stockCorBrilho} onChange={e => setStockCorBrilho(e.target.value)} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                    <option value="">Selecione</option>
+                    {COR_BRILHO_GRAVATA.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
               )}
               <div>
