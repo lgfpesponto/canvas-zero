@@ -1,40 +1,37 @@
 
 
-## Aviso ao escanear pedido já selecionado
+## Adicionar som de erro ao escanear pedido duplicado ou inválido
 
-### Problema
+### Alteração: `src/pages/ReportsPage.tsx`
 
-Ao escanear um pedido que já está selecionado, o sistema emite o beep e seleciona novamente (sem efeito real). O correto é: não emitir som e mostrar aviso "Esse pedido já está selecionado".
+#### 1. Criar função `playErrorBeep`
 
-### Alteração: `src/pages/ReportsPage.tsx` (linhas 181-192)
-
-Dentro do bloco `if (match)` para admin, antes de adicionar ao set, verificar se já está selecionado:
+Junto ao `playBeep` existente (linha 65), adicionar uma nova função com tom mais grave e mais longo para indicar erro:
 
 ```typescript
-if (match) {
-  if (isAdmin) {
-    setSelectedIds(prev => {
-      if (prev.has(match.id)) {
-        // Já selecionado — aviso sem beep
-        toast.warning('Esse pedido já está selecionado');
-        return prev;
-      }
-      const next = new Set(prev);
-      next.add(match.id);
-      setLastScannedNumero(match.numero);
-      playBeep();
-      return next;
-    });
-    setScanFilterId(match.id);
-  } else { ... }
-}
+const playErrorBeep = useCallback(() => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 400;
+    gain.gain.value = 0.3;
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {}
+}, []);
 ```
 
-**Nota:** Como `setSelectedIds` recebe um callback, mover `playBeep()` e `setLastScannedNumero` para dentro do callback (apenas no caso de novo pedido) e chamar `toast.warning` no caso de duplicata.
+#### 2. Emitir som de erro nos dois cenários
+
+- **Pedido já selecionado (linha 185):** adicionar `playErrorBeep()` junto ao `toast.warning`
+- **Pedido não encontrado (linha 200):** adicionar `playErrorBeep()` junto ao `toast.error`
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/ReportsPage.tsx` | Verificar duplicata antes de beep, mostrar aviso se já selecionado |
+| `src/pages/ReportsPage.tsx` | Nova função `playErrorBeep` + chamada nos cenários de erro e duplicata |
 
