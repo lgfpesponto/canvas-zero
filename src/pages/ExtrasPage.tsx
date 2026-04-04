@@ -278,7 +278,8 @@ const ExtrasPage = () => {
         {/* Número do pedido — obrigatório em TODOS */}
         <div>
           <Label>Nº do pedido *</Label>
-          <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" />
+          <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
+          {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
         </div>
         {/* Cliente — opcional */}
         <div>
