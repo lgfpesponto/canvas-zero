@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode } from 'lucide-react';
+import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X } from 'lucide-react';
 import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
@@ -273,9 +273,14 @@ const ReportsPage = () => {
                   {showSelectedList && (
                     <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
                       {filteredOrders.filter(o => selectedIds.has(o.id)).map(o => (
-                        <div key={o.id} className="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
+                        <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
                           <span className="font-bold text-green-300">{o.numero}</span>
-                          <span className="text-gray-400">{o.status}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400">{o.status}</span>
+                            <button onClick={() => toggleSelect(o.id)} className="text-red-400 hover:text-red-300 ml-2">
+                              <X size={16} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
