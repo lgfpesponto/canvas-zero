@@ -578,7 +578,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       drawTableRow(doc, y, mx, cw, cols, rowH);
 
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 2, y + 5);
+      const numLinesPesp = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesPesp.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 2, y + 5 + li * 3);
+      });
 
       // Barcode
       const barcodeVal = orderBarcodeValue(o.numero, o.id);
@@ -660,7 +663,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (y + rowH > 280) { doc.addPage(); y = 20; }
       drawTableRow(doc, y, mx, cw, cols, rowH);
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 2, y + 5);
+      const numLinesMet = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesMet.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 2, y + 5 + li * 3);
+      });
       doc.setFontSize(7);
       doc.text(lines, cx[1] + 2, y + 5);
 
@@ -790,7 +796,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (y + rowH > 280) { doc.addPage(); y = 20; }
       drawTableRow(doc, y, mx, cw, cols, rowH);
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 2, y + 5);
+      const numLinesBord = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesBord.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 2, y + 5 + li * 3);
+      });
       doc.setFontSize(6);
       doc.text(lines, cx[1] + 2, y + 4);
 
@@ -884,7 +893,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (y + rowH > 280) { doc.addPage(); y = 20; }
       drawTableRow(doc, y, mx, cw, cols, rowH);
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 2, y + 5);
+      const numLinesCorte = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesCorte.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 2, y + 5 + li * 3);
+      });
       doc.setFontSize(6);
       doc.text(lines, cx[1] + 2, y + 4);
 
@@ -952,7 +964,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       cols.reduce((x, w) => { doc.line(x + w, y, x + w, y + rowH); return x + w; }, mx);
 
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 1, y + 5);
+      const numLinesExp = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesExp.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 1, y + 5 + li * 3);
+      });
       doc.setFontSize(7);
       doc.text(formatDateBR(o.dataCriacao), cx[1] + 1, y + 5);
 
@@ -1162,7 +1177,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       }
 
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 1, y + 5);
+      const numLinesCob = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesCob.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 1, y + 5 + li * 3);
+      });
 
       // Barcode below order number
       try {
