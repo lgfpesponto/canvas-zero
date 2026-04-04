@@ -83,7 +83,10 @@ const ReportsPage = () => {
   };
 
   const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
-    ? allOrders.filter(o => appliedFilters.filterVendedor.has(o.vendedor))
+    ? allOrders.filter(o => 
+        appliedFilters.filterVendedor.has(o.vendedor) || 
+        (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && appliedFilters.filterVendedor.has(o.cliente.trim()))
+      )
     : orders;
 
   const filteredOrders = useMemo(() => {

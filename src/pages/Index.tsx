@@ -120,10 +120,7 @@ const Index = () => {
       if (chartProductFilter === 'bota_pronta_entrega') return o.tipoExtra === 'bota_pronta_entrega';
       // 'todos' = bota + regata + bota_pronta_entrega
       return !o.tipoExtra || o.tipoExtra === 'regata' || o.tipoExtra === 'bota_pronta_entrega';
-    }).filter(o => {
-      if (chartVendedorFilter === 'todos') return true;
-      return o.vendedor === chartVendedorFilter;
-    });
+    }).filter(o => matchVendedorFilter(o, chartVendedorFilter));
 
     if (chartPeriod === 'dia') {
       for (let i = 6; i >= 0; i--) {
