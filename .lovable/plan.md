@@ -1,27 +1,56 @@
 
 
-## Desmarcar opção ao clicar novamente nos campos de seleção
+## Habilitar Grade para vendedora "Juliana Cristina Ribeiro" com Cliente obrigatório
 
 ### Problema
 
-Nos campos com `SearchableSelect` (e `select` nativo) nas fichas de produção de bota, cinto e extras, ao clicar na opção já selecionada nada acontece. O usuário quer que clicar na opção já marcada a desmarque, voltando ao estado vazio ("Selecione...").
+Atualmente o campo "Tamanho / Grade" só aparece quando o vendedor selecionado é "Estoque". A vendedora "Juliana Cristina Ribeiro" precisa do mesmo comportamento de grade, porém com o campo "Cliente" se tornando obrigatório.
 
-### Alteração: `src/components/SearchableSelect.tsx`
+### Alteração: `src/pages/OrderPage.tsx`
 
-Modificar o `onSelect` do `CommandItem` (linha 52-54) para fazer toggle: se o valor clicado for igual ao valor atual, chamar `onValueChange('')` (desmarcar); caso contrário, selecionar normalmente.
+#### 1. Criar helper para identificar vendedores com grade
+
+Criar constante/condição reutilizável que identifica se o vendedor permite grade:
 
 ```typescript
-onSelect={() => {
-  onValueChange(value === o.label ? '' : o.label);
-  setOpen(false);
-}}
+const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
 ```
 
-Essa alteração se propaga automaticamente para todos os formulários que usam `SearchableSelect` (OrderPage, BeltOrderPage, ExtrasPage, EditOrderPage, EditExtrasPage).
+#### 2. Substituir todas as ocorrências de `vendedorSelecionado === 'Estoque'`
+
+Há ~4 locais que verificam `isAdmin && vendedorSelecionado === 'Estoque'`:
+- **Linha 420** (validação `isEstoqueGrade`): trocar para `isGradeVendedor && gradeItems.length > 0`
+- **Linha 522** (confirmOrder `isEstoqueGrade`): mesma troca
+- **Linha 734** (renderização do campo Grade): trocar condição para `isGradeVendedor`
+
+#### 3. Tornar "Cliente" obrigatório para Juliana
+
+Na validação do `handleSubmit` (~linha 421), adicionar condicional:
+
+```typescript
+...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
+```
+
+#### 4. Indicar visualmente que Cliente é obrigatório
+
+No campo Cliente (~linha 725), adicionar asterisco vermelho condicional:
+
+```typescript
+<label className={cls.label}>
+  Cliente
+  {vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}
+</label>
+```
+
+E mudar o placeholder quando for Juliana:
+
+```typescript
+placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"}
+```
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SearchableSelect.tsx` | Toggle de seleção: clicar na opção já selecionada desmarca o campo |
+| `src/pages/OrderPage.tsx` | Condição de grade inclui Juliana, cliente obrigatório para Juliana, indicação visual |
 
