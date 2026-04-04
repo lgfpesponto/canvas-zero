@@ -44,9 +44,28 @@ const Index = () => {
   const sourceOrders = isAdmin ? allOrders : orders;
 
   const vendedores = useMemo(() => {
-    const names = [...new Set(sourceOrders.map((o) => o.vendedor))].sort();
-    return names;
+    const names = new Set(sourceOrders.map((o) => o.vendedor));
+    sourceOrders.forEach(o => {
+      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+        names.add(o.cliente.trim());
+      }
+    });
+    return [...names].sort();
   }, [sourceOrders]);
+
+  const matchVendedorFilter = (o: { vendedor: string; cliente?: string }, filter: string) => {
+    if (filter === 'todos') return true;
+    if (o.vendedor === filter) return true;
+    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() === filter) return true;
+    return false;
+  };
+
+  const matchVendedorFilterSet = (o: { vendedor: string; cliente?: string }, filterSet: Set<string>) => {
+    if (filterSet.size === 0) return true;
+    if (filterSet.has(o.vendedor)) return true;
+    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && filterSet.has(o.cliente.trim())) return true;
+    return false;
+  };
 
   const PRODUCTION_STATUSES_IN_PROD = [
     'Aguardando', 'Corte', 'Sem bordado',
