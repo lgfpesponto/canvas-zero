@@ -66,6 +66,7 @@ const ExtrasPage = () => {
   const [stockCorTira, setStockCorTira] = useState('');
   const [stockTipoMetal, setStockTipoMetal] = useState('');
   const [stockQtd, setStockQtd] = useState('');
+  const [stockCorBrilho, setStockCorBrilho] = useState('');
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockQtd, setEditingStockQtd] = useState('');
 

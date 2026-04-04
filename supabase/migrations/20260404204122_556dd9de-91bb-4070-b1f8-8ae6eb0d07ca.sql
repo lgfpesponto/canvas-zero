@@ -1,0 +1,1 @@
+ALTER TABLE public.gravata_stock ADD COLUMN cor_brilho text DEFAULT NULL;
