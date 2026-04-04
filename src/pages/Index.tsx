@@ -22,6 +22,8 @@ const Index = () => {
   const [receberVendedor, setReceberVendedor] = useState<string>('todos');
   const [chartProductFilter, setChartProductFilter] = useState<string>('todos');
   const [chartVendedorFilter, setChartVendedorFilter] = useState<string>('todos');
+  const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
+  const [prodVendedorFilter, setProdVendedorFilter] = useState<Set<string>>(new Set());
   const [checkedAlertIds, setCheckedAlertIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('alert_checked_orders');
