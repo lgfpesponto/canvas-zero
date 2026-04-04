@@ -131,6 +131,11 @@ const ExtrasPage = () => {
     try {
       const product = EXTRA_PRODUCTS.find(p => p.id === productId)!;
 
+      const isFernandaUser = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+      if (isFernandaUser && (!form.vendedorSelecionado || form.vendedorSelecionado === user?.nomeCompleto)) {
+        toast({ title: 'Por favor, selecione um vendedor válido.', variant: 'destructive' });
+        return;
+      }
       if (!form.numeroPedidoBota.trim()) {
         toast({ title: 'Preencha o Nº do pedido', variant: 'destructive' });
         return;
