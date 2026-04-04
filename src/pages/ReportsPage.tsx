@@ -196,6 +196,7 @@ const ReportsPage = () => {
       if (isAdmin) {
         setSelectedIds(prev => {
           if (prev.has(match.id)) {
+            playErrorBeep();
             toast.warning('Esse pedido já está selecionado');
             return prev;
           }
