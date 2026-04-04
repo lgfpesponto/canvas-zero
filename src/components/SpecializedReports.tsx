@@ -679,6 +679,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateBordadosPDF = async () => {
     const filtered = sourceOrders.filter(o => {
       if (filterProgresso !== 'todos' && o.status !== filterProgresso) return false;
+      if (o.tipoExtra === 'cinto') {
+        const det = (o.extraDetalhes as any) || {};
+        return det.bordadoP === 'Tem' || det.bordadoP === 'Sim' || det.nomeBordado === 'Tem' || det.nomeBordado === 'Sim';
+      }
       const hasBordado =
         (o.bordadoCano && o.bordadoCano !== '' && o.bordadoCano !== 'Não' && o.bordadoCano !== '-') ||
         (o.bordadoGaspea && o.bordadoGaspea !== '' && o.bordadoGaspea !== 'Não' && o.bordadoGaspea !== '-') ||
@@ -713,20 +717,53 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
 
-    filtered.sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
+    filtered.sort((a, b) => {
+      const isBeltA = a.tipoExtra === 'cinto' ? 1 : 0;
+      const isBeltB = b.tipoExtra === 'cinto' ? 1 : 0;
+      if (isBeltA !== isBeltB) return isBeltA - isBeltB;
+
+      if (!isBeltA) {
+        const keyA = `${a.bordadoCano || ''}|${a.corBordadoCano || ''}|${a.bordadoGaspea || ''}|${a.corBordadoGaspea || ''}`;
+        const keyB = `${b.bordadoCano || ''}|${b.corBordadoCano || ''}|${b.bordadoGaspea || ''}|${b.corBordadoGaspea || ''}`;
+        const cmp = keyA.localeCompare(keyB);
+        if (cmp !== 0) return cmp;
+      } else {
+        const detA = (a.extraDetalhes as any) || {};
+        const detB = (b.extraDetalhes as any) || {};
+        const keyA = `${detA.bordadoPDesc || ''}|${detA.bordadoPCor || ''}`;
+        const keyB = `${detB.bordadoPDesc || ''}|${detB.bordadoPCor || ''}`;
+        const cmp = keyA.localeCompare(keyB);
+        if (cmp !== 0) return cmp;
+      }
+
+      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
 
     for (const o of filtered) {
       const parts: string[] = [];
-      if (o.bordadoCano) parts.push(`Cano: ${o.bordadoCano}`);
-      if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
-      if (o.bordadoVariadoDescCano) parts.push(`Desc Cano: ${o.bordadoVariadoDescCano}`);
-      if (o.bordadoGaspea) parts.push(`Gáspea: ${o.bordadoGaspea}`);
-      if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
-      if (o.bordadoVariadoDescGaspea) parts.push(`Desc Gáspea: ${o.bordadoVariadoDescGaspea}`);
-      if (o.bordadoTaloneira) parts.push(`Taloneira: ${o.bordadoTaloneira}`);
-      if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
-      if (o.bordadoVariadoDescTaloneira) parts.push(`Desc Talon.: ${o.bordadoVariadoDescTaloneira}`);
-      if (o.nomeBordadoDesc || o.personalizacaoNome) parts.push(`Nome: ${o.nomeBordadoDesc || o.personalizacaoNome}`);
+      if (o.tipoExtra === 'cinto') {
+        const det = (o.extraDetalhes as any) || {};
+        parts.push('CINTO');
+        if (det.bordadoP === 'Tem' || det.bordadoP === 'Sim') {
+          parts.push(`Bordado P: ${det.bordadoPDesc || ''} ${det.bordadoPCor || ''}`);
+        }
+        if (det.nomeBordado === 'Tem' || det.nomeBordado === 'Sim') {
+          parts.push(`Nome: ${det.nomeBordadoDesc || ''}${det.nomeBordadoCor ? ' cor: ' + det.nomeBordadoCor : ''}${det.nomeBordadoFonte ? ' fonte: ' + det.nomeBordadoFonte : ''}`);
+        }
+      } else {
+        if (o.bordadoCano) parts.push(`Cano: ${o.bordadoCano}`);
+        if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
+        if (o.bordadoVariadoDescCano) parts.push(`Desc Cano: ${o.bordadoVariadoDescCano}`);
+        if (o.bordadoGaspea) parts.push(`Gáspea: ${o.bordadoGaspea}`);
+        if (o.corBordadoGaspea) parts.push(`Cor Gáspea: ${o.corBordadoGaspea}`);
+        if (o.bordadoVariadoDescGaspea) parts.push(`Desc Gáspea: ${o.bordadoVariadoDescGaspea}`);
+        if (o.bordadoTaloneira) parts.push(`Taloneira: ${o.bordadoTaloneira}`);
+        if (o.corBordadoTaloneira) parts.push(`Cor Talon.: ${o.corBordadoTaloneira}`);
+        if (o.bordadoVariadoDescTaloneira) parts.push(`Desc Talon.: ${o.bordadoVariadoDescTaloneira}`);
+        if (o.nomeBordadoDesc || o.personalizacaoNome) parts.push(`Nome: ${o.nomeBordadoDesc || o.personalizacaoNome}`);
+      }
       if (o.observacao) parts.push(`Obs: ${o.observacao}`);
       const descText = parts.join('\n');
       const lines = doc.splitTextToSize(descText, cols[1] - 4);
