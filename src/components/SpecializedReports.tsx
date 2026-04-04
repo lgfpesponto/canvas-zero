@@ -799,6 +799,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.couroTaloneira || o.corCouroTaloneira) parts.push(`Talon.: ${o.couroTaloneira || ''} ${o.corCouroTaloneira || ''}`);
       const modeloLine = [o.modelo, o.tamanho, o.genero].filter(Boolean).join(' – ');
       if (modeloLine) parts.push(modeloLine);
+      if (o.acessorios) parts.push(`Acessórios: ${o.acessorios}`);
+      if (o.estampa === 'Sim') parts.push(`Estampa: ${o.estampaDesc || 'Sim'}`);
+      if (o.adicionalDesc) parts.push(`Extras: ${o.adicionalDesc}`);
       if (o.observacao) parts.push(`Obs: ${o.observacao}`);
       const descText = parts.join('\n');
       const lines = doc.splitTextToSize(descText, cols[1] - 4);
