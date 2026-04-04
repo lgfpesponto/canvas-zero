@@ -48,6 +48,7 @@ const ReportsPage = () => {
   const [scanValue, setScanValue] = useState('');
   const [scanFilterId, setScanFilterId] = useState<string | null>(null);
   const [lastScannedNumero, setLastScannedNumero] = useState<string | null>(null);
+  const [showSelectedList, setShowSelectedList] = useState(false);
 
   const playBeep = useCallback(() => {
     try {
