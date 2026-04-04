@@ -725,8 +725,8 @@ const OrderPage = () => {
               {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
             </div>
             <div>
-              <label className={cls.label}>Cliente</label>
-              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+              <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
             </div>
           </div>
           )}
