@@ -101,13 +101,9 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
         <p className="text-3xl font-bold text-primary mt-1">
           {vendas} {vendas === 1 ? 'venda' : 'vendas'}
         </p>
-        {metaBatida ? (
+        {metaBatida && (
           <p className="text-sm text-muted-foreground mt-1">
             Comissão: {formatCurrency(comissao)}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground mt-1">
-            Meta mínima: {MONTHLY_GOAL} vendas para ganhar comissão
           </p>
         )}
       </div>
