@@ -63,9 +63,9 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
   }, [orders, selectedMonth]);
 
   const vendas = qualifyingOrders.length;
-  const comissao = vendas * COMMISSION_PER_SALE;
-  const progresso = Math.min((vendas / MONTHLY_GOAL) * 100, 100);
   const metaBatida = vendas >= MONTHLY_GOAL;
+  const comissao = metaBatida ? vendas * COMMISSION_PER_SALE : 0;
+  const progresso = Math.min((vendas / MONTHLY_GOAL) * 100, 100);
 
   const formatMonthLabel = (ym: string) => {
     const [year, month] = ym.split('-');
