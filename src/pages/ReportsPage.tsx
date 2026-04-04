@@ -127,7 +127,15 @@ const ReportsPage = () => {
 
   const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
   const allStatuses = [...statuses];
-  const allVendedores = isAdmin ? [...new Set(allOrders.map(o => o.vendedor))].sort() : [];
+  const allVendedores = isAdmin ? (() => {
+    const names = new Set(allOrders.map(o => o.vendedor));
+    allOrders.forEach(o => {
+      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+        names.add(o.cliente.trim());
+      }
+    });
+    return [...names].sort();
+  })() : [];
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
