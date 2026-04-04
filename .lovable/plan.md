@@ -1,81 +1,40 @@
 
 
-## Adicionar clientes da Juliana como "vendedores" nos filtros de relatórios e gráficos
+## Aviso ao escanear pedido já selecionado
 
 ### Problema
 
-Pedidos da vendedora "Juliana Cristina Ribeiro" têm o campo `cliente` preenchido obrigatoriamente. Esses clientes devem aparecer como opções individuais nos filtros de vendedor dos gráficos e relatórios, permitindo filtrar por cliente específico da Juliana.
+Ao escanear um pedido que já está selecionado, o sistema emite o beep e seleciona novamente (sem efeito real). O correto é: não emitir som e mostrar aviso "Esse pedido já está selecionado".
 
-### Lógica
+### Alteração: `src/pages/ReportsPage.tsx` (linhas 181-192)
 
-Para cada pedido onde `vendedor === 'Juliana Cristina Ribeiro'` e `cliente` não é vazio, o nome do cliente será adicionado à lista de vendedores. Ao filtrar por esse "cliente-vendedor", o sistema mostrará os pedidos da Juliana que têm aquele cliente específico.
-
-### Alterações
-
-#### 1. `src/pages/Index.tsx` — Lista de vendedores e filtros
-
-**Expandir `vendedores` (linha 46-49):** Além dos vendedores normais, extrair clientes únicos dos pedidos da Juliana e adicioná-los à lista:
+Dentro do bloco `if (match)` para admin, antes de adicionar ao set, verificar se já está selecionado:
 
 ```typescript
-const vendedores = useMemo(() => {
-  const names = new Set(sourceOrders.map(o => o.vendedor));
-  // Adicionar clientes da Juliana como vendedores virtuais
-  sourceOrders.forEach(o => {
-    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-      names.add(o.cliente.trim());
-    }
-  });
-  return [...names].sort();
-}, [sourceOrders]);
+if (match) {
+  if (isAdmin) {
+    setSelectedIds(prev => {
+      if (prev.has(match.id)) {
+        // Já selecionado — aviso sem beep
+        toast.warning('Esse pedido já está selecionado');
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(match.id);
+      setLastScannedNumero(match.numero);
+      playBeep();
+      return next;
+    });
+    setScanFilterId(match.id);
+  } else { ... }
+}
 ```
 
-**Ajustar filtros de gráficos (linha 104-107):** Quando o filtro selecionado é um cliente da Juliana (não é um vendedor real), filtrar por `vendedor === 'Juliana' && cliente === filtro`:
+**Nota:** Como `setSelectedIds` recebe um callback, mover `playBeep()` e `setLastScannedNumero` para dentro do callback (apenas no caso de novo pedido) e chamar `toast.warning` no caso de duplicata.
 
-```typescript
-.filter(o => {
-  if (chartVendedorFilter === 'todos') return true;
-  if (o.vendedor === chartVendedorFilter) return true;
-  // Cliente da Juliana como vendedor virtual
-  if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() === chartVendedorFilter) return true;
-  return false;
-})
-```
-
-**Ajustar filtro financeiro "A receber" (linha 58):** Mesma lógica para `receberVendedor`.
-
-**Ajustar filtro de produção (linhas 81, 88):** Mesma lógica para `prodVendedorFilter`.
-
-#### 2. `src/pages/ReportsPage.tsx` — Lista de vendedores e filtro
-
-**Expandir `allVendedores` (linha 130):** Adicionar clientes da Juliana:
-
-```typescript
-const allVendedores = isAdmin ? (() => {
-  const names = new Set(allOrders.map(o => o.vendedor));
-  allOrders.forEach(o => {
-    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-      names.add(o.cliente.trim());
-    }
-  });
-  return [...names].sort();
-})() : [];
-```
-
-**Ajustar `displayOrders` (linha 85-87):** Incluir a mesma lógica de match por cliente da Juliana:
-
-```typescript
-const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
-  ? allOrders.filter(o => 
-      appliedFilters.filterVendedor.has(o.vendedor) || 
-      (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && appliedFilters.filterVendedor.has(o.cliente.trim()))
-    )
-  : orders;
-```
-
-### Resumo de arquivos
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/Index.tsx` | Clientes da Juliana na lista de vendedores + lógica de filtro nos gráficos, financeiro e produção |
-| `src/pages/ReportsPage.tsx` | Clientes da Juliana na lista de vendedores + lógica de filtro na listagem de pedidos |
+| `src/pages/ReportsPage.tsx` | Verificar duplicata antes de beep, mostrar aviso se já selecionado |
 
