@@ -755,14 +755,23 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateCortePDF = async () => {
     const filtered = sourceOrders.filter(o =>
       (filterProgresso === 'todos' || o.status === filterProgresso) &&
-      !o.tipoExtra
+      (!o.tipoExtra || o.tipoExtra === 'cinto')
     );
 
-    // Sort by couro cano + cor couro cano for batch cutting
+    // Sort: boots first (by couro+cor), then belts grouped together, tiebreak by number
     filtered.sort((a, b) => {
-      const keyA = `${a.couroCano || ''}|${a.corCouroCano || ''}`;
-      const keyB = `${b.couroCano || ''}|${b.corCouroCano || ''}`;
-      return keyA.localeCompare(keyB);
+      const isBeltA = a.tipoExtra === 'cinto' ? 1 : 0;
+      const isBeltB = b.tipoExtra === 'cinto' ? 1 : 0;
+      if (isBeltA !== isBeltB) return isBeltA - isBeltB;
+      if (!isBeltA) {
+        const keyA = `${a.couroCano || ''}|${a.corCouroCano || ''}`;
+        const keyB = `${b.couroCano || ''}|${b.corCouroCano || ''}`;
+        const cmp = keyA.localeCompare(keyB);
+        if (cmp !== 0) return cmp;
+      }
+      const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
     });
 
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -794,14 +803,24 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     for (const o of filtered) {
       const parts: string[] = [];
-      if (o.couroCano || o.corCouroCano) parts.push(`Cano: ${o.couroCano || ''} ${o.corCouroCano || ''}`);
-      if (o.couroGaspea || o.corCouroGaspea) parts.push(`Gáspea: ${o.couroGaspea || ''} ${o.corCouroGaspea || ''}`);
-      if (o.couroTaloneira || o.corCouroTaloneira) parts.push(`Talon.: ${o.couroTaloneira || ''} ${o.corCouroTaloneira || ''}`);
-      const modeloLine = [o.modelo, o.tamanho, o.genero].filter(Boolean).join(' – ');
-      if (modeloLine) parts.push(modeloLine);
-      if (o.acessorios) parts.push(`Acessórios: ${o.acessorios}`);
-      if (o.estampa === 'Sim') parts.push(`Estampa: ${o.estampaDesc || 'Sim'}`);
-      if (o.adicionalDesc) parts.push(`Extras: ${o.adicionalDesc}`);
+      if (o.tipoExtra === 'cinto') {
+        const det = (o.extraDetalhes as any) || {};
+        parts.push('CINTO');
+        if (det.tamanhoCinto) parts.push(`Tamanho: ${det.tamanhoCinto}`);
+        if (det.fivela) parts.push(`Fivela: ${det.fivela}${det.fivelaOutroDesc ? ' - ' + det.fivelaOutroDesc : ''}`);
+        if (det.bordadoP === 'Sim') parts.push(`Bordado P: ${det.bordadoPDesc || ''} ${det.bordadoPCor || ''}`);
+        if (det.nomeBordado === 'Sim') parts.push(`Nome: ${det.nomeBordadoDesc || ''}`);
+        if (det.carimbo) parts.push(`Carimbo: ${det.carimbo} - ${det.carimboDesc || ''}`);
+      } else {
+        if (o.couroCano || o.corCouroCano) parts.push(`Cano: ${o.couroCano || ''} ${o.corCouroCano || ''}`);
+        if (o.couroGaspea || o.corCouroGaspea) parts.push(`Gáspea: ${o.couroGaspea || ''} ${o.corCouroGaspea || ''}`);
+        if (o.couroTaloneira || o.corCouroTaloneira) parts.push(`Talon.: ${o.couroTaloneira || ''} ${o.corCouroTaloneira || ''}`);
+        const modeloLine = [o.modelo, o.tamanho, o.genero].filter(Boolean).join(' – ');
+        if (modeloLine) parts.push(modeloLine);
+        if (o.acessorios) parts.push(`Acessórios: ${o.acessorios}`);
+        if (o.estampa === 'Sim') parts.push(`Estampa: ${o.estampaDesc || 'Sim'}`);
+        if (o.adicionalDesc) parts.push(`Extras: ${o.adicionalDesc}`);
+      }
       if (o.observacao) parts.push(`Obs: ${o.observacao}`);
       const descText = parts.join('\n');
       const lines = doc.splitTextToSize(descText, cols[1] - 4);
