@@ -293,7 +293,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
     allowed.push(
       'Bota Tradicional', 'Bota Feminino', 'Bota Peão',
       'Coturno', 'Destroyer', 'Capota',
-      'Bota Ouver Perfilado', 'Capota Bico Fino Perfilado',
+      'Bota Over', 'Capota Bico Fino Perfilado',
       'Cano Médio', 'Botina', 'Urbano',
       'Bota Bico Fino Perfilado', 'Tradicional Bico Fino',
     );
