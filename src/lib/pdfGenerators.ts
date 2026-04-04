@@ -479,3 +479,54 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
   const min = String(now.getMinutes()).padStart(2, '0');
   doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
 }
+
+export function generateCommissionPDF(orders: { numero: string; dataCriacao: string }[], monthLabel: string) {
+  const doc = new jsPDF();
+  const COMMISSION_PER_SALE = 10;
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Relatório de Comissão — Rancho Chique / Site`, 14, 20);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Período: ${monthLabel}`, 14, 28);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, 14, 34);
+
+  // Table header
+  let y = 46;
+  const colX = { seq: 14, numero: 40, data: 110 };
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setFillColor(240, 240, 240);
+  doc.rect(12, y - 5, 186, 8, 'F');
+  doc.text('Qtd', colX.seq, y);
+  doc.text('Nº do Pedido', colX.numero, y);
+  doc.text('Data do Pedido', colX.data, y);
+  y += 10;
+
+  doc.setFont('helvetica', 'normal');
+  orders.forEach((o, i) => {
+    if (y > 270) { doc.addPage(); y = 20; }
+    const seq = String(i + 1);
+    const dataFormatted = formatDateBR(o.dataCriacao);
+    doc.text(seq, colX.seq, y);
+    doc.text(o.numero, colX.numero, y);
+    doc.text(dataFormatted, colX.data, y);
+    y += 7;
+  });
+
+  // Footer totals
+  if (y > 250) { doc.addPage(); y = 20; }
+  y += 6;
+  doc.setDrawColor(180);
+  doc.line(12, y - 4, 198, y - 4);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Total de pedidos: ${orders.length}`, 14, y + 2);
+  doc.text(`Comissão por pedido: R$ 10,00`, 14, y + 9);
+  const total = orders.length * COMMISSION_PER_SALE;
+  doc.text(`Valor total da comissão: ${formatCurrency(total)}`, 14, y + 16);
+
+  const [yearStr, monthStr] = monthLabel.includes(' ') ? [monthLabel.split(' ')[1], monthLabel.split(' ')[0]] : ['', ''];
+  doc.save(`Comissão - Rancho Chique - ${monthStr}-${yearStr}.pdf`);
+}
