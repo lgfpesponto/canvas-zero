@@ -1,43 +1,53 @@
 
 
-## Substituir campo Tamanho pelo painel de Grade quando vendedor for "Estoque"
+## Ajustes no Sistema de Grade de Estoque
 
-### O que muda
+### Problemas identificados
 
-Quando o vendedor selecionado for "Estoque", o campo `SelectField` de **Tamanho** (linha 711) será substituído inline por um botão/painel de **Grade de Estoque** diretamente na ficha de produção. O botão separado "GERAR GRADE" (linhas 969-1004) será removido.
+1. **Grade submete imediatamente**: Ao confirmar a grade, o `onConfirm` já chama `addOrderBatch` e cria os pedidos. Deveria apenas salvar os itens da grade e voltar para a ficha, permitindo preencher campos obrigatórios restantes (ex: link da foto).
 
-### Arquivo: `src/pages/OrderPage.tsx`
+2. **Formato do número errado**: Atualmente gera `E00135` + sequência (`E001351`, `E001352`...). O formato correto deve ser: `número base` + `tamanho` + `quantidade sequencial com 2 dígitos`. Ex: `E001` (base) + `35` (tamanho) + `01` (1º pedido) = `E0013501`.
 
-#### 1. Substituir o campo Tamanho condicionalmente
+3. **Ordenação**: Após gerar, os pedidos devem aparecer em ordem crescente na lista.
 
-Na seção "Tamanho + Gênero + Modelo" (linha 708-714), quando `isAdmin && vendedorSelecionado === 'Estoque'`:
-- No lugar do `SelectField` de Tamanho, renderizar um botão "Gerar Grade" estilizado como um campo de formulário (com label "Tamanho/Grade" e visual consistente)
-- Se a grade já foi preenchida, mostrar um resumo inline (ex: "5 tamanhos, 12 pedidos") com botão para editar
-- Os campos Gênero e Modelo continuam normais ao lado
+### Alterações
 
-#### 2. Remover o botão separado "GERAR GRADE"
+#### 1. `src/pages/OrderPage.tsx` — Separar confirmação da grade do envio
 
-Remover o bloco condicional das linhas ~969-1004 que exibe o botão "GERAR GRADE" separado.
+- O `onConfirm` do `GradeEstoque` passa a apenas salvar os itens no estado (`setGradeItems(items)`) e fechar o modal. **Não chama mais `addOrderBatch`**.
+- A lógica de criação em massa (`addOrderBatch`) é movida para o botão **"CONFERIR E FINALIZAR"** (submit da ficha), que já valida campos obrigatórios como fotos.
+- Quando vendedor é "Estoque" e `gradeItems.length > 0`, o submit chama `addOrderBatch` ao invés de `addOrder`.
 
-#### 3. Armazenar estado da grade no formulário
+#### 2. `src/contexts/AuthContext.tsx` — Novo formato de numeração
 
-Adicionar estado `gradeItems` para manter os itens da grade preenchidos. Quando a grade é confirmada no modal `GradeEstoque`, salvar os items no estado para exibir o resumo inline no campo.
+Alterar a geração de números na função `addOrderBatch`:
 
-#### 4. Ajustar validação
+```
+Formato atual:   E00135 + 1, 2, 3...  → E001351, E001352
+Formato correto: E001 + 35 + 01       → E0013501
+                 E001 + 35 + 02       → E0013502
+                 E001 + 36 + 01       → E0013601
+```
 
-- Quando vendedor é "Estoque", a validação do submit principal deve verificar se `gradeItems` tem itens válidos ao invés de exigir o campo `tamanho`
-- Na validação do botão de grade inline, não precisa mais da validação separada — o fluxo é direto
+Para cada tamanho, a quantidade sequencial reinicia em `01`. Usar zero-padding de 2 dígitos para a sequência.
 
-### Resultado visual
+#### 3. `src/components/GradeEstoque.tsx` — Atualizar preview
+
+Atualizar a geração de `previewNumbers` para usar o novo formato (base + tamanho + seq). O componente não precisa de outras mudanças.
+
+#### 4. Ordenação na lista de pedidos
+
+Após inserir, os pedidos são adicionados ao estado com `setOrders`. A lista em `ReportsPage` já ordena por `created_at` desc. Para garantir ordem crescente por número dentro da grade, inverter a ordem do array `mapped` antes de adicionar ao estado (pedidos com número menor primeiro = criados primeiro no array).
+
+### Fluxo corrigido
 
 ```text
-Vendedor normal:          Vendedor "Estoque":
-┌──────────┐              ┌─────────────────────┐
-│ Tamanho ▼│              │ 📊 Gerar Grade      │
-├──────────┤              │ (ou resumo da grade) │
-│ Gênero  ▼│              ├─────────────────────┤
-│ Modelo  ▼│              │ Gênero  ▼           │
-└──────────┘              │ Modelo  ▼           │
-                          └─────────────────────┘
+1. Preencher ficha (modelo, couros, etc.)
+2. Clicar "Gerar Grade" no campo Tamanho
+3. Definir tamanhos e quantidades → Confirmar
+4. Volta para a ficha com resumo da grade no campo
+5. Preencher campos restantes (fotos, obs, etc.)
+6. Clicar "CONFERIR E FINALIZAR" → valida tudo → gera pedidos
+7. Redirecionado para "Meus Pedidos"
 ```
 
