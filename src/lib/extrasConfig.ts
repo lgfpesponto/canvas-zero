@@ -50,6 +50,7 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   metaisSelecionados: 'Metais Selecionados',
   qtdStrass: 'Qtd. de Strass',
   corRegata: 'Cor',
+  corBrilho: 'Cor do Brilho',
   descBordadoRegata: 'Descrição do Bordado',
   descricaoProduto: 'Descrição do Produto',
   valorManual: 'Valor',
@@ -89,6 +90,8 @@ export const FIVELA_OPTIONS = [
 
 export const GRAVATA_COR_TIRA = ['Preto', 'Marrom', 'Off White', 'Laranja'];
 export const GRAVATA_TIPO_METAL = ['Bota', 'Chapéu', 'Mula', 'Touro', 'Bridão Estrela', 'Bridão Flor', 'Cruz', 'Nossa Senhora'];
+
+export const COR_BRILHO_GRAVATA = ['Preto', 'Azul', 'Rosa', 'Cristal'];
 
 // ==================== BELT (CINTO) CONFIG ====================
 export const BELT_SIZES: { label: string; preco: number }[] = [

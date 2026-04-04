@@ -13,7 +13,7 @@ export const MODELOS: { label: string; preco: number }[] = [
   { label: 'Botina', preco: 200 },
   { label: 'Bota Infantil', preco: 170 },
   { label: 'Botina Infantil', preco: 160 },
-  { label: 'Bota Ouver Perfilado', preco: 270 },
+  { label: 'Bota Over', preco: 270 },
   { label: 'Urbano', preco: 260 },
   { label: 'Bota Bico Fino Feminino', preco: 260 },
   { label: 'Bota Bico Fino Perfilado', preco: 260 },
@@ -62,7 +62,7 @@ export const CORES_COURO = [
   'Nescau','Café','Marrom','Preto','Telha','Mostarda','Bege','Azul',
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
-  'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate',
+  'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate','Castor',
 ];
 
 // ==================== BORDADOS (legacy – kept for backward compatibility) ====================
@@ -193,14 +193,14 @@ export const COR_GLITTER = [
 
 // ==================== COR DA LINHA ====================
 export const COR_LINHA = [
-  'Bege','Branca','Preta','Marrom','Vermelha','Azul','Verde','Rosa','Amarelo','Laranja',
+  'Bege','Branca','Preta','Café','Vermelha','Azul','Verde','Rosa','Amarelo','Laranja',
 ];
 
 // ==================== COR BORRACHINHA ====================
 export const COR_BORRACHINHA = ['Preto','Marrom','Branco','Rosa'];
 
 // ==================== COR DO VIVO ====================
-export const COR_VIVO = ['Escuro','Branco','Rosa','Azul','Laranja'];
+export const COR_VIVO = ['Preto','Branco','Rosa','Azul','Laranja'];
 
 // ==================== DESENVOLVIMENTO ====================
 export const DESENVOLVIMENTO: { label: string; preco: number }[] = [
@@ -293,7 +293,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
     allowed.push(
       'Bota Tradicional', 'Bota Feminino', 'Bota Peão',
       'Coturno', 'Destroyer', 'Capota',
-      'Bota Ouver Perfilado', 'Capota Bico Fino Perfilado',
+      'Bota Over', 'Capota Bico Fino Perfilado',
       'Cano Médio', 'Botina', 'Urbano',
       'Bota Bico Fino Perfilado', 'Tradicional Bico Fino',
     );
@@ -320,7 +320,7 @@ export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino
 const INFANTIL_MODELOS = ['Bota Infantil', 'Botina Infantil', 'Cano Médio Infantil'];
 const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano', 'Cano Inteiro'];
 const BF_FEMININO_MODELOS = ['Bota Bico Fino Feminino', 'Capota Bico Fino'];
-const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Ouver Perfilado', 'Capota Bico Fino Perfilado', 'Tradicional Bico Fino'];
+const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Over', 'Capota Bico Fino Perfilado', 'Tradicional Bico Fino'];
 
 export function getBlockForModelo(modelo: string): ModelBlock | null {
   if (INFANTIL_MODELOS.includes(modelo)) return 'infantil';
