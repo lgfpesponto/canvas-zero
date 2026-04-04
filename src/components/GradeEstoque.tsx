@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Grid3X3 } from 'lucide-react';
@@ -14,11 +14,19 @@ interface GradeEstoqueProps {
   onOpenChange: (open: boolean) => void;
   numeroPedidoBase: string;
   onConfirm: (items: GradeItem[]) => void;
+  initialItems?: GradeItem[];
 }
 
-const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, onConfirm }: GradeEstoqueProps) => {
-  const [items, setItems] = useState<GradeItem[]>([{ tamanho: '', quantidade: 1 }]);
+const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, onConfirm, initialItems }: GradeEstoqueProps) => {
+  const [items, setItems] = useState<GradeItem[]>(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1 }]);
   const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setItems(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1 }]);
+      setShowPreview(false);
+    }
+  }, [open]);
 
   const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: 1 }]);
 
