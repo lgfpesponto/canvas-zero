@@ -612,7 +612,7 @@ const ExtrasPage = () => {
                     const isEditing = editingStockId === item.id;
                     return (
                       <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm gap-2">
-                        <span className="flex-1">{item.cor_tira} + {item.tipo_metal}</span>
+                        <span className="flex-1">{item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''}</span>
                         {isEditing ? (
                           <div className="flex items-center gap-1">
                             <Input
