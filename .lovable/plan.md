@@ -1,74 +1,43 @@
 
 
-## Sistema de Grade de Estoque
+## Substituir campo Tamanho pelo painel de Grade quando vendedor for "Estoque"
 
-### Resumo
+### O que muda
 
-Quando o vendedor "Estoque" for selecionado, adicionar um botão "Gerar Grade" que abre um painel para definir tamanhos e quantidades. O sistema gera automaticamente pedidos individuais a partir da ficha preenchida, cada um com número sequencial e código de barras próprio.
+Quando o vendedor selecionado for "Estoque", o campo `SelectField` de **Tamanho** (linha 711) será substituído inline por um botão/painel de **Grade de Estoque** diretamente na ficha de produção. O botão separado "GERAR GRADE" (linhas 969-1004) será removido.
 
-### Arquivos alterados
+### Arquivo: `src/pages/OrderPage.tsx`
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/GradeEstoque.tsx` | **Novo** — componente do painel de grade |
-| `src/pages/OrderPage.tsx` | Adicionar botão "Gerar Grade" + lógica de geração em massa |
-| `src/contexts/AuthContext.tsx` | Adicionar função `addOrderBatch` para inserir múltiplos pedidos |
+#### 1. Substituir o campo Tamanho condicionalmente
 
-### Detalhes
+Na seção "Tamanho + Gênero + Modelo" (linha 708-714), quando `isAdmin && vendedorSelecionado === 'Estoque'`:
+- No lugar do `SelectField` de Tamanho, renderizar um botão "Gerar Grade" estilizado como um campo de formulário (com label "Tamanho/Grade" e visual consistente)
+- Se a grade já foi preenchida, mostrar um resumo inline (ex: "5 tamanhos, 12 pedidos") com botão para editar
+- Os campos Gênero e Modelo continuam normais ao lado
 
-#### 1. Componente `GradeEstoque.tsx` (novo)
+#### 2. Remover o botão separado "GERAR GRADE"
 
-Dialog/modal com:
-- Tabela editável com duas colunas: **Tamanho** (select dos tamanhos disponíveis) e **Quantidade** (input numérico)
-- Botão "Adicionar tamanho" para novas linhas
-- Botão "Remover" por linha
-- Ao confirmar, ordenar tamanhos em ordem crescente e mostrar **pré-visualização**:
-  - Número base do pedido
-  - Lista de tamanhos com quantidade
-  - Total de pedidos a serem criados
-- Dois botões finais: "Confirmar geração da grade" e "Cancelar"
+Remover o bloco condicional das linhas ~969-1004 que exibe o botão "GERAR GRADE" separado.
 
-#### 2. `OrderPage.tsx` — Integração
+#### 3. Armazenar estado da grade no formulário
 
-- Mostrar botão **"Gerar Grade"** ao lado do botão de submit quando `vendedorSelecionado === 'Estoque'`
-- O botão "Gerar Grade" executa a mesma validação do formulário (campos obrigatórios, bordados, etc.) exceto o campo **Tamanho** (que será definido na grade)
-- Ao confirmar a grade, chamar `addOrderBatch` passando os dados da ficha + array de `{ tamanho, quantidade }`
-- Formato dos números: `numeroPedido` + sequência (ex: `E00135` → `E001351`, `E001352`, ...)
+Adicionar estado `gradeItems` para manter os itens da grade preenchidos. Quando a grade é confirmada no modal `GradeEstoque`, salvar os items no estado para exibir o resumo inline no campo.
 
-#### 3. `AuthContext.tsx` — Função `addOrderBatch`
+#### 4. Ajustar validação
 
-Nova função que recebe:
-- `orderData` (dados base da ficha, sem tamanho)
-- `gradeItems: { tamanho: string; quantidade: number }[]`
-- `numeroPedidoBase: string`
+- Quando vendedor é "Estoque", a validação do submit principal deve verificar se `gradeItems` tem itens válidos ao invés de exigir o campo `tamanho`
+- Na validação do botão de grade inline, não precisa mais da validação separada — o fluxo é direto
 
-Lógica:
-1. Ordenar `gradeItems` por tamanho crescente
-2. Gerar sequência: para cada item, criar `quantidade` pedidos com tamanho fixo
-3. Numerar sequencialmente: `${numeroPedidoBase}1`, `${numeroPedidoBase}2`, ...
-4. Verificar duplicatas para todos os números antes de inserir
-5. Inserir todos de uma vez com `supabase.from('orders').insert(rows).select()`
-6. Cada pedido recebe seu próprio UUID → código de barras individual automático
-7. Todos herdam exatamente os mesmos campos da ficha original (modelo, couros, solado, bico, bordados, etc.)
-8. Todos são atribuídos ao admin (padrão "Estoque")
-
-#### 4. Fluxo do usuário
+### Resultado visual
 
 ```text
-1. Selecionar vendedor "Estoque"
-2. Preencher ficha normalmente (ou usar modelo)
-3. Preencher número do pedido base (ex: E00135)
-4. Clicar "Gerar Grade"
-5. Definir tamanhos e quantidades
-6. Ver pré-visualização com total
-7. Confirmar → pedidos criados individualmente
-8. Redirecionado para "Meus Pedidos"
+Vendedor normal:          Vendedor "Estoque":
+┌──────────┐              ┌─────────────────────┐
+│ Tamanho ▼│              │ 📊 Gerar Grade      │
+├──────────┤              │ (ou resumo da grade) │
+│ Gênero  ▼│              ├─────────────────────┤
+│ Modelo  ▼│              │ Gênero  ▼           │
+└──────────┘              │ Modelo  ▼           │
+                          └─────────────────────┘
 ```
-
-#### 5. Regras importantes
-
-- O campo **Tamanho** da ficha fica desabilitado/opcional quando "Estoque" está selecionado (será definido na grade)
-- Modelos continuam funcionando normalmente — preenche a ficha, depois gera a grade
-- Validação de número duplicado verifica todos os números gerados antes de inserir qualquer um
-- Se algum número já existir, bloqueia e mostra erro
 
