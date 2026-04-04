@@ -1,61 +1,25 @@
 
 
-## Sistema de Comissao — Estilo "Botas na producao" + PDF
+## Ajustar lógica de comissão — meta mínima de 60
 
-### Resumo
+### Problema
 
-O painel de comissao usara o mesmo estilo visual do card "Botas na producao" (card com `bg-card rounded-xl p-6 western-shadow`, bloco `bg-muted rounded-lg p-4`, numero grande em `text-3xl font-bold text-primary`, barra de progresso `Progress` e texto descritivo abaixo). O relatorio sera exportado em PDF via jsPDF, seguindo o padrao dos outros relatorios do sistema.
+A barra de progresso para no 60 (100%) e sempre mostra valor de comissão. A regra correta é:
+- **60 é o mínimo** para ganhar comissão. Abaixo de 60, comissão = R$0 e não deve ser exibida.
+- Acima de 60, a barra continua crescendo (não trava em 100%).
 
-### Arquivos
+### Alteração: `src/components/CommissionPanel.tsx`
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/CommissionPanel.tsx` | **Novo** — painel de comissao com estilo "Botas na producao" + botao PDF |
-| `src/lib/pdfGenerators.ts` | Nova funcao `generateCommissionPDF` |
-| `src/pages/Index.tsx` | Renderizar `CommissionPanel` no dashboard do usuario "site" |
+**Lógica:**
+- `comissao`: se `vendas < 60` → `0`, senão → `vendas * 10`
+- `progresso`: remover o `Math.min(..., 100)` — deixar a barra refletir o progresso real até a meta (mas manter cap em 100 para o componente Progress que aceita 0-100)
+- No bloco `bg-muted`: esconder a linha "Comissão: R$X" quando `vendas < 60`
 
-### Detalhes
+**Mensagem dinâmica (já existe, ajustar):**
+- `vendas < 60`: "Faltam X vendas para bater a meta" (sem valor de comissão)
+- `vendas >= 60`: "🎉 Meta batida! Comissão atual: R$X" (mostra valor)
 
-#### 1. `CommissionPanel.tsx` — Visual
-
-Seguir exatamente o estilo do card "Botas na producao":
-
-```text
-┌─────────────────────────────────────────┐  bg-card rounded-xl p-6 western-shadow
-│ 💰 Comissao Mensal    [Filtro mes ▼]    │
-│                                         │
-│ ┌─────────────────────────────────┐     │  bg-muted rounded-lg p-4
-│ │ VENDAS NO MES                   │     │
-│ │ 25 vendas                       │     │  text-3xl font-bold text-primary
-│ │ Comissao: R$250,00              │     │
-│ └─────────────────────────────────┘     │
-│                                         │
-│ ████████████░░░░░░░  Progress h-3       │  barra de progresso ate 60
-│ 25 de 60 vendas para a meta             │  texto descritivo
-│                                         │
-│ Faltam 35 vendas para bater a meta      │  mensagem dinamica
-│ (ou) 🎉 Meta batida! Comissao: R$650    │
-│                                         │
-│ [Gerar relatorio de comissao] (PDF)     │  botao que gera PDF
-└─────────────────────────────────────────┘
-```
-
-- Usar componente `Progress` existente (mesmo do "Botas na producao")
-- Quando `vendas >= 60`: emoji 🎉 na mensagem, barra cheia
-- Filtro de mes com `Select` no canto superior direito do card
-
-#### 2. `generateCommissionPDF` em `pdfGenerators.ts`
-
-Funcao que recebe os pedidos filtrados e gera PDF com jsPDF:
-
-- **Cabecalho**: "Relatorio de Comissao — Rancho Chique / Site — Mes/Ano"
-- **Tabela** com colunas: Nº do Pedido | Data do Pedido | Quantidade (sequencial)
-- **Rodape da tabela**: Total de pedidos, Comissao por pedido (R$10), Valor total
-- **Nome do arquivo**: `Comissao - Rancho Chique - MM-YYYY.pdf`
-- Seguir mesmo padrao de fonte, margens e paginacao dos outros relatorios
-
-#### 3. `Index.tsx`
-
-No `renderVendedorDashboard`, quando `isSiteUser`:
-- Adicionar `<CommissionPanel orders={orders} />` apos o card "Botas na producao"
+**Mudanças específicas:**
+1. Linha 66: `const comissao = vendas >= MONTHLY_GOAL ? vendas * COMMISSION_PER_SALE : 0;`
+2. Linhas 104-106: Mostrar "Comissão: R$X" somente quando `metaBatida`, senão mostrar "Meta mínima: 60 vendas para ganhar comissão"
 
