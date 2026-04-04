@@ -212,6 +212,7 @@ const ReportsPage = () => {
         toast.success(`Pedido ${match.numero} encontrado.`);
       }
     } else {
+      playErrorBeep();
       toast.error(`Pedido não encontrado para código: ${trimmed}`);
     }
     setScanValue('');
