@@ -1,56 +1,81 @@
 
 
-## Habilitar Grade para vendedora "Juliana Cristina Ribeiro" com Cliente obrigatório
+## Adicionar clientes da Juliana como "vendedores" nos filtros de relatórios e gráficos
 
 ### Problema
 
-Atualmente o campo "Tamanho / Grade" só aparece quando o vendedor selecionado é "Estoque". A vendedora "Juliana Cristina Ribeiro" precisa do mesmo comportamento de grade, porém com o campo "Cliente" se tornando obrigatório.
+Pedidos da vendedora "Juliana Cristina Ribeiro" têm o campo `cliente` preenchido obrigatoriamente. Esses clientes devem aparecer como opções individuais nos filtros de vendedor dos gráficos e relatórios, permitindo filtrar por cliente específico da Juliana.
 
-### Alteração: `src/pages/OrderPage.tsx`
+### Lógica
 
-#### 1. Criar helper para identificar vendedores com grade
+Para cada pedido onde `vendedor === 'Juliana Cristina Ribeiro'` e `cliente` não é vazio, o nome do cliente será adicionado à lista de vendedores. Ao filtrar por esse "cliente-vendedor", o sistema mostrará os pedidos da Juliana que têm aquele cliente específico.
 
-Criar constante/condição reutilizável que identifica se o vendedor permite grade:
+### Alterações
 
-```typescript
-const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
-```
+#### 1. `src/pages/Index.tsx` — Lista de vendedores e filtros
 
-#### 2. Substituir todas as ocorrências de `vendedorSelecionado === 'Estoque'`
-
-Há ~4 locais que verificam `isAdmin && vendedorSelecionado === 'Estoque'`:
-- **Linha 420** (validação `isEstoqueGrade`): trocar para `isGradeVendedor && gradeItems.length > 0`
-- **Linha 522** (confirmOrder `isEstoqueGrade`): mesma troca
-- **Linha 734** (renderização do campo Grade): trocar condição para `isGradeVendedor`
-
-#### 3. Tornar "Cliente" obrigatório para Juliana
-
-Na validação do `handleSubmit` (~linha 421), adicionar condicional:
+**Expandir `vendedores` (linha 46-49):** Além dos vendedores normais, extrair clientes únicos dos pedidos da Juliana e adicioná-los à lista:
 
 ```typescript
-...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
+const vendedores = useMemo(() => {
+  const names = new Set(sourceOrders.map(o => o.vendedor));
+  // Adicionar clientes da Juliana como vendedores virtuais
+  sourceOrders.forEach(o => {
+    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+      names.add(o.cliente.trim());
+    }
+  });
+  return [...names].sort();
+}, [sourceOrders]);
 ```
 
-#### 4. Indicar visualmente que Cliente é obrigatório
-
-No campo Cliente (~linha 725), adicionar asterisco vermelho condicional:
+**Ajustar filtros de gráficos (linha 104-107):** Quando o filtro selecionado é um cliente da Juliana (não é um vendedor real), filtrar por `vendedor === 'Juliana' && cliente === filtro`:
 
 ```typescript
-<label className={cls.label}>
-  Cliente
-  {vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}
-</label>
+.filter(o => {
+  if (chartVendedorFilter === 'todos') return true;
+  if (o.vendedor === chartVendedorFilter) return true;
+  // Cliente da Juliana como vendedor virtual
+  if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() === chartVendedorFilter) return true;
+  return false;
+})
 ```
 
-E mudar o placeholder quando for Juliana:
+**Ajustar filtro financeiro "A receber" (linha 58):** Mesma lógica para `receberVendedor`.
+
+**Ajustar filtro de produção (linhas 81, 88):** Mesma lógica para `prodVendedorFilter`.
+
+#### 2. `src/pages/ReportsPage.tsx` — Lista de vendedores e filtro
+
+**Expandir `allVendedores` (linha 130):** Adicionar clientes da Juliana:
 
 ```typescript
-placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"}
+const allVendedores = isAdmin ? (() => {
+  const names = new Set(allOrders.map(o => o.vendedor));
+  allOrders.forEach(o => {
+    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+      names.add(o.cliente.trim());
+    }
+  });
+  return [...names].sort();
+})() : [];
 ```
 
-### Arquivo alterado
+**Ajustar `displayOrders` (linha 85-87):** Incluir a mesma lógica de match por cliente da Juliana:
+
+```typescript
+const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
+  ? allOrders.filter(o => 
+      appliedFilters.filterVendedor.has(o.vendedor) || 
+      (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && appliedFilters.filterVendedor.has(o.cliente.trim()))
+    )
+  : orders;
+```
+
+### Resumo de arquivos
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderPage.tsx` | Condição de grade inclui Juliana, cliente obrigatório para Juliana, indicação visual |
+| `src/pages/Index.tsx` | Clientes da Juliana na lista de vendedores + lógica de filtro nos gráficos, financeiro e produção |
+| `src/pages/ReportsPage.tsx` | Clientes da Juliana na lista de vendedores + lógica de filtro na listagem de pedidos |
 
