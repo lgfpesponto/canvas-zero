@@ -517,7 +517,11 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
     const dataFormatted = formatDateBR(o.dataCriacao);
     const textY = y + 5;
     doc.text(seq, colX.seq, textY);
-    doc.text(o.numero, colX.numero, textY);
+    const numWidth = colX.barcode - colX.numero - 2;
+    const numLinesComm = doc.splitTextToSize(o.numero, numWidth);
+    numLinesComm.forEach((line: string, li: number) => {
+      doc.text(line, colX.numero, textY + li * 4);
+    });
     doc.text(dataFormatted, colX.data, textY);
 
     try {

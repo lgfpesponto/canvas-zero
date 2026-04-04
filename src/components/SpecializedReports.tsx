@@ -1177,7 +1177,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       }
 
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 1, y + 5);
+      const numLinesCob = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesCob.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 1, y + 5 + li * 3);
+      });
 
       // Barcode below order number
       try {
