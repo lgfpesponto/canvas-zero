@@ -44,9 +44,28 @@ const Index = () => {
   const sourceOrders = isAdmin ? allOrders : orders;
 
   const vendedores = useMemo(() => {
-    const names = [...new Set(sourceOrders.map((o) => o.vendedor))].sort();
-    return names;
+    const names = new Set(sourceOrders.map((o) => o.vendedor));
+    sourceOrders.forEach(o => {
+      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+        names.add(o.cliente.trim());
+      }
+    });
+    return [...names].sort();
   }, [sourceOrders]);
+
+  const matchVendedorFilter = (o: { vendedor: string; cliente?: string }, filter: string) => {
+    if (filter === 'todos') return true;
+    if (o.vendedor === filter) return true;
+    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() === filter) return true;
+    return false;
+  };
+
+  const matchVendedorFilterSet = (o: { vendedor: string; cliente?: string }, filterSet: Set<string>) => {
+    if (filterSet.size === 0) return true;
+    if (filterSet.has(o.vendedor)) return true;
+    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && filterSet.has(o.cliente.trim())) return true;
+    return false;
+  };
 
   const PRODUCTION_STATUSES_IN_PROD = [
     'Aguardando', 'Corte', 'Sem bordado',
@@ -55,7 +74,7 @@ const Index = () => {
     'Pespontando', 'Montagem', 'Revisão', 'Expedição'];
 
   const financialData = useMemo(() => {
-    const filtered = sourceOrders.filter((o) => (o.status === 'Entregue' || o.status === 'Cobrado') && (receberVendedor === 'todos' || o.vendedor === receberVendedor));
+    const filtered = sourceOrders.filter((o) => (o.status === 'Entregue' || o.status === 'Cobrado') && matchVendedorFilter(o, receberVendedor));
     const aReceber = filtered.reduce((s, o) => s + o.preco * o.quantidade, 0);
     return { aReceber };
   }, [sourceOrders, receberVendedor]);
@@ -78,14 +97,14 @@ const Index = () => {
     return sourceOrders
       .filter((o) => PRODUCTION_STATUSES_IN_PROD.some((s) => s.toLowerCase() === o.status.toLowerCase()))
       .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .filter((o) => matchVendedorFilterSet(o, prodVendedorFilter))
       .reduce((s, o) => s + o.quantidade, 0);
   }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
 
   const totalProducao = useMemo(() => {
     return sourceOrders
       .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .filter((o) => matchVendedorFilterSet(o, prodVendedorFilter))
       .reduce((s, o) => s + o.quantidade, 0);
   }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
 
@@ -101,10 +120,7 @@ const Index = () => {
       if (chartProductFilter === 'bota_pronta_entrega') return o.tipoExtra === 'bota_pronta_entrega';
       // 'todos' = bota + regata + bota_pronta_entrega
       return !o.tipoExtra || o.tipoExtra === 'regata' || o.tipoExtra === 'bota_pronta_entrega';
-    }).filter(o => {
-      if (chartVendedorFilter === 'todos') return true;
-      return o.vendedor === chartVendedorFilter;
-    });
+    }).filter(o => matchVendedorFilter(o, chartVendedorFilter));
 
     if (chartPeriod === 'dia') {
       for (let i = 6; i >= 0; i--) {
