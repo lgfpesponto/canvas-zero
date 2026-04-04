@@ -673,13 +673,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Sort by size ascending
       const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
 
-      // Build all order numbers
+      // Build all order numbers: base + tamanho + seq (2 digits)
+      // E.g. base "E001" + size "35" + seq "01" = "E0013501"
       const numbers: { tamanho: string; numero: string }[] = [];
-      let seq = 1;
       for (const item of sorted) {
         for (let i = 0; i < item.quantidade; i++) {
-          numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${seq}` });
-          seq++;
+          const seq = String(i + 1).padStart(2, '0');
+          numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${item.tamanho}${seq}` });
         }
       }
 

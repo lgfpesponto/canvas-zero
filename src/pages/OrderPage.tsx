@@ -1059,56 +1059,9 @@ const OrderPage = () => {
         onOpenChange={setShowGrade}
         numeroPedidoBase={numeroPedido.trim()}
         initialItems={gradeItems}
-        onConfirm={async (items: GradeItem[]) => {
+        onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);
-          const gradeItems = items;
-          const orderData = {
-            cliente: cliente.trim(),
-            vendedor: 'Estoque',
-            genero, modelo, sobMedida, sobMedidaDesc,
-            solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
-            couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
-            corCouroGaspea, corCouroCano, corCouroTaloneira,
-            bordadoCano: bordadoCano.join(', '), bordadoGaspea: bordadoGaspea.join(', '),
-            bordadoTaloneira: bordadoTaloneira.join(', '),
-            corBordadoCano, corBordadoGaspea, corBordadoTaloneira,
-            bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
-            nomeBordadoDesc: nomeBordado ? nomeBordadoDesc : '',
-            laserCano: laserCano.map(l => l === 'Outro' && laserOutroCanoText ? laserOutroCanoText : l).join(', '), corGlitterCano,
-            laserGaspea: laserGaspea.map(l => l === 'Outro' && laserOutroGaspeaText ? laserOutroGaspeaText : l).join(', '), corGlitterGaspea,
-            laserTaloneira: laserTaloneira.map(l => l === 'Outro' && laserOutroTaloneiraText ? laserOutroTaloneiraText : l).join(', '), corGlitterTaloneira,
-            pintura: pintura ? 'Sim' : '', pinturaDesc,
-            estampa: estampa ? 'Sim' : '', estampaDesc,
-            corLinha, corBorrachinha,
-            trisce: trice ? 'Sim' : 'Não', triceDesc,
-            tiras: tiras ? 'Sim' : 'Não', tirasDesc,
-            metais: areaMetal, tipoMetal: tipoMetal.join(', '), corMetal,
-            strassQtd: strass ? strassQtd : 0,
-            cruzMetalQtd: cruzMetal ? cruzMetalQtd : 0,
-            bridaoMetalQtd: bridaoMetal ? bridaoMetalQtd : 0,
-            acessorios: acessorios.join(', '),
-            desenvolvimento, observacao,
-            corVira, corVivo, corSola,
-            forma: getForma(modelo, formatoBico),
-            costuraAtras: costuraAtras ? 'Sim' : '',
-            carimbo, carimboDesc,
-            adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
-            personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
-            personalizacaoBordado: '',
-            extraDetalhes: {
-              cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
-              franja, franjaCouro, franjaCor,
-              corrente, correnteCor,
-              corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
-            },
-          } as any;
-          const success = await addOrderBatch(orderData, gradeItems, numeroPedido.trim());
-          if (success) {
-            const total = gradeItems.reduce((s, i) => s + i.quantidade, 0);
-            if (draftId) deleteDraft(draftId);
-            toast.success(`Grade criada com sucesso! ${total} pedidos gerados.`);
-            navigate('/relatorios');
-          }
+          toast.success(`Grade definida: ${items.length} tamanhos, ${items.reduce((s, i) => s + i.quantidade, 0)} pedidos. Preencha a ficha e finalize.`);
         }}
       />
 

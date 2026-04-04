@@ -45,14 +45,13 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, onConfirm, initial
 
   const totalPedidos = useMemo(() => sortedItems.reduce((sum, i) => sum + i.quantidade, 0), [sortedItems]);
 
-  // Generate preview of order numbers
+  // Generate preview of order numbers: base + tamanho + seq(2 digits)
   const previewNumbers = useMemo(() => {
     const numbers: { tamanho: string; numero: string }[] = [];
-    let seq = 1;
     for (const item of sortedItems) {
       for (let i = 0; i < item.quantidade; i++) {
-        numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${seq}` });
-        seq++;
+        const seq = String(i + 1).padStart(2, '0');
+        numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${item.tamanho}${seq}` });
       }
     }
     return numbers;
