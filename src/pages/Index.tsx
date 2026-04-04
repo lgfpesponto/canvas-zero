@@ -97,14 +97,14 @@ const Index = () => {
     return sourceOrders
       .filter((o) => PRODUCTION_STATUSES_IN_PROD.some((s) => s.toLowerCase() === o.status.toLowerCase()))
       .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .filter((o) => matchVendedorFilterSet(o, prodVendedorFilter))
       .reduce((s, o) => s + o.quantidade, 0);
   }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
 
   const totalProducao = useMemo(() => {
     return sourceOrders
       .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .filter((o) => matchVendedorFilterSet(o, prodVendedorFilter))
       .reduce((s, o) => s + o.quantidade, 0);
   }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
 
