@@ -1039,6 +1039,7 @@ const OrderPage = () => {
         open={showGrade}
         onOpenChange={setShowGrade}
         numeroPedidoBase={numeroPedido.trim()}
+        initialItems={gradeItems}
         onConfirm={async (items: GradeItem[]) => {
           setGradeItems(items);
           const gradeItems = items;
