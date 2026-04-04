@@ -1,13 +1,15 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check } from 'lucide-react';
+import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check, ChevronDown } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SpecializedReports from '@/components/SpecializedReports';
 import CommissionPanel from '@/components/CommissionPanel';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -20,6 +22,8 @@ const Index = () => {
   const [receberVendedor, setReceberVendedor] = useState<string>('todos');
   const [chartProductFilter, setChartProductFilter] = useState<string>('todos');
   const [chartVendedorFilter, setChartVendedorFilter] = useState<string>('todos');
+  const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
+  const [prodVendedorFilter, setProdVendedorFilter] = useState<Set<string>>(new Set());
   const [checkedAlertIds, setCheckedAlertIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('alert_checked_orders');
@@ -55,16 +59,42 @@ const Index = () => {
     return { aReceber };
   }, [sourceOrders, receberVendedor]);
 
-  const botasProducao = useMemo(() => {
-    return sourceOrders.filter((o) => PRODUCTION_STATUSES_IN_PROD.some((s) => s.toLowerCase() === o.status.toLowerCase())).reduce((s, o) => s + o.quantidade, 0);
-  }, [sourceOrders]);
+  const EXCLUDED_PREFIXES = ['TROCA', 'REFAZENDO', 'ERRO', 'INFLUENCER'];
+  const isExcludedOrder = (numero: string) => EXCLUDED_PREFIXES.some(p => numero.toUpperCase().startsWith(p));
+
+  const PROD_PRODUCT_OPTIONS = [
+    { value: 'bota', label: 'Bota' },
+    { value: 'regata', label: 'Regata' },
+    { value: 'bota_pronta_entrega', label: 'Bota P.E.' },
+    { value: 'cinto', label: 'Cinto' },
+  ];
+
+  const getProductType = (o: { tipoExtra?: string | null }) => {
+    if (!o.tipoExtra) return 'bota';
+    return o.tipoExtra;
+  };
+
+  const produtosProducao = useMemo(() => {
+    return sourceOrders
+      .filter((o) => PRODUCTION_STATUSES_IN_PROD.some((s) => s.toLowerCase() === o.status.toLowerCase()))
+      .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
+
+  const totalProducao = useMemo(() => {
+    return sourceOrders
+      .filter((o) => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .filter((o) => prodVendedorFilter.size === 0 || prodVendedorFilter.has(o.vendedor))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
 
   const chartData = useMemo(() => {
     const data: { name: string; vendas: number }[] = [];
     const now = new Date();
 
-    // Filter orders for chart based on product and vendor filters
-    const chartOrders = sourceOrders.filter(o => {
+    // Exclude special orders from sales count
+    const chartOrders = sourceOrders.filter(o => !isExcludedOrder(o.numero)).filter(o => {
       // Product filter
       if (chartProductFilter === 'bota') return !o.tipoExtra;
       if (chartProductFilter === 'regata') return o.tipoExtra === 'regata';
@@ -199,17 +229,53 @@ const Index = () => {
             </div>
           </motion.div>
 
-          {/* Botas na produção */}
+          {/* Produtos na produção */}
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={1} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlignStartVertical className="text-primary" size={22} /> Botas na produção
+              <AlignStartVertical className="text-primary" size={22} /> Produtos na produção
             </h2>
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+                    Produto {prodProductFilter.size > 0 && `(${prodProductFilter.size})`} <ChevronDown size={14} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2">
+                  {PROD_PRODUCT_OPTIONS.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
+                      <Checkbox checked={prodProductFilter.has(opt.value)} onCheckedChange={(checked) => {
+                        setProdProductFilter(prev => { const next = new Set(prev); checked ? next.add(opt.value) : next.delete(opt.value); return next; });
+                      }} />
+                      {opt.label}
+                    </label>
+                  ))}
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+                    Vendedor {prodVendedorFilter.size > 0 && `(${prodVendedorFilter.size})`} <ChevronDown size={14} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2 max-h-60 overflow-y-auto">
+                  {vendedores.map(v => (
+                    <label key={v} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
+                      <Checkbox checked={prodVendedorFilter.has(v)} onCheckedChange={(checked) => {
+                        setProdVendedorFilter(prev => { const next = new Set(prev); checked ? next.add(v) : next.delete(v); return next; });
+                      }} />
+                      {v}
+                    </label>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{botasProducao} {botasProducao === 1 ? 'bota' : 'botas'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
             </div>
-            <Progress value={botasProducao > 0 ? Math.min(botasProducao / Math.max(sourceOrders.reduce((s, o) => s + o.quantidade, 0), 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{botasProducao} de {sourceOrders.reduce((s, o) => s + o.quantidade, 0)} botas totais estão em produção</p>
+            <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
           </motion.div>
         </div>
       </div>
@@ -286,17 +352,36 @@ const Index = () => {
           </motion.div>
           )}
 
-          {/* Botas na produção */}
+          {/* Produtos na produção */}
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={1} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlignStartVertical className="text-primary" size={22} /> Botas na produção
+              <AlignStartVertical className="text-primary" size={22} /> Produtos na produção
             </h2>
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+                    Produto {prodProductFilter.size > 0 && `(${prodProductFilter.size})`} <ChevronDown size={14} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2">
+                  {PROD_PRODUCT_OPTIONS.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
+                      <Checkbox checked={prodProductFilter.has(opt.value)} onCheckedChange={(checked) => {
+                        setProdProductFilter(prev => { const next = new Set(prev); checked ? next.add(opt.value) : next.delete(opt.value); return next; });
+                      }} />
+                      {opt.label}
+                    </label>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{botasProducao} {botasProducao === 1 ? 'bota' : 'botas'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
             </div>
-            <Progress value={botasProducao > 0 ? Math.min(botasProducao / Math.max(sourceOrders.reduce((s, o) => s + o.quantidade, 0), 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{botasProducao} de {sourceOrders.reduce((s, o) => s + o.quantidade, 0)} botas totais estão em produção</p>
+            <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
           </motion.div>
 
           {/* Commission panel — only for "site" user */}
