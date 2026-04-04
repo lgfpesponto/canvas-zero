@@ -216,7 +216,7 @@ const ReportsPage = () => {
       toast.error(`Pedido não encontrado para código: ${trimmed}`);
     }
     setScanValue('');
-  }, [allOrders, orders, isAdmin, navigate, playBeep]);
+  }, [allOrders, orders, isAdmin, navigate, playBeep, playErrorBeep]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
