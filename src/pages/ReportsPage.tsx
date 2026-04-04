@@ -47,6 +47,21 @@ const ReportsPage = () => {
   const scanInputRef = useRef<HTMLInputElement>(null);
   const [scanValue, setScanValue] = useState('');
   const [scanFilterId, setScanFilterId] = useState<string | null>(null);
+  const [lastScannedNumero, setLastScannedNumero] = useState<string | null>(null);
+
+  const playBeep = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 1200;
+      gain.gain.value = 0.3;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch {}
+  }, []);
 
   const [appliedFilters, setAppliedFilters] = useState({
     searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set<string>(), filterVendedor: new Set<string>(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]),
