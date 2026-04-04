@@ -127,6 +127,10 @@ const BeltOrderPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFernanda && (!vendedor || vendedor === user?.nomeCompleto)) {
+      toast.error('Por favor, selecione um vendedor válido.');
+      return;
+    }
     const required: [string, string][] = [
       [numeroPedido.trim(), 'Número do Pedido'],
       [tamanho, 'Tamanho'],
