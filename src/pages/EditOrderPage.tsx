@@ -91,6 +91,7 @@ const EditOrderPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [numeroPedido, setNumeroPedido] = useState('');
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido, order?.id);
   const [vendedor, setVendedor] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [genero, setGenero] = useState('');

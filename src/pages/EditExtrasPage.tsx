@@ -21,6 +21,7 @@ const EditExtrasPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [form, setForm] = useState<Record<string, any>>({});
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '', order?.id);
   const [loaded, setLoaded] = useState(false);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
