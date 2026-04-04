@@ -751,6 +751,78 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.save('relatorio-bordados.pdf');
   };
 
+  // ── Corte: tabular layout sorted by couro+cor ──
+  const generateCortePDF = async () => {
+    const filtered = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      !o.tipoExtra
+    );
+
+    // Sort by couro cano + cor couro cano for batch cutting
+    filtered.sort((a, b) => {
+      const keyA = `${a.couroCano || ''}|${a.corCouroCano || ''}`;
+      const keyB = `${b.couroCano || ''}|${b.corCouroCano || ''}`;
+      return keyA.localeCompare(keyB);
+    });
+
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pw = 210;
+    const mx = 14;
+    const cw = pw - mx * 2;
+    const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório de Corte — 7ESTRIVOS', mx, 18);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Filtro: ${progressoLabel} | Total: ${filtered.length} pedidos | ${dataBR}`, mx, 25);
+
+    const cols = [25, 90, 25, 42];
+    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2]];
+
+    let y = drawTableHeader(doc, 32, mx, cw, [
+      { label: 'Nº PEDIDO', x: cx[0] + 2 },
+      { label: 'DESCRIÇÃO DO CORTE', x: cx[1] + 2 },
+      { label: 'QR CODE', x: cx[2] + 2 },
+      { label: 'CHECK', x: cx[3] + 2 },
+    ]);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+
+    for (const o of filtered) {
+      const parts: string[] = [];
+      if (o.couroCano || o.corCouroCano) parts.push(`Cano: ${o.couroCano || ''} ${o.corCouroCano || ''}`);
+      if (o.couroGaspea || o.corCouroGaspea) parts.push(`Gáspea: ${o.couroGaspea || ''} ${o.corCouroGaspea || ''}`);
+      if (o.couroTaloneira || o.corCouroTaloneira) parts.push(`Talon.: ${o.couroTaloneira || ''} ${o.corCouroTaloneira || ''}`);
+      const modeloLine = [o.modelo, o.tamanho, o.genero].filter(Boolean).join(' – ');
+      if (modeloLine) parts.push(modeloLine);
+      if (o.observacao) parts.push(`Obs: ${o.observacao}`);
+      const descText = parts.join('\n');
+      const lines = doc.splitTextToSize(descText, cols[1] - 4);
+      const rowH = Math.max(20, lines.length * 3 + 6);
+
+      if (y + rowH > 280) { doc.addPage(); y = 20; }
+      drawTableRow(doc, y, mx, cw, cols, rowH);
+      doc.setFontSize(8);
+      doc.text(o.numero, cx[0] + 2, y + 5);
+      doc.setFontSize(6);
+      doc.text(lines, cx[1] + 2, y + 4);
+
+      const fotoUrl = o.fotos?.[0];
+      if (fotoUrl) {
+        const qr = await qrDataUrl(fotoUrl);
+        if (qr) try { doc.addImage(qr, 'PNG', cx[2] + 3, y + 1, 14, 14); } catch {}
+      }
+      // CHECK: empty column for manual marking
+      y += rowH;
+    }
+
+    doc.save('relatorio-corte.pdf');
+  };
+
   // ── Expedição: tabular A4 layout with composition + data ──
   const generateExpedicaoPDF = () => {
     const filtered = sourceOrders.filter(o =>
