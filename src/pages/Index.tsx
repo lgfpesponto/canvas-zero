@@ -143,7 +143,7 @@ const Index = () => {
   const renderFernandaDashboard = () => (
     <section className="container mx-auto px-4 py-8">
       <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={0}>
-        <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'expedicao', 'extras_cintos']} />
+        <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'extras_cintos']} />
       </motion.div>
     </section>
   );
