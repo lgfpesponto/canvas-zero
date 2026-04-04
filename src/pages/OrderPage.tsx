@@ -417,10 +417,12 @@ const OrderPage = () => {
   /* ───── submit ───── */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isEstoqueGrade = isAdmin && vendedorSelecionado === 'Estoque' && gradeItems.length > 0;
+    const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
+    const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
     const required: [string, string][] = [
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
+      ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
       [genero, 'Gênero'],
       [modelo, 'Modelo'],
       [tipoCouroCano, 'Tipo do Couro do Cano'],
