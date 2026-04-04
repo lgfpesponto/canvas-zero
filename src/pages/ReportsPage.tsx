@@ -248,35 +248,79 @@ const ReportsPage = () => {
 
         {/* Barcode scanner for all users */}
         {showScanner && (
-          <div className="bg-card rounded-xl p-4 western-shadow mb-4">
-            <div className="flex items-center gap-3">
-              <ScanBarcode size={20} className="text-primary flex-shrink-0" />
-              <div className="flex-1">
-                <label className="block text-xs font-semibold mb-1">Escaneie ou digite o código de barras do pedido</label>
-                <input
-                  ref={scanInputRef}
-                  type="text"
-                  value={scanValue}
-                  onChange={e => setScanValue(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleScan(scanValue);
-                    }
-                  }}
-                  placeholder="Escaneie o código de barras aqui..."
-                  className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                  autoFocus
-                />
+          <>
+            {isAdmin && selectedIds.size > 0 ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="bg-gray-900 text-white p-8 rounded-2xl shadow-2xl border-2 border-green-500 w-full max-w-lg mx-4">
+                  {lastScannedNumero && (
+                    <div className="mb-4 text-center">
+                      <p className="text-sm text-gray-400 uppercase font-semibold mb-1">Último pedido lido</p>
+                      <p className="text-3xl font-bold text-green-400">✅ {lastScannedNumero}</p>
+                    </div>
+                  )}
+                  <div className="text-center mb-6">
+                    <p className="text-2xl font-bold">{selectedIds.size} pedido{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <ScanBarcode size={20} className="text-green-400 flex-shrink-0" />
+                    <input
+                      ref={scanInputRef}
+                      type="text"
+                      value={scanValue}
+                      onChange={e => setScanValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleScan(scanValue);
+                        }
+                      }}
+                      placeholder="Escaneie o código de barras aqui..."
+                      className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500"
+                      autoFocus
+                    />
+                    <button onClick={() => handleScan(scanValue)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-bold text-sm transition-colors">
+                      Buscar
+                    </button>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowProgressModal(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity">
+                      <RefreshCw size={16} /> Mudar progresso de produção
+                    </button>
+                    <button onClick={() => { setSelectedIds(new Set()); setLastScannedNumero(null); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
+                      Limpar seleção
+                    </button>
+                  </div>
+                </div>
               </div>
-              <button onClick={() => handleScan(scanValue)} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity">
-                Buscar
-              </button>
-            </div>
-            {isAdmin && selectedIds.size > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">{selectedIds.size} pedido(s) selecionado(s)</p>
+            ) : (
+              <div className="bg-card rounded-xl p-4 western-shadow mb-4">
+                <div className="flex items-center gap-3">
+                  <ScanBarcode size={20} className="text-primary flex-shrink-0" />
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold mb-1">Escaneie ou digite o código de barras do pedido</label>
+                    <input
+                      ref={scanInputRef}
+                      type="text"
+                      value={scanValue}
+                      onChange={e => setScanValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleScan(scanValue);
+                        }
+                      }}
+                      placeholder="Escaneie o código de barras aqui..."
+                      className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                      autoFocus
+                    />
+                  </div>
+                  <button onClick={() => handleScan(scanValue)} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity">
+                    Buscar
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {/* Filters */}
