@@ -48,6 +48,7 @@ const ReportsPage = () => {
   const [scanValue, setScanValue] = useState('');
   const [scanFilterId, setScanFilterId] = useState<string | null>(null);
   const [lastScannedNumero, setLastScannedNumero] = useState<string | null>(null);
+  const [showSelectedList, setShowSelectedList] = useState(false);
 
   const playBeep = useCallback(() => {
     try {
@@ -157,6 +158,7 @@ const ReportsPage = () => {
     setProgressObservacao('');
     setSelectedIds(new Set());
     setLastScannedNumero(null);
+    setShowSelectedList(false);
   };
 
   // Barcode scan handler
@@ -263,6 +265,21 @@ const ReportsPage = () => {
                   <div className="text-center mb-6">
                     <p className="text-2xl font-bold">{selectedIds.size} pedido{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}</p>
                   </div>
+                  <div className="text-center mb-4">
+                    <button onClick={() => setShowSelectedList(v => !v)} className="text-sm text-green-300 underline hover:text-green-200 transition-colors">
+                      {showSelectedList ? 'Ocultar pedidos' : 'Visualizar pedidos'}
+                    </button>
+                  </div>
+                  {showSelectedList && (
+                    <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
+                      {filteredOrders.filter(o => selectedIds.has(o.id)).map(o => (
+                        <div key={o.id} className="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
+                          <span className="font-bold text-green-300">{o.numero}</span>
+                          <span className="text-gray-400">{o.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 mb-6">
                     <ScanBarcode size={20} className="text-green-400 flex-shrink-0" />
                     <input
@@ -288,7 +305,7 @@ const ReportsPage = () => {
                     <button onClick={() => setShowProgressModal(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity">
                       <RefreshCw size={16} /> Mudar progresso de produção
                     </button>
-                    <button onClick={() => { setSelectedIds(new Set()); setLastScannedNumero(null); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
+                    <button onClick={() => { setSelectedIds(new Set()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
                       Limpar seleção
                     </button>
                   </div>
