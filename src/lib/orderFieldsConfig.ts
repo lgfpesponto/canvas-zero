@@ -200,7 +200,7 @@ export const COR_LINHA = [
 export const COR_BORRACHINHA = ['Preto','Marrom','Branco','Rosa'];
 
 // ==================== COR DO VIVO ====================
-export const COR_VIVO = ['Escuro','Branco','Rosa','Azul','Laranja'];
+export const COR_VIVO = ['Preto','Branco','Rosa','Azul','Laranja'];
 
 // ==================== DESENVOLVIMENTO ====================
 export const DESENVOLVIMENTO: { label: string; preco: number }[] = [
