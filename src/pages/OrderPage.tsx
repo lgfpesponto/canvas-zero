@@ -521,7 +521,8 @@ const OrderPage = () => {
 
   const confirmOrder = async () => {
     try {
-      const isEstoqueGrade = isAdmin && vendedorSelecionado === 'Estoque' && gradeItems.length > 0;
+      const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
+      const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
 
       if (isEstoqueGrade) {
         const orderData = buildOrderData() as any;
