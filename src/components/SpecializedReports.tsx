@@ -964,7 +964,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       cols.reduce((x, w) => { doc.line(x + w, y, x + w, y + rowH); return x + w; }, mx);
 
       doc.setFontSize(8);
-      doc.text(o.numero, cx[0] + 1, y + 5);
+      const numLinesExp = doc.splitTextToSize(o.numero, cols[0] - 4);
+      numLinesExp.forEach((line: string, li: number) => {
+        doc.text(line, cx[0] + 1, y + 5 + li * 3);
+      });
       doc.setFontSize(7);
       doc.text(formatDateBR(o.dataCriacao), cx[1] + 1, y + 5);
 
