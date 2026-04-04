@@ -23,6 +23,7 @@ interface StockItem {
   cor_tira: string;
   tipo_metal: string;
   quantidade: number;
+  cor_brilho?: string;
 }
 
 const emptyForm = (): Record<string, any> => ({
