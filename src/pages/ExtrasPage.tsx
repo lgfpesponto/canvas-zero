@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -55,6 +56,7 @@ const ExtrasPage = () => {
   const { toast } = useToast();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
 
   // Gravata stock
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
@@ -276,7 +278,8 @@ const ExtrasPage = () => {
         {/* Número do pedido — obrigatório em TODOS */}
         <div>
           <Label>Nº do pedido *</Label>
-          <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" />
+          <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
+          {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
         </div>
         {/* Cliente — opcional */}
         <div>
@@ -532,7 +535,7 @@ const ExtrasPage = () => {
           </div>
         </div>
 
-        <Button className="w-full" onClick={() => handleSubmit(productId)}>
+        <Button className="w-full" onClick={() => handleSubmit(productId)} disabled={orderDuplicate}>
           <ShoppingCart className="mr-2 h-4 w-4" />
           Finalizar Pedido
         </Button>

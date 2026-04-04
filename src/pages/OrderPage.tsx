@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -109,6 +110,7 @@ const OrderPage = () => {
   /* form state */
   const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
@@ -716,7 +718,8 @@ const OrderPage = () => {
             </div>
             <div>
               <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={cls.input} />
+              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+              {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
             </div>
             <div>
               <label className={cls.label}>Cliente</label>
@@ -1003,10 +1006,10 @@ const OrderPage = () => {
                 </div>
               </div>
 
-              <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+              <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
               </button>
-              <button type="button" onClick={handleSaveDraft} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2">
+              <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 SALVAR RASCUNHO
               </button>
             </>

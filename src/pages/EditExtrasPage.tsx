@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ const EditExtrasPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [form, setForm] = useState<Record<string, any>>({});
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '', order?.id);
   const [loaded, setLoaded] = useState(false);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
@@ -180,7 +182,8 @@ const EditExtrasPage = () => {
           {/* Número do pedido */}
           <div>
             <Label>Nº do pedido *</Label>
-            <Input value={form.numeroPedidoBota || ''} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" />
+            <Input value={form.numeroPedidoBota || ''} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
+            {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
           </div>
 
           {/* Product-specific fields — same as ExtrasPage */}
@@ -433,7 +436,7 @@ const EditExtrasPage = () => {
             </div>
           </div>
 
-          <Button className="w-full" onClick={handleSave}>
+          <Button className="w-full" onClick={handleSave} disabled={orderDuplicate}>
             <Save className="mr-2 h-4 w-4" />
             Salvar Alterações
           </Button>

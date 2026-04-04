@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth, Order } from '@/contexts/AuthContext';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -90,6 +91,7 @@ const EditOrderPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [numeroPedido, setNumeroPedido] = useState('');
+  const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido, order?.id);
   const [vendedor, setVendedor] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [genero, setGenero] = useState('');
@@ -364,7 +366,8 @@ const EditOrderPage = () => {
             </div>
             <div>
               <label className={cls.label}>Número do Pedido</label>
-              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={cls.input} />
+              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+              {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
             </div>
           </div>
 
@@ -562,7 +565,7 @@ const EditOrderPage = () => {
             </div>
           </div>
 
-          <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+          <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save size={20} /> SALVAR ALTERAÇÕES
           </button>
         </form>
