@@ -87,7 +87,8 @@ const MultiSelect = ({
 
 /* ───── main component ───── */
 const OrderPage = () => {
-  const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
+  const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
+  const [showGrade, setShowGrade] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string } | null;
