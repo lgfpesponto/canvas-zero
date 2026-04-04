@@ -63,9 +63,9 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
   }, [orders, selectedMonth]);
 
   const vendas = qualifyingOrders.length;
-  const comissao = vendas * COMMISSION_PER_SALE;
-  const progresso = Math.min((vendas / MONTHLY_GOAL) * 100, 100);
   const metaBatida = vendas >= MONTHLY_GOAL;
+  const comissao = metaBatida ? vendas * COMMISSION_PER_SALE : 0;
+  const progresso = Math.min((vendas / MONTHLY_GOAL) * 100, 100);
 
   const formatMonthLabel = (ym: string) => {
     const [year, month] = ym.split('-');
@@ -101,9 +101,15 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
         <p className="text-3xl font-bold text-primary mt-1">
           {vendas} {vendas === 1 ? 'venda' : 'vendas'}
         </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Comissão: {formatCurrency(comissao)}
-        </p>
+        {metaBatida ? (
+          <p className="text-sm text-muted-foreground mt-1">
+            Comissão: {formatCurrency(comissao)}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-1">
+            Meta mínima: {MONTHLY_GOAL} vendas para ganhar comissão
+          </p>
+        )}
       </div>
 
       <Progress value={progresso} className="h-3" />
