@@ -260,9 +260,17 @@ const ExtrasPage = () => {
     // Check if combination exists
     const existing = stockItems.find(s => s.cor_tira === stockCorTira && s.tipo_metal === stockTipoMetal && (s.cor_brilho || null) === corBrilhoVal);
     if (existing) {
-      await supabase.from('gravata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
+      const { error } = await supabase.from('gravata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
+      if (error) {
+        toast({ title: 'Erro ao atualizar estoque', description: error.message, variant: 'destructive' });
+        return;
+      }
     } else {
-      await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty, cor_brilho: corBrilhoVal } as any);
+      const { error } = await supabase.from('gravata_stock').insert({ cor_tira: stockCorTira, tipo_metal: stockTipoMetal, quantidade: qty, cor_brilho: corBrilhoVal } as any);
+      if (error) {
+        toast({ title: 'Erro ao criar estoque', description: error.message, variant: 'destructive' });
+        return;
+      }
     }
     setStockCorTira('');
     setStockTipoMetal('');
