@@ -219,9 +219,16 @@ const ReportsPage = () => {
           </button>
           {/* Admin bulk progress button */}
           {isAdmin && selectedIds.size > 0 && (
-            <button onClick={() => setShowProgressModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity ml-auto">
-              <RefreshCw size={16} /> Mudar progresso de produção
-            </button>
+            <>
+              <button onClick={() => setShowProgressModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity ml-auto">
+                <RefreshCw size={16} /> Mudar progresso de produção
+              </button>
+              {selectedIds.size > 1 && (
+                <button onClick={() => setShowBulkDeleteDialog(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 transition-opacity">
+                  <Trash2 size={16} /> Excluir selecionados ({selectedIds.size})
+                </button>
+              )}
+            </>
           )}
         </div>
 
