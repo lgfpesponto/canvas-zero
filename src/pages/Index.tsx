@@ -65,8 +65,7 @@ const Index = () => {
 
   const PROD_PRODUCT_OPTIONS = [
     { value: 'bota', label: 'Bota' },
-    { value: 'regata', label: 'Regata' },
-    { value: 'bota_pronta_entrega', label: 'Bota P.E.' },
+    ...EXTRA_PRODUCTS.map(p => ({ value: p.id, label: p.nome })),
     { value: 'cinto', label: 'Cinto' },
   ];
 
