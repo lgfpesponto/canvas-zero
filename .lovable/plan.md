@@ -1,37 +1,50 @@
 
 
-## Remover "Bordado Variado" do relatório de Bordados — mostrar só descrição e cor
+## Quebrar número do pedido em múltiplas linhas nos PDFs
 
 ### Problema
 
-No relatório de Bordados, quando o bordado selecionado é "Bordado Variado", o PDF mostra o nome "Bordado Variado" e possivelmente o valor. O correto é mostrar apenas a descrição personalizada digitada pelo vendedor e a cor do bordado.
+Em todos os relatórios PDF que têm coluna "Nº do Pedido", números longos (ex: `TROCA00123`) ultrapassam a borda da célula. O texto precisa quebrar para a linha de baixo quando excede a largura da coluna.
 
-### Alteração: `src/components/SpecializedReports.tsx` — `generateBordadosPDF`
+### Alterações
 
-**Linhas 755-764 (descrição de botas):** Ajustar a lógica para que, quando o valor de `bordadoCano`/`bordadoGaspea`/`bordadoTaloneira` contiver "Bordado Variado", substituir pelo campo de descrição correspondente (`bordadoVariadoDescCano`, etc.) junto com a cor, sem exibir o nome "Bordado Variado".
+#### 1. `src/components/SpecializedReports.tsx`
 
-Lógica para cada região (Cano, Gáspea, Taloneira):
+Substituir todos os `doc.text(o.numero, cx[0] + N, y + N)` por lógica com `splitTextToSize`:
 
+**Locais afetados (6 geradores de relatório):**
+- Pesponto (~linha 581)
+- Metais (~linha 663)
+- Bordados (~linha 793)
+- Corte (~linha 887)
+- Expedição (~linha 955)
+- Cobrança (~linha 1165)
+
+Para cada local:
+1. Usar `doc.splitTextToSize(o.numero, cols[0] - 4)` para quebrar o texto na largura da coluna
+2. Renderizar cada linha com offset vertical (ex: `y + 5 + i * 3`)
+3. Ajustar o cálculo de `rowH` para considerar o número de linhas do número (usar `Math.max` com o rowH atual)
+
+Exemplo de padrão:
 ```typescript
-// Cano
-if (o.bordadoCano) {
-  if (o.bordadoCano.includes('Bordado Variado')) {
-    // Mostra só a descrição e cor
-    if (o.bordadoVariadoDescCano) parts.push(`Cano: ${o.bordadoVariadoDescCano}`);
-    if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
-  } else {
-    parts.push(`Cano: ${o.bordadoCano}`);
-    if (o.corBordadoCano) parts.push(`Cor Cano: ${o.corBordadoCano}`);
-  }
-}
-// Remover a linha separada de bordadoVariadoDescCano pois já está incluído acima
+const numLines = doc.splitTextToSize(o.numero, cols[0] - 4);
+const numH = numLines.length * 3;
+const rowH = Math.max(existingRowH, numH + 6);
+// ...
+doc.setFontSize(8);
+numLines.forEach((line: string, i: number) => {
+  doc.text(line, cx[0] + 2, y + 5 + i * 3);
+});
 ```
 
-Repetir o mesmo padrão para Gáspea e Taloneira.
+#### 2. `src/lib/pdfGenerators.ts`
 
-### Arquivo alterado
+**Relatório de Comissão (~linha 520):** Mesmo ajuste — usar `splitTextToSize` para `o.numero` na coluna do número do pedido, respeitando a largura `colX.numero` até `colX.barcode`.
+
+### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SpecializedReports.tsx` | Substituir nome "Bordado Variado" pela descrição personalizada no relatório de Bordados |
+| `src/components/SpecializedReports.tsx` | Quebra de linha do número do pedido em 6 relatórios |
+| `src/lib/pdfGenerators.ts` | Quebra de linha do número do pedido no relatório de comissão |
 
