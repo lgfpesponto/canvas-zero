@@ -720,7 +720,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
-      const mapped = (data || []).map(dbRowToOrder);
+      // Sort ascending by numero so they appear in order
+      const mapped = (data || []).map(dbRowToOrder).sort((a, b) => a.numero.localeCompare(b.numero));
       setOrders(prev => [...mapped, ...prev]);
       setAllOrders(prev => [...mapped, ...prev]);
       return true;
