@@ -320,7 +320,7 @@ export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino
 const INFANTIL_MODELOS = ['Bota Infantil', 'Botina Infantil', 'Cano Médio Infantil'];
 const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano', 'Cano Inteiro'];
 const BF_FEMININO_MODELOS = ['Bota Bico Fino Feminino', 'Capota Bico Fino'];
-const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Ouver Perfilado', 'Capota Bico Fino Perfilado', 'Tradicional Bico Fino'];
+const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Over', 'Capota Bico Fino Perfilado', 'Tradicional Bico Fino'];
 
 export function getBlockForModelo(modelo: string): ModelBlock | null {
   if (INFANTIL_MODELOS.includes(modelo)) return 'infantil';

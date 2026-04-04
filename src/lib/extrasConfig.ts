@@ -50,6 +50,7 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   metaisSelecionados: 'Metais Selecionados',
   qtdStrass: 'Qtd. de Strass',
   corRegata: 'Cor',
+  corBrilho: 'Cor do Brilho',
   descBordadoRegata: 'Descrição do Bordado',
   descricaoProduto: 'Descrição do Produto',
   valorManual: 'Valor',
