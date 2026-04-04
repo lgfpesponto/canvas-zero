@@ -193,7 +193,7 @@ export const COR_GLITTER = [
 
 // ==================== COR DA LINHA ====================
 export const COR_LINHA = [
-  'Bege','Branca','Preta','Marrom','Vermelha','Azul','Verde','Rosa','Amarelo','Laranja',
+  'Bege','Branca','Preta','Café','Vermelha','Azul','Verde','Rosa','Amarelo','Laranja',
 ];
 
 // ==================== COR BORRACHINHA ====================
