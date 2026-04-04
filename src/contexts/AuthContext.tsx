@@ -390,6 +390,7 @@ interface AuthContextType {
   addOrder: (order: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes'> & { numeroPedido?: string }) => Promise<boolean>;
   addOrderBatch: (orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes' | 'tamanho'>, gradeItems: { tamanho: string; quantidade: number }[], numeroPedidoBase: string) => Promise<boolean>;
   deleteOrder: (id: string) => void;
+  deleteOrderBatch: (ids: string[]) => Promise<void>;
   updateOrder: (id: string, data: Partial<Order>) => void;
   updateOrderStatus: (id: string, newStatus: string, observacao?: string) => void;
   isFernanda: boolean;
@@ -743,6 +744,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAllOrders(prev => prev.filter(o => o.id !== id));
   }, []);
 
+  /* ───── Delete Order Batch ───── */
+  const deleteOrderBatch = useCallback(async (ids: string[]) => {
+    const { error } = await supabase.from('orders').delete().in('id', ids);
+    if (error) {
+      console.error('Error deleting orders batch:', error);
+      toast.error('Erro ao excluir pedidos');
+      return;
+    }
+    const idSet = new Set(ids);
+    setOrders(prev => prev.filter(o => !idSet.has(o.id)));
+    setAllOrders(prev => prev.filter(o => !idSet.has(o.id)));
+  }, []);
+
   /* ───── Update Order ───── */
   const updateOrder = useCallback(async (id: string, data: Partial<Order>) => {
     const dataHoje = formatBrasiliaDate();
@@ -907,7 +921,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider value={{
       user, isLoggedIn: !!user, isAdmin, isFernanda,
       login, register, logout, updateProfile,
-      orders: userOrders, addOrder, addOrderBatch, deleteOrder, updateOrder, updateOrderStatus,
+      orders: userOrders, addOrder, addOrderBatch, deleteOrder, deleteOrderBatch, updateOrder, updateOrderStatus,
       recoverPassword, allOrders, loading, allProfiles,
     }}>
       {children}

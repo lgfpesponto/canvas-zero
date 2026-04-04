@@ -13,6 +13,10 @@ import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerato
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const PAGE_SIZE = 50;
 
@@ -22,7 +26,7 @@ const formatDateBR = (date: string, time?: string) => {
 };
 
 const ReportsPage = () => {
-  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, updateOrderStatus } = useAuth();
+  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, deleteOrderBatch, updateOrderStatus } = useAuth();
   const navigate = useNavigate();
   const [filterDate, setFilterDate] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
@@ -34,6 +38,7 @@ const ReportsPage = () => {
 
   // Bulk progress modal
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
 
@@ -214,9 +219,16 @@ const ReportsPage = () => {
           </button>
           {/* Admin bulk progress button */}
           {isAdmin && selectedIds.size > 0 && (
-            <button onClick={() => setShowProgressModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity ml-auto">
-              <RefreshCw size={16} /> Mudar progresso de produção
-            </button>
+            <>
+              <button onClick={() => setShowProgressModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity ml-auto">
+                <RefreshCw size={16} /> Mudar progresso de produção
+              </button>
+              {selectedIds.size > 1 && (
+                <button onClick={() => setShowBulkDeleteDialog(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 transition-opacity">
+                  <Trash2 size={16} /> Excluir selecionados ({selectedIds.size})
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -574,6 +586,31 @@ const ReportsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.size} pedidos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedIds.size} pedidos selecionados? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                await deleteOrderBatch([...selectedIds]);
+                setSelectedIds(new Set());
+                toast.success(`${selectedIds.size} pedidos excluídos com sucesso`);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
