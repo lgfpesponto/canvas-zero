@@ -169,12 +169,11 @@ const ReportsPage = () => {
           const next = new Set(prev);
           if (!next.has(match.id)) {
             next.add(match.id);
-            toast.success(`Pedido ${match.numero} selecionado.`);
-          } else {
-            toast.info(`Pedido ${match.numero} já está selecionado.`);
           }
           return next;
         });
+        setLastScannedNumero(match.numero);
+        playBeep();
         setScanFilterId(match.id);
       } else {
         navigate(`/pedido/${match.id}`);
@@ -184,7 +183,7 @@ const ReportsPage = () => {
       toast.error(`Pedido não encontrado para código: ${trimmed}`);
     }
     setScanValue('');
-  }, [allOrders, orders, isAdmin, navigate]);
+  }, [allOrders, orders, isAdmin, navigate, playBeep]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
