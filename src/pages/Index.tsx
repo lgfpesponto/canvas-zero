@@ -352,17 +352,36 @@ const Index = () => {
           </motion.div>
           )}
 
-          {/* Botas na produção */}
+          {/* Produtos na produção */}
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={1} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlignStartVertical className="text-primary" size={22} /> Botas na produção
+              <AlignStartVertical className="text-primary" size={22} /> Produtos na produção
             </h2>
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+                    Produto {prodProductFilter.size > 0 && `(${prodProductFilter.size})`} <ChevronDown size={14} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2">
+                  {PROD_PRODUCT_OPTIONS.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
+                      <Checkbox checked={prodProductFilter.has(opt.value)} onCheckedChange={(checked) => {
+                        setProdProductFilter(prev => { const next = new Set(prev); checked ? next.add(opt.value) : next.delete(opt.value); return next; });
+                      }} />
+                      {opt.label}
+                    </label>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{botasProducao} {botasProducao === 1 ? 'bota' : 'botas'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
             </div>
-            <Progress value={botasProducao > 0 ? Math.min(botasProducao / Math.max(sourceOrders.reduce((s, o) => s + o.quantidade, 0), 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{botasProducao} de {sourceOrders.reduce((s, o) => s + o.quantidade, 0)} botas totais estão em produção</p>
+            <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
           </motion.div>
 
           {/* Commission panel — only for "site" user */}
