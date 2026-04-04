@@ -108,7 +108,8 @@ const OrderPage = () => {
   const df = templateInit || draftState?.form || {};
 
   /* form state */
-  const [vendedorSelecionado, setVendedorSelecionado] = useState(user?.nomeCompleto || '');
+  const isFernanda = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+  const [vendedorSelecionado, setVendedorSelecionado] = useState(isFernanda ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
