@@ -1,56 +1,32 @@
 
 
-## Ajustes nos Graficos do Dashboard
+## Expandir filtro de produtos para incluir todos os extras
 
-### Constante compartilhada
+### Problema
 
-Criar uma constante para prefixos de exclusao, usada em todos os pontos:
+O filtro `PROD_PRODUCT_OPTIONS` só tem 4 opções (Bota, Regata, Bota P.E., Cinto). Faltam todos os outros produtos extras como Tiras Laterais, Desmanchar, Kit Canivete, etc.
+
+### Alteração: `src/pages/Index.tsx`
+
+**Expandir `PROD_PRODUCT_OPTIONS` (linhas 65-70)** para incluir todos os produtos extras de `EXTRA_PRODUCTS` do `extrasConfig.ts`:
 
 ```typescript
-const EXCLUDED_PREFIXES = ['TROCA', 'REFAZENDO', 'ERRO', 'INFLUENCER'];
-const isExcludedOrder = (numero: string) => EXCLUDED_PREFIXES.some(p => numero.toUpperCase().startsWith(p));
+import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
+
+const PROD_PRODUCT_OPTIONS = [
+  { value: 'bota', label: 'Bota' },
+  ...EXTRA_PRODUCTS.map(p => ({ value: p.id, label: p.nome })),
+  { value: 'cinto', label: 'Cinto' },
+];
 ```
 
-### Alteracoes
+Isso gera automaticamente as opções a partir da lista centralizada, incluindo: Tiras Laterais, Desmanchar, Kit Canivete, Kit Faca, Carimbo a Fogo, Revitalizador, Kit Revitalizador, Gravata Country, Adicionar Metais, Chaveiro, Bainha de Cartão, Regata, Bota P.E., Gravata P.E.
 
-#### 1. `src/pages/Index.tsx` — "Botas na producao" → "Produtos na producao"
+**Aumentar largura do PopoverContent** de `w-48` para `w-56` nos dois locais (admin e vendedor) para acomodar nomes mais longos.
 
-**Admin dashboard (linhas 202-213):**
-- Renomear titulo para "Produtos na producao" e texto para "produtos" em vez de "botas"
-- Adicionar state `prodProductFilter` (multi-select com checkboxes via Popover) com opcoes: Bota, Regata, Bota P.E., Cinto, e outros extras
-- Adicionar state `prodVendedorFilter` (multi-select) — somente no admin
-- Filtrar `botasProducao` com base nesses filtros (produto por `tipoExtra` e vendedor)
-
-**Vendedor dashboard (linhas 289-300):**
-- Renomear titulo para "Produtos na producao"
-- Adicionar filtro de produto (sem filtro de vendedor)
-- Mesma logica de filtragem por `tipoExtra`
-
-**Implementacao dos filtros multi-select:**
-Usar Popover + Checkbox (mesmo padrao ja usado nos filtros de "Meus Pedidos"). Cada filtro mostra chips com a quantidade selecionada.
-
-#### 2. `src/pages/Index.tsx` — "Quantidade de vendas" exclusao
-
-**No `chartData` useMemo (linha 67):**
-- Adicionar filtro `.filter(o => !isExcludedOrder(o.numero))` antes dos filtros de produto/vendedor
-
-Isso se aplica tanto ao admin quanto ao vendedor (ambos usam o mesmo `chartData`).
-
-#### 3. `src/components/CommissionPanel.tsx` — exclusao na comissao
-
-**No `qualifyingOrders` useMemo (linha 50):**
-- Adicionar filtro `.filter(o => !isExcludedOrder(o.numero))` para excluir pedidos TROCA/REFAZENDO/ERRO/INFLUENCER da contagem de vendas e comissao
-
-### Arquivos alterados
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/Index.tsx` | Renomear card, adicionar filtros multi-select no card de producao, excluir pedidos especiais do grafico de vendas |
-| `src/components/CommissionPanel.tsx` | Excluir pedidos especiais da contagem de comissao |
-
-### Resultado
-
-- Card "Produtos na producao" com filtros de produto e vendedor (ADM)
-- Grafico de vendas ignora pedidos TROCA/REFAZENDO/ERRO/INFLUENCER
-- Comissao do Rancho Chique ignora os mesmos pedidos
+| `src/pages/Index.tsx` | Importar `EXTRA_PRODUCTS`, expandir opções do filtro, ajustar largura do popover |
 
