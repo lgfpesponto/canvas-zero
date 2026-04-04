@@ -417,10 +417,12 @@ const OrderPage = () => {
   /* ───── submit ───── */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isEstoqueGrade = isAdmin && vendedorSelecionado === 'Estoque' && gradeItems.length > 0;
+    const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
+    const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
     const required: [string, string][] = [
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
+      ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
       [genero, 'Gênero'],
       [modelo, 'Modelo'],
       [tipoCouroCano, 'Tipo do Couro do Cano'],
@@ -519,7 +521,8 @@ const OrderPage = () => {
 
   const confirmOrder = async () => {
     try {
-      const isEstoqueGrade = isAdmin && vendedorSelecionado === 'Estoque' && gradeItems.length > 0;
+      const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
+      const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
 
       if (isEstoqueGrade) {
         const orderData = buildOrderData() as any;
@@ -722,8 +725,8 @@ const OrderPage = () => {
               {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
             </div>
             <div>
-              <label className={cls.label}>Cliente</label>
-              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+              <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
             </div>
           </div>
           )}
@@ -731,7 +734,7 @@ const OrderPage = () => {
           {/* 3-4 Tamanho + Gênero + Modelo */}
           {mode === 'order' ? (
             <div className="grid sm:grid-cols-3 gap-4">
-              {isAdmin && vendedorSelecionado === 'Estoque' ? (
+              {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
                 <div>
                   <label className={cls.label}>Tamanho / Grade</label>
                   {gradeItems.length > 0 ? (
