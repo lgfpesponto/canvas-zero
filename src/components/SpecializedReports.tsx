@@ -46,6 +46,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   pesponto: 'Pesponto',
   metais: 'Metais',
   bordados: 'Bordados',
+  corte: 'Corte',
   expedicao: 'Expedição',
   cobranca: 'Cobrança',
   extras_cintos: 'Extras / Cintos',
