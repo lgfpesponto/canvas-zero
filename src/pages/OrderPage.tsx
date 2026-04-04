@@ -715,7 +715,8 @@ const OrderPage = () => {
               <label className={cls.label}>Vendedor</label>
               {isAdmin ? (
                 <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select}>
-                  {allProfiles.map(p => (
+                  {isFernanda && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
+                  {allProfiles.filter(p => !(isFernanda && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
                     <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
                   ))}
                   <option value="Estoque">Estoque</option>

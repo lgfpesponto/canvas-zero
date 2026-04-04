@@ -173,7 +173,7 @@ const EditExtrasPage = () => {
               <Select value={form.vendedorSelecionado || ''} onValueChange={v => set('vendedorSelecionado', v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione vendedor" /></SelectTrigger>
                 <SelectContent>
-                  {allProfiles.map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
+                  {allProfiles.filter(p => !(user?.nomeUsuario?.toLowerCase() === 'fernanda' && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

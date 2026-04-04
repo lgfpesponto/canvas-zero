@@ -281,10 +281,10 @@ const ExtrasPage = () => {
         {isAdmin && (
           <div>
             <Label>Vendedor</Label>
-            <Select value={form.vendedorSelecionado || user?.nomeCompleto || ''} onValueChange={v => set('vendedorSelecionado', v)}>
+            <Select value={form.vendedorSelecionado || (user?.nomeUsuario?.toLowerCase() === 'fernanda' ? '' : (user?.nomeCompleto || ''))} onValueChange={v => set('vendedorSelecionado', v)}>
               <SelectTrigger><SelectValue placeholder="Selecione vendedor" /></SelectTrigger>
               <SelectContent>
-                {allProfiles.map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
+                {allProfiles.filter(p => !(user?.nomeUsuario?.toLowerCase() === 'fernanda' && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => <SelectItem key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</SelectItem>)}
                 <SelectItem value="Estoque">Estoque</SelectItem>
               </SelectContent>
             </Select>

@@ -281,7 +281,8 @@ const BeltOrderPage = () => {
               <label className={cls.label}>Vendedor</label>
               {isAdminUser ? (
                 <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
-                  {allProfiles.map(p => (
+                  {isFernanda && !vendedor && <option value="">Selecione um vendedor</option>}
+                  {allProfiles.filter(p => !(isFernanda && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
                     <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
                   ))}
                   <option value="Estoque">Estoque</option>
