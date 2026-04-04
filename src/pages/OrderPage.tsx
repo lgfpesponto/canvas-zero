@@ -734,7 +734,7 @@ const OrderPage = () => {
           {/* 3-4 Tamanho + Gênero + Modelo */}
           {mode === 'order' ? (
             <div className="grid sm:grid-cols-3 gap-4">
-              {isAdmin && vendedorSelecionado === 'Estoque' ? (
+              {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
                 <div>
                   <label className={cls.label}>Tamanho / Grade</label>
                   {gradeItems.length > 0 ? (
