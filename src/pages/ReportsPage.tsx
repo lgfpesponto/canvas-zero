@@ -64,6 +64,20 @@ const ReportsPage = () => {
     } catch {}
   }, []);
 
+  const playErrorBeep = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 400;
+      gain.gain.value = 0.3;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch {}
+  }, []);
+
   const [appliedFilters, setAppliedFilters] = useState({
     searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set<string>(), filterVendedor: new Set<string>(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]),
   });
@@ -182,6 +196,7 @@ const ReportsPage = () => {
       if (isAdmin) {
         setSelectedIds(prev => {
           if (prev.has(match.id)) {
+            playErrorBeep();
             toast.warning('Esse pedido já está selecionado');
             return prev;
           }
@@ -197,10 +212,11 @@ const ReportsPage = () => {
         toast.success(`Pedido ${match.numero} encontrado.`);
       }
     } else {
+      playErrorBeep();
       toast.error(`Pedido não encontrado para código: ${trimmed}`);
     }
     setScanValue('');
-  }, [allOrders, orders, isAdmin, navigate, playBeep]);
+  }, [allOrders, orders, isAdmin, navigate, playBeep, playErrorBeep]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
