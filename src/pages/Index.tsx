@@ -74,7 +74,7 @@ const Index = () => {
     'Pespontando', 'Montagem', 'Revisão', 'Expedição'];
 
   const financialData = useMemo(() => {
-    const filtered = sourceOrders.filter((o) => (o.status === 'Entregue' || o.status === 'Cobrado') && (receberVendedor === 'todos' || o.vendedor === receberVendedor));
+    const filtered = sourceOrders.filter((o) => (o.status === 'Entregue' || o.status === 'Cobrado') && matchVendedorFilter(o, receberVendedor));
     const aReceber = filtered.reduce((s, o) => s + o.preco * o.quantidade, 0);
     return { aReceber };
   }, [sourceOrders, receberVendedor]);
