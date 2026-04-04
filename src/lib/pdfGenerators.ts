@@ -480,7 +480,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
   doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
 }
 
-export function generateCommissionPDF(orders: { numero: string; dataCriacao: string }[], monthLabel: string) {
+export function generateCommissionPDF(orders: { id: string; numero: string; dataCriacao: string }[], monthLabel: string) {
   const doc = new jsPDF();
   const COMMISSION_PER_SALE = 10;
 
@@ -494,7 +494,8 @@ export function generateCommissionPDF(orders: { numero: string; dataCriacao: str
 
   // Table header
   let y = 46;
-  const colX = { seq: 14, numero: 40, data: 110 };
+  const colX = { seq: 14, numero: 34, barcode: 75, data: 155 };
+  const rowH = 18;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
@@ -502,18 +503,27 @@ export function generateCommissionPDF(orders: { numero: string; dataCriacao: str
   doc.rect(12, y - 5, 186, 8, 'F');
   doc.text('Qtd', colX.seq, y);
   doc.text('Nº do Pedido', colX.numero, y);
+  doc.text('Código de Barras', colX.barcode, y);
   doc.text('Data do Pedido', colX.data, y);
   y += 10;
 
   doc.setFont('helvetica', 'normal');
   orders.forEach((o, i) => {
-    if (y > 270) { doc.addPage(); y = 20; }
+    if (y > 260) { doc.addPage(); y = 20; }
     const seq = String(i + 1);
     const dataFormatted = formatDateBR(o.dataCriacao);
-    doc.text(seq, colX.seq, y);
-    doc.text(o.numero, colX.numero, y);
-    doc.text(dataFormatted, colX.data, y);
-    y += 7;
+    const textY = y + 5;
+    doc.text(seq, colX.seq, textY);
+    doc.text(o.numero, colX.numero, textY);
+    doc.text(dataFormatted, colX.data, textY);
+
+    try {
+      const bcVal = orderBarcodeValue(o.numero, o.id);
+      const bcUrl = barcodeDataUrl(bcVal, { width: 1, height: 25 });
+      doc.addImage(bcUrl, 'PNG', colX.barcode, y - 2, 55, 14);
+    } catch { /* skip barcode on error */ }
+
+    y += rowH;
   });
 
   // Footer totals
