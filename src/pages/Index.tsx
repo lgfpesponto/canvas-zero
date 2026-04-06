@@ -496,10 +496,17 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Specialized reports section */}
+      <div className="mt-8">
+        <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4}>
+          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']} />
+        </motion.div>
+      </div>
+
       {/* Storage monitoring — only Juliana */}
       {isJuliana && storageInfo && (
         <div className="mt-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4} className="bg-card rounded-xl p-6 western-shadow">
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={5} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
               <HardDrive className="text-primary" size={22} /> Armazenamento Supabase
             </h2>
@@ -538,9 +545,9 @@ const Index = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Tem certeza que deseja limpar os dados antigos?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Pedidos com status "Entregue", "Cobrado" ou "Pago" há mais de 90 dias terão seus detalhes removidos permanentemente (fotos, histórico, alterações, observações, etc.).
+                      Pedidos com status <strong>"Pago"</strong> há mais de 90 dias terão seus detalhes removidos permanentemente (fotos, histórico, alterações, observações, número, modelo, etc.).
                       <br /><br />
-                      <strong>Apenas número, vendedor, quantidade, valor e modelo serão mantidos</strong> para os gráficos de vendas.
+                      <strong>Apenas vendedor, quantidade e valor serão mantidos</strong> para os gráficos de vendas.
                       <br /><br />
                       Essa ação não pode ser desfeita.
                     </AlertDialogDescription>
@@ -557,13 +564,6 @@ const Index = () => {
           </motion.div>
         </div>
       )}
-
-      {/* Specialized reports section */}
-      <div className="mt-8">
-        <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4}>
-          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']} />
-        </motion.div>
-      </div>
     </section>
   );
 
