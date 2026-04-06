@@ -1,38 +1,26 @@
 
 
-## Botao expandir tela cheia + Labels no PDF
+## PDF dos Quadros de Solados — Descrição com fundo preto e remover badge
 
-### 1. Botao expandir (tela cheia)
+### O que muda
 
-Adicionar um botao com icone `Maximize2` no header do quadro. Ao clicar, abre um `Dialog` (fullscreen) com o mesmo conteudo do quadro, mas sem o `max-h-[400px]` — permitindo ver todos os pedidos. O dialog usa `max-w-[95vw] max-h-[95vh]` com scroll interno.
+1. **Remover o badge** (ex: "SOLA COURO") que aparece antes da descrição — ele é redundante pois o título do relatório já identifica o quadro.
 
-- Importar `Dialog, DialogContent, DialogTitle` e `Maximize2` do lucide
-- Adicionar state `expanded` (boolean)
-- Botao no header ao lado dos outros
-- Conteudo do dialog: reutilizar a mesma renderizacao de pedidos (extrair para funcao interna ou duplicar com classe diferente)
+2. **Descrição da sola com fundo preto e texto branco** — a linha de descrição (ex: "Tipo: borracha  Formato: quadrado  Cor: preta  Vira: rosa") passa a ter um retângulo de fundo preto com texto branco, ocupando a largura total.
 
-### 2. PDF — descricao da sola com labels
+### Alteração em `src/components/SoladoBoard.tsx`
 
-Na funcao `exportPDF`, mudar a construcao da `description` do bloco para usar labels na frente, igual aparece no quadro:
+Na função `drawBlockLayout` (linhas 33-45), substituir o bloco de badge + description por:
 
-**Atual:** `borracha | quadrado | preta | rosa`
+- Calcular a largura do texto da descrição
+- Desenhar um `roundedRect` preto (`fillColor(0,0,0)`) com a largura total (`pw`)
+- Renderizar o texto da descrição em branco centralizado ou alinhado à esquerda com padding
 
-**Novo:** `Tipo: borracha  Formato: quadrado  Cor: preta  Vira: rosa`
-
-Alterar a geracao do `key` e `description` (linhas 170-176) para montar com labels:
-```
-const parts = [
-  o.solado && `Tipo: ${o.solado}`,
-  o.formatoBico && `Formato: ${o.formatoBico}`,
-  o.corSola && `Cor: ${o.corSola}`,
-  o.corVira && `Vira: ${o.corVira}`,
-].filter(Boolean);
-description = parts.join('  ');
-```
+Na função `exportPDF` (~linha 175), remover a propriedade `badge` do `BlockData` ou simplesmente não usá-la.
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SoladoBoard.tsx` | Botao expandir com Dialog fullscreen + PDF description com labels |
+| `src/components/SoladoBoard.tsx` | `drawBlockLayout`: remover badge, descrição com fundo preto/texto branco full-width |
 
