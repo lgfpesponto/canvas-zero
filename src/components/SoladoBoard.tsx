@@ -98,6 +98,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
 
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify([...dismissedIds]));
