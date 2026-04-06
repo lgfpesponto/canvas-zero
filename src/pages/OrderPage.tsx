@@ -66,7 +66,7 @@ const MultiSelect = ({
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
 }) => {
   const [search, setSearch] = useState('');
-  const isBordado = label.toLowerCase().includes('bordado');
+  const hasSearch = label.toLowerCase().includes('bordado') || label.toLowerCase().includes('laser');
   const filtered = search
     ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
     : items;
@@ -75,14 +75,14 @@ const MultiSelect = ({
   return (
     <div>
       <label className={cls.label}>{label}</label>
-      {isBordado && (
+      {hasSearch && (
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Pesquisar bordado..."
+            placeholder={label.toLowerCase().includes('bordado') ? 'Pesquisar bordado...' : 'Pesquisar...'}
             className={cls.input + ' pl-8 !py-1.5 text-xs'}
           />
         </div>
@@ -90,7 +90,7 @@ const MultiSelect = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {filtered.map((item, idx) => (
           <React.Fragment key={item.label}>
-            {isBordado && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+            {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
             <label className={cls.checkItem}>
