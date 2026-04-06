@@ -1,120 +1,112 @@
 
-## Corrigir de vez o estoque de Gravata com brilho por cor
 
-### Causa real do erro
+## Plano de Implementação — 7 Melhorias
 
-O problema não está mais no campo da tela. A falha agora é no banco.
+### 1. Bloquear scroll em campos numéricos de preço/valor
 
-Pelos requests da aplicação, ao tentar salvar:
+**Problema:** Campos `type="number"` mudam valor ao rolar o mouse.
 
-```text
-cor_tira: Preto
-tipo_metal: Bridão Estrela
-cor_brilho: Azul
+**Solução:** Adicionar `onWheel={e => e.currentTarget.blur()}` em todos os `<input type="number">` e `<Input type="number">` nos seguintes arquivos:
+- `src/pages/OrderPage.tsx` — adicional valor (~linha 961), qtd strass/cruz/bridão/cavalo (~linhas 885-897)
+- `src/pages/BeltOrderPage.tsx` — adicional valor (~linha 420)
+- `src/pages/ExtrasPage.tsx` — valorManual (~linha 544), quantidades (~linhas 408, 428, 498, 708)
+- `src/pages/EditExtrasPage.tsx` — valorManual (~linha 426), quantidades (~linhas 290, 310, 369)
+- `src/components/ui/input.tsx` — alternativa global: adicionar `onWheel` no componente base para `type="number"`
+
+**Abordagem escolhida:** Modificar o componente `Input` em `src/components/ui/input.tsx` para detectar `type="number"` e bloquear scroll automaticamente. Para os `<input>` nativos nas pages, adicionar `onWheel` inline.
+
+### 2. Melhorias nos bordados (Ficha de Bota)
+
+**2.1 — Nova opção "Bordado Variado R$20"**
+
+Adicionar `{ label: 'Bordado Variado R$20', preco: 20 }` nas 3 listas em `src/lib/orderFieldsConfig.ts`:
+- `BORDADOS_CANO` (após R$15, antes de R$25)
+- `BORDADOS_GASPEA` (idem)
+- `BORDADOS_TALONEIRA` (idem)
+
+Também adicionar na lista legada `BORDADOS`.
+
+**2.2 — Separação visual "Bordados Variados"**
+
+Alterar o componente `MultiSelect` em `src/pages/OrderPage.tsx` para inserir um separador visual antes do primeiro "Bordado Variado" quando renderizar os itens de bordado.
+
+**2.3 — Lupa de pesquisa nos bordados**
+
+Transformar o `MultiSelect` de bordados em um componente com campo de busca (filtro de texto). Adicionar um `<input>` de pesquisa no topo da lista de checkboxes que filtra as opções exibidas.
+
+**Arquivos:** `src/lib/orderFieldsConfig.ts`, `src/pages/OrderPage.tsx`
+
+### 3. Pesquisa nas Gravatas Pronta Entrega
+
+Na seção `gravata_pronta_entrega` de `src/pages/ExtrasPage.tsx` (~linha 452-475), adicionar campo de busca para filtrar os itens de stock disponíveis pelo texto (cor_tira + tipo_metal + cor_brilho).
+
+**Arquivo:** `src/pages/ExtrasPage.tsx`
+
+### 4. Relatório Forro — incluir Cintos
+
+No `generateForroPDF` em `src/components/SpecializedReports.tsx` (~linha 401), adicionar uma seção "Cintos" que:
+- Filtra pedidos com `tipoExtra === 'cinto'` que estão no progresso de produção filtrado
+- Agrupa por tamanho do cinto (`extraDetalhes.tamanhoCinto`)
+- Renderiza um quadro com tamanho → quantidade
+- Só aparece se houver cintos
+
+**Arquivo:** `src/components/SpecializedReports.tsx`
+
+### 5. Alerta de Pedidos Apagados (Dashboard Juliana)
+
+**Infraestrutura necessária:**
+- Nova tabela `deleted_orders` no banco para armazenar pedidos apagados com seus dados completos
+- Antes de deletar no `deleteOrder` e `deleteOrderBatch`, copiar os dados do pedido para essa tabela
+
+**Tabela `deleted_orders`:**
+- `id` (uuid, PK)
+- `order_id` (uuid) — ID original do pedido
+- `order_data` (jsonb) — todos os dados do pedido
+- `deleted_at` (timestamptz)
+- `deleted_by` (uuid) — quem apagou
+- `dismissed` (boolean, default false) — "conferido"
+
+**Frontend (Index.tsx):**
+- Buscar `deleted_orders` onde `dismissed = false`
+- Exibir na seção "Pedidos em alerta" da Juliana
+- Botão "olhinho": abre dialog com dados do pedido
+- Botão "Voltar pedido": re-insere na tabela `orders` e remove de `deleted_orders`
+- Botão "Conferido": marca `dismissed = true`
+
+**Arquivos:** migração SQL, `src/contexts/AuthContext.tsx`, `src/pages/Index.tsx`
+
+### 6. Novo campo "Número do pedido da bota" em Extras
+
+Nos produtos: tiras_laterais, desmanchar, kit_faca, kit_canivete, carimbo_fogo, adicionar_metais.
+
+Adicionar campo de texto após o campo "Nº do pedido":
+```
+Número do pedido da bota (opcional)
 ```
 
-o Supabase retorna:
+Salvar no `extraDetalhes` como `numeroPedidoBotaVinculo`.
 
-```text
-duplicate key value violates unique constraint "gravata_stock_cor_tira_tipo_metal_key"
-```
+**Arquivos:** `src/pages/ExtrasPage.tsx`, `src/pages/EditExtrasPage.tsx`, `src/lib/extrasConfig.ts` (adicionar label)
 
-Ou seja:
-- o frontend já envia `cor_brilho` corretamente
-- a tabela `gravata_stock` ganhou a coluna `cor_brilho`
-- mas a constraint única antiga ainda é só em `(cor_tira, tipo_metal)`
+### 7. Regra Fernanda ADM
 
-Então o banco considera:
-- Preto + Bridão Estrela + Cristal
-- Preto + Bridão Estrela + Azul
+**Já implementado** na iteração anterior. Nenhuma alteração necessária.
 
-como se fossem a mesma variação.
+---
 
-### O que implementar
+### Resumo de arquivos
 
-#### 1. Ajustar a tabela `gravata_stock`
-Criar uma migration para:
-- remover a unique constraint antiga de `(cor_tira, tipo_metal)`
-- criar uma nova regra de unicidade que considere `cor_brilho`
-
-A lógica correta é:
-
-- para metais sem brilho: unicidade por `cor_tira + tipo_metal`
-- para `Bridão Estrela` e `Bridão Flor`: unicidade por `cor_tira + tipo_metal + cor_brilho`
-
-A forma mais segura é criar índice/constraint que trate `NULL` de modo consistente, por exemplo usando expressão com `coalesce(cor_brilho, '')`.
-
-#### 2. Preservar compatibilidade com os dados atuais
-Antes de criar a nova constraint, validar que os registros atuais continuam válidos.
-
-Pelos dados atuais, eles já parecem compatíveis:
-- existe `Bridão Estrela + Cristal`
-- existe `Bridão Flor + Preto`
-- existe `Bridão Flor + Azul`
-
-Então a migration deve passar sem precisar apagar dados.
-
-#### 3. Melhorar o `handleSaveStock` em `src/pages/ExtrasPage.tsx`
-Hoje ele já tenta distinguir pela combinação completa, o que está certo.
-
-Mas vale reforçar:
-- manter `needsBrilho`
-- manter `corBrilhoVal`
-- continuar procurando item existente por `cor_tira + tipo_metal + cor_brilho`
-- tratar erro de insert/update com toast mais claro caso o banco recuse
-
-Isso evita que um erro futuro apareça como falha silenciosa.
-
-#### 4. Revisar edição e listagem
-A tela já exibe:
-- `cor_tira`
-- `tipo_metal`
-- `cor_brilho` quando existe
-
-Então não precisa mudar o layout principal.
-Só confirmar que:
-- editar quantidade continua por `id`
-- excluir continua por `id`
-- compra continua usando `selectedStockId`
-
-Essas partes já parecem corretas.
-
-### Arquivos envolvidos
-
-| Arquivo | Mudança |
-|---|---|
-| `supabase/migrations/...sql` | remover unique antiga e criar unique nova considerando `cor_brilho` |
-| `src/pages/ExtrasPage.tsx` | manter lógica atual e melhorar tratamento de erro no salvar estoque |
-
-### Detalhes técnicos
-
-O ponto exato encontrado foi:
-
-- migration inicial criou:
-```sql
-UNIQUE (cor_tira, tipo_metal)
-```
-
-- migration posterior só adicionou:
-```sql
-ALTER TABLE public.gravata_stock ADD COLUMN cor_brilho text DEFAULT NULL;
-```
-
-Então a modelagem ficou incompleta.
-
-Fluxo esperado depois da correção:
-```text
-Preto + Bridão Estrela + Cristal  -> permitido
-Preto + Bridão Estrela + Azul     -> permitido
-Preto + Bridão Estrela + Rosa     -> permitido
-Preto + Bridão Estrela + Azul     -> se repetir, soma quantidade no registro existente
-```
-
-### Resultado esperado
-
-Depois da correção:
-- será possível cadastrar `Bridão Estrela` com qualquer cor de strass
-- cada cor ficará como uma variação separada no estoque
-- o erro 409 de duplicidade deixará de acontecer nesse cenário
-- o fluxo de compra continuará abatendo o item correto pelo `id`
+| Arquivo | Mudanças |
+|---------|----------|
+| `src/components/ui/input.tsx` | Bloquear scroll em type=number |
+| `src/lib/orderFieldsConfig.ts` | Adicionar "Bordado Variado R$20" |
+| `src/pages/OrderPage.tsx` | Separador visual bordados, pesquisa nos bordados, onWheel em inputs nativos |
+| `src/pages/ExtrasPage.tsx` | Pesquisa gravatas, campo "nº bota" em extras, onWheel |
+| `src/pages/EditExtrasPage.tsx` | Campo "nº bota", onWheel |
+| `src/pages/BeltOrderPage.tsx` | onWheel em adicional valor |
+| `src/components/SpecializedReports.tsx` | Cintos no relatório Forro |
+| `src/contexts/AuthContext.tsx` | Salvar pedido antes de deletar na tabela deleted_orders |
+| `src/pages/Index.tsx` | Seção de pedidos apagados no dashboard Juliana |
+| `src/lib/extrasConfig.ts` | Label para numeroPedidoBotaVinculo |
+| Migração SQL | Tabela `deleted_orders` |
 
