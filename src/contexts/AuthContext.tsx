@@ -735,6 +735,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* ───── Delete Order ───── */
   const deleteOrder = useCallback(async (id: string) => {
+    // Archive order data before deleting
+    try {
+      const { data: orderData } = await supabase.from('orders').select('*').eq('id', id).single();
+      if (orderData) {
+        await supabase.from('deleted_orders').insert({
+          order_id: id,
+          order_data: orderData as any,
+          deleted_by: user?.id || null,
+        } as any);
+      }
+    } catch (e) {
+      console.error('Error archiving order:', e);
+    }
+
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) {
       console.error('Error deleting order:', error);
@@ -742,10 +756,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setOrders(prev => prev.filter(o => o.id !== id));
     setAllOrders(prev => prev.filter(o => o.id !== id));
-  }, []);
+  }, [user]);
 
   /* ───── Delete Order Batch ───── */
   const deleteOrderBatch = useCallback(async (ids: string[]) => {
+    // Archive all orders before deleting
+    try {
+      const { data: ordersData } = await supabase.from('orders').select('*').in('id', ids);
+      if (ordersData && ordersData.length > 0) {
+        const archiveRows = ordersData.map(o => ({
+          order_id: o.id,
+          order_data: o as any,
+          deleted_by: user?.id || null,
+        }));
+        await supabase.from('deleted_orders').insert(archiveRows as any);
+      }
+    } catch (e) {
+      console.error('Error archiving orders:', e);
+    }
+
     const { error } = await supabase.from('orders').delete().in('id', ids);
     if (error) {
       console.error('Error deleting orders batch:', error);
@@ -755,7 +784,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const idSet = new Set(ids);
     setOrders(prev => prev.filter(o => !idSet.has(o.id)));
     setAllOrders(prev => prev.filter(o => !idSet.has(o.id)));
-  }, []);
+  }, [user]);
 
   /* ───── Update Order ───── */
   const updateOrder = useCallback(async (id: string, data: Partial<Order>) => {
