@@ -1,27 +1,30 @@
 
 
-## Ajustes no monitoramento de armazenamento
+## Adicionar campo de busca nos campos de Laser (Cano, Gáspea, Taloneira)
 
-### 1. Edge Function `cleanup-old-orders`
+### Problema
 
-**Filtro de status:** Mudar de `["Entregue", "Cobrado", "Pago"]` para apenas `["Pago"]`.
+Os campos de Laser (MultiSelect) não possuem campo de busca/pesquisa, enquanto os campos de Bordado possuem. O usuário quer o mesmo comportamento de busca nos campos de laser.
 
-**Campos adicionais a limpar:** Além dos já limpos, adicionar `numero`, `modelo`, `tamanho`, `numero_pedido_bota` ao update (setando como `''` ou `null`). Também limpar todos os outros campos de detalhes que sobravam (solado, formato_bico, cor_vira, couros, cores, bordados, metais, acessorios, etc.) — basicamente zerar tudo exceto `id`, `vendedor`, `quantidade`, `preco`, `data_criacao`, `status`, `user_id`, `cliente`, `tipo_extra`.
+### Solução
 
-### 2. Texto de confirmação no `Index.tsx`
+O componente `MultiSelect` (linha 63-113 em `OrderPage.tsx`) já possui lógica de busca, mas ela só é ativada quando `label.toLowerCase().includes('bordado')` (linha 69).
 
-Atualizar a mensagem do `AlertDialogDescription` para refletir:
-- Somente pedidos com status **"Pago"** há mais de 90 dias
-- Apenas **vendedor, quantidade e valor** serão mantidos
+Basta expandir essa condição para incluir também labels que contenham "laser":
 
-### 3. Reposicionar card de armazenamento
+```typescript
+// Linha 69 — de:
+const isBordado = label.toLowerCase().includes('bordado');
 
-Mover o bloco do card de armazenamento (linhas 499-559) para **depois** do bloco de relatórios especializados (depois da linha 566), ficando abaixo dos relatórios no dashboard da Juliana.
+// Para:
+const hasSearch = label.toLowerCase().includes('bordado') || label.toLowerCase().includes('laser');
+```
 
-### Arquivos alterados
+E substituir todas as referências a `isBordado` por `hasSearch` nas linhas 78 e 93. O placeholder do input de busca pode ser ajustado para ser genérico ("Pesquisar...") quando for laser.
+
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `supabase/functions/cleanup-old-orders/index.ts` | Filtro só "Pago", limpar mais campos (numero, modelo, etc.) |
-| `src/pages/Index.tsx` | Texto atualizado + card movido para baixo dos relatórios |
+| `src/pages/OrderPage.tsx` | Expandir condição de busca no MultiSelect para incluir "laser" (linhas 69, 78, 93) |
 
