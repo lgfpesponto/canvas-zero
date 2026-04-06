@@ -1,46 +1,23 @@
 
 
-## Melhorias nos Quadros de Solados (SoladoBoard)
+## Reorganizar layout dos cards nos quadros de solados
 
-### Resumo
+### O que muda
 
-Reorganizar o layout dos cards de pedidos, adicionar botao "Selecionar todos", melhorar descricao da sola com labels, e reformular o PDF para seguir o modelo de Escalacao (blocos com tamanhos e quantidades agrupados por configuracao de sola).
+Cada card de pedido passa a ter layout em duas colunas lado a lado:
 
-### Alteracoes no componente `src/components/SoladoBoard.tsx`
+**Lado esquerdo:** Checkbox + Número do pedido, Vendedor, Descrição da sola, Botão Feito
 
-#### 1. Botao "Selecionar todos" no topo
+**Lado direito:** Data, Prazo restante, Progresso de produção (alinhados à direita)
 
-Adicionar um botao ao lado dos outros botoes do cabecalho que seleciona/deseleciona todos os pedidos visiveis de uma vez.
+### Alteração
 
-#### 2. Novo layout de cada card de pedido
+**Arquivo:** `src/components/SoladoBoard.tsx` (linhas 254-296)
 
-Reorganizar para:
-- **Linha 1:** Numero do pedido + Vendedor
-- **Linha 2:** Descricao da sola com labels explicativos
-- **Linha 3:** Prazo restante | Progresso (badge) | Data — alinhados horizontalmente, acima do botao Feito
-- **Botao Feito** abaixo das informacoes (nao mais ao lado)
+Substituir o layout atual (tudo empilhado verticalmente) por um `flex` com dois blocos:
 
-#### 3. Descricao da sola com labels
+- Bloco esquerdo (`flex-1`): checkbox, número+vendedor, descrição da sola com labels, botão Feito
+- Bloco direito (`shrink-0`, alinhado à direita): prazo, progresso (badge), data — empilhados verticalmente ou em coluna
 
-Mudar de `37 | feminino | borracha | quadrado | preto | rosa | 2300` para:
-
-```
-Tamanho: 37  Genero: Feminino  Tipo: Borracha  Formato: Quadrado  Cor: Preto  Vira: Rosa  Forma: 2300
-```
-
-#### 4. PDF no modelo de Escalacao
-
-Substituir o PDF atual (lista de pedidos individuais) por um PDF agrupado tipo ficha de pedido de solas:
-- Agrupar pedidos visiveis por configuracao de sola (solado + formato bico + cor sola + cor vira)
-- Cada grupo vira um bloco usando `drawBlockLayout` (titulo escuro, linha TAM., linha QTD.)
-- Badge: nome do quadro (ex: "SOLA COURO")
-- Descricao: concatenacao da configuracao da sola
-- Cabecalho com titulo, data e total de pares
-- Reutilizar as funcoes `BlockData`, `drawBlockLayout` e `estimateBlockHeight` (copiar do SpecializedReports ou extrair para utils)
-
-### Arquivo alterado
-
-| Arquivo | O que muda |
-|---------|-----------|
-| `src/components/SoladoBoard.tsx` | Layout reorganizado, botao selecionar todos, descricao com labels, PDF agrupado tipo Escalacao |
+Isso separa visualmente as informações do pedido (esquerda) das informações de acompanhamento (direita).
 
