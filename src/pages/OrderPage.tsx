@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Plus, List, Trash2, Grid3X3 } from 'lucide-react';
+import { Link2, X, Eye, Plus, List, Trash2, Grid3X3, Search } from 'lucide-react';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -64,27 +64,53 @@ const MultiSelect = ({
   label, items, selected, onChange,
 }: {
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
-}) => (
-  <div>
-    <label className={cls.label}>{label}</label>
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-      {items.map(item => (
-        <label key={item.label} className={cls.checkItem}>
+}) => {
+  const [search, setSearch] = useState('');
+  const isBordado = label.toLowerCase().includes('bordado');
+  const filtered = search
+    ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
+    : items;
+  const firstVariadoIdx = filtered.findIndex(i => i.label.startsWith('Bordado Variado'));
+
+  return (
+    <div>
+      <label className={cls.label}>{label}</label>
+      {isBordado && (
+        <div className="relative mb-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
-            type="checkbox"
-            checked={selected.includes(item.label)}
-            onChange={e => {
-              if (e.target.checked) onChange([...selected, item.label]);
-              else onChange(selected.filter(s => s !== item.label));
-            }}
-            className="accent-primary w-4 h-4"
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Pesquisar bordado..."
+            className={cls.input + ' pl-8 !py-1.5 text-xs'}
           />
-          <span>{item.label} <span className="text-muted-foreground text-xs">(R${item.preco})</span></span>
-        </label>
-      ))}
+        </div>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {filtered.map((item, idx) => (
+          <React.Fragment key={item.label}>
+            {isBordado && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
+            )}
+            <label className={cls.checkItem}>
+              <input
+                type="checkbox"
+                checked={selected.includes(item.label)}
+                onChange={e => {
+                  if (e.target.checked) onChange([...selected, item.label]);
+                  else onChange(selected.filter(s => s !== item.label));
+                }}
+                className="accent-primary w-4 h-4"
+              />
+              <span>{item.label} <span className="text-muted-foreground text-xs">(R${item.preco})</span></span>
+            </label>
+          </React.Fragment>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ───── main component ───── */
 const OrderPage = () => {
