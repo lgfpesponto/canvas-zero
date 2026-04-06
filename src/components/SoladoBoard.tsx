@@ -261,7 +261,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       {visibleOrders.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado.</p>
       ) : (
-        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+        <div className="divide-y-2 divide-primary max-h-[400px] overflow-y-auto">
           {visibleOrders.map(o => {
             const { line1, line2 } = buildDescriptionLines(o);
             return (
