@@ -171,7 +171,13 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     // Group orders by sole configuration
     const groups = new Map<string, { badge: string; description: string; sizes: Map<string, number> }>();
     visibleOrders.forEach(o => {
-      const key = [o.solado, o.formatoBico, o.corSola, o.corVira].filter(Boolean).join(' | ');
+      const descParts = [
+        o.solado && `Tipo: ${o.solado}`,
+        o.formatoBico && `Formato: ${o.formatoBico}`,
+        o.corSola && `Cor: ${o.corSola}`,
+        o.corVira && `Vira: ${o.corVira}`,
+      ].filter(Boolean);
+      const key = descParts.join('  ');
       if (!groups.has(key)) {
         groups.set(key, {
           badge: title.toUpperCase().replace('PEDIDOS COM ', ''),
