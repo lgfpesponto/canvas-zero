@@ -259,39 +259,36 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
                     onCheckedChange={() => toggleSelect(o.id)}
                     className="mt-0.5"
                   />
-                  <div className="flex-1 min-w-0">
-                    {/* Linha 1: Número + Vendedor */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold">{o.numero}</span>
-                      <span className="text-muted-foreground">— {o.vendedor}</span>
+                  <div className="flex-1 min-w-0 flex justify-between gap-4">
+                    {/* Lado esquerdo: pedido + sola + feito */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold">{o.numero}</span>
+                        <span className="text-muted-foreground">— {o.vendedor}</span>
+                      </div>
+                      <p className="text-muted-foreground text-xs mt-1 break-words">
+                        {descParts.map((p, i) => (
+                          <span key={i}>
+                            {i > 0 && <span className="mx-1">·</span>}
+                            <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                          </span>
+                        ))}
+                      </p>
+                      <button
+                        onClick={() => dismiss(o.id)}
+                        className="mt-2 px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        Feito
+                      </button>
                     </div>
-
-                    {/* Linha 2: Descrição da sola com labels */}
-                    <p className="text-muted-foreground text-xs mt-1 break-words">
-                      {descParts.map((p, i) => (
-                        <span key={i}>
-                          {i > 0 && <span className="mx-1">·</span>}
-                          <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                        </span>
-                      ))}
-                    </p>
-
-                    {/* Linha 3: Prazo | Progresso | Data */}
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      <span className="text-xs font-semibold">
+                    {/* Lado direito: prazo, progresso, data */}
+                    <div className="shrink-0 flex flex-col items-end gap-1 text-xs">
+                      <span className="font-semibold">
                         {o.diasRestantes > 0 ? `${o.diasRestantes}d úteis` : '✓'}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-background text-xs font-bold">{o.status}</span>
-                      <span className="text-xs text-muted-foreground">{o.dataCriacao}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-background font-bold">{o.status}</span>
+                      <span className="text-muted-foreground">{o.dataCriacao}</span>
                     </div>
-
-                    {/* Botão Feito abaixo */}
-                    <button
-                      onClick={() => dismiss(o.id)}
-                      className="mt-2 px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                    >
-                      Feito
-                    </button>
                   </div>
                 </div>
               </div>
