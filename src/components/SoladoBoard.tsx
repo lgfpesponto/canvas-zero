@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, ChevronDown, Download, Filter } from 'lucide-react';
+import { Check, CheckSquare, ChevronDown, Download, Filter, Square } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
@@ -12,6 +12,80 @@ interface SoladoBoardProps {
   orders: Order[];
   storageKey: string;
 }
+
+interface BlockData {
+  badge: string;
+  description: string;
+  sizes: { tamanho: string; quantidade: number }[];
+}
+
+const estimateBlockHeight = (block: BlockData): number => {
+  const cols = block.sizes.length;
+  const rows = Math.ceil(cols / 14);
+  return 22 + rows * 16;
+};
+
+const drawBlockLayout = (doc: jsPDF, startY: number, mx: number, block: BlockData): number => {
+  const pw = doc.internal.pageSize.getWidth() - mx * 2;
+  let y = startY;
+
+  // Badge + description header
+  doc.setFillColor(40, 40, 40);
+  const badgeW = doc.getTextWidth(block.badge) + 8;
+  doc.roundedRect(mx, y, badgeW, 7, 1, 1, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text(block.badge, mx + 4, y + 5);
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(8);
+  doc.text(block.description, mx + badgeW + 4, y + 5, { maxWidth: pw - badgeW - 8 });
+  y += 10;
+
+  // Size/quantity grid
+  const maxCols = 14;
+  const colW = pw / maxCols;
+  const rows = Math.ceil(block.sizes.length / maxCols);
+
+  for (let row = 0; row < rows; row++) {
+    const startIdx = row * maxCols;
+    const rowSizes = block.sizes.slice(startIdx, startIdx + maxCols);
+
+    // TAM. row
+    doc.setFillColor(220, 220, 220);
+    doc.rect(mx, y, pw, 7, 'F');
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 80, 80);
+    doc.text('TAM.', mx + 1, y + 5);
+    rowSizes.forEach((s, i) => {
+      const x = mx + (i + 1) * colW;
+      doc.setTextColor(40, 40, 40);
+      doc.text(String(s.tamanho), x + colW / 2, y + 5, { align: 'center' });
+      doc.setDrawColor(200, 200, 200);
+      doc.line(x, y, x, y + 14);
+    });
+    doc.rect(mx, y, pw, 7);
+    y += 7;
+
+    // QTD. row
+    doc.setFillColor(245, 245, 245);
+    doc.rect(mx, y, pw, 7, 'F');
+    doc.setTextColor(80, 80, 80);
+    doc.text('QTD.', mx + 1, y + 5);
+    rowSizes.forEach((s, i) => {
+      const x = mx + (i + 1) * colW;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont('helvetica', 'bold');
+      doc.text(String(s.quantidade), x + colW / 2, y + 5, { align: 'center' });
+    });
+    doc.rect(mx, y, pw, 7);
+    y += 9;
+  }
+
+  return y;
+};
 
 const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
@@ -52,30 +126,79 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     });
   }, []);
 
-  const buildDescription = (o: Order) => {
-    return [o.tamanho, o.genero, o.solado, o.formatoBico, o.corSola, o.corVira, o.forma]
-      .filter(Boolean)
-      .join(' | ');
+  const toggleSelectAll = useCallback(() => {
+    const allVisible = visibleOrders.map(o => o.id);
+    const allSelected = allVisible.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allVisible));
+  }, [visibleOrders, selectedIds]);
+
+  const allSelected = visibleOrders.length > 0 && visibleOrders.every(o => selectedIds.has(o.id));
+
+  const buildLabeledDescription = (o: Order) => {
+    const parts: { label: string; value: string }[] = [
+      { label: 'Tamanho', value: o.tamanho },
+      { label: 'Gênero', value: o.genero },
+      { label: 'Tipo', value: o.solado },
+      { label: 'Formato', value: o.formatoBico },
+      { label: 'Cor', value: o.corSola },
+      { label: 'Vira', value: o.corVira },
+      { label: 'Forma', value: o.forma },
+    ];
+    return parts.filter(p => p.value);
   };
 
   const exportPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text(title, 14, 18);
-    doc.setFontSize(9);
-    let y = 28;
-    visibleOrders.forEach((o, i) => {
-      if (y > 270) { doc.addPage(); y = 18; }
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${i + 1}. ${o.numero}`, 14, y);
-      doc.setFont('helvetica', 'normal');
-      y += 5;
-      doc.text(`Vendedor: ${o.vendedor}`, 18, y); y += 4;
-      doc.text(`Solado: ${buildDescription(o)}`, 18, y, { maxWidth: 170 }); y += 5;
-      doc.text(`Data: ${o.dataCriacao} | Progresso: ${o.status} | Prazo: ${o.diasRestantes > 0 ? `${o.diasRestantes}d úteis` : '✓'}`, 18, y);
-      y += 8;
+    const mx = 10;
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+
+    // Group orders by sole configuration
+    const groups = new Map<string, { badge: string; description: string; sizes: Map<string, number> }>();
+    visibleOrders.forEach(o => {
+      const key = [o.solado, o.formatoBico, o.corSola, o.corVira].filter(Boolean).join(' | ');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          badge: title.toUpperCase().replace('PEDIDOS COM ', ''),
+          description: key,
+          sizes: new Map(),
+        });
+      }
+      const g = groups.get(key)!;
+      const tam = o.tamanho || '?';
+      g.sizes.set(tam, (g.sizes.get(tam) || 0) + (o.quantidade || 1));
     });
-    doc.save(`${title.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+
+    const blocks: BlockData[] = Array.from(groups.values()).map(g => ({
+      badge: g.badge,
+      description: g.description,
+      sizes: Array.from(g.sizes.entries())
+        .map(([tamanho, quantidade]) => ({ tamanho, quantidade }))
+        .sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
+    }));
+
+    const totalPares = blocks.reduce((sum, b) => sum + b.sizes.reduce((s, sz) => s + sz.quantidade, 0), 0);
+
+    // Header
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, mx, 14);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Data: ${dateStr}  |  Total: ${totalPares} par${totalPares !== 1 ? 'es' : ''}`, mx, 20);
+
+    let y = 28;
+    blocks.forEach(block => {
+      const h = estimateBlockHeight(block);
+      if (y + h > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage();
+        y = 14;
+      }
+      y = drawBlockLayout(doc, y, mx, block);
+      y += 4;
+    });
+
+    doc.save(`${title.toLowerCase().replace(/\s+/g, '-')}-${dateStr.replace(/\//g, '-')}.pdf`);
   };
 
   const uniqueStatuses = useMemo(() => {
@@ -88,6 +211,12 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-lg font-display font-bold">{title}</h2>
         <div className="flex items-center gap-2 flex-wrap">
+          {visibleOrders.length > 0 && (
+            <button onClick={toggleSelectAll} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+              {allSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+              {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+            </button>
+          )}
           {selectedIds.size > 0 && (
             <button onClick={dismissSelected} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">
               <Check size={14} /> Marcar feito ({selectedIds.size})
@@ -120,33 +249,54 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
         <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado.</p>
       ) : (
         <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {visibleOrders.map(o => (
-            <div key={o.id} className="flex items-start gap-3 bg-muted/50 rounded-lg p-3 text-sm">
-              <Checkbox
-                checked={selectedIds.has(o.id)}
-                onCheckedChange={() => toggleSelect(o.id)}
-                className="mt-0.5"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold">{o.numero}</span>
-                  <span className="text-muted-foreground">— {o.vendedor}</span>
-                </div>
-                <p className="text-muted-foreground text-xs mt-0.5 break-words">{buildDescription(o)}</p>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <span className="text-xs text-muted-foreground">{o.dataCriacao}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-background text-xs font-bold">{o.status}</span>
-                  <span className="text-xs text-muted-foreground">{o.diasRestantes > 0 ? `${o.diasRestantes}d úteis` : '✓'}</span>
+          {visibleOrders.map(o => {
+            const descParts = buildLabeledDescription(o);
+            return (
+              <div key={o.id} className="bg-muted/50 rounded-lg p-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={selectedIds.has(o.id)}
+                    onCheckedChange={() => toggleSelect(o.id)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    {/* Linha 1: Número + Vendedor */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold">{o.numero}</span>
+                      <span className="text-muted-foreground">— {o.vendedor}</span>
+                    </div>
+
+                    {/* Linha 2: Descrição da sola com labels */}
+                    <p className="text-muted-foreground text-xs mt-1 break-words">
+                      {descParts.map((p, i) => (
+                        <span key={i}>
+                          {i > 0 && <span className="mx-1">·</span>}
+                          <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                        </span>
+                      ))}
+                    </p>
+
+                    {/* Linha 3: Prazo | Progresso | Data */}
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      <span className="text-xs font-semibold">
+                        {o.diasRestantes > 0 ? `${o.diasRestantes}d úteis` : '✓'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-background text-xs font-bold">{o.status}</span>
+                      <span className="text-xs text-muted-foreground">{o.dataCriacao}</span>
+                    </div>
+
+                    {/* Botão Feito abaixo */}
+                    <button
+                      onClick={() => dismiss(o.id)}
+                      className="mt-2 px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Feito
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={() => dismiss(o.id)}
-                className="px-2 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0"
-              >
-                Feito
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
