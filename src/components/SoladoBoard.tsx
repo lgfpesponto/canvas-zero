@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckSquare, ChevronDown, Download, Filter, Square } from 'lucide-react';
+import { Check, CheckSquare, ChevronDown, Download, Filter, Maximize2, Square } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
 import type { Order } from '@/contexts/AuthContext';
 import jsPDF from 'jspdf';
@@ -97,6 +98,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
 
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify([...dismissedIds]));
@@ -169,7 +171,13 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     // Group orders by sole configuration
     const groups = new Map<string, { badge: string; description: string; sizes: Map<string, number> }>();
     visibleOrders.forEach(o => {
-      const key = [o.solado, o.formatoBico, o.corSola, o.corVira].filter(Boolean).join(' | ');
+      const descParts = [
+        o.solado && `Tipo: ${o.solado}`,
+        o.formatoBico && `Formato: ${o.formatoBico}`,
+        o.corSola && `Cor: ${o.corSola}`,
+        o.corVira && `Vira: ${o.corVira}`,
+      ].filter(Boolean);
+      const key = descParts.join('  ');
       if (!groups.has(key)) {
         groups.set(key, {
           badge: title.toUpperCase().replace('PEDIDOS COM ', ''),
@@ -255,6 +263,9 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
           <button onClick={exportPDF} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">
             <Download size={14} /> Gerar relatório
           </button>
+          <button onClick={() => setExpanded(true)} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+            <Maximize2 size={14} /> Expandir
+          </button>
         </div>
       </div>
 
@@ -324,6 +335,62 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       )}
 
       <p className="text-xs text-muted-foreground mt-3">{visibleOrders.length} pedido{visibleOrders.length !== 1 ? 's' : ''}</p>
+
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
+          <DialogTitle className="text-lg font-display font-bold">{title}</DialogTitle>
+          <div className="divide-y-2 divide-primary">
+            {visibleOrders.map(o => {
+              const { line1, line2 } = buildDescriptionLines(o);
+              return (
+                <div key={o.id} className="py-3 px-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={selectedIds.has(o.id)} onCheckedChange={() => toggleSelect(o.id)} />
+                    <span className="font-bold">{o.numero}</span>
+                    <span className="text-muted-foreground">— {o.vendedor}</span>
+                  </div>
+                  <div className="border-t border-border mt-2 pt-2">
+                    <p className="text-muted-foreground text-xs break-words">
+                      {line1.map((p, i) => (
+                        <span key={i}>
+                          {i > 0 && <span className="mx-1">·</span>}
+                          <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                        </span>
+                      ))}
+                    </p>
+                    {line2.length > 0 && (
+                      <p className="text-muted-foreground text-xs mt-0.5 break-words">
+                        {line2.map((p, i) => (
+                          <span key={i}>
+                            {i > 0 && <span className="mx-1">·</span>}
+                            <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                  </div>
+                  <div className="border-t border-border mt-2 flex text-xs">
+                    <div className="flex-1 py-1.5 pr-2 border-r border-border">
+                      <span className="text-muted-foreground">Prazo: </span>
+                      <span className="font-semibold">{o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}</span>
+                    </div>
+                    <div className="flex-1 py-1.5 px-2 border-r border-border">
+                      <span className="text-muted-foreground">Status: </span>
+                      <span className="font-bold">{o.status}</span>
+                    </div>
+                    <div className="py-1 px-2 flex items-center">
+                      <button onClick={() => dismiss(o.id)} className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1">
+                        <Check size={14} /> Feito
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">{visibleOrders.length} pedido{visibleOrders.length !== 1 ? 's' : ''}</p>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
