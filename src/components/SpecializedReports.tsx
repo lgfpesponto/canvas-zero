@@ -15,6 +15,7 @@ import {
   getForma,
 } from '@/lib/orderFieldsConfig';
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
+import { getCouroSortKey } from '@/lib/pdfGenerators';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -761,6 +762,15 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (isBeltA !== isBeltB) return isBeltA - isBeltB;
 
       if (!isBeltA) {
+        // Primary: couro priority + cor
+        const prioA = getCouroSortKey(a.couroCano || '');
+        const prioB = getCouroSortKey(b.couroCano || '');
+        if (prioA !== prioB) return prioA - prioB;
+        const tipoComp = (a.couroCano || '').localeCompare(b.couroCano || '');
+        if (tipoComp !== 0) return tipoComp;
+        const corComp = (a.corCouroCano || '').localeCompare(b.corCouroCano || '');
+        if (corComp !== 0) return corComp;
+        // Secondary: bordado grouping
         const keyA = `${a.bordadoCano || ''}|${a.corBordadoCano || ''}|${a.bordadoGaspea || ''}|${a.corBordadoGaspea || ''}`;
         const keyB = `${b.bordadoCano || ''}|${b.corBordadoCano || ''}|${b.bordadoGaspea || ''}|${b.corBordadoGaspea || ''}`;
         const cmp = keyA.localeCompare(keyB);
@@ -854,16 +864,19 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       (!o.tipoExtra || o.tipoExtra === 'cinto')
     );
 
-    // Sort: boots first (by couro+cor), then belts grouped together, tiebreak by number
+    // Sort: boots first (by couro priority+cor), then belts grouped together, tiebreak by number
     filtered.sort((a, b) => {
       const isBeltA = a.tipoExtra === 'cinto' ? 1 : 0;
       const isBeltB = b.tipoExtra === 'cinto' ? 1 : 0;
       if (isBeltA !== isBeltB) return isBeltA - isBeltB;
       if (!isBeltA) {
-        const keyA = `${a.couroCano || ''}|${a.corCouroCano || ''}`;
-        const keyB = `${b.couroCano || ''}|${b.corCouroCano || ''}`;
-        const cmp = keyA.localeCompare(keyB);
-        if (cmp !== 0) return cmp;
+        const prioA = getCouroSortKey(a.couroCano || '');
+        const prioB = getCouroSortKey(b.couroCano || '');
+        if (prioA !== prioB) return prioA - prioB;
+        const tipoComp = (a.couroCano || '').localeCompare(b.couroCano || '');
+        if (tipoComp !== 0) return tipoComp;
+        const corComp = (a.corCouroCano || '').localeCompare(b.corCouroCano || '');
+        if (corComp !== 0) return corComp;
       }
       const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
       const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;

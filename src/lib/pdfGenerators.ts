@@ -10,6 +10,19 @@ const formatDateBR = (date: string, time?: string) => {
 
 const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const COURO_PRIORITY: Record<string, number> = {
+  'crazy horse': 1,
+  'látego': 2, 'latego': 2,
+  'nobuck': 3,
+  'fóssil': 4, 'fossil': 4,
+  'floater': 5,
+  'napa flay': 6,
+};
+
+export function getCouroSortKey(tipo: string): number {
+  return COURO_PRIORITY[tipo.toLowerCase().trim()] ?? 99;
+}
+
 function barcodeDataUrl(value: string, opts?: { width?: number; height?: number }): string {
   const canvas = document.createElement('canvas');
   try {
@@ -56,10 +69,13 @@ export function generateReportPDF(ordersToExport: any[]) {
 
 export async function generateProductionSheetPDF(ordersToExport: any[]) {
   const list = ordersToExport.slice().sort((a, b) => {
-    const keyA = `${a.couroCano || ''}|${a.corCouroCano || ''}`;
-    const keyB = `${b.couroCano || ''}|${b.corCouroCano || ''}`;
-    const cmp = keyA.localeCompare(keyB);
-    if (cmp !== 0) return cmp;
+    const prioA = getCouroSortKey(a.couroCano || '');
+    const prioB = getCouroSortKey(b.couroCano || '');
+    if (prioA !== prioB) return prioA - prioB;
+    const tipoComp = (a.couroCano || '').localeCompare(b.couroCano || '');
+    if (tipoComp !== 0) return tipoComp;
+    const corComp = (a.corCouroCano || '').localeCompare(b.corCouroCano || '');
+    if (corComp !== 0) return corComp;
     const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
     const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
     return numA - numB;
