@@ -1,38 +1,43 @@
 
 
-## Melhorar layout dos cards nos quadros de solados
+## Reorganizar layout dos cards nos quadros de solados
 
-### Alterações em `src/components/SoladoBoard.tsx` (linhas 254-296)
+### O que muda
 
-#### 1. Botão "Feito" move para o lado direito
-Remover o botão "Feito" do lado esquerdo e colocá-lo no lado direito, junto com prazo, status e data.
+Remover a coluna direita separada. Cada card passa a ter layout vertical com subquadros separados por linhas:
 
-#### 2. Labels nas informações do lado direito + separadores
-Cada informação ganha label explícito e separador horizontal entre elas:
+1. **Linha 1:** Checkbox + Número do pedido + Vendedor + Botão Feito (à direita)
+2. **Separador horizontal**
+3. **Linha 2:** Descrição da sola (2 linhas com labels)
+4. **Separador horizontal**
+5. **Linha 3:** Prazo e Status lado a lado, separados por uma linha vertical
+
+Remover a informação de Data. Manter `divide-y` entre pedidos.
+
+### Layout visual
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ ☐  1234 — Vendedor                         [Feito] │
+├─────────────────────────────────────────────────────┤
+│ Tamanho: 37 · Gênero: Fem · Tipo: Borracha · Fmt   │
+│ Cor: Preto · Vira: Rosa · Forma: 2300               │
+├─────────────────────────────────────────────────────┤
+│ Prazo: 15d          │  Status: Corte                │
+└─────────────────────────────────────────────────────┘
 ```
-Prazo: 15d úteis
-─────────────────
-Status: Corte
-─────────────────
-Data: 06/04/2026
-─────────────────
-[Feito]
-```
 
-#### 3. Data em formato dd/mm/aaaa
-Formatar `o.dataCriacao` para `dd/mm/aaaa` (se já não estiver).
+### Alteração em `src/components/SoladoBoard.tsx` (linhas 268-328)
 
-#### 4. Descrição da sola em 2 linhas
-Dividir os campos da descrição em duas linhas para não crescer horizontalmente:
-- Linha 1: Tamanho · Gênero · Tipo · Formato
-- Linha 2: Cor · Vira · Forma
-
-#### 5. Separadores entre pedidos
-Trocar `space-y-2` por `divide-y divide-border` nos cards, e remover o `bg-muted/50 rounded-lg` individual, usando apenas padding e a linha divisória.
+Substituir o layout de duas colunas (flex justify-between) por layout vertical:
+- Topo: flex com checkbox, número+vendedor à esquerda, botão Feito à direita
+- Meio (após `border-t`): descrição da sola em 2 linhas
+- Base (após `border-t`): flex com Prazo à esquerda e Status à direita, separados por `border-r`
+- Remover bloco de Data e a coluna direita inteira
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SoladoBoard.tsx` | Layout do card: botão Feito no lado direito, labels com separadores, data dd/mm/aaaa, descrição em 2 linhas, linhas divisórias entre pedidos |
+| `src/components/SoladoBoard.tsx` | Layout vertical com subquadros, remover data, prazo+status embaixo da sola |
 
