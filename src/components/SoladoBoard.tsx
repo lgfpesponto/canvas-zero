@@ -263,6 +263,9 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
           <button onClick={exportPDF} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">
             <Download size={14} /> Gerar relatório
           </button>
+          <button onClick={() => setExpanded(true)} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+            <Maximize2 size={14} /> Expandir
+          </button>
         </div>
       </div>
 
