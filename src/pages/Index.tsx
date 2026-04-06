@@ -523,6 +523,12 @@ const Index = () => {
         </motion.div>
       </div>
 
+      <div className="mt-8 space-y-6">
+        <SoladoBoard title="Pedidos com sola de couro" orders={solaCouroOrders} storageKey="dismissed_sola_couro" />
+        <SoladoBoard title="Pedidos com sola rústica" orders={solaRusticaOrders} storageKey="dismissed_sola_rustica" />
+        <SoladoBoard title="Pedidos com vira colorida" orders={viraColoridaOrders} storageKey="dismissed_vira_colorida" />
+      </div>
+
       {/* Storage monitoring — only Juliana */}
       {isJuliana && storageInfo && (
         <div className="mt-8">
