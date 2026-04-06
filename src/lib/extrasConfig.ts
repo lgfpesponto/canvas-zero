@@ -68,6 +68,7 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   fivela: 'Fivela',
   fivelaOutroDesc: 'Descrição da Fivela',
   carimboOnde: 'Onde Aplicado (Carimbo)',
+  numeroPedidoBotaVinculo: 'Nº Pedido da Bota',
 };
 
 /** Keys to exclude from display in order details */
