@@ -53,6 +53,7 @@ const EditExtrasPage = () => {
       descBordadoRegata: det.descBordadoRegata || '',
       descricaoProduto: det.descricaoProduto || '',
       valorManual: det.valorManual || String(order.preco || ''),
+      numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
     });
     setLoaded(true);
   }, [order, loaded]);
