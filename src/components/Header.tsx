@@ -42,6 +42,13 @@ const Header = () => {
       ];
 
   return (
+    <>
+      {storageWarning && (
+        <div className="bg-yellow-500 text-yellow-950 text-center text-sm font-semibold py-2 px-4 flex items-center justify-center gap-2">
+          <AlertTriangle size={16} />
+          Armazenamento próximo do limite ({storageWarning.percent}%). Acesse o dashboard para limpar dados antigos.
+        </div>
+      )}
     <header className="sticky top-0 z-50 bg-white shadow-lg">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
         <Link to="/" className="flex items-center gap-3">
