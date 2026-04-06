@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify user is admin
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -43,14 +42,13 @@ Deno.serve(async (req) => {
     // Calculate cutoff date (90 days ago)
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
-    const cutoffStr = cutoff.toISOString().split("T")[0]; // YYYY-MM-DD format matching data_criacao
 
-    // Find orders to prune: status Entregue or Cobrado, older than 90 days
+    // Find orders to prune: status Pago only, older than 90 days
     // data_criacao is stored as text like "DD/MM/YYYY"
     const { data: oldOrders, error: fetchError } = await adminClient
       .from("orders")
       .select("id, data_criacao, status")
-      .in("status", ["Entregue", "Cobrado", "Pago"]);
+      .eq("status", "Pago");
 
     if (fetchError) {
       return new Response(JSON.stringify({ error: fetchError.message }), {
@@ -70,35 +68,79 @@ Deno.serve(async (req) => {
 
     let ordersCleaned = 0;
 
-    // Prune in batches of 50
+    // Prune in batches of 50 — clear everything except id, vendedor, quantidade, preco, data_criacao, status, user_id, cliente, tipo_extra
     for (let i = 0; i < ordersToPrune.length; i += 50) {
       const batch = ordersToPrune.slice(i, i + 50).map((o) => o.id);
       const { error: updateError } = await adminClient
         .from("orders")
         .update({
+          numero: "",
+          modelo: "",
+          tamanho: "",
+          numero_pedido_bota: null,
+          genero: null,
+          solado: "",
+          formato_bico: "",
+          cor_vira: "",
+          couro_gaspea: "",
+          couro_cano: "",
+          couro_taloneira: "",
+          cor_couro_gaspea: null,
+          cor_couro_cano: null,
+          cor_couro_taloneira: null,
+          bordado_cano: "",
+          bordado_gaspea: "",
+          bordado_taloneira: "",
+          cor_bordado_cano: null,
+          cor_bordado_gaspea: null,
+          cor_bordado_taloneira: null,
+          bordado_variado_desc_cano: null,
+          bordado_variado_desc_gaspea: null,
+          bordado_variado_desc_taloneira: null,
+          personalizacao_nome: "",
+          personalizacao_bordado: "",
+          nome_bordado_desc: null,
+          cor_linha: "",
+          cor_borrachinha: "",
+          trisce: "Não",
+          trice_desc: null,
+          tiras: "Não",
+          tiras_desc: null,
+          metais: "",
+          tipo_metal: null,
+          cor_metal: null,
+          strass_qtd: null,
+          cruz_metal_qtd: null,
+          bridao_metal_qtd: null,
+          acessorios: "",
+          desenvolvimento: "",
+          sob_medida: false,
+          sob_medida_desc: null,
+          forma: null,
           fotos: [],
           historico: [],
           alteracoes: [],
           extra_detalhes: null,
           observacao: "",
-          bordado_variado_desc_cano: null,
-          bordado_variado_desc_gaspea: null,
-          bordado_variado_desc_taloneira: null,
-          nome_bordado_desc: null,
-          trice_desc: null,
-          tiras_desc: null,
-          sob_medida_desc: null,
-          estampa_desc: null,
-          pintura_desc: null,
-          carimbo_desc: null,
-          adicional_desc: null,
-          desconto_justificativa: null,
+          tem_laser: false,
           laser_cano: null,
           laser_gaspea: null,
           laser_taloneira: null,
           cor_glitter_cano: null,
           cor_glitter_gaspea: null,
           cor_glitter_taloneira: null,
+          estampa: null,
+          estampa_desc: null,
+          pintura: null,
+          pintura_desc: null,
+          costura_atras: null,
+          cor_sola: null,
+          carimbo: null,
+          carimbo_desc: null,
+          cor_vivo: null,
+          adicional_desc: null,
+          desconto: null,
+          desconto_justificativa: null,
         })
         .in("id", batch);
 
