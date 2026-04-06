@@ -266,63 +266,55 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
             const { line1, line2 } = buildDescriptionLines(o);
             return (
               <div key={o.id} className="py-3 px-1 text-sm">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={selectedIds.has(o.id)}
-                    onCheckedChange={() => toggleSelect(o.id)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0 flex justify-between gap-4">
-                    {/* Lado esquerdo: pedido + sola */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold">{o.numero}</span>
-                        <span className="text-muted-foreground">— {o.vendedor}</span>
-                      </div>
-                      <p className="text-muted-foreground text-xs mt-1 break-words">
-                        {line1.map((p, i) => (
-                          <span key={i}>
-                            {i > 0 && <span className="mx-1">·</span>}
-                            <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                          </span>
-                        ))}
-                      </p>
-                      {line2.length > 0 && (
-                        <p className="text-muted-foreground text-xs mt-0.5 break-words">
-                          {line2.map((p, i) => (
-                            <span key={i}>
-                              {i > 0 && <span className="mx-1">·</span>}
-                              <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                            </span>
-                          ))}
-                        </p>
-                      )}
-                    </div>
-                    {/* Lado direito: prazo, status, data, feito */}
-                    <div className="shrink-0 flex flex-col items-end text-xs divide-y divide-border">
-                      <div className="pb-1.5">
-                        <span className="text-muted-foreground">Prazo: </span>
-                        <span className="font-semibold">
-                          {o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}
+                {/* Row 1: Checkbox + Número + Vendedor + Feito */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.has(o.id)}
+                      onCheckedChange={() => toggleSelect(o.id)}
+                    />
+                    <span className="font-bold">{o.numero}</span>
+                    <span className="text-muted-foreground">— {o.vendedor}</span>
+                  </div>
+                  <button
+                    onClick={() => dismiss(o.id)}
+                    className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    Feito
+                  </button>
+                </div>
+
+                {/* Row 2: Descrição da sola */}
+                <div className="border-t border-border mt-2 pt-2">
+                  <p className="text-muted-foreground text-xs break-words">
+                    {line1.map((p, i) => (
+                      <span key={i}>
+                        {i > 0 && <span className="mx-1">·</span>}
+                        <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                      </span>
+                    ))}
+                  </p>
+                  {line2.length > 0 && (
+                    <p className="text-muted-foreground text-xs mt-0.5 break-words">
+                      {line2.map((p, i) => (
+                        <span key={i}>
+                          {i > 0 && <span className="mx-1">·</span>}
+                          <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
                         </span>
-                      </div>
-                      <div className="py-1.5">
-                        <span className="text-muted-foreground">Status: </span>
-                        <span className="font-bold">{o.status}</span>
-                      </div>
-                      <div className="py-1.5">
-                        <span className="text-muted-foreground">Data: </span>
-                        <span>{formatDate(o.dataCriacao)}</span>
-                      </div>
-                      <div className="pt-1.5">
-                        <button
-                          onClick={() => dismiss(o.id)}
-                          className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        >
-                          Feito
-                        </button>
-                      </div>
-                    </div>
+                      ))}
+                    </p>
+                  )}
+                </div>
+
+                {/* Row 3: Prazo | Status */}
+                <div className="border-t border-border mt-2 flex text-xs">
+                  <div className="flex-1 py-1.5 pr-2 border-r border-border">
+                    <span className="text-muted-foreground">Prazo: </span>
+                    <span className="font-semibold">{o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}</span>
+                  </div>
+                  <div className="flex-1 py-1.5 pl-2">
+                    <span className="text-muted-foreground">Status: </span>
+                    <span className="font-bold">{o.status}</span>
                   </div>
                 </div>
               </div>
