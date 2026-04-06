@@ -69,6 +69,7 @@ const ExtrasPage = () => {
   const [stockCorBrilho, setStockCorBrilho] = useState('');
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockQtd, setEditingStockQtd] = useState('');
+  const [gravataSearch, setGravataSearch] = useState('');
 
   const fetchStock = useCallback(async () => {
     const { data } = await supabase.from('gravata_stock').select('*');
@@ -460,14 +461,27 @@ const ExtrasPage = () => {
           <>
             {(() => {
               const available = stockItems.filter(s => s.quantidade > 0);
+              const searchLower = gravataSearch.toLowerCase();
+              const filtered = gravataSearch
+                ? available.filter(s => `${s.cor_tira} ${s.tipo_metal} ${s.cor_brilho || ''}`.toLowerCase().includes(searchLower))
+                : available;
               if (available.length === 0) {
                 return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
               }
               return (
                 <div>
                   <Label>Selecione a variação *</Label>
-                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="mt-2 space-y-2">
-                    {available.map(item => (
+                  <div className="relative mt-1 mb-2">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={gravataSearch}
+                      onChange={e => setGravataSearch(e.target.value)}
+                      placeholder="Pesquisar gravata..."
+                      className="pl-8 h-8 text-xs"
+                    />
+                  </div>
+                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="space-y-2">
+                    {filtered.map(item => (
                       <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
                         <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
                         <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
@@ -475,6 +489,7 @@ const ExtrasPage = () => {
                         </Label>
                       </div>
                     ))}
+                    {filtered.length === 0 && <p className="text-sm text-muted-foreground">Nenhum resultado para "{gravataSearch}".</p>}
                   </RadioGroup>
                 </div>
               );
