@@ -428,7 +428,20 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       cintoSizes[tam] = (cintoSizes[tam] || 0) + o.quantidade;
     });
 
-    const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
+    // Build cinto block using same format as boot blocks
+    let cintoBlock: BlockData | null = null;
+    if (Object.keys(cintoSizes).length > 0) {
+      cintoBlock = {
+        badgeLabel: 'CINTOS',
+        description: 'Cintos',
+        sizes: Object.entries(cintoSizes)
+          .map(([t, q]) => ({ tamanho: t, quantidade: q }))
+          .sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
+      };
+    }
+
+    const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0)
+      + (cintoBlock ? cintoBlock.sizes.reduce((s, sz) => s + sz.quantidade, 0) : 0);
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
 
@@ -439,7 +452,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text(`FORRO — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
+    doc.text(`Total de pares: ${totalPares} | ${blocks.length + (cintoBlock ? 1 : 0)} combinações`, mx, 25);
 
     let y = 32;
     blocks.forEach(block => {
@@ -448,25 +461,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       y = drawBlockLayout(doc, y, mx, block);
     });
 
-    // Draw cintos section if any
-    if (Object.keys(cintoSizes).length > 0) {
-      const cintoEntries = Object.entries(cintoSizes).sort((a, b) => a[0].localeCompare(b[0]));
-      const cintoBlockHeight = 30 + cintoEntries.length * 8;
-      if (y + cintoBlockHeight > 275) { doc.addPage(); y = 18; }
-      y += 6;
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CINTOS', mx, y);
-      y += 8;
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      const totalCintos = cintoEntries.reduce((s, [, q]) => s + q, 0);
-      doc.text(`Total: ${totalCintos} cintos`, mx, y);
-      y += 6;
-      cintoEntries.forEach(([tam, qty]) => {
-        doc.text(`${tam}  →  ${qty}`, mx + 4, y);
-        y += 7;
-      });
+    // Draw cintos block using same layout as boots
+    if (cintoBlock) {
+      const bh = estimateBlockHeight(cintoBlock);
+      if (y + bh > 275) { doc.addPage(); y = 18; }
+      y = drawBlockLayout(doc, y, mx, cintoBlock);
     }
 
     const dateFile = dataBR.replace(/\//g, '-');
