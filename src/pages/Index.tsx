@@ -21,7 +21,7 @@ const fadeIn = {
 };
 
 const Index = () => {
-  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, allProfiles } = useAuth();
+  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, allProfiles, addOrder } = useAuth();
   const [chartPeriod, setChartPeriod] = useState<'dia' | 'semana' | 'mes' | 'ano'>('mes');
   const [receberVendedor, setReceberVendedor] = useState<string>('todos');
   const [chartProductFilter, setChartProductFilter] = useState<string>('todos');
@@ -34,6 +34,45 @@ const Index = () => {
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch { return new Set(); }
   });
+
+  // Deleted orders state
+  const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
+  const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
+
+  const fetchDeletedOrders = useCallback(async () => {
+    if (!isAdmin || user?.nomeUsuario?.toLowerCase() !== '7estrivos') return;
+    const { data } = await supabase.from('deleted_orders').select('*').eq('dismissed', false).order('deleted_at', { ascending: false });
+    if (data) setDeletedOrders(data);
+  }, [isAdmin, user]);
+
+  useEffect(() => {
+    fetchDeletedOrders();
+  }, [fetchDeletedOrders]);
+
+  const handleRestoreOrder = async (deletedRecord: any) => {
+    try {
+      const orderData = deletedRecord.order_data;
+      // Re-insert into orders table
+      const { error } = await supabase.from('orders').insert(orderData);
+      if (error) {
+        toast.error('Erro ao restaurar pedido: ' + error.message);
+        return;
+      }
+      // Remove from deleted_orders
+      await supabase.from('deleted_orders').delete().eq('id', deletedRecord.id);
+      setDeletedOrders(prev => prev.filter(d => d.id !== deletedRecord.id));
+      toast.success('Pedido restaurado com sucesso!');
+      // Refresh page data
+      window.location.reload();
+    } catch (e) {
+      toast.error('Erro ao restaurar pedido');
+    }
+  };
+
+  const handleDismissDeleted = async (deletedId: string) => {
+    await supabase.from('deleted_orders').update({ dismissed: true } as any).eq('id', deletedId);
+    setDeletedOrders(prev => prev.filter(d => d.id !== deletedId));
+  };
 
   const handleChecked = (orderId: string) => {
     setCheckedAlertIds(prev => {
