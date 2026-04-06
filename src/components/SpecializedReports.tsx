@@ -15,6 +15,7 @@ import {
   getForma,
 } from '@/lib/orderFieldsConfig';
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
+import { getCouroSortKey } from '@/lib/pdfGenerators';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');

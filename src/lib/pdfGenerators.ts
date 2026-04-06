@@ -10,6 +10,19 @@ const formatDateBR = (date: string, time?: string) => {
 
 const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const COURO_PRIORITY: Record<string, number> = {
+  'crazy horse': 1,
+  'látego': 2, 'latego': 2,
+  'nobuck': 3,
+  'fóssil': 4, 'fossil': 4,
+  'floater': 5,
+  'napa flay': 6,
+};
+
+export function getCouroSortKey(tipo: string): number {
+  return COURO_PRIORITY[tipo.toLowerCase().trim()] ?? 99;
+}
+
 function barcodeDataUrl(value: string, opts?: { width?: number; height?: number }): string {
   const canvas = document.createElement('canvas');
   try {
