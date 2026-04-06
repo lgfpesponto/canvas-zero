@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
-import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X } from 'lucide-react';
+import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface StockItem {
