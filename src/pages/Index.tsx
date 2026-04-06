@@ -381,9 +381,79 @@ const Index = () => {
         ) : null;
       })()}
 
+      {/* Pedidos Apagados — only Juliana (7estrivos) */}
+      {user?.nomeUsuario?.toLowerCase() === '7estrivos' && deletedOrders.length > 0 && (
+        <div className="mt-8">
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={3} className="bg-card rounded-xl p-6 western-shadow">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
+              <Trash2 className="text-destructive" size={22} /> Pedidos Apagados
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">Pedidos removidos por usuários</p>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {deletedOrders.map(d => {
+                const od = d.order_data || {};
+                return (
+                  <div key={d.id} className="flex items-center gap-2">
+                    <div className="flex-1 p-3 bg-destructive/10 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-sm">{od.numero || 'S/N'}</span>
+                          <span className="text-xs text-muted-foreground ml-2">— {od.vendedor || 'N/A'}</span>
+                        </div>
+                        <span className="text-xs text-destructive font-semibold">Removido</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setViewingDeletedOrder(d)}
+                      className="shrink-0 px-2 py-2 bg-muted hover:bg-muted/80 rounded-lg text-xs transition-colors"
+                      title="Visualizar"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleRestoreOrder(d)}
+                      className="shrink-0 px-2 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                      title="Restaurar pedido"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDismissDeleted(d.id)}
+                      className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                      title="Marcar como conferido"
+                    >
+                      <Check size={14} /> Conferido
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Dialog para visualizar pedido apagado */}
+      <Dialog open={!!viewingDeletedOrder} onOpenChange={open => !open && setViewingDeletedOrder(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pedido Apagado — {viewingDeletedOrder?.order_data?.numero || 'S/N'}</DialogTitle>
+          </DialogHeader>
+          {viewingDeletedOrder && (
+            <div className="space-y-2 text-sm">
+              {Object.entries(viewingDeletedOrder.order_data || {}).filter(([k]) => !['id', 'created_at', 'historico', 'alteracoes', 'fotos', 'user_id'].includes(k)).map(([key, val]) => (
+                <div key={key} className="flex justify-between border-b border-border pb-1">
+                  <span className="text-muted-foreground font-medium">{key}</span>
+                  <span className="text-right max-w-[60%] break-words">{typeof val === 'object' ? JSON.stringify(val) : String(val ?? '')}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Specialized reports section */}
       <div className="mt-8">
-        <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={3}>
+        <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4}>
           <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']} />
         </motion.div>
       </div>
