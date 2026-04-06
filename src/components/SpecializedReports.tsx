@@ -416,6 +416,18 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       sizes: Object.entries(g.sizes).map(([t, q]) => ({ tamanho: t, quantidade: q })).sort((a, b) => Number(a.tamanho) - Number(b.tamanho)),
     })).sort((a, b) => a.description.localeCompare(b.description));
 
+    // Cintos section
+    const cintoOrders = sourceOrders.filter(o =>
+      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      o.tipoExtra === 'cinto'
+    );
+    const cintoSizes: Record<string, number> = {};
+    cintoOrders.forEach(o => {
+      const det = (o.extraDetalhes || {}) as Record<string, any>;
+      const tam = det.tamanhoCinto || 'N/D';
+      cintoSizes[tam] = (cintoSizes[tam] || 0) + o.quantidade;
+    });
+
     const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
@@ -435,6 +447,27 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (y + bh > 275) { doc.addPage(); y = 18; }
       y = drawBlockLayout(doc, y, mx, block);
     });
+
+    // Draw cintos section if any
+    if (Object.keys(cintoSizes).length > 0) {
+      const cintoEntries = Object.entries(cintoSizes).sort((a, b) => a[0].localeCompare(b[0]));
+      const cintoBlockHeight = 30 + cintoEntries.length * 8;
+      if (y + cintoBlockHeight > 275) { doc.addPage(); y = 18; }
+      y += 6;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CINTOS', mx, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const totalCintos = cintoEntries.reduce((s, [, q]) => s + q, 0);
+      doc.text(`Total: ${totalCintos} cintos`, mx, y);
+      y += 6;
+      cintoEntries.forEach(([tam, qty]) => {
+        doc.text(`${tam}  →  ${qty}`, mx + 4, y);
+        y += 7;
+      });
+    }
 
     const dateFile = dataBR.replace(/\//g, '-');
     doc.save(`Forro - ${progressoLabel} - ${dateFile}.pdf`);

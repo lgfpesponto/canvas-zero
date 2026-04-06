@@ -53,6 +53,7 @@ const EditExtrasPage = () => {
       descBordadoRegata: det.descBordadoRegata || '',
       descricaoProduto: det.descricaoProduto || '',
       valorManual: det.valorManual || String(order.preco || ''),
+      numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
     });
     setLoaded(true);
   }, [order, loaded]);
@@ -99,15 +100,15 @@ const EditExtrasPage = () => {
   };
 
   const PRODUCT_FIELDS: Record<string, string[]> = {
-    tiras_laterais: ['corTiras'],
-    desmanchar: ['qualSola', 'trocaGaspea'],
-    kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete'],
-    kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete'],
-    carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado'],
+    tiras_laterais: ['corTiras', 'numeroPedidoBotaVinculo'],
+    desmanchar: ['qualSola', 'trocaGaspea', 'numeroPedidoBotaVinculo'],
+    kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
+    kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
+    carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo'],
     revitalizador: ['tipoRevitalizador', 'quantidade'],
     kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
     gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
-    adicionar_metais: ['metaisSelecionados', 'qtdStrass'],
+    adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'numeroPedidoBotaVinculo'],
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
@@ -185,6 +186,14 @@ const EditExtrasPage = () => {
             <Input value={form.numeroPedidoBota || ''} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
             {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
           </div>
+
+          {/* Número do pedido da bota — opcional, para produtos específicos */}
+          {['tiras_laterais', 'desmanchar', 'kit_faca', 'kit_canivete', 'carimbo_fogo', 'adicionar_metais'].includes(productId) && (
+            <div>
+              <Label>Número do pedido da bota (opcional)</Label>
+              <Input value={form.numeroPedidoBotaVinculo || ''} onChange={e => set('numeroPedidoBotaVinculo', e.target.value)} placeholder="Ex: 7E-20240010" />
+            </div>
+          )}
 
           {/* Product-specific fields — same as ExtrasPage */}
           {productId === 'tiras_laterais' && (

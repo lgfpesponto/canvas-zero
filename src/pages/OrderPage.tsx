@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Plus, List, Trash2, Grid3X3 } from 'lucide-react';
+import { Link2, X, Eye, Plus, List, Trash2, Grid3X3, Search } from 'lucide-react';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -64,27 +64,53 @@ const MultiSelect = ({
   label, items, selected, onChange,
 }: {
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
-}) => (
-  <div>
-    <label className={cls.label}>{label}</label>
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-      {items.map(item => (
-        <label key={item.label} className={cls.checkItem}>
+}) => {
+  const [search, setSearch] = useState('');
+  const isBordado = label.toLowerCase().includes('bordado');
+  const filtered = search
+    ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
+    : items;
+  const firstVariadoIdx = filtered.findIndex(i => i.label.startsWith('Bordado Variado'));
+
+  return (
+    <div>
+      <label className={cls.label}>{label}</label>
+      {isBordado && (
+        <div className="relative mb-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
-            type="checkbox"
-            checked={selected.includes(item.label)}
-            onChange={e => {
-              if (e.target.checked) onChange([...selected, item.label]);
-              else onChange(selected.filter(s => s !== item.label));
-            }}
-            className="accent-primary w-4 h-4"
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Pesquisar bordado..."
+            className={cls.input + ' pl-8 !py-1.5 text-xs'}
           />
-          <span>{item.label} <span className="text-muted-foreground text-xs">(R${item.preco})</span></span>
-        </label>
-      ))}
+        </div>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {filtered.map((item, idx) => (
+          <React.Fragment key={item.label}>
+            {isBordado && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
+            )}
+            <label className={cls.checkItem}>
+              <input
+                type="checkbox"
+                checked={selected.includes(item.label)}
+                onChange={e => {
+                  if (e.target.checked) onChange([...selected, item.label]);
+                  else onChange(selected.filter(s => s !== item.label));
+                }}
+                className="accent-primary w-4 h-4"
+              />
+              <span>{item.label} <span className="text-muted-foreground text-xs">(R${item.preco})</span></span>
+            </label>
+          </React.Fragment>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ───── main component ───── */
 const OrderPage = () => {
@@ -882,19 +908,19 @@ const OrderPage = () => {
             <div className="grid sm:grid-cols-3 gap-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Strass (R$0,60/un)" value={strass} onChange={setStrass} />
-                {strass && <input type="number" min={0} value={strassQtd} onChange={e => setStrassQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+                {strass && <input type="number" min={0} value={strassQtd} onChange={e => setStrassQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Cruz (R$6/un)" value={cruzMetal} onChange={setCruzMetal} />
-                {cruzMetal && <input type="number" min={0} value={cruzMetalQtd} onChange={e => setCruzMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+                {cruzMetal && <input type="number" min={0} value={cruzMetalQtd} onChange={e => setCruzMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Bridão (R$3/un)" value={bridaoMetal} onChange={setBridaoMetal} />
-                {bridaoMetal && <input type="number" min={0} value={bridaoMetalQtd} onChange={e => setBridaoMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+                {bridaoMetal && <input type="number" min={0} value={bridaoMetalQtd} onChange={e => setBridaoMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Cavalo (R$5/un)" value={cavaloMetal} onChange={setCavaloMetal} />
-                {cavaloMetal && <input type="number" min={0} value={cavaloMetalQtd} onChange={e => setCavaloMetalQtd(Math.max(0, Number(e.target.value)))} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+                {cavaloMetal && <input type="number" min={0} value={cavaloMetalQtd} onChange={e => setCavaloMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
             </div>
           </Section>
@@ -958,7 +984,7 @@ const OrderPage = () => {
               </div>
               <div>
                 <label className={cls.label}>Valor do Adicional (R$)</label>
-                <input type="number" min={0} step={0.01} value={adicionalValor || ''} onChange={e => setAdicionalValor(Math.max(0, Number(e.target.value)))} placeholder="0,00" className={cls.input} />
+                <input type="number" min={0} step={0.01} value={adicionalValor || ''} onChange={e => setAdicionalValor(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="0,00" className={cls.input} />
               </div>
             </div>
           </Section>

@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
-import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X } from 'lucide-react';
+import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface StockItem {
@@ -49,6 +49,7 @@ const emptyForm = (): Record<string, any> => ({
   descBordadoRegata: '',
   descricaoProduto: '',
   valorManual: '',
+  numeroPedidoBotaVinculo: '',
 });
 
 const ExtrasPage = () => {
@@ -69,6 +70,7 @@ const ExtrasPage = () => {
   const [stockCorBrilho, setStockCorBrilho] = useState('');
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockQtd, setEditingStockQtd] = useState('');
+  const [gravataSearch, setGravataSearch] = useState('');
 
   const fetchStock = useCallback(async () => {
     const { data } = await supabase.from('gravata_stock').select('*');
@@ -163,16 +165,16 @@ const ExtrasPage = () => {
       const price = calcPrice(productId);
 
       const PRODUCT_FIELDS: Record<string, string[]> = {
-        tiras_laterais: ['corTiras'],
-        desmanchar: ['qualSola', 'trocaGaspea'],
-        kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete'],
-        kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete'],
-        carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado'],
+        tiras_laterais: ['corTiras', 'numeroPedidoBotaVinculo'],
+        desmanchar: ['qualSola', 'trocaGaspea', 'numeroPedidoBotaVinculo'],
+        kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
+        kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
+        carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo'],
         revitalizador: ['tipoRevitalizador', 'quantidade'],
         kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
         gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
         gravata_pronta_entrega: ['corTira', 'tipoMetal'],
-        adicionar_metais: ['metaisSelecionados', 'qtdStrass'],
+        adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'numeroPedidoBotaVinculo'],
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
         bainha_cartao: ['tipoCouro', 'corCouro'],
         regata: ['corRegata', 'descBordadoRegata'],
@@ -304,6 +306,13 @@ const ExtrasPage = () => {
           <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
           {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
         </div>
+        {/* Número do pedido da bota — opcional, para produtos específicos */}
+        {['tiras_laterais', 'desmanchar', 'kit_faca', 'kit_canivete', 'carimbo_fogo', 'adicionar_metais'].includes(productId) && (
+          <div>
+            <Label>Número do pedido da bota (opcional)</Label>
+            <Input value={form.numeroPedidoBotaVinculo || ''} onChange={e => set('numeroPedidoBotaVinculo', e.target.value)} placeholder="Ex: 7E-20240010" />
+          </div>
+        )}
         {/* Cliente — opcional */}
         <div>
           <Label>Cliente</Label>
@@ -453,14 +462,27 @@ const ExtrasPage = () => {
           <>
             {(() => {
               const available = stockItems.filter(s => s.quantidade > 0);
+              const searchLower = gravataSearch.toLowerCase();
+              const filtered = gravataSearch
+                ? available.filter(s => `${s.cor_tira} ${s.tipo_metal} ${s.cor_brilho || ''}`.toLowerCase().includes(searchLower))
+                : available;
               if (available.length === 0) {
                 return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
               }
               return (
                 <div>
                   <Label>Selecione a variação *</Label>
-                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="mt-2 space-y-2">
-                    {available.map(item => (
+                  <div className="relative mt-1 mb-2">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={gravataSearch}
+                      onChange={e => setGravataSearch(e.target.value)}
+                      placeholder="Pesquisar gravata..."
+                      className="pl-8 h-8 text-xs"
+                    />
+                  </div>
+                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="space-y-2">
+                    {filtered.map(item => (
                       <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
                         <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
                         <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
@@ -468,6 +490,7 @@ const ExtrasPage = () => {
                         </Label>
                       </div>
                     ))}
+                    {filtered.length === 0 && <p className="text-sm text-muted-foreground">Nenhum resultado para "{gravataSearch}".</p>}
                   </RadioGroup>
                 </div>
               );
