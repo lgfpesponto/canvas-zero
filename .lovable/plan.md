@@ -1,41 +1,38 @@
 
 
-## Botão "Feito" na mesma linha do Prazo/Status
+## Botao expandir tela cheia + Labels no PDF
 
-### O que muda
+### 1. Botao expandir (tela cheia)
 
-O botão "Feito" (com ícone Check) fica na **mesma linha** do Prazo e Status, alinhado à direita. Layout da Row 3:
+Adicionar um botao com icone `Maximize2` no header do quadro. Ao clicar, abre um `Dialog` (fullscreen) com o mesmo conteudo do quadro, mas sem o `max-h-[400px]` — permitindo ver todos os pedidos. O dialog usa `max-w-[95vw] max-h-[95vh]` com scroll interno.
 
-```text
-│ Prazo: 15d  │  Status: Corte  │  [✓ Feito]  │
+- Importar `Dialog, DialogContent, DialogTitle` e `Maximize2` do lucide
+- Adicionar state `expanded` (boolean)
+- Botao no header ao lado dos outros
+- Conteudo do dialog: reutilizar a mesma renderizacao de pedidos (extrair para funcao interna ou duplicar com classe diferente)
+
+### 2. PDF — descricao da sola com labels
+
+Na funcao `exportPDF`, mudar a construcao da `description` do bloco para usar labels na frente, igual aparece no quadro:
+
+**Atual:** `borracha | quadrado | preta | rosa`
+
+**Novo:** `Tipo: borracha  Formato: quadrado  Cor: preta  Vira: rosa`
+
+Alterar a geracao do `key` e `description` (linhas 170-176) para montar com labels:
 ```
-
-### Alteração em `src/components/SoladoBoard.tsx`
-
-Na Row 3 (linha do Prazo/Status, ~linhas 305-319), adicionar uma terceira coluna com o botão "Feito" à direita, com `border-l` separando-o do Status. Remover o botão "Feito" da Row 1 (header com checkbox/número/vendedor).
-
-Layout da Row 3:
-```tsx
-<div className="border-t border-border mt-2 flex text-xs">
-  <div className="flex-1 py-1.5 pr-2 border-r border-border">
-    <span className="text-muted-foreground">Prazo: </span>
-    <span className="font-semibold">{prazo}</span>
-  </div>
-  <div className="flex-1 py-1.5 px-2 border-r border-border">
-    <span className="text-muted-foreground">Status: </span>
-    <span className="font-bold">{status}</span>
-  </div>
-  <div className="py-1 px-2 flex items-center">
-    <button onClick={() => dismiss(o.id)} className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1">
-      <Check size={14} /> Feito
-    </button>
-  </div>
-</div>
+const parts = [
+  o.solado && `Tipo: ${o.solado}`,
+  o.formatoBico && `Formato: ${o.formatoBico}`,
+  o.corSola && `Cor: ${o.corSola}`,
+  o.corVira && `Vira: ${o.corVira}`,
+].filter(Boolean);
+description = parts.join('  ');
 ```
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SoladoBoard.tsx` | Remover botão Feito da Row 1, adicionar na Row 3 ao lado do Status com ícone Check |
+| `src/components/SoladoBoard.tsx` | Botao expandir com Dialog fullscreen + PDF description com labels |
 
