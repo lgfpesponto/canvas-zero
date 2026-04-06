@@ -244,11 +244,30 @@ const Index = () => {
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // ── Fernanda ADM: only reports, no charts ──
+  const solaCouroOrders = useMemo(() => allOrders.filter(o =>
+    !o.tipoExtra &&
+    ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora']
+      .some(s => (o.solado || '').toLowerCase() === s)
+  ), [allOrders]);
+
+  const solaRusticaOrders = useMemo(() => allOrders.filter(o =>
+    !o.tipoExtra && (o.solado || '').toLowerCase() === 'rústica'
+  ), [allOrders]);
+
+  const viraColoridaOrders = useMemo(() => allOrders.filter(o =>
+    !o.tipoExtra && ['rosa', 'preta'].some(c => (o.corVira || '').toLowerCase() === c)
+  ), [allOrders]);
+
   const renderFernandaDashboard = () => (
     <section className="container mx-auto px-4 py-8">
       <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={0}>
         <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'extras_cintos']} />
       </motion.div>
+      <div className="mt-8 space-y-6">
+        <SoladoBoard title="Pedidos com sola de couro" orders={solaCouroOrders} storageKey="dismissed_sola_couro" />
+        <SoladoBoard title="Pedidos com sola rústica" orders={solaRusticaOrders} storageKey="dismissed_sola_rustica" />
+        <SoladoBoard title="Pedidos com vira colorida" orders={viraColoridaOrders} storageKey="dismissed_vira_colorida" />
+      </div>
     </section>
   );
 
