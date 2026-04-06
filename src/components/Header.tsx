@@ -1,13 +1,30 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Menu, X, User, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, X, User, LogOut, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const Header = () => {
   const { isLoggedIn, user, isAdmin, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
+
+  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
+
+  useEffect(() => {
+    if (!isAdmin || !isJuliana) return;
+    try {
+      const stored = sessionStorage.getItem('storage_info');
+      if (stored) {
+        const info = JSON.parse(stored);
+        const percent = Math.round((info.db_size_mb / info.limit_mb) * 100);
+        if (percent > 80) {
+          setStorageWarning({ percent });
+        }
+      }
+    } catch {}
+  }, [isAdmin, isJuliana, location.pathname]);
 
   const navItems = isLoggedIn
     ? [
