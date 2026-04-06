@@ -496,6 +496,68 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Storage monitoring — only Juliana */}
+      {isJuliana && storageInfo && (
+        <div className="mt-8">
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4} className="bg-card rounded-xl p-6 western-shadow">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
+              <HardDrive className="text-primary" size={22} /> Armazenamento Supabase
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-muted-foreground">
+                    {storageInfo.db_size_mb} MB / {storageInfo.limit_mb} MB
+                  </span>
+                  {storageInfo.db_size_mb / storageInfo.limit_mb > 0.8 && (
+                    <span className="text-xs font-bold text-destructive flex items-center gap-1">
+                      <AlertTriangle size={14} /> Próximo do limite!
+                    </span>
+                  )}
+                </div>
+                <Progress
+                  value={Math.min((storageInfo.db_size_mb / storageInfo.limit_mb) * 100, 100)}
+                  className={`h-4 ${storageInfo.db_size_mb / storageInfo.limit_mb > 0.8 ? '[&>div]:bg-destructive' : ''}`}
+                />
+              </div>
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span>{storageInfo.order_count} pedidos no banco</span>
+                <span>{storageInfo.deleted_order_count} registros de pedidos apagados</span>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    disabled={cleanupLoading}
+                    className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-bold hover:bg-destructive/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {cleanupLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    Limpar dados antigos
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza que deseja limpar os dados antigos?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Pedidos com status "Entregue", "Cobrado" ou "Pago" há mais de 90 dias terão seus detalhes removidos permanentemente (fotos, histórico, alterações, observações, etc.).
+                      <br /><br />
+                      <strong>Apenas número, vendedor, quantidade, valor e modelo serão mantidos</strong> para os gráficos de vendas.
+                      <br /><br />
+                      Essa ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCleanup} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Confirmar limpeza
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Specialized reports section */}
       <div className="mt-8">
         <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4}>
