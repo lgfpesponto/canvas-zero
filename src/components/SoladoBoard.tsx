@@ -163,7 +163,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
     // Group orders by sole configuration
-    const groups = new Map<string, { badge: string; description: string; sizes: Map<string, number> }>();
+    const groups = new Map<string, { description: string; sizes: Map<string, number> }>();
     visibleOrders.forEach(o => {
       const descParts = [
         o.solado && `Tipo: ${o.solado}`,
