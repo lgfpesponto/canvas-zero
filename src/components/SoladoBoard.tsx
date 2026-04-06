@@ -15,7 +15,6 @@ interface SoladoBoardProps {
 }
 
 interface BlockData {
-  badge: string;
   description: string;
   sizes: { tamanho: string; quantidade: number }[];
 }
@@ -30,19 +29,14 @@ const drawBlockLayout = (doc: jsPDF, startY: number, mx: number, block: BlockDat
   const pw = doc.internal.pageSize.getWidth() - mx * 2;
   let y = startY;
 
-  // Badge + description header
-  doc.setFillColor(40, 40, 40);
-  const badgeW = doc.getTextWidth(block.badge) + 8;
-  doc.roundedRect(mx, y, badgeW, 7, 1, 1, 'F');
+  // Description header with black background
+  doc.setFillColor(0, 0, 0);
+  doc.roundedRect(mx, y, pw, 8, 1, 1, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.text(block.badge, mx + 4, y + 5);
-
-  doc.setTextColor(40, 40, 40);
   doc.setFontSize(8);
-  doc.text(block.description, mx + badgeW + 4, y + 5, { maxWidth: pw - badgeW - 8 });
-  y += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text(block.description, mx + 4, y + 5.5, { maxWidth: pw - 8 });
+  y += 11;
 
   // Size/quantity grid
   const maxCols = 14;
@@ -169,7 +163,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
     // Group orders by sole configuration
-    const groups = new Map<string, { badge: string; description: string; sizes: Map<string, number> }>();
+    const groups = new Map<string, { description: string; sizes: Map<string, number> }>();
     visibleOrders.forEach(o => {
       const descParts = [
         o.solado && `Tipo: ${o.solado}`,
@@ -180,7 +174,6 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       const key = descParts.join('  ');
       if (!groups.has(key)) {
         groups.set(key, {
-          badge: title.toUpperCase().replace('PEDIDOS COM ', ''),
           description: key,
           sizes: new Map(),
         });
@@ -191,7 +184,6 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     });
 
     const blocks: BlockData[] = Array.from(groups.values()).map(g => ({
-      badge: g.badge,
       description: g.description,
       sizes: Array.from(g.sizes.entries())
         .map(([tamanho, quantidade]) => ({ tamanho, quantidade }))
