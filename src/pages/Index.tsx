@@ -40,6 +40,50 @@ const Index = () => {
   const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
   const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
 
+  // Storage monitoring state
+  const [storageInfo, setStorageInfo] = useState<{ db_size_mb: number; order_count: number; deleted_order_count: number; limit_mb: number } | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+
+  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
+
+  const fetchStorageInfo = useCallback(async () => {
+    if (!isAdmin || !isJuliana) return;
+    setStorageLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('storage-info');
+      if (!error && data) {
+        setStorageInfo(data);
+        // Store in sessionStorage for Header banner
+        sessionStorage.setItem('storage_info', JSON.stringify(data));
+      }
+    } catch {} finally {
+      setStorageLoading(false);
+    }
+  }, [isAdmin, isJuliana]);
+
+  useEffect(() => {
+    fetchStorageInfo();
+  }, [fetchStorageInfo]);
+
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-old-orders');
+      if (error) {
+        toast.error('Erro ao limpar dados: ' + error.message);
+      } else {
+        toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`);
+        fetchStorageInfo();
+        fetchDeletedOrders();
+      }
+    } catch {
+      toast.error('Erro ao limpar dados');
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
   const fetchDeletedOrders = useCallback(async () => {
     if (!isAdmin || user?.nomeUsuario?.toLowerCase() !== '7estrivos') return;
     const { data } = await supabase.from('deleted_orders').select('*').eq('dismissed', false).order('deleted_at', { ascending: false });
