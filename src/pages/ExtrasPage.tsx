@@ -49,6 +49,7 @@ const emptyForm = (): Record<string, any> => ({
   descBordadoRegata: '',
   descricaoProduto: '',
   valorManual: '',
+  numeroPedidoBotaVinculo: '',
 });
 
 const ExtrasPage = () => {
