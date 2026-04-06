@@ -44,8 +44,8 @@ const Header = () => {
   return (
     <>
       {storageWarning && (
-        <div className="bg-yellow-500 text-yellow-950 text-center text-sm font-semibold py-2 px-4 flex items-center justify-center gap-2">
-          <AlertTriangle size={16} />
+        <div className="bg-accent text-accent-foreground text-center text-sm font-semibold py-2 px-4 flex items-center justify-center gap-2 border-b border-border">
+          <AlertTriangle size={16} className="text-destructive" />
           Armazenamento próximo do limite ({storageWarning.percent}%). Acesse o dashboard para limpar dados antigos.
         </div>
       )}
