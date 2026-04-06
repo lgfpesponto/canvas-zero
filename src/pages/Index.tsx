@@ -1,8 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check, ChevronDown } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check, ChevronDown, RotateCcw, Trash2 } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -11,6 +11,9 @@ import CommissionPanel from '@/components/CommissionPanel';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
+import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
