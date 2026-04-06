@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckSquare, ChevronDown, Download, Filter, Square } from 'lucide-react';
+import { Check, CheckSquare, ChevronDown, Download, Filter, Maximize2, Square } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
 import type { Order } from '@/contexts/AuthContext';
 import jsPDF from 'jspdf';
