@@ -134,17 +134,30 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
 
   const allSelected = visibleOrders.length > 0 && visibleOrders.every(o => selectedIds.has(o.id));
 
-  const buildLabeledDescription = (o: Order) => {
-    const parts: { label: string; value: string }[] = [
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+      // If yyyy-mm-dd or yyyy/mm/dd
+      if (parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
+    }
+    return dateStr;
+  };
+
+  const buildDescriptionLines = (o: Order) => {
+    const line1 = [
       { label: 'Tamanho', value: o.tamanho },
       { label: 'Gênero', value: o.genero },
       { label: 'Tipo', value: o.solado },
       { label: 'Formato', value: o.formatoBico },
+    ].filter(p => p.value);
+    const line2 = [
       { label: 'Cor', value: o.corSola },
       { label: 'Vira', value: o.corVira },
       { label: 'Forma', value: o.forma },
-    ];
-    return parts.filter(p => p.value);
+    ].filter(p => p.value);
+    return { line1, line2 };
   };
 
   const exportPDF = () => {
@@ -248,11 +261,11 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       {visibleOrders.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado.</p>
       ) : (
-        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
           {visibleOrders.map(o => {
-            const descParts = buildLabeledDescription(o);
+            const { line1, line2 } = buildDescriptionLines(o);
             return (
-              <div key={o.id} className="bg-muted/50 rounded-lg p-3 text-sm">
+              <div key={o.id} className="py-3 px-1 text-sm">
                 <div className="flex items-start gap-3">
                   <Checkbox
                     checked={selectedIds.has(o.id)}
@@ -260,34 +273,55 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
                     className="mt-0.5"
                   />
                   <div className="flex-1 min-w-0 flex justify-between gap-4">
-                    {/* Lado esquerdo: pedido + sola + feito */}
+                    {/* Lado esquerdo: pedido + sola */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold">{o.numero}</span>
                         <span className="text-muted-foreground">— {o.vendedor}</span>
                       </div>
                       <p className="text-muted-foreground text-xs mt-1 break-words">
-                        {descParts.map((p, i) => (
+                        {line1.map((p, i) => (
                           <span key={i}>
                             {i > 0 && <span className="mx-1">·</span>}
                             <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
                           </span>
                         ))}
                       </p>
-                      <button
-                        onClick={() => dismiss(o.id)}
-                        className="mt-2 px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                      >
-                        Feito
-                      </button>
+                      {line2.length > 0 && (
+                        <p className="text-muted-foreground text-xs mt-0.5 break-words">
+                          {line2.map((p, i) => (
+                            <span key={i}>
+                              {i > 0 && <span className="mx-1">·</span>}
+                              <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                     </div>
-                    {/* Lado direito: prazo, progresso, data */}
-                    <div className="shrink-0 flex flex-col items-end gap-1 text-xs">
-                      <span className="font-semibold">
-                        {o.diasRestantes > 0 ? `${o.diasRestantes}d úteis` : '✓'}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-background font-bold">{o.status}</span>
-                      <span className="text-muted-foreground">{o.dataCriacao}</span>
+                    {/* Lado direito: prazo, status, data, feito */}
+                    <div className="shrink-0 flex flex-col items-end text-xs divide-y divide-border">
+                      <div className="pb-1.5">
+                        <span className="text-muted-foreground">Prazo: </span>
+                        <span className="font-semibold">
+                          {o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}
+                        </span>
+                      </div>
+                      <div className="py-1.5">
+                        <span className="text-muted-foreground">Status: </span>
+                        <span className="font-bold">{o.status}</span>
+                      </div>
+                      <div className="py-1.5">
+                        <span className="text-muted-foreground">Data: </span>
+                        <span>{formatDate(o.dataCriacao)}</span>
+                      </div>
+                      <div className="pt-1.5">
+                        <button
+                          onClick={() => dismiss(o.id)}
+                          className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          Feito
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
