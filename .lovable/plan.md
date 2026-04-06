@@ -1,26 +1,61 @@
 
 
-## PDF dos Quadros de Solados — Descrição com fundo preto e remover badge
+## Ordenação por tipo de couro com prioridade definida
 
-### O que muda
+### Problema
 
-1. **Remover o badge** (ex: "SOLA COURO") que aparece antes da descrição — ele é redundante pois o título do relatório já identifica o quadro.
+Atualmente os 3 relatórios (Fichas de Produção, Corte e Bordados) ordenam por couro usando `localeCompare` simples (ordem alfabética). O usuário quer uma ordem específica de prioridade por tipo de couro, agrupando por cor dentro de cada tipo.
 
-2. **Descrição da sola com fundo preto e texto branco** — a linha de descrição (ex: "Tipo: borracha  Formato: quadrado  Cor: preta  Vira: rosa") passa a ter um retângulo de fundo preto com texto branco, ocupando a largura total.
+### Ordem de prioridade dos couros
 
-### Alteração em `src/components/SoladoBoard.tsx`
+1. Crazy Horse (todas as cores juntas)
+2. Látego (todas as cores juntas)
+3. Nobuck (todas as cores juntas)
+4. Fóssil (todas as cores juntas)
+5. Floater (todas as cores juntas)
+6. Napa Flay (todas as cores juntas)
+7. Demais couros (agrupados por tipo e cor)
 
-Na função `drawBlockLayout` (linhas 33-45), substituir o bloco de badge + description por:
+### Solução
 
-- Calcular a largura do texto da descrição
-- Desenhar um `roundedRect` preto (`fillColor(0,0,0)`) com a largura total (`pw`)
-- Renderizar o texto da descrição em branco centralizado ou alinhado à esquerda com padding
+Criar uma função utilitária `getCouroSortKey(tipoCouro: string): number` que retorna a prioridade numérica do couro. Usar essa função nos 3 pontos de ordenação.
 
-Na função `exportPDF` (~linha 175), remover a propriedade `badge` do `BlockData` ou simplesmente não usá-la.
+### Alterações
 
-### Arquivo alterado
+**Arquivo: `src/lib/pdfGenerators.ts`**
+
+- Adicionar função `getCouroSortKey` no topo
+- Linhas 58-65: Substituir `localeCompare` simples por comparação usando `getCouroSortKey` para o tipo de couro, depois `localeCompare` para a cor, depois número do pedido
+
+**Arquivo: `src/components/SpecializedReports.tsx`**
+
+- Importar ou duplicar `getCouroSortKey`
+- Linhas 858-870 (Corte): Substituir `keyA.localeCompare(keyB)` por comparação com prioridade de couro + cor
+- Linhas 758-779 (Bordados): Adicionar ordenação por couro (tipo+cor) como critério principal para botas, mantendo agrupamento por bordado como secundário
+
+### Lógica da função
+
+```typescript
+const COURO_PRIORITY: Record<string, number> = {
+  'crazy horse': 1,
+  'látego': 2, 'latego': 2,
+  'nobuck': 3,
+  'fóssil': 4, 'fossil': 4,
+  'floater': 5,
+  'napa flay': 6,
+};
+
+function getCouroSortKey(tipo: string): number {
+  return COURO_PRIORITY[tipo.toLowerCase().trim()] ?? 99;
+}
+```
+
+Comparação: prioridade do tipo → cor (localeCompare) → número do pedido
+
+### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SoladoBoard.tsx` | `drawBlockLayout`: remover badge, descrição com fundo preto/texto branco full-width |
+| `src/lib/pdfGenerators.ts` | Adicionar `getCouroSortKey`, usar na ordenação das fichas de produção |
+| `src/components/SpecializedReports.tsx` | Usar mesma lógica de prioridade na ordenação do Corte e Bordados |
 
