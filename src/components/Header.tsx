@@ -1,13 +1,30 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Menu, X, User, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, X, User, LogOut, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const Header = () => {
   const { isLoggedIn, user, isAdmin, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
+
+  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
+
+  useEffect(() => {
+    if (!isAdmin || !isJuliana) return;
+    try {
+      const stored = sessionStorage.getItem('storage_info');
+      if (stored) {
+        const info = JSON.parse(stored);
+        const percent = Math.round((info.db_size_mb / info.limit_mb) * 100);
+        if (percent > 80) {
+          setStorageWarning({ percent });
+        }
+      }
+    } catch {}
+  }, [isAdmin, isJuliana, location.pathname]);
 
   const navItems = isLoggedIn
     ? [
@@ -25,6 +42,13 @@ const Header = () => {
       ];
 
   return (
+    <>
+      {storageWarning && (
+        <div className="bg-accent text-accent-foreground text-center text-sm font-semibold py-2 px-4 flex items-center justify-center gap-2 border-b border-border">
+          <AlertTriangle size={16} className="text-destructive" />
+          Armazenamento próximo do limite ({storageWarning.percent}%). Acesse o dashboard para limpar dados antigos.
+        </div>
+      )}
     <header className="sticky top-0 z-50 bg-white shadow-lg">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
         <Link to="/" className="flex items-center gap-3">
@@ -97,6 +121,7 @@ const Header = () => {
         </nav>
       )}
     </header>
+    </>
   );
 };
 

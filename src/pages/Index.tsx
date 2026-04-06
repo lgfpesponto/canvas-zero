@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check, ChevronDown, RotateCcw, Trash2 } from 'lucide-react';
+import { ShoppingBag, Eye, BarChart3, DollarSign, AlertCircle, AlignStartVertical, FileText, AlertTriangle, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 const fadeIn = {
@@ -38,6 +39,50 @@ const Index = () => {
   // Deleted orders state
   const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
   const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
+
+  // Storage monitoring state
+  const [storageInfo, setStorageInfo] = useState<{ db_size_mb: number; order_count: number; deleted_order_count: number; limit_mb: number } | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+
+  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
+
+  const fetchStorageInfo = useCallback(async () => {
+    if (!isAdmin || !isJuliana) return;
+    setStorageLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('storage-info');
+      if (!error && data) {
+        setStorageInfo(data);
+        // Store in sessionStorage for Header banner
+        sessionStorage.setItem('storage_info', JSON.stringify(data));
+      }
+    } catch {} finally {
+      setStorageLoading(false);
+    }
+  }, [isAdmin, isJuliana]);
+
+  useEffect(() => {
+    fetchStorageInfo();
+  }, [fetchStorageInfo]);
+
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-old-orders');
+      if (error) {
+        toast.error('Erro ao limpar dados: ' + error.message);
+      } else {
+        toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`);
+        fetchStorageInfo();
+        fetchDeletedOrders();
+      }
+    } catch {
+      toast.error('Erro ao limpar dados');
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
 
   const fetchDeletedOrders = useCallback(async () => {
     if (!isAdmin || user?.nomeUsuario?.toLowerCase() !== '7estrivos') return;
@@ -450,6 +495,68 @@ const Index = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Storage monitoring — only Juliana */}
+      {isJuliana && storageInfo && (
+        <div className="mt-8">
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4} className="bg-card rounded-xl p-6 western-shadow">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
+              <HardDrive className="text-primary" size={22} /> Armazenamento Supabase
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-muted-foreground">
+                    {storageInfo.db_size_mb} MB / {storageInfo.limit_mb} MB
+                  </span>
+                  {storageInfo.db_size_mb / storageInfo.limit_mb > 0.8 && (
+                    <span className="text-xs font-bold text-destructive flex items-center gap-1">
+                      <AlertTriangle size={14} /> Próximo do limite!
+                    </span>
+                  )}
+                </div>
+                <Progress
+                  value={Math.min((storageInfo.db_size_mb / storageInfo.limit_mb) * 100, 100)}
+                  className={`h-4 ${storageInfo.db_size_mb / storageInfo.limit_mb > 0.8 ? '[&>div]:bg-destructive' : ''}`}
+                />
+              </div>
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span>{storageInfo.order_count} pedidos no banco</span>
+                <span>{storageInfo.deleted_order_count} registros de pedidos apagados</span>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    disabled={cleanupLoading}
+                    className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-bold hover:bg-destructive/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {cleanupLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    Limpar dados antigos
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza que deseja limpar os dados antigos?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Pedidos com status "Entregue", "Cobrado" ou "Pago" há mais de 90 dias terão seus detalhes removidos permanentemente (fotos, histórico, alterações, observações, etc.).
+                      <br /><br />
+                      <strong>Apenas número, vendedor, quantidade, valor e modelo serão mantidos</strong> para os gráficos de vendas.
+                      <br /><br />
+                      Essa ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCleanup} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Confirmar limpeza
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Specialized reports section */}
       <div className="mt-8">
