@@ -550,7 +550,11 @@ const OrderPage = () => {
     },
   });
 
+  const [submitting, setSubmitting] = useState(false);
+
   const confirmOrder = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
       const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;

@@ -154,7 +154,11 @@ const BeltOrderPage = () => {
     setShowMirror(true);
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const confirmOrder = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const extraDetalhes: Record<string, any> = {
         tamanhoCinto: tamanho,

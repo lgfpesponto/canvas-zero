@@ -129,7 +129,11 @@ const ExtrasPage = () => {
     }
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = async (productId: string) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const product = EXTRA_PRODUCTS.find(p => p.id === productId)!;
 
