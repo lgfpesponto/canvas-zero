@@ -59,6 +59,7 @@ const ExtrasPage = () => {
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
+  const [botasPE, setBotasPE] = useState([{ descricao: '', valor: '', quantidade: '1' }]);
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
 
   // Gravata stock
@@ -90,6 +91,7 @@ const ExtrasPage = () => {
     }
     setForm(emptyForm());
     setSelectedStockId('');
+    setBotasPE([{ descricao: '', valor: '', quantidade: '1' }]);
     setOpenProduct(productId);
     if (productId === 'gravata_pronta_entrega') fetchStock();
   };
@@ -125,7 +127,7 @@ const ExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
-      case 'bota_pronta_entrega': return parseFloat(form.valorManual) || 0;
+      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
       default: return 0;
     }
   };
@@ -148,9 +150,15 @@ const ExtrasPage = () => {
       }
 
       if (productId === 'bota_pronta_entrega') {
-        if (!form.valorManual || parseFloat(form.valorManual) <= 0) {
-          toast({ title: 'Preencha o valor do produto', variant: 'destructive' });
-          return;
+        for (let i = 0; i < botasPE.length; i++) {
+          if (!botasPE[i].descricao.trim()) {
+            toast({ title: `Preencha a descrição da bota ${i + 1} (nome + tamanho)`, variant: 'destructive' });
+            return;
+          }
+          if (!botasPE[i].valor || parseFloat(botasPE[i].valor) <= 0) {
+            toast({ title: `Preencha o valor da bota ${i + 1}`, variant: 'destructive' });
+            return;
+          }
         }
       }
 
@@ -182,12 +190,25 @@ const ExtrasPage = () => {
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
         bainha_cartao: ['tipoCouro', 'corCouro'],
         regata: ['corRegata', 'descBordadoRegata'],
-        bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
+        bota_pronta_entrega: [],
       };
 
       let detalhes: Record<string, any> = {};
 
-      if (productId === 'gravata_pronta_entrega') {
+      if (productId === 'bota_pronta_entrega') {
+        detalhes = {
+          botas: botasPE.map(b => ({
+            descricaoProduto: b.descricao,
+            valorManual: b.valor,
+            quantidade: b.quantidade,
+          })),
+        };
+        // Backward compat: also set root-level fields from first item
+        if (botasPE.length === 1) {
+          detalhes.descricaoProduto = botasPE[0].descricao;
+          detalhes.valorManual = botasPE[0].valor;
+        }
+      } else if (productId === 'gravata_pronta_entrega') {
         const stockItem = stockItems.find(s => s.id === selectedStockId)!;
         detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
         if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
@@ -223,7 +244,7 @@ const ExtrasPage = () => {
         desenvolvimento: '-',
         sobMedida: false,
         observacao: '',
-        quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
+        quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : (productId === 'bota_pronta_entrega' ? botasPE.reduce((s, b) => s + (parseInt(b.quantidade) || 1), 0) : 1),
         preco: price,
         temLaser: false,
         fotos: [],
@@ -308,7 +329,7 @@ const ExtrasPage = () => {
         )}
         {/* Número do pedido — obrigatório em TODOS */}
         <div>
-          <Label>Nº do pedido *</Label>
+          <Label>{productId === 'bota_pronta_entrega' ? 'Nº do pedido (mesmo do site) *' : 'Nº do pedido *'}</Label>
           <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
           {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
         </div>
@@ -564,18 +585,64 @@ const ExtrasPage = () => {
 
         {productId === 'bota_pronta_entrega' && (
           <>
-            <div>
-              <Label>Descrição do produto</Label>
-              <Textarea value={form.descricaoProduto} onChange={e => set('descricaoProduto', e.target.value)} placeholder="Descreva o produto" />
-            </div>
-            <div>
-              <Label>Valor (R$) *</Label>
-              <Input type="number" min="0" step="0.01" value={form.valorManual} onChange={e => set('valorManual', e.target.value)} placeholder="Ex: 350,00" />
-            </div>
-            <div>
-              <Label>Quantidade</Label>
-              <Input type="number" value="1" disabled className="opacity-60" />
-            </div>
+            {botasPE.map((bota, idx) => (
+              <div key={idx} className="space-y-3 p-3 border border-border rounded-lg relative">
+                {botasPE.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setBotasPE(prev => prev.filter((_, i) => i !== idx))}
+                    className="absolute top-2 right-2 text-destructive hover:text-destructive/80 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                <div>
+                  <Label>Descrição da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''} *</Label>
+                  <Textarea
+                    value={bota.descricao}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, descricao: val } : b));
+                    }}
+                    placeholder="Nome do produto + tamanho"
+                  />
+                </div>
+                <div>
+                  <Label>Valor da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''} (R$) *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={bota.valor}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, valor: val } : b));
+                    }}
+                    placeholder="Ex: 350,00"
+                  />
+                </div>
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={bota.quantidade}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, quantidade: val } : b));
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setBotasPE(prev => [...prev, { descricao: '', valor: '', quantidade: '1' }])}
+            >
+              + 1 bota
+            </Button>
           </>
         )}
 
