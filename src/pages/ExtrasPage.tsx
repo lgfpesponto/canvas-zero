@@ -15,8 +15,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
-import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search } from 'lucide-react';
+import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface StockItem {
   id: string;
@@ -59,7 +61,7 @@ const ExtrasPage = () => {
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
-  const [botasPE, setBotasPE] = useState([{ descricao: '', valor: '', quantidade: '1' }]);
+  const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
 
   // Gravata stock
@@ -91,7 +93,7 @@ const ExtrasPage = () => {
     }
     setForm(emptyForm());
     setSelectedStockId('');
-    setBotasPE([{ descricao: '', valor: '', quantidade: '1' }]);
+    setBotasPE([emptyBotaPE()]);
     setOpenProduct(productId);
     if (productId === 'gravata_pronta_entrega') fetchStock();
   };
@@ -127,7 +129,7 @@ const ExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
-      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
+      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       default: return 0;
     }
   };
