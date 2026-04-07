@@ -649,6 +649,12 @@ const ExtrasPage = () => {
             <span>Valor total:</span>
             <span className="text-primary">R$ {price.toFixed(2).replace('.', ',')}</span>
           </div>
+          {productId === 'bota_pronta_entrega' && (
+            <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
+              <span>Quantidade total:</span>
+              <span>{botasPE.length}</span>
+            </div>
+          )}
         </div>
 
         <Button className="w-full" onClick={() => handleSubmit(productId)} disabled={orderDuplicate || submitting}>
