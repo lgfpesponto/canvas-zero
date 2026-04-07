@@ -1,32 +1,31 @@
 
 
-## Filtro de progresso no relatório de Extras/Cintos + Verificar Bainha de Cartão
+## Filtro de progresso dos Extras com status próprio
 
-### Problema 1: Sem filtro de progresso de produção
+### Problema
 
-O relatório de Extras/Cintos não possui filtro de "Progresso de Produção". A variável `needsProgressFilter` (linha 1376) não inclui `extras_cintos`, e a função `generateExtrasCintosPDF` (linha 1279) não filtra por `filterProgresso`.
+O filtro de progresso de produção no relatório de Extras/Cintos usa `PRODUCTION_STATUSES` (status de botas: Corte, Bordado, Pesponto, etc.), mas os extras têm seus próprios status definidos em `EXTRAS_STATUSES`: "Em aberto", "Produzindo", "Expedição", "Entregue", "Cobrado", "Pago".
 
-### Problema 2: Bainha de Cartão sem gerar PDF
+### Solução
 
-A entrada `bainha_cartao` no `PRODUCT_GROUPABLE_FIELDS` já foi adicionada (linhas 97-100), mas a função `generateExtrasCintosPDF` pode não estar gerando o PDF caso não haja pedidos com `tipoExtra === 'bainha_cartao'` e `extraDetalhes` preenchido. Vou adicionar um toast de aviso quando não houver pedidos encontrados, para que o usuário saiba o motivo.
+Quando o relatório ativo for `extras_cintos`, usar `EXTRAS_STATUSES` no dropdown de progresso em vez de `PRODUCTION_STATUSES`.
 
 ### Alterações em `src/components/SpecializedReports.tsx`
 
-#### 1. Adicionar `extras_cintos` ao filtro de progresso
-Linha 1376: incluir `extras_cintos` na condição `needsProgressFilter`.
+1. **Importar `EXTRAS_STATUSES`** na linha 3 (adicionar ao import de `AuthContext`)
 
-#### 2. Filtrar por progresso no `generateExtrasCintosPDF`
-Linha 1279: adicionar filtro `(filterProgresso === 'todos' || o.status === filterProgresso)`.
+2. **Alterar `progressOptions`** (~linha 1386-1388): retornar `EXTRAS_STATUSES` quando `activeReport === 'extras_cintos'`, caso contrário `PRODUCTION_STATUSES`
 
-#### 3. Aviso quando não há pedidos
-Após a filtragem (linha 1279), se `filtered.length === 0`, exibir um `toast.error('Nenhum pedido encontrado')` e retornar sem gerar o PDF. Isso resolve o caso da Bainha de Cartão (e qualquer outro produto) quando não há dados.
-
-#### 4. Incluir progresso no título do PDF
-Adicionar o label do progresso no título/subtítulo do PDF gerado, igual aos outros relatórios.
+```typescript
+const progressOptions = useMemo(() => {
+  if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
+  return PRODUCTION_STATUSES;
+}, [activeReport]);
+```
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SpecializedReports.tsx` | Filtro de progresso no extras/cintos, aviso de "sem pedidos", label no PDF |
+| `src/components/SpecializedReports.tsx` | Import de `EXTRAS_STATUSES`, dropdown usa status correto para extras |
 
