@@ -109,6 +109,7 @@ const EditExtrasPage = () => {
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
+      default: return 0;
     }
   };
 
@@ -218,7 +219,7 @@ const EditExtrasPage = () => {
 
           {/* Número do pedido */}
           <div>
-            <Label>Nº do pedido *</Label>
+          <Label>{productId === 'bota_pronta_entrega' ? 'Nº do pedido (mesmo do site) *' : 'Nº do pedido *'}</Label>
             <Input value={form.numeroPedidoBota || ''} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
             {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
           </div>
