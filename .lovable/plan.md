@@ -1,31 +1,30 @@
 
 
-## Filtro de progresso dos Extras com status próprio
+## Prevenir criação de pedidos duplicados (race condition no botão Finalizar)
 
-### Problema
+### Causa do problema
 
-O filtro de progresso de produção no relatório de Extras/Cintos usa `PRODUCTION_STATUSES` (status de botas: Corte, Bordado, Pesponto, etc.), mas os extras têm seus próprios status definidos em `EXTRAS_STATUSES`: "Em aberto", "Produzindo", "Expedição", "Entregue", "Cobrado", "Pago".
+O botão "OK — FINALIZAR" no espelho da ficha de produção chama `confirmOrder` sem nenhum estado de loading/disabled. Se o usuário clicar duas vezes rapidamente (ou a rede estiver lenta), duas chamadas paralelas executam a verificação de duplicata **antes** de qualquer insert completar — ambas passam na verificação e ambas inserem o mesmo número.
 
-### Solução
+O mesmo problema existe no `addOrder` e `addOrderBatch` do `AuthContext.tsx`: a verificação de duplicata e o insert não são atômicos.
 
-Quando o relatório ativo for `extras_cintos`, usar `EXTRAS_STATUSES` no dropdown de progresso em vez de `PRODUCTION_STATUSES`.
+### Solução (duas camadas de proteção)
 
-### Alterações em `src/components/SpecializedReports.tsx`
+#### 1. Botão com estado de loading (OrderPage.tsx)
+- Adicionar estado `const [submitting, setSubmitting] = useState(false)`
+- No `confirmOrder`: no início, verificar `if (submitting) return` e setar `setSubmitting(true)`, no finally setar `setSubmitting(false)`
+- No botão "FINALIZAR": adicionar `disabled={submitting}` e mostrar texto "Salvando..." quando submitting
 
-1. **Importar `EXTRAS_STATUSES`** na linha 3 (adicionar ao import de `AuthContext`)
+#### 2. Unique constraint no banco de dados (proteção definitiva)
+- Criar migration SQL: `CREATE UNIQUE INDEX IF NOT EXISTS orders_numero_unique ON orders (numero);`
+- Isso garante que mesmo com race condition, o banco rejeita o segundo insert
 
-2. **Alterar `progressOptions`** (~linha 1386-1388): retornar `EXTRAS_STATUSES` quando `activeReport === 'extras_cintos'`, caso contrário `PRODUCTION_STATUSES`
-
-```typescript
-const progressOptions = useMemo(() => {
-  if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
-  return PRODUCTION_STATUSES;
-}, [activeReport]);
-```
-
-### Arquivo alterado
+### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SpecializedReports.tsx` | Import de `EXTRAS_STATUSES`, dropdown usa status correto para extras |
+| `src/pages/OrderPage.tsx` | Estado `submitting` para desabilitar botão durante salvamento |
+| `src/pages/BeltOrderPage.tsx` | Mesmo padrão de `submitting` no formulário de cintos |
+| `src/pages/ExtrasPage.tsx` | Mesmo padrão de `submitting` no formulário de extras |
+| Migration SQL | `CREATE UNIQUE INDEX` na coluna `numero` da tabela `orders` |
 
