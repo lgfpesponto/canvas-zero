@@ -1034,15 +1034,20 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       doc.text(lines, cx[2] + 1, y + 4);
 
       doc.setFontSize(8);
-      doc.text(String(o.quantidade), cx[3] + 1, y + 5);
-      const orderTotal = o.tipoExtra ? o.preco : compItems.reduce((s, [, v]) => s + v, 0);
-      doc.text(formatCurrency(orderTotal * o.quantidade), cx[4] + 1, y + 5);
+      const isBotaPE_exp = o.tipoExtra === 'bota_pronta_entrega';
+      const detExp = (o.extraDetalhes || {}) as any;
+      const realQtdExp = isBotaPE_exp && Array.isArray(detExp.botas) ? detExp.botas.length : o.quantidade;
+      const orderTotal = isBotaPE_exp
+        ? compItems.reduce((s, [, v]) => s + v, 0)
+        : (o.tipoExtra ? o.preco : compItems.reduce((s, [, v]) => s + v, 0));
+      doc.text(String(realQtdExp), cx[3] + 1, y + 5);
+      doc.text(formatCurrency(orderTotal), cx[4] + 1, y + 5);
       doc.setLineWidth(0.3);
       doc.line(cx[5] + 4, y + rowH - 4, cx[5] + cols[5] - 4, y + rowH - 4);
 
       y += rowH;
-      totalValor += orderTotal * o.quantidade;
-      totalQtd += o.quantidade;
+      totalValor += orderTotal;
+      totalQtd += realQtdExp;
     });
 
     if (y + 10 > 285) { doc.addPage(); y = 20; }
@@ -1224,7 +1229,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         if (o.adicionalValor && o.adicionalValor > 0) priceItems.push(['Adicional: ' + (o.adicionalDesc || ''), o.adicionalValor]);
       }
 
-      const orderTotal = o.tipoExtra ? o.preco : priceItems.reduce((s, [, v]) => s + v, 0);
+      const isBotaPE_cob = o.tipoExtra === 'bota_pronta_entrega';
+      const orderTotal = isBotaPE_cob
+        ? priceItems.reduce((s, [, v]) => s + v, 0)
+        : (o.tipoExtra ? o.preco : priceItems.reduce((s, [, v]) => s + v, 0));
       const compText = priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`).join('\n');
 
       doc.setFontSize(6);
@@ -1263,12 +1271,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       doc.text(lines, cx[2] + 1, y + 4);
 
       doc.setFontSize(8);
-      doc.text(String(o.quantidade), cx[3] + 1, y + 5);
+      const detCob = (o.extraDetalhes || {}) as any;
+      const realQtdCob = isBotaPE_cob && Array.isArray(detCob.botas) ? detCob.botas.length : o.quantidade;
+      doc.text(String(realQtdCob), cx[3] + 1, y + 5);
       doc.text(formatCurrency(orderTotal), cx[4] + 1, y + 5);
 
       y += rowH;
       totalValor += orderTotal;
-      totalQtd += o.quantidade;
+      totalQtd += realQtdCob;
     });
 
     if (y + 10 > 285) { doc.addPage(); y = 20; }
