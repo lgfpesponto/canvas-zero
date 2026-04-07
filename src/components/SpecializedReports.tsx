@@ -273,7 +273,7 @@ function buildCompositionItems(o: Order): [string, number][] {
       case 'bota_pronta_entrega': {
         if (Array.isArray(det.botas) && det.botas.length > 0) {
           det.botas.forEach((b: any, i: number) => {
-            priceItems.push([b.descricao || `Bota ${i + 1}`, parseFloat(b.valor) || 0]);
+            priceItems.push([b.descricaoProduto || `Bota ${i + 1}`, parseFloat(b.valorManual) || 0]);
           });
         } else {
           priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
@@ -1160,7 +1160,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
           case 'bota_pronta_entrega': {
             if (Array.isArray(det.botas) && det.botas.length > 0) {
               det.botas.forEach((b: any, i: number) => {
-                priceItems.push([b.descricao || `Bota ${i + 1}`, parseFloat(b.valor) || 0]);
+                priceItems.push([b.descricaoProduto || `Bota ${i + 1}`, parseFloat(b.valorManual) || 0]);
               });
             } else {
               priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
