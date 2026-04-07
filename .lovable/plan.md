@@ -1,43 +1,54 @@
 
 
-## Mostrar extras embutidos na composicao do pedido (detalhes + PDFs)
+## Corrigir informações de extras embutidos nos relatórios e detalhes
 
-### Problema
+### Problemas identificados
 
-Na secao "Composicao do Pedido" do `OrderDetailPage` (linhas 557-566), quando itera `det.botas`, lista apenas a descricao e valor manual de cada bota, sem incluir os extras embutidos (`b.extras`). O valor tambem nao soma os extras. O mesmo problema pode ocorrer no `buildCompositionItems` do `SpecializedReports` que ja inclui extras (linhas 277-282), mas o `OrderDetailPage` nao.
+1. **OrderDetailPage** (linha 416-418): Na seção de detalhes da bota, os extras embutidos mostram as chaves brutas dos campos (`metaisSelecionados`, `qtdStrass`) em vez dos labels amigáveis já definidos em `EXTRA_DETAIL_LABELS` (ex: "Metais Selecionados", "Qtd. de Strass").
 
-### Alteracoes
+2. **SpecializedReports PDFs** (Expedição e Cobrança): Na composição, os extras embutidos mostram apenas o tipo e preço (ex: "↳ Adicionar Metais R$ 7,20") mas sem detalhe do que foi selecionado. Para consistência com a visão de detalhes, adicionar info resumida (ex: "↳ Adicionar Metais (Strass x12) R$ 7,20").
 
-**1. `src/pages/OrderDetailPage.tsx`** — Composicao do Pedido (linhas 557-566)
+3. **Caractere ↳ no PDF**: O jsPDF com fonte helvetica não renderiza o caractere `↳`. Trocar por `"  > "` ou `"  - "` para garantir exibição correta.
 
-Ao iterar `det.botas`, apos adicionar o item da bota, tambem adicionar cada extra embutido como sub-item com "↳":
+### Alterações
+
+**1. `src/pages/OrderDetailPage.tsx`** — Linha 418
+
+Trocar `{k}` por label amigável usando `EXTRA_DETAIL_LABELS`:
 
 ```typescript
-case 'bota_pronta_entrega': {
-  if (Array.isArray(det.botas)) {
-    (det.botas as any[]).forEach((b: any, idx: number) => {
-      const val = parseFloat(b.valorManual) || 0;
-      extraPriceItems.push([`Bota ${idx + 1}: ${b.descricaoProduto || ''}`, val]);
-      // Add embedded extras
-      if (Array.isArray(b.extras)) {
-        b.extras.forEach((ex: any) => {
-          const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
-          extraPriceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}`, ex.preco || 0]);
-        });
-      }
-    });
-  } else {
-    extraPriceItems.push(['Bota Pronta Entrega', order.preco]);
-  }
-  break;
-}
+import { EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
+
+// Linha 418:
+<span>{EXTRA_DETAIL_LABELS[k] || k}</span>
 ```
 
-Isso garante que os extras embutidos aparecem na composicao com preco individual e somam ao total.
+**2. `src/components/SpecializedReports.tsx`** — buildCompositionItems (linha 278-281) e cobrança (linha 1176-1179)
 
-### Arquivo alterado
+Adicionar detalhes resumidos ao label do extra embutido e trocar `↳` por `>`:
+
+```typescript
+b.extras.forEach((ex: any) => {
+  const LABELS = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
+  let detail = '';
+  if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
+    const parts = [];
+    if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push('Bola grande');
+    if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
+    detail = parts.length ? ` (${parts.join(', ')})` : '';
+  } else if (ex.tipo === 'carimbo_fogo') {
+    detail = ` (${ex.dados?.qtdCarimbos || 1} carimbos)`;
+  } else if (ex.tipo === 'tiras_laterais' && ex.dados?.corTiras) {
+    detail = ` (${ex.dados.corTiras})`;
+  }
+  priceItems.push([`  > ${LABELS[ex.tipo] || ex.tipo}${detail}`, ex.preco || 0]);
+});
+```
+
+### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderDetailPage.tsx` | Composicao lista extras embutidos de cada bota com "↳" e preco |
+| `src/pages/OrderDetailPage.tsx` | Labels amigáveis nos dados dos extras embutidos |
+| `src/components/SpecializedReports.tsx` | Detalhes resumidos nos extras da composição + trocar ↳ por > nos PDFs |
 
