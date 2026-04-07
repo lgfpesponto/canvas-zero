@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import SearchableSelect from '@/components/SearchableSelect';
 import { toast } from 'sonner';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
-import { ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota, deserializeBota } from '@/lib/botaExtraHelpers';
 
 const EditExtrasPage = () => {
   const { id } = useParams();
@@ -21,7 +23,7 @@ const EditExtrasPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [form, setForm] = useState<Record<string, any>>({});
-  const [botasPE, setBotasPE] = useState([{ descricao: '', valor: '', quantidade: '1' }]);
+  const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '', order?.id);
   const [loaded, setLoaded] = useState(false);
 
@@ -57,16 +59,13 @@ const EditExtrasPage = () => {
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
-      setBotasPE(det.botas.map((b: any) => ({
-        descricao: b.descricaoProduto || '',
-        valor: b.valorManual || '',
-        quantidade: b.quantidade || '1',
-      })));
+      setBotasPE(det.botas.map((b: any) => deserializeBota(b)));
     } else if (order.tipoExtra === 'bota_pronta_entrega') {
       setBotasPE([{
         descricao: det.descricaoProduto || '',
         valor: det.valorManual || String(order.preco || ''),
         quantidade: '1',
+        extras: [],
       }]);
     }
     setLoaded(true);
@@ -108,7 +107,7 @@ const EditExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
-      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
+      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       default: return 0;
     }
   };
@@ -163,11 +162,7 @@ const EditExtrasPage = () => {
 
     if (productId === 'bota_pronta_entrega') {
       detalhes = {
-        botas: botasPE.map(b => ({
-          descricaoProduto: b.descricao,
-          valorManual: b.valor,
-          quantidade: b.quantidade,
-        })),
+        botas: botasPE.map(b => serializeBota(b)),
       };
       if (botasPE.length === 1) {
         detalhes.descricaoProduto = botasPE[0].descricao;
@@ -463,59 +458,104 @@ const EditExtrasPage = () => {
 
           {productId === 'bota_pronta_entrega' && (
             <>
-              {botasPE.map((bota, idx) => (
+              {botasPE.map((bota, idx) => {
+                const bootTotal = calcBootTotal(bota);
+                const updateExtraDadosFn = (eIdx: number, newDados: Record<string, any>, recalcPrice = false) => {
+                  setBotasPE(prev => prev.map((b, i) => {
+                    if (i !== idx) return b;
+                    return { ...b, extras: b.extras.map((ex, ei) => {
+                      if (ei !== eIdx) return ex;
+                      return { ...ex, dados: newDados, preco: recalcPrice ? calcEmbeddedExtraPrice(ex.tipo, newDados) : ex.preco };
+                    })};
+                  }));
+                };
+                return (
                 <div key={idx} className="space-y-3 p-3 border border-border rounded-lg relative">
                   {botasPE.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setBotasPE(prev => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-2 right-2 text-destructive hover:text-destructive/80 transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
+                    <button type="button" onClick={() => setBotasPE(prev => prev.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-destructive hover:text-destructive/80 transition-colors"><X size={16} /></button>
                   )}
                   <div>
                     <Label>Descrição da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''} *</Label>
-                    <Textarea
-                      value={bota.descricao}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, descricao: val } : b));
-                      }}
-                      placeholder="Nome do produto + tamanho"
-                    />
+                    <Textarea value={bota.descricao} onChange={e => { const val = e.target.value; setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, descricao: val } : b)); }} placeholder="Nome do produto + tamanho" />
                   </div>
                   <div>
                     <Label>Valor da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''} (R$) *</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={bota.valor}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, valor: val } : b));
-                      }}
-                      placeholder="Ex: 350,00"
-                    />
+                    <Input type="number" min="0" step="0.01" value={bota.valor} onChange={e => { const val = e.target.value; setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, valor: val } : b)); }} placeholder="Ex: 350,00" />
                   </div>
                   <div>
                     <Label>Quantidade</Label>
-                    <Input
-                      type="number"
-                      value="1"
-                      disabled
-                      className="bg-muted"
-                    />
+                    <Input type="number" value="1" disabled className="bg-muted" />
                   </div>
+
+                  {/* Embedded extras */}
+                  {(bota.extras || []).map((extra, eIdx) => (
+                    <div key={eIdx} className="ml-4 p-3 border border-dashed border-border rounded-lg space-y-2 relative">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold">{BOTA_PE_EXTRA_LABEL[extra.tipo] || extra.tipo}</span>
+                        <button type="button" onClick={() => setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, extras: b.extras.filter((_, ei) => ei !== eIdx) } : b))} className="text-destructive hover:text-destructive/80"><X size={14} /></button>
+                      </div>
+                      {extra.tipo === 'tiras_laterais' && (
+                        <div><Label className="text-xs">Cor das tiras *</Label><Input value={extra.dados.corTiras || ''} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, corTiras: e.target.value }, true)} placeholder="Ex: Marrom" /></div>
+                      )}
+                      {extra.tipo === 'carimbo_fogo' && (<>
+                        <div><Label className="text-xs">Qtd. carimbos *</Label>
+                          <Select value={extra.dados.qtdCarimbos || '1'} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, qtdCarimbos: v }, true)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>{[1,2,3,4,5,6].map(n => <SelectItem key={n} value={String(n)}>{n} {n >= 4 ? '(+R$ 20)' : ''}</SelectItem>)}</SelectContent>
+                          </Select></div>
+                        <div><Label className="text-xs">Descrição *</Label><Textarea value={extra.dados.descCarimbos || ''} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, descCarimbos: e.target.value })} placeholder="Descreva os carimbos" /></div>
+                        <div><Label className="text-xs">Onde aplicado *</Label><Input value={extra.dados.ondeAplicado || ''} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, ondeAplicado: e.target.value })} placeholder="Ex: Cano direito" /></div>
+                      </>)}
+                      {(extra.tipo === 'kit_canivete' || extra.tipo === 'kit_faca') && (<>
+                        <div><Label className="text-xs">Tipo de couro *</Label><SearchableSelect options={TIPOS_COURO} value={extra.dados.tipoCouro || ''} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, tipoCouro: v })} placeholder="Selecione" /></div>
+                        <div><Label className="text-xs">Cor do couro *</Label><SearchableSelect options={CORES_COURO} value={extra.dados.corCouro || ''} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, corCouro: v })} placeholder="Selecione" /></div>
+                        <div><Label className="text-xs">Vai o canivete?</Label>
+                          <Select value={extra.dados.vaiCanivete || 'Não'} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, vaiCanivete: v }, true)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Sim">Sim (+R$ {extra.tipo === 'kit_canivete' ? '30' : '35'})</SelectItem>
+                              <SelectItem value="Não">Não</SelectItem>
+                            </SelectContent>
+                          </Select></div>
+                      </>)}
+                      {extra.tipo === 'adicionar_metais' && (<>
+                        <div className="space-y-2"><Label className="text-xs">Tipo do metal *</Label>
+                          {[{ label: 'Bola grande (R$ 15)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
+                            <div key={item.value} className="flex items-center gap-2">
+                              <Checkbox checked={((extra.dados.metaisSelecionados || []) as string[]).includes(item.value)} onCheckedChange={(checked) => {
+                                const sel = (extra.dados.metaisSelecionados || []) as string[];
+                                updateExtraDadosFn(eIdx, { ...extra.dados, metaisSelecionados: checked ? [...sel, item.value] : sel.filter(s => s !== item.value) }, true);
+                              }} /><span className="text-xs">{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {((extra.dados.metaisSelecionados || []) as string[]).includes('Strass') && (
+                          <div><Label className="text-xs">Qtd. strass *</Label><Input type="number" min="1" value={extra.dados.qtdStrass || '1'} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, qtdStrass: e.target.value }, true)} /></div>
+                        )}
+                      </>)}
+                      <p className="text-xs text-muted-foreground text-right">Valor: R$ {extra.preco.toFixed(2).replace('.', ',')}</p>
+                    </div>
+                  ))}
+
+                  {/* + Extra button */}
+                  <Select value="" onValueChange={v => {
+                    const newExtra: BotaPEExtra = { tipo: v, dados: {}, preco: calcEmbeddedExtraPrice(v, {}) };
+                    setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, extras: [...(b.extras || []), newExtra] } : b));
+                  }}>
+                    <SelectTrigger className="border-dashed"><Plus size={14} className="mr-1" /><span className="text-sm">+ Extra</span></SelectTrigger>
+                    <SelectContent>{BOTA_PE_EXTRA_TYPES.map(t => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}</SelectContent>
+                  </Select>
+
+                  {(bota.extras || []).length > 0 && (
+                    <div className="flex justify-between items-center text-sm font-semibold pt-2 border-t border-border">
+                      <span>Valor total da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''}:</span>
+                      <span className="text-primary">R$ {bootTotal.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
                 </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setBotasPE(prev => [...prev, { descricao: '', valor: '', quantidade: '1' }])}
-              >
+                );
+              })}
+              <Button type="button" variant="outline" className="w-full" onClick={() => setBotasPE(prev => [...prev, emptyBotaPE()])}>
                 + 1 bota
               </Button>
             </>

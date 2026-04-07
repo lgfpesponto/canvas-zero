@@ -274,6 +274,12 @@ function buildCompositionItems(o: Order): [string, number][] {
         if (Array.isArray(det.botas) && det.botas.length > 0) {
           det.botas.forEach((b: any, i: number) => {
             priceItems.push([b.descricaoProduto || `Bota ${i + 1}`, parseFloat(b.valorManual) || 0]);
+            if (Array.isArray(b.extras)) {
+              b.extras.forEach((ex: any) => {
+                const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
+                priceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}`, ex.preco || 0]);
+              });
+            }
           });
         } else {
           priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
@@ -1166,6 +1172,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             if (Array.isArray(det.botas) && det.botas.length > 0) {
               det.botas.forEach((b: any, i: number) => {
                 priceItems.push([b.descricaoProduto || `Bota ${i + 1}`, parseFloat(b.valorManual) || 0]);
+                if (Array.isArray(b.extras)) {
+                  b.extras.forEach((ex: any) => {
+                    const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
+                    priceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}`, ex.preco || 0]);
+                  });
+                }
               });
             } else {
               priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
