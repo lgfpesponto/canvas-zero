@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES } from '@/contexts/AuthContext';
 import { FileText, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1276,7 +1277,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     if (selectedFields.length === 0) return;
 
     // Filter orders by tipoExtra
-    const filtered = sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes);
+    const filtered = sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes && (filterProgresso === 'todos' || o.status === filterProgresso));
+    if (filtered.length === 0) {
+      toast.error('Nenhum pedido encontrado para os filtros selecionados');
+      return;
+    }
 
     // Group by combination of selected fields
     const groups: Record<string, { fields: Record<string, string>; quantidade: number }> = {};
@@ -1301,7 +1306,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const cw = 182;
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Relatório: ${productLabel} — 7ESTRIVOS`, mx, 20);
+    const progressLabel = filterProgresso !== 'todos' ? ` (${filterProgresso})` : '';
+    doc.text(`Relatório: ${productLabel}${progressLabel} — 7ESTRIVOS`, mx, 20);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
@@ -1373,7 +1379,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte';
+  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
