@@ -557,8 +557,14 @@ const OrderDetailPage = () => {
                     case 'bota_pronta_entrega': {
                       if (Array.isArray(det.botas)) {
                         (det.botas as any[]).forEach((b: any, idx: number) => {
-                          const val = (parseFloat(b.valorManual) || 0) * (parseInt(b.quantidade) || 1);
+                          const val = parseFloat(b.valorManual) || 0;
                           extraPriceItems.push([`Bota ${idx + 1}: ${b.descricaoProduto || ''}`, val]);
+                          if (Array.isArray(b.extras)) {
+                            const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
+                            b.extras.forEach((ex: any) => {
+                              extraPriceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}`, ex.preco || 0]);
+                            });
+                          }
                         });
                       } else {
                         extraPriceItems.push(['Bota Pronta Entrega', order.preco]);
