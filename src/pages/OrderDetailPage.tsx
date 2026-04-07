@@ -386,7 +386,7 @@ const OrderDetailPage = () => {
               {/* Multi-bota list */}
               {order.tipoExtra === 'bota_pronta_entrega' && Array.isArray((order.extraDetalhes as any)?.botas) ? (
                 <>
-                  {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
+                   {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
                     <div key={idx} className="col-span-full border border-border rounded-lg p-3 space-y-1">
                       <p className="text-sm font-semibold">Bota {idx + 1}</p>
                       <div className="flex justify-between">
@@ -401,6 +401,29 @@ const OrderDetailPage = () => {
                         <span className="text-sm text-muted-foreground">Quantidade</span>
                         <span className="text-sm font-semibold">{b.quantidade || 1}</span>
                       </div>
+                      {/* Embedded extras */}
+                      {Array.isArray(b.extras) && b.extras.length > 0 && (
+                        <div className="mt-2 space-y-1 ml-3 border-l-2 border-border pl-3">
+                          <p className="text-xs font-semibold text-muted-foreground">Extras</p>
+                          {b.extras.map((ex: any, eIdx: number) => {
+                            const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
+                            return (
+                              <div key={eIdx} className="text-xs space-y-0.5">
+                                <div className="flex justify-between">
+                                  <span className="font-semibold">{LABELS[ex.tipo] || ex.tipo}</span>
+                                  <span className="font-semibold">R$ {(ex.preco || 0).toFixed(2).replace('.', ',')}</span>
+                                </div>
+                                {ex.dados && Object.entries(ex.dados).filter(([, v]) => v && v !== 'Não' && (!Array.isArray(v) || (v as any[]).length > 0)).map(([k, v]) => (
+                                  <div key={k} className="flex justify-between text-muted-foreground">
+                                    <span>{k}</span>
+                                    <span>{Array.isArray(v) ? (v as any[]).join(', ') : String(v)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </>
