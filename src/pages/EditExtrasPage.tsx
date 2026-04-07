@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import SearchableSelect from '@/components/SearchableSelect';
 import { toast } from 'sonner';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
-import { ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota, deserializeBota } from '@/lib/botaExtraHelpers';
 
 const EditExtrasPage = () => {
   const { id } = useParams();
@@ -21,7 +23,7 @@ const EditExtrasPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [form, setForm] = useState<Record<string, any>>({});
-  const [botasPE, setBotasPE] = useState([{ descricao: '', valor: '', quantidade: '1' }]);
+  const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '', order?.id);
   const [loaded, setLoaded] = useState(false);
 
@@ -57,16 +59,13 @@ const EditExtrasPage = () => {
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
-      setBotasPE(det.botas.map((b: any) => ({
-        descricao: b.descricaoProduto || '',
-        valor: b.valorManual || '',
-        quantidade: b.quantidade || '1',
-      })));
+      setBotasPE(det.botas.map((b: any) => deserializeBota(b)));
     } else if (order.tipoExtra === 'bota_pronta_entrega') {
       setBotasPE([{
         descricao: det.descricaoProduto || '',
         valor: det.valorManual || String(order.preco || ''),
         quantidade: '1',
+        extras: [],
       }]);
     }
     setLoaded(true);
