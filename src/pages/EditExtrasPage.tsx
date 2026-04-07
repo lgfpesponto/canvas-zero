@@ -503,12 +503,9 @@ const EditExtrasPage = () => {
                     <Label>Quantidade</Label>
                     <Input
                       type="number"
-                      min="1"
-                      value={bota.quantidade}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, quantidade: val } : b));
-                      }}
+                      value="1"
+                      disabled
+                      className="bg-muted"
                     />
                   </div>
                 </div>
