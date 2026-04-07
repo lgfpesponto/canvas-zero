@@ -383,18 +383,41 @@ const OrderDetailPage = () => {
                   <span className="text-sm font-semibold text-right">{order.numeroPedidoBota}</span>
                 </div>
               )}
-              {Object.entries(order.extraDetalhes)
-                .filter(([key, val]) => !EXTRA_INTERNAL_KEYS.has(key) && !isExtraValueEmpty(val))
-                .map(([key, val]) => {
-                  const label = EXTRA_DETAIL_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-                  const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
-                  return (
-                    <div key={key} className="flex justify-between py-1.5 border-b border-border/50">
-                      <span className="text-sm text-muted-foreground">{label}</span>
-                      <span className="text-sm font-semibold text-right max-w-[60%]">{displayVal}</span>
+              {/* Multi-bota list */}
+              {order.tipoExtra === 'bota_pronta_entrega' && Array.isArray((order.extraDetalhes as any)?.botas) ? (
+                <>
+                  {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
+                    <div key={idx} className="col-span-full border border-border rounded-lg p-3 space-y-1">
+                      <p className="text-sm font-semibold">Bota {idx + 1}</p>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Descrição</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{b.descricaoProduto}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Valor</span>
+                        <span className="text-sm font-semibold">R$ {parseFloat(b.valorManual || '0').toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Quantidade</span>
+                        <span className="text-sm font-semibold">{b.quantidade || 1}</span>
+                      </div>
                     </div>
-                  );
-                })}
+                  ))}
+                </>
+              ) : (
+                Object.entries(order.extraDetalhes)
+                  .filter(([key, val]) => !EXTRA_INTERNAL_KEYS.has(key) && !isExtraValueEmpty(val) && key !== 'botas')
+                  .map(([key, val]) => {
+                    const label = EXTRA_DETAIL_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                    const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
+                    return (
+                      <div key={key} className="flex justify-between py-1.5 border-b border-border/50">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{displayVal}</span>
+                      </div>
+                    );
+                  })
+              )}
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
@@ -508,9 +531,17 @@ const OrderDetailPage = () => {
                     case 'regata':
                       extraPriceItems.push(['Regata', 50]);
                       break;
-                    case 'bota_pronta_entrega':
-                      extraPriceItems.push(['Bota Pronta Entrega', order.preco]);
+                    case 'bota_pronta_entrega': {
+                      if (Array.isArray(det.botas)) {
+                        (det.botas as any[]).forEach((b: any, idx: number) => {
+                          const val = (parseFloat(b.valorManual) || 0) * (parseInt(b.quantidade) || 1);
+                          extraPriceItems.push([`Bota ${idx + 1}: ${b.descricaoProduto || ''}`, val]);
+                        });
+                      } else {
+                        extraPriceItems.push(['Bota Pronta Entrega', order.preco]);
+                      }
                       break;
+                    }
                   }
                   const extraTotal = extraPriceItems.reduce((s, [, v]) => s + v, 0);
                   return (
