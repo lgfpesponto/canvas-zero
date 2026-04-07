@@ -1,30 +1,72 @@
 
 
-## Prevenir criação de pedidos duplicados (race condition no botão Finalizar)
+## Bota Pronta Entrega — múltiplas botas no mesmo pedido
 
-### Causa do problema
+### O que muda
 
-O botão "OK — FINALIZAR" no espelho da ficha de produção chama `confirmOrder` sem nenhum estado de loading/disabled. Se o usuário clicar duas vezes rapidamente (ou a rede estiver lenta), duas chamadas paralelas executam a verificação de duplicata **antes** de qualquer insert completar — ambas passam na verificação e ambas inserem o mesmo número.
+O formulário de "Bota Pronta Entrega" passa a suportar múltiplas botas no mesmo pedido:
+- Campo "N° do pedido" → "N° do pedido (mesmo do site)"
+- Campo "Descrição do produto" → "Descrição da bota" (obrigatório: nome + tamanho)
+- Campo "Valor" → "Valor da bota"
+- Abaixo da quantidade, botão "+ 1 bota" que adiciona novas linhas (Descrição da bota N, Valor da bota N, Quantidade)
+- Cada bota tem valor e quantidade individual
+- O valor total do pedido soma todos os itens
+- Itens podem ser removidos (exceto o primeiro)
 
-O mesmo problema existe no `addOrder` e `addOrderBatch` do `AuthContext.tsx`: a verificação de duplicata e o insert não são atômicos.
+### Alterações em `src/pages/ExtrasPage.tsx`
 
-### Solução (duas camadas de proteção)
+#### 1. Estado para lista de botas
+Ao abrir o modal de `bota_pronta_entrega`, iniciar com um array de botas:
+```typescript
+// No form ou estado separado:
+const [botasPE, setBotasPE] = useState([{ descricao: '', valor: '', quantidade: '1' }]);
+```
+Resetar no `openModal` quando `productId === 'bota_pronta_entrega'`.
 
-#### 1. Botão com estado de loading (OrderPage.tsx)
-- Adicionar estado `const [submitting, setSubmitting] = useState(false)`
-- No `confirmOrder`: no início, verificar `if (submitting) return` e setar `setSubmitting(true)`, no finally setar `setSubmitting(false)`
-- No botão "FINALIZAR": adicionar `disabled={submitting}` e mostrar texto "Salvando..." quando submitting
+#### 2. Formulário com lista dinâmica
+Substituir o bloco `{productId === 'bota_pronta_entrega' && (...)}` (~linhas 565-579):
+- Para cada item do array `botasPE`, renderizar:
+  - Label "Descrição da bota {N}" (N > 1 mostra número)
+  - Textarea obrigatório (placeholder: "Nome do produto + tamanho")
+  - Label "Valor da bota {N} (R$)"
+  - Input number
+  - Label "Quantidade"
+  - Input number (editável, min 1)
+  - Botão remover (X) se N > 1
+- Após o último item, botão "+ 1 bota" que adiciona `{ descricao: '', valor: '', quantidade: '1' }` ao array
 
-#### 2. Unique constraint no banco de dados (proteção definitiva)
-- Criar migration SQL: `CREATE UNIQUE INDEX IF NOT EXISTS orders_numero_unique ON orders (numero);`
-- Isso garante que mesmo com race condition, o banco rejeita o segundo insert
+#### 3. Cálculo de preço
+Em `calcPrice` (~linha 128), para `bota_pronta_entrega`:
+```typescript
+case 'bota_pronta_entrega':
+  return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
+```
 
-### Arquivos alterados
+#### 4. Validação no submit
+Em `handleSubmit` (~linha 150), validar que todas as botas têm descrição e valor > 0.
+
+#### 5. Dados salvos no extraDetalhes
+Salvar a lista de botas no `extraDetalhes`:
+```typescript
+detalhes = { 
+  botas: botasPE.map(b => ({ 
+    descricaoProduto: b.descricao, 
+    valorManual: b.valor, 
+    quantidade: b.quantidade 
+  }))
+};
+```
+Manter compatibilidade: se só 1 bota, também salvar `descricaoProduto` e `valorManual` no nível raiz do detalhes.
+
+#### 6. Label do campo N° pedido
+Trocar "N° do pedido" para "N° do pedido (mesmo do site)" apenas quando `productId === 'bota_pronta_entrega'`.
+
+### Ajustes de compatibilidade
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderPage.tsx` | Estado `submitting` para desabilitar botão durante salvamento |
-| `src/pages/BeltOrderPage.tsx` | Mesmo padrão de `submitting` no formulário de cintos |
-| `src/pages/ExtrasPage.tsx` | Mesmo padrão de `submitting` no formulário de extras |
-| Migration SQL | `CREATE UNIQUE INDEX` na coluna `numero` da tabela `orders` |
+| `src/pages/ExtrasPage.tsx` | Formulário multi-bota, cálculo, validação, submit |
+| `src/pages/OrderDetailPage.tsx` | Exibir lista de botas do `extraDetalhes.botas` na visualização |
+| `src/pages/EditExtrasPage.tsx` | Suportar edição da lista de botas |
+| `src/components/SpecializedReports.tsx` | PDF: listar cada bota individual com valor e quantidade |
 
