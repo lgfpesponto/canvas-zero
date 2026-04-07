@@ -198,11 +198,7 @@ const ExtrasPage = () => {
 
       if (productId === 'bota_pronta_entrega') {
         detalhes = {
-          botas: botasPE.map(b => ({
-            descricaoProduto: b.descricao,
-            valorManual: b.valor,
-            quantidade: b.quantidade,
-          })),
+          botas: botasPE.map(b => serializeBota(b)),
         };
         // Backward compat: also set root-level fields from first item
         if (botasPE.length === 1) {
