@@ -637,7 +637,7 @@ const ExtrasPage = () => {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() => setBotasPE(prev => [...prev, { descricao: '', valor: '', quantidade: '1' }])}
+              onClick={() => setBotasPE(prev => [...prev, emptyBotaPE()])}
             >
               + 1 bota
             </Button>
