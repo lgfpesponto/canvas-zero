@@ -244,7 +244,7 @@ const ExtrasPage = () => {
         desenvolvimento: '-',
         sobMedida: false,
         observacao: '',
-        quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : (productId === 'bota_pronta_entrega' ? botasPE.reduce((s, b) => s + (parseInt(b.quantidade) || 1), 0) : 1),
+        quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
         preco: price,
         temLaser: false,
         fotos: [],
