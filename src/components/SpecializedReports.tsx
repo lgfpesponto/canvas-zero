@@ -1306,7 +1306,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const cw = 182;
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Relatório: ${productLabel} — 7ESTRIVOS`, mx, 20);
+    const progressLabel = filterProgresso !== 'todos' ? ` (${PRODUCTION_STATUSES.find(s => s.value === filterProgresso)?.label || filterProgresso})` : '';
+    doc.text(`Relatório: ${productLabel}${progressLabel} — 7ESTRIVOS`, mx, 20);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
