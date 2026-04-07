@@ -1276,7 +1276,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     if (selectedFields.length === 0) return;
 
     // Filter orders by tipoExtra
-    const filtered = sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes);
+    const filtered = sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes && (filterProgresso === 'todos' || o.status === filterProgresso));
+    if (filtered.length === 0) {
+      toast.error('Nenhum pedido encontrado para os filtros selecionados');
+      return;
+    }
 
     // Group by combination of selected fields
     const groups: Record<string, { fields: Record<string, string>; quantidade: number }> = {};
@@ -1373,7 +1377,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte';
+  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
