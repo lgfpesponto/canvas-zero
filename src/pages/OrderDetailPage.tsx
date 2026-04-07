@@ -415,7 +415,7 @@ const OrderDetailPage = () => {
                                 </div>
                                 {ex.dados && Object.entries(ex.dados).filter(([, v]) => v && v !== 'Não' && (!Array.isArray(v) || (v as any[]).length > 0)).map(([k, v]) => (
                                   <div key={k} className="flex justify-between text-muted-foreground">
-                                    <span>{k}</span>
+                                    <span>{EXTRA_DETAIL_LABELS[k] || k}</span>
                                     <span>{Array.isArray(v) ? (v as any[]).join(', ') : String(v)}</span>
                                   </div>
                                 ))}
