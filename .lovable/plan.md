@@ -1,22 +1,27 @@
 
 
-## Travar quantidade da Bota Pronta Entrega em 1
+## Mostrar quantidade total no resumo de Bota Pronta Entrega
 
 ### O que muda
 
-O campo "Quantidade" dentro de cada item de bota no formulário de Bota Pronta Entrega fica fixo em 1 e não pode ser editado manualmente. Para adicionar mais botas, o usuário usa o botão "+ 1 bota".
+Abaixo do "Valor total" no formulário de Bota Pronta Entrega, exibir a quantidade total de botas no pedido (ex: "Quantidade total: 3").
 
-### Alterações
+### Alteração em `src/pages/ExtrasPage.tsx`
 
-**`src/pages/ExtrasPage.tsx`**
-- No formulário de `bota_pronta_entrega`, remover o input editável de quantidade de cada item ou torná-lo `disabled` com valor fixo `1`
-- Garantir que `quantidade` sempre seja `'1'` no estado `botasPE`
+Na linha 651, após o div do "Valor total", adicionar condicionalmente (quando `productId === 'bota_pronta_entrega'`) uma linha mostrando `Quantidade total: {botasPE.length}`:
 
-**`src/pages/EditExtrasPage.tsx`**
-- Mesmo ajuste: campo quantidade fixo em 1, não editável
+```typescript
+{productId === 'bota_pronta_entrega' && (
+  <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
+    <span>Quantidade total:</span>
+    <span>{botasPE.length}</span>
+  </div>
+)}
+```
+
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/ExtrasPage.tsx` | Campo quantidade fixo em 1, disabled ou hidden |
-| `src/pages/EditExtrasPage.tsx` | Mesmo ajuste na edição |
+| `src/pages/ExtrasPage.tsx` | Adicionar linha de quantidade total abaixo do valor total para bota pronta entrega |
 
