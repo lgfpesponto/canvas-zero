@@ -1,32 +1,34 @@
 
 
-## Corrigir pedidos existentes de Bota Pronta Entrega
+## Corrigir composição de Bota Pronta Entrega nos PDFs de Expedição e Cobrança
 
 ### Problema
 
-Os pedidos `17754938588523` (preco=930, quantidade=3) e `17754939509777` (preco=1550, quantidade=5) foram criados antes da correção que salva `quantidade: 1`. O `preco` já é o total correto, mas `quantidade` ainda reflete o número de botas. Na lista, `OrderCard` exibe `preco * quantidade`, gerando valor errado.
+O formulário salva cada bota com campos `descricaoProduto` e `valorManual`, mas as funções `buildCompositionItems` (usada pelo PDF de Expedição) e o código inline do PDF de Cobrança leem `b.descricao` e `b.valor` — campos que não existem no banco. Por isso a composição aparece como "Bota 1 R$ 0,00" em vez da descrição e valor reais.
 
 ### Solução
 
-1. **Migration SQL** para corrigir dados existentes:
-```sql
-UPDATE orders 
-SET quantidade = 1 
-WHERE tipo_extra = 'bota_pronta_entrega' AND quantidade > 1;
-```
-Isso corrige todos os pedidos de bota_pronta_entrega existentes de uma vez.
+Corrigir os nomes dos campos em dois locais do `SpecializedReports.tsx`:
 
-2. **Safeguard no OrderCard** — no cálculo do valor exibido, para `bota_pronta_entrega` usar apenas `order.preco` (sem multiplicar por quantidade):
-
+**1. `buildCompositionItems`** (~linha 275-276)
+De:
 ```typescript
-// Em OrderCard.tsx, na exibição do preço:
-formatCurrency(order.tipoExtra === 'bota_pronta_entrega' ? order.preco : order.preco * order.quantidade)
+priceItems.push([b.descricao || `Bota ${i + 1}`, parseFloat(b.valor) || 0]);
+```
+Para:
+```typescript
+priceItems.push([b.descricaoProduto || `Bota ${i + 1}`, parseFloat(b.valorManual) || 0]);
 ```
 
-### Arquivos alterados
+**2. `generateCobrancaPDF` inline** (~linha 1162-1163)
+Mesma correção:
+```typescript
+priceItems.push([b.descricaoProduto || `Bota ${i + 1}`, parseFloat(b.valorManual) || 0]);
+```
+
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| Migration SQL | `UPDATE orders SET quantidade = 1 WHERE tipo_extra = 'bota_pronta_entrega' AND quantidade > 1` |
-| `src/components/OrderCard.tsx` | Safeguard: não multiplicar preco por quantidade para bota_pronta_entrega |
+| `src/components/SpecializedReports.tsx` | Corrigir `b.descricao` → `b.descricaoProduto` e `b.valor` → `b.valorManual` nos dois locais |
 
