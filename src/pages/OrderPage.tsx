@@ -240,6 +240,7 @@ const OrderPage = () => {
   const [observacao, setObservacao] = useState(df.observacao || '');
   const [fotoUrl, setFotoUrl] = useState(draftState?.fotos?.[0] || '');
   const [showMirror, setShowMirror] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
@@ -550,7 +551,10 @@ const OrderPage = () => {
     },
   });
 
+
   const confirmOrder = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
       const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
@@ -581,6 +585,8 @@ const OrderPage = () => {
     } catch (err) {
       console.error('confirmOrder error:', err);
       toast.error('Erro inesperado ao salvar o pedido.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1131,7 +1137,7 @@ const OrderPage = () => {
 
             <div className="flex gap-3">
               <button onClick={() => setShowMirror(false)} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
-              <button onClick={confirmOrder} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity">OK — FINALIZAR</button>
+              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : 'OK — FINALIZAR'}</button>
             </div>
           </motion.div>
         </div>

@@ -57,6 +57,7 @@ const ExtrasPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
 
@@ -129,7 +130,10 @@ const ExtrasPage = () => {
     }
   };
 
+
   const handleSubmit = async (productId: string) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const product = EXTRA_PRODUCTS.find(p => p.id === productId)!;
 
@@ -244,6 +248,8 @@ const ExtrasPage = () => {
     } catch (err) {
       console.error('handleSubmit error:', err);
       toast({ title: 'Erro inesperado ao salvar o pedido.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -581,9 +587,9 @@ const ExtrasPage = () => {
           </div>
         </div>
 
-        <Button className="w-full" onClick={() => handleSubmit(productId)} disabled={orderDuplicate}>
+        <Button className="w-full" onClick={() => handleSubmit(productId)} disabled={orderDuplicate || submitting}>
           <ShoppingCart className="mr-2 h-4 w-4" />
-          Finalizar Pedido
+          {submitting ? 'Salvando...' : 'Finalizar Pedido'}
         </Button>
       </div>
     );
