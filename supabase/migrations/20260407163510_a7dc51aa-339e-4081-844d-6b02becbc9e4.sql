@@ -1,0 +1,1 @@
+UPDATE orders SET quantidade = 1 WHERE tipo_extra = 'bota_pronta_entrega' AND quantidade > 1;
