@@ -1306,7 +1306,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const cw = 182;
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    const progressLabel = filterProgresso !== 'todos' ? ` (${PRODUCTION_STATUSES.find(s => s.value === filterProgresso)?.label || filterProgresso})` : '';
+    const progressLabel = filterProgresso !== 'todos' ? ` (${filterProgresso})` : '';
     doc.text(`Relatório: ${productLabel}${progressLabel} — 7ESTRIVOS`, mx, 20);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
