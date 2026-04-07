@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const EditExtrasPage = () => {
@@ -21,6 +21,7 @@ const EditExtrasPage = () => {
   const order = allOrders.find(o => o.id === id);
 
   const [form, setForm] = useState<Record<string, any>>({});
+  const [botasPE, setBotasPE] = useState([{ descricao: '', valor: '', quantidade: '1' }]);
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '', order?.id);
   const [loaded, setLoaded] = useState(false);
 
@@ -32,7 +33,6 @@ const EditExtrasPage = () => {
     setForm({
       numeroPedidoBota: order.numeroPedidoBota || order.numero || '',
       vendedorSelecionado: order.vendedor || '',
-      // Spread all extra details
       corTiras: det.corTiras || '',
       qualSola: det.qualSola || '',
       trocaGaspea: det.trocaGaspea || 'Não',
@@ -55,6 +55,20 @@ const EditExtrasPage = () => {
       valorManual: det.valorManual || String(order.preco || ''),
       numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
     });
+    // Load multi-bota data
+    if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
+      setBotasPE(det.botas.map((b: any) => ({
+        descricao: b.descricaoProduto || '',
+        valor: b.valorManual || '',
+        quantidade: b.quantidade || '1',
+      })));
+    } else if (order.tipoExtra === 'bota_pronta_entrega') {
+      setBotasPE([{
+        descricao: det.descricaoProduto || '',
+        valor: det.valorManual || String(order.preco || ''),
+        quantidade: '1',
+      }]);
+    }
     setLoaded(true);
   }, [order, loaded]);
 
@@ -94,8 +108,7 @@ const EditExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
-      case 'bota_pronta_entrega': return parseFloat(form.valorManual) || 0;
-      default: return 0;
+      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
     }
   };
 
@@ -120,9 +133,17 @@ const EditExtrasPage = () => {
       toast.error('Preencha o Nº do pedido');
       return;
     }
-    if (productId === 'bota_pronta_entrega' && (!form.valorManual || parseFloat(form.valorManual) <= 0)) {
-      toast.error('Preencha o valor do produto');
-      return;
+    if (productId === 'bota_pronta_entrega') {
+      for (let i = 0; i < botasPE.length; i++) {
+        if (!botasPE[i].descricao.trim()) {
+          toast.error(`Preencha a descrição da bota ${i + 1}`);
+          return;
+        }
+        if (!botasPE[i].valor || parseFloat(botasPE[i].valor) <= 0) {
+          toast.error(`Preencha o valor da bota ${i + 1}`);
+          return;
+        }
+      }
     }
 
     // Check for duplicate order number if changed
@@ -137,10 +158,25 @@ const EditExtrasPage = () => {
     }
 
     const price = calcPrice();
-    const relevantKeys = PRODUCT_FIELDS[productId] || [];
-    const detalhes: Record<string, any> = {};
-    for (const key of relevantKeys) {
-      if (form[key] !== undefined && form[key] !== '') detalhes[key] = form[key];
+    let detalhes: Record<string, any> = {};
+
+    if (productId === 'bota_pronta_entrega') {
+      detalhes = {
+        botas: botasPE.map(b => ({
+          descricaoProduto: b.descricao,
+          valorManual: b.valor,
+          quantidade: b.quantidade,
+        })),
+      };
+      if (botasPE.length === 1) {
+        detalhes.descricaoProduto = botasPE[0].descricao;
+        detalhes.valorManual = botasPE[0].valor;
+      }
+    } else {
+      const relevantKeys = PRODUCT_FIELDS[productId] || [];
+      for (const key of relevantKeys) {
+        if (form[key] !== undefined && form[key] !== '') detalhes[key] = form[key];
+      }
     }
 
     await updateOrder(order.id, {
@@ -148,7 +184,7 @@ const EditExtrasPage = () => {
       numeroPedidoBota: form.numeroPedidoBota.trim(),
       vendedor: form.vendedorSelecionado || order.vendedor,
       preco: price,
-      quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
+      quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : (productId === 'bota_pronta_entrega' ? botasPE.reduce((s, b) => s + (parseInt(b.quantidade) || 1), 0) : 1),
       extraDetalhes: detalhes,
     });
     toast.success('Pedido atualizado com sucesso!');
@@ -426,14 +462,64 @@ const EditExtrasPage = () => {
 
           {productId === 'bota_pronta_entrega' && (
             <>
-              <div>
-                <Label>Descrição do produto</Label>
-                <Textarea value={form.descricaoProduto || ''} onChange={e => set('descricaoProduto', e.target.value)} placeholder="Descreva o produto" />
-              </div>
-              <div>
-                <Label>Valor (R$) *</Label>
-                <Input type="number" min="0" step="0.01" value={form.valorManual || ''} onChange={e => set('valorManual', e.target.value)} placeholder="Ex: 350,00" />
-              </div>
+              {botasPE.map((bota, idx) => (
+                <div key={idx} className="space-y-3 p-3 border border-border rounded-lg relative">
+                  {botasPE.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setBotasPE(prev => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-2 right-2 text-destructive hover:text-destructive/80 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                  <div>
+                    <Label>Descrição da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''} *</Label>
+                    <Textarea
+                      value={bota.descricao}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, descricao: val } : b));
+                      }}
+                      placeholder="Nome do produto + tamanho"
+                    />
+                  </div>
+                  <div>
+                    <Label>Valor da bota{botasPE.length > 1 ? ` ${idx + 1}` : ''} (R$) *</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={bota.valor}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, valor: val } : b));
+                      }}
+                      placeholder="Ex: 350,00"
+                    />
+                  </div>
+                  <div>
+                    <Label>Quantidade</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={bota.quantidade}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setBotasPE(prev => prev.map((b, i) => i === idx ? { ...b, quantidade: val } : b));
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setBotasPE(prev => [...prev, { descricao: '', valor: '', quantidade: '1' }])}
+              >
+                + 1 bota
+              </Button>
             </>
           )}
 
