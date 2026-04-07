@@ -1,31 +1,32 @@
 
 
-## Corrigir relatório de Bainha de Cartão nos Extras
+## Filtro de progresso no relatório de Extras/Cintos + Verificar Bainha de Cartão
 
-### Problema
+### Problema 1: Sem filtro de progresso de produção
 
-O produto "Bainha de Cartão" (`bainha_cartao`) está na lista de produtos do relatório de extras (linha 72), mas não possui entrada no objeto `EXTRAS_DETAIL_FIELDS` (linhas 77-131). Por isso, ao selecionar "Bainha de Cartão" no relatório, não aparecem campos para agrupar e o PDF não é gerado.
+O relatório de Extras/Cintos não possui filtro de "Progresso de Produção". A variável `needsProgressFilter` (linha 1376) não inclui `extras_cintos`, e a função `generateExtrasCintosPDF` (linha 1279) não filtra por `filterProgresso`.
 
-A bainha de cartão possui os campos `tipoCouro` e `corCouro` (conforme definido em `ExtrasPage.tsx` linha 179), igual ao kit_faca.
+### Problema 2: Bainha de Cartão sem gerar PDF
 
-### Alteração
+A entrada `bainha_cartao` no `PRODUCT_GROUPABLE_FIELDS` já foi adicionada (linhas 97-100), mas a função `generateExtrasCintosPDF` pode não estar gerando o PDF caso não haja pedidos com `tipoExtra === 'bainha_cartao'` e `extraDetalhes` preenchido. Vou adicionar um toast de aviso quando não houver pedidos encontrados, para que o usuário saiba o motivo.
 
-**Arquivo: `src/components/SpecializedReports.tsx`**
+### Alterações em `src/components/SpecializedReports.tsx`
 
-Adicionar entrada `bainha_cartao` no objeto `EXTRAS_DETAIL_FIELDS` (após a entrada de `kit_canivete`, ~linha 96):
+#### 1. Adicionar `extras_cintos` ao filtro de progresso
+Linha 1376: incluir `extras_cintos` na condição `needsProgressFilter`.
 
-```typescript
-bainha_cartao: [
-  { key: 'tipoCouro', label: 'Tipo de Couro' },
-  { key: 'corCouro', label: 'Cor do Couro' },
-],
-```
+#### 2. Filtrar por progresso no `generateExtrasCintosPDF`
+Linha 1279: adicionar filtro `(filterProgresso === 'todos' || o.status === filterProgresso)`.
 
-Isso permite selecionar os campos de agrupamento e gerar o PDF com tipo de couro, cor e quantidade — igual ao kit_faca.
+#### 3. Aviso quando não há pedidos
+Após a filtragem (linha 1279), se `filtered.length === 0`, exibir um `toast.error('Nenhum pedido encontrado')` e retornar sem gerar o PDF. Isso resolve o caso da Bainha de Cartão (e qualquer outro produto) quando não há dados.
+
+#### 4. Incluir progresso no título do PDF
+Adicionar o label do progresso no título/subtítulo do PDF gerado, igual aos outros relatórios.
 
 ### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/SpecializedReports.tsx` | Adicionar `bainha_cartao` ao `EXTRAS_DETAIL_FIELDS` com campos tipoCouro e corCouro |
+| `src/components/SpecializedReports.tsx` | Filtro de progresso no extras/cintos, aviso de "sem pedidos", label no PDF |
 
