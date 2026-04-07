@@ -41,6 +41,7 @@ const OrderCard = React.memo(({
             <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
             <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
             <span className="font-bold text-primary">{formatCurrency(order.tipoExtra === 'bota_pronta_entrega' ? order.preco : order.preco * order.quantidade)}</span>
+            <span className="text-xs text-muted-foreground">Qtd: {order.tipoExtra === 'bota_pronta_entrega' ? (order.extraDetalhes?.botas?.length || 1) : order.quantidade}</span>
             <span className="text-xs text-muted-foreground">{order.diasRestantes > 0 ? `${order.diasRestantes}d úteis` : '✓'}</span>
           </div>
         </div>
