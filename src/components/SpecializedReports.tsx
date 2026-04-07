@@ -94,6 +94,10 @@ const PRODUCT_GROUPABLE_FIELDS: Record<string, { key: string; label: string }[]>
     { key: 'corCouro', label: 'Cor do Couro' },
     { key: 'vaiCanivete', label: 'Vai o Canivete' },
   ],
+  bainha_cartao: [
+    { key: 'tipoCouro', label: 'Tipo de Couro' },
+    { key: 'corCouro', label: 'Cor do Couro' },
+  ],
   desmanchar: [
     { key: 'qualSola', label: 'Sola' },
     { key: 'trocaGaspea', label: 'Troca Gáspea' },
