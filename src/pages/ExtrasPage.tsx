@@ -587,9 +587,9 @@ const ExtrasPage = () => {
           </div>
         </div>
 
-        <Button className="w-full" onClick={() => handleSubmit(productId)} disabled={orderDuplicate}>
+        <Button className="w-full" onClick={() => handleSubmit(productId)} disabled={orderDuplicate || submitting}>
           <ShoppingCart className="mr-2 h-4 w-4" />
-          Finalizar Pedido
+          {submitting ? 'Salvando...' : 'Finalizar Pedido'}
         </Button>
       </div>
     );
