@@ -1,61 +1,31 @@
 
 
-## Ordenação por tipo de couro com prioridade definida
+## Corrigir relatório de Bainha de Cartão nos Extras
 
 ### Problema
 
-Atualmente os 3 relatórios (Fichas de Produção, Corte e Bordados) ordenam por couro usando `localeCompare` simples (ordem alfabética). O usuário quer uma ordem específica de prioridade por tipo de couro, agrupando por cor dentro de cada tipo.
+O produto "Bainha de Cartão" (`bainha_cartao`) está na lista de produtos do relatório de extras (linha 72), mas não possui entrada no objeto `EXTRAS_DETAIL_FIELDS` (linhas 77-131). Por isso, ao selecionar "Bainha de Cartão" no relatório, não aparecem campos para agrupar e o PDF não é gerado.
 
-### Ordem de prioridade dos couros
+A bainha de cartão possui os campos `tipoCouro` e `corCouro` (conforme definido em `ExtrasPage.tsx` linha 179), igual ao kit_faca.
 
-1. Crazy Horse (todas as cores juntas)
-2. Látego (todas as cores juntas)
-3. Nobuck (todas as cores juntas)
-4. Fóssil (todas as cores juntas)
-5. Floater (todas as cores juntas)
-6. Napa Flay (todas as cores juntas)
-7. Demais couros (agrupados por tipo e cor)
-
-### Solução
-
-Criar uma função utilitária `getCouroSortKey(tipoCouro: string): number` que retorna a prioridade numérica do couro. Usar essa função nos 3 pontos de ordenação.
-
-### Alterações
-
-**Arquivo: `src/lib/pdfGenerators.ts`**
-
-- Adicionar função `getCouroSortKey` no topo
-- Linhas 58-65: Substituir `localeCompare` simples por comparação usando `getCouroSortKey` para o tipo de couro, depois `localeCompare` para a cor, depois número do pedido
+### Alteração
 
 **Arquivo: `src/components/SpecializedReports.tsx`**
 
-- Importar ou duplicar `getCouroSortKey`
-- Linhas 858-870 (Corte): Substituir `keyA.localeCompare(keyB)` por comparação com prioridade de couro + cor
-- Linhas 758-779 (Bordados): Adicionar ordenação por couro (tipo+cor) como critério principal para botas, mantendo agrupamento por bordado como secundário
-
-### Lógica da função
+Adicionar entrada `bainha_cartao` no objeto `EXTRAS_DETAIL_FIELDS` (após a entrada de `kit_canivete`, ~linha 96):
 
 ```typescript
-const COURO_PRIORITY: Record<string, number> = {
-  'crazy horse': 1,
-  'látego': 2, 'latego': 2,
-  'nobuck': 3,
-  'fóssil': 4, 'fossil': 4,
-  'floater': 5,
-  'napa flay': 6,
-};
-
-function getCouroSortKey(tipo: string): number {
-  return COURO_PRIORITY[tipo.toLowerCase().trim()] ?? 99;
-}
+bainha_cartao: [
+  { key: 'tipoCouro', label: 'Tipo de Couro' },
+  { key: 'corCouro', label: 'Cor do Couro' },
+],
 ```
 
-Comparação: prioridade do tipo → cor (localeCompare) → número do pedido
+Isso permite selecionar os campos de agrupamento e gerar o PDF com tipo de couro, cor e quantidade — igual ao kit_faca.
 
-### Arquivos alterados
+### Arquivo alterado
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/lib/pdfGenerators.ts` | Adicionar `getCouroSortKey`, usar na ordenação das fichas de produção |
-| `src/components/SpecializedReports.tsx` | Usar mesma lógica de prioridade na ordenação do Corte e Bordados |
+| `src/components/SpecializedReports.tsx` | Adicionar `bainha_cartao` ao `EXTRAS_DETAIL_FIELDS` com campos tipoCouro e corCouro |
 
