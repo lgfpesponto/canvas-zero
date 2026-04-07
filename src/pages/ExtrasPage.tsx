@@ -248,6 +248,8 @@ const ExtrasPage = () => {
     } catch (err) {
       console.error('handleSubmit error:', err);
       toast({ title: 'Erro inesperado ao salvar o pedido.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 

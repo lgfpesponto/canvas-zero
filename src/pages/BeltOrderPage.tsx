@@ -232,6 +232,8 @@ const BeltOrderPage = () => {
     } catch (err) {
       console.error('confirmOrder error:', err);
       toast.error('Erro inesperado ao salvar o pedido.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
