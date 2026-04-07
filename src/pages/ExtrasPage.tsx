@@ -18,7 +18,6 @@ import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVAT
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
-import SearchableSelect from '@/components/SearchableSelect';
 
 interface StockItem {
   id: string;
