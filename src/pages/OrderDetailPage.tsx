@@ -415,7 +415,7 @@ const OrderDetailPage = () => {
                                 </div>
                                 {ex.dados && Object.entries(ex.dados).filter(([, v]) => v && v !== 'Não' && (!Array.isArray(v) || (v as any[]).length > 0)).map(([k, v]) => (
                                   <div key={k} className="flex justify-between text-muted-foreground">
-                                    <span>{k}</span>
+                                    <span>{EXTRA_DETAIL_LABELS[k] || k}</span>
                                     <span>{Array.isArray(v) ? (v as any[]).join(', ') : String(v)}</span>
                                   </div>
                                 ))}
@@ -562,7 +562,18 @@ const OrderDetailPage = () => {
                           if (Array.isArray(b.extras)) {
                             const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
                             b.extras.forEach((ex: any) => {
-                              extraPriceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}`, ex.preco || 0]);
+                              let detail = '';
+                              if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
+                                const parts: string[] = [];
+                                if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push('Bola grande');
+                                if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
+                                detail = parts.length ? ` (${parts.join(', ')})` : '';
+                              } else if (ex.tipo === 'carimbo_fogo') {
+                                detail = ` (${ex.dados?.qtdCarimbos || 1} carimbos)`;
+                              } else if (ex.tipo === 'tiras_laterais' && ex.dados?.corTiras) {
+                                detail = ` (${ex.dados.corTiras})`;
+                              }
+                              extraPriceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}${detail}`, ex.preco || 0]);
                             });
                           }
                         });
