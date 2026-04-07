@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES } from '@/contexts/AuthContext';
+import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES } from '@/contexts/AuthContext';
 import { FileText, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1384,6 +1384,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
   const progressOptions = useMemo(() => {
+    if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
     return PRODUCTION_STATUSES;
   }, [activeReport]);
 
