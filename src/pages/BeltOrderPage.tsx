@@ -72,6 +72,7 @@ const BeltOrderPage = () => {
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [showMirror, setShowMirror] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
 
   // Load draft data
@@ -154,7 +155,6 @@ const BeltOrderPage = () => {
     setShowMirror(true);
   };
 
-  const [submitting, setSubmitting] = useState(false);
 
   const confirmOrder = async () => {
     if (submitting) return;

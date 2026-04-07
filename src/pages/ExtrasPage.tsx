@@ -57,6 +57,7 @@ const ExtrasPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
 
@@ -129,7 +130,6 @@ const ExtrasPage = () => {
     }
   };
 
-  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (productId: string) => {
     if (submitting) return;

@@ -240,6 +240,7 @@ const OrderPage = () => {
   const [observacao, setObservacao] = useState(df.observacao || '');
   const [fotoUrl, setFotoUrl] = useState(draftState?.fotos?.[0] || '');
   const [showMirror, setShowMirror] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
@@ -550,7 +551,6 @@ const OrderPage = () => {
     },
   });
 
-  const [submitting, setSubmitting] = useState(false);
 
   const confirmOrder = async () => {
     if (submitting) return;
