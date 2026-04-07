@@ -270,7 +270,16 @@ function buildCompositionItems(o: Order): [string, number][] {
         if (sel.includes('Strass')) { const qtd = parseInt(det.qtdStrass) || 1; priceItems.push([`Strass (${qtd} un.)`, 0.60 * qtd]); }
         break;
       }
-      case 'bota_pronta_entrega': { priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]); break; }
+      case 'bota_pronta_entrega': {
+        if (Array.isArray(det.botas) && det.botas.length > 0) {
+          det.botas.forEach((b: any, i: number) => {
+            priceItems.push([b.descricao || `Bota ${i + 1}`, parseFloat(b.valor) || 0]);
+          });
+        } else {
+          priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
+        }
+        break;
+      }
       default: priceItems.push([extraLabel, o.preco]); break;
     }
   } else {
@@ -1149,7 +1158,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             break;
           }
           case 'bota_pronta_entrega': {
-            priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
+            if (Array.isArray(det.botas) && det.botas.length > 0) {
+              det.botas.forEach((b: any, i: number) => {
+                priceItems.push([b.descricao || `Bota ${i + 1}`, parseFloat(b.valor) || 0]);
+              });
+            } else {
+              priceItems.push([det.descricaoProduto || 'Bota Pronta Entrega', parseFloat(det.valorManual) || o.preco]);
+            }
             break;
           }
           default:
