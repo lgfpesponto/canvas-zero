@@ -107,7 +107,7 @@ const EditExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
-      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + (parseFloat(b.valor) || 0) * (parseInt(b.quantidade) || 1), 0);
+      case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       default: return 0;
     }
   };
@@ -162,11 +162,7 @@ const EditExtrasPage = () => {
 
     if (productId === 'bota_pronta_entrega') {
       detalhes = {
-        botas: botasPE.map(b => ({
-          descricaoProduto: b.descricao,
-          valorManual: b.valor,
-          quantidade: b.quantidade,
-        })),
+        botas: botasPE.map(b => serializeBota(b)),
       };
       if (botasPE.length === 1) {
         detalhes.descricaoProduto = botasPE[0].descricao;
