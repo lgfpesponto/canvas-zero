@@ -131,6 +131,20 @@ const MultiSelect = ({ label, items, selected, onChange, isAdmin: isAdm, categor
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {showEditPanel && (
+          <div className="col-span-full flex justify-end gap-2 mb-1">
+            <button type="button" onClick={async () => {
+              for (const opt of (customOptions || [])) {
+                const s = editState[opt.id];
+                if (s && (s.label !== opt.label || (!isLaser && parseFloat(s.preco) !== opt.preco))) {
+                  await onUpdateOption!(opt.id, s.label, isLaser ? opt.preco : (parseFloat(s.preco) || 0));
+                }
+              }
+              setShowEditPanel(false);
+            }} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
+            <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
+          </div>
+        )}
         {filtered.map((item, idx) => {
           const customOpt = showEditPanel && customOptions?.find(o => o.label === item.label);
           return (
@@ -139,16 +153,12 @@ const MultiSelect = ({ label, items, selected, onChange, isAdmin: isAdm, categor
                 <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
               )}
               {customOpt ? (
-                <div className="col-span-full flex items-center gap-2 p-1.5 bg-primary/5 rounded border border-primary/20">
-                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="flex-1 text-xs border border-border rounded px-2 py-1 bg-background min-w-0" />
+                <div className="flex flex-col gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="text-xs border border-border rounded px-2 py-1 bg-background w-full" />
                   {!isLaser && (
-                    <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="w-16 text-xs border border-border rounded px-2 py-1 bg-background" placeholder="R$" />
+                    <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-2 py-1 bg-background w-full" placeholder="R$" />
                   )}
-                  <button type="button" onClick={async () => {
-                    const s = editState[customOpt.id];
-                    if (s) await onUpdateOption!(customOpt.id, s.label, isLaser ? customOpt.preco : (parseFloat(s.preco) || 0));
-                  }} className="p-1 text-primary hover:text-primary/80" title="Salvar"><Check size={12} /></button>
-                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="p-1 text-destructive hover:text-destructive/80" title="Excluir"><Trash2 size={12} /></button>
+                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="text-destructive hover:text-destructive/80 text-xs self-end" title="Excluir"><Trash2 size={12} /></button>
                 </div>
               ) : (
                 <label className={cls.checkItem}>
