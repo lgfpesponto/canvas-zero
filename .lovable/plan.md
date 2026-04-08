@@ -1,56 +1,101 @@
 
 
-## Editar variações inline — transformar checkboxes em campos editáveis
+## Edição direta de todas as variações de bordado e laser
 
-### Problema
+### Conceito
 
-Quando o admin clica no lápis, os itens customizados aparecem como uma div separada (`col-span-full`) abaixo dos outros itens, quebrando o layout do grid. O usuário quer que cada item customizado fique editável **no mesmo lugar** do checkbox, mantendo a posição no grid, e que apareçam botões "Salvar" e "Cancelar" no topo do quadro.
+Migrar todas as variações de bordado e laser (atualmente hardcoded em `orderFieldsConfig.ts`) para a tabela `custom_options` no Supabase. O sistema passa a ser 100% orientado pelo banco de dados para esses campos. Quando o admin clica no lápis, cada linha se torna editável no lugar (nome e preço viram inputs), com botões Salvar/Cancelar no topo e um botão "Edição em massa" para ajustar todos os preços de uma vez.
 
-### Solução
+### Etapas
 
-Quando `showEditPanel` está ativo:
-- Cada item customizado renderiza no mesmo espaço do grid (sem `col-span-full`), substituindo o checkbox/label por inputs de nome e valor editáveis
-- Itens estáticos ficam como checkboxes normais (desabilitados ou inalterados)
-- No topo do grid (acima dos itens), aparecem botões "Salvar" e "Cancelar"
-- "Salvar" chama `onUpdateOption` para cada item alterado e fecha o modo edição
-- "Cancelar" descarta alterações e fecha o modo edição
+**1. Migração de dados — SQL**
 
-### Alterações em ambos os arquivos
+Inserir todas as variações estáticas de `orderFieldsConfig.ts` na tabela `custom_options` com as categorias corretas (`bordado_cano`, `bordado_gaspea`, `bordado_taloneira`, `laser_cano`, `laser_gaspea`, `laser_taloneira`). Incluir os preços individuais para laser (cano/gáspea = R$50, taloneira = R$0).
 
-**`src/pages/OrderPage.tsx`** e **`src/pages/EditOrderPage.tsx`** — MultiSelect
+Serão ~90 registros (28 bordados cano + 26 gáspea + 19 taloneira + 22 laser x 3 regiões). Usar `ON CONFLICT` ou verificação para não duplicar se já existirem custom options.
 
-1. Remover `col-span-full` dos itens customizados editáveis — cada item fica na mesma célula do grid que o checkbox ocuparia
+**2. `src/lib/orderFieldsConfig.ts`**
 
-2. Substituir a renderização do item customizado em modo edição:
-```typescript
-{customOpt ? (
-  <div className="flex flex-col gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-    <input type="text" value={editState[customOpt.id]?.label} onChange={...} className="text-xs border rounded px-2 py-1 w-full" />
-    {!isLaser && <input type="number" value={editState[customOpt.id]?.preco} onChange={...} className="text-xs border rounded px-2 py-1 w-full" placeholder="R$" />}
-  </div>
-) : (
-  <label>/* checkbox normal */</label>
-)}
+Manter os arrays estáticos como fallback mas não usá-los mais diretamente nos MultiSelects de bordado/laser.
+
+**3. `src/hooks/useCustomOptions.ts`**
+
+Adicionar função `bulkUpdatePreco(categoria: string, increment: number)` que soma o incremento ao preço de todas as opções da categoria no Supabase e atualiza o estado local.
+
+**4. `src/pages/OrderPage.tsx` — MultiSelect (refatoração completa)**
+
+O componente passa a receber TODAS as variações via `customOptions` (vindas do banco) em vez de `items` estáticos para bordados/laser.
+
+Modo edição (lápis):
+- Cada item na lista mantém o checkbox mas o texto "Florência (R$25)" vira `☐ [Florência____] (R$[25])`
+- Nome: input text editável inline
+- Preço: input number editável inline, ao lado do nome
+- Layout permanece na mesma posição do grid (sem col-span-full)
+- Botão Trash2 ao lado de cada item customizado para exclusão
+
+Topo do grid em modo edição:
+```
+[Salvar] [Cancelar] [Edição em massa]
 ```
 
-3. Adicionar barra de ações no topo do grid quando `showEditPanel` está ativo:
-```typescript
-{showEditPanel && (
-  <div className="col-span-full flex justify-end gap-2 mb-1">
-    <button onClick={handleSaveAll}>Salvar</button>
-    <button onClick={() => setShowEditPanel(false)}>Cancelar</button>
-  </div>
-)}
-```
+Edição em massa:
+- Ao clicar, aparece um campo inline "Adicionar valor: [___]" com botão confirmar
+- Ao confirmar, soma o valor digitado a todos os preços da lista
+- Atualiza o `editState` local (salva de fato só no "Salvar")
 
-4. Criar função `handleSaveAll` que itera sobre `editState`, compara com `customOptions` original, e chama `onUpdateOption` apenas para itens que mudaram. Depois fecha o modo edição.
+Salvar:
+- Itera sobre todos os itens editados, chama `onUpdateOption` para cada um alterado
+- Fecha modo edição
 
-5. Remover os botões Check/Trash2 individuais de cada item — salvar é em lote pelo botão no topo. Manter apenas o Trash2 individual para exclusão.
+Cancelar:
+- Descarta `editState`, fecha modo edição
+
+Permissão:
+- Lápis, edição em massa visíveis apenas para `isAdmin`
+
+**5. `src/pages/EditOrderPage.tsx`**
+
+Mesma refatoração do MultiSelect.
+
+**6. Lógica de preço nos formulários**
+
+Atualmente o cálculo de preço usa `items.find(i => i.label === sel)?.preco`. Com a mudança, usará `customOptions.find(o => o.label === sel)?.preco` — garantindo que preços editados no banco reflitam automaticamente.
+
+**7. Compatibilidade com pedidos existentes**
+
+Pedidos já criados armazenam o label do bordado/laser como texto no campo do pedido. O preço é recalculado na hora da exibição/relatório a partir da config atual. Isso significa que alterações de preço refletem em relatórios futuros, mas o label do pedido permanece intacto.
 
 ### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderPage.tsx` | MultiSelect: items editáveis no lugar, botões Salvar/Cancelar no topo |
-| `src/pages/EditOrderPage.tsx` | Mesma alteração |
+| Migration SQL | Inserir todas variações estáticas na tabela `custom_options` |
+| `src/hooks/useCustomOptions.ts` | Adicionar `bulkUpdatePreco` |
+| `src/pages/OrderPage.tsx` | MultiSelect: edição inline de TODOS os itens, edição em massa, usar DB como fonte |
+| `src/pages/EditOrderPage.tsx` | Mesma refatoração |
+
+### Fluxo visual
+
+```text
+MODO NORMAL:
+  Bordado do Cano          [+] [✏️]
+  ┌──────────────────────────────┐
+  │ ☐ Florência (R$25)          │
+  │ ☐ Linhas (R$25)             │
+  │ ☐ Peão Elite G (R$35)       │
+  └──────────────────────────────┘
+
+MODO EDIÇÃO (após clicar ✏️):
+  Bordado do Cano          [+] [✏️]
+  ┌──────────────────────────────┐
+  │ [Salvar] [Cancelar] [Ed.massa]│
+  │ ☐ [Florência___] R$[25] 🗑  │
+  │ ☐ [Linhas______] R$[25] 🗑  │
+  │ ☐ [Peão Elite G] R$[35] 🗑  │
+  └──────────────────────────────┘
+
+EDIÇÃO EM MASSA (após clicar):
+  │ Adicionar valor: [+5] [OK]   │
+  → Todos os preços somam +5
+```
 
