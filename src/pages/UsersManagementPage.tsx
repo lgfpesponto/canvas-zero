@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Pencil, Trash2, Users, Loader2, Plus } from 'lucide-react';
 
@@ -19,7 +20,15 @@ interface Profile {
   telefone: string;
   cpf_cnpj: string;
   created_at: string;
+  role?: string;
 }
+
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'admin_master', label: 'Admin Master' },
+  { value: 'admin_producao', label: 'Admin Produção' },
+  { value: 'vendedor', label: 'Vendedor' },
+  { value: 'vendedor_comissao', label: 'Vendedor Comissão' },
+];
 
 const PROTECTED_USERNAMES = ['7estrivos', 'fernanda', 'demo'];
 
@@ -40,7 +49,7 @@ const UsersManagementPage = () => {
 
   // Create state
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
+  const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '', role: 'vendedor' });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
