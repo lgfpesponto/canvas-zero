@@ -963,7 +963,7 @@ const OrderPage = () => {
 
           {/* 8-13 Bordados */}
           <Section title="Bordados">
-            <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} isAdmin={isAdmin} categoria="bordado_cano" onAddOption={addOption} customOptions={getByCategoria('bordado_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} isAdmin={isAdmin} categoria="bordado_cano" onAddOption={addOption} customOptions={getByCategoria('bordado_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
