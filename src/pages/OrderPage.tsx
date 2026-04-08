@@ -759,24 +759,25 @@ const OrderPage = () => {
     toast.success('Rascunho salvo!');
   };
 
-  /* ───── Laser multi-select as items for MultiSelect component ───── */
-  const LASER_ITEMS: { label: string; preco: number }[] = LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
-
-  /* ───── merged items (static + custom) ───── */
-  const mergeBordados = (staticArr: {label:string;preco:number}[], cat: string) => {
-    const custom = getByCategoria(cat).map(o => ({ label: o.label, preco: o.preco }));
-    const variadoStart = staticArr.findIndex(i => i.label.startsWith('Bordado Variado'));
-    if (variadoStart === -1) return [...staticArr, ...custom];
-    const customNormal = custom.filter(c => !c.label.toLowerCase().startsWith('bordado variado'));
-    const customVariado = custom.filter(c => c.label.toLowerCase().startsWith('bordado variado'));
-    return [...staticArr.slice(0, variadoStart), ...customNormal, ...staticArr.slice(variadoStart), ...customVariado];
+  /* ───── items from DB (with static fallback) ───── */
+  const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return fallback;
+    const normal = db.filter(o => !o.label.toLowerCase().startsWith('bordado variado'));
+    const variado = db.filter(o => o.label.toLowerCase().startsWith('bordado variado'));
+    return [...normal, ...variado].map(o => ({ label: o.label, preco: o.preco }));
   };
-  const mergedBordadoCano = mergeBordados(BORDADOS_CANO, 'bordado_cano');
-  const mergedBordadoGaspea = mergeBordados(BORDADOS_GASPEA, 'bordado_gaspea');
-  const mergedBordadoTaloneira = mergeBordados(BORDADOS_TALONEIRA, 'bordado_taloneira');
-  const mergedLaserCano = [...LASER_ITEMS, ...getByCategoria('laser_cano').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedLaserGaspea = [...LASER_ITEMS, ...getByCategoria('laser_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedLaserTaloneira = [...LASER_ITEMS, ...getByCategoria('laser_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergedBordadoCano = getDbItems('bordado_cano', BORDADOS_CANO);
+  const mergedBordadoGaspea = getDbItems('bordado_gaspea', BORDADOS_GASPEA);
+  const mergedBordadoTaloneira = getDbItems('bordado_taloneira', BORDADOS_TALONEIRA);
+  const getLaserItems = (cat: string) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
+    return db.map(o => ({ label: o.label, preco: o.preco }));
+  };
+  const mergedLaserCano = getLaserItems('laser_cano');
+  const mergedLaserGaspea = getLaserItems('laser_gaspea');
+  const mergedLaserTaloneira = getLaserItems('laser_taloneira');
 
   /* ───── mirror data (only filled fields, NO value) ───── */
   const mirrorRows: [string, string][] = [
