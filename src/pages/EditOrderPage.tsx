@@ -407,30 +407,34 @@ const EditOrderPage = () => {
   const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
   const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira].reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
-  const findPrice = (b: string, staticArr: {label:string;preco:number}[], cat: string) =>
-    staticArr.find(x => x.label === b)?.preco ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? 0;
+  const findPrice = (b: string, cat: string, fallback: {label:string;preco:number}[]) =>
+    getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
-    bordadoCano.reduce((sum, b) => sum + findPrice(b, BORDADOS_CANO, 'bordado_cano'), 0) +
-    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, BORDADOS_GASPEA, 'bordado_gaspea'), 0) +
-    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, BORDADOS_TALONEIRA, 'bordado_taloneira'), 0);
+    bordadoCano.reduce((sum, b) => sum + findPrice(b, 'bordado_cano', BORDADOS_CANO), 0) +
+    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, 'bordado_gaspea', BORDADOS_GASPEA), 0) +
+    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, 'bordado_taloneira', BORDADOS_TALONEIRA), 0);
 
-  const mergeBordados = (staticArr: {label:string;preco:number}[], cat: string) => {
-    const custom = getByCategoria(cat).map(o => ({ label: o.label, preco: o.preco }));
-    const variadoStart = staticArr.findIndex(i => i.label.startsWith('Bordado Variado'));
-    if (variadoStart === -1) return [...staticArr, ...custom];
-    const customNormal = custom.filter(c => !c.label.toLowerCase().startsWith('bordado variado'));
-    const customVariado = custom.filter(c => c.label.toLowerCase().startsWith('bordado variado'));
-    return [...staticArr.slice(0, variadoStart), ...customNormal, ...staticArr.slice(variadoStart), ...customVariado];
+  const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return fallback;
+    const normal = db.filter(o => !o.label.toLowerCase().startsWith('bordado variado'));
+    const variado = db.filter(o => o.label.toLowerCase().startsWith('bordado variado'));
+    return [...normal, ...variado].map(o => ({ label: o.label, preco: o.preco }));
   };
-  const mergedBordadoCano = mergeBordados(BORDADOS_CANO, 'bordado_cano');
-  const mergedBordadoGaspea = mergeBordados(BORDADOS_GASPEA, 'bordado_gaspea');
-  const mergedBordadoTaloneira = mergeBordados(BORDADOS_TALONEIRA, 'bordado_taloneira');
-  const mergedLaserCano = [...LASER_ITEMS, ...getByCategoria('laser_cano').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedLaserGaspea = [...LASER_ITEMS, ...getByCategoria('laser_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedLaserTaloneira = [...LASER_ITEMS, ...getByCategoria('laser_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
-  const laserCanoPreco = laserCano.length > 0 ? LASER_CANO_PRECO : 0;
+  const getLaserItems = (cat: string) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
+    return db.map(o => ({ label: o.label, preco: o.preco }));
+  };
+  const mergedBordadoCano = getDbItems('bordado_cano', BORDADOS_CANO);
+  const mergedBordadoGaspea = getDbItems('bordado_gaspea', BORDADOS_GASPEA);
+  const mergedBordadoTaloneira = getDbItems('bordado_taloneira', BORDADOS_TALONEIRA);
+  const mergedLaserCano = getLaserItems('laser_cano');
+  const mergedLaserGaspea = getLaserItems('laser_gaspea');
+  const mergedLaserTaloneira = getLaserItems('laser_taloneira');
+  const laserCanoPreco = laserCano.length > 0 ? (findPrice(laserCano[0], 'laser_cano', []) || LASER_CANO_PRECO) : 0;
   const glitterCanoPreco = corGlitterCano ? GLITTER_CANO_PRECO : 0;
-  const laserGaspeaPreco = laserGaspea.length > 0 ? LASER_GASPEA_PRECO : 0;
+  const laserGaspeaPreco = laserGaspea.length > 0 ? (findPrice(laserGaspea[0], 'laser_gaspea', []) || LASER_GASPEA_PRECO) : 0;
   const glitterGaspeaPreco = corGlitterGaspea ? GLITTER_GASPEA_PRECO : 0;
   const totalLaserPreco = laserCanoPreco + glitterCanoPreco + laserGaspeaPreco + glitterGaspeaPreco;
   const desenvPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
