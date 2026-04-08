@@ -63,15 +63,18 @@ const ToggleField = ({
 
 const MultiSelect = ({
   label, items, selected, onChange, isAdmin: isAdm, categoria, onAddOption,
-  customOptions, onUpdateOption, onDeleteOption,
+  customOptions, onUpdateOption, onDeleteOption, onBulkUpdatePreco,
 }: {
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
   isAdmin?: boolean; categoria?: string; onAddOption?: (cat: string, label: string, preco: number) => Promise<any>;
   customOptions?: CustomOption[]; onUpdateOption?: (id: string, label: string, preco: number) => Promise<void>; onDeleteOption?: (id: string) => Promise<void>;
+  onBulkUpdatePreco?: (categoria: string, increment: number) => Promise<void>;
 }) => {
   const [search, setSearch] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditPanel, setShowEditPanel] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkValue, setBulkValue] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newPreco, setNewPreco] = useState('');
   const [editState, setEditState] = useState<Record<string, { label: string; preco: string }>>({});
@@ -105,6 +108,33 @@ const MultiSelect = ({
     });
     setEditState(state);
     setShowEditPanel(true);
+    setShowBulkEdit(false);
+    setBulkValue('');
+  };
+
+  const handleSaveAll = async () => {
+    for (const opt of (customOptions || [])) {
+      const s = editState[opt.id];
+      if (s && (s.label !== opt.label || parseFloat(s.preco) !== opt.preco)) {
+        await onUpdateOption!(opt.id, s.label, parseFloat(s.preco) || 0);
+      }
+    }
+    setShowEditPanel(false);
+  };
+
+  const handleBulkApply = () => {
+    const inc = parseFloat(bulkValue);
+    if (isNaN(inc) || inc === 0) return;
+    setEditState(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        const cur = parseFloat(next[key].preco) || 0;
+        next[key] = { ...next[key], preco: String(Math.max(0, cur + inc)) };
+      }
+      return next;
+    });
+    setBulkValue('');
+    setShowBulkEdit(false);
   };
 
   return (
@@ -154,33 +184,36 @@ const MultiSelect = ({
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {showEditPanel && (
-          <div className="col-span-full flex justify-end gap-2 mb-1">
-            <button type="button" onClick={async () => {
-              for (const opt of (customOptions || [])) {
-                const s = editState[opt.id];
-                if (s && (s.label !== opt.label || (!isLaser && parseFloat(s.preco) !== opt.preco))) {
-                  await onUpdateOption!(opt.id, s.label, isLaser ? opt.preco : (parseFloat(s.preco) || 0));
-                }
-              }
-              setShowEditPanel(false);
-            }} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
+          <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
+            <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
             <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
+            {showBulkEdit && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Adicionar:</span>
+                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-xs border border-border rounded px-2 py-1 bg-background w-16" placeholder="+5" />
+                <button type="button" onClick={handleBulkApply} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">OK</button>
+              </div>
+            )}
           </div>
         )}
         {filtered.map((item, idx) => {
-          const customOpt = showEditPanel && customOptions?.find(o => o.label === item.label);
+          const customOpt = showEditPanel ? customOptions?.find(o => o.label === item.label || editState[o.id]?.label === item.label) : null;
           return (
             <React.Fragment key={item.label}>
               {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
                 <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
               )}
-              {customOpt ? (
-                <div className="flex flex-col gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="text-xs border border-border rounded px-2 py-1 bg-background w-full" />
-                  {!isLaser && (
-                    <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-2 py-1 bg-background w-full" placeholder="R$" />
-                  )}
-                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="text-destructive hover:text-destructive/80 text-xs self-end" title="Excluir"><Trash2 size={12} /></button>
+              {showEditPanel && customOpt ? (
+                <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                  <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
+                    if (e.target.checked) onChange([...selected, item.label]);
+                    else onChange(selected.filter(s => s !== item.label));
+                  }} className="accent-primary w-3 h-3 shrink-0" />
+                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
+                  <span className="text-xs text-muted-foreground shrink-0">R$</span>
+                  <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
+                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
                 </div>
               ) : (
                 <label className={cls.checkItem}>
