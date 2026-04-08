@@ -1,3 +1,4 @@
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Eye, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2 } from 'lucide-react';
@@ -10,66 +11,184 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import {
+  PRODUCTION_STATUSES_IN_PROD, PROD_PRODUCT_OPTIONS,
+  isExcludedOrder, getProductType,
+  matchVendedorFilter, matchVendedorFilterSet,
+  formatCurrency, buildVendedoresList,
+} from '@/lib/order-logic';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5 } })
 };
 
-interface AdminDashboardProps {
-  sourceOrders: any[];
-  user: any;
-  vendedores: string[];
-  chartPeriod: 'dia' | 'semana' | 'mes' | 'ano';
-  setChartPeriod: (p: 'dia' | 'semana' | 'mes' | 'ano') => void;
-  receberVendedor: string;
-  setReceberVendedor: (v: string) => void;
-  chartProductFilter: string;
-  setChartProductFilter: (v: string) => void;
-  chartVendedorFilter: string;
-  setChartVendedorFilter: (v: string) => void;
-  prodProductFilter: Set<string>;
-  setProdProductFilter: React.Dispatch<React.SetStateAction<Set<string>>>;
-  prodVendedorFilter: Set<string>;
-  setProdVendedorFilter: React.Dispatch<React.SetStateAction<Set<string>>>;
-  financialData: { aReceber: number };
-  chartData: { name: string; vendas: number }[];
-  PROD_PRODUCT_OPTIONS: { value: string; label: string }[];
-  produtosProducao: number;
-  totalProducao: number;
-  checkedAlertIds: Set<string>;
-  handleChecked: (orderId: string) => void;
-  deletedOrders: any[];
-  handleRestoreOrder: (d: any) => void;
-  handleDismissDeleted: (id: string) => void;
-  solaCouroOrders: any[];
-  solaRusticaOrders: any[];
-  viraColoridaOrders: any[];
-  storageInfo: { db_size_mb: number; order_count: number; deleted_order_count: number; limit_mb: number } | null;
-  cleanupLoading: boolean;
-  handleCleanup: () => void;
-  isJuliana: boolean;
-  formatCurrency: (v: number) => string;
-}
+const AdminDashboard = () => {
+  const { allOrders, user, role } = useAuth();
+  const sourceOrders = allOrders;
+  const isAdminMaster = role === 'admin_master';
 
-const AdminDashboard = ({
-  sourceOrders, user, vendedores,
-  chartPeriod, setChartPeriod,
-  receberVendedor, setReceberVendedor,
-  chartProductFilter, setChartProductFilter,
-  chartVendedorFilter, setChartVendedorFilter,
-  prodProductFilter, setProdProductFilter,
-  prodVendedorFilter, setProdVendedorFilter,
-  financialData, chartData, PROD_PRODUCT_OPTIONS,
-  produtosProducao, totalProducao,
-  checkedAlertIds, handleChecked,
-  deletedOrders, handleRestoreOrder, handleDismissDeleted,
-  solaCouroOrders, solaRusticaOrders, viraColoridaOrders,
-  storageInfo, cleanupLoading, handleCleanup,
-  isJuliana, formatCurrency
-}: AdminDashboardProps) => {
+  // Local state
+  const [chartPeriod, setChartPeriod] = useState<'dia' | 'semana' | 'mes' | 'ano'>('mes');
+  const [receberVendedor, setReceberVendedor] = useState('todos');
+  const [chartProductFilter, setChartProductFilter] = useState('todos');
+  const [chartVendedorFilter, setChartVendedorFilter] = useState('todos');
+  const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
+  const [prodVendedorFilter, setProdVendedorFilter] = useState<Set<string>>(new Set());
+  const [checkedAlertIds, setCheckedAlertIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('alert_checked_orders');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
+  const [storageInfo, setStorageInfo] = useState<{ db_size_mb: number; order_count: number; deleted_order_count: number; limit_mb: number } | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
   const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
+
+  // Derived data
+  const vendedores = useMemo(() => buildVendedoresList(sourceOrders), [sourceOrders]);
+
+  const financialData = useMemo(() => {
+    const filtered = sourceOrders.filter(o => (o.status === 'Entregue' || o.status === 'Cobrado') && matchVendedorFilter(o, receberVendedor));
+    return { aReceber: filtered.reduce((s, o) => s + o.preco * o.quantidade, 0) };
+  }, [sourceOrders, receberVendedor]);
+
+  const produtosProducao = useMemo(() => {
+    return sourceOrders
+      .filter(o => PRODUCTION_STATUSES_IN_PROD.some(s => s.toLowerCase() === o.status.toLowerCase()))
+      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .filter(o => matchVendedorFilterSet(o, prodVendedorFilter))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
+
+  const totalProducao = useMemo(() => {
+    return sourceOrders
+      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .filter(o => matchVendedorFilterSet(o, prodVendedorFilter))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
+
+  const chartData = useMemo(() => {
+    const data: { name: string; vendas: number }[] = [];
+    const now = new Date();
+    const chartOrders = sourceOrders
+      .filter(o => !isExcludedOrder(o.numero))
+      .filter(o => {
+        if (chartProductFilter === 'bota') return !o.tipoExtra;
+        if (chartProductFilter === 'regata') return o.tipoExtra === 'regata';
+        if (chartProductFilter === 'bota_pronta_entrega') return o.tipoExtra === 'bota_pronta_entrega';
+        return !o.tipoExtra || o.tipoExtra === 'regata' || o.tipoExtra === 'bota_pronta_entrega';
+      })
+      .filter(o => matchVendedorFilter(o, chartVendedorFilter));
+
+    if (chartPeriod === 'dia') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 86400000);
+        const key = d.toISOString().split('T')[0];
+        data.push({ name: `${d.getDate()}/${d.getMonth() + 1}`, vendas: chartOrders.filter(o => o.dataCriacao === key).reduce((s, o) => s + o.quantidade, 0) });
+      }
+    } else if (chartPeriod === 'semana') {
+      for (let i = 3; i >= 0; i--) {
+        const end = new Date(now.getTime() - i * 7 * 86400000);
+        const start = new Date(end.getTime() - 7 * 86400000);
+        const vendas = chartOrders.filter(o => o.dataCriacao >= start.toISOString().split('T')[0] && o.dataCriacao <= end.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
+        data.push({ name: `Sem ${4 - i}`, vendas });
+      }
+    } else if (chartPeriod === 'mes') {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const vendas = chartOrders.filter(o => o.dataCriacao >= d.toISOString().split('T')[0] && o.dataCriacao <= monthEnd.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        data.push({ name: months[d.getMonth()], vendas });
+      }
+    } else {
+      for (let i = 2; i >= 0; i--) {
+        const year = now.getFullYear() - i;
+        const vendas = chartOrders.filter(o => o.dataCriacao.startsWith(`${year}`)).reduce((s, o) => s + o.quantidade, 0);
+        data.push({ name: `${year}`, vendas });
+      }
+    }
+    return data;
+  }, [chartPeriod, sourceOrders, chartProductFilter, chartVendedorFilter]);
+
+  const solaCouroOrders = useMemo(() => allOrders.filter(o =>
+    !o.tipoExtra &&
+    ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora']
+      .some(s => (o.solado || '').toLowerCase() === s)
+  ), [allOrders]);
+
+  const solaRusticaOrders = useMemo(() => allOrders.filter(o =>
+    !o.tipoExtra && (o.solado || '').toLowerCase() === 'rústica'
+  ), [allOrders]);
+
+  const viraColoridaOrders = useMemo(() => allOrders.filter(o =>
+    !o.tipoExtra && ['rosa', 'preta'].some(c => (o.corVira || '').toLowerCase() === c)
+  ), [allOrders]);
+
+  // Side effects
+  const fetchStorageInfo = useCallback(async () => {
+    if (!isAdminMaster) return;
+    setStorageLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('storage-info');
+      if (!error && data) {
+        setStorageInfo(data);
+        sessionStorage.setItem('storage_info', JSON.stringify(data));
+      }
+    } catch {} finally { setStorageLoading(false); }
+  }, [isAdminMaster]);
+
+  useEffect(() => { fetchStorageInfo(); }, [fetchStorageInfo]);
+
+  const fetchDeletedOrders = useCallback(async () => {
+    if (!isAdminMaster) return;
+    const { data } = await supabase.from('deleted_orders').select('*').eq('dismissed', false).order('deleted_at', { ascending: false });
+    if (data) setDeletedOrders(data);
+  }, [isAdminMaster]);
+
+  useEffect(() => { fetchDeletedOrders(); }, [fetchDeletedOrders]);
+
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-old-orders');
+      if (error) { toast.error('Erro ao limpar dados: ' + error.message); }
+      else { toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`); fetchStorageInfo(); fetchDeletedOrders(); }
+    } catch { toast.error('Erro ao limpar dados'); }
+    finally { setCleanupLoading(false); }
+  };
+
+  const handleRestoreOrder = async (deletedRecord: any) => {
+    try {
+      const orderData = deletedRecord.order_data;
+      const { error } = await supabase.from('orders').insert(orderData);
+      if (error) { toast.error('Erro ao restaurar pedido: ' + error.message); return; }
+      await supabase.from('deleted_orders').delete().eq('id', deletedRecord.id);
+      setDeletedOrders(prev => prev.filter(d => d.id !== deletedRecord.id));
+      toast.success('Pedido restaurado com sucesso!');
+      window.location.reload();
+    } catch { toast.error('Erro ao restaurar pedido'); }
+  };
+
+  const handleDismissDeleted = async (deletedId: string) => {
+    await supabase.from('deleted_orders').update({ dismissed: true } as any).eq('id', deletedId);
+    setDeletedOrders(prev => prev.filter(d => d.id !== deletedId));
+  };
+
+  const handleChecked = (orderId: string) => {
+    setCheckedAlertIds(prev => {
+      const next = new Set(prev);
+      next.add(orderId);
+      localStorage.setItem('alert_checked_orders', JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   return (
     <section className="container mx-auto px-4 py-8">
@@ -202,8 +321,8 @@ const AdminDashboard = ({
         </div>
       </div>
 
-      {/* Pedidos de Alerta — only Juliana (admin-1) */}
-      {user?.nomeUsuario?.toLowerCase() === '7estrivos' && (() => {
+      {/* Pedidos de Alerta — only admin_master */}
+      {isAdminMaster && (() => {
         const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago'];
         const alertOrders = sourceOrders.filter(o => {
           const overdue = o.diasRestantes === 0 && !FINAL_STAGES.includes(o.status);
@@ -245,8 +364,8 @@ const AdminDashboard = ({
         ) : null;
       })()}
 
-      {/* Pedidos Apagados — only Juliana (7estrivos) */}
-      {user?.nomeUsuario?.toLowerCase() === '7estrivos' && deletedOrders.length > 0 && (
+      {/* Pedidos Apagados — only admin_master */}
+      {isAdminMaster && deletedOrders.length > 0 && (
         <div className="mt-8">
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={3} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
@@ -267,25 +386,13 @@ const AdminDashboard = ({
                         <span className="text-xs text-destructive font-semibold">Removido</span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setViewingDeletedOrder(d)}
-                      className="shrink-0 px-2 py-2 bg-muted hover:bg-muted/80 rounded-lg text-xs transition-colors"
-                      title="Visualizar"
-                    >
+                    <button onClick={() => setViewingDeletedOrder(d)} className="shrink-0 px-2 py-2 bg-muted hover:bg-muted/80 rounded-lg text-xs transition-colors" title="Visualizar">
                       <Eye size={16} />
                     </button>
-                    <button
-                      onClick={() => handleRestoreOrder(d)}
-                      className="shrink-0 px-2 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                      title="Restaurar pedido"
-                    >
+                    <button onClick={() => handleRestoreOrder(d)} className="shrink-0 px-2 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors" title="Restaurar pedido">
                       <RotateCcw size={14} />
                     </button>
-                    <button
-                      onClick={() => handleDismissDeleted(d.id)}
-                      className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                      title="Marcar como conferido"
-                    >
+                    <button onClick={() => handleDismissDeleted(d.id)} className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors" title="Marcar como conferido">
                       <Check size={14} /> Conferido
                     </button>
                   </div>
@@ -315,7 +422,7 @@ const AdminDashboard = ({
         </DialogContent>
       </Dialog>
 
-      {/* Specialized reports section */}
+      {/* Specialized reports */}
       <div className="mt-8">
         <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4}>
           <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']} />
@@ -328,8 +435,8 @@ const AdminDashboard = ({
         <SoladoBoard title="Pedidos com vira colorida" orders={viraColoridaOrders} storageKey="dismissed_vira_colorida" />
       </div>
 
-      {/* Storage monitoring — only Juliana */}
-      {isJuliana && storageInfo && (
+      {/* Storage monitoring — only admin_master */}
+      {isAdminMaster && storageInfo && (
         <div className="mt-8">
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={5} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
