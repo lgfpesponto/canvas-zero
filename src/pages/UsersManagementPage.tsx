@@ -66,9 +66,15 @@ const UsersManagementPage = () => {
     const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) {
       toast({ title: 'Erro ao carregar usuários', description: error.message, variant: 'destructive' });
-    } else {
-      setProfiles(data || []);
+      setLoading(false);
+      return;
     }
+    // Fetch roles for all users
+    const { data: rolesData } = await supabase.from('user_roles').select('user_id, role');
+    const roleMap: Record<string, string> = {};
+    (rolesData || []).forEach((r: any) => { roleMap[r.user_id] = r.role; });
+    
+    setProfiles((data || []).map(p => ({ ...p, role: roleMap[p.id] || 'vendedor' })));
     setLoading(false);
   };
 
@@ -90,6 +96,7 @@ const UsersManagementPage = () => {
         email: createForm.email,
         cpfCnpj: createForm.cpfCnpj,
         senha: createForm.senha,
+        role: createForm.role,
       },
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
@@ -101,7 +108,7 @@ const UsersManagementPage = () => {
     } else {
       toast({ title: 'Usuário criado com sucesso!' });
       setShowCreate(false);
-      setCreateForm({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
+      setCreateForm({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '', role: 'vendedor' });
       fetchProfiles();
     }
     setCreating(false);
