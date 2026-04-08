@@ -1,42 +1,51 @@
 
 
-## Corrigir posicionamento dos bordados customizados na lista
+## Adicionar botao de editar (lapis) para gerenciar variacoes customizadas
 
-### Problema
+### Conceito
 
-Novos bordados criados pelo admin via "+" são adicionados ao final da lista (após os "Bordado Variado"). O separador visual "Bordados Variados" aparece antes dos itens que começam com "Bordado Variado", mas como os custom options ficam depois, eles aparecem visualmente dentro do grupo de variados. Bordados customizados só devem entrar no grupo de variados se o nome começar com "Bordado Variado".
+Ao lado do botao "+", adicionar um icone de lapis (Pencil) visivel apenas para admins. Ao clicar, abre um painel inline listando as variacoes customizadas daquela categoria, permitindo editar nome/valor e excluir. Alteracoes sao salvas no Supabase e valem apenas para pedidos futuros (pedidos ja criados mantem os valores originais pois armazenam o label/preco no momento da criacao).
 
-### Solução
+### Alteracoes
 
-Na construção das listas `mergedBordado*`, inserir os custom options ANTES dos itens "Bordado Variado", não no final:
+**1. `src/hooks/useCustomOptions.ts`**
 
-**`src/pages/OrderPage.tsx`** e **`src/pages/EditOrderPage.tsx`**
-
-Alterar a construção dos arrays merged para inserir custom options antes dos "Bordado Variado":
-
+Adicionar funcao `updateOption`:
 ```typescript
-const mergedBordadoCano = (() => {
-  const custom = getByCategoria('bordado_cano').map(o => ({ label: o.label, preco: o.preco }));
-  const variadoStart = BORDADOS_CANO.findIndex(i => i.label.startsWith('Bordado Variado'));
-  if (variadoStart === -1) return [...BORDADOS_CANO, ...custom];
-  // custom que NÃO são variados vão antes do separador; custom variados vão com os variados
-  const customNormal = custom.filter(c => !c.label.toLowerCase().startsWith('bordado variado'));
-  const customVariado = custom.filter(c => c.label.toLowerCase().startsWith('bordado variado'));
-  return [
-    ...BORDADOS_CANO.slice(0, variadoStart),
-    ...customNormal,
-    ...BORDADOS_CANO.slice(variadoStart),
-    ...customVariado,
-  ];
-})();
+const updateOption = async (id: string, label: string, preco: number) => {
+  const { error } = await supabase
+    .from('custom_options').update({ label, preco }).eq('id', id);
+  if (error) { toast.error('Erro ao atualizar'); return; }
+  setOptions(prev => prev.map(o => o.id === id ? { ...o, label, preco } : o));
+  toast.success('Opcao atualizada!');
+};
 ```
+Retornar `updateOption` no hook.
 
-Repetir para `mergedBordadoGaspea` e `mergedBordadoTaloneira` em ambos os arquivos. Criar helper reutilizável para evitar duplicação.
+**2. `src/pages/OrderPage.tsx` e `src/pages/EditOrderPage.tsx`** — Componente `MultiSelect`
+
+- Adicionar props: `customOptions?: CustomOption[]`, `onUpdateOption?`, `onDeleteOption?`
+- Ao lado do botao "+", adicionar botao `Pencil` (lucide) que abre/fecha painel de edicao
+- Painel lista apenas opcoes customizadas da categoria (nao as estaticas)
+- Cada item mostra: input nome editavel, input valor editavel, botao salvar (Check icon), botao excluir (Trash2 icon)
+- Ao salvar chama `onUpdateOption(id, newLabel, newPreco)` — atualiza no Supabase
+- Ao excluir chama `onDeleteOption(id)` — remove do Supabase
+- Passar as props de ambas as paginas usando `useCustomOptions`
+
+**3. Passagem de props**
+
+Onde `MultiSelect` e usado com `categoria`, passar tambem:
+```typescript
+customOptions={getByCategoria('bordado_cano')}
+onUpdateOption={updateOption}
+onDeleteOption={deleteOption}
+```
 
 ### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderPage.tsx` | Inserir custom options antes dos "Bordado Variado" na lista merged |
-| `src/pages/EditOrderPage.tsx` | Mesmo ajuste |
+| `src/hooks/useCustomOptions.ts` | Adicionar `updateOption`, exportar no retorno |
+| `src/pages/OrderPage.tsx` | Botao lapis no MultiSelect, painel de edicao com editar/excluir |
+| `src/pages/EditOrderPage.tsx` | Mesmas alteracoes do MultiSelect |
 
