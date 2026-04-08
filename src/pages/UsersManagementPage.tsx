@@ -313,6 +313,15 @@ const UsersManagementPage = () => {
               <Label>Senha *</Label>
               <Input type="password" value={createForm.senha} onChange={(e) => setCreateForm({ ...createForm, senha: e.target.value })} placeholder="Senha do usuário" />
             </div>
+            <div>
+              <Label>Papel (Role)</Label>
+              <Select value={createForm.role} onValueChange={(v) => setCreateForm({ ...createForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
