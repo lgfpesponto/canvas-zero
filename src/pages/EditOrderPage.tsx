@@ -328,10 +328,19 @@ const EditOrderPage = () => {
   const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
   const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira].reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
+  const findPrice = (b: string, staticArr: {label:string;preco:number}[], cat: string) =>
+    staticArr.find(x => x.label === b)?.preco ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
-    bordadoCano.reduce((sum, b) => sum + (BORDADOS_CANO.find(x => x.label === b)?.preco || 0), 0) +
-    bordadoGaspea.reduce((sum, b) => sum + (BORDADOS_GASPEA.find(x => x.label === b)?.preco || 0), 0) +
-    bordadoTaloneira.reduce((sum, b) => sum + (BORDADOS_TALONEIRA.find(x => x.label === b)?.preco || 0), 0);
+    bordadoCano.reduce((sum, b) => sum + findPrice(b, BORDADOS_CANO, 'bordado_cano'), 0) +
+    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, BORDADOS_GASPEA, 'bordado_gaspea'), 0) +
+    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, BORDADOS_TALONEIRA, 'bordado_taloneira'), 0);
+
+  const mergedBordadoCano = [...BORDADOS_CANO, ...getByCategoria('bordado_cano').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergedBordadoGaspea = [...BORDADOS_GASPEA, ...getByCategoria('bordado_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergedBordadoTaloneira = [...BORDADOS_TALONEIRA, ...getByCategoria('bordado_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergedLaserCano = [...LASER_ITEMS, ...getByCategoria('laser_cano').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergedLaserGaspea = [...LASER_ITEMS, ...getByCategoria('laser_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergedLaserTaloneira = [...LASER_ITEMS, ...getByCategoria('laser_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
   const laserCanoPreco = laserCano.length > 0 ? LASER_CANO_PRECO : 0;
   const glitterCanoPreco = corGlitterCano ? GLITTER_CANO_PRECO : 0;
   const laserGaspeaPreco = laserGaspea.length > 0 ? LASER_GASPEA_PRECO : 0;
