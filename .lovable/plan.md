@@ -1,129 +1,120 @@
 
 
-## Implementar RBAC com roles admin_master, admin_producao, vendedor
+## Implementar RBAC completo com 4 roles (incluindo vendedor_comissao)
 
-### Contexto atual
+### Migração SQL
 
-- A tabela `user_roles` já existe com enum `app_role` (valores: `admin`, `user`)
-- O AuthContext carrega roles da tabela `user_roles` e define `isAdmin` (boolean)
-- Verificações por nome fixo (`isFernanda`, `isJuliana`, `nomeUsuario === '7estrivos'`) controlam dashboards e funcionalidades
-- Usuários atuais: `7estrivos` (role admin), `fernanda` (role admin), demais (role user)
+Adicionar 4 novos valores ao enum `app_role` e criar função helper `is_any_admin()`:
 
-### Importante: roles ficam na tabela `user_roles` (não em `profiles`)
+```sql
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'admin_master';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'admin_producao';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'vendedor';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'vendedor_comissao';
+```
 
-Per boas práticas de segurança, roles são mantidos na tabela separada `user_roles` com a função `has_role()` já existente.
+Criar função `is_any_admin()`:
+```sql
+CREATE OR REPLACE FUNCTION public.is_any_admin(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role IN ('admin_master', 'admin_producao')
+  )
+$$;
+```
+
+Migrar dados existentes (via insert tool):
+- `7estrivos` → `admin_master`
+- `fernanda` → `admin_producao`
+- `site` → `vendedor_comissao`
+- Demais `user` → `vendedor`
+
+Atualizar todas as RLS policies que usam `has_role(auth.uid(), 'admin')` para usar `is_any_admin(auth.uid())` nas tabelas: `orders`, `profiles`, `deleted_orders`, `custom_options`, `gravata_stock`, `user_roles`.
 
 ---
 
-### Parte 1 — Migração do banco de dados
-
-1. Adicionar novos valores ao enum `app_role`:
-```sql
-ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'admin_master';
-ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'admin_producao';
-ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'vendedor';
-```
-
-2. Migrar roles existentes:
-   - `7estrivos`: `admin` → `admin_master`
-   - `fernanda`: `admin` → `admin_producao`
-   - Todos com `user` → `vendedor`
-
-```sql
-UPDATE user_roles SET role = 'admin_master' WHERE user_id = (SELECT id FROM profiles WHERE nome_usuario = '7estrivos');
-UPDATE user_roles SET role = 'admin_producao' WHERE user_id = (SELECT id FROM profiles WHERE nome_usuario = 'fernanda');
-UPDATE user_roles SET role = 'vendedor' WHERE role = 'user';
-```
-
----
-
-### Parte 2 — AuthContext
+### AuthContext (`src/contexts/AuthContext.tsx`)
 
 1. Adicionar `role` ao tipo `User`:
 ```typescript
-export interface User {
-  // ...existente
-  role: 'admin_master' | 'admin_producao' | 'vendedor';
-}
+role: 'admin_master' | 'admin_producao' | 'vendedor' | 'vendedor_comissao';
 ```
 
-2. Em `loadProfile`, carregar a role específica do `user_roles`:
+2. Em `loadProfile`, carregar role específica:
 ```typescript
 const userRole = roles?.[0]?.role || 'vendedor';
 const isAdminFlag = userRole === 'admin_master' || userRole === 'admin_producao';
 ```
 
-3. Substituir `isFernanda` derivado:
-```typescript
-const isFernanda = user?.role === 'admin_producao';
-```
+3. Derivar `isFernanda` da role: `user?.role === 'admin_producao'`
 
-4. Manter `isAdmin` como `true` para `admin_master` e `admin_producao` (ambos veem todos os pedidos via RLS).
+4. Exportar `role` no contexto para uso nos componentes.
 
 ---
 
-### Parte 3 — Gestão de Usuários (UsersManagementPage)
+### Dashboard routing (`src/pages/Index.tsx`)
 
-1. Adicionar campo de seleção de Role nos dialogs de criação e edição:
-   - Dropdown com opções: `admin_master`, `admin_producao`, `vendedor`
-   - Na criação, enviar a role para a edge function `create-user`
-   - Na edição, atualizar diretamente na tabela `user_roles`
-
-2. Exibir coluna "Role" na tabela de usuários (carregar de `user_roles` junto com `profiles`)
-
-3. Atualizar edge function `create-user` para aceitar parâmetro `role` e inserir o valor correto em `user_roles`
+- Substituir `isJuliana = user?.nomeUsuario === '7estrivos'` por `user?.role === 'admin_master'`
+- Substituir `isFernanda` por `user?.role === 'admin_producao'`
+- Manter roteamento: `admin_producao` → FernandaDashboard, `admin_master` → AdminDashboard, `vendedor`/`vendedor_comissao` → VendedorDashboard
 
 ---
 
-### Parte 4 — Substituir verificações por nome nos dashboards
+### VendedorDashboard (`src/components/dashboard/VendedorDashboard.tsx`)
 
-| Verificação atual | Nova verificação |
-|---|---|
-| `user?.nomeUsuario === '7estrivos'` | `user?.role === 'admin_master'` |
-| `user?.nomeUsuario === 'fernanda'` / `isFernanda` | `user?.role === 'admin_producao'` |
-| `isJuliana` | `user?.role === 'admin_master'` |
-| `isAdmin` | `user?.role === 'admin_master' \|\| user?.role === 'admin_producao'` |
-
-**Arquivos afetados:**
-- `src/pages/Index.tsx` — `isJuliana`, `isFernanda`, roteamento de dashboards
-- `src/components/dashboard/AdminDashboard.tsx` — `isJuliana`, alertas, pedidos apagados, storage
-- `src/components/Header.tsx` — `isJuliana` (storage warning)
-- `src/pages/OrderPage.tsx` — `isFernanda` (seleção de vendedor)
-- `src/pages/ExtrasPage.tsx` — `isFernandaUser`
-- `src/pages/BeltOrderPage.tsx` — se usar `isFernanda`
-- `src/pages/OrderDetailPage.tsx` — desconto só para `admin_master`
-- `src/pages/ReportsPage.tsx` — `isFernanda`
-- `src/contexts/AuthContext.tsx` — derivar `isFernanda` da role
+- Substituir `isSiteUser = user?.nomeUsuario === 'site'` por `user?.role === 'vendedor_comissao'`
+- CommissionPanel visível apenas para `vendedor_comissao`
+- "Pendente" oculto para `vendedor_comissao`
 
 ---
 
-### Parte 5 — RLS (sem mudanças necessárias)
+### AdminDashboard (`src/components/dashboard/AdminDashboard.tsx`)
 
-As policies RLS atuais usam `has_role(auth.uid(), 'admin')`. Precisamos atualizar para aceitar `admin_master` e `admin_producao`:
+- Substituir `user?.nomeUsuario === '7estrivos'` por `user?.role === 'admin_master'` (alertas, pedidos apagados, storage)
+- Receber `isAdminMaster` como prop em vez de `isJuliana`
 
-```sql
-CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
-RETURNS boolean ...
--- mantém igual
-```
+---
 
-Mas como as policies usam `has_role(uid, 'admin')` e os novos roles são diferentes, precisamos atualizar as policies para:
-```sql
-has_role(auth.uid(), 'admin_master') OR has_role(auth.uid(), 'admin_producao')
-```
+### Header (`src/components/Header.tsx`)
 
-Ou criar uma função helper `is_any_admin()`:
-```sql
-CREATE FUNCTION public.is_any_admin(_user_id uuid)
-RETURNS boolean AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_id = _user_id AND role IN ('admin_master', 'admin_producao')
-  )
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
-```
+- Substituir `isJuliana = user?.nomeUsuario === '7estrivos'` por `user?.role === 'admin_master'`
 
-E atualizar todas as RLS policies para usar `is_any_admin(auth.uid())`.
+---
+
+### OrderDetailPage (`src/pages/OrderDetailPage.tsx`)
+
+- Substituir `order.vendedor === 'Rancho Chique'` por verificação via role: admins veem cliente apenas se o pedido é de um `vendedor_comissao` (manter lógica existente ou usar role do pedido)
+- Como o pedido não carrega role, manter a verificação por vendedor name para visibilidade do cliente pelo admin, mas o vendedor `vendedor_comissao` sempre vê seu próprio cliente
+
+---
+
+### OrderPage, BeltOrderPage, ExtrasPage
+
+- Substituir `isFernanda = user?.nomeUsuario === 'fernanda'` por `user?.role === 'admin_producao'`
+- Lógica: admin_producao precisa selecionar vendedor (não pode ser ele mesmo)
+
+---
+
+### UsersManagementPage (`src/pages/UsersManagementPage.tsx`)
+
+1. Adicionar dropdown de Role nos dialogs de criação e edição com opções:
+   - `admin_master`, `admin_producao`, `vendedor`, `vendedor_comissao`
+2. Na criação, enviar `role` para edge function `create-user`
+3. Na edição, atualizar `user_roles` via Supabase
+4. Exibir coluna "Cargo" na tabela de usuários
+5. Carregar roles junto com profiles (join ou query separada)
+
+---
+
+### Edge function `create-user` (`supabase/functions/create-user/index.ts`)
+
+- Aceitar parâmetro `role` no body (default: `'vendedor'`)
+- Inserir o valor recebido em `user_roles` em vez de hardcoded `'user'`
+- Validar que o valor é um dos 4 permitidos
+- Atualizar `has_role` check para aceitar `admin_master` ou `admin_producao`
 
 ---
 
@@ -131,15 +122,18 @@ E atualizar todas as RLS policies para usar `is_any_admin(auth.uid())`.
 
 | Arquivo | O que muda |
 |---------|-----------|
-| Migration SQL | Enum + dados + função `is_any_admin` + policies |
+| Migration SQL | Enum + `is_any_admin()` + RLS policies |
+| Data migration (insert) | Migrar roles existentes |
 | `src/contexts/AuthContext.tsx` | User.role, loadProfile, derivar isFernanda |
-| `src/pages/Index.tsx` | Substituir isJuliana/isFernanda por role checks |
-| `src/components/dashboard/AdminDashboard.tsx` | Substituir isJuliana por role check |
-| `src/components/Header.tsx` | Substituir isJuliana por role check |
-| `src/pages/OrderPage.tsx` | Substituir isFernanda por role check |
-| `src/pages/ExtrasPage.tsx` | Substituir isFernandaUser por role check |
-| `src/pages/OrderDetailPage.tsx` | Substituir nome check por role check |
-| `src/pages/ReportsPage.tsx` | Substituir isFernanda por role check |
-| `src/pages/UsersManagementPage.tsx` | Dropdown de role, coluna role na tabela |
+| `src/pages/Index.tsx` | Substituir isJuliana/isFernanda por role |
+| `src/components/dashboard/AdminDashboard.tsx` | isJuliana → isAdminMaster prop |
+| `src/components/dashboard/VendedorDashboard.tsx` | isSiteUser → role === 'vendedor_comissao' |
+| `src/components/Header.tsx` | isJuliana → role check |
+| `src/pages/OrderPage.tsx` | isFernanda → role check |
+| `src/pages/BeltOrderPage.tsx` | isFernanda → role check |
+| `src/pages/ExtrasPage.tsx` | isFernandaUser → role check |
+| `src/pages/OrderDetailPage.tsx` | Cliente visibility via role |
+| `src/pages/ReportsPage.tsx` | isFernanda → role check |
+| `src/pages/UsersManagementPage.tsx` | Dropdown de role, coluna na tabela |
 | `supabase/functions/create-user/index.ts` | Aceitar parâmetro role |
 
