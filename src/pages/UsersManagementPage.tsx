@@ -365,6 +365,15 @@ const UsersManagementPage = () => {
               <Label>Nova Senha (deixe vazio para manter a atual)</Label>
               <Input type="password" value={editForm.newPassword || ''} onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })} placeholder="Nova senha" />
             </div>
+            <div>
+              <Label>Papel (Role)</Label>
+              <Select value={editForm.role || 'vendedor'} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditProfile(null)}>Cancelar</Button>
