@@ -68,7 +68,7 @@ const Index = () => {
       if (error) {
         toast.error('Erro ao limpar dados: ' + error.message);
       } else {
-        toast.success(`Limpeza conclu\u00EDda! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`);
+        toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`);
         fetchStorageInfo();
         fetchDeletedOrders();
       }
@@ -140,7 +140,7 @@ const Index = () => {
     'Aguardando', 'Corte', 'Sem bordado',
     'Bordado Dinei', 'Bordado Sandro', 'Bordado 7Estrivos',
     'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
-    'Pespontando', 'Montagem', 'Revis\u00E3o', 'Expedi\u00E7\u00E3o'];
+    'Pespontando', 'Montagem', 'Revisão', 'Expedição'];
 
   const financialData = useMemo(() => {
     const filtered = sourceOrders.filter((o) => (o.status === 'Entregue' || o.status === 'Cobrado') && matchVendedorFilter(o, receberVendedor));
@@ -222,12 +222,12 @@ const Index = () => {
 
   const solaCouroOrders = useMemo(() => allOrders.filter(o =>
     !o.tipoExtra &&
-    ['couro reta', 'couro carrapeta', 'couro carrapeta com espa\u00E7o espora', 'couro carrapeta com espa\u00E7o de espora']
+    ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora']
       .some(s => (o.solado || '').toLowerCase() === s)
   ), [allOrders]);
 
   const solaRusticaOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra && (o.solado || '').toLowerCase() === 'r\u00FAstica'
+    !o.tipoExtra && (o.solado || '').toLowerCase() === 'rústica'
   ), [allOrders]);
 
   const viraColoridaOrders = useMemo(() => allOrders.filter(o =>
@@ -244,11 +244,11 @@ const Index = () => {
               Portal de Representantes
             </motion.h1>
             <motion.p variants={fadeIn} custom={1} className="text-white/90 text-lg mb-6" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Crie fichas de produ\u00E7\u00E3o, acompanhe seus pedidos e gerencie suas vendas no portal exclusivo para revendedores.
+              Crie fichas de produção, acompanhe seus pedidos e gerencie suas vendas no portal exclusivo para revendedores.
             </motion.p>
             <motion.div variants={fadeIn} custom={2} className="flex gap-3 flex-wrap">
               <Link to="/pedido" className="bg-white text-primary px-6 py-3 rounded-lg font-bold tracking-wider hover:bg-white/90 transition-opacity inline-flex items-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                <ShoppingBag size={18} /> FA\u00C7A SEU PEDIDO
+                <ShoppingBag size={18} /> FAÇA SEU PEDIDO
               </Link>
               <Link to="/relatorios" className="bg-white/20 backdrop-blur text-white border border-white/40 px-6 py-3 rounded-lg font-bold tracking-wider hover:bg-white/30 transition-colors inline-flex items-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
                 <Eye size={18} /> MEUS PEDIDOS
@@ -323,8 +323,8 @@ const Index = () => {
       ) : (
         <section className="container mx-auto px-4 py-12 text-center">
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={0}>
-            <h2 className="text-2xl font-display font-bold mb-4">Fa\u00E7a login para acessar o dashboard</h2>
-            <p className="text-muted-foreground mb-6">Acesse sua conta de revendedor para ver vendas, pedidos e relat\u00F3rios.</p>
+            <h2 className="text-2xl font-display font-bold mb-4">Faça login para acessar o dashboard</h2>
+            <p className="text-muted-foreground mb-6">Acesse sua conta de revendedor para ver vendas, pedidos e relatórios.</p>
             <Link to="/login" className="orange-gradient text-primary-foreground px-8 py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity inline-block">
               ENTRAR
             </Link>

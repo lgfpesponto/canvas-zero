@@ -54,10 +54,10 @@ const VendedorDashboard = ({
           </motion.div>
           )}
 
-          {/* Produtos na produ\u00E7\u00E3o */}
+          {/* Produtos na produção */}
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={1} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlignStartVertical className="text-primary" size={22} /> Produtos na produ\u00E7\u00E3o
+              <AlignStartVertical className="text-primary" size={22} /> Produtos na produção
             </h2>
             <div className="flex gap-2 mb-4 flex-wrap">
               <Popover>
@@ -79,11 +79,11 @@ const VendedorDashboard = ({
               </Popover>
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produ\u00E7\u00E3o</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
               <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
             </div>
             <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais est\u00E3o em produ\u00E7\u00E3o</p>
+            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
           </motion.div>
 
           {/* Commission panel — only for "site" user */}
@@ -104,7 +104,7 @@ const VendedorDashboard = ({
               {(['dia', 'semana', 'mes', 'ano'] as const).map((p) =>
                 <button key={p} onClick={() => setChartPeriod(p)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${chartPeriod === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary/10'}`}>
-                  {p === 'mes' ? 'M\u00EAs' : p}
+                  {p === 'mes' ? 'Mês' : p}
                 </button>
               )}
             </div>
