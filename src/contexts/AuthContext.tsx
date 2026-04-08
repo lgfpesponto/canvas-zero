@@ -118,31 +118,8 @@ export interface Order {
   cliente?: string;
 }
 
-export const PRODUCTION_STATUSES = [
-  "Em aberto", "Aguardando", "Emprestado", "Corte", "Sem bordado",
-  "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
-  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
-  "Pespontando", "Montagem", "Revisão", "Expedição",
-  "Baixa Estoque", "Baixa Site (Despachado)",
-  "Entregue", "Cobrado", "Pago"
-];
-
-export const EXTRAS_STATUSES = [
-  "Em aberto", "Produzindo", "Expedição", "Entregue", "Cobrado", "Pago"
-];
-
-export const BELT_STATUSES = [
-  "Em aberto", "Corte", "Bordado", "Pesponto",
-  "Expedição", "Entregue", "Cobrado", "Pago"
-];
-
-export const PRODUCTION_STATUSES_USER = [
-  "Em aberto", "Aguardando", "Emprestado", "Corte", "Sem bordado",
-  "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
-  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
-  "Pespontando", "Montagem", "Revisão", "Expedição",
-  "Entregue", "Cobrado", "Pago"
-];
+// Re-export statuses from centralized module for backward compatibility
+export { PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES } from '@/lib/order-logic';
 
 /* ───── Business days helpers (unchanged) ───── */
 function addBusinessDays(startDate: Date, days: number): Date {

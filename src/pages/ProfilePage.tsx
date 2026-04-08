@@ -9,12 +9,7 @@ const ProfilePage = () => {
   const { isLoggedIn, isAdmin, user, orders, updateProfile } = useAuth();
   const navigate = useNavigate();
 
-  const PRODUCTION_STATUSES_IN_PROD = [
-    'Aguardando', 'Corte', 'Sem bordado',
-    'Bordado Dinei', 'Bordado Sandro', 'Bordado 7Estrivos',
-    'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
-    'Pespontando', 'Montagem', 'Revisão', 'Expedição',
-  ];
+  // imported at module level
 
   const botasProducao = useMemo(() => {
     return orders.filter(o => PRODUCTION_STATUSES_IN_PROD.some(s => s.toLowerCase() === o.status.toLowerCase())).reduce((s, o) => s + o.quantidade, 0);
