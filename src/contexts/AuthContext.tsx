@@ -17,7 +17,9 @@ export function formatBrasiliaTime(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/* ───── Types (unchanged) ───── */
+/* ───── Types ───── */
+export type AppRole = 'admin_master' | 'admin_producao' | 'vendedor' | 'vendedor_comissao' | 'admin' | 'user';
+
 export interface User {
   id: string;
   nomeCompleto: string;
@@ -26,6 +28,7 @@ export interface User {
   email: string;
   cpfCnpj: string;
   isAdmin?: boolean;
+  role?: AppRole;
 }
 
 export interface OrderAlteracao {
@@ -382,6 +385,7 @@ interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
   isAdmin: boolean;
+  role: AppRole | null;
   login: (username: string, password: string) => Promise<'ok' | 'error'>;
   register: (data: Omit<User, 'id' | 'isAdmin'> & { senha: string }) => Promise<boolean>;
   logout: () => void;
@@ -393,6 +397,7 @@ interface AuthContextType {
   deleteOrderBatch: (ids: string[]) => Promise<void>;
   updateOrder: (id: string, data: Partial<Order>) => void;
   updateOrderStatus: (id: string, newStatus: string, observacao?: string) => void;
+  /** @deprecated Use role instead */
   isFernanda: boolean;
   recoverPassword: (cpfCnpj: string, digits: string) => Promise<boolean>;
   allOrders: Order[];
@@ -405,13 +410,14 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<AppRole | null>(null);
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [allProfiles, setAllProfiles] = useState<ProfileSummary[]>([]);
 
-  const isFernanda = user?.nomeUsuario?.toLowerCase() === 'fernanda';
+  const isFernanda = role === 'admin_producao';
 
   /* ───── Load profile from DB ───── */
   const loadProfile = useCallback(async (authUserId: string) => {
@@ -428,7 +434,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .select('role')
       .eq('user_id', authUserId);
 
-    const hasAdmin = roles?.some((r: any) => r.role === 'admin') ?? false;
+    const userRole = (roles?.[0] as any)?.role as AppRole | undefined;
+    const hasAdmin = ['admin_master', 'admin_producao', 'admin'].includes(userRole || '');
 
     const u: User = {
       id: authUserId,
@@ -438,10 +445,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email: profile.email,
       cpfCnpj: profile.cpf_cnpj,
       isAdmin: hasAdmin,
+      role: userRole,
     };
 
     setUser(u);
     setIsAdmin(hasAdmin);
+    setRole(userRole || null);
     return u;
   }, []);
 
@@ -501,6 +510,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsAdmin(false);
+          setRole(null);
           setOrders([]);
           setAllOrders([]);
         }
@@ -553,6 +563,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setUser(null);
     setIsAdmin(false);
+    setRole(null);
     setOrders([]);
     setAllOrders([]);
   }, []);
@@ -948,7 +959,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, isLoggedIn: !!user, isAdmin, isFernanda,
+      user, isLoggedIn: !!user, isAdmin, role, isFernanda,
       login, register, logout, updateProfile,
       orders: userOrders, addOrder, addOrderBatch, deleteOrder, deleteOrderBatch, updateOrder, updateOrderStatus,
       recoverPassword, allOrders, loading, allProfiles,
