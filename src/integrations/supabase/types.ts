@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      custom_options: {
+        Row: {
+          categoria: string
+          created_at: string
+          id: string
+          label: string
+          preco: number
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          id?: string
+          label: string
+          preco?: number
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          id?: string
+          label?: string
+          preco?: number
+        }
+        Relationships: []
+      }
       deleted_orders: {
         Row: {
           deleted_at: string
