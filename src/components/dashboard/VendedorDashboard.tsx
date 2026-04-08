@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, AlertCircle, AlignStartVertical, ChevronDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,42 +7,92 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import CommissionPanel from '@/components/CommissionPanel';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  PRODUCTION_STATUSES_IN_PROD, PROD_PRODUCT_OPTIONS,
+  isExcludedOrder, getProductType,
+  matchVendedorFilter, formatCurrency,
+} from '@/lib/order-logic';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5 } })
 };
 
-interface VendedorDashboardProps {
-  user: any;
-  orders: any[];
-  financialData: { aReceber: number };
-  chartData: { name: string; vendas: number }[];
-  chartPeriod: 'dia' | 'semana' | 'mes' | 'ano';
-  setChartPeriod: (p: 'dia' | 'semana' | 'mes' | 'ano') => void;
-  chartProductFilter: string;
-  setChartProductFilter: (v: string) => void;
-  prodProductFilter: Set<string>;
-  setProdProductFilter: React.Dispatch<React.SetStateAction<Set<string>>>;
-  PROD_PRODUCT_OPTIONS: { value: string; label: string }[];
-  produtosProducao: number;
-  totalProducao: number;
-  formatCurrency: (v: number) => string;
-}
+const VendedorDashboard = () => {
+  const { orders, user, role } = useAuth();
+  const isSiteUser = role === 'vendedor_comissao';
 
-const VendedorDashboard = ({
-  user, orders, financialData, chartData,
-  chartPeriod, setChartPeriod,
-  chartProductFilter, setChartProductFilter,
-  prodProductFilter, setProdProductFilter,
-  PROD_PRODUCT_OPTIONS, produtosProducao, totalProducao, formatCurrency
-}: VendedorDashboardProps) => {
-  const isSiteUser = user?.role === 'vendedor_comissao';
+  const [chartPeriod, setChartPeriod] = useState<'dia' | 'semana' | 'mes' | 'ano'>('mes');
+  const [chartProductFilter, setChartProductFilter] = useState('todos');
+  const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
+
+  const financialData = useMemo(() => {
+    const filtered = orders.filter(o => o.status === 'Entregue' || o.status === 'Cobrado');
+    return { aReceber: filtered.reduce((s, o) => s + o.preco * o.quantidade, 0) };
+  }, [orders]);
+
+  const produtosProducao = useMemo(() => {
+    return orders
+      .filter(o => PRODUCTION_STATUSES_IN_PROD.some(s => s.toLowerCase() === o.status.toLowerCase()))
+      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [orders, prodProductFilter]);
+
+  const totalProducao = useMemo(() => {
+    return orders
+      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
+      .reduce((s, o) => s + o.quantidade, 0);
+  }, [orders, prodProductFilter]);
+
+  const chartData = useMemo(() => {
+    const data: { name: string; vendas: number }[] = [];
+    const now = new Date();
+    const chartOrders = orders
+      .filter(o => !isExcludedOrder(o.numero))
+      .filter(o => {
+        if (chartProductFilter === 'bota') return !o.tipoExtra;
+        if (chartProductFilter === 'regata') return o.tipoExtra === 'regata';
+        if (chartProductFilter === 'bota_pronta_entrega') return o.tipoExtra === 'bota_pronta_entrega';
+        return !o.tipoExtra || o.tipoExtra === 'regata' || o.tipoExtra === 'bota_pronta_entrega';
+      });
+
+    if (chartPeriod === 'dia') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 86400000);
+        const key = d.toISOString().split('T')[0];
+        data.push({ name: `${d.getDate()}/${d.getMonth() + 1}`, vendas: chartOrders.filter(o => o.dataCriacao === key).reduce((s, o) => s + o.quantidade, 0) });
+      }
+    } else if (chartPeriod === 'semana') {
+      for (let i = 3; i >= 0; i--) {
+        const end = new Date(now.getTime() - i * 7 * 86400000);
+        const start = new Date(end.getTime() - 7 * 86400000);
+        const vendas = chartOrders.filter(o => o.dataCriacao >= start.toISOString().split('T')[0] && o.dataCriacao <= end.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
+        data.push({ name: `Sem ${4 - i}`, vendas });
+      }
+    } else if (chartPeriod === 'mes') {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const vendas = chartOrders.filter(o => o.dataCriacao >= d.toISOString().split('T')[0] && o.dataCriacao <= monthEnd.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
+        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        data.push({ name: months[d.getMonth()], vendas });
+      }
+    } else {
+      for (let i = 2; i >= 0; i--) {
+        const year = now.getFullYear() - i;
+        const vendas = chartOrders.filter(o => o.dataCriacao.startsWith(`${year}`)).reduce((s, o) => s + o.quantidade, 0);
+        data.push({ name: `${year}`, vendas });
+      }
+    }
+    return data;
+  }, [chartPeriod, orders, chartProductFilter]);
+
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="grid lg:grid-cols-2 gap-8">
         <div className="space-y-6">
-          {/* Pendente — hidden for 'site' user */}
+          {/* Pendente — hidden for vendedor_comissao */}
           {!isSiteUser && (
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={0} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
@@ -86,7 +137,7 @@ const VendedorDashboard = ({
             <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
           </motion.div>
 
-          {/* Commission panel — only for "site" user */}
+          {/* Commission panel — only for vendedor_comissao */}
           {isSiteUser && (
             <CommissionPanel orders={orders} />
           )}
