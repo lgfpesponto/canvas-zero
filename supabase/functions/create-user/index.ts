@@ -39,19 +39,18 @@ Deno.serve(async (req) => {
 
     const callerId = claimsData.claims.sub as string;
 
-    const { data: isAdmin } = await anonClient.rpc("has_role", {
+    const { data: isAdminResult } = await anonClient.rpc("is_any_admin", {
       _user_id: callerId,
-      _role: "admin",
     });
 
-    if (!isAdmin) {
+    if (!isAdminResult) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { nomeCompleto, nomeUsuario, email, cpfCnpj, senha } = await req.json();
+    const { nomeCompleto, nomeUsuario, email, cpfCnpj, senha, role } = await req.json();
     if (!nomeUsuario || !senha) {
       return new Response(JSON.stringify({ error: "nomeUsuario and senha are required" }), {
         status: 400,
@@ -86,11 +85,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Assign 'user' role
+    // Assign role (default to 'vendedor')
     if (newUser?.user) {
+      const assignedRole = role || "vendedor";
       await serviceClient.from("user_roles").insert({
         user_id: newUser.user.id,
-        role: "user",
+        role: assignedRole,
       });
     }
 

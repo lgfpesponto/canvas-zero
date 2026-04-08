@@ -5,12 +5,12 @@ import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const Header = () => {
-  const { isLoggedIn, user, isAdmin, logout } = useAuth();
+  const { isLoggedIn, user, isAdmin, role, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
 
-  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
+  const isJuliana = role === 'admin_master';
 
   useEffect(() => {
     if (!isAdmin || !isJuliana) return;

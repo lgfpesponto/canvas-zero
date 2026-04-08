@@ -36,7 +36,7 @@ const VendedorDashboard = ({
   prodProductFilter, setProdProductFilter,
   PROD_PRODUCT_OPTIONS, produtosProducao, totalProducao, formatCurrency
 }: VendedorDashboardProps) => {
-  const isSiteUser = user?.nomeUsuario?.toLowerCase() === 'site';
+  const isSiteUser = user?.role === 'vendedor_comissao';
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="grid lg:grid-cols-2 gap-8">

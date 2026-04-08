@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Pencil, Trash2, Users, Loader2, Plus } from 'lucide-react';
 
@@ -19,7 +20,15 @@ interface Profile {
   telefone: string;
   cpf_cnpj: string;
   created_at: string;
+  role?: string;
 }
+
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'admin_master', label: 'Admin Master' },
+  { value: 'admin_producao', label: 'Admin Produção' },
+  { value: 'vendedor', label: 'Vendedor' },
+  { value: 'vendedor_comissao', label: 'Vendedor Comissão' },
+];
 
 const PROTECTED_USERNAMES = ['7estrivos', 'fernanda', 'demo'];
 
@@ -40,7 +49,7 @@ const UsersManagementPage = () => {
 
   // Create state
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
+  const [createForm, setCreateForm] = useState({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '', role: 'vendedor' });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -57,9 +66,15 @@ const UsersManagementPage = () => {
     const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) {
       toast({ title: 'Erro ao carregar usuários', description: error.message, variant: 'destructive' });
-    } else {
-      setProfiles(data || []);
+      setLoading(false);
+      return;
     }
+    // Fetch roles for all users
+    const { data: rolesData } = await supabase.from('user_roles').select('user_id, role');
+    const roleMap: Record<string, string> = {};
+    (rolesData || []).forEach((r: any) => { roleMap[r.user_id] = r.role; });
+    
+    setProfiles((data || []).map(p => ({ ...p, role: roleMap[p.id] || 'vendedor' })));
     setLoading(false);
   };
 
@@ -81,6 +96,7 @@ const UsersManagementPage = () => {
         email: createForm.email,
         cpfCnpj: createForm.cpfCnpj,
         senha: createForm.senha,
+        role: createForm.role,
       },
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
@@ -92,7 +108,7 @@ const UsersManagementPage = () => {
     } else {
       toast({ title: 'Usuário criado com sucesso!' });
       setShowCreate(false);
-      setCreateForm({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '' });
+      setCreateForm({ nomeCompleto: '', nomeUsuario: '', email: '', cpfCnpj: '', senha: '', role: 'vendedor' });
       fetchProfiles();
     }
     setCreating(false);
@@ -108,6 +124,7 @@ const UsersManagementPage = () => {
       telefone: p.telefone,
       cpf_cnpj: p.cpf_cnpj,
       newPassword: '',
+      role: p.role || 'vendedor',
     });
   };
 
@@ -128,6 +145,16 @@ const UsersManagementPage = () => {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       setSaving(false);
       return;
+    }
+
+    // Update role if changed
+    if (editForm.role && editForm.role !== editProfile.role) {
+      const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', editProfile.id).maybeSingle();
+      if (existingRole) {
+        await supabase.from('user_roles').update({ role: editForm.role } as any).eq('user_id', editProfile.id);
+      } else {
+        await supabase.from('user_roles').insert({ user_id: editProfile.id, role: editForm.role } as any);
+      }
     }
 
     // Update password if provided
@@ -211,10 +238,10 @@ const UsersManagementPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome Completo</TableHead>
+                 <TableHead>Nome Completo</TableHead>
                   <TableHead>Usuário</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Telefone</TableHead>
                   <TableHead>CPF/CNPJ</TableHead>
                   <TableHead>Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -225,8 +252,12 @@ const UsersManagementPage = () => {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome_completo || '—'}</TableCell>
                     <TableCell>{p.nome_usuario}</TableCell>
+                    <TableCell>
+                      <span className="text-xs font-semibold px-2 py-1 rounded bg-muted">
+                        {ROLE_OPTIONS.find(r => r.value === p.role)?.label || p.role || '—'}
+                      </span>
+                    </TableCell>
                     <TableCell>{p.email || '—'}</TableCell>
-                    <TableCell>{p.telefone || '—'}</TableCell>
                     <TableCell>{p.cpf_cnpj || '—'}</TableCell>
                     <TableCell>{new Date(p.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell className="text-right space-x-2">
@@ -282,6 +313,15 @@ const UsersManagementPage = () => {
               <Label>Senha *</Label>
               <Input type="password" value={createForm.senha} onChange={(e) => setCreateForm({ ...createForm, senha: e.target.value })} placeholder="Senha do usuário" />
             </div>
+            <div>
+              <Label>Papel (Role)</Label>
+              <Select value={createForm.role} onValueChange={(v) => setCreateForm({ ...createForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -324,6 +364,15 @@ const UsersManagementPage = () => {
             <div>
               <Label>Nova Senha (deixe vazio para manter a atual)</Label>
               <Input type="password" value={editForm.newPassword || ''} onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })} placeholder="Nova senha" />
+            </div>
+            <div>
+              <Label>Papel (Role)</Label>
+              <Select value={editForm.role || 'vendedor'} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
