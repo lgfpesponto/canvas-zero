@@ -69,7 +69,20 @@ export function useCustomOptions() {
     toast.success('Opção removida!');
   };
 
+  const updateOption = async (id: string, label: string, preco: number) => {
+    const { error } = await supabase
+      .from('custom_options' as any)
+      .update({ label, preco } as any)
+      .eq('id', id);
+    if (error) {
+      toast.error('Erro ao atualizar opção');
+      return;
+    }
+    setOptions(prev => prev.map(o => o.id === id ? { ...o, label, preco } : o));
+    toast.success('Opção atualizada!');
+  };
+
   const getByCategoria = (cat: string) => options.filter(o => o.categoria === cat);
 
-  return { options, loading, addOption, deleteOption, getByCategoria };
+  return { options, loading, addOption, updateOption, deleteOption, getByCategoria };
 }
