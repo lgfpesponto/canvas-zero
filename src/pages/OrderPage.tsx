@@ -969,13 +969,13 @@ const OrderPage = () => {
             )}
             <div><label className={cls.label}>Cor do Bordado do Cano</label><input type="text" value={corBordadoCano} onChange={e => setCorBordadoCano(e.target.value)} className={cls.input} /></div>
 
-            <MultiSelect label="Bordado da Gáspea" items={mergedBordadoGaspea} selected={bordadoGaspea} onChange={setBordadoGaspea} isAdmin={isAdmin} categoria="bordado_gaspea" onAddOption={addOption} customOptions={getByCategoria('bordado_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Bordado da Gáspea" items={mergedBordadoGaspea} selected={bordadoGaspea} onChange={setBordadoGaspea} isAdmin={isAdmin} categoria="bordado_gaspea" onAddOption={addOption} customOptions={getByCategoria('bordado_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {bordadoGaspea.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Gáspea)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescGaspea} onChange={e => setBordadoVariadoDescGaspea(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
             <div><label className={cls.label}>Cor do Bordado da Gáspea</label><input type="text" value={corBordadoGaspea} onChange={e => setCorBordadoGaspea(e.target.value)} className={cls.input} /></div>
 
-            <MultiSelect label="Bordado da Taloneira" items={mergedBordadoTaloneira} selected={bordadoTaloneira} onChange={setBordadoTaloneira} isAdmin={isAdmin} categoria="bordado_taloneira" onAddOption={addOption} customOptions={getByCategoria('bordado_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Bordado da Taloneira" items={mergedBordadoTaloneira} selected={bordadoTaloneira} onChange={setBordadoTaloneira} isAdmin={isAdmin} categoria="bordado_taloneira" onAddOption={addOption} customOptions={getByCategoria('bordado_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {bordadoTaloneira.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Taloneira)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescTaloneira} onChange={e => setBordadoVariadoDescTaloneira(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
@@ -987,21 +987,21 @@ const OrderPage = () => {
 
           {/* 15 Laser (split by cano/gáspea/taloneira + pintura) */}
           <Section title="Laser">
-            <MultiSelect label="Laser do Cano (+R$50)" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} isAdmin={isAdmin} categoria="laser_cano" onAddOption={addOption} customOptions={getByCategoria('laser_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Laser do Cano (+R$50)" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} isAdmin={isAdmin} categoria="laser_cano" onAddOption={addOption} customOptions={getByCategoria('laser_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={COR_GLITTER} />
             <div><label className={cls.label}>Cor do Bordado (Cano)</label><input type="text" value={corBordadoLaserCano} onChange={e => setCorBordadoLaserCano(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
 
-            <MultiSelect label="Laser da Gáspea (+R$50)" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} isAdmin={isAdmin} categoria="laser_gaspea" onAddOption={addOption} customOptions={getByCategoria('laser_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Laser da Gáspea (+R$50)" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} isAdmin={isAdmin} categoria="laser_gaspea" onAddOption={addOption} customOptions={getByCategoria('laser_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
             <div><label className={cls.label}>Cor do Bordado (Gáspea)</label><input type="text" value={corBordadoLaserGaspea} onChange={e => setCorBordadoLaserGaspea(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
 
-            <MultiSelect label="Laser da Taloneira (sem custo)" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} isAdmin={isAdmin} categoria="laser_taloneira" onAddOption={addOption} customOptions={getByCategoria('laser_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Laser da Taloneira (sem custo)" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} isAdmin={isAdmin} categoria="laser_taloneira" onAddOption={addOption} customOptions={getByCategoria('laser_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
