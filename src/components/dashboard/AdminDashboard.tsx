@@ -87,7 +87,7 @@ const AdminDashboard = ({
               {(['dia', 'semana', 'mes', 'ano'] as const).map((p) =>
                 <button key={p} onClick={() => setChartPeriod(p)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${chartPeriod === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary/10'}`}>
-                  {p === 'mes' ? 'M\u00EAs' : p}
+                  {p === 'mes' ? 'Mês' : p}
                 </button>
               )}
             </div>
@@ -151,10 +151,10 @@ const AdminDashboard = ({
             </div>
           </motion.div>
 
-          {/* Produtos na produ\u00E7\u00E3o */}
+          {/* Produtos na produção */}
           <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={1} className="bg-card rounded-xl p-6 western-shadow">
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlignStartVertical className="text-primary" size={22} /> Produtos na produ\u00E7\u00E3o
+              <AlignStartVertical className="text-primary" size={22} /> Produtos na produção
             </h2>
             <div className="flex gap-2 mb-4 flex-wrap">
               <Popover>
@@ -193,18 +193,18 @@ const AdminDashboard = ({
               </Popover>
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produ\u00E7\u00E3o</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
               <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
             </div>
             <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais est\u00E3o em produ\u00E7\u00E3o</p>
+            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
           </motion.div>
         </div>
       </div>
 
       {/* Pedidos de Alerta — only Juliana (admin-1) */}
       {user?.nomeUsuario?.toLowerCase() === '7estrivos' && (() => {
-        const FINAL_STAGES = ['Expedi\u00E7\u00E3o', 'Entregue', 'Cobrado', 'Pago'];
+        const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago'];
         const alertOrders = sourceOrders.filter(o => {
           const overdue = o.diasRestantes === 0 && !FINAL_STAGES.includes(o.status);
           const regressed = o.historico.some((h: any) => FINAL_STAGES.includes(h.local)) && !FINAL_STAGES.includes(o.status);
@@ -216,14 +216,14 @@ const AdminDashboard = ({
               <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
                 <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
               </h2>
-              <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produ\u00E7\u00E3o</p>
+              <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {alertOrders.map(o => (
                   <div key={o.id} className="flex items-center gap-2">
                     <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
                       <div>
                         <span className="font-bold text-sm">{o.numero}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{'\u2014'} {o.vendedor}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
                       </div>
                       <div className="text-right">
                         <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
@@ -252,7 +252,7 @@ const AdminDashboard = ({
             <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
               <Trash2 className="text-destructive" size={22} /> Pedidos Apagados
             </h2>
-            <p className="text-sm text-muted-foreground mb-3">Pedidos removidos por usu\u00E1rios</p>
+            <p className="text-sm text-muted-foreground mb-3">Pedidos removidos por usuários</p>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {deletedOrders.map(d => {
                 const od = d.order_data || {};
@@ -262,7 +262,7 @@ const AdminDashboard = ({
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="font-bold text-sm">{od.numero || 'S/N'}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{'\u2014'} {od.vendedor || 'N/A'}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{'—'} {od.vendedor || 'N/A'}</span>
                         </div>
                         <span className="text-xs text-destructive font-semibold">Removido</span>
                       </div>
@@ -300,7 +300,7 @@ const AdminDashboard = ({
       <Dialog open={!!viewingDeletedOrder} onOpenChange={open => !open && setViewingDeletedOrder(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pedido Apagado {'\u2014'} {viewingDeletedOrder?.order_data?.numero || 'S/N'}</DialogTitle>
+            <DialogTitle>Pedido Apagado {'—'} {viewingDeletedOrder?.order_data?.numero || 'S/N'}</DialogTitle>
           </DialogHeader>
           {viewingDeletedOrder && (
             <div className="space-y-2 text-sm">
@@ -324,7 +324,7 @@ const AdminDashboard = ({
 
       <div className="mt-8 space-y-6">
         <SoladoBoard title="Pedidos com sola de couro" orders={solaCouroOrders} storageKey="dismissed_sola_couro" />
-        <SoladoBoard title="Pedidos com sola r\u00FAstica" orders={solaRusticaOrders} storageKey="dismissed_sola_rustica" />
+        <SoladoBoard title="Pedidos com sola rústica" orders={solaRusticaOrders} storageKey="dismissed_sola_rustica" />
         <SoladoBoard title="Pedidos com vira colorida" orders={viraColoridaOrders} storageKey="dismissed_vira_colorida" />
       </div>
 
@@ -343,7 +343,7 @@ const AdminDashboard = ({
                   </span>
                   {storageInfo.db_size_mb / storageInfo.limit_mb > 0.8 && (
                     <span className="text-xs font-bold text-destructive flex items-center gap-1">
-                      <AlertTriangle size={14} /> Pr\u00F3ximo do limite!
+                      <AlertTriangle size={14} /> Próximo do limite!
                     </span>
                   )}
                 </div>
@@ -370,11 +370,11 @@ const AdminDashboard = ({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Tem certeza que deseja limpar os dados antigos?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Pedidos com status <strong>"Pago"</strong> h\u00E1 mais de 90 dias ter\u00E3o seus detalhes removidos permanentemente (fotos, hist\u00F3rico, altera\u00E7\u00F5es, observa\u00E7\u00F5es, n\u00FAmero, modelo, etc.).
+                      Pedidos com status <strong>"Pago"</strong> há mais de 90 dias terão seus detalhes removidos permanentemente (fotos, histórico, alterações, observações, número, modelo, etc.).
                       <br /><br />
-                      <strong>Apenas vendedor, quantidade e valor ser\u00E3o mantidos</strong> para os gr\u00E1ficos de vendas.
+                      <strong>Apenas vendedor, quantidade e valor serão mantidos</strong> para os gráficos de vendas.
                       <br /><br />
-                      Essa a\u00E7\u00E3o n\u00E3o pode ser desfeita.
+                      Essa ação não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
