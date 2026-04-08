@@ -161,6 +161,7 @@ const MultiSelect = ({
 /* ───── main component ───── */
 const OrderPage = () => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
+  const { getByCategoria, addOption } = useCustomOptions();
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
