@@ -558,7 +558,7 @@ const EditOrderPage = () => {
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
-            <MultiSelect label="Laser da Taloneira (sem custo)" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} isAdmin={isAdmin} categoria="laser_taloneira" onAddOption={addOption} />
+            <MultiSelect label="Laser da Taloneira (sem custo)" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} isAdmin={isAdmin} categoria="laser_taloneira" onAddOption={addOption} customOptions={getByCategoria('laser_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
