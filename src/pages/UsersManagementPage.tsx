@@ -147,6 +147,16 @@ const UsersManagementPage = () => {
       return;
     }
 
+    // Update role if changed
+    if (editForm.role && editForm.role !== editProfile.role) {
+      const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', editProfile.id).maybeSingle();
+      if (existingRole) {
+        await supabase.from('user_roles').update({ role: editForm.role } as any).eq('user_id', editProfile.id);
+      } else {
+        await supabase.from('user_roles').insert({ user_id: editProfile.id, role: editForm.role } as any);
+      }
+    }
+
     // Update password if provided
     if (editForm.newPassword && editForm.newPassword.length > 0) {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -228,10 +238,10 @@ const UsersManagementPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome Completo</TableHead>
+                 <TableHead>Nome Completo</TableHead>
                   <TableHead>Usuário</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Telefone</TableHead>
                   <TableHead>CPF/CNPJ</TableHead>
                   <TableHead>Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -242,8 +252,12 @@ const UsersManagementPage = () => {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome_completo || '—'}</TableCell>
                     <TableCell>{p.nome_usuario}</TableCell>
+                    <TableCell>
+                      <span className="text-xs font-semibold px-2 py-1 rounded bg-muted">
+                        {ROLE_OPTIONS.find(r => r.value === p.role)?.label || p.role || '—'}
+                      </span>
+                    </TableCell>
                     <TableCell>{p.email || '—'}</TableCell>
-                    <TableCell>{p.telefone || '—'}</TableCell>
                     <TableCell>{p.cpf_cnpj || '—'}</TableCell>
                     <TableCell>{new Date(p.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell className="text-right space-x-2">
