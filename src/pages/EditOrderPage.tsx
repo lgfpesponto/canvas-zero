@@ -4,7 +4,7 @@ import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicate
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Check, Trash2 } from 'lucide-react';
+import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS,
@@ -51,15 +51,18 @@ const ToggleField = ({ label, value, onChange, textValue, onTextChange, textPlac
 );
 
 const MultiSelect = ({ label, items, selected, onChange, isAdmin: isAdm, categoria, onAddOption,
-  customOptions, onUpdateOption, onDeleteOption,
+  customOptions, onUpdateOption, onDeleteOption, onBulkUpdatePreco,
 }: {
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
   isAdmin?: boolean; categoria?: string; onAddOption?: (cat: string, label: string, preco: number) => Promise<any>;
   customOptions?: CustomOption[]; onUpdateOption?: (id: string, label: string, preco: number) => Promise<void>; onDeleteOption?: (id: string) => Promise<void>;
+  onBulkUpdatePreco?: (categoria: string, increment: number) => Promise<void>;
 }) => {
   const [search, setSearch] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditPanel, setShowEditPanel] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkValue, setBulkValue] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newPreco, setNewPreco] = useState('');
   const [editState, setEditState] = useState<Record<string, { label: string; preco: string }>>({});
@@ -89,6 +92,33 @@ const MultiSelect = ({ label, items, selected, onChange, isAdmin: isAdm, categor
     });
     setEditState(state);
     setShowEditPanel(true);
+    setShowBulkEdit(false);
+    setBulkValue('');
+  };
+
+  const handleSaveAll = async () => {
+    for (const opt of (customOptions || [])) {
+      const s = editState[opt.id];
+      if (s && (s.label !== opt.label || parseFloat(s.preco) !== opt.preco)) {
+        await onUpdateOption!(opt.id, s.label, parseFloat(s.preco) || 0);
+      }
+    }
+    setShowEditPanel(false);
+  };
+
+  const handleBulkApply = () => {
+    const inc = parseFloat(bulkValue);
+    if (isNaN(inc) || inc === 0) return;
+    setEditState(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        const cur = parseFloat(next[key].preco) || 0;
+        next[key] = { ...next[key], preco: String(Math.max(0, cur + inc)) };
+      }
+      return next;
+    });
+    setBulkValue('');
+    setShowBulkEdit(false);
   };
 
   return (
@@ -132,33 +162,36 @@ const MultiSelect = ({ label, items, selected, onChange, isAdmin: isAdm, categor
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {showEditPanel && (
-          <div className="col-span-full flex justify-end gap-2 mb-1">
-            <button type="button" onClick={async () => {
-              for (const opt of (customOptions || [])) {
-                const s = editState[opt.id];
-                if (s && (s.label !== opt.label || (!isLaser && parseFloat(s.preco) !== opt.preco))) {
-                  await onUpdateOption!(opt.id, s.label, isLaser ? opt.preco : (parseFloat(s.preco) || 0));
-                }
-              }
-              setShowEditPanel(false);
-            }} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
+          <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
+            <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
             <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
+            {showBulkEdit && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Adicionar:</span>
+                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-xs border border-border rounded px-2 py-1 bg-background w-16" placeholder="+5" />
+                <button type="button" onClick={handleBulkApply} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">OK</button>
+              </div>
+            )}
           </div>
         )}
         {filtered.map((item, idx) => {
-          const customOpt = showEditPanel && customOptions?.find(o => o.label === item.label);
+          const customOpt = showEditPanel ? customOptions?.find(o => o.label === item.label || editState[o.id]?.label === item.label) : null;
           return (
             <React.Fragment key={item.label}>
               {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
                 <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
               )}
-              {customOpt ? (
-                <div className="flex flex-col gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="text-xs border border-border rounded px-2 py-1 bg-background w-full" />
-                  {!isLaser && (
-                    <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-2 py-1 bg-background w-full" placeholder="R$" />
-                  )}
-                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="text-destructive hover:text-destructive/80 text-xs self-end" title="Excluir"><Trash2 size={12} /></button>
+              {showEditPanel && customOpt ? (
+                <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                  <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
+                    if (e.target.checked) onChange([...selected, item.label]);
+                    else onChange(selected.filter(s => s !== item.label));
+                  }} className="accent-primary w-3 h-3 shrink-0" />
+                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
+                  <span className="text-xs text-muted-foreground shrink-0">R$</span>
+                  <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
+                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
                 </div>
               ) : (
                 <label className={cls.checkItem}>
@@ -191,12 +224,10 @@ const SelectField = ({ label, value, onChange, options }: { label: string; value
   </div>
 );
 
-const LASER_ITEMS: { label: string; preco: number }[] = LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
-
 const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
-  const { getByCategoria, addOption, updateOption, deleteOption } = useCustomOptions();
+  const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
   const navigate = useNavigate();
   const order = allOrders.find(o => o.id === id);
 
@@ -376,30 +407,34 @@ const EditOrderPage = () => {
   const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
   const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira].reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
-  const findPrice = (b: string, staticArr: {label:string;preco:number}[], cat: string) =>
-    staticArr.find(x => x.label === b)?.preco ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? 0;
+  const findPrice = (b: string, cat: string, fallback: {label:string;preco:number}[]) =>
+    getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
-    bordadoCano.reduce((sum, b) => sum + findPrice(b, BORDADOS_CANO, 'bordado_cano'), 0) +
-    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, BORDADOS_GASPEA, 'bordado_gaspea'), 0) +
-    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, BORDADOS_TALONEIRA, 'bordado_taloneira'), 0);
+    bordadoCano.reduce((sum, b) => sum + findPrice(b, 'bordado_cano', BORDADOS_CANO), 0) +
+    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, 'bordado_gaspea', BORDADOS_GASPEA), 0) +
+    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, 'bordado_taloneira', BORDADOS_TALONEIRA), 0);
 
-  const mergeBordados = (staticArr: {label:string;preco:number}[], cat: string) => {
-    const custom = getByCategoria(cat).map(o => ({ label: o.label, preco: o.preco }));
-    const variadoStart = staticArr.findIndex(i => i.label.startsWith('Bordado Variado'));
-    if (variadoStart === -1) return [...staticArr, ...custom];
-    const customNormal = custom.filter(c => !c.label.toLowerCase().startsWith('bordado variado'));
-    const customVariado = custom.filter(c => c.label.toLowerCase().startsWith('bordado variado'));
-    return [...staticArr.slice(0, variadoStart), ...customNormal, ...staticArr.slice(variadoStart), ...customVariado];
+  const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return fallback;
+    const normal = db.filter(o => !o.label.toLowerCase().startsWith('bordado variado'));
+    const variado = db.filter(o => o.label.toLowerCase().startsWith('bordado variado'));
+    return [...normal, ...variado].map(o => ({ label: o.label, preco: o.preco }));
   };
-  const mergedBordadoCano = mergeBordados(BORDADOS_CANO, 'bordado_cano');
-  const mergedBordadoGaspea = mergeBordados(BORDADOS_GASPEA, 'bordado_gaspea');
-  const mergedBordadoTaloneira = mergeBordados(BORDADOS_TALONEIRA, 'bordado_taloneira');
-  const mergedLaserCano = [...LASER_ITEMS, ...getByCategoria('laser_cano').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedLaserGaspea = [...LASER_ITEMS, ...getByCategoria('laser_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedLaserTaloneira = [...LASER_ITEMS, ...getByCategoria('laser_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
-  const laserCanoPreco = laserCano.length > 0 ? LASER_CANO_PRECO : 0;
+  const getLaserItems = (cat: string) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
+    return db.map(o => ({ label: o.label, preco: o.preco }));
+  };
+  const mergedBordadoCano = getDbItems('bordado_cano', BORDADOS_CANO);
+  const mergedBordadoGaspea = getDbItems('bordado_gaspea', BORDADOS_GASPEA);
+  const mergedBordadoTaloneira = getDbItems('bordado_taloneira', BORDADOS_TALONEIRA);
+  const mergedLaserCano = getLaserItems('laser_cano');
+  const mergedLaserGaspea = getLaserItems('laser_gaspea');
+  const mergedLaserTaloneira = getLaserItems('laser_taloneira');
+  const laserCanoPreco = laserCano.length > 0 ? (findPrice(laserCano[0], 'laser_cano', []) || LASER_CANO_PRECO) : 0;
   const glitterCanoPreco = corGlitterCano ? GLITTER_CANO_PRECO : 0;
-  const laserGaspeaPreco = laserGaspea.length > 0 ? LASER_GASPEA_PRECO : 0;
+  const laserGaspeaPreco = laserGaspea.length > 0 ? (findPrice(laserGaspea[0], 'laser_gaspea', []) || LASER_GASPEA_PRECO) : 0;
   const glitterGaspeaPreco = corGlitterGaspea ? GLITTER_GASPEA_PRECO : 0;
   const totalLaserPreco = laserCanoPreco + glitterCanoPreco + laserGaspeaPreco + glitterGaspeaPreco;
   const desenvPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
@@ -522,17 +557,17 @@ const EditOrderPage = () => {
           <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
 
           <Section title="Bordados">
-            <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} isAdmin={isAdmin} categoria="bordado_cano" onAddOption={addOption} customOptions={getByCategoria('bordado_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} isAdmin={isAdmin} categoria="bordado_cano" onAddOption={addOption} customOptions={getByCategoria('bordado_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
             <div><label className={cls.label}>Cor do Bordado do Cano</label><input type="text" value={corBordadoCano} onChange={e => setCorBordadoCano(e.target.value)} className={cls.input} /></div>
-            <MultiSelect label="Bordado da Gáspea" items={mergedBordadoGaspea} selected={bordadoGaspea} onChange={setBordadoGaspea} isAdmin={isAdmin} categoria="bordado_gaspea" onAddOption={addOption} customOptions={getByCategoria('bordado_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Bordado da Gáspea" items={mergedBordadoGaspea} selected={bordadoGaspea} onChange={setBordadoGaspea} isAdmin={isAdmin} categoria="bordado_gaspea" onAddOption={addOption} customOptions={getByCategoria('bordado_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {bordadoGaspea.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Gáspea)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescGaspea} onChange={e => setBordadoVariadoDescGaspea(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
             <div><label className={cls.label}>Cor do Bordado da Gáspea</label><input type="text" value={corBordadoGaspea} onChange={e => setCorBordadoGaspea(e.target.value)} className={cls.input} /></div>
-            <MultiSelect label="Bordado da Taloneira" items={mergedBordadoTaloneira} selected={bordadoTaloneira} onChange={setBordadoTaloneira} isAdmin={isAdmin} categoria="bordado_taloneira" onAddOption={addOption} customOptions={getByCategoria('bordado_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Bordado da Taloneira" items={mergedBordadoTaloneira} selected={bordadoTaloneira} onChange={setBordadoTaloneira} isAdmin={isAdmin} categoria="bordado_taloneira" onAddOption={addOption} customOptions={getByCategoria('bordado_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {bordadoTaloneira.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Taloneira)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescTaloneira} onChange={e => setBordadoVariadoDescTaloneira(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
@@ -542,17 +577,17 @@ const EditOrderPage = () => {
           <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
 
           <Section title="Laser">
-            <MultiSelect label="Laser do Cano (+R$50)" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} isAdmin={isAdmin} categoria="laser_cano" onAddOption={addOption} customOptions={getByCategoria('laser_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Laser do Cano (+R$50)" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} isAdmin={isAdmin} categoria="laser_cano" onAddOption={addOption} customOptions={getByCategoria('laser_cano')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={COR_GLITTER} />
-            <MultiSelect label="Laser da Gáspea (+R$50)" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} isAdmin={isAdmin} categoria="laser_gaspea" onAddOption={addOption} customOptions={getByCategoria('laser_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Laser da Gáspea (+R$50)" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} isAdmin={isAdmin} categoria="laser_gaspea" onAddOption={addOption} customOptions={getByCategoria('laser_gaspea')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
-            <MultiSelect label="Laser da Taloneira (sem custo)" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} isAdmin={isAdmin} categoria="laser_taloneira" onAddOption={addOption} customOptions={getByCategoria('laser_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} />
+            <MultiSelect label="Laser da Taloneira (sem custo)" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} isAdmin={isAdmin} categoria="laser_taloneira" onAddOption={addOption} customOptions={getByCategoria('laser_taloneira')} onUpdateOption={updateOption} onDeleteOption={deleteOption} onBulkUpdatePreco={bulkUpdatePreco} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}

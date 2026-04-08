@@ -15,7 +15,7 @@ export function useCustomOptions() {
 
   const fetchOptions = async () => {
     const { data, error } = await supabase
-      .from('custom_options' as any)
+      .from('custom_options')
       .select('*')
       .order('created_at', { ascending: true });
     if (error) {
@@ -37,8 +37,8 @@ export function useCustomOptions() {
 
   const addOption = async (categoria: string, label: string, preco: number) => {
     const { data, error } = await supabase
-      .from('custom_options' as any)
-      .insert({ categoria, label, preco } as any)
+      .from('custom_options')
+      .insert({ categoria, label, preco })
       .select()
       .single();
     if (error) {
@@ -58,7 +58,7 @@ export function useCustomOptions() {
 
   const deleteOption = async (id: string) => {
     const { error } = await supabase
-      .from('custom_options' as any)
+      .from('custom_options')
       .delete()
       .eq('id', id);
     if (error) {
@@ -71,8 +71,8 @@ export function useCustomOptions() {
 
   const updateOption = async (id: string, label: string, preco: number) => {
     const { error } = await supabase
-      .from('custom_options' as any)
-      .update({ label, preco } as any)
+      .from('custom_options')
+      .update({ label, preco })
       .eq('id', id);
     if (error) {
       toast.error('Erro ao atualizar opção');
@@ -82,7 +82,28 @@ export function useCustomOptions() {
     toast.success('Opção atualizada!');
   };
 
+  const bulkUpdatePreco = async (categoria: string, increment: number) => {
+    const catOptions = options.filter(o => o.categoria === categoria);
+    let errorCount = 0;
+    for (const opt of catOptions) {
+      const newPreco = Math.max(0, opt.preco + increment);
+      const { error } = await supabase
+        .from('custom_options')
+        .update({ preco: newPreco })
+        .eq('id', opt.id);
+      if (error) errorCount++;
+    }
+    if (errorCount > 0) {
+      toast.error(`Erro ao atualizar ${errorCount} opções`);
+    } else {
+      setOptions(prev => prev.map(o =>
+        o.categoria === categoria ? { ...o, preco: Math.max(0, o.preco + increment) } : o
+      ));
+      toast.success(`Preços atualizados: ${increment >= 0 ? '+' : ''}R$${increment} em ${catOptions.length} itens`);
+    }
+  };
+
   const getByCategoria = (cat: string) => options.filter(o => o.categoria === cat);
 
-  return { options, loading, addOption, updateOption, deleteOption, getByCategoria };
+  return { options, loading, addOption, updateOption, deleteOption, bulkUpdatePreco, getByCategoria };
 }
