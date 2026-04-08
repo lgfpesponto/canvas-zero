@@ -4,7 +4,7 @@ import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicate
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Check, Trash2 } from 'lucide-react';
+import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS,
