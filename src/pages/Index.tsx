@@ -16,7 +16,7 @@ const fadeIn = {
 };
 
 const Index = () => {
-  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, allProfiles, addOrder } = useAuth();
+  const { isLoggedIn, isAdmin, role, orders, allOrders, user, allProfiles, addOrder } = useAuth();
   const [chartPeriod, setChartPeriod] = useState<'dia' | 'semana' | 'mes' | 'ano'>('mes');
   const [receberVendedor, setReceberVendedor] = useState<string>('todos');
   const [chartProductFilter, setChartProductFilter] = useState<string>('todos');
@@ -35,7 +35,7 @@ const Index = () => {
   const [storageLoading, setStorageLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
 
-  const isJuliana = user?.nomeUsuario?.toLowerCase() === '7estrivos';
+  const isJuliana = role === 'admin_master';
 
   const fetchStorageInfo = useCallback(async () => {
     if (!isAdmin || !isJuliana) return;
@@ -54,10 +54,10 @@ const Index = () => {
   useEffect(() => { fetchStorageInfo(); }, [fetchStorageInfo]);
 
   const fetchDeletedOrders = useCallback(async () => {
-    if (!isAdmin || user?.nomeUsuario?.toLowerCase() !== '7estrivos') return;
+    if (role !== 'admin_master') return;
     const { data } = await supabase.from('deleted_orders').select('*').eq('dismissed', false).order('deleted_at', { ascending: false });
     if (data) setDeletedOrders(data);
-  }, [isAdmin, user]);
+  }, [role]);
 
   useEffect(() => { fetchDeletedOrders(); }, [fetchDeletedOrders]);
 
@@ -260,13 +260,13 @@ const Index = () => {
 
       {/* Dashboard content */}
       {isLoggedIn ? (
-        isFernanda ? (
+        role === 'admin_producao' ? (
           <FernandaDashboard
             solaCouroOrders={solaCouroOrders}
             solaRusticaOrders={solaRusticaOrders}
             viraColoridaOrders={viraColoridaOrders}
           />
-        ) : isAdmin ? (
+        ) : role === 'admin_master' || role === 'admin' ? (
           <AdminDashboard
             sourceOrders={sourceOrders}
             user={user}
