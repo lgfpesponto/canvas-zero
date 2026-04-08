@@ -22,7 +22,7 @@ import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExt
 
 const OrderDetailPage = () => {
   const { id } = useParams();
-  const { orders, isAdmin, user, updateOrder, isFernanda, allOrders } = useAuth();
+  const { orders, isAdmin, user, updateOrder, isFernanda, allOrders, role } = useAuth();
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const order = orders.find(o => o.id === id);
@@ -633,7 +633,7 @@ const OrderDetailPage = () => {
           </div>
 
           {/* Discount input — Juliana ADM only */}
-          {isAdmin && user?.nomeUsuario?.toLowerCase() === '7estrivos' && !isFernanda && (
+          {role === 'admin_master' && (
             <div className="border border-border rounded-lg p-4 mt-4">
               <h3 className="text-sm font-bold mb-3">Aplicar Desconto</h3>
               <div className="space-y-3">

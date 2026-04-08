@@ -140,8 +140,8 @@ const ExtrasPage = () => {
     try {
       const product = EXTRA_PRODUCTS.find(p => p.id === productId)!;
 
-      const isFernandaUser = user?.nomeUsuario?.toLowerCase() === 'fernanda';
-      if (isFernandaUser && (!form.vendedorSelecionado || form.vendedorSelecionado === user?.nomeCompleto)) {
+      const isAdminProducao = user?.role === 'admin_producao';
+      if (isAdminProducao && (!form.vendedorSelecionado || form.vendedorSelecionado === user?.nomeCompleto)) {
         toast({ title: 'Por favor, selecione um vendedor válido.', variant: 'destructive' });
         return;
       }
