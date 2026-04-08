@@ -224,12 +224,10 @@ const SelectField = ({ label, value, onChange, options }: { label: string; value
   </div>
 );
 
-const LASER_ITEMS: { label: string; preco: number }[] = LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
-
 const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
-  const { getByCategoria, addOption, updateOption, deleteOption } = useCustomOptions();
+  const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
   const navigate = useNavigate();
   const order = allOrders.find(o => o.id === id);
 
