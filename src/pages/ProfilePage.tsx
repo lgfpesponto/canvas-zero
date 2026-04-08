@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { PRODUCTION_STATUSES_IN_PROD } from '@/lib/order-logic';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, CreditCard, Pencil, Check, X, HardHat, AlertCircle } from 'lucide-react';
