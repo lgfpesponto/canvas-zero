@@ -124,6 +124,7 @@ const UsersManagementPage = () => {
       telefone: p.telefone,
       cpf_cnpj: p.cpf_cnpj,
       newPassword: '',
+      role: p.role || 'vendedor',
     });
   };
 
