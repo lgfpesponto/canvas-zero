@@ -140,39 +140,6 @@ const MultiSelect = ({
           <button type="button" onClick={() => { setShowAddDialog(false); setNewLabel(''); setNewPreco(''); }} className="px-3 py-2 bg-muted border border-border rounded-md text-sm hover:bg-muted/80">Cancelar</button>
         </div>
       )}
-      {showEditPanel && customOptions && onUpdateOption && onDeleteOption && (
-        <div className="mb-2 p-3 border border-primary/30 rounded-lg bg-muted/50 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground uppercase">Editar variações</span>
-            <button type="button" onClick={() => setShowEditPanel(false)} className="text-muted-foreground hover:text-foreground">
-              <X size={14} />
-            </button>
-          </div>
-          {customOptions.map(opt => (
-            <div key={opt.id} className="flex items-end gap-2">
-              <div className="flex-1 min-w-[120px]">
-                <label className="text-xs font-medium">Nome</label>
-                <input type="text" value={editState[opt.id]?.label ?? opt.label} onChange={e => setEditState(prev => ({ ...prev, [opt.id]: { ...prev[opt.id], label: e.target.value } }))} className={cls.inputSmall + ' w-full'} />
-              </div>
-              {!isLaser && (
-                <div className="w-20">
-                  <label className="text-xs font-medium">R$</label>
-                  <input type="number" value={editState[opt.id]?.preco ?? String(opt.preco)} onChange={e => setEditState(prev => ({ ...prev, [opt.id]: { ...prev[opt.id], preco: e.target.value } }))} className={cls.inputSmall + ' w-full'} />
-                </div>
-              )}
-              <button type="button" onClick={async () => {
-                const s = editState[opt.id];
-                if (s) await onUpdateOption(opt.id, s.label, isLaser ? opt.preco : (parseFloat(s.preco) || 0));
-              }} className="p-2 text-primary hover:text-primary/80" title="Salvar">
-                <Check size={14} />
-              </button>
-              <button type="button" onClick={() => onDeleteOption(opt.id)} className="p-2 text-destructive hover:text-destructive/80" title="Excluir">
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
       {hasSearch && (
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -186,25 +153,37 @@ const MultiSelect = ({
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-        {filtered.map((item, idx) => (
-          <React.Fragment key={item.label}>
-            {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
-              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
-            )}
-            <label className={cls.checkItem}>
-              <input
-                type="checkbox"
-                checked={selected.includes(item.label)}
-                onChange={e => {
-                  if (e.target.checked) onChange([...selected, item.label]);
-                  else onChange(selected.filter(s => s !== item.label));
-                }}
-                className="accent-primary w-4 h-4"
-              />
-              <span>{item.label} <span className="text-muted-foreground text-xs">(R${item.preco})</span></span>
-            </label>
-          </React.Fragment>
-        ))}
+        {filtered.map((item, idx) => {
+          const customOpt = showEditPanel && customOptions?.find(o => o.label === item.label);
+          return (
+            <React.Fragment key={item.label}>
+              {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+                <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
+              )}
+              {customOpt ? (
+                <div className="col-span-full flex items-center gap-2 p-1.5 bg-primary/5 rounded border border-primary/20">
+                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="flex-1 text-xs border border-border rounded px-2 py-1 bg-background min-w-0" />
+                  {!isLaser && (
+                    <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="w-16 text-xs border border-border rounded px-2 py-1 bg-background" placeholder="R$" />
+                  )}
+                  <button type="button" onClick={async () => {
+                    const s = editState[customOpt.id];
+                    if (s) await onUpdateOption!(customOpt.id, s.label, isLaser ? customOpt.preco : (parseFloat(s.preco) || 0));
+                  }} className="p-1 text-primary hover:text-primary/80" title="Salvar"><Check size={12} /></button>
+                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="p-1 text-destructive hover:text-destructive/80" title="Excluir"><Trash2 size={12} /></button>
+                </div>
+              ) : (
+                <label className={cls.checkItem}>
+                  <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
+                    if (e.target.checked) onChange([...selected, item.label]);
+                    else onChange(selected.filter(s => s !== item.label));
+                  }} className="accent-primary w-4 h-4" />
+                  <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+                </label>
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );
