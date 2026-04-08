@@ -515,18 +515,18 @@ const OrderPage = () => {
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
   const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira]
     .reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
-  const findPrice = (b: string, staticArr: {label:string;preco:number}[], cat: string) =>
-    staticArr.find(x => x.label === b)?.preco ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? 0;
+  const findPrice = (b: string, cat: string, fallback: {label:string;preco:number}[]) =>
+    getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
-    bordadoCano.reduce((sum, b) => sum + findPrice(b, BORDADOS_CANO, 'bordado_cano'), 0) +
-    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, BORDADOS_GASPEA, 'bordado_gaspea'), 0) +
-    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, BORDADOS_TALONEIRA, 'bordado_taloneira'), 0);
+    bordadoCano.reduce((sum, b) => sum + findPrice(b, 'bordado_cano', BORDADOS_CANO), 0) +
+    bordadoGaspea.reduce((sum, b) => sum + findPrice(b, 'bordado_gaspea', BORDADOS_GASPEA), 0) +
+    bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, 'bordado_taloneira', BORDADOS_TALONEIRA), 0);
 
-  const laserCanoPreco = laserCano.length > 0 ? LASER_CANO_PRECO : 0;
+  const laserCanoPreco = laserCano.length > 0 ? (findPrice(laserCano[0], 'laser_cano', []) || LASER_CANO_PRECO) : 0;
   const glitterCanoPreco = corGlitterCano ? GLITTER_CANO_PRECO : 0;
-  const laserGaspeaPreco = laserGaspea.length > 0 ? LASER_GASPEA_PRECO : 0;
+  const laserGaspeaPreco = laserGaspea.length > 0 ? (findPrice(laserGaspea[0], 'laser_gaspea', []) || LASER_GASPEA_PRECO) : 0;
   const glitterGaspeaPreco = corGlitterGaspea ? GLITTER_GASPEA_PRECO : 0;
-  const laserTaloneiraPreco = laserTaloneira.length > 0 ? LASER_TALONEIRA_PRECO : 0;
+  const laserTaloneiraPreco = laserTaloneira.length > 0 ? (findPrice(laserTaloneira[0], 'laser_taloneira', []) || LASER_TALONEIRA_PRECO) : 0;
   const glitterTaloneiraPreco = corGlitterTaloneira ? GLITTER_TALONEIRA_PRECO : 0;
   const totalLaserPreco = laserCanoPreco + glitterCanoPreco + laserGaspeaPreco + glitterGaspeaPreco + laserTaloneiraPreco + glitterTaloneiraPreco;
 
