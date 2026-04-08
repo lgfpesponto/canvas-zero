@@ -1,53 +1,56 @@
 
 
-## Editar variações inline no próprio quadro de seleção
+## Editar variações inline — transformar checkboxes em campos editáveis
 
 ### Problema
 
-Atualmente, clicar no lápis abre um painel separado acima do quadro de checkboxes. O usuário quer que a edição aconteça dentro do próprio quadro — os itens customizados ficam editáveis no lugar, sem criar campos extras fora.
+Quando o admin clica no lápis, os itens customizados aparecem como uma div separada (`col-span-full`) abaixo dos outros itens, quebrando o layout do grid. O usuário quer que cada item customizado fique editável **no mesmo lugar** do checkbox, mantendo a posição no grid, e que apareçam botões "Salvar" e "Cancelar" no topo do quadro.
 
 ### Solução
 
-Quando o admin clica no lápis, o quadro entra em "modo edição". Os itens que são opções customizadas (vindos do `custom_options`) mostram inputs editáveis de nome e valor no lugar do checkbox/label normal, com botões de salvar e excluir. Os itens estáticos (da config) ficam inalterados. Clicar no lápis novamente (ou num botão "Fechar") sai do modo edição.
+Quando `showEditPanel` está ativo:
+- Cada item customizado renderiza no mesmo espaço do grid (sem `col-span-full`), substituindo o checkbox/label por inputs de nome e valor editáveis
+- Itens estáticos ficam como checkboxes normais (desabilitados ou inalterados)
+- No topo do grid (acima dos itens), aparecem botões "Salvar" e "Cancelar"
+- "Salvar" chama `onUpdateOption` para cada item alterado e fecha o modo edição
+- "Cancelar" descarta alterações e fecha o modo edição
 
-### Alterações
+### Alterações em ambos os arquivos
 
-**`src/pages/OrderPage.tsx`** — MultiSelect
+**`src/pages/OrderPage.tsx`** e **`src/pages/EditOrderPage.tsx`** — MultiSelect
 
-- Remover o bloco `showEditPanel` separado (linhas 143-174)
-- Manter o estado `showEditPanel` como flag de "modo edição"
-- Dentro do grid de checkboxes (linha 188+), para cada item, verificar se é customizado (`customOptions.find(o => o.label === item.label)`)
-- Se estiver em modo edição E o item for customizado: renderizar inputs de nome/valor + botões Check/Trash2 no lugar do checkbox
-- Se não: renderizar o checkbox normal como está
+1. Remover `col-span-full` dos itens customizados editáveis — cada item fica na mesma célula do grid que o checkbox ocuparia
 
-Lógica no grid:
+2. Substituir a renderização do item customizado em modo edição:
 ```typescript
-{filtered.map((item, idx) => {
-  const customOpt = showEditPanel && customOptions?.find(o => o.label === item.label);
-  return (
-    <React.Fragment key={item.label}>
-      {/* separador variados igual */}
-      {customOpt ? (
-        <div className="col-span-full flex items-center gap-2 p-1 bg-primary/5 rounded">
-          <input value={editState[customOpt.id]?.label ?? customOpt.label} onChange={...} className="flex-1 text-xs border rounded px-2 py-1" />
-          {!isLaser && <input type="number" value={editState[customOpt.id]?.preco ?? customOpt.preco} onChange={...} className="w-16 text-xs border rounded px-2 py-1" />}
-          <button onClick={() => onUpdateOption(customOpt.id, ...)}><Check size={12}/></button>
-          <button onClick={() => onDeleteOption(customOpt.id)}><Trash2 size={12}/></button>
-        </div>
-      ) : (
-        <label className={cls.checkItem}>/* checkbox normal */</label>
-      )}
-    </React.Fragment>
-  );
-})}
+{customOpt ? (
+  <div className="flex flex-col gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+    <input type="text" value={editState[customOpt.id]?.label} onChange={...} className="text-xs border rounded px-2 py-1 w-full" />
+    {!isLaser && <input type="number" value={editState[customOpt.id]?.preco} onChange={...} className="text-xs border rounded px-2 py-1 w-full" placeholder="R$" />}
+  </div>
+) : (
+  <label>/* checkbox normal */</label>
+)}
 ```
 
-**`src/pages/EditOrderPage.tsx`** — Mesma alteração no MultiSelect
+3. Adicionar barra de ações no topo do grid quando `showEditPanel` está ativo:
+```typescript
+{showEditPanel && (
+  <div className="col-span-full flex justify-end gap-2 mb-1">
+    <button onClick={handleSaveAll}>Salvar</button>
+    <button onClick={() => setShowEditPanel(false)}>Cancelar</button>
+  </div>
+)}
+```
+
+4. Criar função `handleSaveAll` que itera sobre `editState`, compara com `customOptions` original, e chama `onUpdateOption` apenas para itens que mudaram. Depois fecha o modo edição.
+
+5. Remover os botões Check/Trash2 individuais de cada item — salvar é em lote pelo botão no topo. Manter apenas o Trash2 individual para exclusão.
 
 ### Arquivos alterados
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/OrderPage.tsx` | Remover painel separado, edição inline no grid |
+| `src/pages/OrderPage.tsx` | MultiSelect: items editáveis no lugar, botões Salvar/Cancelar no topo |
 | `src/pages/EditOrderPage.tsx` | Mesma alteração |
 
