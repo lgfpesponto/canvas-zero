@@ -335,9 +335,17 @@ const EditOrderPage = () => {
     bordadoGaspea.reduce((sum, b) => sum + findPrice(b, BORDADOS_GASPEA, 'bordado_gaspea'), 0) +
     bordadoTaloneira.reduce((sum, b) => sum + findPrice(b, BORDADOS_TALONEIRA, 'bordado_taloneira'), 0);
 
-  const mergedBordadoCano = [...BORDADOS_CANO, ...getByCategoria('bordado_cano').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedBordadoGaspea = [...BORDADOS_GASPEA, ...getByCategoria('bordado_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
-  const mergedBordadoTaloneira = [...BORDADOS_TALONEIRA, ...getByCategoria('bordado_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
+  const mergeBordados = (staticArr: {label:string;preco:number}[], cat: string) => {
+    const custom = getByCategoria(cat).map(o => ({ label: o.label, preco: o.preco }));
+    const variadoStart = staticArr.findIndex(i => i.label.startsWith('Bordado Variado'));
+    if (variadoStart === -1) return [...staticArr, ...custom];
+    const customNormal = custom.filter(c => !c.label.toLowerCase().startsWith('bordado variado'));
+    const customVariado = custom.filter(c => c.label.toLowerCase().startsWith('bordado variado'));
+    return [...staticArr.slice(0, variadoStart), ...customNormal, ...staticArr.slice(variadoStart), ...customVariado];
+  };
+  const mergedBordadoCano = mergeBordados(BORDADOS_CANO, 'bordado_cano');
+  const mergedBordadoGaspea = mergeBordados(BORDADOS_GASPEA, 'bordado_gaspea');
+  const mergedBordadoTaloneira = mergeBordados(BORDADOS_TALONEIRA, 'bordado_taloneira');
   const mergedLaserCano = [...LASER_ITEMS, ...getByCategoria('laser_cano').map(o => ({ label: o.label, preco: o.preco }))];
   const mergedLaserGaspea = [...LASER_ITEMS, ...getByCategoria('laser_gaspea').map(o => ({ label: o.label, preco: o.preco }))];
   const mergedLaserTaloneira = [...LASER_ITEMS, ...getByCategoria('laser_taloneira').map(o => ({ label: o.label, preco: o.preco }))];
