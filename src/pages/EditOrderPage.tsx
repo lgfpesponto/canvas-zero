@@ -202,7 +202,7 @@ const LASER_ITEMS: { label: string; preco: number }[] = LASER_OPTIONS.map(l => (
 const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
-  const { getByCategoria, addOption } = useCustomOptions();
+  const { getByCategoria, addOption, updateOption, deleteOption } = useCustomOptions();
   const navigate = useNavigate();
   const order = allOrders.find(o => o.id === id);
 
