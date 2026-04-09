@@ -1,37 +1,58 @@
 
 
-## Ajustes de navegação e persistência de filtros
+## Incluir filtro de Produto na persistência via URL
 
-### Parte 1 — Histórico do botão Voltar
+### Alterações no `src/pages/ReportsPage.tsx`
 
-**Problema**: Ao editar a partir da OrderDetailPage, o histórico fica: `/relatorios` → `/pedido/X` → `/pedido/X/editar` → (replace) `/pedido/X`. O navigate(-1) leva para a entrada anterior `/pedido/X` (duplicata), exigindo dois cliques para chegar em `/relatorios`.
+**1. Inicialização do `filterProduto` a partir da URL (linha 47)**
 
-**Correção**: Na OrderDetailPage (linha 310), ao navegar para a página de edição, usar `{ replace: true }`:
+Atualmente inicializa sempre com `defaultProduto`. Mudar para ler o param `produtos` da URL:
 
 ```typescript
-navigate(`/pedido/${order.id}/editar`, { replace: true });
+const [filterProduto, setFilterProduto] = useState<Set<string>>(() => {
+  const v = searchParams.get('produtos');
+  return v ? new Set(v.split(',')) : new Set(defaultProduto);
+});
 ```
 
-Isso substitui `/pedido/X` por `/pedido/X/editar` no histórico. Após o save (que já usa replace), o stack fica: `/relatorios` → `/pedido/X`. Um clique em Voltar retorna a `/relatorios`.
+**2. Inicialização do `appliedFilters.filterProduto` (linha 99)**
 
-O mesmo ajuste para o botão de editar no OrderCard (linha 52) — este já funciona pois não tem entrada intermediária, mas manter consistência não causa problema.
+Usar a mesma lógica: se houver param `produtos` na URL, usar esse valor em vez do default:
 
-### Parte 2 — Limpar filtros também limpa a URL
+```typescript
+filterProduto: new Set(searchParams.get('produtos')?.split(',') ?? [...defaultProduto]),
+```
 
-**Problema**: O botão "Limpar Filtros" (linha 556-568) reseta os estados mas não chama `syncSearchParams`, então a URL mantém os params antigos. Ao navegar e voltar, os filtros velhos reaparecem.
+**3. `syncSearchParams` — adicionar `filterProduto` (linhas 102-110)**
 
-**Correção**: Após o reset dos estados, chamar `setSearchParams({}, { replace: true })` para limpar a URL.
+Atualizar a assinatura e o corpo para incluir o produto:
 
-### Parte 3 — Confirmar persistência de múltiplos valores CSV
+```typescript
+const syncSearchParams = useCallback((filters: {
+  searchQuery: string; filterDate: string; filterDateEnd: string;
+  filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>;
+}) => {
+  const params = new URLSearchParams();
+  // ... existing params ...
+  // Só persiste se não for o default completo
+  const isDefault = filters.filterProduto.size === defaultProduto.size &&
+    [...defaultProduto].every(v => filters.filterProduto.has(v));
+  if (!isDefault && filters.filterProduto.size > 0) {
+    params.set('produtos', [...filters.filterProduto].join(','));
+  }
+  setSearchParams(params, { replace: true });
+}, [setSearchParams]);
+```
 
-A lógica de serialização (`join(',')`) e parsing (`split(',')`) está correta. O `URLSearchParams.set()` preserva vírgulas literais no valor (não as codifica como separadores). A inicialização de `appliedFilters` (linhas 93-100) usa diretamente o `filterStatus` derivado da URL, o que é correto.
+**4. Nenhuma alteração no `applyFilters`** — já passa `filterProduto` no objeto `newFilters` (linha 115) e chama `syncSearchParams`.
 
-Se houver alguma inconsistência residual, pode ser porque o `appliedFilters.filterStatus` na inicialização (linha 97) captura a referência do Set no momento da criação do estado. Vou garantir que isso use uma cópia fresh: `filterStatus: new Set(filterStatus)`.
+**5. Nenhuma alteração no "Limpar"** — já reseta `filterProduto` para o default e chama `setSearchParams({}, ...)` que limpa todos os params.
 
-### Resumo de alterações
+### Resumo
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/OrderDetailPage.tsx` | `{ replace: true }` no navigate para edição (linha 310) |
-| `src/pages/ReportsPage.tsx` | Limpar URL no handler de "Limpar Filtros" + `new Set(filterStatus)` na init de appliedFilters |
+| Local | Mudança |
+|-------|---------|
+| Inicialização `filterProduto` (L47) | Ler `produtos` da URL |
+| Inicialização `appliedFilters` (L99) | Ler `produtos` da URL |
+| `syncSearchParams` (L102-110) | Adicionar `filterProduto` ao tipo e serializar como CSV |
 
