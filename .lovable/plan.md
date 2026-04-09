@@ -1,29 +1,49 @@
 
 
-## Redirecionar edição de pedido para página de detalhes
+## Ajustar navegação e persistência de filtros
 
-### Problema
+### Parte 1 — `{ replace: true }` na edição
 
-No `EditOrderPage.tsx`, após salvar um pedido editado, o usuário é redirecionado para `/relatorios` (linha 504). O ideal é ir para `/pedido/${id}` — a página de detalhes do pedido recém-editado — como já acontece no `EditExtrasPage.tsx`.
-
-### Alteração
-
-**Arquivo: `src/pages/EditOrderPage.tsx` (linha 504)**
-
-Substituir:
+**`src/pages/EditOrderPage.tsx` (linha 504)**
 ```typescript
-navigate('/relatorios');
-```
-Por:
-```typescript
-navigate(`/pedido/${id}`);
+navigate(`/pedido/${id}`, { replace: true });
 ```
 
-A variável `id` já existe no componente (vem de `useParams`). O toast continua aparecendo durante a transição pois o Sonner persiste entre rotas. A `OrderDetailPage` faz fetch dos dados ao montar, então as alterações recém-salvas já estarão refletidas.
+**`src/pages/EditExtrasPage.tsx` (linha 187)**
+```typescript
+navigate(`/pedido/${order.id}`, { replace: true });
+```
 
-### Nenhuma outra alteração necessária
+Isso remove a página de edição do histórico. O botão "Voltar" na OrderDetailPage (que usa `navigate(-1)`) levará direto para `/relatorios`.
 
-- O `EditExtrasPage.tsx` já redireciona corretamente para `/pedido/${order.id}`
-- O toast persiste entre navegações (Sonner global)
-- A `OrderDetailPage` busca dados frescos do Supabase ao carregar
+### Parte 2 — Persistência de filtros via URL (ReportsPage)
+
+**Sincronização com `useSearchParams`:**
+
+Substituir os `useState` dos filtros por valores derivados de `useSearchParams`:
+- `status` → `?status=corte,bordado` (Set serializado como CSV)
+- `vendedor` → `?vendedor=nome1,nome2`
+- `q` → `?q=busca`
+- `de` / `ate` → `?de=2026-01-01&ate=2026-04-09`
+- `produto` → não precisa persistir (já tem default com todos selecionados)
+
+Ao alterar qualquer filtro, atualizar `searchParams` com `setSearchParams`. Ao carregar a página, inicializar os estados a partir dos params da URL.
+
+**Implementação:**
+- Adicionar `useSearchParams` no início do componente
+- Criar um `useEffect` de inicialização que lê os params e seta os estados
+- Em cada handler de filtro (`setFilterStatus`, `setFilterDate`, etc.), chamar também `setSearchParams` para manter a URL sincronizada
+- Usar `useMemo` para a filtragem de pedidos (já existe parcialmente)
+
+### Parte 3 — Botão Voltar na OrderDetailPage
+
+O botão "Voltar" na OrderDetailPage já usa `navigate(-1)` (linha 222). Com o `{ replace: true }` da Parte 1, o `-1` levará corretamente para `/relatorios?...` com os filtros preservados na URL. Nenhuma alteração necessária aqui.
+
+### Resumo de arquivos
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/EditOrderPage.tsx` | Adicionar `{ replace: true }` ao navigate |
+| `src/pages/EditExtrasPage.tsx` | Adicionar `{ replace: true }` ao navigate |
+| `src/pages/ReportsPage.tsx` | Sincronizar filtros com `useSearchParams` |
 
