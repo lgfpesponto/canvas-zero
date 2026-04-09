@@ -1276,27 +1276,27 @@ const OrderPage = () => {
 
           {mode === 'template' && (
             <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
-              <Plus size={20} /> CRIAR MODELO
+              {tmpl.isEditing ? <><Check size={20} /> SALVAR ALTERAÇÕES NO MODELO</> : <><Plus size={20} /> CRIAR MODELO</>}
             </button>
           )}
         </form>
       </motion.div>
 
       {/* ───── Templates Dialog ───── */}
-      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+      <Dialog open={tmpl.showTemplates} onOpenChange={tmpl.setShowTemplates}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Modelos Salvos</DialogTitle>
           </DialogHeader>
           <Input
             placeholder="Pesquisar modelo..."
-            value={templateSearch}
-            onChange={e => setTemplateSearch(e.target.value)}
+            value={tmpl.templateSearch}
+            onChange={e => tmpl.setTemplateSearch(e.target.value)}
             className="mb-2"
           />
           {(() => {
-            const filtered = templates.filter(t => t.nome.toLowerCase().includes(templateSearch.toLowerCase()));
-            if (templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
+            const filtered = tmpl.templates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
+            if (tmpl.templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
             if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
             return (
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
@@ -1304,6 +1304,7 @@ const OrderPage = () => {
                 <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
                   <span className="font-semibold text-sm">{t.nome}</span>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
                     <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                   </div>
