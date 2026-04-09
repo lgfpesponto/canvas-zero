@@ -18,9 +18,9 @@ import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calc
 
 const EditExtrasPage = () => {
   const { id } = useParams();
-  const { isAdmin, allOrders, updateOrder, allProfiles, user } = useAuth();
+  const { isAdmin, updateOrder, allProfiles, user } = useAuth();
+  const { order, loading: orderLoading } = useOrderById(id);
   const navigate = useNavigate();
-  const order = allOrders.find(o => o.id === id);
 
   const [form, setForm] = useState<Record<string, any>>({});
   const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
