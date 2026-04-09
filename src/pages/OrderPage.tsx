@@ -248,10 +248,7 @@ const OrderPage = () => {
   const [draftId, setDraftId] = useState(draftId_init);
   const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
   const [mode, setMode] = useState<'order' | 'template'>('order');
-  const [templateName, setTemplateName] = useState('');
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<{ id: string; nome: string; form_data: Record<string, string> }[]>([]);
-  const [templateSearch, setTemplateSearch] = useState('');
+  const tmpl = useTemplateManagement();
   // Restore draft or template form data
   const df = templateInit || draftState?.form || {};
 
