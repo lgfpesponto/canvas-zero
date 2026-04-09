@@ -14,12 +14,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { dbRowToOrder } from '@/lib/order-logic';
 import {
   PRODUCTION_STATUSES_IN_PROD, PROD_PRODUCT_OPTIONS,
-  isExcludedOrder, getProductType,
-  matchVendedorFilter, matchVendedorFilterSet,
-  formatCurrency, buildVendedoresList,
+  formatCurrency,
 } from '@/lib/order-logic';
+import { useOrdersQuery } from '@/hooks/useOrdersQuery';
+import type { Order } from '@/contexts/AuthContext';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -27,8 +28,7 @@ const fadeIn = {
 };
 
 const AdminDashboard = () => {
-  const { allOrders, user, role } = useAuth();
-  const sourceOrders = allOrders;
+  const { user, role } = useAuth();
   const isAdminMaster = role === 'admin_master';
 
   // Local state
@@ -50,86 +50,102 @@ const AdminDashboard = () => {
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
 
-  // Derived data
-  const vendedores = useMemo(() => buildVendedoresList(sourceOrders), [sourceOrders]);
+  // ── Server-side data via RPCs ──
+  const [pendingValue, setPendingValue] = useState(0);
+  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
+  const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
+  const [vendedores, setVendedores] = useState<string[]>([]);
 
-  const financialData = useMemo(() => {
-    const filtered = sourceOrders.filter(o => (o.status === 'Entregue' || o.status === 'Cobrado') && matchVendedorFilter(o, receberVendedor));
-    return { aReceber: filtered.reduce((s, o) => s + o.preco * o.quantidade, 0) };
-  }, [sourceOrders, receberVendedor]);
+  // Fetch vendedores list
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('orders').select('vendedor, cliente');
+      if (!data) return;
+      const names = new Set<string>();
+      data.forEach((o: any) => {
+        if (o.vendedor) names.add(o.vendedor);
+        if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) names.add(o.cliente.trim());
+      });
+      setVendedores([...names].sort());
+    })();
+  }, []);
 
-  const produtosProducao = useMemo(() => {
-    return sourceOrders
-      .filter(o => PRODUCTION_STATUSES_IN_PROD.some(s => s.toLowerCase() === o.status.toLowerCase()))
-      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .filter(o => matchVendedorFilterSet(o, prodVendedorFilter))
-      .reduce((s, o) => s + o.quantidade, 0);
-  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
+  // Fetch pending value via RPC
+  useEffect(() => {
+    (async () => {
+      const vendor = receberVendedor === 'todos' ? null : receberVendedor;
+      const { data } = await supabase.rpc('get_pending_value', { vendor });
+      if (data !== null && data !== undefined) setPendingValue(Number(data));
+    })();
+  }, [receberVendedor]);
 
-  const totalProducao = useMemo(() => {
-    return sourceOrders
-      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .filter(o => matchVendedorFilterSet(o, prodVendedorFilter))
-      .reduce((s, o) => s + o.quantidade, 0);
-  }, [sourceOrders, prodProductFilter, prodVendedorFilter]);
-
-  const chartData = useMemo(() => {
-    const data: { name: string; vendas: number }[] = [];
-    const now = new Date();
-    const chartOrders = sourceOrders
-      .filter(o => !isExcludedOrder(o.numero))
-      .filter(o => {
-        if (chartProductFilter === 'bota') return !o.tipoExtra;
-        if (chartProductFilter === 'regata') return o.tipoExtra === 'regata';
-        if (chartProductFilter === 'bota_pronta_entrega') return o.tipoExtra === 'bota_pronta_entrega';
-        return !o.tipoExtra || o.tipoExtra === 'regata' || o.tipoExtra === 'bota_pronta_entrega';
-      })
-      .filter(o => matchVendedorFilter(o, chartVendedorFilter));
-
-    if (chartPeriod === 'dia') {
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 86400000);
-        const key = d.toISOString().split('T')[0];
-        data.push({ name: `${d.getDate()}/${d.getMonth() + 1}`, vendas: chartOrders.filter(o => o.dataCriacao === key).reduce((s, o) => s + o.quantidade, 0) });
+  // Fetch production counts via RPC
+  useEffect(() => {
+    (async () => {
+      const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
+      const vendors = prodVendedorFilter.size > 0 ? [...prodVendedorFilter] : null;
+      const { data } = await supabase.rpc('get_production_counts', {
+        product_types: productTypes,
+        vendors: vendors,
+      });
+      if (data && data.length > 0) {
+        setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
       }
-    } else if (chartPeriod === 'semana') {
-      for (let i = 3; i >= 0; i--) {
-        const end = new Date(now.getTime() - i * 7 * 86400000);
-        const start = new Date(end.getTime() - 7 * 86400000);
-        const vendas = chartOrders.filter(o => o.dataCriacao >= start.toISOString().split('T')[0] && o.dataCriacao <= end.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
-        data.push({ name: `Sem ${4 - i}`, vendas });
-      }
-    } else if (chartPeriod === 'mes') {
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const vendas = chartOrders.filter(o => o.dataCriacao >= d.toISOString().split('T')[0] && o.dataCriacao <= monthEnd.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
-        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        data.push({ name: months[d.getMonth()], vendas });
-      }
-    } else {
-      for (let i = 2; i >= 0; i--) {
-        const year = now.getFullYear() - i;
-        const vendas = chartOrders.filter(o => o.dataCriacao.startsWith(`${year}`)).reduce((s, o) => s + o.quantidade, 0);
-        data.push({ name: `${year}`, vendas });
-      }
-    }
-    return data;
-  }, [chartPeriod, sourceOrders, chartProductFilter, chartVendedorFilter]);
+    })();
+  }, [prodProductFilter, prodVendedorFilter]);
 
-  const solaCouroOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra &&
-    ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora']
-      .some(s => (o.solado || '').toLowerCase() === s)
-  ), [allOrders]);
+  // Fetch chart data via RPC
+  useEffect(() => {
+    (async () => {
+      const vendor = chartVendedorFilter === 'todos' ? null : chartVendedorFilter;
+      const { data } = await supabase.rpc('get_sales_chart', {
+        period: chartPeriod,
+        product_filter: chartProductFilter,
+        vendor_filter: vendor,
+      });
+      if (data) {
+        setChartData(data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })));
+      }
+    })();
+  }, [chartPeriod, chartProductFilter, chartVendedorFilter]);
 
-  const solaRusticaOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra && (o.solado || '').toLowerCase() === 'rústica'
-  ), [allOrders]);
+  // Solado board queries via useOrdersQuery
+  const { orders: solaCouroOrders } = useOrdersQuery({
+    onlyBotas: true,
+    soladoValues: ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora'],
+  });
 
-  const viraColoridaOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra && ['rosa', 'preta'].some(c => (o.corVira || '').toLowerCase() === c)
-  ), [allOrders]);
+  const { orders: solaRusticaOrders } = useOrdersQuery({
+    onlyBotas: true,
+    soladoValues: ['rústica'],
+  });
+
+  const { orders: viraColoridaOrders } = useOrdersQuery({
+    onlyBotas: true,
+    corViraValues: ['rosa', 'preta'],
+  });
+
+  // Alert orders: overdue or regressed (need all non-final orders)
+  const [alertOrders, setAlertOrders] = useState<Order[]>([]);
+  useEffect(() => {
+    if (!isAdminMaster) return;
+    (async () => {
+      const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago'];
+      // Fetch non-final orders + orders with dias_restantes=0
+      const { data } = await supabase.from('orders').select('*')
+        .not('status', 'in', `(${FINAL_STAGES.join(',')})`)
+        .order('created_at', { ascending: false })
+        .range(0, 499);
+      if (!data) return;
+      const orders = data.map(dbRowToOrder);
+      const alerts = orders.filter(o => {
+        const overdue = o.diasRestantes === 0;
+        const regressed = o.historico.some((h: any) => FINAL_STAGES.includes(h.local));
+        return overdue || regressed;
+      });
+      setAlertOrders(alerts);
+    })();
+  }, [isAdminMaster]);
 
   // Side effects
   const fetchStorageInfo = useCallback(async () => {
@@ -189,6 +205,8 @@ const AdminDashboard = () => {
       return next;
     });
   };
+
+  const filteredAlertOrders = alertOrders.filter(o => !checkedAlertIds.has(o.id));
 
   return (
     <section className="container mx-auto px-4 py-8">
@@ -266,7 +284,7 @@ const AdminDashboard = () => {
             </div>
             <div className="bg-muted rounded-lg p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Valor a Receber</p>
-              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(financialData.aReceber)}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(pendingValue)}</p>
             </div>
           </motion.div>
 
@@ -313,56 +331,48 @@ const AdminDashboard = () => {
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{productionCounts.in_production} {productionCounts.in_production === 1 ? 'produto' : 'produtos'}</p>
             </div>
-            <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
+            <Progress value={productionCounts.in_production > 0 ? Math.min(productionCounts.in_production / Math.max(productionCounts.total, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">{productionCounts.in_production} de {productionCounts.total} produtos totais estão em produção</p>
           </motion.div>
         </div>
       </div>
 
       {/* Pedidos de Alerta — only admin_master */}
-      {isAdminMaster && (() => {
-        const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago'];
-        const alertOrders = sourceOrders.filter(o => {
-          const overdue = o.diasRestantes === 0 && !FINAL_STAGES.includes(o.status);
-          const regressed = o.historico.some((h: any) => FINAL_STAGES.includes(h.local)) && !FINAL_STAGES.includes(o.status);
-          return overdue || regressed;
-        }).filter(o => !checkedAlertIds.has(o.id));
-        return alertOrders.length > 0 ? (
-          <div className="mt-8">
-            <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-6 western-shadow">
-              <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-                <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
-              </h2>
-              <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {alertOrders.map(o => (
-                  <div key={o.id} className="flex items-center gap-2">
-                    <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
-                      <div>
-                        <span className="font-bold text-sm">{o.numero}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
-                        {o.diasRestantes === 0 && <span className="text-xs text-destructive ml-2">Prazo atingido</span>}
-                      </div>
-                    </Link>
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
-                      className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                      title="Marcar como conferido"
-                    >
-                      <Check size={14} /> Conferido
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        ) : null;
-      })()}
+      {isAdminMaster && filteredAlertOrders.length > 0 && (
+        <div className="mt-8">
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-6 western-shadow">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
+              <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {filteredAlertOrders.map(o => (
+                <div key={o.id} className="flex items-center gap-2">
+                  <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
+                    <div>
+                      <span className="font-bold text-sm">{o.numero}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
+                      {o.diasRestantes === 0 && <span className="text-xs text-destructive ml-2">Prazo atingido</span>}
+                    </div>
+                  </Link>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
+                    className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                    title="Marcar como conferido"
+                  >
+                    <Check size={14} /> Conferido
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Pedidos Apagados — only admin_master */}
       {isAdminMaster && deletedOrders.length > 0 && (

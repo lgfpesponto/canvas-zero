@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, AlertCircle, AlignStartVertical, ChevronDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,11 +8,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import CommissionPanel from '@/components/CommissionPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { dbRowToOrder } from '@/lib/order-logic';
 import {
-  PRODUCTION_STATUSES_IN_PROD, PROD_PRODUCT_OPTIONS,
-  isExcludedOrder, getProductType,
-  matchVendedorFilter, formatCurrency,
+  PROD_PRODUCT_OPTIONS,
+  formatCurrency,
 } from '@/lib/order-logic';
+import type { Order } from '@/contexts/AuthContext';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -20,73 +22,69 @@ const fadeIn = {
 };
 
 const VendedorDashboard = () => {
-  const { orders, user, role } = useAuth();
+  const { user, role } = useAuth();
   const isSiteUser = role === 'vendedor_comissao';
 
   const [chartPeriod, setChartPeriod] = useState<'dia' | 'semana' | 'mes' | 'ano'>('mes');
   const [chartProductFilter, setChartProductFilter] = useState('todos');
   const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
 
-  const financialData = useMemo(() => {
-    const filtered = orders.filter(o => o.status === 'Entregue' || o.status === 'Cobrado');
-    return { aReceber: filtered.reduce((s, o) => s + o.preco * o.quantidade, 0) };
-  }, [orders]);
+  // Server-side data
+  const [pendingValue, setPendingValue] = useState(0);
+  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
+  const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
+  const [commissionOrders, setCommissionOrders] = useState<Order[]>([]);
 
-  const produtosProducao = useMemo(() => {
-    return orders
-      .filter(o => PRODUCTION_STATUSES_IN_PROD.some(s => s.toLowerCase() === o.status.toLowerCase()))
-      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .reduce((s, o) => s + o.quantidade, 0);
-  }, [orders, prodProductFilter]);
+  // Fetch pending value (vendedor's own orders - handled by RLS)
+  useEffect(() => {
+    if (isSiteUser) return; // vendedor_comissao doesn't see pending
+    (async () => {
+      const vendor = user?.nomeCompleto || null;
+      const { data } = await supabase.rpc('get_pending_value', { vendor });
+      if (data !== null && data !== undefined) setPendingValue(Number(data));
+    })();
+  }, [user?.nomeCompleto, isSiteUser]);
 
-  const totalProducao = useMemo(() => {
-    return orders
-      .filter(o => prodProductFilter.size === 0 || prodProductFilter.has(getProductType(o)))
-      .reduce((s, o) => s + o.quantidade, 0);
-  }, [orders, prodProductFilter]);
-
-  const chartData = useMemo(() => {
-    const data: { name: string; vendas: number }[] = [];
-    const now = new Date();
-    const chartOrders = orders
-      .filter(o => !isExcludedOrder(o.numero))
-      .filter(o => {
-        if (chartProductFilter === 'bota') return !o.tipoExtra;
-        if (chartProductFilter === 'regata') return o.tipoExtra === 'regata';
-        if (chartProductFilter === 'bota_pronta_entrega') return o.tipoExtra === 'bota_pronta_entrega';
-        return !o.tipoExtra || o.tipoExtra === 'regata' || o.tipoExtra === 'bota_pronta_entrega';
+  // Fetch production counts
+  useEffect(() => {
+    (async () => {
+      const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
+      const vendor = user?.nomeCompleto;
+      const { data } = await supabase.rpc('get_production_counts', {
+        product_types: productTypes,
+        vendors: vendor ? [vendor] : null,
       });
+      if (data && data.length > 0) {
+        setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+      }
+    })();
+  }, [prodProductFilter, user?.nomeCompleto]);
 
-    if (chartPeriod === 'dia') {
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 86400000);
-        const key = d.toISOString().split('T')[0];
-        data.push({ name: `${d.getDate()}/${d.getMonth() + 1}`, vendas: chartOrders.filter(o => o.dataCriacao === key).reduce((s, o) => s + o.quantidade, 0) });
+  // Fetch chart data
+  useEffect(() => {
+    (async () => {
+      const vendor = user?.nomeCompleto || null;
+      const { data } = await supabase.rpc('get_sales_chart', {
+        period: chartPeriod,
+        product_filter: chartProductFilter,
+        vendor_filter: vendor,
+      });
+      if (data) {
+        setChartData(data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })));
       }
-    } else if (chartPeriod === 'semana') {
-      for (let i = 3; i >= 0; i--) {
-        const end = new Date(now.getTime() - i * 7 * 86400000);
-        const start = new Date(end.getTime() - 7 * 86400000);
-        const vendas = chartOrders.filter(o => o.dataCriacao >= start.toISOString().split('T')[0] && o.dataCriacao <= end.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
-        data.push({ name: `Sem ${4 - i}`, vendas });
-      }
-    } else if (chartPeriod === 'mes') {
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const vendas = chartOrders.filter(o => o.dataCriacao >= d.toISOString().split('T')[0] && o.dataCriacao <= monthEnd.toISOString().split('T')[0]).reduce((s, o) => s + o.quantidade, 0);
-        const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        data.push({ name: months[d.getMonth()], vendas });
-      }
-    } else {
-      for (let i = 2; i >= 0; i--) {
-        const year = now.getFullYear() - i;
-        const vendas = chartOrders.filter(o => o.dataCriacao.startsWith(`${year}`)).reduce((s, o) => s + o.quantidade, 0);
-        data.push({ name: `${year}`, vendas });
-      }
-    }
-    return data;
-  }, [chartPeriod, orders, chartProductFilter]);
+    })();
+  }, [chartPeriod, chartProductFilter, user?.nomeCompleto]);
+
+  // Fetch commission orders for vendedor_comissao
+  useEffect(() => {
+    if (!isSiteUser) return;
+    (async () => {
+      const { data } = await supabase.from('orders').select('*')
+        .order('data_criacao', { ascending: false })
+        .range(0, 999);
+      if (data) setCommissionOrders(data.map(dbRowToOrder));
+    })();
+  }, [isSiteUser]);
 
   return (
     <section className="container mx-auto px-4 py-8">
@@ -100,7 +98,7 @@ const VendedorDashboard = () => {
             </h2>
             <div className="bg-muted rounded-lg p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Valor Pendente</p>
-              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(financialData.aReceber)}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(pendingValue)}</p>
             </div>
           </motion.div>
           )}
@@ -131,15 +129,15 @@ const VendedorDashboard = () => {
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{produtosProducao} {produtosProducao === 1 ? 'produto' : 'produtos'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{productionCounts.in_production} {productionCounts.in_production === 1 ? 'produto' : 'produtos'}</p>
             </div>
-            <Progress value={produtosProducao > 0 ? Math.min(produtosProducao / Math.max(totalProducao, 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{produtosProducao} de {totalProducao} produtos totais estão em produção</p>
+            <Progress value={productionCounts.in_production > 0 ? Math.min(productionCounts.in_production / Math.max(productionCounts.total, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">{productionCounts.in_production} de {productionCounts.total} produtos totais estão em produção</p>
           </motion.div>
 
           {/* Commission panel — only for vendedor_comissao */}
           {isSiteUser && (
-            <CommissionPanel orders={orders} />
+            <CommissionPanel orders={commissionOrders} />
           )}
         </div>
 
