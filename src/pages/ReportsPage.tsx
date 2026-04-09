@@ -28,12 +28,23 @@ const formatDateBR = (date: string, time?: string) => {
 const ReportsPage = () => {
   const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, deleteOrderBatch, updateOrderStatus } = useAuth();
   const navigate = useNavigate();
-  const [filterDate, setFilterDate] = useState('');
-  const [filterDateEnd, setFilterDateEnd] = useState('');
-  const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterVendedor, setFilterVendedor] = useState<Set<string>>(new Set());
-  const [filterProduto, setFilterProduto] = useState<Set<string>>(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const defaultProduto = new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]);
+
+  // Initialize filter states from URL params
+  const [filterDate, setFilterDate] = useState(() => searchParams.get('de') || '');
+  const [filterDateEnd, setFilterDateEnd] = useState(() => searchParams.get('ate') || '');
+  const [filterStatus, setFilterStatus] = useState<Set<string>>(() => {
+    const v = searchParams.get('status');
+    return v ? new Set(v.split(',')) : new Set<string>();
+  });
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
+  const [filterVendedor, setFilterVendedor] = useState<Set<string>>(() => {
+    const v = searchParams.get('vendedor');
+    return v ? new Set(v.split(',')) : new Set<string>();
+  });
+  const [filterProduto, setFilterProduto] = useState<Set<string>>(() => new Set(defaultProduto));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Bulk progress modal
@@ -78,14 +89,32 @@ const ReportsPage = () => {
     } catch {}
   }, []);
 
-  const [appliedFilters, setAppliedFilters] = useState({
-    searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set<string>(), filterVendedor: new Set<string>(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]),
-  });
+  // Initialize appliedFilters from URL params too
+  const [appliedFilters, setAppliedFilters] = useState(() => ({
+    searchQuery: searchParams.get('q') || '',
+    filterDate: searchParams.get('de') || '',
+    filterDateEnd: searchParams.get('ate') || '',
+    filterStatus: filterStatus,
+    filterVendedor: filterVendedor,
+    filterProduto: new Set(defaultProduto),
+  }));
+
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string> }) => {
+    const params = new URLSearchParams();
+    if (filters.searchQuery) params.set('q', filters.searchQuery);
+    if (filters.filterDate) params.set('de', filters.filterDate);
+    if (filters.filterDateEnd) params.set('ate', filters.filterDateEnd);
+    if (filters.filterStatus.size > 0) params.set('status', [...filters.filterStatus].join(','));
+    if (filters.filterVendedor.size > 0) params.set('vendedor', [...filters.filterVendedor].join(','));
+    setSearchParams(params, { replace: true });
+  }, [setSearchParams]);
 
   const applyFilters = () => {
     setScanFilterId(null);
     setPage(1);
-    setAppliedFilters({ searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) });
+    const newFilters = { searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) };
+    setAppliedFilters(newFilters);
+    syncSearchParams(newFilters);
   };
 
   const toggleProdutoFilter = (val: string) => {
