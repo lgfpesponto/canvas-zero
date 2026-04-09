@@ -176,8 +176,8 @@ const ReportsPage = () => {
   };
 
   const ordersToExport = useMemo(() => selectedIds.size > 0
-    ? filteredOrders.filter(o => selectedIds.has(o.id))
-    : filteredOrders, [selectedIds, filteredOrders]);
+    ? serverOrders.filter(o => selectedIds.has(o.id))
+    : serverOrders, [selectedIds, serverOrders]);
 
   const handleBulkProgressUpdate = () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
@@ -191,12 +191,11 @@ const ReportsPage = () => {
     setShowSelectedList(false);
   };
 
-  // Barcode scan handler
-  const handleScan = useCallback((code: string) => {
+  // Barcode scan handler — direct DB query
+  const handleScan = useCallback(async (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
-    const source = isAdmin ? allOrders : orders;
-    const match = source.find(o => matchOrderBarcode(trimmed, o));
+    const match = await fetchOrderByScan(trimmed);
     if (match) {
       if (isAdmin) {
         setSelectedIds(prev => {
@@ -221,7 +220,7 @@ const ReportsPage = () => {
       toast.error(`Pedido não encontrado para código: ${trimmed}`);
     }
     setScanValue('');
-  }, [allOrders, orders, isAdmin, navigate, playBeep, playErrorBeep]);
+  }, [isAdmin, navigate, playBeep, playErrorBeep]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
@@ -306,7 +305,7 @@ const ReportsPage = () => {
                   </div>
                   {showSelectedList && (
                     <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
-                      {filteredOrders.filter(o => selectedIds.has(o.id)).map(o => (
+                      {serverOrders.filter(o => selectedIds.has(o.id)).map(o => (
                         <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
                           <span className="font-bold text-green-300">{o.numero}</span>
                           <div className="flex items-center gap-2">
@@ -616,7 +615,7 @@ const ReportsPage = () => {
 
         {/* Orders list */}
         <div className="space-y-3">
-          {paginatedOrders.map(order => (
+          {visibleOrders.map(order => (
             <OrderCard
               key={order.id}
               order={order}
@@ -669,7 +668,7 @@ const ReportsPage = () => {
             Selecione a nova etapa para {selectedIds.size} pedido(s):
           </p>
           {(() => {
-            const selectedOrders = filteredOrders.filter(o => selectedIds.has(o.id));
+            const selectedOrders = serverOrders.filter(o => selectedIds.has(o.id));
             const hasBelts = selectedOrders.some(o => o.tipoExtra === 'cinto');
             const hasExtras = selectedOrders.some(o => o.tipoExtra && o.tipoExtra !== 'cinto');
             const hasBotas = selectedOrders.some(o => !o.tipoExtra);
