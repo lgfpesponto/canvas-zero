@@ -1,26 +1,34 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { PRODUCTION_STATUSES_IN_PROD } from '@/lib/order-logic';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, CreditCard, Pencil, Check, X, HardHat, AlertCircle } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
-  const { isLoggedIn, isAdmin, user, orders, updateProfile } = useAuth();
+  const { isLoggedIn, isAdmin, user, updateProfile } = useAuth();
   const navigate = useNavigate();
 
-  // imported at module level
+  // Server-side aggregated data
+  const [pendente, setPendente] = useState(0);
+  const [botasProducao, setBotasProducao] = useState(0);
+  const [totalBotas, setTotalBotas] = useState(0);
 
-  const botasProducao = useMemo(() => {
-    return orders.filter(o => PRODUCTION_STATUSES_IN_PROD.some(s => s.toLowerCase() === o.status.toLowerCase())).reduce((s, o) => s + o.quantidade, 0);
-  }, [orders]);
-
-  const totalBotas = useMemo(() => orders.reduce((s, o) => s + o.quantidade, 0), [orders]);
-
-  const pendente = useMemo(() => {
-    return orders.filter(o => o.status === 'Entregue' || o.status === 'Cobrado').reduce((s, o) => s + o.preco * o.quantidade, 0);
-  }, [orders]);
+  useEffect(() => {
+    if (!user || isAdmin) return;
+    // Fetch pending value
+    supabase.rpc('get_pending_value', { vendor: user.nomeCompleto }).then(({ data }) => {
+      if (data !== null) setPendente(Number(data));
+    });
+    // Fetch production counts
+    supabase.rpc('get_production_counts').then(({ data }) => {
+      if (data && data[0]) {
+        setBotasProducao(Number(data[0].in_production));
+        setTotalBotas(Number(data[0].total));
+      }
+    });
+  }, [user, isAdmin]);
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const [editing, setEditing] = useState(false);
