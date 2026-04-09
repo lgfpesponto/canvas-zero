@@ -1,49 +1,37 @@
 
 
-## Ajustar navegação e persistência de filtros
+## Ajustes de navegação e persistência de filtros
 
-### Parte 1 — `{ replace: true }` na edição
+### Parte 1 — Histórico do botão Voltar
 
-**`src/pages/EditOrderPage.tsx` (linha 504)**
+**Problema**: Ao editar a partir da OrderDetailPage, o histórico fica: `/relatorios` → `/pedido/X` → `/pedido/X/editar` → (replace) `/pedido/X`. O navigate(-1) leva para a entrada anterior `/pedido/X` (duplicata), exigindo dois cliques para chegar em `/relatorios`.
+
+**Correção**: Na OrderDetailPage (linha 310), ao navegar para a página de edição, usar `{ replace: true }`:
+
 ```typescript
-navigate(`/pedido/${id}`, { replace: true });
+navigate(`/pedido/${order.id}/editar`, { replace: true });
 ```
 
-**`src/pages/EditExtrasPage.tsx` (linha 187)**
-```typescript
-navigate(`/pedido/${order.id}`, { replace: true });
-```
+Isso substitui `/pedido/X` por `/pedido/X/editar` no histórico. Após o save (que já usa replace), o stack fica: `/relatorios` → `/pedido/X`. Um clique em Voltar retorna a `/relatorios`.
 
-Isso remove a página de edição do histórico. O botão "Voltar" na OrderDetailPage (que usa `navigate(-1)`) levará direto para `/relatorios`.
+O mesmo ajuste para o botão de editar no OrderCard (linha 52) — este já funciona pois não tem entrada intermediária, mas manter consistência não causa problema.
 
-### Parte 2 — Persistência de filtros via URL (ReportsPage)
+### Parte 2 — Limpar filtros também limpa a URL
 
-**Sincronização com `useSearchParams`:**
+**Problema**: O botão "Limpar Filtros" (linha 556-568) reseta os estados mas não chama `syncSearchParams`, então a URL mantém os params antigos. Ao navegar e voltar, os filtros velhos reaparecem.
 
-Substituir os `useState` dos filtros por valores derivados de `useSearchParams`:
-- `status` → `?status=corte,bordado` (Set serializado como CSV)
-- `vendedor` → `?vendedor=nome1,nome2`
-- `q` → `?q=busca`
-- `de` / `ate` → `?de=2026-01-01&ate=2026-04-09`
-- `produto` → não precisa persistir (já tem default com todos selecionados)
+**Correção**: Após o reset dos estados, chamar `setSearchParams({}, { replace: true })` para limpar a URL.
 
-Ao alterar qualquer filtro, atualizar `searchParams` com `setSearchParams`. Ao carregar a página, inicializar os estados a partir dos params da URL.
+### Parte 3 — Confirmar persistência de múltiplos valores CSV
 
-**Implementação:**
-- Adicionar `useSearchParams` no início do componente
-- Criar um `useEffect` de inicialização que lê os params e seta os estados
-- Em cada handler de filtro (`setFilterStatus`, `setFilterDate`, etc.), chamar também `setSearchParams` para manter a URL sincronizada
-- Usar `useMemo` para a filtragem de pedidos (já existe parcialmente)
+A lógica de serialização (`join(',')`) e parsing (`split(',')`) está correta. O `URLSearchParams.set()` preserva vírgulas literais no valor (não as codifica como separadores). A inicialização de `appliedFilters` (linhas 93-100) usa diretamente o `filterStatus` derivado da URL, o que é correto.
 
-### Parte 3 — Botão Voltar na OrderDetailPage
+Se houver alguma inconsistência residual, pode ser porque o `appliedFilters.filterStatus` na inicialização (linha 97) captura a referência do Set no momento da criação do estado. Vou garantir que isso use uma cópia fresh: `filterStatus: new Set(filterStatus)`.
 
-O botão "Voltar" na OrderDetailPage já usa `navigate(-1)` (linha 222). Com o `{ replace: true }` da Parte 1, o `-1` levará corretamente para `/relatorios?...` com os filtros preservados na URL. Nenhuma alteração necessária aqui.
-
-### Resumo de arquivos
+### Resumo de alterações
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/EditOrderPage.tsx` | Adicionar `{ replace: true }` ao navigate |
-| `src/pages/EditExtrasPage.tsx` | Adicionar `{ replace: true }` ao navigate |
-| `src/pages/ReportsPage.tsx` | Sincronizar filtros com `useSearchParams` |
+| `src/pages/OrderDetailPage.tsx` | `{ replace: true }` no navigate para edição (linha 310) |
+| `src/pages/ReportsPage.tsx` | Limpar URL no handler de "Limpar Filtros" + `new Set(filterStatus)` na init de appliedFilters |
 
