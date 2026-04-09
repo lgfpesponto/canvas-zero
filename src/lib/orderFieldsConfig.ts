@@ -35,7 +35,7 @@ export const ACESSORIOS: { label: string; preco: number }[] = [
   { label: 'Kit Canivete', preco: 60 },
   { label: 'Kit Cantil', preco: 40 },
   { label: 'Bolso', preco: 50 },
-  { label: 'Zíper', preco: 40 },
+  { label: 'Zíper inteiro', preco: 40 },
 ];
 
 // ==================== COUROS ====================
