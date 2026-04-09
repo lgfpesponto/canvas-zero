@@ -134,63 +134,16 @@ const ReportsPage = () => {
     });
   };
 
-  const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
-    ? allOrders.filter(o => 
-        appliedFilters.filterVendedor.has(o.vendedor) || 
-        (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && appliedFilters.filterVendedor.has(o.cliente.trim()))
-      )
-    : orders;
-
-  const filteredOrders = useMemo(() => {
-    return displayOrders.filter(o => {
-      if (appliedFilters.searchQuery && !o.numero.toLowerCase().includes(appliedFilters.searchQuery.toLowerCase())) return false;
-      if (appliedFilters.filterDate && o.dataCriacao < appliedFilters.filterDate) return false;
-      if (appliedFilters.filterDateEnd && o.dataCriacao > appliedFilters.filterDateEnd) return false;
-      if (appliedFilters.filterStatus.size > 0 && !appliedFilters.filterStatus.has(o.status)) return false;
-      if (o.tipoExtra) {
-        if (!appliedFilters.filterProduto.has(o.tipoExtra)) return false;
-      } else {
-        if (!appliedFilters.filterProduto.has('bota')) return false;
-      }
-      return true;
-    }).sort((a, b) => {
-      if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
-      if (a.horaCriacao && b.horaCriacao) return b.horaCriacao.localeCompare(a.horaCriacao);
-      return 0;
-    });
-  }, [displayOrders, appliedFilters]);
-
+  // Server-side paginated orders
   const [page, setPage] = useState(1);
+  const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
+
   const visibleOrders = useMemo(() => {
-    if (scanFilterId) return filteredOrders.filter(o => o.id === scanFilterId);
-    return filteredOrders;
-  }, [filteredOrders, scanFilterId]);
+    if (scanFilterId) return serverOrders.filter(o => o.id === scanFilterId);
+    return serverOrders;
+  }, [serverOrders, scanFilterId]);
 
-  const paginatedOrders = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return visibleOrders.slice(start, start + PAGE_SIZE);
-  }, [visibleOrders, page]);
-  const totalPages = Math.ceil(visibleOrders.length / PAGE_SIZE);
-
-  const handlePageChange = useCallback((newPage: number) => {
-    setPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
-  const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
-
-  const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
-  const allStatuses = [...statuses];
-  const allVendedores = isAdmin ? (() => {
-    const names = new Set(allOrders.map(o => o.vendedor));
-    allOrders.forEach(o => {
-      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-        names.add(o.cliente.trim());
-      }
-    });
-    return [...names].sort();
-  })() : [];
+  const paginatedOrders = visibleOrders; // already paginated by server
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
