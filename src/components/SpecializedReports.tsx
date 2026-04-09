@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES } from '@/contexts/AuthContext';
+import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { FileText, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -354,8 +355,9 @@ function buildCompositionItems(o: Order): [string, number][] {
 }
 
 const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsProps) => {
-  const { allOrders, orders, isAdmin } = useAuth();
-  const sourceOrders = isAdmin ? allOrders : orders;
+  const { isAdmin } = useAuth();
+  // Fetch all orders from DB (no limit)
+  const { orders: sourceOrders, loading: ordersLoading } = useOrdersQuery({ enabled: true });
 
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [filterVendedor, setFilterVendedor] = useState('todos');

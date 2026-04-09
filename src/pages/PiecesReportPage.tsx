@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
@@ -22,7 +23,8 @@ const PIECE_FIELDS = [
 ];
 
 const PiecesReportPage = () => {
-  const { isAdmin, orders } = useAuth();
+  const { isAdmin } = useAuth();
+  const { orders, loading } = useOrdersQuery({ enabled: isAdmin });
   const navigate = useNavigate();
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
 
@@ -86,6 +88,8 @@ const PiecesReportPage = () => {
           <ArrowLeft size={16} /> Voltar
         </button>
         <h1 className="text-3xl font-display font-bold mb-6">Relatório por Peças</h1>
+
+        {loading && <p className="text-center text-muted-foreground py-4">Carregando pedidos...</p>}
 
         <div className="bg-card rounded-xl p-6 western-shadow mb-6">
           <p className="text-sm font-semibold mb-3">Selecione os campos para agrupar:</p>

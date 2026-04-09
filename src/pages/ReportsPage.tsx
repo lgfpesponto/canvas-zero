@@ -1,4 +1,5 @@
 import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue, matchOrderBarcode } from '@/contexts/AuthContext';
+import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchOrdersByIds, type OrderFilters } from '@/hooks/useOrders';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,7 +27,7 @@ const formatDateBR = (date: string, time?: string) => {
 };
 
 const ReportsPage = () => {
-  const { isLoggedIn, isAdmin, isFernanda, orders, allOrders, user, deleteOrder, deleteOrderBatch, updateOrderStatus } = useAuth();
+  const { isLoggedIn, isAdmin, isFernanda, user, deleteOrder, deleteOrderBatch, updateOrderStatus } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -133,63 +134,30 @@ const ReportsPage = () => {
     });
   };
 
-  const displayOrders = isAdmin && appliedFilters.filterVendedor.size > 0
-    ? allOrders.filter(o => 
-        appliedFilters.filterVendedor.has(o.vendedor) || 
-        (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim() && appliedFilters.filterVendedor.has(o.cliente.trim()))
-      )
-    : orders;
-
-  const filteredOrders = useMemo(() => {
-    return displayOrders.filter(o => {
-      if (appliedFilters.searchQuery && !o.numero.toLowerCase().includes(appliedFilters.searchQuery.toLowerCase())) return false;
-      if (appliedFilters.filterDate && o.dataCriacao < appliedFilters.filterDate) return false;
-      if (appliedFilters.filterDateEnd && o.dataCriacao > appliedFilters.filterDateEnd) return false;
-      if (appliedFilters.filterStatus.size > 0 && !appliedFilters.filterStatus.has(o.status)) return false;
-      if (o.tipoExtra) {
-        if (!appliedFilters.filterProduto.has(o.tipoExtra)) return false;
-      } else {
-        if (!appliedFilters.filterProduto.has('bota')) return false;
-      }
-      return true;
-    }).sort((a, b) => {
-      if (a.dataCriacao !== b.dataCriacao) return b.dataCriacao.localeCompare(a.dataCriacao);
-      if (a.horaCriacao && b.horaCriacao) return b.horaCriacao.localeCompare(a.horaCriacao);
-      return 0;
-    });
-  }, [displayOrders, appliedFilters]);
-
+  // Server-side paginated orders
   const [page, setPage] = useState(1);
-  const visibleOrders = useMemo(() => {
-    if (scanFilterId) return filteredOrders.filter(o => o.id === scanFilterId);
-    return filteredOrders;
-  }, [filteredOrders, scanFilterId]);
+  const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
 
-  const paginatedOrders = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return visibleOrders.slice(start, start + PAGE_SIZE);
-  }, [visibleOrders, page]);
-  const totalPages = Math.ceil(visibleOrders.length / PAGE_SIZE);
+  const visibleOrders = useMemo(() => {
+    if (scanFilterId) return serverOrders.filter(o => o.id === scanFilterId);
+    return serverOrders;
+  }, [serverOrders, scanFilterId]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const totalValue = useMemo(() => filteredOrders.reduce((s, o) => s + o.preco * o.quantidade, 0), [filteredOrders]);
   const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
 
   const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
   const allStatuses = [...statuses];
-  const allVendedores = isAdmin ? (() => {
-    const names = new Set(allOrders.map(o => o.vendedor));
-    allOrders.forEach(o => {
-      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-        names.add(o.cliente.trim());
-      }
-    });
-    return [...names].sort();
-  })() : [];
+
+  // Fetch vendedores list from DB
+  const [allVendedores, setAllVendedores] = useState<string[]>([]);
+  useEffect(() => {
+    if (isAdmin) { fetchVendedores().then(setAllVendedores); }
+  }, [isAdmin]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -208,12 +176,14 @@ const ReportsPage = () => {
   };
 
   const ordersToExport = useMemo(() => selectedIds.size > 0
-    ? filteredOrders.filter(o => selectedIds.has(o.id))
-    : filteredOrders, [selectedIds, filteredOrders]);
+    ? serverOrders.filter(o => selectedIds.has(o.id))
+    : serverOrders, [selectedIds, serverOrders]);
 
-  const handleBulkProgressUpdate = () => {
+  const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
-    selectedIds.forEach(id => updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined));
+    for (const id of selectedIds) {
+      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
+    }
     toast.success(`${selectedIds.size} pedido(s) atualizado(s) para "${selectedProgress}".`);
     setShowProgressModal(false);
     setSelectedProgress('');
@@ -221,14 +191,14 @@ const ReportsPage = () => {
     setSelectedIds(new Set());
     setLastScannedNumero(null);
     setShowSelectedList(false);
+    refetchOrders();
   };
 
-  // Barcode scan handler
-  const handleScan = useCallback((code: string) => {
+  // Barcode scan handler — direct DB query
+  const handleScan = useCallback(async (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
-    const source = isAdmin ? allOrders : orders;
-    const match = source.find(o => matchOrderBarcode(trimmed, o));
+    const match = await fetchOrderByScan(trimmed);
     if (match) {
       if (isAdmin) {
         setSelectedIds(prev => {
@@ -253,7 +223,7 @@ const ReportsPage = () => {
       toast.error(`Pedido não encontrado para código: ${trimmed}`);
     }
     setScanValue('');
-  }, [allOrders, orders, isAdmin, navigate, playBeep, playErrorBeep]);
+  }, [isAdmin, navigate, playBeep, playErrorBeep]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
@@ -338,7 +308,7 @@ const ReportsPage = () => {
                   </div>
                   {showSelectedList && (
                     <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
-                      {filteredOrders.filter(o => selectedIds.has(o.id)).map(o => (
+                      {serverOrders.filter(o => selectedIds.has(o.id)).map(o => (
                         <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
                           <span className="font-bold text-green-300">{o.numero}</span>
                           <div className="flex items-center gap-2">
@@ -585,7 +555,7 @@ const ReportsPage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Pedidos</p>
-            <p className="text-2xl font-bold">{visibleOrders.length}</p>
+            <p className="text-2xl font-bold">{serverCount}</p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
@@ -648,7 +618,7 @@ const ReportsPage = () => {
 
         {/* Orders list */}
         <div className="space-y-3">
-          {paginatedOrders.map(order => (
+          {visibleOrders.map(order => (
             <OrderCard
               key={order.id}
               order={order}
@@ -701,7 +671,7 @@ const ReportsPage = () => {
             Selecione a nova etapa para {selectedIds.size} pedido(s):
           </p>
           {(() => {
-            const selectedOrders = filteredOrders.filter(o => selectedIds.has(o.id));
+            const selectedOrders = serverOrders.filter(o => selectedIds.has(o.id));
             const hasBelts = selectedOrders.some(o => o.tipoExtra === 'cinto');
             const hasExtras = selectedOrders.some(o => o.tipoExtra && o.tipoExtra !== 'cinto');
             const hasBotas = selectedOrders.some(o => !o.tipoExtra);

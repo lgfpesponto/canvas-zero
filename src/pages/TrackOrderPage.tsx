@@ -1,7 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Eye, Clock } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   'Em aberto': 'bg-yellow-100 text-yellow-800',
@@ -11,7 +12,8 @@ const statusColors: Record<string, string> = {
 };
 
 const TrackOrderPage = () => {
-  const { isLoggedIn, orders } = useAuth();
+  const { isLoggedIn } = useAuth();
+  const { orders, loading } = useOrdersQuery({ enabled: isLoggedIn });
   const navigate = useNavigate();
 
   if (!isLoggedIn) {
@@ -31,6 +33,8 @@ const TrackOrderPage = () => {
     <div className="container mx-auto px-4 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-3xl font-display font-bold mb-6">Acompanhe seus Pedidos</h1>
+
+        {loading && <p className="text-center text-muted-foreground py-8">Carregando pedidos...</p>}
 
         <div className="space-y-4">
           {orders.map((order, i) => (
@@ -69,7 +73,7 @@ const TrackOrderPage = () => {
           ))}
         </div>
 
-        {orders.length === 0 && (
+        {!loading && orders.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             <p>Nenhum pedido encontrado.</p>
           </div>

@@ -36,12 +36,10 @@ const OrderDetailPage = () => {
   const [bulkStatus, setBulkStatus] = useState('');
   const scanInputRef = useRef<HTMLInputElement>(null);
 
-  const handleScanSubmit = useCallback(() => {
+  const handleScanSubmit = useCallback(async () => {
     if (!scanValue.trim()) return;
-    const sourceOrders = isAdmin ? allOrders : orders;
-    const match = sourceOrders.find(o => matchOrderBarcode(scanValue.trim(), o));
+    const match = await fetchOrderByScan(scanValue.trim());
     if (match) {
-      // Selecionar pedido atual antes de navegar
       if (order && !isSelected(order.id)) {
         toggle(order.id);
       }
@@ -51,7 +49,7 @@ const OrderDetailPage = () => {
       toast.error('Pedido não encontrado.');
       setScanValue('');
     }
-  }, [scanValue, isAdmin, allOrders, orders, navigate, order, isSelected, toggle]);
+  }, [scanValue, navigate, order, isSelected, toggle]);
 
   if (!order) {
     return (
@@ -262,10 +260,11 @@ const OrderDetailPage = () => {
                 onClick={async () => {
                   if (!bulkStatus) return;
                   const ids = Array.from(selectedIds);
-                  const sourceOrders = isAdmin ? allOrders : orders;
+                  const { fetchOrdersByIds } = await import('@/hooks/useOrders');
+                  const fetchedOrders = await fetchOrdersByIds(ids);
                   let updated = 0;
                   for (const oid of ids) {
-                    const o = sourceOrders.find(x => x.id === oid);
+                    const o = fetchedOrders.find(x => x.id === oid);
                     if (!o) continue;
                     const dataHoje = formatBrasiliaDate();
                     const horaAgora = formatBrasiliaTime();

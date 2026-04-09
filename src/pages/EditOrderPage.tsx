@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, Order } from '@/contexts/AuthContext';
+import { useOrderById } from '@/hooks/useOrderById';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -226,10 +227,10 @@ const SelectField = ({ label, value, onChange, options }: { label: string; value
 
 const EditOrderPage = () => {
   const { id } = useParams();
-  const { isAdmin, allOrders, updateOrder, allProfiles } = useAuth();
+  const { isAdmin, updateOrder, allProfiles } = useAuth();
+  const { order, loading: orderLoading } = useOrderById(id);
   const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
   const navigate = useNavigate();
-  const order = allOrders.find(o => o.id === id);
 
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido, order?.id);
