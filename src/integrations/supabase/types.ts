@@ -449,6 +449,25 @@ export type Database = {
     }
     Functions: {
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
+      get_pending_value: { Args: { vendor?: string }; Returns: number }
+      get_production_counts: {
+        Args: { product_types?: string[]; vendors?: string[] }
+        Returns: {
+          in_production: number
+          total: number
+        }[]
+      }
+      get_sales_chart: {
+        Args: {
+          period: string
+          product_filter?: string
+          vendor_filter?: string
+        }
+        Returns: {
+          label: string
+          vendas: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

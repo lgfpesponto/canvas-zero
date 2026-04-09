@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
+import { useOrderById } from '@/hooks/useOrderById';
+import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare } from 'lucide-react';
@@ -22,10 +24,10 @@ import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExt
 
 const OrderDetailPage = () => {
   const { id } = useParams();
-  const { orders, isAdmin, user, updateOrder, isFernanda, allOrders, role } = useAuth();
+  const { isAdmin, user, updateOrder, isFernanda, role } = useAuth();
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
-  const order = orders.find(o => o.id === id);
+  const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');

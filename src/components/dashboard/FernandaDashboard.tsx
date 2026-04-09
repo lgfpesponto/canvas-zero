@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import SpecializedReports from '@/components/SpecializedReports';
 import SoladoBoard from '@/components/SoladoBoard';
+import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -10,21 +11,20 @@ const fadeIn = {
 };
 
 const FernandaDashboard = () => {
-  const { allOrders } = useAuth();
+  const { orders: solaCouroOrders } = useOrdersQuery({
+    onlyBotas: true,
+    soladoValues: ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora'],
+  });
 
-  const solaCouroOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra &&
-    ['couro reta', 'couro carrapeta', 'couro carrapeta com espaço espora', 'couro carrapeta com espaço de espora']
-      .some(s => (o.solado || '').toLowerCase() === s)
-  ), [allOrders]);
+  const { orders: solaRusticaOrders } = useOrdersQuery({
+    onlyBotas: true,
+    soladoValues: ['rústica'],
+  });
 
-  const solaRusticaOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra && (o.solado || '').toLowerCase() === 'rústica'
-  ), [allOrders]);
-
-  const viraColoridaOrders = useMemo(() => allOrders.filter(o =>
-    !o.tipoExtra && ['rosa', 'preta'].some(c => (o.corVira || '').toLowerCase() === c)
-  ), [allOrders]);
+  const { orders: viraColoridaOrders } = useOrdersQuery({
+    onlyBotas: true,
+    corViraValues: ['rosa', 'preta'],
+  });
 
   return (
     <section className="container mx-auto px-4 py-8">

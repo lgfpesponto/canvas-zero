@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'; // v5-session-fix
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { dbRowToOrder, orderToDbRow, CAMEL_TO_SNAKE, FIELD_LABELS } from '@/lib/order-logic';
 
 /* ───── Brasilia helpers (unchanged) ───── */
 function nowBrasilia(): Date {
@@ -150,205 +151,30 @@ export function businessDaysRemaining(startDate: Date, totalBusinessDays: number
 /** Legacy barcode from numero (kept for scanning old printed labels) */
 export function orderBarcodeValueLegacy(numero: string): string {
   const digits = numero.replace(/\D/g, '');
-  if (!digits) return ''; // avoid 0000000000 collision
+  if (!digits) return '';
   return digits.padStart(10, '0');
 }
 
-/** Generate a unique barcode value from the order's UUID id.
- *  Extracts hex digits and pads to 12 chars — always unique per order. */
+/** Generate a unique barcode value from the order's UUID id. */
 export function orderBarcodeValue(idOrNumero: string, orderId?: string): string {
   const id = orderId ?? idOrNumero;
-  // Use the UUID hex digits (strip dashes) → take last 12 for a compact unique code
   const hex = id.replace(/-/g, '');
   if (hex.length >= 12) return hex.slice(-12).toUpperCase();
-  // Fallback: if somehow not a UUID, use legacy
   return orderBarcodeValueLegacy(idOrNumero) || hex.padStart(12, '0').toUpperCase();
 }
 
-/** Centralized barcode/scan matcher. Checks new barcode, legacy barcode, and raw numero. */
+/** Centralized barcode/scan matcher. */
 export function matchOrderBarcode(scannedCode: string, order: { id: string; numero: string }): boolean {
   if (!scannedCode) return false;
   const code = scannedCode.trim();
-  // Match by new unique barcode (based on id)
   if (code === orderBarcodeValue(order.numero, order.id)) return true;
-  // Match by raw order numero
   if (code === order.numero) return true;
-  // Match by legacy barcode (digits of numero)
   const legacy = orderBarcodeValueLegacy(order.numero);
   if (legacy && code === legacy) return true;
-  // Match digits-only input against digits of numero (only if both have digits)
   const codeDigits = code.replace(/\D/g, '');
   const numDigits = order.numero.replace(/\D/g, '');
   if (codeDigits && numDigits && codeDigits === numDigits) return true;
   return false;
-}
-
-/* ───── DB row → Order mapping ───── */
-function dbRowToOrder(row: any): Order {
-  return {
-    id: row.id,
-    numero: row.numero,
-    vendedor: row.vendedor,
-    tamanho: row.tamanho,
-    genero: row.genero || undefined,
-    modelo: row.modelo,
-    solado: row.solado,
-    formatoBico: row.formato_bico,
-    corVira: row.cor_vira,
-    couroGaspea: row.couro_gaspea,
-    couroCano: row.couro_cano,
-    couroTaloneira: row.couro_taloneira,
-    corCouroGaspea: row.cor_couro_gaspea || undefined,
-    corCouroCano: row.cor_couro_cano || undefined,
-    corCouroTaloneira: row.cor_couro_taloneira || undefined,
-    bordadoCano: row.bordado_cano,
-    bordadoGaspea: row.bordado_gaspea,
-    bordadoTaloneira: row.bordado_taloneira,
-    corBordadoCano: row.cor_bordado_cano || undefined,
-    corBordadoGaspea: row.cor_bordado_gaspea || undefined,
-    corBordadoTaloneira: row.cor_bordado_taloneira || undefined,
-    bordadoVariadoDescCano: row.bordado_variado_desc_cano || undefined,
-    bordadoVariadoDescGaspea: row.bordado_variado_desc_gaspea || undefined,
-    bordadoVariadoDescTaloneira: row.bordado_variado_desc_taloneira || undefined,
-    personalizacaoNome: row.personalizacao_nome,
-    personalizacaoBordado: row.personalizacao_bordado,
-    nomeBordadoDesc: row.nome_bordado_desc || undefined,
-    corLinha: row.cor_linha,
-    corBorrachinha: row.cor_borrachinha,
-    trisce: row.trisce,
-    triceDesc: row.trice_desc || undefined,
-    tiras: row.tiras,
-    tirasDesc: row.tiras_desc || undefined,
-    metais: row.metais,
-    tipoMetal: row.tipo_metal || undefined,
-    corMetal: row.cor_metal || undefined,
-    strassQtd: row.strass_qtd ?? undefined,
-    cruzMetalQtd: row.cruz_metal_qtd ?? undefined,
-    bridaoMetalQtd: row.bridao_metal_qtd ?? undefined,
-    acessorios: row.acessorios,
-    desenvolvimento: row.desenvolvimento,
-    sobMedida: row.sob_medida,
-    sobMedidaDesc: row.sob_medida_desc || undefined,
-    observacao: row.observacao,
-    quantidade: row.quantidade,
-    preco: Number(row.preco),
-    status: row.status,
-    dataCriacao: row.data_criacao,
-    horaCriacao: row.hora_criacao,
-    diasRestantes: row.dias_restantes,
-    temLaser: row.tem_laser,
-    fotos: (row.fotos as string[]) || [],
-    historico: (row.historico as any[]) || [],
-    alteracoes: (row.alteracoes as any[]) || [],
-    laserCano: row.laser_cano || undefined,
-    corGlitterCano: row.cor_glitter_cano || undefined,
-    laserGaspea: row.laser_gaspea || undefined,
-    corGlitterGaspea: row.cor_glitter_gaspea || undefined,
-    laserTaloneira: row.laser_taloneira || undefined,
-    corGlitterTaloneira: row.cor_glitter_taloneira || undefined,
-    estampa: row.estampa || undefined,
-    estampaDesc: row.estampa_desc || undefined,
-    pintura: row.pintura || undefined,
-    pinturaDesc: row.pintura_desc || undefined,
-    costuraAtras: row.costura_atras || undefined,
-    corSola: row.cor_sola || undefined,
-    carimbo: row.carimbo || undefined,
-    carimboDesc: row.carimbo_desc || undefined,
-    corVivo: row.cor_vivo || undefined,
-    adicionalDesc: row.adicional_desc || undefined,
-    adicionalValor: row.adicional_valor != null ? Number(row.adicional_valor) : undefined,
-    desconto: row.desconto != null ? Number(row.desconto) : undefined,
-    descontoJustificativa: row.desconto_justificativa || undefined,
-    forma: row.forma || undefined,
-    tipoExtra: row.tipo_extra || undefined,
-    extraDetalhes: row.extra_detalhes || undefined,
-    numeroPedidoBota: row.numero_pedido_bota || undefined,
-    cliente: row.cliente || '',
-  };
-}
-
-/* ───── Order → DB row mapping ───── */
-function orderToDbRow(order: any, userId: string) {
-  return {
-    user_id: userId,
-    numero: order.numero,
-    vendedor: order.vendedor || '',
-    tamanho: order.tamanho || '',
-    genero: order.genero || null,
-    modelo: order.modelo || '',
-    solado: order.solado || '',
-    formato_bico: order.formatoBico || '',
-    cor_vira: order.corVira || '',
-    couro_gaspea: order.couroGaspea || '',
-    couro_cano: order.couroCano || '',
-    couro_taloneira: order.couroTaloneira || '',
-    cor_couro_gaspea: order.corCouroGaspea || null,
-    cor_couro_cano: order.corCouroCano || null,
-    cor_couro_taloneira: order.corCouroTaloneira || null,
-    bordado_cano: order.bordadoCano || '',
-    bordado_gaspea: order.bordadoGaspea || '',
-    bordado_taloneira: order.bordadoTaloneira || '',
-    cor_bordado_cano: order.corBordadoCano || null,
-    cor_bordado_gaspea: order.corBordadoGaspea || null,
-    cor_bordado_taloneira: order.corBordadoTaloneira || null,
-    bordado_variado_desc_cano: order.bordadoVariadoDescCano || null,
-    bordado_variado_desc_gaspea: order.bordadoVariadoDescGaspea || null,
-    bordado_variado_desc_taloneira: order.bordadoVariadoDescTaloneira || null,
-    personalizacao_nome: order.personalizacaoNome || '',
-    personalizacao_bordado: order.personalizacaoBordado || '',
-    nome_bordado_desc: order.nomeBordadoDesc || null,
-    cor_linha: order.corLinha || '',
-    cor_borrachinha: order.corBorrachinha || '',
-    trisce: order.trisce || 'Não',
-    trice_desc: order.triceDesc || null,
-    tiras: order.tiras || 'Não',
-    tiras_desc: order.tirasDesc || null,
-    metais: order.metais || '',
-    tipo_metal: order.tipoMetal || null,
-    cor_metal: order.corMetal || null,
-    strass_qtd: order.strassQtd ?? null,
-    cruz_metal_qtd: order.cruzMetalQtd ?? null,
-    bridao_metal_qtd: order.bridaoMetalQtd ?? null,
-    acessorios: order.acessorios || '',
-    desenvolvimento: order.desenvolvimento || '',
-    sob_medida: order.sobMedida ?? false,
-    sob_medida_desc: order.sobMedidaDesc || null,
-    observacao: order.observacao || '',
-    quantidade: order.quantidade ?? 1,
-    preco: order.preco ?? 0,
-    status: order.status || 'Em aberto',
-    data_criacao: order.dataCriacao,
-    hora_criacao: order.horaCriacao,
-    dias_restantes: order.diasRestantes ?? 10,
-    tem_laser: order.temLaser ?? false,
-    fotos: order.fotos || [],
-    historico: order.historico || [],
-    alteracoes: order.alteracoes || [],
-    laser_cano: order.laserCano || null,
-    cor_glitter_cano: order.corGlitterCano || null,
-    laser_gaspea: order.laserGaspea || null,
-    cor_glitter_gaspea: order.corGlitterGaspea || null,
-    laser_taloneira: order.laserTaloneira || null,
-    cor_glitter_taloneira: order.corGlitterTaloneira || null,
-    estampa: order.estampa || null,
-    estampa_desc: order.estampaDesc || null,
-    pintura: order.pintura || null,
-    pintura_desc: order.pinturaDesc || null,
-    costura_atras: order.costuraAtras || null,
-    cor_sola: order.corSola || null,
-    carimbo: order.carimbo || null,
-    carimbo_desc: order.carimboDesc || null,
-    cor_vivo: order.corVivo || null,
-    adicional_desc: order.adicionalDesc || null,
-    adicional_valor: order.adicionalValor ?? null,
-    desconto: order.desconto ?? null,
-    desconto_justificativa: order.descontoJustificativa || null,
-    forma: order.forma || null,
-    tipo_extra: order.tipoExtra || null,
-    extra_detalhes: order.extraDetalhes || null,
-    numero_pedido_bota: order.numeroPedidoBota || null,
-    cliente: order.cliente || '',
-  };
 }
 
 /* ───── Context interface ───── */
@@ -367,6 +193,7 @@ interface AuthContextType {
   register: (data: Omit<User, 'id' | 'isAdmin'> & { senha: string }) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<Omit<User, 'id' | 'isAdmin'>>) => void;
+  /** @deprecated — Use hooks (useOrders, useOrderById) instead. Kept for backward compat during migration. */
   orders: Order[];
   addOrder: (order: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes'> & { numeroPedido?: string }) => Promise<boolean>;
   addOrderBatch: (orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes' | 'tamanho'>, gradeItems: { tamanho: string; quantidade: number }[], numeroPedidoBase: string) => Promise<boolean>;
@@ -377,6 +204,7 @@ interface AuthContextType {
   /** @deprecated Use role instead */
   isFernanda: boolean;
   recoverPassword: (cpfCnpj: string, digits: string) => Promise<boolean>;
+  /** @deprecated — Use hooks instead */
   allOrders: Order[];
   loading: boolean;
   allProfiles: ProfileSummary[];
@@ -389,8 +217,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [role, setRole] = useState<AppRole | null>(null);
   
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const orders: Order[] = [];
+  const allOrders: Order[] = [];
   const [loading, setLoading] = useState(true);
   const [allProfiles, setAllProfiles] = useState<ProfileSummary[]>([]);
 
@@ -431,65 +259,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return u;
   }, []);
 
-  /* ───── Load orders ───── */
-  const loadOrders = useCallback(async (currentUser: User | null) => {
-    if (!currentUser) {
-      setOrders([]);
-      setAllOrders([]);
-      return;
-    }
-
-    // RLS handles visibility: admin sees all, user sees own
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading orders:', error);
-      return;
-    }
-
-    const mapped = (data || []).map(dbRowToOrder);
-
-    if (currentUser.isAdmin) {
-      setAllOrders(mapped);
-      setOrders(mapped);
-    } else {
-      setOrders(mapped);
-      setAllOrders(mapped);
-    }
-  }, []);
-
   /* ───── Auth state listener ───── */
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Restaurar sessão do storage PRIMEIRO
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!isMounted) return;
       if (session?.user) {
-        const result = await loadProfile(session.user.id);
-        if (result && isMounted) await loadOrders(result);
+        await loadProfile(session.user.id);
       }
       if (isMounted) setLoading(false);
     });
 
-    // 2. Listener para mudanças SUBSEQUENTES (login/logout)
-    //    NÃO usar await — fire-and-forget
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
         if (event === 'SIGNED_IN' && session?.user) {
-          loadProfile(session.user.id).then(result => {
-            if (result && isMounted) loadOrders(result);
-          });
+          loadProfile(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsAdmin(false);
           setRole(null);
-          setOrders([]);
-          setAllOrders([]);
         }
       }
     );
@@ -498,7 +288,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [loadProfile, loadOrders]);
+  }, [loadProfile]);
 
   /* ───── Login ───── */
   const login = useCallback(async (username: string, password: string): Promise<'ok' | 'error'> => {
@@ -541,8 +331,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setIsAdmin(false);
     setRole(null);
-    setOrders([]);
-    setAllOrders([]);
   }, []);
 
   /* ───── Update Profile ───── */
@@ -561,42 +349,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* ───── Recover Password ───── */
   const recoverPassword = useCallback(async (cpfCnpj: string, digits: string): Promise<boolean> => {
-    // Look up profile with matching cpf_cnpj starting with those digits
     const { data } = await supabase
       .from('profiles')
       .select('cpf_cnpj')
       .like('cpf_cnpj', `${digits}%`)
       .limit(1);
-
     return (data && data.length > 0);
   }, []);
 
   /* ───── Add Order ───── */
   const addOrder = useCallback(async (orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes'> & { numeroPedido?: string }): Promise<boolean> => {
     try {
-      if (!user) {
-        console.error('addOrder: user is null');
-        return false;
-      }
+      if (!user) { console.error('addOrder: user is null'); return false; }
 
-      // Verify active session before inserting
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.error('addOrder: session expired');
-        await logout();
-        return false;
-      }
+      if (!session) { console.error('addOrder: session expired'); await logout(); return false; }
 
       const { numeroPedido, ...rest } = orderData;
       const dataHoje = formatBrasiliaDate();
       const horaAgora = formatBrasiliaTime();
       const totalBizDays = rest.tipoExtra === 'cinto' ? 5 : rest.tipoExtra ? 1 : 15;
 
-      // Generate order number
       const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
       const numero = numeroPedido || `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
 
-      // Check for duplicate order number
       const { data: existingOrder } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
       if (existingOrder) {
         toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
@@ -614,41 +390,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         numero,
       };
 
-      // If admin is creating order for a different vendedor, use vendedor's user_id
       let targetUserId = user.id;
       if (isAdmin && rest.vendedor && rest.vendedor !== user.nomeCompleto) {
-        // "Estoque" is a special internal vendor — keep admin's user_id
         if (rest.vendedor !== 'Estoque') {
           const { data: vendorProfile } = await supabase
             .from('profiles')
             .select('id')
             .eq('nome_completo', rest.vendedor)
             .maybeSingle();
-          if (vendorProfile) {
-            targetUserId = vendorProfile.id;
-          }
+          if (vendorProfile) targetUserId = vendorProfile.id;
         }
       }
 
       const dbRow = orderToDbRow(newOrder, targetUserId);
-
-      const { data, error } = await supabase.from('orders').insert(dbRow).select().single();
-      if (error) {
-        console.error('Error adding order:', error);
-        return false;
-      }
-
-      const mapped = dbRowToOrder(data);
-      setOrders(prev => [mapped, ...prev]);
-      setAllOrders(prev => [mapped, ...prev]);
+      const { error } = await supabase.from('orders').insert(dbRow).select().single();
+      if (error) { console.error('Error adding order:', error); return false; }
       return true;
     } catch (err) {
       console.error('addOrder exception:', err);
       return false;
     }
-  }, [user, logout]);
+  }, [user, logout, isAdmin]);
 
-  /* ───── Add Order Batch (Grade de Estoque) ───── */
+  /* ───── Add Order Batch ───── */
   const addOrderBatch = useCallback(async (
     orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes' | 'tamanho'>,
     gradeItems: { tamanho: string; quantidade: number }[],
@@ -659,11 +423,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { await logout(); return false; }
 
-      // Sort by size ascending
       const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
-
-      // Build all order numbers: base + tamanho + seq (2 digits)
-      // E.g. base "E001" + size "35" + seq "01" = "E0013501"
       const numbers: { tamanho: string; numero: string }[] = [];
       for (const item of sorted) {
         for (let i = 0; i < item.quantidade; i++) {
@@ -672,7 +432,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // Check ALL numbers for duplicates in one query
       const allNums = numbers.map(n => n.numero);
       const { data: existing } = await supabase.from('orders').select('numero').in('numero', allNums);
       if (existing && existing.length > 0) {
@@ -683,8 +442,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const dataHoje = formatBrasiliaDate();
       const horaAgora = formatBrasiliaTime();
-
-      // Estoque always uses admin's user_id
       const targetUserId = user.id;
 
       const rows = numbers.map(({ tamanho, numero }) => {
@@ -702,17 +459,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return orderToDbRow(newOrder, targetUserId);
       });
 
-      const { data, error } = await supabase.from('orders').insert(rows).select();
-      if (error) {
-        console.error('Error adding batch orders:', error);
-        toast.error('Erro ao gerar grade de pedidos.');
-        return false;
-      }
-
-      // Sort ascending by numero so they appear in order
-      const mapped = (data || []).map(dbRowToOrder).sort((a, b) => a.numero.localeCompare(b.numero));
-      setOrders(prev => [...mapped, ...prev]);
-      setAllOrders(prev => [...mapped, ...prev]);
+      const { error } = await supabase.from('orders').insert(rows).select();
+      if (error) { console.error('Error adding batch orders:', error); toast.error('Erro ao gerar grade de pedidos.'); return false; }
       return true;
     } catch (err) {
       console.error('addOrderBatch exception:', err);
@@ -723,7 +471,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* ───── Delete Order ───── */
   const deleteOrder = useCallback(async (id: string) => {
-    // Archive order data before deleting
     try {
       const { data: orderData } = await supabase.from('orders').select('*').eq('id', id).single();
       if (orderData) {
@@ -733,22 +480,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           deleted_by: user?.id || null,
         } as any);
       }
-    } catch (e) {
-      console.error('Error archiving order:', e);
-    }
+    } catch (e) { console.error('Error archiving order:', e); }
 
     const { error } = await supabase.from('orders').delete().eq('id', id);
-    if (error) {
-      console.error('Error deleting order:', error);
-      return;
-    }
-    setOrders(prev => prev.filter(o => o.id !== id));
-    setAllOrders(prev => prev.filter(o => o.id !== id));
+    if (error) { console.error('Error deleting order:', error); }
   }, [user]);
 
   /* ───── Delete Order Batch ───── */
   const deleteOrderBatch = useCallback(async (ids: string[]) => {
-    // Archive all orders before deleting
     try {
       const { data: ordersData } = await supabase.from('orders').select('*').in('id', ids);
       if (ordersData && ordersData.length > 0) {
@@ -759,19 +498,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }));
         await supabase.from('deleted_orders').insert(archiveRows as any);
       }
-    } catch (e) {
-      console.error('Error archiving orders:', e);
-    }
+    } catch (e) { console.error('Error archiving orders:', e); }
 
     const { error } = await supabase.from('orders').delete().in('id', ids);
-    if (error) {
-      console.error('Error deleting orders batch:', error);
-      toast.error('Erro ao excluir pedidos');
-      return;
-    }
-    const idSet = new Set(ids);
-    setOrders(prev => prev.filter(o => !idSet.has(o.id)));
-    setAllOrders(prev => prev.filter(o => !idSet.has(o.id)));
+    if (error) { console.error('Error deleting orders batch:', error); toast.error('Erro ao excluir pedidos'); }
   }, [user]);
 
   /* ───── Update Order ───── */
@@ -779,37 +509,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const dataHoje = formatBrasiliaDate();
     const horaAgora = formatBrasiliaTime();
 
-    // Find current order in local state for change tracking
-    const current = [...orders, ...allOrders].find(o => o.id === id);
-    if (!current) return;
+    const { data: currentRow } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (!currentRow) return;
+    const current = dbRowToOrder(currentRow);
 
-    // Build change descriptions
     const changes: OrderAlteracao[] = [];
-    const fieldLabels: Record<string, string> = {
-      modelo: 'Modelo', tamanho: 'Tamanho', genero: 'Gênero', solado: 'Solado',
-      couroCano: 'Couro do Cano', couroGaspea: 'Couro da Gáspea', couroTaloneira: 'Couro da Taloneira',
-      corCouroCano: 'Cor Couro Cano', corCouroGaspea: 'Cor Couro Gáspea', corCouroTaloneira: 'Cor Couro Taloneira',
-      bordadoCano: 'Bordado Cano', bordadoGaspea: 'Bordado Gáspea', bordadoTaloneira: 'Bordado Taloneira',
-      corBordadoCano: 'Cor Bordado Cano', corBordadoGaspea: 'Cor Bordado Gáspea', corBordadoTaloneira: 'Cor Bordado Taloneira',
-      nomeBordadoDesc: 'Nome Bordado', laserCano: 'Laser Cano', laserGaspea: 'Laser Gáspea',
-      laserTaloneira: 'Laser Taloneira', corGlitterCano: 'Glitter Cano', corGlitterGaspea: 'Glitter Gáspea',
-      corGlitterTaloneira: 'Glitter Taloneira', pintura: 'Pintura', pinturaDesc: 'Cor Pintura',
-      estampa: 'Estampa', estampaDesc: 'Descrição Estampa', corLinha: 'Cor da Linha',
-      corBorrachinha: 'Cor Borrachinha', corVivo: 'Cor do Vivo', metais: 'Área Metal',
-      tipoMetal: 'Tipo Metal', corMetal: 'Cor Metal', observacao: 'Observação',
-      desenvolvimento: 'Desenvolvimento', acessorios: 'Acessórios', corVira: 'Cor Vira',
-      corSola: 'Cor Sola', costuraAtras: 'Costura Atrás', carimbo: 'Carimbo',
-      carimboDesc: 'Descrição Carimbo', adicionalDesc: 'Adicional', formatoBico: 'Formato Bico',
-      preco: 'Valor total', desconto: 'Desconto', descontoJustificativa: 'Justificativa do Desconto',
-      vendedor: 'Vendedor',
-    };
-
     for (const key of Object.keys(data)) {
       if (key === 'historico' || key === 'alteracoes') continue;
       const oldVal = String((current as any)[key] ?? '');
       const newVal = String((data as any)[key] ?? '');
       if (oldVal !== newVal) {
-        const label = fieldLabels[key] || key;
+        const label = FIELD_LABELS[key] || key;
         if (oldVal && newVal) {
           changes.push({ data: dataHoje, hora: horaAgora, descricao: `Alterado ${label} de "${oldVal}" para "${newVal}"` });
         } else if (newVal) {
@@ -824,13 +534,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       changes.push({ data: dataHoje, hora: horaAgora, descricao: 'Foto de referência alterada' });
     }
 
-    const updatedOrder = { ...current, ...data, alteracoes: [...(current.alteracoes || []), ...changes] };
+    const updatedAlteracoes = [...(current.alteracoes || []), ...changes];
 
-    // If vendedor changed, update user_id to the new vendedor's profile
     let newUserId: string | undefined;
     if (data.vendedor && data.vendedor !== current.vendedor) {
       if (data.vendedor === 'Estoque') {
-        // Estoque uses current admin's user_id
         const { data: { session } } = await supabase.auth.getSession();
         newUserId = session?.user?.id;
       } else {
@@ -839,85 +547,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .select('id')
           .eq('nome_completo', data.vendedor)
           .maybeSingle();
-        if (vendorProfile) {
-          newUserId = vendorProfile.id;
-        }
+        if (vendorProfile) newUserId = vendorProfile.id;
       }
     }
 
-    // Build DB update payload
     const dbUpdate: any = {};
-    const camelToSnake: Record<string, string> = {
-      formatoBico: 'formato_bico', corVira: 'cor_vira', couroGaspea: 'couro_gaspea', couroCano: 'couro_cano',
-      couroTaloneira: 'couro_taloneira', corCouroGaspea: 'cor_couro_gaspea', corCouroCano: 'cor_couro_cano',
-      corCouroTaloneira: 'cor_couro_taloneira', bordadoCano: 'bordado_cano', bordadoGaspea: 'bordado_gaspea',
-      bordadoTaloneira: 'bordado_taloneira', corBordadoCano: 'cor_bordado_cano', corBordadoGaspea: 'cor_bordado_gaspea',
-      corBordadoTaloneira: 'cor_bordado_taloneira', bordadoVariadoDescCano: 'bordado_variado_desc_cano',
-      bordadoVariadoDescGaspea: 'bordado_variado_desc_gaspea', bordadoVariadoDescTaloneira: 'bordado_variado_desc_taloneira',
-      personalizacaoNome: 'personalizacao_nome', personalizacaoBordado: 'personalizacao_bordado',
-      nomeBordadoDesc: 'nome_bordado_desc', corLinha: 'cor_linha', corBorrachinha: 'cor_borrachinha',
-      triceDesc: 'trice_desc', tirasDesc: 'tiras_desc', tipoMetal: 'tipo_metal', corMetal: 'cor_metal',
-      strassQtd: 'strass_qtd', cruzMetalQtd: 'cruz_metal_qtd', bridaoMetalQtd: 'bridao_metal_qtd',
-      sobMedida: 'sob_medida', sobMedidaDesc: 'sob_medida_desc', dataCriacao: 'data_criacao',
-      horaCriacao: 'hora_criacao', diasRestantes: 'dias_restantes', temLaser: 'tem_laser',
-      laserCano: 'laser_cano', corGlitterCano: 'cor_glitter_cano', laserGaspea: 'laser_gaspea',
-      corGlitterGaspea: 'cor_glitter_gaspea', laserTaloneira: 'laser_taloneira',
-      corGlitterTaloneira: 'cor_glitter_taloneira', estampaDesc: 'estampa_desc', pinturaDesc: 'pintura_desc',
-      costuraAtras: 'costura_atras', corSola: 'cor_sola', carimboDesc: 'carimbo_desc',
-      corVivo: 'cor_vivo', adicionalDesc: 'adicional_desc', adicionalValor: 'adicional_valor',
-      descontoJustificativa: 'desconto_justificativa', tipoExtra: 'tipo_extra',
-      extraDetalhes: 'extra_detalhes', numeroPedidoBota: 'numero_pedido_bota',
-    };
-
     for (const [key, val] of Object.entries(data)) {
       if (key === 'id') continue;
-      const dbKey = camelToSnake[key] || key;
+      const dbKey = CAMEL_TO_SNAKE[key] || key;
       dbUpdate[dbKey] = val ?? null;
     }
-
-    // Always update alteracoes
-    dbUpdate.alteracoes = updatedOrder.alteracoes;
-
-    // Update user_id if vendedor changed
-    if (newUserId) {
-      dbUpdate.user_id = newUserId;
-    }
+    dbUpdate.alteracoes = updatedAlteracoes;
+    if (newUserId) dbUpdate.user_id = newUserId;
 
     const { error } = await supabase.from('orders').update(dbUpdate).eq('id', id);
-    if (error) {
-      console.error('Error updating order:', error);
-      return;
-    }
-
-    setOrders(prev => prev.map(o => o.id === id ? updatedOrder : o));
-    setAllOrders(prev => prev.map(o => o.id === id ? updatedOrder : o));
-  }, [orders, allOrders]);
+    if (error) { console.error('Error updating order:', error); }
+  }, []);
 
   /* ───── Update Order Status ───── */
   const updateOrderStatus = useCallback(async (id: string, newStatus: string, observacao?: string) => {
     const dataHoje = formatBrasiliaDate();
     const horaAgora = formatBrasiliaTime();
 
-    const current = [...orders, ...allOrders].find(o => o.id === id);
-    if (!current) return;
+    const { data: currentRow } = await supabase.from('orders').select('historico').eq('id', id).single();
+    if (!currentRow) return;
 
+    const currentHistorico = (currentRow.historico as any[]) || [];
     const newHistEntry = { data: dataHoje, hora: horaAgora, local: newStatus, descricao: `Pedido movido para ${newStatus}`, observacao: observacao || undefined };
-    const updatedHistorico = [...current.historico, newHistEntry];
+    const updatedHistorico = [...currentHistorico, newHistEntry];
 
     const { error } = await supabase.from('orders').update({
       status: newStatus,
       historico: updatedHistorico as any,
     }).eq('id', id);
 
-    if (error) {
-      console.error('Error updating status:', error);
-      return;
-    }
-
-    const updatedOrder = { ...current, status: newStatus, historico: updatedHistorico };
-    setOrders(prev => prev.map(o => o.id === id ? updatedOrder : o));
-    setAllOrders(prev => prev.map(o => o.id === id ? updatedOrder : o));
-  }, [orders, allOrders]);
+    if (error) { console.error('Error updating status:', error); }
+  }, []);
 
   /* ───── Load all profiles for ADM vendor selection ───── */
   const loadAllProfiles = useCallback(async () => {
@@ -927,18 +592,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Load profiles when admin logs in
   useEffect(() => {
     if (isAdmin) loadAllProfiles();
   }, [isAdmin, loadAllProfiles]);
-
-  const userOrders = isAdmin ? orders : orders;
 
   return (
     <AuthContext.Provider value={{
       user, isLoggedIn: !!user, isAdmin, role, isFernanda,
       login, register, logout, updateProfile,
-      orders: userOrders, addOrder, addOrderBatch, deleteOrder, deleteOrderBatch, updateOrder, updateOrderStatus,
+      orders, addOrder, addOrderBatch, deleteOrder, deleteOrderBatch, updateOrder, updateOrderStatus,
       recoverPassword, allOrders, loading, allProfiles,
     }}>
       {children}
