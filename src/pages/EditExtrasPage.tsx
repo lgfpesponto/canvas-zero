@@ -184,7 +184,7 @@ const EditExtrasPage = () => {
       extraDetalhes: detalhes,
     });
     toast.success('Pedido atualizado com sucesso!');
-    navigate(`/pedido/${order.id}`);
+    navigate(`/pedido/${order.id}`, { replace: true });
   };
 
   const price = calcPrice();
