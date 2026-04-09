@@ -928,31 +928,33 @@ const OrderPage = () => {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <h1 className="text-3xl font-display font-bold">{mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}</h1>
+          <h1 className="text-3xl font-display font-bold">
+            {tmpl.isEditing ? 'Editar Modelo' : mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}
+          </h1>
           {mode === 'order' && (
             <>
               <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
                 <Plus size={16} /> Criar Modelo
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { loadTemplates(); setShowTemplates(true); setTemplateSearch(''); }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => { if (user) tmpl.loadTemplates(user.id); tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); }}>
                 <List size={16} /> Modelos
               </Button>
             </>
           )}
           {mode === 'template' && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMode('order')}>
+            <Button type="button" variant="ghost" size="sm" onClick={() => { setMode('order'); tmpl.cancelEditing(); }}>
               Voltar para Pedido
             </Button>
           )}
         </div>
 
-        <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
           {/* Template name field */}
           {mode === 'template' && (
             <div>
               <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+              <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
             </div>
           )}
 
