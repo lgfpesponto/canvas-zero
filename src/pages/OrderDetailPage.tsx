@@ -307,7 +307,7 @@ const OrderDetailPage = () => {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-display font-bold">{order.numero}</h1>
               {isAdmin && (
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`, { replace: true })}>
                   <Pencil size={16} />
                 </Button>
               )}

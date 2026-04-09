@@ -94,8 +94,8 @@ const ReportsPage = () => {
     searchQuery: searchParams.get('q') || '',
     filterDate: searchParams.get('de') || '',
     filterDateEnd: searchParams.get('ate') || '',
-    filterStatus: filterStatus,
-    filterVendedor: filterVendedor,
+    filterStatus: new Set(filterStatus),
+    filterVendedor: new Set(filterVendedor),
     filterProduto: new Set(defaultProduto),
   }));
 
