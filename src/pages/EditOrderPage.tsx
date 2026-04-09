@@ -501,7 +501,7 @@ const EditOrderPage = () => {
       personalizacaoNome: nomeBordado ? nomeBordadoDesc : '', personalizacaoBordado: '',
     });
     toast.success('Pedido atualizado com sucesso!');
-    navigate(`/pedido/${id}`);
+    navigate(`/pedido/${id}`, { replace: true });
   };
 
   return (
