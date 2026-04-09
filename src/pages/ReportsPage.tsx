@@ -44,7 +44,10 @@ const ReportsPage = () => {
     const v = searchParams.get('vendedor');
     return v ? new Set(v.split(',')) : new Set<string>();
   });
-  const [filterProduto, setFilterProduto] = useState<Set<string>>(() => new Set(defaultProduto));
+  const [filterProduto, setFilterProduto] = useState<Set<string>>(() => {
+    const v = searchParams.get('produtos');
+    return v ? new Set(v.split(',')) : new Set(defaultProduto);
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Bulk progress modal
@@ -96,16 +99,21 @@ const ReportsPage = () => {
     filterDateEnd: searchParams.get('ate') || '',
     filterStatus: new Set(filterStatus),
     filterVendedor: new Set(filterVendedor),
-    filterProduto: new Set(defaultProduto),
+    filterProduto: new Set(searchParams.get('produtos')?.split(',') ?? [...defaultProduto]),
   }));
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string> }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string> }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
     if (filters.filterDateEnd) params.set('ate', filters.filterDateEnd);
     if (filters.filterStatus.size > 0) params.set('status', [...filters.filterStatus].join(','));
     if (filters.filterVendedor.size > 0) params.set('vendedor', [...filters.filterVendedor].join(','));
+    const isDefaultProduto = filters.filterProduto.size === defaultProduto.size &&
+      [...defaultProduto].every(v => filters.filterProduto.has(v));
+    if (!isDefaultProduto && filters.filterProduto.size > 0) {
+      params.set('produtos', [...filters.filterProduto].join(','));
+    }
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
