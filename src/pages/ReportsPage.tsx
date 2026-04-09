@@ -179,9 +179,11 @@ const ReportsPage = () => {
     ? serverOrders.filter(o => selectedIds.has(o.id))
     : serverOrders, [selectedIds, serverOrders]);
 
-  const handleBulkProgressUpdate = () => {
+  const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
-    selectedIds.forEach(id => updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined));
+    for (const id of selectedIds) {
+      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
+    }
     toast.success(`${selectedIds.size} pedido(s) atualizado(s) para "${selectedProgress}".`);
     setShowProgressModal(false);
     setSelectedProgress('');
@@ -189,6 +191,7 @@ const ReportsPage = () => {
     setSelectedIds(new Set());
     setLastScannedNumero(null);
     setShowSelectedList(false);
+    refetchOrders();
   };
 
   // Barcode scan handler — direct DB query
