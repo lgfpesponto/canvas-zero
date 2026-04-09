@@ -143,7 +143,21 @@ const ReportsPage = () => {
     return serverOrders;
   }, [serverOrders, scanFilterId]);
 
-  const paginatedOrders = visibleOrders; // already paginated by server
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
+
+  const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
+  const allStatuses = [...statuses];
+
+  // Fetch vendedores list from DB
+  const [allVendedores, setAllVendedores] = useState<string[]>([]);
+  useEffect(() => {
+    if (isAdmin) { fetchVendedores().then(setAllVendedores); }
+  }, [isAdmin]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
