@@ -1,70 +1,29 @@
 
 
-## Implementar edição de modelos salvos com Hook dedicado
+## Redirecionar edição de pedido para página de detalhes
 
-### Problema atual
+### Problema
 
-O carregamento de templates usa `navigate` + `window.location.reload()`, reinicializando os `useState` via `df`. Para edição in-place (sem reload), precisamos de um mecanismo que popule os ~50 campos do formulário diretamente via setters.
+No `EditOrderPage.tsx`, após salvar um pedido editado, o usuário é redirecionado para `/relatorios` (linha 504). O ideal é ir para `/pedido/${id}` — a página de detalhes do pedido recém-editado — como já acontece no `EditExtrasPage.tsx`.
 
-### Parte 1 — Criar `src/hooks/useTemplateManagement.ts`
+### Alteração
 
-Hook que encapsula toda a lógica de CRUD de templates:
+**Arquivo: `src/pages/EditOrderPage.tsx` (linha 504)**
 
-- **Estado**: `editingTemplateId`, `templates`, `templateName`, `templateSearch`, `showTemplates`
-- **`loadTemplates(userId)`**: busca templates do usuário
-- **`saveTemplate(userId, formData)`**: INSERT quando `editingTemplateId` é null
-- **`updateTemplate(formData)`**: UPDATE quando `editingTemplateId` existe, usando `.eq('id', editingTemplateId)`
-- **`deleteTemplate(id)`**: DELETE + reload
-- **`startEditing(template)`**: seta `editingTemplateId` e `templateName`, retorna `form_data` para o componente popular os campos
-- **`cancelEditing()`**: limpa `editingTemplateId` e `templateName`
-- **`isEditing`**: computed boolean
-
-### Parte 2 — Função `populateFormFromTemplate` no OrderPage
-
-Criar uma função que recebe um `Record<string, string>` (form_data) e chama todos os setters (~50 campos). Essa função será usada tanto pelo `handleUseTemplate` (eliminando o `window.location.reload()`) quanto pelo `startEditing`.
-
+Substituir:
 ```typescript
-const populateFormFromTemplate = (fd: Record<string, string>) => {
-  setModelo(fd.modelo || '');
-  setSolado(fd.solado || '');
-  setFormatoBico(fd.formatoBico || '');
-  // ... todos os ~50 campos
-};
+navigate('/relatorios');
+```
+Por:
+```typescript
+navigate(`/pedido/${id}`);
 ```
 
-### Parte 3 — Alterações na UI do OrderPage
+A variável `id` já existe no componente (vem de `useParams`). O toast continua aparecendo durante a transição pois o Sonner persiste entre rotas. A `OrderDetailPage` faz fetch dos dados ao montar, então as alterações recém-salvas já estarão refletidas.
 
-**Dialog de modelos (linha ~1226-1231)**:
-- Adicionar botão `Pencil` entre "Preencher" e "Excluir"
-- Ao clicar: chama `startEditing(template)`, depois `populateFormFromTemplate(template.form_data)`, seta `mode = 'template'`, fecha dialog
+### Nenhuma outra alteração necessária
 
-**Cabeçalho (linha ~855)**:
-- Quando `isEditing`: título "Editar Modelo" em vez de "Criar Modelo"
-- Botão "Voltar" também chama `cancelEditing()`
-
-**Botão submit (linha ~1199-1202)**:
-- Quando `isEditing`: texto "SALVAR ALTERAÇÕES NO MODELO", ícone `Check`
-- Form onSubmit: `isEditing ? handleUpdateTemplate() : handleSaveTemplate()`
-
-**Campo nome do modelo (linha ~876)**:
-- Mostrar também quando `isEditing` (já editável com valor pré-preenchido)
-
-### Parte 4 — Segurança
-
-A policy RLS `Users can update own templates` já existe com `USING (auth.uid() = user_id)`. Nenhuma migração necessária.
-
-### Parte 5 — Fluxo completo
-
-1. Usuário abre dialog "Modelos Salvos"
-2. Clica no lápis → form preenchido, modo edição ativo, dialog fecha
-3. Altera campos desejados
-4. Clica "SALVAR ALTERAÇÕES NO MODELO" → UPDATE no Supabase
-5. `toast.success("Modelo atualizado com sucesso!")` → reset para modo `order`
-
-### Resumo de arquivos
-
-| Arquivo | Ação |
-|---------|------|
-| `src/hooks/useTemplateManagement.ts` | Novo — hook com CRUD de templates |
-| `src/pages/OrderPage.tsx` | Usar hook, adicionar `populateFormFromTemplate`, UI de edição |
+- O `EditExtrasPage.tsx` já redireciona corretamente para `/pedido/${order.id}`
+- O toast persiste entre navegações (Sonner global)
+- A `OrderDetailPage` busca dados frescos do Supabase ao carregar
 
