@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
 import { Link2, X, Eye, Plus, List, Trash2, Grid3X3, Search, Pencil, Check } from 'lucide-react';
+import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
