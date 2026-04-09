@@ -405,66 +405,144 @@ const OrderPage = () => {
     setCorSola(cso === null ? '' : cso.length === 1 ? cso[0].label : (cso.find(c => c.label === corSola) ? corSola : ''));
   };
 
-  // Template functions
-  const loadTemplates = async () => {
-    if (!user) return;
-    const { data } = await supabase.from('order_templates').select('id, nome, form_data').eq('user_id', user.id).order('created_at', { ascending: false });
-    setTemplates((data as any) || []);
-  };
+  // Build form data object from current state
+  const buildFormData = useCallback((): Record<string, string> => ({
+    modelo, sobMedidaDesc,
+    acessorios: acessorios.join('||'),
+    tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira,
+    desenvolvimento,
+    bordadoCano: bordadoCano.join('||'), corBordadoCano,
+    bordadoGaspea: bordadoGaspea.join('||'), corBordadoGaspea,
+    bordadoTaloneira: bordadoTaloneira.join('||'), corBordadoTaloneira,
+    bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
+    nomeBordado: String(nomeBordado), nomeBordadoDesc,
+    laserCano: laserCano.join('||'), corGlitterCano,
+    laserGaspea: laserGaspea.join('||'), corGlitterGaspea,
+    laserTaloneira: laserTaloneira.join('||'), corGlitterTaloneira,
+    laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText,
+    pintura: String(pintura), pinturaDesc,
+    estampa: String(estampa), estampaDesc,
+    corLinha, corBorrachinha, corVivo,
+    areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
+    strass: String(strass), strassQtd: String(strassQtd),
+    cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
+    bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
+    cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
+    trice: String(trice), triceDesc,
+    tiras: String(tiras), tirasDesc,
+    franja: String(franja), franjaCouro, franjaCor,
+    corrente: String(corrente), correnteCor,
+    corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
+    solado, formatoBico, corSola, corVira, costuraAtras: String(costuraAtras),
+    carimbo, carimboDesc,
+    adicionalDesc, adicionalValor: String(adicionalValor),
+    observacao, sobMedida: String(sobMedida),
+  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida]);
 
+  // Populate all form fields from template data
+  const populateFormFromTemplate = useCallback((fd: Record<string, string>) => {
+    setModelo(fd.modelo || '');
+    setSobMedida(fd.sobMedida === 'true');
+    setSobMedidaDesc(fd.sobMedidaDesc || '');
+    setAcessorios(fd.acessorios ? fd.acessorios.split('||') : []);
+    setTipoCouroCano(fd.tipoCouroCano || '');
+    setCorCouroCano(fd.corCouroCano || '');
+    setTipoCouroGaspea(fd.tipoCouroGaspea || '');
+    setCorCouroGaspea(fd.corCouroGaspea || '');
+    setTipoCouroTaloneira(fd.tipoCouroTaloneira || '');
+    setCorCouroTaloneira(fd.corCouroTaloneira || '');
+    setDesenvolvimento(fd.desenvolvimento || '');
+    setBordadoCano(fd.bordadoCano ? fd.bordadoCano.split('||') : []);
+    setCorBordadoCano(fd.corBordadoCano || '');
+    setBordadoGaspea(fd.bordadoGaspea ? fd.bordadoGaspea.split('||') : []);
+    setCorBordadoGaspea(fd.corBordadoGaspea || '');
+    setBordadoTaloneira(fd.bordadoTaloneira ? fd.bordadoTaloneira.split('||') : []);
+    setCorBordadoTaloneira(fd.corBordadoTaloneira || '');
+    setBordadoVariadoDescCano(fd.bordadoVariadoDescCano || '');
+    setBordadoVariadoDescGaspea(fd.bordadoVariadoDescGaspea || '');
+    setBordadoVariadoDescTaloneira(fd.bordadoVariadoDescTaloneira || '');
+    setNomeBordado(fd.nomeBordado === 'true');
+    setNomeBordadoDesc(fd.nomeBordadoDesc || '');
+    setLaserCano(fd.laserCano ? fd.laserCano.split('||') : []);
+    setCorGlitterCano(fd.corGlitterCano || '');
+    setLaserGaspea(fd.laserGaspea ? fd.laserGaspea.split('||') : []);
+    setCorGlitterGaspea(fd.corGlitterGaspea || '');
+    setLaserTaloneira(fd.laserTaloneira ? fd.laserTaloneira.split('||') : []);
+    setCorGlitterTaloneira(fd.corGlitterTaloneira || '');
+    setCorBordadoLaserCano(fd.corBordadoLaserCano || '');
+    setCorBordadoLaserGaspea(fd.corBordadoLaserGaspea || '');
+    setCorBordadoLaserTaloneira(fd.corBordadoLaserTaloneira || '');
+    setLaserOutroCanoText(fd.laserOutroCanoText || '');
+    setLaserOutroGaspeaText(fd.laserOutroGaspeaText || '');
+    setLaserOutroTaloneiraText(fd.laserOutroTaloneiraText || '');
+    setPintura(fd.pintura === 'true');
+    setPinturaDesc(fd.pinturaDesc || '');
+    setEstampa(fd.estampa === 'true');
+    setEstampaDesc(fd.estampaDesc || '');
+    setCorLinha(fd.corLinha || '');
+    setCorBorrachinha(fd.corBorrachinha || '');
+    setCorVivo(fd.corVivo || '');
+    setAreaMetal(fd.areaMetal || '');
+    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||') : []);
+    setCorMetal(fd.corMetal || '');
+    setStrass(fd.strass === 'true');
+    setStrassQtd(Number(fd.strassQtd) || 0);
+    setCruzMetal(fd.cruzMetal === 'true');
+    setCruzMetalQtd(Number(fd.cruzMetalQtd) || 0);
+    setBridaoMetal(fd.bridaoMetal === 'true');
+    setBridaoMetalQtd(Number(fd.bridaoMetalQtd) || 0);
+    setCavaloMetal(fd.cavaloMetal === 'true');
+    setCavaloMetalQtd(Number(fd.cavaloMetalQtd) || 0);
+    setTrice(fd.trice === 'true');
+    setTriceDesc(fd.triceDesc || '');
+    setTiras(fd.tiras === 'true');
+    setTirasDesc(fd.tirasDesc || '');
+    setFranja(fd.franja === 'true');
+    setFranjaCouro(fd.franjaCouro || '');
+    setFranjaCor(fd.franjaCor || '');
+    setCorrente(fd.corrente === 'true');
+    setCorrenteCor(fd.correnteCor || '');
+    setSolado(fd.solado || '');
+    setFormatoBico(fd.formatoBico || '');
+    setCorSola(fd.corSola || '');
+    setCorVira(fd.corVira || '');
+    setCosturaAtras(fd.costuraAtras === 'true');
+    setCarimbo(fd.carimbo || '');
+    setCarimboDesc(fd.carimboDesc || '');
+    setAdicionalDesc(fd.adicionalDesc || '');
+    setAdicionalValor(Number(fd.adicionalValor) || 0);
+    setObservacao(fd.observacao || '');
+  }, []);
+
+  // Template handlers using hook
   const handleSaveTemplate = async () => {
     if (!user) return;
-    if (!templateName.trim()) { toast.error('Preencha o nome do modelo'); return; }
-    const form: Record<string, string> = {
-      modelo, sobMedidaDesc,
-      acessorios: acessorios.join('||'),
-      tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira,
-      desenvolvimento,
-      bordadoCano: bordadoCano.join('||'), corBordadoCano,
-      bordadoGaspea: bordadoGaspea.join('||'), corBordadoGaspea,
-      bordadoTaloneira: bordadoTaloneira.join('||'), corBordadoTaloneira,
-      bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira,
-      nomeBordado: String(nomeBordado), nomeBordadoDesc,
-      laserCano: laserCano.join('||'), corGlitterCano,
-      laserGaspea: laserGaspea.join('||'), corGlitterGaspea,
-      laserTaloneira: laserTaloneira.join('||'), corGlitterTaloneira,
-      laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText,
-      pintura: String(pintura), pinturaDesc,
-      estampa: String(estampa), estampaDesc,
-      corLinha, corBorrachinha, corVivo,
-      areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
-      strass: String(strass), strassQtd: String(strassQtd),
-      cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
-      bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
-      cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
-      trice: String(trice), triceDesc,
-      tiras: String(tiras), tirasDesc,
-      franja: String(franja), franjaCouro, franjaCor,
-      corrente: String(corrente), correnteCor,
-      corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
-      solado, formatoBico, corSola, corVira, costuraAtras: String(costuraAtras),
-      carimbo, carimboDesc,
-      adicionalDesc, adicionalValor: String(adicionalValor),
-      observacao, sobMedida: String(sobMedida),
-    };
-    const { error } = await supabase.from('order_templates').insert({ user_id: user.id, nome: templateName.trim(), form_data: form } as any);
-    if (error) { toast.error('Erro ao salvar modelo'); console.error(error); return; }
-    toast.success('Modelo criado com sucesso!');
-    setMode('order');
-    setTemplateName('');
+    const success = await tmpl.saveTemplate(user.id, buildFormData());
+    if (success) setMode('order');
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!user) return;
+    const success = await tmpl.updateTemplate(buildFormData());
+    if (success) setMode('order');
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    await supabase.from('order_templates').delete().eq('id', id);
-    loadTemplates();
-    toast.success('Modelo excluído');
+    if (!user) return;
+    await tmpl.deleteTemplate(id, user.id);
   };
 
   const handleUseTemplate = (formData: Record<string, string>) => {
-    setShowTemplates(false);
-    navigate('/pedido', { state: { templateData: formData, productChoice: 'bota' } });
-    // Force reload to apply template data
-    window.location.reload();
+    tmpl.setShowTemplates(false);
+    populateFormFromTemplate(formData);
+    setProductChoice('bota');
+  };
+
+  const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
+    tmpl.startEditing(template);
+    populateFormFromTemplate(template.form_data);
+    setMode('template');
+    setProductChoice('bota');
   };
 
   if (!isLoggedIn) {
