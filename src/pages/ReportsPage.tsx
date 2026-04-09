@@ -94,8 +94,8 @@ const ReportsPage = () => {
     searchQuery: searchParams.get('q') || '',
     filterDate: searchParams.get('de') || '',
     filterDateEnd: searchParams.get('ate') || '',
-    filterStatus: filterStatus,
-    filterVendedor: filterVendedor,
+    filterStatus: new Set(filterStatus),
+    filterVendedor: new Set(filterVendedor),
     filterProduto: new Set(defaultProduto),
   }));
 
@@ -565,6 +565,7 @@ const ReportsPage = () => {
                 setFilterProduto(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
+                setSearchParams({}, { replace: true });
               }} className="border border-border text-muted-foreground px-4 py-2 rounded-lg font-bold text-sm hover:bg-muted transition-colors flex items-center gap-2">
                 <RefreshCw size={14} /> LIMPAR
               </button>
