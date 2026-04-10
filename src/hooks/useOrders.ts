@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import type { Order } from '@/contexts/AuthContext';
+import { orderBarcodeValueLegacy } from '@/contexts/AuthContext';
 
 export interface OrderFilters {
   searchQuery?: string;
@@ -237,9 +238,18 @@ export async function fetchOrderByScan(code: string): Promise<Order | null> {
   if (digits.length === 10) {
     const realNumero = digits.replace(/^0+/, '');
     if (realNumero) {
-      const { data: byLegacy } = await supabase.from('orders').select('*')
+      // First try exact match on purely numeric orders
+      const { data: byExact } = await supabase.from('orders').select('*')
         .eq('numero', realNumero).maybeSingle();
-      if (byLegacy) return dbRowToOrder(byLegacy);
+      if (byExact) return dbRowToOrder(byExact);
+
+      // Search candidates that contain the digits (covers alphanumeric orders like E0033715)
+      const { data: candidates } = await supabase.from('orders').select('*')
+        .ilike('numero', `%${realNumero}%`);
+      if (candidates) {
+        const match = candidates.find(o => orderBarcodeValueLegacy(o.numero) === trimmed);
+        if (match) return dbRowToOrder(match);
+      }
     }
   }
 
