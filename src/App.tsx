@@ -55,6 +55,9 @@ const App = () => (
             <Route path="/rascunhos" element={<DraftsPage />} />
             <Route path="/usuarios" element={<UsersManagementPage />} />
             <Route path="/verificar" element={<VerifyCodePage />} />
+            <Route path="/admin/configuracoes" element={<AdminConfigPage />} />
+            <Route path="/admin/configuracoes/:slug" element={<AdminConfigFichaPage />} />
+            <Route path="/admin/configuracoes/:slug/:categoriaId" element={<AdminConfigVariacoesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SelectedOrdersProvider>
