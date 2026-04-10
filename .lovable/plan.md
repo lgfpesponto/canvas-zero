@@ -1,72 +1,57 @@
 
 
-## Correcao da busca por codigo de barras
+## Não precisa reimprimir nada
 
-### Problema
-O `fetchOrderByScan` so busca por `numero` e por `id` (UUID completo). O codigo de barras gera um hex de 12 caracteres (ultimos 12 chars do UUID sem tracos), que nao bate com nenhuma das duas buscas.
+Analisei o código e descobri que **todas as fichas** (antigas e novas) usam o **mesmo formato de código de barras**: os últimos 12 caracteres hexadecimais do UUID do pedido.
 
-Exemplo:
-- UUID do pedido: `8917766d-3de3-4dd2-b107-d9169f23eaf1`
-- Barcode gerado: `D9169F23EAF1` (ultimos 12 hex, uppercase)
-- `fetchOrderByScan('D9169F23EAF1')` tenta `eq('numero', 'D9169F23EAF1')` → nao encontra, depois `eq('id', 'D9169F23EAF1')` → nao e UUID valido → falha
+A função `orderBarcodeValue` sempre recebe o `order.id` (UUID), e sempre retorna os últimos 12 hex em maiúsculo. A função "legada" (`orderBarcodeValueLegacy`) nunca é chamada na geração de PDFs porque o UUID sempre tem 32+ caracteres hex.
 
-### Solucao
+Exemplo real do banco:
+- UUID: `e078aeec-9261-479d-8e50-f574f4a79e47`
+- Barcode impresso: `F574F4A79E47` (últimos 12 hex)
 
-Atualizar `fetchOrderByScan` em `src/hooks/useOrders.ts` para tambem tentar:
+**O problema é apenas o padrão de busca errado na linha 230 do `useOrders.ts`.**
 
-1. **Busca por hex do barcode**: se o codigo tem 12 chars hex, converter para o sufixo do UUID e buscar com `id.ilike.%{hex_lower}` (Supabase text filter nos ultimos 12 chars do id)
-2. **Busca por legacy barcode (digits padded)**: se o codigo e numerico com 10 digitos, extrair os digitos significativos e buscar por `numero`
-
-```typescript
-export async function fetchOrderByScan(code: string): Promise<Order | null> {
-  const trimmed = code.trim();
-  
-  // Try by numero first
-  const { data: byNumero } = await supabase.from('orders').select('*')
-    .eq('numero', trimmed).maybeSingle();
-  if (byNumero) return dbRowToOrder(byNumero);
-
-  // Try by full UUID id
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(trimmed)) {
-    const { data: byId } = await supabase.from('orders').select('*')
-      .eq('id', trimmed).maybeSingle();
-    if (byId) return dbRowToOrder(byId);
-  }
-
-  // Try by barcode hex (last 12 hex chars of UUID)
-  const hexRegex = /^[0-9A-Fa-f]{12}$/;
-  if (hexRegex.test(trimmed)) {
-    const suffix = trimmed.toLowerCase();
-    // UUID format: xxxxxxxx-xxxx-xxxx-XXXX-XXXXXXXXXXXX
-    // Last 12 hex = last 4 of block4 + all 12 of block5
-    // Search with ilike on the id column
-    const { data: byHex } = await supabase.from('orders').select('*')
-      .ilike('id', `%${suffix.slice(0,4)}-${suffix.slice(4)}`)
-      .maybeSingle();
-    if (byHex) return dbRowToOrder(byHex);
-  }
-
-  // Try legacy barcode (10 digits padded from numero)
-  const digits = trimmed.replace(/\D/g, '');
-  if (digits.length === 10) {
-    const realNumero = digits.replace(/^0+/, '');
-    if (realNumero) {
-      const { data: byLegacy } = await supabase.from('orders').select('*')
-        .eq('numero', realNumero).maybeSingle();
-      if (byLegacy) return dbRowToOrder(byLegacy);
-    }
-  }
-
-  return null;
-}
+O código atual faz:
 ```
+.ilike('id', '%f574-f4a79e47')   ← traço na posição errada
+```
+
+Mas o UUID real é:
+```
+e078aeec-9261-479d-8e50-f574f4a79e47
+                        ^^^^^^^^^^^^
+                        últimos 12 após o último traço
+```
+
+O padrão correto é:
+```
+.ilike('id', '%-f574f4a79e47')   ← traço ANTES dos 12 chars
+```
+
+### Correção
+
+Uma única linha em `src/hooks/useOrders.ts`, linha 230:
+
+**De:**
+```typescript
+.ilike('id', `%${suffix.slice(0, 4)}-${suffix.slice(4)}`)
+```
+
+**Para:**
+```typescript
+.ilike('id', `%-${suffix}`)
+```
+
+### Resultado
+
+Todas as fichas já impressas (antigas e novas) vão funcionar sem reimprimir nada. O formato do barcode nunca mudou — só a busca estava com o padrão errado.
 
 ### Arquivo alterado
 
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/useOrders.ts` | Atualizar `fetchOrderByScan` com busca por hex barcode e legacy barcode |
+| `src/hooks/useOrders.ts` | Linha 230: corrigir padrão ilike |
 
-Nenhuma outra alteracao necessaria — os chamadores em `ReportsPage.tsx` e `OrderDetailPage.tsx` ja usam essa funcao.
+Alteração de 1 linha. Nenhuma ficha precisa ser reimpressa.
 
