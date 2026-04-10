@@ -19,6 +19,7 @@ import ProfilePage from "./pages/ProfilePage";
 import DraftsPage from "./pages/DraftsPage";
 import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
+import DynamicOrderPage from "./pages/DynamicOrderPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
 import VerifyCodePage from "./pages/VerifyCodePage";
 import AdminConfigPage from "./pages/AdminConfigPage";
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/admin/configuracoes" element={<AdminConfigPage />} />
             <Route path="/admin/configuracoes/:slug" element={<AdminConfigFichaPage />} />
             <Route path="/admin/configuracoes/:slug/:categoriaId" element={<AdminConfigVariacoesPage />} />
+            <Route path="/pedido-dinamico/:slug" element={<DynamicOrderPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SelectedOrdersProvider>

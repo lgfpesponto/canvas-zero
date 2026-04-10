@@ -65,6 +65,56 @@ export type Database = {
         }
         Relationships: []
       }
+      ficha_campos: {
+        Row: {
+          ativo: boolean | null
+          desc_condicional: boolean | null
+          ficha_tipo_id: string
+          id: string
+          nome: string
+          obrigatorio: boolean | null
+          opcoes: Json | null
+          ordem: number | null
+          slug: string
+          tipo: string
+          vinculo: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          desc_condicional?: boolean | null
+          ficha_tipo_id: string
+          id?: string
+          nome: string
+          obrigatorio?: boolean | null
+          opcoes?: Json | null
+          ordem?: number | null
+          slug: string
+          tipo: string
+          vinculo?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          desc_condicional?: boolean | null
+          ficha_tipo_id?: string
+          id?: string
+          nome?: string
+          obrigatorio?: boolean | null
+          opcoes?: Json | null
+          ordem?: number | null
+          slug?: string
+          tipo?: string
+          vinculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ficha_campos_ficha_tipo_id_fkey"
+            columns: ["ficha_tipo_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ficha_categorias: {
         Row: {
           ativo: boolean | null
@@ -103,24 +153,30 @@ export type Database = {
       ficha_tipos: {
         Row: {
           ativo: boolean | null
+          campos_nativos: boolean | null
           created_at: string | null
           id: string
           nome: string
           slug: string
+          tipo_ficha: string | null
         }
         Insert: {
           ativo?: boolean | null
+          campos_nativos?: boolean | null
           created_at?: string | null
           id?: string
           nome: string
           slug: string
+          tipo_ficha?: string | null
         }
         Update: {
           ativo?: boolean | null
+          campos_nativos?: boolean | null
           created_at?: string | null
           id?: string
           nome?: string
           slug?: string
+          tipo_ficha?: string | null
         }
         Relationships: []
       }

@@ -8,6 +8,8 @@ export interface FichaTipo {
   nome: string;
   ativo: boolean;
   created_at: string;
+  tipo_ficha?: string;
+  campos_nativos?: boolean;
 }
 
 export interface FichaCategoria {
@@ -38,6 +40,20 @@ export interface StatusEtapa {
 export interface FichaWorkflow {
   ficha_tipo_id: string;
   etapa_id: string;
+  ativo: boolean;
+}
+
+export interface FichaCampo {
+  id: string;
+  ficha_tipo_id: string;
+  nome: string;
+  slug: string;
+  tipo: string;
+  obrigatorio: boolean;
+  ordem: number;
+  opcoes: any;
+  vinculo: string | null;
+  desc_condicional: boolean;
   ativo: boolean;
 }
 
@@ -129,6 +145,22 @@ export function useFichaWorkflow(fichaTipoId: string | undefined) {
         .eq('ficha_tipo_id', fichaTipoId!);
       if (error) throw error;
       return data as FichaWorkflow[];
+    },
+    enabled: !!fichaTipoId,
+  });
+}
+
+export function useFichaCampos(fichaTipoId: string | undefined) {
+  return useQuery({
+    queryKey: ['ficha_campos', fichaTipoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ficha_campos')
+        .select('*')
+        .eq('ficha_tipo_id', fichaTipoId!)
+        .order('ordem');
+      if (error) throw error;
+      return data as FichaCampo[];
     },
     enabled: !!fichaTipoId,
   });
