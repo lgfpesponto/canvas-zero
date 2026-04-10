@@ -223,14 +223,12 @@ export async function fetchOrderByScan(code: string): Promise<Order | null> {
     if (byId) return dbRowToOrder(byId);
   }
 
-  // Try by barcode hex (last 12 hex chars of UUID)
+  // Try by barcode hex (last 12 hex chars of UUID) using RPC to cast uuid to text
   const hexRegex = /^[0-9A-Fa-f]{12}$/;
   if (hexRegex.test(trimmed)) {
     const suffix = trimmed.toLowerCase();
-    const { data: byHex } = await supabase.from('orders').select('*')
-      .ilike('id', `%-${suffix}`)
-      .maybeSingle();
-    if (byHex) return dbRowToOrder(byHex);
+    const { data: byHex } = await supabase.rpc('find_order_by_id_suffix', { suffix });
+    if (byHex && byHex.length > 0) return dbRowToOrder(byHex[0]);
   }
 
   // Try legacy barcode (10 digits padded from numero)
