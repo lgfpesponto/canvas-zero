@@ -227,7 +227,7 @@ export async function fetchOrderByScan(code: string): Promise<Order | null> {
   if (hexRegex.test(trimmed)) {
     const suffix = trimmed.toLowerCase();
     const { data: byHex } = await supabase.from('orders').select('*')
-      .ilike('id', `%${suffix.slice(0, 4)}-${suffix.slice(4)}`)
+      .ilike('id', `%-${suffix}`)
       .maybeSingle();
     if (byHex) return dbRowToOrder(byHex);
   }
