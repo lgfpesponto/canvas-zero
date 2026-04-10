@@ -1,111 +1,57 @@
 
-## O que está acontecendo
+Descobri o motivo exato de no preview ainda falhar.
 
-Eu conferi o código atual e o banco, e o problema real é este:
+O erro não é mais “o scanner lê errado”. O scanner está lendo um código hex de 12 caracteres (`D9169F23EAF1`), mas a busca atual tenta fazer isso no Supabase:
 
-1. O sistema hoje já busca corretamente o barcode novo em hex do UUID:
-   - `src/hooks/useOrders.ts` já está com `.ilike('id', \`%-${suffix}\`)`
-
-2. Mas a busca de barcode legado ainda está errada:
-   - hoje ela faz:
-   ```ts
-   const realNumero = digits.replace(/^0+/, '');
-   .eq('numero', realNumero)
-   ```
-   - isso só funciona se o pedido salvo no banco for puramente numérico
-
-3. No banco existem muitos pedidos alfanuméricos:
-   - encontrei 146 pedidos com `numero` contendo letras
-   - exemplos reais: `E0033715`, `E0033602`, `SBC-1`
-
-4. Isso explica exatamente o que você está vendo:
-   - uma ficha antiga pode codificar `0000033715`
-   - o scanner joga esse valor no campo
-   - esse número parece “não ter nada a ver” com `E0033715`, mas na verdade ele vem do barcode legado
-   - o sistema então procura `numero = '33715'`
-   - como no banco o pedido está salvo como `E0033715`, ele não encontra
-
-## Conclusão
-
-O erro não é mais só do UUID/hex.
-O problema restante é a compatibilidade com fichas antigas já impressas, principalmente pedidos com letras no número.
-
-Ou seja:
-- pedidos novos com barcode hex: a correção do UUID resolve
-- fichas antigas com código legado numérico: ainda falham em pedidos alfanuméricos
-
-## Como eu resolveria
-
-### 1) Corrigir a busca legada em `src/hooks/useOrders.ts`
-Trocar a lógica atual de `eq('numero', realNumero)` por uma busca de candidatos + validação real do barcode legado.
-
-Abordagem:
-- importar `orderBarcodeValueLegacy` de `AuthContext`
-- quando o código escaneado tiver 10 dígitos:
-  - buscar candidatos por `numero` contendo os dígitos relevantes
-  - validar em memória com `orderBarcodeValueLegacy(o.numero) === trimmed`
-
-Exemplo da lógica:
-```ts
-const digits = trimmed.replace(/\D/g, '');
-if (digits.length === 10) {
-  const realNumero = digits.replace(/^0+/, '');
-  if (realNumero) {
-    const { data: candidates } = await supabase
-      .from('orders')
-      .select('*')
-      .ilike('numero', `%${realNumero}%`);
-
-    const match = candidates?.find(o => orderBarcodeValueLegacy(o.numero) === trimmed);
-    if (match) return dbRowToOrder(match);
-  }
-}
-```
-
-### 2) Manter a busca hex como está
-Essa parte deve continuar:
 ```ts
 .ilike('id', `%-${suffix}`)
 ```
-Ela cobre os barcodes novos/reimpressos baseados no UUID.
 
-### 3) Melhorar a mensagem da tela do scanner
-Para evitar confusão, eu também ajustaria o texto para deixar claro que:
-- o campo mostra o código lido pelo scanner
-- ele não precisa ser igual ao número visual do pedido
+Só que `id` é do tipo `uuid`, e o Postgres não aceita `ILIKE` direto em `uuid`. A prova está no log de rede do preview:
 
-Exemplo:
-- “Código lido: 0000033715”
-- “Pedido encontrado: E0033715”
+```text
+operator does not exist: uuid ~~* unknown
+```
 
-## Resultado esperado
+Por isso o sistema sempre cai em “Pedido não encontrado”, mesmo quando o código existe.
 
-Depois dessa correção:
-- fichas antigas já impressas continuam funcionando
-- pedidos com número alfanumérico passam a ser encontrados
-- pedidos novos com barcode hex continuam funcionando
-- não precisa reimprimir as fichas
+O que vou implementar:
 
-## Arquivos envolvidos
+1. Corrigir a busca por barcode UUID/hex em `src/hooks/useOrders.ts`
+   - remover a estratégia com `.ilike('id', ...)`
+   - substituir por uma abordagem compatível com UUID, por exemplo:
+     - buscar candidatos recentes e validar com `orderBarcodeValue(...)`, ou
+     - preferencialmente criar uma função SQL/RPC no Supabase que faça `id::text` no banco e retorne o pedido certo
 
-| Arquivo | Mudança |
-|---|---|
-| `src/hooks/useOrders.ts` | corrigir a busca legada para alfanuméricos |
-| `src/pages/ReportsPage.tsx` | opcional: melhorar feedback visual do scanner |
-| `src/pages/OrderDetailPage.tsx` | opcional: melhorar feedback visual do scanner |
+2. Manter a compatibilidade com fichas antigas
+   - preservar a lógica legada de 10 dígitos
+   - continuar validando pedidos alfanuméricos com `orderBarcodeValueLegacy`
 
-## Detalhe técnico importante
+3. Melhorar a robustez do scanner
+   - normalizar entrada (`trim`, case-insensitive para hex)
+   - tratar explicitamente os formatos:
+     - número do pedido
+     - UUID completo
+     - hex de 12 caracteres
+     - legado de 10 dígitos
 
-Hoje o sistema está em um estado “meio corrigido”:
-- a parte do UUID foi ajustada
-- a parte dos códigos legados antigos não foi concluída
+4. Validar nas duas telas que usam scanner
+   - `src/pages/ReportsPage.tsx`
+   - `src/pages/OrderDetailPage.tsx`
 
-Por isso você ainda vê “pedido não encontrado” mesmo quando o scanner preenche algo no campo.
+5. Teste que vou fazer depois da correção
+   - escanear um código hex como `D9169F23EAF1`
+   - confirmar que abre/seleciona o pedido correto
+   - testar também um código legado de 10 dígitos
+   - confirmar que não precisa reimprimir fichas
 
-## Validação que eu faria depois de implementar
+Detalhe técnico:
+- o problema atual não está no barcode em si
+- está na consulta Supabase feita contra a coluna `id` como `uuid`
+- enquanto essa consulta usar `ILIKE` em `uuid`, o preview continuará falhando
 
-1. testar uma ficha antiga de pedido como `E0033715`
-2. confirmar que o scanner lê algo como `0000033715`
-3. verificar se o sistema abre o pedido `E0033715`
-4. testar também uma ficha nova com barcode UUID/hex
-5. confirmar o fluxo inteiro de ponta a ponta no scanner real
+Arquivos envolvidos:
+- `src/hooks/useOrders.ts`
+- possivelmente uma migration Supabase para criar uma função de busca por sufixo do UUID
+- `src/pages/ReportsPage.tsx`
+- `src/pages/OrderDetailPage.tsx`
