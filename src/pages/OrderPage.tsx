@@ -26,6 +26,7 @@ import {
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, FORMATO_BICO,
   getModelosForTamanho,
   getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorViraOptions, getForma,
+  HIDE_PESPONTO_EXTRAS,
 } from '@/lib/orderFieldsConfig';
 
 /* ───── helpers ───── */
@@ -364,7 +365,7 @@ const OrderPage = () => {
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
 
-  const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno'];
+  
 
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {

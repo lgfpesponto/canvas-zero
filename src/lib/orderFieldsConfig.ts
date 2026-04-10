@@ -280,6 +280,10 @@ export const COSTURA_ATRAS_PRECO = 20;
 // ==================== VIRA HIDDEN (não mostrar na descrição/impressão) ====================
 export const VIRA_HIDDEN = ['Bege', 'Neutra'];
 
+// ==================== PESPONTO CONDICIONAL ====================
+// Modelos que não exibem borrachinha/vivo (só cor da linha)
+export const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno'];
+
 // ==================== VINCULAÇÃO TAMANHO → MODELO ====================
 export function getModelosForTamanho(tamanho: string): { label: string; preco: number }[] {
   if (!tamanho) return MODELOS;
