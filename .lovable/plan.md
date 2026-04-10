@@ -1,39 +1,43 @@
 
 
-## Correção de dois bugs
+## Correção do gráfico semanal — semanas domingo a sábado com faixa de datas
 
-### Bug 1: Valor duplicado na lista de pedidos para extras
+### Problema atual
 
-**Causa**: Para produtos extras como `revitalizador`, o campo `preco` no banco já armazena o valor total (ex: 10 unidades x R$10 = R$100, `preco=100`). Porém o `quantidade` também é 10. No `OrderCard.tsx` linha 43, o cálculo `order.preco * order.quantidade` resulta em R$1000 (duplicado).
+A função `get_sales_chart` no modo "semana":
+1. Usa `generate_series(current_date - 27, current_date, '7 days')` — gera apenas 4 pontos e não alinha aos domingos
+2. Março 2025 teve 5 semanas (começou no sábado), então o sistema perde semanas
+3. O label `CEIL(DAY/7)/MONTH` não funciona bem para semanas que cruzam meses
 
-**Correção**: Extras devem exibir apenas `order.preco` sem multiplicar por quantidade. A condição atual só trata `bota_pronta_entrega` como caso especial, mas **todos os extras** armazenam o total no `preco`.
+### Solução
 
-**Arquivo: `src/components/OrderCard.tsx`** (linha 43)
-- Mudar de: `order.tipoExtra === 'bota_pronta_entrega' ? order.preco : order.preco * order.quantidade`
-- Para: `order.tipoExtra ? order.preco : order.preco * order.quantidade`
+Reescrever o bloco "semana" da função SQL para:
 
-Mesma lógica deve ser verificada em `TrackOrderPage.tsx` e qualquer outro local que faça `preco * quantidade` sem checar se é extra.
+1. **Alinhar ao domingo**: calcular o domingo da semana atual com `date_trunc('week', current_date + 1) - 1` (PostgreSQL usa segunda como início de semana ISO, então ajustamos)
+2. **Gerar 6 semanas para trás**: `generate_series` de 5 semanas antes até a semana atual, intervalo de 7 dias, cada ponto sendo o domingo daquela semana
+3. **Label como faixa de datas**: formato `DD/MM–DD/MM` (domingo a sábado), ex: `30/03–05/04`
+4. **JOIN correto**: cada pedido cai na semana cujo domingo <= data_criacao <= sábado (domingo + 6)
 
-### Bug 2: Gráfico de vendas — formato de semana errado
+### Alteração SQL (migration)
 
-**Causa**: A função SQL `get_sales_chart` usa `to_char(d.dt, 'IW')` que retorna o número da semana ISO (ex: "Sem 14"). O usuário quer o formato "Sem X/M" onde X = semana do mês e M = número do mês.
-
-**Correção**: Migration SQL para alterar a função, substituindo:
 ```sql
-WHEN 'semana' THEN 'Sem ' || to_char(d.dt, 'IW')
-```
-Por:
-```sql
-WHEN 'semana' THEN 'Sem ' || CEIL(EXTRACT(DAY FROM d.dt) / 7.0)::int || '/' || EXTRACT(MONTH FROM d.dt)::int
+-- Para o CASE do generate_series (início):
+WHEN 'semana' THEN (date_trunc('week', current_date + 1) - interval '5 weeks')::date - 1
+
+-- Para o label:
+WHEN 'semana' THEN to_char(d.dt, 'DD/MM') || '–' || to_char(d.dt + 6, 'DD/MM')
+
+-- Para o JOIN:
+WHEN 'semana' THEN f.data_criacao::date BETWEEN d.dt AND d.dt + 6
 ```
 
-Isso gera labels como "Sem 1/4", "Sem 2/4" para abril e "Sem 4/3" para março.
+Onde `d.dt` é sempre um domingo. Isso gera 6 pontos de dados cobrindo as últimas 6 semanas, com labels legíveis como `30/03–05/04`.
 
-### Resumo de alterações
+### Resumo
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/OrderCard.tsx` | Usar `order.preco` para todos os extras |
-| `src/pages/TrackOrderPage.tsx` | Mesma correção se aplicável |
-| Migration SQL | Atualizar `get_sales_chart` com formato semana/mês |
+| Migration SQL | Atualizar `get_sales_chart` — bloco semana com alinhamento domingo-sábado e labels de faixa |
+
+Nenhuma mudança no frontend necessária — os labels já são renderizados como string pelo gráfico.
 
