@@ -365,7 +365,7 @@ const OrderPage = () => {
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
 
-  const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno'];
+  
 
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
