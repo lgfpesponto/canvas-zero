@@ -26,6 +26,7 @@ import {
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, FORMATO_BICO,
   getModelosForTamanho,
   getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorViraOptions, getForma,
+  HIDE_PESPONTO_EXTRAS,
 } from '@/lib/orderFieldsConfig';
 
 /* ───── helpers ───── */
