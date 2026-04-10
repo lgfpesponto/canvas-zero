@@ -449,6 +449,97 @@ export type Database = {
     }
     Functions: {
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
+      find_order_by_id_suffix: {
+        Args: { suffix: string }
+        Returns: {
+          acessorios: string
+          adicional_desc: string | null
+          adicional_valor: number | null
+          alteracoes: Json
+          bordado_cano: string
+          bordado_gaspea: string
+          bordado_taloneira: string
+          bordado_variado_desc_cano: string | null
+          bordado_variado_desc_gaspea: string | null
+          bordado_variado_desc_taloneira: string | null
+          bridao_metal_qtd: number | null
+          carimbo: string | null
+          carimbo_desc: string | null
+          cliente: string
+          cor_bordado_cano: string | null
+          cor_bordado_gaspea: string | null
+          cor_bordado_taloneira: string | null
+          cor_borrachinha: string
+          cor_couro_cano: string | null
+          cor_couro_gaspea: string | null
+          cor_couro_taloneira: string | null
+          cor_glitter_cano: string | null
+          cor_glitter_gaspea: string | null
+          cor_glitter_taloneira: string | null
+          cor_linha: string
+          cor_metal: string | null
+          cor_sola: string | null
+          cor_vira: string
+          cor_vivo: string | null
+          costura_atras: string | null
+          couro_cano: string
+          couro_gaspea: string
+          couro_taloneira: string
+          created_at: string
+          cruz_metal_qtd: number | null
+          data_criacao: string
+          desconto: number | null
+          desconto_justificativa: string | null
+          desenvolvimento: string
+          dias_restantes: number
+          estampa: string | null
+          estampa_desc: string | null
+          extra_detalhes: Json | null
+          forma: string | null
+          formato_bico: string
+          fotos: Json
+          genero: string | null
+          historico: Json
+          hora_criacao: string
+          id: string
+          laser_cano: string | null
+          laser_gaspea: string | null
+          laser_taloneira: string | null
+          metais: string
+          modelo: string
+          nome_bordado_desc: string | null
+          numero: string
+          numero_pedido_bota: string | null
+          observacao: string
+          personalizacao_bordado: string
+          personalizacao_nome: string
+          pintura: string | null
+          pintura_desc: string | null
+          preco: number
+          quantidade: number
+          sob_medida: boolean
+          sob_medida_desc: string | null
+          solado: string
+          status: string
+          strass_qtd: number | null
+          tamanho: string
+          tem_laser: boolean
+          tipo_extra: string | null
+          tipo_metal: string | null
+          tiras: string
+          tiras_desc: string | null
+          trice_desc: string | null
+          trisce: string
+          user_id: string
+          vendedor: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_pending_value: { Args: { vendor?: string }; Returns: number }
       get_production_counts: {
         Args: { product_types?: string[]; vendors?: string[] }
