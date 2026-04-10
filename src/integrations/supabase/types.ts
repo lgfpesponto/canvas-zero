@@ -65,6 +65,133 @@ export type Database = {
         }
         Relationships: []
       }
+      ficha_categorias: {
+        Row: {
+          ativo: boolean | null
+          ficha_tipo_id: string
+          id: string
+          nome: string
+          ordem: number | null
+          slug: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          ficha_tipo_id: string
+          id?: string
+          nome: string
+          ordem?: number | null
+          slug: string
+        }
+        Update: {
+          ativo?: boolean | null
+          ficha_tipo_id?: string
+          id?: string
+          nome?: string
+          ordem?: number | null
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ficha_categorias_ficha_tipo_id_fkey"
+            columns: ["ficha_tipo_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ficha_tipos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          id: string
+          nome: string
+          slug: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nome: string
+          slug: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nome?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      ficha_variacoes: {
+        Row: {
+          ativo: boolean | null
+          categoria_id: string
+          id: string
+          nome: string
+          ordem: number | null
+          preco_adicional: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          categoria_id: string
+          id?: string
+          nome: string
+          ordem?: number | null
+          preco_adicional?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          categoria_id?: string
+          id?: string
+          nome?: string
+          ordem?: number | null
+          preco_adicional?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ficha_variacoes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ficha_workflow: {
+        Row: {
+          ativo: boolean | null
+          etapa_id: string
+          ficha_tipo_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          etapa_id: string
+          ficha_tipo_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          etapa_id?: string
+          ficha_tipo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ficha_workflow_etapa_id_fkey"
+            columns: ["etapa_id"]
+            isOneToOne: false
+            referencedRelation: "status_etapas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ficha_workflow_ficha_tipo_id_fkey"
+            columns: ["ficha_tipo_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gravata_stock: {
         Row: {
           cor_brilho: string | null
@@ -392,6 +519,27 @@ export type Database = {
           nome_usuario?: string
           telefone?: string
           verificado?: boolean
+        }
+        Relationships: []
+      }
+      status_etapas: {
+        Row: {
+          id: string
+          nome: string
+          ordem: number | null
+          slug: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          ordem?: number | null
+          slug: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          ordem?: number | null
+          slug?: string
         }
         Relationships: []
       }

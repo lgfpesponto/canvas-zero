@@ -21,6 +21,9 @@ import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
 import VerifyCodePage from "./pages/VerifyCodePage";
+import AdminConfigPage from "./pages/AdminConfigPage";
+import AdminConfigFichaPage from "./pages/AdminConfigFichaPage";
+import AdminConfigVariacoesPage from "./pages/AdminConfigVariacoesPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -52,6 +55,9 @@ const App = () => (
             <Route path="/rascunhos" element={<DraftsPage />} />
             <Route path="/usuarios" element={<UsersManagementPage />} />
             <Route path="/verificar" element={<VerifyCodePage />} />
+            <Route path="/admin/configuracoes" element={<AdminConfigPage />} />
+            <Route path="/admin/configuracoes/:slug" element={<AdminConfigFichaPage />} />
+            <Route path="/admin/configuracoes/:slug/:categoriaId" element={<AdminConfigVariacoesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SelectedOrdersProvider>
