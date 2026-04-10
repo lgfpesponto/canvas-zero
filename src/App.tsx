@@ -58,6 +58,7 @@ const App = () => (
             <Route path="/admin/configuracoes" element={<AdminConfigPage />} />
             <Route path="/admin/configuracoes/:slug" element={<AdminConfigFichaPage />} />
             <Route path="/admin/configuracoes/:slug/:categoriaId" element={<AdminConfigVariacoesPage />} />
+            <Route path="/pedido-dinamico/:slug" element={<DynamicOrderPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SelectedOrdersProvider>
