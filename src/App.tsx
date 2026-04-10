@@ -19,6 +19,7 @@ import ProfilePage from "./pages/ProfilePage";
 import DraftsPage from "./pages/DraftsPage";
 import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
+import DynamicOrderPage from "./pages/DynamicOrderPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
 import VerifyCodePage from "./pages/VerifyCodePage";
 import AdminConfigPage from "./pages/AdminConfigPage";
