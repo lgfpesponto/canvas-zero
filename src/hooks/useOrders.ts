@@ -207,13 +207,41 @@ export async function fetchOrdersByIds(ids: string[]): Promise<Order[]> {
 
 /** Fetch a single order by numero or barcode scan */
 export async function fetchOrderByScan(code: string): Promise<Order | null> {
+  const trimmed = code.trim();
+
   // Try by numero first
-  const { data: byNumero } = await supabase.from('orders').select('*').eq('numero', code.trim()).maybeSingle();
+  const { data: byNumero } = await supabase.from('orders').select('*')
+    .eq('numero', trimmed).maybeSingle();
   if (byNumero) return dbRowToOrder(byNumero);
 
-  // Try by ID
-  const { data: byId } = await supabase.from('orders').select('*').eq('id', code.trim()).maybeSingle();
-  if (byId) return dbRowToOrder(byId);
+  // Try by full UUID id
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(trimmed)) {
+    const { data: byId } = await supabase.from('orders').select('*')
+      .eq('id', trimmed).maybeSingle();
+    if (byId) return dbRowToOrder(byId);
+  }
+
+  // Try by barcode hex (last 12 hex chars of UUID)
+  const hexRegex = /^[0-9A-Fa-f]{12}$/;
+  if (hexRegex.test(trimmed)) {
+    const suffix = trimmed.toLowerCase();
+    const { data: byHex } = await supabase.from('orders').select('*')
+      .ilike('id', `%${suffix.slice(0, 4)}-${suffix.slice(4)}`)
+      .maybeSingle();
+    if (byHex) return dbRowToOrder(byHex);
+  }
+
+  // Try legacy barcode (10 digits padded from numero)
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) {
+    const realNumero = digits.replace(/^0+/, '');
+    if (realNumero) {
+      const { data: byLegacy } = await supabase.from('orders').select('*')
+        .eq('numero', realNumero).maybeSingle();
+      if (byLegacy) return dbRowToOrder(byLegacy);
+    }
+  }
 
   return null;
 }
