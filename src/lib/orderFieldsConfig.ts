@@ -92,7 +92,7 @@ export function getCoresCouroFiltradas(tipoCouro: string): string[] {
   const base = CORES_COURO.filter(c => !TODAS_CORES_RESTRITAS.includes(c));
   // Também remove cores exclusivas de outros tipos (Caramelo, Preto e Branco, etc.)
   const exclusivas = Object.values(COURO_CORES_EXCLUSIVAS).flat();
-  const filtrada = base.filter(c => !exclusivas.includes(c));
+  const filtrada = base.filter(c => !exclusivas.includes(c) || c === 'Preto');
   if (!tipoCouro) return filtrada;
   // Adiciona de volta cores restritas que pertencem a este tipo
   const extras: string[] = [];
