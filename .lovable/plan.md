@@ -1,22 +1,21 @@
 
 
-## Plano: Excluir vendedor "Estoque" do grafico de vendas
+## Plano: Tornar "Preto" disponível para todos os tipos de couro
 
-### O que muda
+### Problema
 
-O grafico "Quantidade de vendas" no dashboard do admin_master atualmente inclui pedidos do vendedor "Estoque". Esses pedidos sao internos e nao devem contar como vendas.
+A cor "Preto" está na lista exclusiva de "Vaca Holandesa", então a função `getCoresCouroFiltradas` remove "Preto" da lista geral para todos os outros tipos de couro.
 
-### Implementacao
+### Solução
 
-**Arquivo unico**: Nova migration SQL
+**Arquivo**: `src/lib/orderFieldsConfig.ts`
 
-Recriar a funcao `get_sales_chart` adicionando um filtro na CTE `filtered`:
+Na função `getCoresCouroFiltradas`, após calcular as cores exclusivas a remover, excluir "Preto" dessa remoção -- ou seja, "Preto" nunca é filtrado da lista geral, permanecendo disponível para qualquer tipo de couro.
 
-```sql
-AND o.vendedor <> 'Estoque'
+Mudança pontual: na linha que filtra exclusivas, adicionar exceção:
+```ts
+const filtrada = base.filter(c => !exclusivas.includes(c) || c === 'Preto');
 ```
 
-Isso sera adicionado na clausula WHERE junto aos filtros existentes (prefixos excluidos, produto, vendedor). A linha fica logo apos o filtro de `excluded_prefixes`.
-
-Nenhuma alteracao no frontend e necessaria -- o filtro e aplicado no servidor.
+"Preto" continuará aparecendo também para Vaca Holandesa (já está na lista exclusiva dela).
 
