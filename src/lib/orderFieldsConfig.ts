@@ -44,7 +44,7 @@ export const TIPOS_COURO = [
   'Estilizado em Avestruz','Estilizado em Arraia','Estilizado em Tilápia',
   'Egípcio','Estilizado em Jacaré','Estilizado em Cobra',
   'Estilizado em Dinossauro','Aramado','Escamado','Estilizado Duplo',
-  'Estilizado em Tatu','Vaca Holandesa','Vaca Pintada',
+  'Estilizado em Tatu','Vaca Holandesa','Vaca Pintada','Metalizado',
 ];
 
 export const COURO_PRECOS: Record<string, number> = {
@@ -63,7 +63,44 @@ export const CORES_COURO = [
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
   'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate','Castor',
+  'Caramelo','Preto e Branco',
 ];
+
+// ==================== VINCULAÇÃO TIPO COURO → COR ====================
+// Tipos com lista FECHADA (somente estas cores, nenhuma cor geral)
+const COURO_CORES_EXCLUSIVAS: Record<string, string[]> = {
+  'Vaca Holandesa': ['Malhado', 'Preto', 'Branco'],
+  'Vaca Pintada': ['Caramelo', 'Preto e Branco'],
+  'Metalizado': ['Rosa Neon'],
+};
+
+// Cores restritas: só aparecem quando o tipo está na lista
+const CORES_RESTRITAS: Record<string, string[]> = {
+  'Nescau': ['Crazy Horse', 'Escamado'],
+  'Chocolate': ['Nobuck', 'Estilizado em Tilápia'],
+  'Marrom': ['Látego', 'Estilizado em Cobra', 'Estilizado em Jacaré', 'Estilizado em Avestruz', 'Estilizado em Dinossauro', 'Estilizado em Tatu'],
+};
+
+const TODAS_CORES_RESTRITAS = Object.keys(CORES_RESTRITAS);
+
+export function getCoresCouroFiltradas(tipoCouro: string): string[] {
+  // Se tipo tem lista fechada, retorna somente suas cores exclusivas
+  if (tipoCouro && COURO_CORES_EXCLUSIVAS[tipoCouro]) {
+    return COURO_CORES_EXCLUSIVAS[tipoCouro];
+  }
+  // Lista geral sem cores restritas
+  const base = CORES_COURO.filter(c => !TODAS_CORES_RESTRITAS.includes(c));
+  // Também remove cores exclusivas de outros tipos (Caramelo, Preto e Branco, etc.)
+  const exclusivas = Object.values(COURO_CORES_EXCLUSIVAS).flat();
+  const filtrada = base.filter(c => !exclusivas.includes(c));
+  if (!tipoCouro) return filtrada;
+  // Adiciona de volta cores restritas que pertencem a este tipo
+  const extras: string[] = [];
+  for (const [cor, tipos] of Object.entries(CORES_RESTRITAS)) {
+    if (tipos.includes(tipoCouro)) extras.push(cor);
+  }
+  return [...filtrada, ...extras];
+}
 
 // ==================== BORDADOS (legacy – kept for backward compatibility) ====================
 export const BORDADOS: { label: string; preco: number }[] = [
