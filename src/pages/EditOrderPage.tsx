@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
 import {
-  MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS,
+  MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO,
   GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
   COR_GLITTER, COR_LINHA, COR_BORRACHINHA,
@@ -545,12 +545,12 @@ const EditOrderPage = () => {
 
           <Section title="Couros">
             <div className="grid sm:grid-cols-2 gap-4">
-              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={setTipoCouroCano} options={TIPOS_COURO} />
-              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={CORES_COURO} />
-              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={setTipoCouroGaspea} options={TIPOS_COURO} />
-              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={CORES_COURO} />
-              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={setTipoCouroTaloneira} options={TIPOS_COURO} />
-              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={CORES_COURO} />
+              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getCoresCouroFiltradas(v).includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} />
+              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={getCoresCouroFiltradas(tipoCouroCano)} />
+              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => { setTipoCouroGaspea(v); if (corCouroGaspea && !getCoresCouroFiltradas(v).includes(corCouroGaspea)) setCorCouroGaspea(''); }} options={TIPOS_COURO} />
+              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={getCoresCouroFiltradas(tipoCouroGaspea)} />
+              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => { setTipoCouroTaloneira(v); if (corCouroTaloneira && !getCoresCouroFiltradas(v).includes(corCouroTaloneira)) setCorCouroTaloneira(''); }} options={TIPOS_COURO} />
+              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={getCoresCouroFiltradas(tipoCouroTaloneira)} />
             </div>
           </Section>
 

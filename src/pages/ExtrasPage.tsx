@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
+import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -381,11 +381,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Tipo de couro *</Label>
-              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)} placeholder="Selecione" />
+              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => { set('tipoCouro', v); if (form.corCouro && !getCoresCouroFiltradas(v).includes(form.corCouro)) set('corCouro', ''); }} placeholder="Selecione" />
             </div>
             <div>
               <Label>Cor do couro *</Label>
-              <SearchableSelect options={CORES_COURO} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
+              <SearchableSelect options={getCoresCouroFiltradas(form.tipoCouro)} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Vai o canivete?</Label>
@@ -552,11 +552,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Tipo de couro *</Label>
-              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)} placeholder="Selecione" />
+              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => { set('tipoCouro', v); if (form.corCouro && !getCoresCouroFiltradas(v).includes(form.corCouro)) set('corCouro', ''); }} placeholder="Selecione" />
             </div>
             <div>
               <Label>Cor do couro *</Label>
-              <SearchableSelect options={CORES_COURO} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
+              <SearchableSelect options={getCoresCouroFiltradas(form.tipoCouro)} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
             </div>
             {productId === 'chaveiro_carimbo' && (
               <div>
