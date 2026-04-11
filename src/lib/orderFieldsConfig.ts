@@ -63,7 +63,7 @@ export const CORES_COURO = [
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
   'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate','Castor',
-  'Caramelo','Preto e Branco',
+  'Caramelo','Preto e Branco','Madeira',
 ];
 
 // ==================== VINCULAÇÃO TIPO COURO → COR ====================
