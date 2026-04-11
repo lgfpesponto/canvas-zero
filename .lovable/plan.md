@@ -1,26 +1,22 @@
 
 
-## Plano: Minimizar Quadros de Solado no Dashboard
+## Plano: Excluir vendedor "Estoque" do grafico de vendas
 
 ### O que muda
 
-Os 3 quadros de solado (Sola de Couro, Sola Rustica, Vira Colorida) no dashboard admin passam a iniciar **colapsados**, mostrando apenas:
-- Nome do quadro (titulo)
-- Badge com quantidade de pedidos
-- Botao "Gerar relatorio" (PDF)
-- Botao "Expandir" para abrir o conteudo completo
+O grafico "Quantidade de vendas" no dashboard do admin_master atualmente inclui pedidos do vendedor "Estoque". Esses pedidos sao internos e nao devem contar como vendas.
 
 ### Implementacao
 
-**Arquivo unico**: `src/components/SoladoBoard.tsx`
+**Arquivo unico**: Nova migration SQL
 
-1. Adicionar estado `collapsed` iniciando como `true`
-2. Quando `collapsed === true`, renderizar apenas uma barra compacta com:
-   - Titulo + badge `({visibleOrders.length} pedidos)`
-   - Botao "Gerar relatorio" (mantém o `exportPDF` existente)
-   - Botao "Expandir" com icone `ChevronDown` que seta `collapsed = false`
-3. Quando `collapsed === false`, renderizar o conteudo completo atual + botao "Minimizar" com `ChevronUp`
-4. O Dialog de tela cheia (Maximize2) continua funcionando independente do estado collapsed
+Recriar a funcao `get_sales_chart` adicionando um filtro na CTE `filtered`:
 
-Nenhuma alteracao necessaria em `AdminDashboard.tsx` ou `FernandaDashboard.tsx` -- a mudanca e interna ao componente.
+```sql
+AND o.vendedor <> 'Estoque'
+```
+
+Isso sera adicionado na clausula WHERE junto aos filtros existentes (prefixos excluidos, produto, vendedor). A linha fica logo apos o filtro de `excluded_prefixes`.
+
+Nenhuma alteracao no frontend e necessaria -- o filtro e aplicado no servidor.
 
