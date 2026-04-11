@@ -93,6 +93,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify([...dismissedIds]));
@@ -134,7 +135,6 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     if (!dateStr) return '';
     const parts = dateStr.split(/[-/]/);
     if (parts.length === 3) {
-      // If yyyy-mm-dd or yyyy/mm/dd
       if (parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
       return dateStr;
     }
@@ -162,7 +162,6 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
-    // Group orders by sole configuration
     const groups = new Map<string, { description: string; sizes: Map<string, number> }>();
     visibleOrders.forEach(o => {
       const descParts = [
@@ -173,10 +172,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       ].filter(Boolean);
       const key = descParts.join('  ');
       if (!groups.has(key)) {
-        groups.set(key, {
-          description: key,
-          sizes: new Map(),
-        });
+        groups.set(key, { description: key, sizes: new Map() });
       }
       const g = groups.get(key)!;
       const tam = o.tamanho || '?';
@@ -192,7 +188,6 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
 
     const totalPares = blocks.reduce((sum, b) => sum + b.sizes.reduce((s, sz) => s + sz.quantidade, 0), 0);
 
-    // Header
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(title, mx, 14);
@@ -219,166 +214,126 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     return PRODUCTION_STATUSES.filter(st => s.has(st));
   }, [orders, dismissedIds]);
 
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl p-6 western-shadow">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-lg font-display font-bold">{title}</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {visibleOrders.length > 0 && (
-            <button onClick={toggleSelectAll} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
-              {allSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-              {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
-            </button>
-          )}
-          {selectedIds.size > 0 && (
-            <button onClick={dismissSelected} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">
-              <Check size={14} /> Marcar feito ({selectedIds.size})
-            </button>
-          )}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
-                <Filter size={14} /> Progresso {statusFilter.size > 0 && `(${statusFilter.size})`} <ChevronDown size={14} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56 p-2 max-h-60 overflow-y-auto">
-              {uniqueStatuses.map(st => (
-                <label key={st} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
-                  <Checkbox checked={statusFilter.has(st)} onCheckedChange={(checked) => {
-                    setStatusFilter(prev => { const n = new Set(prev); checked ? n.add(st) : n.delete(st); return n; });
-                  }} />
-                  {st}
-                </label>
+  const renderOrderItem = (o: Order) => {
+    const { line1, line2 } = buildDescriptionLines(o);
+    return (
+      <div key={o.id} className="py-3 px-1 text-sm">
+        <div className="flex items-center gap-2">
+          <Checkbox checked={selectedIds.has(o.id)} onCheckedChange={() => toggleSelect(o.id)} />
+          <span className="font-bold">{o.numero}</span>
+          <span className="text-muted-foreground">— {o.vendedor}</span>
+        </div>
+        <div className="border-t border-border mt-2 pt-2">
+          <p className="text-muted-foreground text-xs break-words">
+            {line1.map((p, i) => (
+              <span key={i}>
+                {i > 0 && <span className="mx-1">·</span>}
+                <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+              </span>
+            ))}
+          </p>
+          {line2.length > 0 && (
+            <p className="text-muted-foreground text-xs mt-0.5 break-words">
+              {line2.map((p, i) => (
+                <span key={i}>
+                  {i > 0 && <span className="mx-1">·</span>}
+                  <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
+                </span>
               ))}
-            </PopoverContent>
-          </Popover>
+            </p>
+          )}
+        </div>
+        <div className="border-t border-border mt-2 flex text-xs">
+          <div className="flex-1 py-1.5 pr-2 border-r border-border">
+            <span className="text-muted-foreground">Prazo: </span>
+            <span className="font-semibold">{o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}</span>
+          </div>
+          <div className="flex-1 py-1.5 px-2 border-r border-border">
+            <span className="text-muted-foreground">Status: </span>
+            <span className="font-bold">{o.status}</span>
+          </div>
+          <div className="py-1 px-2 flex items-center">
+            <button onClick={() => dismiss(o.id)} className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1">
+              <Check size={14} /> Feito
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl p-4 western-shadow">
+      {/* Header — always visible */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-display font-bold">{title}</h2>
+          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-bold">
+            {visibleOrders.length} pedido{visibleOrders.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
           <button onClick={exportPDF} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">
             <Download size={14} /> Gerar relatório
           </button>
-          <button onClick={() => setExpanded(true)} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
-            <Maximize2 size={14} /> Expandir
+          <button onClick={() => setCollapsed(c => !c)} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+            {collapsed ? <><ChevronDown size={14} /> Expandir</> : <><ChevronUp size={14} /> Minimizar</>}
           </button>
         </div>
       </div>
 
-      {visibleOrders.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado.</p>
-      ) : (
-        <div className="divide-y-2 divide-primary max-h-[400px] overflow-y-auto">
-          {visibleOrders.map(o => {
-            const { line1, line2 } = buildDescriptionLines(o);
-            return (
-              <div key={o.id} className="py-3 px-1 text-sm">
-                {/* Row 1: Checkbox + Número + Vendedor */}
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedIds.has(o.id)}
-                    onCheckedChange={() => toggleSelect(o.id)}
-                  />
-                  <span className="font-bold">{o.numero}</span>
-                  <span className="text-muted-foreground">— {o.vendedor}</span>
-                </div>
+      {/* Expanded content */}
+      {!collapsed && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {visibleOrders.length > 0 && (
+              <button onClick={toggleSelectAll} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+                {allSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            )}
+            {selectedIds.size > 0 && (
+              <button onClick={dismissSelected} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">
+                <Check size={14} /> Marcar feito ({selectedIds.size})
+              </button>
+            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+                  <Filter size={14} /> Progresso {statusFilter.size > 0 && `(${statusFilter.size})`} <ChevronDown size={14} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2 max-h-60 overflow-y-auto">
+                {uniqueStatuses.map(st => (
+                  <label key={st} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer text-sm">
+                    <Checkbox checked={statusFilter.has(st)} onCheckedChange={(checked) => {
+                      setStatusFilter(prev => { const n = new Set(prev); checked ? n.add(st) : n.delete(st); return n; });
+                    }} />
+                    {st}
+                  </label>
+                ))}
+              </PopoverContent>
+            </Popover>
+            <button onClick={() => setExpanded(true)} className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1">
+              <Maximize2 size={14} /> Tela cheia
+            </button>
+          </div>
 
-                {/* Row 2: Descrição da sola */}
-                <div className="border-t border-border mt-2 pt-2">
-                  <p className="text-muted-foreground text-xs break-words">
-                    {line1.map((p, i) => (
-                      <span key={i}>
-                        {i > 0 && <span className="mx-1">·</span>}
-                        <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                      </span>
-                    ))}
-                  </p>
-                  {line2.length > 0 && (
-                    <p className="text-muted-foreground text-xs mt-0.5 break-words">
-                      {line2.map((p, i) => (
-                        <span key={i}>
-                          {i > 0 && <span className="mx-1">·</span>}
-                          <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                        </span>
-                      ))}
-                    </p>
-                  )}
-                </div>
-
-                {/* Row 3: Prazo | Status | Feito */}
-                <div className="border-t border-border mt-2 flex text-xs">
-                  <div className="flex-1 py-1.5 pr-2 border-r border-border">
-                    <span className="text-muted-foreground">Prazo: </span>
-                    <span className="font-semibold">{o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}</span>
-                  </div>
-                  <div className="flex-1 py-1.5 px-2 border-r border-border">
-                    <span className="text-muted-foreground">Status: </span>
-                    <span className="font-bold">{o.status}</span>
-                  </div>
-                  <div className="py-1 px-2 flex items-center">
-                    <button
-                      onClick={() => dismiss(o.id)}
-                      className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1"
-                    >
-                      <Check size={14} /> Feito
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          {visibleOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado.</p>
+          ) : (
+            <div className="divide-y-2 divide-primary max-h-[400px] overflow-y-auto">
+              {visibleOrders.map(renderOrderItem)}
+            </div>
+          )}
+        </motion.div>
       )}
-
-      <p className="text-xs text-muted-foreground mt-3">{visibleOrders.length} pedido{visibleOrders.length !== 1 ? 's' : ''}</p>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
           <DialogTitle className="text-lg font-display font-bold">{title}</DialogTitle>
           <div className="divide-y-2 divide-primary">
-            {visibleOrders.map(o => {
-              const { line1, line2 } = buildDescriptionLines(o);
-              return (
-                <div key={o.id} className="py-3 px-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Checkbox checked={selectedIds.has(o.id)} onCheckedChange={() => toggleSelect(o.id)} />
-                    <span className="font-bold">{o.numero}</span>
-                    <span className="text-muted-foreground">— {o.vendedor}</span>
-                  </div>
-                  <div className="border-t border-border mt-2 pt-2">
-                    <p className="text-muted-foreground text-xs break-words">
-                      {line1.map((p, i) => (
-                        <span key={i}>
-                          {i > 0 && <span className="mx-1">·</span>}
-                          <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                        </span>
-                      ))}
-                    </p>
-                    {line2.length > 0 && (
-                      <p className="text-muted-foreground text-xs mt-0.5 break-words">
-                        {line2.map((p, i) => (
-                          <span key={i}>
-                            {i > 0 && <span className="mx-1">·</span>}
-                            <span className="font-semibold text-foreground">{p.label}:</span> {p.value}
-                          </span>
-                        ))}
-                      </p>
-                    )}
-                  </div>
-                  <div className="border-t border-border mt-2 flex text-xs">
-                    <div className="flex-1 py-1.5 pr-2 border-r border-border">
-                      <span className="text-muted-foreground">Prazo: </span>
-                      <span className="font-semibold">{o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}</span>
-                    </div>
-                    <div className="flex-1 py-1.5 px-2 border-r border-border">
-                      <span className="text-muted-foreground">Status: </span>
-                      <span className="font-bold">{o.status}</span>
-                    </div>
-                    <div className="py-1 px-2 flex items-center">
-                      <button onClick={() => dismiss(o.id)} className="px-3 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1">
-                        <Check size={14} /> Feito
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {visibleOrders.map(renderOrderItem)}
           </div>
           <p className="text-xs text-muted-foreground">{visibleOrders.length} pedido{visibleOrders.length !== 1 ? 's' : ''}</p>
         </DialogContent>
