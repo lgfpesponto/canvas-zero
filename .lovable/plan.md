@@ -1,139 +1,76 @@
 
 
-## Plano: Reestruturação do Módulo de Configurações Administrativas
+## Plano: Vinculação Condicional de Cor do Couro ao Tipo de Couro
 
 ### Contexto
-Já existe uma implementação básica com 3 páginas (AdminConfigPage, AdminConfigFichaPage, AdminConfigVariacoesPage) e 5 tabelas no Supabase. O pedido agora expande significativamente o escopo: abas internas, criador de fichas dinâmicas estilo Google Forms, e integração com o fluxo de pedidos.
 
----
+Atualmente, `TIPOS_COURO` e `CORES_COURO` em `src/lib/orderFieldsConfig.ts` são listas independentes. O usuário quer que certas cores só apareçam quando um tipo específico de couro for selecionado. Isso afeta 4 páginas (OrderPage, EditOrderPage, ExtrasPage, EditExtrasPage) e potencialmente fichas dinâmicas.
 
-### 1. Schema de Banco (nova tabela)
+### Regras de Vinculação
 
-Para suportar fichas dinâmicas com campos configuráveis, é necessária uma nova tabela:
+| Tipo de Couro | Cores Exclusivas |
+|---|---|
+| Crazy Horse | Nescau (+ cores gerais) |
+| Escamado | Nescau (+ cores gerais) |
+| Nobuck | Chocolate (+ cores gerais) |
+| Estilizado em Tilápia | Chocolate (+ cores gerais) |
+| Látego | Marrom (+ cores gerais) |
+| Estilizado em Cobra | Marrom (+ cores gerais) |
+| Estilizado em Jacaré | Marrom (+ cores gerais) |
+| Estilizado em Avestruz | Marrom (+ cores gerais) |
+| Estilizado em Dinossauro | Marrom (+ cores gerais) |
+| Estilizado em Tatu | Marrom (+ cores gerais) |
+| Vaca Holandesa | Malhado, Preto, Branco (SOMENTE estas) |
+| Vaca Pintada | Caramelo, Preto e Branco (SOMENTE estas, criar novas) |
+| Metalizado (NOVO tipo) | Rosa Neon (SOMENTE esta) |
 
-```sql
-CREATE TABLE public.ficha_campos (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ficha_tipo_id uuid REFERENCES public.ficha_tipos(id) ON DELETE CASCADE NOT NULL,
-  nome text NOT NULL,
-  slug text NOT NULL,
-  tipo text NOT NULL CHECK (tipo IN ('texto', 'selecao', 'multipla', 'checkbox')),
-  obrigatorio boolean DEFAULT false,
-  ordem int DEFAULT 0,
-  opcoes jsonb DEFAULT '[]',        -- para selecao/multipla: [{label, preco_adicional}]
-  vinculo text,                      -- ex: 'preco', 'numeracao' para lógicas especiais
-  desc_condicional boolean DEFAULT false, -- checkbox com campo de descrição
-  ativo boolean DEFAULT true,
-  UNIQUE(ficha_tipo_id, slug)
-);
-```
+**Nota**: "Nescau", "Chocolate" e "Marrom" são cores que existem na lista geral mas só devem aparecer para os tipos vinculados. "Vaca Holandesa", "Vaca Pintada" e "Metalizado" são tipos com cores 100% exclusivas (nenhuma cor geral aparece).
 
-RLS: SELECT para authenticated, INSERT/UPDATE/DELETE restrito a `is_any_admin(auth.uid())`.
+### Implementação
 
-Também adicionar colunas em `ficha_tipos`:
-```sql
-ALTER TABLE public.ficha_tipos 
-  ADD COLUMN tipo_ficha text DEFAULT 'classica',  -- 'classica' | 'dinamica'
-  ADD COLUMN campos_nativos boolean DEFAULT true;  -- inclui numero, vendedor, qtd, preco
-```
+#### 1. Novo mapa de vinculação em `src/lib/orderFieldsConfig.ts`
 
----
+Criar constante `COURO_COR_VINCULOS` que define:
+- Cores exclusivas por tipo (tipos com lista fechada como Vaca Holandesa)
+- Cores restritas que só aparecem em certos tipos (Nescau, Chocolate, Marrom)
+- Função helper `getCoresCouroFiltradas(tipoCouro: string): string[]` que retorna as cores disponíveis dado o tipo selecionado
 
-### 2. Reestruturação da Página Principal
+Adicionar "Metalizado" a `TIPOS_COURO`, adicionar "Caramelo" e "Preto e Branco" a `CORES_COURO`.
 
-**Arquivo**: `src/pages/AdminConfigPage.tsx` (reescrever)
+#### 2. Atualizar `src/pages/OrderPage.tsx`
 
-Transformar em página com abas usando `Tabs` do Radix:
-- **ficha de produção** (default): lista fichas com editar/apagar + botão "criar nova ficha"
-- **extras**: placeholder (implementação futura)
-- **progresso de produção**: lista das 22 etapas com edição de nome/ordem
-- **relatórios**: placeholder (implementação futura)
+Substituir o uso direto de `CORES_COURO` nos 3 campos de cor (cano, gáspea, taloneira) pela função `getCoresCouroFiltradas(tipoCouroX)`. Quando o tipo de couro mudar, limpar a cor se ela não for válida para o novo tipo.
 
----
+#### 3. Atualizar `src/pages/EditOrderPage.tsx`
 
-### 3. Aba "Ficha de Produção"
+Mesma lógica: filtrar cores com base no tipo selecionado para cada par (cano, gáspea, taloneira).
 
-- Listar fichas (bota, cinto, extra) como cards com botões "editar" e "apagar"
-- Editar: navega para `/admin/configuracoes/:slug` (já existente, será aprimorado)
-- Apagar: confirmação + soft delete (marcar ativo=false)
-- Botão "criar nova ficha" abre o criador
+#### 4. Atualizar `src/pages/ExtrasPage.tsx`
 
----
+Nos campos de "Tipo de couro" e "Cor do couro" dos extras (bainha, kit_canivete, kit_faca, etc.), usar `getCoresCouroFiltradas(form.tipoCouro)`.
 
-### 4. Criador de Fichas (Estilo Google Forms)
+#### 5. Atualizar `src/pages/EditExtrasPage.tsx`
 
-**Novo componente**: `src/components/admin/FichaBuilder.tsx`
+Mesma lógica para a edição de extras.
 
-Interface em dialog/página com:
-1. Nome da ficha (input)
-2. Lista de campos dinâmicos com botão "adicionar campo"
-3. Cada campo tem:
-   - Nome do campo
-   - Tipo: Texto Aberto, Seleção Única, Múltipla Escolha, Checkbox Sim/Não
-   - Toggle "obrigatório"
-   - Se checkbox: toggle "campo de descrição condicional"
-   - Se seleção/múltipla: textarea para opções (Nome | Preço, uma por linha)
-   - Vínculo opcional: dropdown com opções (preço, numeração, nenhum)
-4. Campos nativos automáticos (número do pedido, vendedor, quantidade, preço) - mostrados como chips não-editáveis
-5. Botão "criar ficha": insere em ficha_tipos + ficha_campos + workflow padrão
+#### 6. Fichas Dinâmicas (DynamicOrderPage)
 
-Ao criar, a ficha aparece automaticamente no menu "faça seu pedido" através de leitura dinâmica da tabela `ficha_tipos`.
+As fichas dinâmicas usam campos configuráveis via `ficha_campos`. A vinculação tipo→cor é específica do domínio de couros e não se aplica automaticamente a campos genéricos. Se o admin criar campos "tipo de couro" e "cor do couro" numa ficha dinâmica, eles serão campos independentes. A vinculação condicional se aplica apenas às fichas que usam `TIPOS_COURO`/`CORES_COURO` do `orderFieldsConfig.ts`.
 
----
+### Arquivos Modificados
 
-### 5. Renderizador Dinâmico de Fichas
+| Arquivo | Mudança |
+|---|---|
+| `src/lib/orderFieldsConfig.ts` | Adicionar "Metalizado", "Caramelo", "Preto e Branco"; criar mapa `COURO_COR_VINCULOS` e helper `getCoresCouroFiltradas()` |
+| `src/pages/OrderPage.tsx` | Filtrar cores por tipo em cada par couro; limpar cor ao trocar tipo |
+| `src/pages/EditOrderPage.tsx` | Idem |
+| `src/pages/ExtrasPage.tsx` | Filtrar cores por tipo nos extras |
+| `src/pages/EditExtrasPage.tsx` | Idem |
 
-**Novo componente**: `src/pages/DynamicOrderPage.tsx`
+### Detalhes Técnicos
 
-- Rota: `/pedido-dinamico/:slug`
-- Lê `ficha_campos` do banco e renderiza o formulário dinamicamente
-- Campos nativos (número, vendedor, quantidade, preço) sempre presentes
-- Salva pedido na tabela `orders` com `tipo_extra = slug` e `extra_detalhes = {campo1: valor1, ...}`
-- Snapshot de preços no momento da criação (imutabilidade)
-
----
-
-### 6. Integração com Header/Menu
-
-**Arquivo**: `src/components/Header.tsx`
-
-Adicionar fichas dinâmicas ativas ao menu "FAÇA SEU PEDIDO" como dropdown, ou adicionar novas rotas automaticamente.
-
-**Arquivo**: `src/pages/Index.tsx`
-
-Cards de "faça seu pedido" lidos dinamicamente do banco (fichas ativas).
-
----
-
-### 7. Integração com "Meus Pedidos"
-
-Os pedidos de fichas dinâmicas já serão salvos na tabela `orders` com `tipo_extra`, logo já aparecem em "meus pedidos" seguindo as regras de RLS existentes. O `OrderCard` e `OrderDetailPage` precisam de ajustes menores para exibir o nome da ficha e os detalhes do `extra_detalhes`.
-
----
-
-### 8. Arquivos Envolvidos
-
-| Arquivo | Ação |
-|---------|------|
-| Migration SQL | Nova tabela `ficha_campos` + alterações em `ficha_tipos` |
-| `src/pages/AdminConfigPage.tsx` | Reescrever com abas |
-| `src/pages/AdminConfigFichaPage.tsx` | Aprimorar com edição de nome da ficha |
-| `src/components/admin/FichaBuilder.tsx` | Novo - criador estilo Google Forms |
-| `src/pages/DynamicOrderPage.tsx` | Novo - renderizador de fichas dinâmicas |
-| `src/hooks/useAdminConfig.ts` | Adicionar hooks para ficha_campos |
-| `src/App.tsx` | Adicionar rota `/pedido-dinamico/:slug` |
-| `src/components/Header.tsx` | Menu dinâmico com fichas ativas |
-| `src/components/OrderCard.tsx` | Suporte a nome dinâmico da ficha |
-| `src/pages/OrderDetailPage.tsx` | Renderizar extra_detalhes de fichas dinâmicas |
-
----
-
-### 9. Restrições
-
-- Fichas clássicas (bota, cinto) mantêm seus formulários atuais como fallback
-- `orderFieldsConfig.ts` permanece ativo para botas/cintos
-- Apenas fichas "dinâmicas" usam o novo renderizador
-- Alterações de preço/variação nunca afetam pedidos existentes (snapshot via `extra_detalhes`)
-- Acesso restrito a `admin_master` e `admin_producao`
-- Estética: caixa baixa, Montserrat/DM Sans, Lucide, framer-motion
+A função `getCoresCouroFiltradas` terá esta lógica:
+1. Se o tipo tem lista fechada (Vaca Holandesa, Vaca Pintada, Metalizado) → retorna somente suas cores exclusivas
+2. Caso contrário → retorna `CORES_COURO` geral, removendo cores restritas (Nescau, Chocolate, Marrom), e adicionando de volta apenas as que pertencem ao tipo selecionado
+3. Se nenhum tipo selecionado → retorna `CORES_COURO` sem as cores restritas
 
