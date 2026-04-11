@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckSquare, ChevronDown, Download, Filter, Maximize2, Square } from 'lucide-react';
+import { Check, CheckSquare, ChevronDown, ChevronUp, Download, Filter, Maximize2, Square } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
