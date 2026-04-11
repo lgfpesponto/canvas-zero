@@ -418,7 +418,7 @@ const EditExtrasPage = () => {
             <>
               <div>
                 <Label>Tipo de couro *</Label>
-                <Select value={form.tipoCouro || ''} onValueChange={v => set('tipoCouro', v)}>
+                <Select value={form.tipoCouro || ''} onValueChange={v => { set('tipoCouro', v); if (form.corCouro && !getCoresCouroFiltradas(v).includes(form.corCouro)) set('corCouro', ''); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{TIPOS_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
@@ -427,7 +427,7 @@ const EditExtrasPage = () => {
                 <Label>Cor do couro *</Label>
                 <Select value={form.corCouro || ''} onValueChange={v => set('corCouro', v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{CORES_COURO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{getCoresCouroFiltradas(form.tipoCouro || '').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {productId === 'chaveiro_carimbo' && (

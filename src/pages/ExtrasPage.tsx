@@ -552,11 +552,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Tipo de couro *</Label>
-              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => set('tipoCouro', v)} placeholder="Selecione" />
+              <SearchableSelect options={TIPOS_COURO} value={form.tipoCouro} onValueChange={v => { set('tipoCouro', v); if (form.corCouro && !getCoresCouroFiltradas(v).includes(form.corCouro)) set('corCouro', ''); }} placeholder="Selecione" />
             </div>
             <div>
               <Label>Cor do couro *</Label>
-              <SearchableSelect options={CORES_COURO} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
+              <SearchableSelect options={getCoresCouroFiltradas(form.tipoCouro)} value={form.corCouro} onValueChange={v => set('corCouro', v)} placeholder="Selecione" />
             </div>
             {productId === 'chaveiro_carimbo' && (
               <div>
