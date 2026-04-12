@@ -699,6 +699,13 @@ function BootFormLayout({
 
   return (
     <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+      {/* Header fields — Número, Vendedor, Cliente */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <AdminTextRef label="Nº do Pedido" />
+        <AdminTextRef label="Vendedor" />
+        <AdminTextRef label="Cliente" />
+      </div>
+
       <div className="grid sm:grid-cols-3 gap-4">
         <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required />
         <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required />
@@ -739,15 +746,15 @@ function BootFormLayout({
 
       <Section title="Laser" categoriaId={findCatId('laser-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="space-y-4">
-          <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
+          <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_CANO_PRECO }))} {...common} />
           <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
           <AdminTextRef label="Cor do Bordado (Cano)" />
 
-          <AdminMultiSelect catSlug="laser-gaspea" catLabel="Laser da Gáspea" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
+          <AdminMultiSelect catSlug="laser-gaspea" catLabel="Laser da Gáspea" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_GASPEA_PRECO }))} {...common} />
           <AdminSelectField label={`Cor Glitter/Tecido da Gáspea (+R$${GLITTER_GASPEA_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
           <AdminTextRef label="Cor do Bordado (Gáspea)" />
 
-          <AdminMultiSelect catSlug="laser-taloneira" catLabel="Laser da Taloneira" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
+          <AdminMultiSelect catSlug="laser-taloneira" catLabel="Laser da Taloneira" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_TALONEIRA_PRECO }))} {...common} />
           <AdminSelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
           <AdminTextRef label="Cor do Bordado (Taloneira)" />
 
@@ -1269,9 +1276,9 @@ export default function AdminConfigFichaPage() {
     'bordados-cano': BORDADOS_CANO.map(b => typeof b === 'string' ? { label: b, preco: 0 } : b),
     'bordados-gaspea': BORDADOS_GASPEA.map(b => typeof b === 'string' ? { label: b, preco: 0 } : b),
     'bordados-taloneira': BORDADOS_TALONEIRA.map(b => typeof b === 'string' ? { label: b, preco: 0 } : b),
-    'laser-cano': LASER_OPTIONS.map(l => ({ label: l, preco: 0 })),
-    'laser-gaspea': LASER_OPTIONS.map(l => ({ label: l, preco: 0 })),
-    'laser-taloneira': LASER_OPTIONS.map(l => ({ label: l, preco: 0 })),
+    'laser-cano': LASER_OPTIONS.map(l => ({ label: l, preco: LASER_CANO_PRECO })),
+    'laser-gaspea': LASER_OPTIONS.map(l => ({ label: l, preco: LASER_GASPEA_PRECO })),
+    'laser-taloneira': LASER_OPTIONS.map(l => ({ label: l, preco: LASER_TALONEIRA_PRECO })),
     'cor-glitter': COR_GLITTER.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
     'cor-linha': COR_LINHA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
     'cor-borrachinha': COR_BORRACHINHA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
