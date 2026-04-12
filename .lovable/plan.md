@@ -1,23 +1,29 @@
 
 
-## Plano: Substituir "Vínculo" por "Tipo" no dialog "+ campo"
+## Plano: Substituir "Vínculo" por "Tipo" no botão "+ campo" da Bota
 
 ### O que muda
 
-No dialog "novo campo" (linhas 1691-1751), o campo "Vínculo" (com opções Nenhum/Cálculo de Preço/Numeração) será removido e substituído pelo campo "Tipo" que já existe na primeira linha do grid mas está ao lado do Nome. A ideia é reorganizar para que o "Tipo" fique mais proeminente, com as opções:
+No dialog "+ campo" da ficha de Bota (linhas 1572-1624), o campo **"Vínculo"** (Nenhum / Cálculo de Preço / Numeração) será substituído por **"Tipo"** com as opções que fazem sentido para o usuário:
 
-- **Texto** (como Nome Bordado - campo de texto livre)
-- **Seleção Única** (como Tipo de Couro - escolhe uma opção)
-- **Múltipla Escolha** (como Bordados - seleciona vários)
-- **Checkbox Sim/Não**
+- **Tem/Não tem** — como o campo "Nome Bordado" (toggle sim/não)
+- **Variação** — como "Tipo de Couro" (seleção única)
+- **Múltipla escolha** — como "Bordados" (seleciona vários)
+- **Texto** — como "Vendedor" (campo de texto livre)
 
 ### Alterações em `src/pages/AdminConfigFichaPage.tsx`
 
-1. **Remover o select "Vínculo"** (linhas 1712-1718) do dialog "novo campo"
-2. **Remover `vinculo` do estado `novoCampo`** (linha 1353) e do reset (linha 1426)
-3. **Remover `vinculo` do payload de insert** (linha 1419) - passar sempre `null`
-4. **Mover o select "Tipo"** para ocupar o espaço do Vínculo no segundo grid row, ficando ao lado de "Depende de (relacionamento)"
-5. **Reorganizar o layout**: Nome ocupa a linha inteira, e abaixo fica Tipo + Relacionamento lado a lado
+1. **Criar constante `TIPOS_CAMPO_BOOT`** com os 4 tipos na linguagem do usuário:
+   - `{ value: 'toggle', label: 'Tem/Não tem' }`
+   - `{ value: 'variacao', label: 'Variação (escolha única)' }`
+   - `{ value: 'multipla', label: 'Múltipla escolha' }`
+   - `{ value: 'texto', label: 'Texto' }`
 
-O campo "Tipo" já funciona corretamente com TIPOS_CAMPO e já controla a exibição condicional do textarea de opções. Apenas reorganizamos o layout e removemos o Vínculo que confundia o usuário.
+2. **No estado `novoItem`** (linha 1355): substituir `vinculo` por `tipo` (valor padrão `'variacao'`)
+
+3. **No dialog** (linhas 1603-1608): trocar o Select de "Vínculo" por "Tipo" usando `TIPOS_CAMPO_BOOT`
+
+4. **No reset** (linha 1448): trocar `vinculo: ''` por `tipo: 'variacao'`
+
+5. **No handler `handleAddItem`**: mapear o `tipo` selecionado para o campo correto no banco (o `vinculo` do banco receberá `null`, e o campo será criado com o tipo adequado)
 
