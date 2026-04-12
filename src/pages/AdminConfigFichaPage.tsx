@@ -344,7 +344,7 @@ function AdminEditableOptions({
   );
 }
 
-/* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
+/* ─── AdminSelectField: Shows all options as visible grid with admin tools ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
 }: {
@@ -357,18 +357,38 @@ function AdminSelectField({
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
 
-  const dbOptions: string[] = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome)
+  const dbItems = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional }))
     : [];
-  const fallbackOptions: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
-    ? (fallback as string[])
-    : (fallback as { label: string; preco?: number }[]).map(f => f.preco ? `${f.label} (R$${f.preco})` : f.label);
-  const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
+  const fallbackItems: { label: string; preco: number }[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
+    ? (fallback as string[]).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(f => ({ label: f, preco: 0 }))
+    : ([...fallback] as { label: string; preco?: number }[]).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')).map(f => ({ label: f.label, preco: f.preco || 0 }));
+  const items = dbItems.length > 0 ? dbItems : fallbackItems;
+
+  const [search, setSearch] = useState('');
+  const filtered = search ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase())) : items;
+  const hasSearch = items.length > 8;
 
   return (
     <div>
       <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
-      <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+      {hasSearch && (
+        <div className="relative mb-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Pesquisar..."
+            className={cls.input + ' pl-8 !py-1.5 text-xs'} />
+        </div>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-44 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {filtered.map(item => (
+          <label key={item.label} className={cls.checkItem}>
+            <input type="radio" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+            <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+          </label>
+        ))}
+        {filtered.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
+      </div>
       <AdminEditableOptions {...common} />
     </div>
   );
