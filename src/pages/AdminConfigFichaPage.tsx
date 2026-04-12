@@ -614,17 +614,49 @@ function AdminMultiSelect({
   );
 }
 
-/* ─── AdminToggleField: Same as OrderPage ToggleField ─── */
-const AdminToggleField = ({ label, preco }: { label: string; preco: number }) => (
-  <div className="flex flex-wrap items-center gap-3">
-    <span className="text-sm font-semibold min-w-[120px]">{label} (+R${preco}):</span>
-    <select disabled className={cls.inputSmall + ' w-28 opacity-60'}>
-      <option>Não tem</option>
-      <option>Tem</option>
-    </select>
-    <span className="text-xs text-muted-foreground italic">(valor fixo)</span>
-  </div>
-);
+/* ─── AdminToggleField: Same as OrderPage ToggleField but with edit capability ─── */
+function AdminToggleField({ label, preco }: { label: string; preco: number }) {
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(label);
+  const [editPreco, setEditPreco] = useState(String(preco));
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {editing ? (
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="text"
+            value={editLabel}
+            onChange={e => setEditLabel(e.target.value)}
+            className="bg-background border border-primary rounded px-2 py-1 text-sm font-semibold w-32"
+            autoFocus
+          />
+          <span className="text-sm text-muted-foreground">(+R$</span>
+          <input
+            type="text"
+            value={editPreco}
+            onChange={e => setEditPreco(e.target.value)}
+            className="bg-background border border-primary rounded px-2 py-1 text-sm w-16"
+          />
+          <span className="text-sm text-muted-foreground">)</span>
+          <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">OK</button>
+        </div>
+      ) : (
+        <>
+          <span className="text-sm font-semibold min-w-[120px]">{label} (+R${preco}):</span>
+          <button type="button" onClick={() => { setEditLabel(label); setEditPreco(String(preco)); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo">
+            <Pencil size={13} />
+          </button>
+        </>
+      )}
+      <select disabled className={cls.inputSmall + ' w-28 opacity-60'}>
+        <option>Não tem</option>
+        <option>Tem</option>
+      </select>
+      <span className="text-xs text-muted-foreground italic">(valor fixo)</span>
+    </div>
+  );
+}
 
 /* ─── AdminTextFieldRef: Same as OrderPage text input ─── */
 const AdminTextRef = ({ label }: { label: string }) => (
@@ -1304,6 +1336,7 @@ export default function AdminConfigFichaPage() {
       refetchCats();
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
     } catch (err: any) {
       toast.error('Erro: ' + err.message);
     } finally {
@@ -1418,6 +1451,7 @@ export default function AdminConfigFichaPage() {
               <Button size="sm" variant="outline" className="gap-1" onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_categorias'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_campos'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_tipos'] });
