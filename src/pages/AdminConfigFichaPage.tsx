@@ -1336,6 +1336,7 @@ export default function AdminConfigFichaPage() {
       refetchCats();
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
     } catch (err: any) {
       toast.error('Erro: ' + err.message);
     } finally {
