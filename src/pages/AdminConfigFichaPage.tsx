@@ -40,6 +40,12 @@ import {
   COR_GLITTER, COR_LINHA, COR_BORRACHINHA, COR_VIVO,
   DESENVOLVIMENTO, AREA_METAL, TIPO_METAL, COR_METAL,
   SOLADO, COR_SOLA, COR_VIRA, FORMATO_BICO, CARIMBO,
+  SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO,
+  PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO,
+  FRANJA_PRECO, CORRENTE_PRECO, STRASS_PRECO, CRUZ_METAL_PRECO,
+  BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO,
+  LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
+  GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO, GLITTER_TALONEIRA_PRECO,
 } from '@/lib/orderFieldsConfig';
 
 /* ─── Helpers ─── */
@@ -70,98 +76,26 @@ const cls = {
   checkItem: 'flex items-center gap-2 text-sm',
 };
 
-/* ─── Boot section mapping ─── */
-interface BootSectionDef {
-  title: string;
-  categories: { slug: string; label: string; fallback: { label: string; preco: number }[] | string[] }[];
-}
+/* ─── Shared Section component (mirrors OrderPage) ─── */
+const Section = ({ title, children, onMoveUp, onMoveDown, isFirst, isLast }: {
+  title: string; children: React.ReactNode;
+  onMoveUp?: () => void; onMoveDown?: () => void; isFirst?: boolean; isLast?: boolean;
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2 border-b border-border pb-1">
+      <h3 className="text-base font-display font-bold flex-1">{title}</h3>
+      {onMoveUp && (
+        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
+      )}
+      {onMoveDown && (
+        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
+      )}
+    </div>
+    {children}
+  </div>
+);
 
-function toItems(arr: string[]): { label: string; preco: number }[] {
-  return arr.map(a => ({ label: a, preco: 0 }));
-}
-
-const BOOT_SECTIONS: BootSectionDef[] = [
-  {
-    title: 'Tamanho / Gênero / Modelo',
-    categories: [
-      { slug: 'modelos', label: 'Modelos', fallback: MODELOS },
-    ],
-  },
-  {
-    title: 'Acessórios',
-    categories: [
-      { slug: 'acessorios', label: 'Acessórios', fallback: ACESSORIOS },
-    ],
-  },
-  {
-    title: 'Couros',
-    categories: [
-      { slug: 'tipos-couro', label: 'Tipos de Couro', fallback: toItems(TIPOS_COURO) },
-      { slug: 'cores-couro', label: 'Cores de Couro', fallback: toItems(CORES_COURO) },
-    ],
-  },
-  {
-    title: 'Desenvolvimento',
-    categories: [
-      { slug: 'desenvolvimento', label: 'Desenvolvimento', fallback: DESENVOLVIMENTO },
-    ],
-  },
-  {
-    title: 'Bordados',
-    categories: [
-      { slug: 'bordados-cano', label: 'Bordado do Cano', fallback: BORDADOS_CANO },
-      { slug: 'bordados-gaspea', label: 'Bordado da Gáspea', fallback: BORDADOS_GASPEA },
-      { slug: 'bordados-taloneira', label: 'Bordado da Taloneira', fallback: BORDADOS_TALONEIRA },
-    ],
-  },
-  {
-    title: 'Laser',
-    categories: [
-      { slug: 'laser-cano', label: 'Laser do Cano', fallback: toItems(LASER_OPTIONS) },
-      { slug: 'laser-gaspea', label: 'Laser da Gáspea', fallback: toItems(LASER_OPTIONS) },
-      { slug: 'laser-taloneira', label: 'Laser da Taloneira', fallback: toItems(LASER_OPTIONS) },
-    ],
-  },
-  {
-    title: 'Glitter / Tecido',
-    categories: [
-      { slug: 'cor-glitter', label: 'Cor Glitter/Tecido', fallback: toItems(COR_GLITTER) },
-    ],
-  },
-  {
-    title: 'Pesponto',
-    categories: [
-      { slug: 'cor-linha', label: 'Cor da Linha', fallback: toItems(COR_LINHA) },
-      { slug: 'cor-borrachinha', label: 'Cor da Borrachinha', fallback: toItems(COR_BORRACHINHA) },
-      { slug: 'cor-vivo', label: 'Cor do Vivo', fallback: toItems(COR_VIVO) },
-    ],
-  },
-  {
-    title: 'Metais',
-    categories: [
-      { slug: 'area-metal', label: 'Área do Metal', fallback: AREA_METAL },
-      { slug: 'tipo-metal', label: 'Tipo do Metal', fallback: toItems(TIPO_METAL) },
-      { slug: 'cor-metal', label: 'Cor do Metal', fallback: toItems(COR_METAL) },
-    ],
-  },
-  {
-    title: 'Solados',
-    categories: [
-      { slug: 'solados', label: 'Tipo de Solado', fallback: SOLADO },
-      { slug: 'formato-bico', label: 'Formato do Bico', fallback: toItems(FORMATO_BICO) },
-      { slug: 'cor-sola', label: 'Cor da Sola', fallback: COR_SOLA },
-      { slug: 'cor-vira', label: 'Cor da Vira', fallback: COR_VIRA },
-    ],
-  },
-  {
-    title: 'Carimbo a Fogo',
-    categories: [
-      { slug: 'carimbo', label: 'Carimbo', fallback: CARIMBO },
-    ],
-  },
-];
-
-/* ─── AdminMultiSelect: Mirrors OrderPage MultiSelect but in edit mode ─── */
+/* ─── AdminMultiSelect: Mirrors OrderPage MultiSelect but in admin edit mode ─── */
 function AdminMultiSelect({
   catSlug, catLabel, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
 }: {
@@ -187,8 +121,6 @@ function AdminMultiSelect({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newNome, setNewNome] = useState('');
   const [newPreco, setNewPreco] = useState('0');
-  const [newTipo, setNewTipo] = useState('selecao');
-  const [newObrigatorio, setNewObrigatorio] = useState(false);
   const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
   const [relOpen, setRelOpen] = useState<string | null>(null);
 
@@ -210,9 +142,7 @@ function AdminMultiSelect({
       {
         onSuccess: () => {
           toast.success('Variação adicionada');
-          setNewNome('');
-          setNewPreco('0');
-          setShowAddDialog(false);
+          setNewNome(''); setNewPreco('0'); setShowAddDialog(false);
           refetch();
         },
         onError: () => toast.error('Erro ao adicionar'),
@@ -220,7 +150,6 @@ function AdminMultiSelect({
     );
   };
 
-  // Sort alphabetically, bordado variado at end
   const sortAlpha = (arr: { label: string; preco: number; id?: string; ativo?: boolean; relacionamento?: any }[]) => {
     const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
     const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
@@ -229,7 +158,6 @@ function AdminMultiSelect({
     return [...normal, ...variado];
   };
 
-  // If category doesn't exist, show fallback with "criar" button
   if (!cat) {
     return (
       <div>
@@ -311,12 +239,7 @@ function AdminMultiSelect({
     if (!confirm(`Remover "${nome}"?`)) return;
     await deleteVariacao.mutateAsync(id);
     toast.success('Removida');
-    // Remove from editState too
-    setEditState(prev => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
+    setEditState(prev => { const next = { ...prev }; delete next[id]; return next; });
     refetch();
   };
 
@@ -348,7 +271,6 @@ function AdminMultiSelect({
         )}
       </div>
 
-      {/* Add dialog inline */}
       {showAddDialog && (
         <div className="flex flex-wrap items-end gap-2 mb-2 p-3 border border-primary/30 rounded-lg bg-muted/50">
           <div className="flex-1 min-w-[150px]">
@@ -359,38 +281,19 @@ function AdminMultiSelect({
             <label className="text-xs font-medium">Valor (R$)</label>
             <input type="number" value={newPreco} onChange={e => setNewPreco(e.target.value)} placeholder="0" className={cls.inputSmall + ' w-full'} />
           </div>
-          <div className="w-32">
-            <label className="text-xs font-medium">Tipo</label>
-            <select value={newTipo} onChange={e => setNewTipo(e.target.value)} className={cls.inputSmall + ' w-full'}>
-              {TIPOS_CAMPO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-1 pb-1">
-            <input type="checkbox" checked={newObrigatorio} onChange={e => setNewObrigatorio(e.target.checked)} className="accent-primary" />
-            <span className="text-xs">Obrig.</span>
-          </div>
           <button type="button" onClick={handleAddVariacao} className="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90">Salvar</button>
           <button type="button" onClick={() => { setShowAddDialog(false); setNewNome(''); setNewPreco('0'); }} className="px-3 py-2 bg-muted border border-border rounded-md text-sm hover:bg-muted/80">Cancelar</button>
         </div>
       )}
 
-      {/* Search */}
       {hasSearch && (
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Pesquisar..."
-            className={cls.input + ' pl-8 !py-1.5 text-xs'}
-          />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." className={cls.input + ' pl-8 !py-1.5 text-xs'} />
         </div>
       )}
 
-      {/* Grid - mirrors OrderPage MultiSelect */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-        {/* Edit panel toolbar */}
         {showEditPanel && (
           <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
             <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
@@ -413,19 +316,9 @@ function AdminMultiSelect({
             )}
             {showEditPanel && item.id ? (
               <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-                <input
-                  type="text"
-                  value={editState[item.id]?.nome ?? item.label}
-                  onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: e.target.value, preco: prev[item.id!]?.preco ?? String(item.preco) } }))}
-                  className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0"
-                />
+                <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: e.target.value, preco: prev[item.id!]?.preco ?? String(item.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
                 <span className="text-xs text-muted-foreground shrink-0">R$</span>
-                <input
-                  type="number"
-                  value={editState[item.id]?.preco ?? String(item.preco)}
-                  onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: prev[item.id!]?.nome ?? item.label, preco: e.target.value } }))}
-                  className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0"
-                />
+                <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: prev[item.id!]?.nome ?? item.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
                 <button type="button" onClick={() => setRelOpen(relOpen === item.id ? null : item.id!)} className={`shrink-0 ${item.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento">
                   <Link2 size={12} />
                 </button>
@@ -441,7 +334,6 @@ function AdminMultiSelect({
               </label>
             )}
 
-            {/* Inline relationship editor */}
             {showEditPanel && relOpen === item.id && item.id && (
               <div className="col-span-full p-2 border border-primary/20 rounded bg-background mb-1">
                 <p className="text-xs font-medium mb-2">Relacionamentos: {item.label}</p>
@@ -458,17 +350,10 @@ function AdminMultiSelect({
                           {catVars.map(cv => {
                             const isSelected = selected.includes(cv.nome);
                             return (
-                              <Badge
-                                key={cv.id}
-                                variant={isSelected ? 'default' : 'outline'}
-                                className="cursor-pointer text-xs"
-                                onClick={() => {
-                                  const newSel = isSelected
-                                    ? selected.filter(s => s !== cv.nome)
-                                    : [...selected, cv.nome];
-                                  handleRelChange(item.id!, oc.slug, newSel);
-                                }}
-                              >
+                              <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
+                                const newSel = isSelected ? selected.filter(s => s !== cv.nome) : [...selected, cv.nome];
+                                handleRelChange(item.id!, oc.slug, newSel);
+                              }}>
                                 {cv.nome}
                               </Badge>
                             );
@@ -490,24 +375,239 @@ function AdminMultiSelect({
   );
 }
 
-/* ─── Section with reorder (for boot) ─── */
-const SectionAdmin = ({ title, children, onMoveUp, onMoveDown, isFirst, isLast }: {
-  title: string; children: React.ReactNode;
-  onMoveUp?: () => void; onMoveDown?: () => void; isFirst?: boolean; isLast?: boolean;
-}) => (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2 border-b border-border pb-1">
-      <h3 className="text-base font-display font-bold flex-1">{title}</h3>
-      {onMoveUp && (
-        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
-      )}
-      {onMoveDown && (
-        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
-      )}
-    </div>
-    {children}
+/* ─── AdminSelectField: Shows a select's options as editable list (mirrors SelectField) ─── */
+function AdminSelectField({
+  label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
+}: {
+  label: string;
+  catSlug: string;
+  fallback: string[] | { label: string; preco: number }[];
+  fichaTipoId: string;
+  allCategorias: FichaCategoria[];
+  allVariacoes: FichaVariacao[];
+  onRefetchCats: () => void;
+  required?: boolean;
+}) {
+  const items: { label: string; preco: number }[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
+    ? (fallback as string[]).map(s => ({ label: s, preco: 0 }))
+    : (fallback as { label: string; preco: number }[]);
+
+  return (
+    <AdminMultiSelect
+      catSlug={catSlug}
+      catLabel={label}
+      fallback={items}
+      fichaTipoId={fichaTipoId}
+      allCategorias={allCategorias}
+      allVariacoes={allVariacoes}
+      onRefetchCats={onRefetchCats}
+    />
+  );
+}
+
+/* ─── AdminToggleField: Shows a toggle field reference (prices are fixed) ─── */
+const AdminToggleRef = ({ label }: { label: string }) => (
+  <div className="flex flex-wrap items-center gap-3 py-1">
+    <span className="text-sm font-semibold">{label}</span>
+    <span className="text-xs text-muted-foreground italic">(valor fixo — gerenciado no código)</span>
   </div>
 );
+
+/* ─── AdminTextFieldRef: Reference for text fields ─── */
+const AdminTextRef = ({ label }: { label: string }) => (
+  <div className="py-1">
+    <label className={cls.label}>{label}</label>
+    <div className="bg-muted/30 rounded-lg px-4 py-2 text-sm text-muted-foreground border border-border/50 italic">
+      Campo de texto livre (preenchido pelo vendedor)
+    </div>
+  </div>
+);
+
+/* ─── Boot Form Layout (exact mirror of OrderPage form sections) ─── */
+function BootFormLayout({
+  fichaTipoId, categorias, allVariacoes, onRefetchCats,
+  sectionOrder, onMoveSection,
+}: {
+  fichaTipoId: string;
+  categorias: FichaCategoria[];
+  allVariacoes: FichaVariacao[];
+  onRefetchCats: () => void;
+  sectionOrder: number[];
+  onMoveSection: (idx: number, dir: 'up' | 'down') => void;
+}) {
+  const common = { fichaTipoId, allCategorias: categorias, allVariacoes, onRefetchCats };
+
+  // Define sections exactly like OrderPage
+  const sections = [
+    {
+      title: 'Tamanho / Gênero / Modelo',
+      render: () => (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} />
+          <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} />
+          <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required />
+        </div>
+      ),
+    },
+    {
+      title: 'Sob Medida',
+      render: () => <AdminToggleRef label={`Sob Medida (+R$${SOB_MEDIDA_PRECO})`} />,
+    },
+    {
+      title: 'Acessórios',
+      render: () => <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} />,
+    },
+    {
+      title: 'Couros',
+      render: () => (
+        <div className="grid sm:grid-cols-2 gap-4">
+          <AdminSelectField label="Tipo Couro do Cano" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
+          <AdminSelectField label="Cor Couro do Cano" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
+          <AdminSelectField label="Tipo Couro da Gáspea" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
+          <AdminSelectField label="Cor Couro da Gáspea" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
+          <AdminSelectField label="Tipo Couro da Taloneira" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
+          <AdminSelectField label="Cor Couro da Taloneira" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
+        </div>
+      ),
+    },
+    {
+      title: 'Desenvolvimento',
+      render: () => <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} />,
+    },
+    {
+      title: 'Bordados',
+      render: () => (
+        <div className="space-y-4">
+          <AdminMultiSelect catSlug="bordados-cano" catLabel="Bordado do Cano" fallback={BORDADOS_CANO} {...common} />
+          <AdminTextRef label="Cor do Bordado do Cano" />
+
+          <AdminMultiSelect catSlug="bordados-gaspea" catLabel="Bordado da Gáspea" fallback={BORDADOS_GASPEA} {...common} />
+          <AdminTextRef label="Cor do Bordado da Gáspea" />
+
+          <AdminMultiSelect catSlug="bordados-taloneira" catLabel="Bordado da Taloneira" fallback={BORDADOS_TALONEIRA} {...common} />
+          <AdminTextRef label="Cor do Bordado da Taloneira" />
+        </div>
+      ),
+    },
+    {
+      title: 'Nome Bordado',
+      render: () => <AdminToggleRef label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} />,
+    },
+    {
+      title: 'Laser',
+      render: () => (
+        <div className="space-y-4">
+          <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
+          <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
+          <AdminTextRef label="Cor do Bordado (Cano)" />
+
+          <AdminMultiSelect catSlug="laser-gaspea" catLabel="Laser da Gáspea" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
+          <AdminSelectField label={`Cor Glitter/Tecido da Gáspea (+R$${GLITTER_GASPEA_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
+          <AdminTextRef label="Cor do Bordado (Gáspea)" />
+
+          <AdminMultiSelect catSlug="laser-taloneira" catLabel="Laser da Taloneira" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
+          <AdminSelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
+          <AdminTextRef label="Cor do Bordado (Taloneira)" />
+
+          <AdminToggleRef label={`Pintura (+R$${PINTURA_PRECO})`} />
+        </div>
+      ),
+    },
+    {
+      title: 'Estampa',
+      render: () => <AdminToggleRef label={`Estampa (+R$${ESTAMPA_PRECO})`} />,
+    },
+    {
+      title: 'Pesponto',
+      render: () => (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required />
+          <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required />
+          <AdminSelectField label="Cor do Vivo" catSlug="cor-vivo" fallback={COR_VIVO} {...common} required />
+        </div>
+      ),
+    },
+    {
+      title: 'Metais',
+      render: () => (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-3 gap-4">
+            <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} />
+            <AdminSelectField label="Tipo do Metal" catSlug="tipo-metal" fallback={TIPO_METAL} {...common} />
+            <AdminSelectField label="Cor do Metal" catSlug="cor-metal" fallback={COR_METAL} {...common} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-2 text-sm">
+            <AdminToggleRef label={`Strass (R$${STRASS_PRECO}/un)`} />
+            <AdminToggleRef label={`Cruz (R$${CRUZ_METAL_PRECO}/un)`} />
+            <AdminToggleRef label={`Bridão (R$${BRIDAO_METAL_PRECO}/un)`} />
+            <AdminToggleRef label={`Cavalo (R$${CAVALO_METAL_PRECO}/un)`} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Extras',
+      render: () => (
+        <div className="space-y-2">
+          <AdminToggleRef label={`Tricê (+R$${TRICE_PRECO})`} />
+          <AdminToggleRef label={`Tiras (+R$${TIRAS_PRECO})`} />
+          <AdminToggleRef label={`Franja (+R$${FRANJA_PRECO})`} />
+          <AdminToggleRef label={`Corrente (+R$${CORRENTE_PRECO})`} />
+        </div>
+      ),
+    },
+    {
+      title: 'Solados',
+      render: () => (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required />
+            <AdminSelectField label="Formato do Bico" catSlug="formato-bico" fallback={FORMATO_BICO} {...common} required />
+            <AdminSelectField label="Cor da Sola" catSlug="cor-sola" fallback={COR_SOLA} {...common} required />
+            <AdminSelectField label="Cor da Vira" catSlug="cor-vira" fallback={COR_VIRA} {...common} />
+          </div>
+          <AdminToggleRef label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} />
+        </div>
+      ),
+    },
+    {
+      title: 'Carimbo a Fogo',
+      render: () => <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} />,
+    },
+    {
+      title: 'Adicional',
+      render: () => (
+        <div className="grid sm:grid-cols-2 gap-4">
+          <AdminTextRef label="Descrição do Adicional" />
+          <AdminTextRef label="Valor do Adicional (R$)" />
+        </div>
+      ),
+    },
+    {
+      title: 'Observação',
+      render: () => <AdminTextRef label="Observação" />,
+    },
+  ];
+
+  const ordered = sectionOrder.map(i => ({ ...sections[i], originalIndex: i }));
+
+  return (
+    <div className="bg-card rounded-xl p-6 md:p-8 border border-border/60 space-y-6">
+      {ordered.map((sec, orderIdx) => (
+        <Section
+          key={sec.originalIndex}
+          title={sec.title}
+          onMoveUp={() => onMoveSection(sec.originalIndex, 'up')}
+          onMoveDown={() => onMoveSection(sec.originalIndex, 'down')}
+          isFirst={orderIdx === 0}
+          isLast={orderIdx === ordered.length - 1}
+        >
+          {sec.render()}
+        </Section>
+      ))}
+    </div>
+  );
+}
 
 /* ─── CampoSection (for dynamic fichas) ─── */
 function CampoSection({
@@ -618,15 +718,9 @@ function CampoSection({
 function CategoriaSection({
   cat, categorias, allVariacoes, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
 }: {
-  cat: FichaCategoria;
-  categorias: FichaCategoria[];
-  allVariacoes: FichaVariacao[];
-  onUpdate: () => void;
-  onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  isFirst: boolean;
-  isLast: boolean;
+  cat: FichaCategoria; categorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  onUpdate: () => void; onDelete: () => void;
+  onMoveUp: () => void; onMoveDown: () => void; isFirst: boolean; isLast: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const { data: variacoes, refetch } = useFichaVariacoes(cat.id);
@@ -640,43 +734,32 @@ function CategoriaSection({
   const [nameEditing, setNameEditing] = useState(false);
   const updateCat = useUpdateCategoria();
   const deleteCat = useDeleteCategoria();
-
-  // Mirror the AdminMultiSelect format for generic categorias
   const [search, setSearch] = useState('');
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
 
-  const sortAlpha = (arr: FichaVariacao[]) => {
-    return [...arr].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  };
+  const sortAlpha = (arr: FichaVariacao[]) => [...arr].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const handleAddVariacao = () => {
     if (!newNome.trim()) return;
     insertVariacao.mutate(
       { categoria_id: cat.id, nome: newNome.trim(), preco_adicional: parseFloat(newPreco) || 0, ordem: 0 },
-      {
-        onSuccess: () => { toast.success('Variação adicionada'); setNewNome(''); setNewPreco('0'); setAddOpen(false); refetch(); },
-        onError: () => toast.error('Erro ao adicionar'),
-      },
+      { onSuccess: () => { toast.success('Variação adicionada'); setNewNome(''); setNewPreco('0'); setAddOpen(false); refetch(); }, onError: () => toast.error('Erro ao adicionar') },
     );
   };
 
   const handleSaveCatName = () => {
     if (editingName.trim() && editingName !== cat.nome) {
-      updateCat.mutate({ id: cat.id, nome: editingName.trim() }, {
-        onSuccess: () => { toast.success('Categoria renomeada'); onUpdate(); },
-      });
+      updateCat.mutate({ id: cat.id, nome: editingName.trim() }, { onSuccess: () => { toast.success('Categoria renomeada'); onUpdate(); } });
     }
     setNameEditing(false);
   };
 
   const openEditPanel = () => {
     const state: Record<string, { nome: string; preco: string }> = {};
-    (variacoes || []).forEach(v => {
-      state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) };
-    });
+    (variacoes || []).forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) }; });
     setEditState(state);
     setShowEditPanel(true);
     setShowBulkEdit(false);
@@ -741,7 +824,6 @@ function CategoriaSection({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="px-4 pb-4 pt-0">
-            {/* Add + Edit buttons */}
             <div className="flex items-center gap-2 mb-2">
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger asChild>
@@ -793,7 +875,7 @@ function CategoriaSection({
                     <input type="text" value={editState[v.id]?.nome ?? v.nome} onChange={e => setEditState(prev => ({ ...prev, [v.id]: { ...prev[v.id], nome: e.target.value, preco: prev[v.id]?.preco ?? String(v.preco_adicional) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
                     <span className="text-xs text-muted-foreground shrink-0">R$</span>
                     <input type="number" value={editState[v.id]?.preco ?? String(v.preco_adicional)} onChange={e => setEditState(prev => ({ ...prev, [v.id]: { ...prev[v.id], nome: prev[v.id]?.nome ?? v.nome, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
-                    <button type="button" onClick={() => { if (confirm(`Remover "${v.nome}"?`)) { deleteVariacao.mutate(v.id, { onSuccess: () => { toast.success('Removida'); refetch(); } }); } }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={12} /></button>
+                    <button type="button" onClick={async () => { if (confirm(`Remover "${v.nome}"?`)) { await deleteVariacao.mutateAsync(v.id); toast.success('Removida'); refetch(); } }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={12} /></button>
                   </div>
                 ) : (
                   <label key={v.id} className={cls.checkItem}>
@@ -834,11 +916,12 @@ export default function AdminConfigFichaPage() {
   const [novoCampoOpen, setNovoCampoOpen] = useState(false);
   const [novoCampo, setNovoCampo] = useState({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, vinculo: '', opcoesRaw: '', relacionamento: '' });
 
-  // Section order state for boot (maps section index to display order)
+  // 16 sections for boot
+  const BOOT_SECTION_COUNT = 16;
   const [sectionOrder, setSectionOrder] = useState<number[]>([]);
 
   useEffect(() => {
-    setSectionOrder(BOOT_SECTIONS.map((_, i) => i));
+    setSectionOrder(Array.from({ length: BOOT_SECTION_COUNT }, (_, i) => i));
   }, []);
 
   const isBoot = slug === 'bota';
@@ -865,10 +948,7 @@ export default function AdminConfigFichaPage() {
     const ordem = (categorias?.length ?? 0) + 1;
     insertCategoria.mutate(
       { ficha_tipo_id: tipo.id, slug: catSlug, nome, ordem },
-      {
-        onSuccess: () => { toast.success('Categoria adicionada'); setNovaCategoria(''); setDialogOpen(false); refetchCats(); },
-        onError: () => toast.error('Erro ao adicionar categoria'),
-      },
+      { onSuccess: () => { toast.success('Categoria adicionada'); setNovaCategoria(''); setDialogOpen(false); refetchCats(); }, onError: () => toast.error('Erro ao adicionar categoria') },
     );
   };
 
@@ -924,8 +1004,6 @@ export default function AdminConfigFichaPage() {
     });
   };
 
-  const orderedBootSections = sectionOrder.map(i => ({ ...BOOT_SECTIONS[i], originalIndex: i }));
-
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
       <motion.div
@@ -966,68 +1044,17 @@ export default function AdminConfigFichaPage() {
           {tipo.nome.toLowerCase()}
         </h1>
 
-        {/* ─── BOOT: Mirrored layout with AdminMultiSelect ─── */}
-        {isBoot && categorias && (
+        {/* ─── BOOT: Exact mirror of OrderPage form ─── */}
+        {isBoot && categorias && sectionOrder.length > 0 && (
           <section className="mb-10">
-            <div className="bg-card rounded-xl p-6 md:p-8 border border-border/60 space-y-8">
-              {orderedBootSections.map((section, orderIdx) => {
-                const isGridSection = ['Couros', 'Pesponto'].includes(section.title);
-                const isSoladoSection = section.title === 'Solados';
-                const isMetaisSection = section.title === 'Metais';
-
-                return (
-                  <SectionAdmin
-                    key={section.originalIndex}
-                    title={section.title}
-                    onMoveUp={() => handleMoveSectionBoot(section.originalIndex, 'up')}
-                    onMoveDown={() => handleMoveSectionBoot(section.originalIndex, 'down')}
-                    isFirst={orderIdx === 0}
-                    isLast={orderIdx === orderedBootSections.length - 1}
-                  >
-                    <div className={
-                      isSoladoSection ? 'grid sm:grid-cols-2 lg:grid-cols-4 gap-4' :
-                      isMetaisSection ? 'grid sm:grid-cols-3 gap-4' :
-                      isGridSection ? 'grid sm:grid-cols-2 gap-4' :
-                      section.categories.length > 1 ? 'grid sm:grid-cols-2 gap-4' :
-                      'space-y-4'
-                    }>
-                      {section.categories.map(catDef => (
-                        <AdminMultiSelect
-                          key={catDef.slug}
-                          catSlug={catDef.slug}
-                          catLabel={catDef.label}
-                          fallback={catDef.fallback as { label: string; preco: number }[]}
-                          fichaTipoId={tipo.id}
-                          allCategorias={categorias}
-                          allVariacoes={allVariacoes || []}
-                          onRefetchCats={refetchCats}
-                        />
-                      ))}
-                    </div>
-                  </SectionAdmin>
-                );
-              })}
-
-              {/* Fixed price reference */}
-              <div className="space-y-2">
-                <h3 className="text-base font-display font-bold border-b border-border pb-1">Valores Fixos (referência)</h3>
-                <div className="grid sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <span>Sob Medida: R$50</span>
-                  <span>Nome Bordado: R$40</span>
-                  <span>Estampa: R$30</span>
-                  <span>Pintura: R$15</span>
-                  <span>Tricê: R$20</span>
-                  <span>Tiras: R$15</span>
-                  <span>Costura Atrás: R$20</span>
-                  <span>Franja: R$15</span>
-                  <span>Corrente: R$10</span>
-                  <span>Strass: R$0,60/un</span>
-                  <span>Cruz Metal: R$6/un</span>
-                  <span>Bridão: R$3/un</span>
-                  <span>Cavalo: R$5/un</span>
-                </div>
-              </div>
-            </div>
+            <BootFormLayout
+              fichaTipoId={tipo.id}
+              categorias={categorias}
+              allVariacoes={allVariacoes || []}
+              onRefetchCats={refetchCats}
+              sectionOrder={sectionOrder}
+              onMoveSection={handleMoveSectionBoot}
+            />
           </section>
         )}
 
@@ -1153,13 +1180,10 @@ export default function AdminConfigFichaPage() {
           <Card>
             <CardContent className="divide-y divide-border/40 p-0">
               {etapas?.map(etapa => {
-                const ativo = workflowMap.get(etapa.id) ?? false;
+                const ativo = workflowMap.get(etapa.id) ?? true;
                 return (
                   <div key={etapa.id} className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 text-center text-xs text-muted-foreground">{etapa.ordem}</span>
-                      <span className="text-sm text-foreground">{etapa.nome}</span>
-                    </div>
+                    <span className="text-sm font-medium">{etapa.nome}</span>
                     <Switch checked={ativo} onCheckedChange={() => handleToggleEtapa(etapa.id, ativo)} />
                   </div>
                 );
