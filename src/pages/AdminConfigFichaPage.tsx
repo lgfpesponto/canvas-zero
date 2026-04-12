@@ -357,13 +357,21 @@ function AdminSelectField({
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
 
-  const dbOptions: string[] = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome)
-    : [];
-  const fallbackOptions: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
-    ? (fallback as string[])
-    : (fallback as { label: string; preco?: number }[]).map(f => f.preco ? `${f.label} (R$${f.preco})` : f.label);
-  const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
+  const fbNorm = (Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string')
+    ? (fallback as string[]).map(f => ({ label: f, preco: 0 }))
+    : (fallback as { label: string; preco?: number }[]).map(f => ({ label: f.label, preco: f.preco || 0 }));
+  const dbMap = new Map((variacoes || []).map(v => [v.nome.toLowerCase(), v]));
+  const merged = fbNorm.map(f => {
+    const d = dbMap.get(f.label.toLowerCase());
+    return d ? { label: d.nome, preco: d.preco_adicional } : f;
+  });
+  (variacoes || []).forEach(v => {
+    if (!fbNorm.some(f => f.label.toLowerCase() === v.nome.toLowerCase())) {
+      merged.push({ label: v.nome, preco: v.preco_adicional });
+    }
+  });
+  merged.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  const options = merged.map(m => m.preco > 0 ? `${m.label} (R$${m.preco})` : m.label);
 
   return (
     <div>
@@ -387,9 +395,18 @@ function AdminMultiSelect({
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
 
-  const items = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional }))
-    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  const dbMapM = new Map((variacoes || []).map(v => [v.nome.toLowerCase(), v]));
+  const mergedM = fallback.map(f => {
+    const d = dbMapM.get(f.label.toLowerCase());
+    return d ? { label: d.nome, preco: d.preco_adicional } : { label: f.label, preco: f.preco };
+  });
+  (variacoes || []).forEach(v => {
+    if (!fallback.some(f => f.label.toLowerCase() === v.nome.toLowerCase())) {
+      mergedM.push({ label: v.nome, preco: v.preco_adicional });
+    }
+  });
+  mergedM.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  const items = mergedM;
 
   const hasSearch = catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser') || items.length > 10;
   const [search, setSearch] = useState('');
