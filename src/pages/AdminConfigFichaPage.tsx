@@ -914,6 +914,7 @@ export default function AdminConfigFichaPage() {
   const insertCategoria = useInsertCategoria();
   const updateCat = useUpdateCategoria();
   const insertCampo = useInsertFichaCampo();
+  const insertVariacaoMut = useInsertVariacao();
 
   const [novaCategoria, setNovaCategoria] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
