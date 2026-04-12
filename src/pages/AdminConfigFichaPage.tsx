@@ -1050,66 +1050,56 @@ export default function AdminConfigFichaPage() {
           </button>
           {isBoot && (
             <div className="flex flex-wrap items-center gap-2">
-              <Dialog open={novoCampoOpen} onOpenChange={setNovoCampoOpen}>
+              <Dialog open={novoItemOpen} onOpenChange={setNovoItemOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1">
                     <Plus className="h-4 w-4" /> + campo
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle className="font-montserrat lowercase">novo campo</DialogTitle></DialogHeader>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">adicionar item a uma categoria</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Categoria</Label>
+                      <Select value={novoItem.categoriaId} onValueChange={v => setNovoItem(p => ({ ...p, categoriaId: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a categoria..." /></SelectTrigger>
+                        <SelectContent>
+                          {(categorias || []).map(cat => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Nome</Label>
-                        <Input value={novoCampo.nome} onChange={e => setNovoCampo(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cor principal" />
+                        <Input value={novoItem.nome} onChange={e => setNovoItem(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Crazy Horse" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Tipo</Label>
-                        <Select value={novoCampo.tipo} onValueChange={v => setNovoCampo(p => ({ ...p, tipo: v }))}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>{TIPOS_CAMPO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <Label className="text-xs">Valor (R$)</Label>
+                        <Input value={novoItem.preco} onChange={e => setNovoItem(p => ({ ...p, preco: e.target.value }))} placeholder="0" />
                       </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Vínculo</Label>
-                        <Select value={novoCampo.vinculo || 'none'} onValueChange={v => setNovoCampo(p => ({ ...p, vinculo: v === 'none' ? '' : v }))}>
+                        <Select value={novoItem.vinculo || 'none'} onValueChange={v => setNovoItem(p => ({ ...p, vinculo: v === 'none' ? '' : v }))}>
                           <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                           <SelectContent>{VINCULOS.map(v => <SelectItem key={v.value || 'none'} value={v.value || 'none'}>{v.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Depende de (relacionamento)</Label>
-                        <Select value={novoCampo.relacionamento || 'none'} onValueChange={v => setNovoCampo(p => ({ ...p, relacionamento: v === 'none' ? '' : v }))}>
+                        <Select value={novoItem.relacionamento || 'none'} onValueChange={v => setNovoItem(p => ({ ...p, relacionamento: v === 'none' ? '' : v }))}>
                           <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Nenhum</SelectItem>
-                            {(campos || []).map(c => <SelectItem key={c.id} value={c.slug}>{c.nome}</SelectItem>)}
+                            {(categorias || []).map(c => <SelectItem key={c.id} value={c.slug}>{c.nome}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-4">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={novoCampo.obrigatorio} onCheckedChange={v => setNovoCampo(p => ({ ...p, obrigatorio: v }))} />
-                        <Label className="text-xs">obrigatório</Label>
-                      </div>
-                      {novoCampo.tipo === 'checkbox' && (
-                        <div className="flex items-center gap-2">
-                          <Switch checked={novoCampo.descCondicional} onCheckedChange={v => setNovoCampo(p => ({ ...p, descCondicional: v }))} />
-                          <Label className="text-xs">descrição condicional</Label>
-                        </div>
-                      )}
-                    </div>
-                    {['selecao', 'multipla'].includes(novoCampo.tipo) && (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Opções (Nome | Preço, uma por linha)</Label>
-                        <Textarea rows={4} value={novoCampo.opcoesRaw} onChange={e => setNovoCampo(p => ({ ...p, opcoesRaw: e.target.value }))} placeholder={'Opção A | 10.00\nOpção B | 0\nOpção C'} />
-                      </div>
-                    )}
-                    <Button onClick={handleAddCampo} disabled={insertCampo.isPending} className="w-full">Adicionar campo</Button>
+                    <Button onClick={handleAddItem} disabled={insertVariacaoMut.isPending} className="w-full">Adicionar</Button>
                   </div>
                 </DialogContent>
               </Dialog>
