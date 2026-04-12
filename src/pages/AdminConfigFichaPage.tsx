@@ -1350,7 +1350,7 @@ export default function AdminConfigFichaPage() {
   const [novaCategoria, setNovaCategoria] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [novoCampoOpen, setNovoCampoOpen] = useState(false);
-  const [novoCampo, setNovoCampo] = useState({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, vinculo: '', opcoesRaw: '', relacionamento: '' });
+  const [novoCampo, setNovoCampo] = useState({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, opcoesRaw: '', relacionamento: '' });
   const [novoItemOpen, setNovoItemOpen] = useState(false);
   const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', vinculo: '', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
@@ -1416,14 +1416,14 @@ export default function AdminConfigFichaPage() {
       {
         ficha_tipo_id: tipo.id, nome, slug: campoSlug, tipo: novoCampo.tipo,
         obrigatorio: novoCampo.obrigatorio, ordem, opcoes,
-        vinculo: novoCampo.vinculo || null,
+        vinculo: null,
         desc_condicional: novoCampo.descCondicional,
         relacionamento: novoCampo.relacionamento ? { depende_de: novoCampo.relacionamento } : null,
       },
       {
         onSuccess: () => {
           toast.success('Campo adicionado');
-          setNovoCampo({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, vinculo: '', opcoesRaw: '', relacionamento: '' });
+          setNovoCampo({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, opcoesRaw: '', relacionamento: '' });
           setNovoCampoOpen(false);
           refetchCampos();
         },
@@ -1695,25 +1695,16 @@ export default function AdminConfigFichaPage() {
                 <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                   <DialogHeader><DialogTitle className="font-montserrat lowercase">novo campo</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nome</Label>
+                      <Input value={novoCampo.nome} onChange={e => setNovoCampo(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cor principal" />
+                    </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Nome</Label>
-                        <Input value={novoCampo.nome} onChange={e => setNovoCampo(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cor principal" />
-                      </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Tipo</Label>
                         <Select value={novoCampo.tipo} onValueChange={v => setNovoCampo(p => ({ ...p, tipo: v }))}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>{TIPOS_CAMPO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Vínculo</Label>
-                        <Select value={novoCampo.vinculo || 'none'} onValueChange={v => setNovoCampo(p => ({ ...p, vinculo: v === 'none' ? '' : v }))}>
-                          <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                          <SelectContent>{VINCULOS.map(v => <SelectItem key={v.value || 'none'} value={v.value || 'none'}>{v.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
