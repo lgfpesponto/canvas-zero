@@ -919,6 +919,8 @@ export default function AdminConfigFichaPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [novoCampoOpen, setNovoCampoOpen] = useState(false);
   const [novoCampo, setNovoCampo] = useState({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, vinculo: '', opcoesRaw: '', relacionamento: '' });
+  const [novoItemOpen, setNovoItemOpen] = useState(false);
+  const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', vinculo: '', relacionamento: '' });
 
   // 16 sections for boot
   const BOOT_SECTION_COUNT = 16;
