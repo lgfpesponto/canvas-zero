@@ -595,7 +595,7 @@ const OrderPage = () => {
   const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira]
     .reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
   const findPrice = (b: string, cat: string, fallback: {label:string;preco:number}[]) =>
-    getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
+    findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
     bordadoCano.reduce((sum, b) => sum + findPrice(b, 'bordado_cano', BORDADOS_CANO), 0) +
     bordadoGaspea.reduce((sum, b) => sum + findPrice(b, 'bordado_gaspea', BORDADOS_GASPEA), 0) +
