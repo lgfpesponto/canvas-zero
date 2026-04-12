@@ -15,7 +15,7 @@ import SearchableSelect from '@/components/SearchableSelect';
 import React from 'react';
 import {
   ArrowLeft, Layers, CheckCircle, Plus, ChevronDown, ChevronRight,
-  Trash2, ArrowUp, ArrowDown, GripVertical, Link2, Pencil, Search,
+  Trash2, ArrowUp, ArrowDown, GripVertical, Link2, Pencil, Search, Save,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
