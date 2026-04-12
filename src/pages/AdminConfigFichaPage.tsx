@@ -78,23 +78,52 @@ const cls = {
 };
 
 /* ─── Shared Section component (mirrors OrderPage) ─── */
-const Section = ({ title, children, onMoveUp, onMoveDown, isFirst, isLast }: {
+function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categoriaId, onRename, onDelete }: {
   title: string; children: React.ReactNode;
   onMoveUp?: () => void; onMoveDown?: () => void; isFirst?: boolean; isLast?: boolean;
-}) => (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2 border-b border-border pb-1">
-      <h3 className="text-base font-display font-bold flex-1">{title}</h3>
-      {onMoveUp && (
-        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
-      )}
-      {onMoveDown && (
-        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
-      )}
+  categoriaId?: string; onRename?: (id: string, nome: string) => void; onDelete?: (id: string) => void;
+}) {
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editName, setEditName] = useState(title);
+
+  const handleSaveTitle = () => {
+    if (onRename && categoriaId && editName.trim() && editName.trim() !== title) {
+      onRename(categoriaId, editName.trim());
+    }
+    setEditingTitle(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 border-b border-border pb-1">
+        {editingTitle ? (
+          <div className="flex items-center gap-2 flex-1">
+            <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="text-base font-bold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} />
+            <button type="button" onClick={handleSaveTitle} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+            <button type="button" onClick={() => setEditingTitle(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+            {onDelete && categoriaId && (
+              <button type="button" onClick={() => { if (confirm(`Apagar seção "${title}"?`)) onDelete(categoriaId); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
+            )}
+          </div>
+        ) : (
+          <>
+            <h3 className="text-base font-display font-bold flex-1">{title}</h3>
+            {categoriaId && onRename && (
+              <button type="button" onClick={() => { setEditName(title); setEditingTitle(true); }} className="text-muted-foreground hover:text-primary" title="Editar seção"><Pencil size={14} /></button>
+            )}
+          </>
+        )}
+        {onMoveUp && (
+          <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
+        )}
+        {onMoveDown && (
+          <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
+        )}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+}
 
 /* ─── AdminEditableOptions: shows options list with pencil/add/bulk edit ─── */
 function AdminEditableOptions({
