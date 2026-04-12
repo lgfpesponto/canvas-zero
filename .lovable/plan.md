@@ -1,95 +1,106 @@
 
 
-## Plano: Editor completo de fichas no Admin Configuracoes
+## Plano: Espelhar a ficha de pedido de bota no editor admin
 
-### Resumo
+### Problema
+A pagina de edicao da ficha "Bota" em Configuracoes mostra categorias e variacoes em formato generico (collapsible cards). O usuario quer que essa pagina espelhe exatamente o layout do formulario "Faca seu pedido" > "Bota", com as mesmas secoes (Couros, Bordados, Laser, Pesponto, Metais, Extras, Solados, etc.), mas com controles de edicao inline em cada campo.
 
-Ao clicar numa ficha existente na aba Configuracoes, abrir uma pagina de edicao completa com todos os campos, categorias e variacoes. Botao "Salvar" no topo sincroniza tudo com o banco. As mudancas refletem automaticamente no formulario "Faca seu pedido" para novos pedidos. Pedidos antigos nao sao afetados.
+### Solucao
 
-### Arquitetura
+Reescrever `AdminConfigFichaPage.tsx` para que, quando o slug for `bota`, renderize um layout espelhado do OrderPage com as seguintes secoes na mesma ordem:
 
 ```text
-Admin Configuracoes (EDITA)         Faca seu Pedido (SO LE)
-       |                                    |
-       v                                    v
-  ficha_campos  ─────────────────>  DynamicOrderPage
-  ficha_categorias ──────────────>  OrderPage (bota)
-  ficha_variacoes ───────────────>  lê variações do DB
+1. Tamanho / Genero / Modelo
+2. Sob Medida
+3. Acessorios
+4. Couros (Tipo + Cor por regiao)
+5. Desenvolvimento
+6. Bordados (Cano / Gaspea / Taloneira)
+7. Nome Bordado
+8. Laser (Cano / Gaspea / Taloneira + Pintura)
+9. Estampa
+10. Pesponto (Cor Linha / Borrachinha / Vivo)
+11. Metais
+12. Extras (Trice / Tiras / Franja / Corrente)
+13. Solados (Tipo / Bico / Cor Sola / Cor Vira)
+14. Carimbo a Fogo
 ```
 
-### 1. Migration: adicionar coluna `relacionamento` em `ficha_variacoes`
+**Cada secao mostra:**
+- O titulo da secao igual ao formulario
+- As variacoes/opcoes atuais listadas (vindas de `ficha_categorias` + `ficha_variacoes` + arrays hardcoded como fallback)
+- Botoes de edicao inline (nome, preco, ativo, ordem) em cada variacao
+- Botao "+" para adicionar nova variacao com campos: nome, preco, tipo (selecao/multipla/checkbox/texto), obrigatorio, e **relacionamento** (multi-select para vincular a outras categorias)
+- Botao de relacionamento (link) para variacoes existentes
 
-Adicionar coluna `relacionamento` (jsonb, nullable, default null) na tabela `ficha_variacoes` para armazenar vinculos entre variacoes. Exemplo: modelo "City" teria `relacionamento: { tamanhos: ["34"..."40"], solados: ["borracha-city"], formato_bico: ["quadrado"] }`.
+**Para fichas dinamicas** (nao-bota): manter o layout atual com campos + categorias genericos.
 
-Adicionar tambem coluna `relacionamento` (jsonb, nullable) em `ficha_campos` para definir dependencias entre campos (ex: campo "cor_couro" depende de "tipo_couro").
+### Layout visual
 
-```sql
-ALTER TABLE ficha_variacoes ADD COLUMN IF NOT EXISTS relacionamento jsonb DEFAULT NULL;
-ALTER TABLE ficha_campos ADD COLUMN IF NOT EXISTS relacionamento jsonb DEFAULT NULL;
+```text
+┌──────────────────────────────────────┐
+│ ← configuracoes         [Salvar]     │
+│ bota                                 │
+│                                      │
+│ ── Tamanho / Genero / Modelo ──────  │
+│ Modelos: [City ✏️] [Tradicional ✏️]  │
+│          [+ adicionar]               │
+│                                      │
+│ ── Couros ─────────────────────────  │
+│ Tipos de Couro: [Vaqueta ✏️] [...]   │
+│ Cores de Couro: [Preto ✏️] [...]     │
+│          [+ adicionar]               │
+│                                      │
+│ ── Bordados ───────────────────────  │
+│ Bordado Cano: [7Estrivos ✏️ R$25]    │
+│               [Estrelas ✏️ R$25]     │
+│               [+ adicionar]          │
+│ Bordado Gaspea: [...]                │
+│ Bordado Taloneira: [...]             │
+│                                      │
+│ ... (demais secoes)                  │
+└──────────────────────────────────────┘
 ```
 
-### 2. Nova pagina: AdminConfigFichaEditPage
+### Mapeamento secoes → categorias do banco
 
-Substituir a pagina atual `AdminConfigFichaPage` por um editor completo:
+Cada secao do formulario corresponde a uma ou mais categorias em `ficha_categorias`. Se a categoria nao existir no banco, as opcoes hardcoded de `orderFieldsConfig.ts` sao exibidas como referencia (read-only), e o admin pode criar a categoria para comecar a gerenciar pelo banco.
 
-**Layout:**
-- Botao "Salvar alteracoes" fixo no topo
-- Lista de categorias com suas variacoes expandiveis inline
-- Cada variacao editavel: nome, preco, ativo, ordem, **relacionamento**
-- Botao "+" em cada categoria para adicionar variacao
-- Botao "+" geral para adicionar nova categoria
-- Para fichas dinamicas: lista de campos (ficha_campos) editaveis com reordenacao
-- Drag-and-drop ou setas para reordenar categorias e variacoes
+| Secao do formulario | Categoria slug esperado | Fallback hardcoded |
+|---------------------|------------------------|--------------------|
+| Modelo | modelos | MODELOS |
+| Tipo Couro | tipos-couro | TIPOS_COURO |
+| Cor Couro | cores-couro | CORES_COURO |
+| Acessorios | acessorios | ACESSORIOS |
+| Bordado Cano | bordados-cano | BORDADOS_CANO |
+| Bordado Gaspea | bordados-gaspea | BORDADOS_GASPEA |
+| Bordado Taloneira | bordados-taloneira | BORDADOS_TALONEIRA |
+| Laser Cano | laser-cano | LASER_OPTIONS |
+| Laser Gaspea | laser-gaspea | LASER_OPTIONS |
+| Laser Taloneira | laser-taloneira | LASER_OPTIONS |
+| Solado | solados | SOLADO |
+| Formato Bico | formato-bico | FORMATO_BICO |
+| Cor Sola | cor-sola | COR_SOLA |
+| Cor Vira | cor-vira | COR_VIRA |
 
-**Campo "Relacionamento" na variacao:**
-- Ao criar/editar uma variacao, exibir um campo multi-select para cada categoria existente da mesma ficha
-- Ex: ao editar modelo "City", mostrar selects para "Tamanhos", "Solados", "Formato do Bico" onde o admin escolhe quais opcoes sao permitidas
-- Salva como JSON na coluna `relacionamento`
+### Ao adicionar nova variacao
 
-**Campo "Relacionamento" no campo (ficha_campos):**
-- Ao criar/editar um campo, select para escolher "depende de qual campo"
-- Ex: campo "cor do couro" depende de "tipo de couro"
-
-**Botao "+" para novo campo (fichas dinamicas):**
-- Abre mini-formulario igual ao FichaBuilder: nome, tipo, obrigatorio, opcoes, vinculo, relacionamento
-- Insere diretamente em ficha_campos
-
-### 3. Logica de salvamento
-
-- Cada edicao inline faz update imediato no banco (como ja funciona em AdminConfigVariacoesPage)
-- Botao "Salvar" no topo faz batch update de ordens e campos modificados
-- Nao altera pedidos existentes (eles ja tem dados salvos)
-
-### 4. Formulario de pedido le do banco
-
-Para a ficha **bota**, o OrderPage ja le de `ficha_variacoes` via `useFichaVariacoesLookup` (implementado anteriormente). A coluna `relacionamento` sera usada para filtrar opcoes dinamicamente:
-
-- Quando usuario seleciona um modelo, buscar `relacionamento` dessa variacao
-- Filtrar tamanhos, solados, bicos conforme o JSON de relacionamento
-- Fallback para logica hardcoded atual se `relacionamento` estiver null (compatibilidade)
-
-Para fichas **dinamicas**, o DynamicOrderPage ja le de `ficha_campos` -- nenhuma mudanca necessaria.
-
-### 5. Pedidos antigos
-
-- Pedidos antigos ja tem valores salvos nas colunas da tabela `orders`
-- Ao editar um pedido antigo, o EditOrderPage usa os valores ja salvos
-- Novas variacoes nao aparecem em pedidos antigos (os selects mostram o valor atual + opcoes atuais, mas o valor original e preservado)
+O dialog de "+" inclui:
+- Nome
+- Preco adicional
+- Tipo do campo (selecao, multipla escolha, checkbox, texto)
+- Obrigatorio (switch)
+- Relacionamento (multi-select mostrando variacoes de outras categorias da mesma ficha)
 
 ### Arquivos afetados
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/migrations/` | Nova migration para colunas `relacionamento` |
-| `src/pages/AdminConfigFichaPage.tsx` | Reescrever como editor completo |
-| `src/hooks/useAdminConfig.ts` | Adicionar mutations para update de campos, update de categorias, reordenacao |
-| `src/hooks/useFichaVariacoesLookup.ts` | Adicionar leitura de `relacionamento` |
-| `src/pages/OrderPage.tsx` | Usar `relacionamento` para filtrar opcoes (com fallback hardcoded) |
-| `src/pages/EditOrderPage.tsx` | Mesma logica de filtro |
+| `src/pages/AdminConfigFichaPage.tsx` | Reescrever layout para bota espelhando OrderPage; manter layout generico para fichas dinamicas |
 
-### Escopo e limitacoes
-
-- A logica hardcoded dos 5 blocos de modelo (Infantil, City, Tradicional, Bico Fino, Perfilado) sera mantida como **fallback** enquanto os relacionamentos no banco nao estiverem populados
-- Conforme o admin preencher os relacionamentos via interface, a logica do banco passa a ter prioridade
-- Isso permite migracao gradual sem quebrar nada
+### O que NAO muda
+- `OrderPage.tsx` -- nao e tocado
+- Pedidos antigos -- nao sao afetados
+- Logica de preco -- nao muda
+- Fichas dinamicas -- mantém o layout atual de campos + categorias genericos
 
