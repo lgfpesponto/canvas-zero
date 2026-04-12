@@ -1409,8 +1409,13 @@ export default function AdminConfigFichaPage() {
                 </DialogContent>
               </Dialog>
 
+              {unsavedCount > 0 && (
+                <Button size="sm" variant="outline" className="gap-1" onClick={handleSaveAllFallbacksToDb} disabled={savingAllToDb}>
+                  <Save className="h-4 w-4" /> {savingAllToDb ? 'Salvando...' : `💾 Salvar no banco (${unsavedCount})`}
+                </Button>
+              )}
+
               <Button size="sm" variant="outline" className="gap-1" onClick={() => {
-                // Invalidate all ficha-related queries so OrderPage picks up changes
                 queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_categorias'] });
