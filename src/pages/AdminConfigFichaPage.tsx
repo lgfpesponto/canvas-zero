@@ -10,9 +10,10 @@ import {
   type FichaCategoria, type FichaVariacao, type FichaCampo,
 } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import {
   ArrowLeft, Layers, CheckCircle, Plus, ChevronDown, ChevronRight,
-  Trash2, ArrowUp, ArrowDown, GripVertical, Link2, Pencil,
+  Trash2, ArrowUp, ArrowDown, GripVertical, Link2, Pencil, Search,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,14 @@ const VINCULOS = [
   { value: 'preco', label: 'Cálculo de Preço' },
   { value: 'numeracao', label: 'Numeração' },
 ];
+
+const cls = {
+  label: 'block text-sm font-semibold mb-1',
+  select: 'w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none',
+  input: 'w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none',
+  inputSmall: 'bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none',
+  checkItem: 'flex items-center gap-2 text-sm',
+};
 
 /* ─── Boot section mapping ─── */
 interface BootSectionDef {
@@ -114,6 +123,12 @@ const BOOT_SECTIONS: BootSectionDef[] = [
     ],
   },
   {
+    title: 'Glitter / Tecido',
+    categories: [
+      { slug: 'cor-glitter', label: 'Cor Glitter/Tecido', fallback: toItems(COR_GLITTER) },
+    ],
+  },
+  {
     title: 'Pesponto',
     categories: [
       { slug: 'cor-linha', label: 'Cor da Linha', fallback: toItems(COR_LINHA) },
@@ -144,139 +159,10 @@ const BOOT_SECTIONS: BootSectionDef[] = [
       { slug: 'carimbo', label: 'Carimbo', fallback: CARIMBO },
     ],
   },
-  {
-    title: 'Glitter / Tecido',
-    categories: [
-      { slug: 'cor-glitter', label: 'Cor Glitter/Tecido', fallback: toItems(COR_GLITTER) },
-    ],
-  },
 ];
 
-/* ─── VariacaoRow (shared) ─── */
-function VariacaoRow({
-  v, index, total, categorias, currentCatId, allVariacoes, onReorder, onRefetch,
-}: {
-  v: FichaVariacao;
-  index: number;
-  total: number;
-  categorias: FichaCategoria[];
-  currentCatId: string;
-  allVariacoes: FichaVariacao[];
-  onReorder: (dir: 'up' | 'down') => void;
-  onRefetch: () => void;
-}) {
-  const updateVariacao = useUpdateVariacao();
-  const deleteVariacao = useDeleteVariacao();
-  const [relOpen, setRelOpen] = useState(false);
-  const rel = (v as any).relacionamento as Record<string, string[]> | null;
-
-  const otherCats = categorias.filter(c => c.id !== currentCatId);
-
-  const handleRelChange = (catSlug: string, selectedValues: string[]) => {
-    const newRel = { ...(rel || {}), [catSlug]: selectedValues };
-    Object.keys(newRel).forEach(k => { if (newRel[k].length === 0) delete newRel[k]; });
-    const finalRel = Object.keys(newRel).length > 0 ? newRel : null;
-    updateVariacao.mutate({ id: v.id, relacionamento: finalRel }, {
-      onSuccess: () => { toast.success('Relacionamento salvo'); onRefetch(); },
-    });
-  };
-
-  return (
-    <div className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/20 group">
-      <div className="flex items-center gap-0.5">
-        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" disabled={index === 0} onClick={() => onReorder('up')}>
-          <ArrowUp className="h-3 w-3" />
-        </Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" disabled={index === total - 1} onClick={() => onReorder('down')}>
-          <ArrowDown className="h-3 w-3" />
-        </Button>
-      </div>
-      <span className="text-xs text-muted-foreground w-6 text-center">{v.ordem}</span>
-      <Input
-        defaultValue={v.nome}
-        className="h-7 text-xs border-none shadow-none focus-visible:ring-1 flex-1 min-w-0"
-        onBlur={e => { if (e.target.value !== v.nome) updateVariacao.mutate({ id: v.id, nome: e.target.value }); }}
-      />
-      <Input
-        type="number"
-        step="0.01"
-        defaultValue={v.preco_adicional}
-        className="h-7 text-xs border-none shadow-none focus-visible:ring-1 w-20"
-        onBlur={e => {
-          const val = parseFloat(e.target.value);
-          if (!isNaN(val) && val !== v.preco_adicional) updateVariacao.mutate({ id: v.id, preco_adicional: val });
-        }}
-      />
-      <Switch
-        checked={v.ativo}
-        onCheckedChange={checked => updateVariacao.mutate({ id: v.id, ativo: checked })}
-        className="scale-75"
-      />
-      <Dialog open={relOpen} onOpenChange={setRelOpen}>
-        <DialogTrigger asChild>
-          <Button size="icon" variant="ghost" className={`h-6 w-6 ${rel ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100'}`}>
-            <Link2 className="h-3 w-3" />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-lg max-h-[70vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-montserrat lowercase">relacionamentos: {v.nome}</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground mb-3">
-            Selecione quais variações de outras categorias são permitidas quando "{v.nome}" é selecionado.
-          </p>
-          <div className="space-y-4">
-            {otherCats.map(oc => {
-              const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
-              if (catVars.length === 0) return null;
-              const selected = rel?.[oc.slug] || [];
-              return (
-                <div key={oc.id} className="space-y-1">
-                  <Label className="text-xs font-medium">{oc.nome}</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {catVars.map(cv => {
-                      const isSelected = selected.includes(cv.nome);
-                      return (
-                        <Badge
-                          key={cv.id}
-                          variant={isSelected ? 'default' : 'outline'}
-                          className="cursor-pointer text-xs"
-                          onClick={() => {
-                            const newSel = isSelected
-                              ? selected.filter(s => s !== cv.nome)
-                              : [...selected, cv.nome];
-                            handleRelChange(oc.slug, newSel);
-                          }}
-                        >
-                          {cv.nome}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
-        onClick={() => {
-          if (confirm(`Remover "${v.nome}"?`)) {
-            deleteVariacao.mutate(v.id, { onSuccess: () => { toast.success('Removida'); onRefetch(); } });
-          }
-        }}
-      >
-        <Trash2 className="h-3 w-3" />
-      </Button>
-    </div>
-  );
-}
-
-/* ─── BootCategoryEditor: edits variations for a single category within a section ─── */
-function BootCategoryEditor({
+/* ─── AdminMultiSelect: Mirrors OrderPage MultiSelect but in edit mode ─── */
+function AdminMultiSelect({
   catSlug, catLabel, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
 }: {
   catSlug: string;
@@ -292,22 +178,26 @@ function BootCategoryEditor({
   const insertVariacao = useInsertVariacao();
   const insertCategoria = useInsertCategoria();
   const updateVariacao = useUpdateVariacao();
-  const [addOpen, setAddOpen] = useState(false);
+  const deleteVariacao = useDeleteVariacao();
+
+  const [search, setSearch] = useState('');
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkValue, setBulkValue] = useState('');
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [newNome, setNewNome] = useState('');
   const [newPreco, setNewPreco] = useState('0');
   const [newTipo, setNewTipo] = useState('selecao');
   const [newObrigatorio, setNewObrigatorio] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
+  const [relOpen, setRelOpen] = useState<string | null>(null);
 
   const handleCreateCategory = () => {
     const ordem = allCategorias.length + 1;
     insertCategoria.mutate(
       { ficha_tipo_id: fichaTipoId, slug: catSlug, nome: catLabel, ordem },
       {
-        onSuccess: () => {
-          toast.success(`Categoria "${catLabel}" criada`);
-          onRefetchCats();
-        },
+        onSuccess: () => { toast.success(`Categoria "${catLabel}" criada`); onRefetchCats(); },
         onError: () => toast.error('Erro ao criar categoria'),
       }
     );
@@ -315,15 +205,14 @@ function BootCategoryEditor({
 
   const handleAddVariacao = () => {
     if (!newNome.trim() || !cat) return;
-    const ordem = (variacoes?.length ?? 0) + 1;
     insertVariacao.mutate(
-      { categoria_id: cat.id, nome: newNome.trim(), preco_adicional: parseFloat(newPreco) || 0, ordem },
+      { categoria_id: cat.id, nome: newNome.trim(), preco_adicional: parseFloat(newPreco) || 0, ordem: 0 },
       {
         onSuccess: () => {
           toast.success('Variação adicionada');
           setNewNome('');
           setNewPreco('0');
-          setAddOpen(false);
+          setShowAddDialog(false);
           refetch();
         },
         onError: () => toast.error('Erro ao adicionar'),
@@ -331,227 +220,294 @@ function BootCategoryEditor({
     );
   };
 
-  const handleReorder = (id: string, direction: 'up' | 'down') => {
-    if (!variacoes) return;
-    const idx = variacoes.findIndex(v => v.id === id);
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= variacoes.length) return;
-    updateVariacao.mutate({ id: variacoes[idx].id, ordem: variacoes[swapIdx].ordem });
-    updateVariacao.mutate({ id: variacoes[swapIdx].id, ordem: variacoes[idx].ordem }, {
-      onSuccess: () => refetch(),
-    });
+  // Sort alphabetically, bordado variado at end
+  const sortAlpha = (arr: { label: string; preco: number; id?: string; ativo?: boolean; relacionamento?: any }[]) => {
+    const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
+    const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
+    normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    return [...normal, ...variado];
   };
 
-  // If category doesn't exist in DB, show fallback as reference
+  // If category doesn't exist, show fallback with "criar" button
   if (!cat) {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-muted-foreground">{catLabel}</h4>
-          <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={handleCreateCategory} disabled={insertCategoria.isPending}>
-            <Plus className="h-3 w-3" /> criar categoria
-          </Button>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <label className={cls.label + ' mb-0'}>{catLabel}</label>
+          <button type="button" onClick={handleCreateCategory} disabled={insertCategoria.isPending} className="text-primary hover:text-primary/80 transition-colors" title="Criar categoria no banco">
+            <Plus size={16} />
+          </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {fallback.map((item, i) => (
-            <Badge key={i} variant="secondary" className="text-xs opacity-60">
-              {item.label}{item.preco > 0 && ` R$${item.preco}`}
-            </Badge>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+          {sortAlpha(fallback).map((item, i) => (
+            <label key={i} className={cls.checkItem + ' opacity-60'}>
+              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+            </label>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground italic">
-          Valores hardcoded (somente leitura). Crie a categoria para gerenciar pelo banco.
+        <p className="text-xs text-muted-foreground italic mt-1">
+          Valores hardcoded (somente leitura). Clique em + para criar a categoria no banco.
         </p>
       </div>
     );
   }
 
-  const items = variacoes || [];
+  const items = (variacoes || []).map(v => ({
+    label: v.nome,
+    preco: v.preco_adicional,
+    id: v.id,
+    ativo: v.ativo,
+    relacionamento: (v as any).relacionamento,
+  }));
+
+  const sortedItems = sortAlpha(items);
+  const hasSearch = sortedItems.length > 10 || catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser');
+  const filtered = search
+    ? sortedItems.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
+    : sortedItems;
+
+  const firstVariadoIdx = filtered.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
+
+  const openEditPanel = () => {
+    const state: Record<string, { nome: string; preco: string }> = {};
+    (variacoes || []).forEach(v => {
+      state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) };
+    });
+    setEditState(state);
+    setShowEditPanel(true);
+    setShowBulkEdit(false);
+    setBulkValue('');
+  };
+
+  const handleSaveAll = async () => {
+    for (const v of (variacoes || [])) {
+      const s = editState[v.id];
+      if (s && (s.nome !== v.nome || parseFloat(s.preco) !== v.preco_adicional)) {
+        await updateVariacao.mutateAsync({ id: v.id, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+      }
+    }
+    toast.success('Alterações salvas');
+    setShowEditPanel(false);
+    refetch();
+  };
+
+  const handleBulkApply = () => {
+    const inc = parseFloat(bulkValue);
+    if (isNaN(inc) || inc === 0) return;
+    setEditState(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        const cur = parseFloat(next[key].preco) || 0;
+        next[key] = { ...next[key], preco: String(Math.max(0, cur + inc)) };
+      }
+      return next;
+    });
+    setBulkValue('');
+    setShowBulkEdit(false);
+  };
+
+  const handleDelete = async (id: string, nome: string) => {
+    if (!confirm(`Remover "${nome}"?`)) return;
+    await deleteVariacao.mutateAsync(id);
+    toast.success('Removida');
+    // Remove from editState too
+    setEditState(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    refetch();
+  };
+
+  const handleRelChange = (varId: string, catSlugTarget: string, selectedValues: string[]) => {
+    const v = variacoes?.find(x => x.id === varId);
+    if (!v) return;
+    const rel = ((v as any).relacionamento as Record<string, string[]> | null) || {};
+    const newRel = { ...rel, [catSlugTarget]: selectedValues };
+    Object.keys(newRel).forEach(k => { if (newRel[k].length === 0) delete newRel[k]; });
+    const finalRel = Object.keys(newRel).length > 0 ? newRel : null;
+    updateVariacao.mutate({ id: varId, relacionamento: finalRel }, {
+      onSuccess: () => { toast.success('Relacionamento salvo'); refetch(); },
+    });
+  };
+
+  const otherCats = allCategorias.filter(c => c.id !== cat.id);
 
   return (
-    <div className="space-y-1">
-      <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/20 rounded px-2 py-1.5 transition-colors">
-            {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-            <h4 className="text-sm font-semibold">{catLabel}</h4>
-            <Badge variant="secondary" className="text-xs">{items.length}</Badge>
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <label className={cls.label + ' mb-0'}>{catLabel}</label>
+        <button type="button" onClick={() => setShowAddDialog(true)} className="text-primary hover:text-primary/80 transition-colors" title="Adicionar variação">
+          <Plus size={16} />
+        </button>
+        {items.length > 0 && (
+          <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80 transition-colors" title="Editar variações">
+            <Pencil size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Add dialog inline */}
+      {showAddDialog && (
+        <div className="flex flex-wrap items-end gap-2 mb-2 p-3 border border-primary/30 rounded-lg bg-muted/50">
+          <div className="flex-1 min-w-[150px]">
+            <label className="text-xs font-medium">Nome</label>
+            <input type="text" value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome da variação..." className={cls.inputSmall + ' w-full'} />
           </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-2 border-l-2 border-border/40 pl-3 space-y-0.5">
-            {items.map((v, i) => (
-              <VariacaoRow
-                key={v.id}
-                v={v}
-                index={i}
-                total={items.length}
-                categorias={allCategorias}
-                currentCatId={cat.id}
-                allVariacoes={allVariacoes}
-                onReorder={dir => handleReorder(v.id, dir)}
-                onRefetch={refetch}
-              />
-            ))}
-            {items.length === 0 && (
-              <p className="text-xs text-muted-foreground py-2 text-center">Nenhuma variação</p>
+          <div className="w-24">
+            <label className="text-xs font-medium">Valor (R$)</label>
+            <input type="number" value={newPreco} onChange={e => setNewPreco(e.target.value)} placeholder="0" className={cls.inputSmall + ' w-full'} />
+          </div>
+          <div className="w-32">
+            <label className="text-xs font-medium">Tipo</label>
+            <select value={newTipo} onChange={e => setNewTipo(e.target.value)} className={cls.inputSmall + ' w-full'}>
+              {TIPOS_CAMPO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-1 pb-1">
+            <input type="checkbox" checked={newObrigatorio} onChange={e => setNewObrigatorio(e.target.checked)} className="accent-primary" />
+            <span className="text-xs">Obrig.</span>
+          </div>
+          <button type="button" onClick={handleAddVariacao} className="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90">Salvar</button>
+          <button type="button" onClick={() => { setShowAddDialog(false); setNewNome(''); setNewPreco('0'); }} className="px-3 py-2 bg-muted border border-border rounded-md text-sm hover:bg-muted/80">Cancelar</button>
+        </div>
+      )}
+
+      {/* Search */}
+      {hasSearch && (
+        <div className="relative mb-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Pesquisar..."
+            className={cls.input + ' pl-8 !py-1.5 text-xs'}
+          />
+        </div>
+      )}
+
+      {/* Grid - mirrors OrderPage MultiSelect */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {/* Edit panel toolbar */}
+        {showEditPanel && (
+          <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
+            <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
+            <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
+            {showBulkEdit && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Adicionar:</span>
+                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-xs border border-border rounded px-2 py-1 bg-background w-16" placeholder="+5" />
+                <button type="button" onClick={handleBulkApply} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">OK</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {filtered.map((item, idx) => (
+          <React.Fragment key={item.id || item.label}>
+            {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
+            )}
+            {showEditPanel && item.id ? (
+              <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                <input
+                  type="text"
+                  value={editState[item.id]?.nome ?? item.label}
+                  onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: e.target.value, preco: prev[item.id!]?.preco ?? String(item.preco) } }))}
+                  className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0"
+                />
+                <span className="text-xs text-muted-foreground shrink-0">R$</span>
+                <input
+                  type="number"
+                  value={editState[item.id]?.preco ?? String(item.preco)}
+                  onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: prev[item.id!]?.nome ?? item.label, preco: e.target.value } }))}
+                  className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0"
+                />
+                <button type="button" onClick={() => setRelOpen(relOpen === item.id ? null : item.id!)} className={`shrink-0 ${item.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento">
+                  <Link2 size={12} />
+                </button>
+                <button type="button" onClick={() => handleDelete(item.id!, item.label)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className={cls.checkItem}>
+                <span className={item.ativo === false ? 'line-through opacity-50' : ''}>
+                  {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
+                </span>
+              </label>
             )}
 
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="ghost" className="gap-1 text-xs mt-1 w-full text-muted-foreground hover:text-foreground">
-                  <Plus className="h-3 w-3" /> adicionar variação
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="font-montserrat lowercase">nova variação — {catLabel}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <Label className="text-xs">Nome</Label>
-                    <Input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome da variação" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Preço adicional</Label>
-                    <Input type="number" step="0.01" value={newPreco} onChange={e => setNewPreco(e.target.value)} />
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tipo do campo</Label>
-                      <Select value={newTipo} onValueChange={setNewTipo}>
-                        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {TIPOS_CAMPO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center gap-2 pt-5">
-                      <Switch checked={newObrigatorio} onCheckedChange={setNewObrigatorio} />
-                      <Label className="text-xs">Obrigatório</Label>
-                    </div>
-                  </div>
-                  <Button onClick={handleAddVariacao} disabled={insertVariacao.isPending} className="w-full">
-                    Adicionar
-                  </Button>
+            {/* Inline relationship editor */}
+            {showEditPanel && relOpen === item.id && item.id && (
+              <div className="col-span-full p-2 border border-primary/20 rounded bg-background mb-1">
+                <p className="text-xs font-medium mb-2">Relacionamentos: {item.label}</p>
+                <div className="space-y-2">
+                  {otherCats.map(oc => {
+                    const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
+                    if (catVars.length === 0) return null;
+                    const rel = (item.relacionamento as Record<string, string[]> | null) || {};
+                    const selected = rel[oc.slug] || [];
+                    return (
+                      <div key={oc.id} className="space-y-0.5">
+                        <Label className="text-xs font-medium">{oc.nome}</Label>
+                        <div className="flex flex-wrap gap-1">
+                          {catVars.map(cv => {
+                            const isSelected = selected.includes(cv.nome);
+                            return (
+                              <Badge
+                                key={cv.id}
+                                variant={isSelected ? 'default' : 'outline'}
+                                className="cursor-pointer text-xs"
+                                onClick={() => {
+                                  const newSel = isSelected
+                                    ? selected.filter(s => s !== cv.nome)
+                                    : [...selected, cv.nome];
+                                  handleRelChange(item.id!, oc.slug, newSel);
+                                }}
+                              >
+                                {cv.nome}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+        {filtered.length === 0 && (
+          <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>
+        )}
+      </div>
     </div>
   );
 }
 
-/* ─── CategoriaSection (generic, for non-boot fichas) ─── */
-function CategoriaSection({
-  cat, categorias, allVariacoes, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
-}: {
-  cat: FichaCategoria;
-  categorias: FichaCategoria[];
-  allVariacoes: FichaVariacao[];
-  onUpdate: () => void;
-  onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  isFirst: boolean;
-  isLast: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const { data: variacoes, refetch } = useFichaVariacoes(cat.id);
-  const updateVariacao = useUpdateVariacao();
-  const insertVariacao = useInsertVariacao();
-  const [addOpen, setAddOpen] = useState(false);
-  const [newNome, setNewNome] = useState('');
-  const [newPreco, setNewPreco] = useState('0');
-  const [editingName, setEditingName] = useState(cat.nome);
-  const [nameEditing, setNameEditing] = useState(false);
-  const updateCat = useUpdateCategoria();
-  const deleteCat = useDeleteCategoria();
-
-  const handleAddVariacao = () => {
-    if (!newNome.trim()) return;
-    const ordem = (variacoes?.length ?? 0) + 1;
-    insertVariacao.mutate(
-      { categoria_id: cat.id, nome: newNome.trim(), preco_adicional: parseFloat(newPreco) || 0, ordem },
-      {
-        onSuccess: () => { toast.success('Variação adicionada'); setNewNome(''); setNewPreco('0'); setAddOpen(false); refetch(); },
-        onError: () => toast.error('Erro ao adicionar'),
-      },
-    );
-  };
-
-  const handleReorder = (id: string, direction: 'up' | 'down') => {
-    if (!variacoes) return;
-    const idx = variacoes.findIndex(v => v.id === id);
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= variacoes.length) return;
-    updateVariacao.mutate({ id: variacoes[idx].id, ordem: variacoes[swapIdx].ordem });
-    updateVariacao.mutate({ id: variacoes[swapIdx].id, ordem: variacoes[idx].ordem }, { onSuccess: () => refetch() });
-  };
-
-  const handleSaveCatName = () => {
-    if (editingName.trim() && editingName !== cat.nome) {
-      updateCat.mutate({ id: cat.id, nome: editingName.trim() }, {
-        onSuccess: () => { toast.success('Categoria renomeada'); onUpdate(); },
-      });
-    }
-    setNameEditing(false);
-  };
-
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="border-border/60">
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
-            <div className="flex items-center gap-2">
-              {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-              {nameEditing ? (
-                <Input value={editingName} onChange={e => setEditingName(e.target.value)} onBlur={handleSaveCatName} onKeyDown={e => e.key === 'Enter' && handleSaveCatName()} className="h-7 text-sm w-48" autoFocus onClick={e => e.stopPropagation()} />
-              ) : (
-                <span className="font-medium text-sm text-foreground" onDoubleClick={e => { e.stopPropagation(); setNameEditing(true); }}>{cat.nome}</span>
-              )}
-              <Badge variant="secondary" className="text-xs">{variacoes?.length ?? '…'}</Badge>
-            </div>
-            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => {
-                if (confirm(`Remover categoria "${cat.nome}" e todas suas variações?`)) {
-                  deleteCat.mutate(cat.id, { onSuccess: () => { toast.success('Categoria removida'); onDelete(); }, onError: () => toast.error('Erro ao remover') });
-                }
-              }}><Trash2 className="h-3 w-3" /></Button>
-            </div>
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="px-4 pb-4 pt-0">
-            <div className="space-y-1">
-              {variacoes?.map((v, i) => (
-                <VariacaoRow key={v.id} v={v} index={i} total={variacoes.length} categorias={categorias} currentCatId={cat.id} allVariacoes={allVariacoes} onReorder={dir => handleReorder(v.id, dir)} onRefetch={refetch} />
-              ))}
-              {variacoes?.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma variação</p>}
-            </div>
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="mt-3 gap-1 w-full"><Plus className="h-3 w-3" /> adicionar variação</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle className="font-montserrat lowercase">nova variação</DialogTitle></DialogHeader>
-                <div className="space-y-3 pt-2">
-                  <div><Label className="text-xs">Nome</Label><Input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome da variação" /></div>
-                  <div><Label className="text-xs">Preço adicional</Label><Input type="number" step="0.01" value={newPreco} onChange={e => setNewPreco(e.target.value)} /></div>
-                  <Button onClick={handleAddVariacao} disabled={insertVariacao.isPending} className="w-full">Adicionar</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
-  );
-}
+/* ─── Section with reorder (for boot) ─── */
+const SectionAdmin = ({ title, children, onMoveUp, onMoveDown, isFirst, isLast }: {
+  title: string; children: React.ReactNode;
+  onMoveUp?: () => void; onMoveDown?: () => void; isFirst?: boolean; isLast?: boolean;
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2 border-b border-border pb-1">
+      <h3 className="text-base font-display font-bold flex-1">{title}</h3>
+      {onMoveUp && (
+        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
+      )}
+      {onMoveDown && (
+        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
+      )}
+    </div>
+    {children}
+  </div>
+);
 
 /* ─── CampoSection (for dynamic fichas) ─── */
 function CampoSection({
@@ -658,6 +614,204 @@ function CampoSection({
   );
 }
 
+/* ─── CategoriaSection (generic, for non-boot fichas) ─── */
+function CategoriaSection({
+  cat, categorias, allVariacoes, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
+}: {
+  cat: FichaCategoria;
+  categorias: FichaCategoria[];
+  allVariacoes: FichaVariacao[];
+  onUpdate: () => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: variacoes, refetch } = useFichaVariacoes(cat.id);
+  const updateVariacao = useUpdateVariacao();
+  const insertVariacao = useInsertVariacao();
+  const deleteVariacao = useDeleteVariacao();
+  const [addOpen, setAddOpen] = useState(false);
+  const [newNome, setNewNome] = useState('');
+  const [newPreco, setNewPreco] = useState('0');
+  const [editingName, setEditingName] = useState(cat.nome);
+  const [nameEditing, setNameEditing] = useState(false);
+  const updateCat = useUpdateCategoria();
+  const deleteCat = useDeleteCategoria();
+
+  // Mirror the AdminMultiSelect format for generic categorias
+  const [search, setSearch] = useState('');
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkValue, setBulkValue] = useState('');
+  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
+
+  const sortAlpha = (arr: FichaVariacao[]) => {
+    return [...arr].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  };
+
+  const handleAddVariacao = () => {
+    if (!newNome.trim()) return;
+    insertVariacao.mutate(
+      { categoria_id: cat.id, nome: newNome.trim(), preco_adicional: parseFloat(newPreco) || 0, ordem: 0 },
+      {
+        onSuccess: () => { toast.success('Variação adicionada'); setNewNome(''); setNewPreco('0'); setAddOpen(false); refetch(); },
+        onError: () => toast.error('Erro ao adicionar'),
+      },
+    );
+  };
+
+  const handleSaveCatName = () => {
+    if (editingName.trim() && editingName !== cat.nome) {
+      updateCat.mutate({ id: cat.id, nome: editingName.trim() }, {
+        onSuccess: () => { toast.success('Categoria renomeada'); onUpdate(); },
+      });
+    }
+    setNameEditing(false);
+  };
+
+  const openEditPanel = () => {
+    const state: Record<string, { nome: string; preco: string }> = {};
+    (variacoes || []).forEach(v => {
+      state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) };
+    });
+    setEditState(state);
+    setShowEditPanel(true);
+    setShowBulkEdit(false);
+    setBulkValue('');
+  };
+
+  const handleSaveAll = async () => {
+    for (const v of (variacoes || [])) {
+      const s = editState[v.id];
+      if (s && (s.nome !== v.nome || parseFloat(s.preco) !== v.preco_adicional)) {
+        await updateVariacao.mutateAsync({ id: v.id, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+      }
+    }
+    toast.success('Alterações salvas');
+    setShowEditPanel(false);
+    refetch();
+  };
+
+  const handleBulkApply = () => {
+    const inc = parseFloat(bulkValue);
+    if (isNaN(inc) || inc === 0) return;
+    setEditState(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        const cur = parseFloat(next[key].preco) || 0;
+        next[key] = { ...next[key], preco: String(Math.max(0, cur + inc)) };
+      }
+      return next;
+    });
+    setBulkValue('');
+    setShowBulkEdit(false);
+  };
+
+  const sorted = sortAlpha(variacoes || []);
+  const filteredVars = search ? sorted.filter(v => v.nome.toLowerCase().includes(search.toLowerCase())) : sorted;
+  const showSearch = sorted.length > 10;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <Card className="border-border/60">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-2">
+              {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              {nameEditing ? (
+                <Input value={editingName} onChange={e => setEditingName(e.target.value)} onBlur={handleSaveCatName} onKeyDown={e => e.key === 'Enter' && handleSaveCatName()} className="h-7 text-sm w-48" autoFocus onClick={e => e.stopPropagation()} />
+              ) : (
+                <span className="font-medium text-sm text-foreground" onDoubleClick={e => { e.stopPropagation(); setNameEditing(true); }}>{cat.nome}</span>
+              )}
+              <Badge variant="secondary" className="text-xs">{variacoes?.length ?? '…'}</Badge>
+            </div>
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={isFirst} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={isLast} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => {
+                if (confirm(`Remover categoria "${cat.nome}" e todas suas variações?`)) {
+                  deleteCat.mutate(cat.id, { onSuccess: () => { toast.success('Categoria removida'); onDelete(); }, onError: () => toast.error('Erro ao remover') });
+                }
+              }}><Trash2 className="h-3 w-3" /></Button>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="px-4 pb-4 pt-0">
+            {/* Add + Edit buttons */}
+            <div className="flex items-center gap-2 mb-2">
+              <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="ghost" className="gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    <Plus className="h-3 w-3" /> adicionar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova variação</DialogTitle></DialogHeader>
+                  <div className="space-y-3 pt-2">
+                    <div><Label className="text-xs">Nome</Label><Input value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Nome da variação" /></div>
+                    <div><Label className="text-xs">Preço adicional</Label><Input type="number" step="0.01" value={newPreco} onChange={e => setNewPreco(e.target.value)} /></div>
+                    <Button onClick={handleAddVariacao} disabled={insertVariacao.isPending} className="w-full">Adicionar</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              {(variacoes?.length ?? 0) > 0 && (
+                <Button size="sm" variant="ghost" className="gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={openEditPanel}>
+                  <Pencil className="h-3 w-3" /> editar
+                </Button>
+              )}
+            </div>
+
+            {showSearch && (
+              <div className="relative mb-2">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." className={cls.input + ' pl-8 !py-1.5 text-xs'} />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+              {showEditPanel && (
+                <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
+                  <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
+                  <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
+                  <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
+                  {showBulkEdit && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Adicionar:</span>
+                      <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-xs border border-border rounded px-2 py-1 bg-background w-16" placeholder="+5" />
+                      <button type="button" onClick={handleBulkApply} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">OK</button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {filteredVars.map(v => (
+                showEditPanel ? (
+                  <div key={v.id} className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                    <input type="text" value={editState[v.id]?.nome ?? v.nome} onChange={e => setEditState(prev => ({ ...prev, [v.id]: { ...prev[v.id], nome: e.target.value, preco: prev[v.id]?.preco ?? String(v.preco_adicional) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
+                    <span className="text-xs text-muted-foreground shrink-0">R$</span>
+                    <input type="number" value={editState[v.id]?.preco ?? String(v.preco_adicional)} onChange={e => setEditState(prev => ({ ...prev, [v.id]: { ...prev[v.id], nome: prev[v.id]?.nome ?? v.nome, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
+                    <button type="button" onClick={() => { if (confirm(`Remover "${v.nome}"?`)) { deleteVariacao.mutate(v.id, { onSuccess: () => { toast.success('Removida'); refetch(); } }); } }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={12} /></button>
+                  </div>
+                ) : (
+                  <label key={v.id} className={cls.checkItem}>
+                    <span className={v.ativo === false ? 'line-through opacity-50' : ''}>
+                      {v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}
+                    </span>
+                  </label>
+                )
+              ))}
+              {filteredVars.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
+
 /* ─── Main Page ─── */
 export default function AdminConfigFichaPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -679,6 +833,13 @@ export default function AdminConfigFichaPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [novoCampoOpen, setNovoCampoOpen] = useState(false);
   const [novoCampo, setNovoCampo] = useState({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, vinculo: '', opcoesRaw: '', relacionamento: '' });
+
+  // Section order state for boot (maps section index to display order)
+  const [sectionOrder, setSectionOrder] = useState<number[]>([]);
+
+  useEffect(() => {
+    setSectionOrder(BOOT_SECTIONS.map((_, i) => i));
+  }, []);
 
   const isBoot = slug === 'bota';
   const isDynamic = tipo?.tipo_ficha === 'dinamica';
@@ -752,10 +913,18 @@ export default function AdminConfigFichaPage() {
     );
   };
 
-  /* ─── Section component for boot mirror ─── */
-  const SectionTitle = ({ title }: { title: string }) => (
-    <h3 className="text-base font-display font-bold border-b border-border pb-1 mb-3">{title}</h3>
-  );
+  const handleMoveSectionBoot = (currentIdx: number, dir: 'up' | 'down') => {
+    setSectionOrder(prev => {
+      const next = [...prev];
+      const posInOrder = next.indexOf(currentIdx);
+      const swapPos = dir === 'up' ? posInOrder - 1 : posInOrder + 1;
+      if (swapPos < 0 || swapPos >= next.length) return prev;
+      [next[posInOrder], next[swapPos]] = [next[swapPos], next[posInOrder]];
+      return next;
+    });
+  };
+
+  const orderedBootSections = sectionOrder.map(i => ({ ...BOOT_SECTIONS[i], originalIndex: i }));
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
@@ -772,37 +941,76 @@ export default function AdminConfigFichaPage() {
           >
             <ArrowLeft className="h-4 w-4" /> configurações
           </button>
+          {isBoot && (
+            <div className="flex items-center gap-2">
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1">
+                    <Plus className="h-4 w-4" /> Campo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
+                  <div className="space-y-3 pt-2">
+                    <Label>Nome</Label>
+                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais" />
+                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </div>
 
         <h1 className="mb-8 font-montserrat text-2xl font-bold text-foreground lowercase">
           {tipo.nome.toLowerCase()}
         </h1>
 
-        {/* ─── BOOT: Mirrored layout ─── */}
+        {/* ─── BOOT: Mirrored layout with AdminMultiSelect ─── */}
         {isBoot && categorias && (
           <section className="mb-10">
             <div className="bg-card rounded-xl p-6 md:p-8 border border-border/60 space-y-8">
-              {BOOT_SECTIONS.map(section => (
-                <div key={section.title} className="space-y-4">
-                  <SectionTitle title={section.title} />
-                  {section.categories.map(catDef => (
-                    <BootCategoryEditor
-                      key={catDef.slug}
-                      catSlug={catDef.slug}
-                      catLabel={catDef.label}
-                      fallback={catDef.fallback as { label: string; preco: number }[]}
-                      fichaTipoId={tipo.id}
-                      allCategorias={categorias}
-                      allVariacoes={allVariacoes || []}
-                      onRefetchCats={refetchCats}
-                    />
-                  ))}
-                </div>
-              ))}
+              {orderedBootSections.map((section, orderIdx) => {
+                const isGridSection = ['Couros', 'Pesponto'].includes(section.title);
+                const isSoladoSection = section.title === 'Solados';
+                const isMetaisSection = section.title === 'Metais';
 
-              {/* Extra note sections (fixed price items, not category-based) */}
+                return (
+                  <SectionAdmin
+                    key={section.originalIndex}
+                    title={section.title}
+                    onMoveUp={() => handleMoveSectionBoot(section.originalIndex, 'up')}
+                    onMoveDown={() => handleMoveSectionBoot(section.originalIndex, 'down')}
+                    isFirst={orderIdx === 0}
+                    isLast={orderIdx === orderedBootSections.length - 1}
+                  >
+                    <div className={
+                      isSoladoSection ? 'grid sm:grid-cols-2 lg:grid-cols-4 gap-4' :
+                      isMetaisSection ? 'grid sm:grid-cols-3 gap-4' :
+                      isGridSection ? 'grid sm:grid-cols-2 gap-4' :
+                      section.categories.length > 1 ? 'grid sm:grid-cols-2 gap-4' :
+                      'space-y-4'
+                    }>
+                      {section.categories.map(catDef => (
+                        <AdminMultiSelect
+                          key={catDef.slug}
+                          catSlug={catDef.slug}
+                          catLabel={catDef.label}
+                          fallback={catDef.fallback as { label: string; preco: number }[]}
+                          fichaTipoId={tipo.id}
+                          allCategorias={categorias}
+                          allVariacoes={allVariacoes || []}
+                          onRefetchCats={refetchCats}
+                        />
+                      ))}
+                    </div>
+                  </SectionAdmin>
+                );
+              })}
+
+              {/* Fixed price reference */}
               <div className="space-y-2">
-                <SectionTitle title="Valores Fixos (referência)" />
+                <h3 className="text-base font-display font-bold border-b border-border pb-1">Valores Fixos (referência)</h3>
                 <div className="grid sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
                   <span>Sob Medida: R$50</span>
                   <span>Nome Bordado: R$40</span>
@@ -819,25 +1027,6 @@ export default function AdminConfigFichaPage() {
                   <span>Cavalo: R$5/un</span>
                 </div>
               </div>
-            </div>
-
-            {/* Nova categoria (for boot too) */}
-            <div className="mt-4">
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1">
-                    <Plus className="h-4 w-4" /> nova categoria
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
-                  <div className="space-y-3 pt-2">
-                    <Label>Nome</Label>
-                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais" />
-                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
             </div>
           </section>
         )}
