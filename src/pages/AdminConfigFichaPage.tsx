@@ -128,9 +128,11 @@ function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categ
 /* ─── AdminEditableOptions: shows options list with pencil/add/bulk edit ─── */
 function AdminEditableOptions({
   catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
+  fallback,
 }: {
   catSlug: string; catLabel: string; fichaTipoId: string;
   allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[]; onRefetchCats: () => void;
+  fallback?: { label: string; preco: number }[];
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
   const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
@@ -145,7 +147,8 @@ function AdminEditableOptions({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newNome, setNewNome] = useState('');
   const [newPreco, setNewPreco] = useState('0');
-  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
+  // editState keyed by dbId or "fb_index" for fallback-only items
+  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }>>({});
   const [relOpen, setRelOpen] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -192,14 +195,34 @@ function AdminEditableOptions({
     );
   }
 
-  const items = (variacoes || [])
-    .map(v => ({ label: v.nome, preco: v.preco_adicional, id: v.id, ativo: v.ativo, relacionamento: (v as any).relacionamento }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  // Build merged items (fallback base + DB overrides + DB extras)
+  const fb = fallback || [];
+  const dbMap = new Map((variacoes || []).map(v => [v.nome.toLowerCase(), v]));
+  type MergedItem = { label: string; preco: number; dbId: string | null; ativo: boolean; relacionamento: any; isFallback: boolean };
+  const mergedItems: MergedItem[] = [];
+  const usedDbIds = new Set<string>();
+
+  fb.forEach(f => {
+    const d = dbMap.get(f.label.toLowerCase());
+    if (d) {
+      usedDbIds.add(d.id);
+      mergedItems.push({ label: d.nome, preco: d.preco_adicional, dbId: d.id, ativo: d.ativo ?? true, relacionamento: (d as any).relacionamento, isFallback: false });
+    } else {
+      mergedItems.push({ label: f.label, preco: f.preco, dbId: null, ativo: true, relacionamento: null, isFallback: true });
+    }
+  });
+  (variacoes || []).forEach(v => {
+    if (!usedDbIds.has(v.id)) {
+      mergedItems.push({ label: v.nome, preco: v.preco_adicional, dbId: v.id, ativo: v.ativo ?? true, relacionamento: (v as any).relacionamento, isFallback: false });
+    }
+  });
+  mergedItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 
   const openEditPanel = () => {
-    const state: Record<string, { nome: string; preco: string }> = {};
-    (variacoes || []).forEach(v => {
-      state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) };
+    const state: Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }> = {};
+    mergedItems.forEach((item, idx) => {
+      const key = item.dbId || `fb_${idx}`;
+      state[key] = { nome: item.label, preco: String(item.preco), dbId: item.dbId, isFallback: item.isFallback };
     });
     setEditState(state);
     setSelectedIds(new Set());
@@ -209,10 +232,26 @@ function AdminEditableOptions({
   };
 
   const handleSaveAll = async () => {
-    for (const v of (variacoes || [])) {
-      const s = editState[v.id];
-      if (s && (s.nome !== v.nome || parseFloat(s.preco) !== v.preco_adicional)) {
-        await updateVariacao.mutateAsync({ id: v.id, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+    for (const [key, s] of Object.entries(editState)) {
+      if (s.dbId) {
+        // Existing DB item - update if changed
+        const orig = (variacoes || []).find(v => v.id === s.dbId);
+        if (orig && (s.nome !== orig.nome || parseFloat(s.preco) !== orig.preco_adicional)) {
+          await updateVariacao.mutateAsync({ id: s.dbId, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+        }
+      } else if (s.isFallback) {
+        // Fallback-only item that was edited - find matching fallback
+        const fbOrig = fb.find(f => f.label.toLowerCase() === s.nome.toLowerCase());
+        const wasEdited = !fbOrig || fbOrig.label !== s.nome || (fbOrig.preco || 0) !== (parseFloat(s.preco) || 0);
+        // Always persist fallback items to DB so they become editable
+        if (cat) {
+          await insertVariacao.mutateAsync({
+            categoria_id: cat.id,
+            nome: s.nome,
+            preco_adicional: parseFloat(s.preco) || 0,
+            ordem: 0,
+          });
+        }
       }
     }
     toast.success('Alterações salvas');
@@ -247,20 +286,42 @@ function AdminEditableOptions({
     if (selectedIds.size === 0) return;
     if (!confirm(`Remover ${selectedIds.size} variação(ões)?`)) return;
     for (const id of selectedIds) {
-      await deleteVariacao.mutateAsync(id);
+      const s = editState[id];
+      if (s?.dbId) {
+        await deleteVariacao.mutateAsync(s.dbId);
+      } else if (s?.isFallback && cat) {
+        // Insert as inactive to "delete" a fallback
+        await insertVariacao.mutateAsync({ categoria_id: cat.id, nome: s.nome, preco_adicional: 0, ordem: 0 });
+        // Then set inactive
+        const { data } = await supabase.from('ficha_variacoes').select('id').eq('categoria_id', cat.id).eq('nome', s.nome).single();
+        if (data) await updateVariacao.mutateAsync({ id: data.id, ativo: false });
+      }
     }
+    // Remove from edit state
+    setEditState(prev => {
+      const next = { ...prev };
+      selectedIds.forEach(id => delete next[id]);
+      return next;
+    });
     toast.success('Variações removidas');
     setSelectedIds(new Set());
     refetch();
   };
 
-  const handleDelete = async (id: string, nome: string) => {
+  const handleDelete = async (key: string, nome: string) => {
     if (!confirm(`Remover "${nome}"?`)) return;
-    await deleteVariacao.mutateAsync(id);
+    const s = editState[key];
+    if (s?.dbId) {
+      await deleteVariacao.mutateAsync(s.dbId);
+    } else if (s?.isFallback && cat) {
+      await insertVariacao.mutateAsync({ categoria_id: cat.id, nome: s.nome, preco_adicional: 0, ordem: 0 });
+      const { data } = await supabase.from('ficha_variacoes').select('id').eq('categoria_id', cat.id).eq('nome', s.nome).single();
+      if (data) await updateVariacao.mutateAsync({ id: data.id, ativo: false });
+    }
     toast.success('Removida');
     setEditState(prev => {
       const next = { ...prev };
-      delete next[id];
+      delete next[key];
       return next;
     });
     refetch();
@@ -279,15 +340,16 @@ function AdminEditableOptions({
   };
 
   const otherCats = allCategorias.filter(c => c.id !== cat.id);
+  const editItems = Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   return (
     <div className="mt-1">
       <div className="flex items-center gap-1.5 mb-1">
         <button type="button" onClick={() => setShowAddDialog(true)} className="text-primary hover:text-primary/80" title="Adicionar variação"><Plus size={14} /></button>
-        {items.length > 0 && (
+        {mergedItems.length > 0 && (
           <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80" title="Editar variações"><Pencil size={12} /></button>
         )}
-        <span className="text-xs text-muted-foreground">({items.length} opções)</span>
+        <span className="text-xs text-muted-foreground">({mergedItems.length} opções)</span>
       </div>
 
       {showAddDialog && (
@@ -323,24 +385,28 @@ function AdminEditableOptions({
             )}
           </div>
           <div className="grid grid-cols-1 gap-2 max-h-[70vh] overflow-y-auto">
-            {items.map(item => (
-              <React.Fragment key={item.id}>
-                <div className="flex items-center gap-2 p-2 bg-primary/5 rounded border border-primary/20">
-                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="accent-destructive w-4 h-4 shrink-0" />
-                  <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: e.target.value, preco: prev[item.id]?.preco ?? String(item.preco) } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1 min-w-0" />
+            {editItems.map(([key, item]) => (
+              <React.Fragment key={key}>
+                <div className={`flex items-center gap-2 p-2 rounded border ${item.isFallback ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/5 border-primary/20'}`}>
+                  <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggleSelected(key)} className="accent-destructive w-4 h-4 shrink-0" />
+                  <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1 min-w-0" />
                   <span className="text-sm text-muted-foreground shrink-0">R$</span>
-                  <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: prev[item.id]?.nome ?? item.label, preco: e.target.value } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background w-20 shrink-0" />
-                  <button type="button" onClick={() => setRelOpen(relOpen === item.id ? null : item.id)} className={`shrink-0 ${item.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={12} /></button>
-                  <button type="button" onClick={() => handleDelete(item.id, item.label)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
+                  <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background w-20 shrink-0" />
+                  {item.isFallback && <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0 border-amber-500 text-amber-600">fallback</Badge>}
+                  {item.dbId && (
+                    <button type="button" onClick={() => setRelOpen(relOpen === key ? null : key)} className={`shrink-0 ${item.dbId && mergedItems.find(m => m.dbId === item.dbId)?.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={12} /></button>
+                  )}
+                  <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
                 </div>
-                {relOpen === item.id && (
+                {relOpen === key && item.dbId && (
                   <div className="col-span-full p-2 border border-primary/20 rounded bg-background mb-1">
-                    <p className="text-xs font-medium mb-2">Relacionamentos: {item.label}</p>
+                    <p className="text-xs font-medium mb-2">Relacionamentos: {item.nome}</p>
                     <div className="space-y-2">
                       {otherCats.map(oc => {
                         const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
                         if (catVars.length === 0) return null;
-                        const rel = (item.relacionamento as Record<string, string[]> | null) || {};
+                        const v = variacoes?.find(x => x.id === item.dbId);
+                        const rel = ((v as any)?.relacionamento as Record<string, string[]> | null) || {};
                         const selected = rel[oc.slug] || [];
                         return (
                           <div key={oc.id} className="space-y-0.5">
@@ -351,7 +417,7 @@ function AdminEditableOptions({
                                 return (
                                   <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
                                     const newSel = isSelected ? selected.filter(s => s !== cv.nome) : [...selected, cv.nome];
-                                    handleRelChange(item.id, oc.slug, newSel);
+                                    handleRelChange(item.dbId!, oc.slug, newSel);
                                   }}>
                                     {cv.nome}
                                   </Badge>
