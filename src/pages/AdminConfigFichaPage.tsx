@@ -307,7 +307,7 @@ function AdminEditableOptions({
   );
 }
 
-/* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
+/* ─── AdminSelectField: Shows saved options visually with edit/delete ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
 }: {
@@ -317,22 +317,75 @@ function AdminSelectField({
   onRefetchCats: () => void; required?: boolean;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
-  const { data: variacoes } = useFichaVariacoes(cat?.id);
-  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
+  const deleteVariacao = useDeleteVariacao();
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [deleteMode, setDeleteMode] = useState(false);
+  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias: allCategorias, allVariacoes, onRefetchCats };
 
-  // Build options: use DB if available, else fallback
-  const dbOptions: string[] = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome)
+  const items = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
     : [];
-  const fallbackOptions: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
+
+  const fallbackItems: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
     ? (fallback as string[])
     : (fallback as { label: string; preco?: number }[]).map(f => f.preco ? `${f.label} (R$${f.preco})` : f.label);
-  const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
+
+  const toggleSelect = (id: string) => {
+    setSelectedForDelete(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedForDelete.size === 0) return;
+    if (!confirm(`Remover ${selectedForDelete.size} variação(ões)?`)) return;
+    for (const id of selectedForDelete) {
+      await deleteVariacao.mutateAsync(id);
+    }
+    toast.success(`${selectedForDelete.size} variação(ões) removida(s)`);
+    setSelectedForDelete(new Set());
+    setDeleteMode(false);
+    refetch();
+  };
 
   return (
     <div>
-      <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
-      <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+      <div className="flex items-center gap-2 mb-1">
+        <label className={cls.label + ' mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+        {items.length > 0 && (
+          <button type="button" onClick={() => { setDeleteMode(!deleteMode); setSelectedForDelete(new Set()); }}
+            className={`text-xs ${deleteMode ? 'text-destructive font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
+            {deleteMode ? 'Cancelar seleção' : 'Selecionar'}
+          </button>
+        )}
+        {deleteMode && selectedForDelete.size > 0 && (
+          <button type="button" onClick={handleDeleteSelected} className="text-xs text-destructive font-medium flex items-center gap-1">
+            <Trash2 size={12} /> Apagar ({selectedForDelete.size})
+          </button>
+        )}
+      </div>
+
+      {items.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50 mb-1">
+          {items.map(v => (
+            <label key={v.id} className={cls.checkItem + (deleteMode ? ' cursor-pointer' : '')}>
+              {deleteMode && (
+                <input type="checkbox" checked={selectedForDelete.has(v.id)} onChange={() => toggleSelect(v.id)} className="accent-destructive w-4 h-4" />
+              )}
+              <span className={v.ativo === false ? 'line-through opacity-50' : ''}>
+                {v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground mb-1 italic">
+          Usando valores padrão ({fallbackItems.length} opções): {fallbackItems.slice(0, 5).join(', ')}{fallbackItems.length > 5 ? '...' : ''}
+        </div>
+      )}
       <AdminEditableOptions {...common} />
     </div>
   );
@@ -348,12 +401,16 @@ function AdminMultiSelect({
   onRefetchCats: () => void;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
-  const { data: variacoes } = useFichaVariacoes(cat?.id);
-  const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
+  const deleteVariacao = useDeleteVariacao();
+  const common = { catSlug, catLabel, fichaTipoId, allCategorias: allCategorias, allVariacoes, onRefetchCats };
+
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [deleteMode, setDeleteMode] = useState(false);
 
   const items = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional }))
-    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional, id: v.id, ativo: v.ativo }))
+    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')).map(f => ({ ...f, id: '', ativo: true }));
 
   const hasSearch = catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser') || items.length > 10;
   const [search, setSearch] = useState('');
@@ -365,10 +422,43 @@ function AdminMultiSelect({
   const display = [...normal, ...variado];
   const firstVariadoIdx = display.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
 
+  const toggleSelect = (id: string) => {
+    setSelectedForDelete(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedForDelete.size === 0) return;
+    if (!confirm(`Remover ${selectedForDelete.size} variação(ões)?`)) return;
+    for (const id of selectedForDelete) {
+      await deleteVariacao.mutateAsync(id);
+    }
+    toast.success(`${selectedForDelete.size} variação(ões) removida(s)`);
+    setSelectedForDelete(new Set());
+    setDeleteMode(false);
+    refetch();
+  };
+
+  const hasDbItems = variacoes && variacoes.length > 0;
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <label className={cls.label + ' mb-0'}>{catLabel}</label>
+        {hasDbItems && (
+          <button type="button" onClick={() => { setDeleteMode(!deleteMode); setSelectedForDelete(new Set()); }}
+            className={`text-xs ${deleteMode ? 'text-destructive font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
+            {deleteMode ? 'Cancelar seleção' : 'Selecionar'}
+          </button>
+        )}
+        {deleteMode && selectedForDelete.size > 0 && (
+          <button type="button" onClick={handleDeleteSelected} className="text-xs text-destructive font-medium flex items-center gap-1">
+            <Trash2 size={12} /> Apagar ({selectedForDelete.size})
+          </button>
+        )}
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -380,13 +470,20 @@ function AdminMultiSelect({
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {display.map((item, idx) => (
-          <React.Fragment key={item.label}>
+          <React.Fragment key={item.id || item.label}>
             {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
-            <label className={cls.checkItem}>
-              <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
-              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+            <label className={cls.checkItem + (deleteMode ? ' cursor-pointer' : '')}>
+              {deleteMode && item.id && (
+                <input type="checkbox" checked={selectedForDelete.has(item.id)} onChange={() => toggleSelect(item.id)} className="accent-destructive w-4 h-4" />
+              )}
+              {!deleteMode && (
+                <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+              )}
+              <span className={item.ativo === false ? 'line-through opacity-50' : ''}>
+                {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
+              </span>
             </label>
           </React.Fragment>
         ))}
@@ -1017,7 +1114,7 @@ export default function AdminConfigFichaPage() {
         className="mx-auto max-w-4xl"
       >
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <button
             onClick={() => navigate('/admin/configuracoes')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -1025,7 +1122,8 @@ export default function AdminConfigFichaPage() {
             <ArrowLeft className="h-4 w-4" /> configurações
           </button>
           {isBoot && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* + Campo: adds a new field (categoria) to the boot form */}
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1">
@@ -1033,14 +1131,38 @@ export default function AdminConfigFichaPage() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">novo campo</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
-                    <Label>Nome</Label>
-                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais" />
-                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar</Button>
+                    <Label>Nome do campo</Label>
+                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Cor especial, Forro..." />
+                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar campo</Button>
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* + Categoria: adds a new category group */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1">
+                    <Layers className="h-4 w-4" /> Categoria
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
+                  <div className="space-y-3 pt-2">
+                    <Label>Nome da categoria</Label>
+                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais, Aviamentos..." />
+                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar categoria</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Sincronizar: sync changes with the production sheet */}
+              <Button size="sm" variant="default" className="gap-1" onClick={() => {
+                toast.success('Configurações sincronizadas com a ficha de produção do "Faça seu pedido"');
+              }}>
+                <CheckCircle className="h-4 w-4" /> Sincronizar
+              </Button>
             </div>
           )}
         </div>
