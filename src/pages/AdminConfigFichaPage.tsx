@@ -307,7 +307,7 @@ function AdminEditableOptions({
   );
 }
 
-/* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
+/* ─── AdminSelectField: Shows saved options visually with edit/delete ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
 }: {
@@ -317,22 +317,75 @@ function AdminSelectField({
   onRefetchCats: () => void; required?: boolean;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
-  const { data: variacoes } = useFichaVariacoes(cat?.id);
-  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
+  const deleteVariacao = useDeleteVariacao();
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [deleteMode, setDeleteMode] = useState(false);
+  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias: allCategorias, allVariacoes, onRefetchCats };
 
-  // Build options: use DB if available, else fallback
-  const dbOptions: string[] = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome)
+  const items = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
     : [];
-  const fallbackOptions: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
+
+  const fallbackItems: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
     ? (fallback as string[])
     : (fallback as { label: string; preco?: number }[]).map(f => f.preco ? `${f.label} (R$${f.preco})` : f.label);
-  const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
+
+  const toggleSelect = (id: string) => {
+    setSelectedForDelete(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedForDelete.size === 0) return;
+    if (!confirm(`Remover ${selectedForDelete.size} variação(ões)?`)) return;
+    for (const id of selectedForDelete) {
+      await deleteVariacao.mutateAsync(id);
+    }
+    toast.success(`${selectedForDelete.size} variação(ões) removida(s)`);
+    setSelectedForDelete(new Set());
+    setDeleteMode(false);
+    refetch();
+  };
 
   return (
     <div>
-      <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
-      <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+      <div className="flex items-center gap-2 mb-1">
+        <label className={cls.label + ' mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+        {items.length > 0 && (
+          <button type="button" onClick={() => { setDeleteMode(!deleteMode); setSelectedForDelete(new Set()); }}
+            className={`text-xs ${deleteMode ? 'text-destructive font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
+            {deleteMode ? 'Cancelar seleção' : 'Selecionar'}
+          </button>
+        )}
+        {deleteMode && selectedForDelete.size > 0 && (
+          <button type="button" onClick={handleDeleteSelected} className="text-xs text-destructive font-medium flex items-center gap-1">
+            <Trash2 size={12} /> Apagar ({selectedForDelete.size})
+          </button>
+        )}
+      </div>
+
+      {items.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50 mb-1">
+          {items.map(v => (
+            <label key={v.id} className={cls.checkItem + (deleteMode ? ' cursor-pointer' : '')}>
+              {deleteMode && (
+                <input type="checkbox" checked={selectedForDelete.has(v.id)} onChange={() => toggleSelect(v.id)} className="accent-destructive w-4 h-4" />
+              )}
+              <span className={v.ativo === false ? 'line-through opacity-50' : ''}>
+                {v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground mb-1 italic">
+          Usando valores padrão ({fallbackItems.length} opções): {fallbackItems.slice(0, 5).join(', ')}{fallbackItems.length > 5 ? '...' : ''}
+        </div>
+      )}
       <AdminEditableOptions {...common} />
     </div>
   );
