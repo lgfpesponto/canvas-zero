@@ -1000,6 +1000,28 @@ export default function AdminConfigFichaPage() {
     );
   };
 
+  const handleAddItem = () => {
+    const nome = novoItem.nome.trim();
+    if (!novoItem.categoriaId) { toast.error('Selecione uma categoria'); return; }
+    if (!nome) { toast.error('Informe o nome'); return; }
+    const catVars = (allVariacoes || []).filter(v => v.categoria_id === novoItem.categoriaId);
+    const ordem = catVars.length + 1;
+    const preco = parseFloat(novoItem.preco.replace(',', '.')) || 0;
+    const relacionamento = novoItem.relacionamento ? { depende_de: novoItem.relacionamento } : undefined;
+    insertVariacaoMut.mutate(
+      { categoria_id: novoItem.categoriaId, nome, preco_adicional: preco, ordem } as any,
+      {
+        onSuccess: () => {
+          toast.success(`"${nome}" adicionado`);
+          setNovoItem({ categoriaId: '', nome: '', preco: '0', vinculo: '', relacionamento: '' });
+          setNovoItemOpen(false);
+          refetchCats();
+        },
+        onError: () => toast.error('Erro ao adicionar'),
+      },
+    );
+  };
+
   const handleMoveSectionBoot = (currentIdx: number, dir: 'up' | 'down') => {
     setSectionOrder(prev => {
       const next = [...prev];
