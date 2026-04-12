@@ -1081,9 +1081,7 @@ export default function AdminConfigFichaPage() {
                     {['selecao', 'multipla'].includes(novoCampo.tipo) && (
                       <div className="space-y-1">
                         <Label className="text-xs">Opções (Nome | Preço, uma por linha)</Label>
-                        <Textarea rows={4} value={novoCampo.opcoesRaw} onChange={e => setNovoCampo(p => ({ ...p, opcoesRaw: e.target.value }))} placeholder={'Opção A | 10.00
-Opção B | 0
-Opção C'} />
+                        <Textarea rows={4} value={novoCampo.opcoesRaw} onChange={e => setNovoCampo(p => ({ ...p, opcoesRaw: e.target.value }))} placeholder={'Opção A | 10.00\nOpção B | 0\nOpção C'} />
                       </div>
                     )}
                     <Button onClick={handleAddCampo} disabled={insertCampo.isPending} className="w-full">Adicionar campo</Button>
