@@ -95,17 +95,12 @@ const Section = ({ title, children, onMoveUp, onMoveDown, isFirst, isLast }: {
   </div>
 );
 
-/* ─── AdminMultiSelect: Mirrors OrderPage MultiSelect but in admin edit mode ─── */
-function AdminMultiSelect({
-  catSlug, catLabel, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
+/* ─── AdminEditableOptions: shows options list with pencil/add/bulk edit ─── */
+function AdminEditableOptions({
+  catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
 }: {
-  catSlug: string;
-  catLabel: string;
-  fallback: { label: string; preco: number }[];
-  fichaTipoId: string;
-  allCategorias: FichaCategoria[];
-  allVariacoes: FichaVariacao[];
-  onRefetchCats: () => void;
+  catSlug: string; catLabel: string; fichaTipoId: string;
+  allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[]; onRefetchCats: () => void;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
   const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
@@ -114,7 +109,6 @@ function AdminMultiSelect({
   const updateVariacao = useUpdateVariacao();
   const deleteVariacao = useDeleteVariacao();
 
-  const [search, setSearch] = useState('');
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
@@ -150,58 +144,24 @@ function AdminMultiSelect({
     );
   };
 
-  const sortAlpha = (arr: { label: string; preco: number; id?: string; ativo?: boolean; relacionamento?: any }[]) => {
-    const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
-    const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
-    normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-    variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-    return [...normal, ...variado];
-  };
-
   if (!cat) {
     return (
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <label className={cls.label + ' mb-0'}>{catLabel}</label>
-          <button type="button" onClick={handleCreateCategory} disabled={insertCategoria.isPending} className="text-primary hover:text-primary/80 transition-colors" title="Criar categoria no banco">
-            <Plus size={16} />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-          {sortAlpha(fallback).map((item, i) => (
-            <label key={i} className={cls.checkItem + ' opacity-60'}>
-              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
-            </label>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground italic mt-1">
-          Valores hardcoded (somente leitura). Clique em + para criar a categoria no banco.
-        </p>
+      <div className="mt-1">
+        <button type="button" onClick={handleCreateCategory} disabled={insertCategoria.isPending}
+          className="text-xs text-primary hover:underline flex items-center gap-1">
+          <Plus size={12} /> Criar categoria "{catLabel}" no banco
+        </button>
       </div>
     );
   }
 
-  const items = (variacoes || []).map(v => ({
-    label: v.nome,
-    preco: v.preco_adicional,
-    id: v.id,
-    ativo: v.ativo,
-    relacionamento: (v as any).relacionamento,
-  }));
-
-  const sortedItems = sortAlpha(items);
-  const hasSearch = sortedItems.length > 10 || catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser');
-  const filtered = search
-    ? sortedItems.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
-    : sortedItems;
-
-  const firstVariadoIdx = filtered.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
+  const items = (variacoes || [])
+    .map(v => ({ label: v.nome, preco: v.preco_adicional, id: v.id, ativo: v.ativo, relacionamento: (v as any).relacionamento }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 
   const openEditPanel = () => {
     const state: Record<string, { nome: string; preco: string }> = {};
-    (variacoes || []).forEach(v => {
-      state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) };
-    });
+    (variacoes || []).forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) }; });
     setEditState(state);
     setShowEditPanel(true);
     setShowBulkEdit(false);
@@ -258,17 +218,13 @@ function AdminMultiSelect({
   const otherCats = allCategorias.filter(c => c.id !== cat.id);
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-1">
-        <label className={cls.label + ' mb-0'}>{catLabel}</label>
-        <button type="button" onClick={() => setShowAddDialog(true)} className="text-primary hover:text-primary/80 transition-colors" title="Adicionar variação">
-          <Plus size={16} />
-        </button>
+    <div className="mt-1">
+      <div className="flex items-center gap-1.5 mb-1">
+        <button type="button" onClick={() => setShowAddDialog(true)} className="text-primary hover:text-primary/80" title="Adicionar variação"><Plus size={14} /></button>
         {items.length > 0 && (
-          <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80 transition-colors" title="Editar variações">
-            <Pencil size={14} />
-          </button>
+          <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80" title="Editar variações"><Pencil size={12} /></button>
         )}
+        <span className="text-xs text-muted-foreground">({items.length} opções)</span>
       </div>
 
       {showAddDialog && (
@@ -286,16 +242,9 @@ function AdminMultiSelect({
         </div>
       )}
 
-      {hasSearch && (
-        <div className="relative mb-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." className={cls.input + ' pl-8 !py-1.5 text-xs'} />
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-        {showEditPanel && (
-          <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
+      {showEditPanel && (
+        <div className="border border-primary/30 rounded-lg p-3 bg-muted/50 mb-2 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
             <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
             <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
             <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
@@ -307,119 +256,159 @@ function AdminMultiSelect({
               </div>
             )}
           </div>
-        )}
-
-        {filtered.map((item, idx) => (
-          <React.Fragment key={item.id || item.label}>
-            {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
-              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
-            )}
-            {showEditPanel && item.id ? (
-              <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-                <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: e.target.value, preco: prev[item.id!]?.preco ?? String(item.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
-                <span className="text-xs text-muted-foreground shrink-0">R$</span>
-                <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id!]: { ...prev[item.id!], nome: prev[item.id!]?.nome ?? item.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
-                <button type="button" onClick={() => setRelOpen(relOpen === item.id ? null : item.id!)} className={`shrink-0 ${item.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento">
-                  <Link2 size={12} />
-                </button>
-                <button type="button" onClick={() => handleDelete(item.id!, item.label)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ) : (
-              <label className={cls.checkItem}>
-                <span className={item.ativo === false ? 'line-through opacity-50' : ''}>
-                  {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
-                </span>
-              </label>
-            )}
-
-            {showEditPanel && relOpen === item.id && item.id && (
-              <div className="col-span-full p-2 border border-primary/20 rounded bg-background mb-1">
-                <p className="text-xs font-medium mb-2">Relacionamentos: {item.label}</p>
-                <div className="space-y-2">
-                  {otherCats.map(oc => {
-                    const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
-                    if (catVars.length === 0) return null;
-                    const rel = (item.relacionamento as Record<string, string[]> | null) || {};
-                    const selected = rel[oc.slug] || [];
-                    return (
-                      <div key={oc.id} className="space-y-0.5">
-                        <Label className="text-xs font-medium">{oc.nome}</Label>
-                        <div className="flex flex-wrap gap-1">
-                          {catVars.map(cv => {
-                            const isSelected = selected.includes(cv.nome);
-                            return (
-                              <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
-                                const newSel = isSelected ? selected.filter(s => s !== cv.nome) : [...selected, cv.nome];
-                                handleRelChange(item.id!, oc.slug, newSel);
-                              }}>
-                                {cv.nome}
-                              </Badge>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60 overflow-y-auto">
+            {items.map(item => (
+              <React.Fragment key={item.id}>
+                <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                  <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: e.target.value, preco: prev[item.id]?.preco ?? String(item.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
+                  <span className="text-xs text-muted-foreground shrink-0">R$</span>
+                  <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: prev[item.id]?.nome ?? item.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
+                  <button type="button" onClick={() => setRelOpen(relOpen === item.id ? null : item.id)} className={`shrink-0 ${item.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={12} /></button>
+                  <button type="button" onClick={() => handleDelete(item.id, item.label)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
                 </div>
-              </div>
-            )}
-          </React.Fragment>
-        ))}
-        {filtered.length === 0 && (
-          <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>
-        )}
-      </div>
+                {relOpen === item.id && (
+                  <div className="col-span-full p-2 border border-primary/20 rounded bg-background mb-1">
+                    <p className="text-xs font-medium mb-2">Relacionamentos: {item.label}</p>
+                    <div className="space-y-2">
+                      {otherCats.map(oc => {
+                        const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
+                        if (catVars.length === 0) return null;
+                        const rel = (item.relacionamento as Record<string, string[]> | null) || {};
+                        const selected = rel[oc.slug] || [];
+                        return (
+                          <div key={oc.id} className="space-y-0.5">
+                            <Label className="text-xs font-medium">{oc.nome}</Label>
+                            <div className="flex flex-wrap gap-1">
+                              {catVars.map(cv => {
+                                const isSelected = selected.includes(cv.nome);
+                                return (
+                                  <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
+                                    const newSel = isSelected ? selected.filter(s => s !== cv.nome) : [...selected, cv.nome];
+                                    handleRelChange(item.id, oc.slug, newSel);
+                                  }}>
+                                    {cv.nome}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ─── AdminSelectField: Shows a select's options as editable list (mirrors SelectField) ─── */
+/* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
 }: {
-  label: string;
-  catSlug: string;
-  fallback: string[] | { label: string; preco: number }[];
-  fichaTipoId: string;
-  allCategorias: FichaCategoria[];
-  allVariacoes: FichaVariacao[];
-  onRefetchCats: () => void;
-  required?: boolean;
+  label: string; catSlug: string;
+  fallback: string[] | { label: string; preco?: number }[];
+  fichaTipoId: string; allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  onRefetchCats: () => void; required?: boolean;
 }) {
-  const items: { label: string; preco: number }[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
-    ? (fallback as string[]).map(s => ({ label: s, preco: 0 }))
-    : (fallback as { label: string; preco: number }[]);
+  const cat = allCategorias.find(c => c.slug === catSlug);
+  const { data: variacoes } = useFichaVariacoes(cat?.id);
+  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+
+  // Build options: use DB if available, else fallback
+  const options: (string | { label: string; preco?: number })[] = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? { label: v.nome, preco: v.preco_adicional } : v.nome)
+    : fallback;
 
   return (
-    <AdminMultiSelect
-      catSlug={catSlug}
-      catLabel={label}
-      fallback={items}
-      fichaTipoId={fichaTipoId}
-      allCategorias={allCategorias}
-      allVariacoes={allVariacoes}
-      onRefetchCats={onRefetchCats}
-    />
+    <div>
+      <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+      <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+      <AdminEditableOptions {...common} />
+    </div>
   );
 }
 
-/* ─── AdminToggleField: Shows a toggle field reference (prices are fixed) ─── */
-const AdminToggleRef = ({ label }: { label: string }) => (
-  <div className="flex flex-wrap items-center gap-3 py-1">
-    <span className="text-sm font-semibold">{label}</span>
-    <span className="text-xs text-muted-foreground italic">(valor fixo — gerenciado no código)</span>
+/* ─── AdminMultiSelect: Same grid as OrderPage MultiSelect but admin mode ─── */
+function AdminMultiSelect({
+  catSlug, catLabel, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
+}: {
+  catSlug: string; catLabel: string;
+  fallback: { label: string; preco: number }[];
+  fichaTipoId: string; allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  onRefetchCats: () => void;
+}) {
+  const cat = allCategorias.find(c => c.slug === catSlug);
+  const { data: variacoes } = useFichaVariacoes(cat?.id);
+  const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+
+  const items = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional }))
+    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+
+  const hasSearch = catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser') || items.length > 10;
+  const [search, setSearch] = useState('');
+  const filtered = search ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase())) : items;
+
+  // Separate bordado variado
+  const normal = filtered.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
+  const variado = filtered.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
+  const display = [...normal, ...variado];
+  const firstVariadoIdx = display.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <label className={cls.label + ' mb-0'}>{catLabel}</label>
+      </div>
+      {hasSearch && (
+        <div className="relative mb-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={catLabel.toLowerCase().includes('bordado') ? 'Pesquisar bordado...' : 'Pesquisar...'}
+            className={cls.input + ' pl-8 !py-1.5 text-xs'} />
+        </div>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {display.map((item, idx) => (
+          <React.Fragment key={item.label}>
+            {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
+            )}
+            <label className={cls.checkItem}>
+              <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+            </label>
+          </React.Fragment>
+        ))}
+        {display.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
+      </div>
+      <AdminEditableOptions {...common} />
+    </div>
+  );
+}
+
+/* ─── AdminToggleField: Same as OrderPage ToggleField ─── */
+const AdminToggleField = ({ label, preco }: { label: string; preco: number }) => (
+  <div className="flex flex-wrap items-center gap-3">
+    <span className="text-sm font-semibold min-w-[120px]">{label} (+R${preco}):</span>
+    <select disabled className={cls.inputSmall + ' w-28 opacity-60'}>
+      <option>Não tem</option>
+      <option>Tem</option>
+    </select>
+    <span className="text-xs text-muted-foreground italic">(valor fixo)</span>
   </div>
 );
 
-/* ─── AdminTextFieldRef: Reference for text fields ─── */
+/* ─── AdminTextFieldRef: Same as OrderPage text input ─── */
 const AdminTextRef = ({ label }: { label: string }) => (
-  <div className="py-1">
+  <div>
     <label className={cls.label}>{label}</label>
-    <div className="bg-muted/30 rounded-lg px-4 py-2 text-sm text-muted-foreground border border-border/50 italic">
-      Campo de texto livre (preenchido pelo vendedor)
-    </div>
+    <input type="text" disabled placeholder="(preenchido pelo vendedor)" className={cls.input + ' opacity-50 italic'} />
   </div>
 );
 
@@ -428,30 +417,25 @@ function BootFormLayout({
   fichaTipoId, categorias, allVariacoes, onRefetchCats,
   sectionOrder, onMoveSection,
 }: {
-  fichaTipoId: string;
-  categorias: FichaCategoria[];
-  allVariacoes: FichaVariacao[];
-  onRefetchCats: () => void;
-  sectionOrder: number[];
-  onMoveSection: (idx: number, dir: 'up' | 'down') => void;
+  fichaTipoId: string; categorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  onRefetchCats: () => void; sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
 }) {
   const common = { fichaTipoId, allCategorias: categorias, allVariacoes, onRefetchCats };
 
-  // Define sections exactly like OrderPage
   const sections = [
     {
       title: 'Tamanho / Gênero / Modelo',
       render: () => (
         <div className="grid sm:grid-cols-3 gap-4">
-          <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} />
-          <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} />
+          <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required />
+          <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required />
           <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required />
         </div>
       ),
     },
     {
       title: 'Sob Medida',
-      render: () => <AdminToggleRef label={`Sob Medida (+R$${SOB_MEDIDA_PRECO})`} />,
+      render: () => <AdminToggleField label="Sob Medida" preco={SOB_MEDIDA_PRECO} />,
     },
     {
       title: 'Acessórios',
@@ -491,7 +475,7 @@ function BootFormLayout({
     },
     {
       title: 'Nome Bordado',
-      render: () => <AdminToggleRef label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} />,
+      render: () => <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} />,
     },
     {
       title: 'Laser',
@@ -509,13 +493,13 @@ function BootFormLayout({
           <AdminSelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
           <AdminTextRef label="Cor do Bordado (Taloneira)" />
 
-          <AdminToggleRef label={`Pintura (+R$${PINTURA_PRECO})`} />
+          <AdminToggleField label="Pintura" preco={PINTURA_PRECO} />
         </div>
       ),
     },
     {
       title: 'Estampa',
-      render: () => <AdminToggleRef label={`Estampa (+R$${ESTAMPA_PRECO})`} />,
+      render: () => <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} />,
     },
     {
       title: 'Pesponto',
@@ -533,14 +517,25 @@ function BootFormLayout({
         <div className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
             <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} />
-            <AdminSelectField label="Tipo do Metal" catSlug="tipo-metal" fallback={TIPO_METAL} {...common} />
+            <div>
+              <label className={cls.label}>Tipo do Metal</label>
+              <div className="flex flex-col gap-1">
+                {TIPO_METAL.map(t => (
+                  <label key={t} className={cls.checkItem}>
+                    <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+                    {t}
+                  </label>
+                ))}
+              </div>
+              <AdminEditableOptions catSlug="tipo-metal" catLabel="Tipo do Metal" {...common} />
+            </div>
             <AdminSelectField label="Cor do Metal" catSlug="cor-metal" fallback={COR_METAL} {...common} />
           </div>
-          <div className="grid sm:grid-cols-2 gap-2 text-sm">
-            <AdminToggleRef label={`Strass (R$${STRASS_PRECO}/un)`} />
-            <AdminToggleRef label={`Cruz (R$${CRUZ_METAL_PRECO}/un)`} />
-            <AdminToggleRef label={`Bridão (R$${BRIDAO_METAL_PRECO}/un)`} />
-            <AdminToggleRef label={`Cavalo (R$${CAVALO_METAL_PRECO}/un)`} />
+          <div className="grid sm:grid-cols-3 gap-4">
+            <AdminToggleField label="Strass" preco={STRASS_PRECO} />
+            <AdminToggleField label="Cruz" preco={CRUZ_METAL_PRECO} />
+            <AdminToggleField label="Bridão" preco={BRIDAO_METAL_PRECO} />
+            <AdminToggleField label="Cavalo" preco={CAVALO_METAL_PRECO} />
           </div>
         </div>
       ),
@@ -549,10 +544,10 @@ function BootFormLayout({
       title: 'Extras',
       render: () => (
         <div className="space-y-2">
-          <AdminToggleRef label={`Tricê (+R$${TRICE_PRECO})`} />
-          <AdminToggleRef label={`Tiras (+R$${TIRAS_PRECO})`} />
-          <AdminToggleRef label={`Franja (+R$${FRANJA_PRECO})`} />
-          <AdminToggleRef label={`Corrente (+R$${CORRENTE_PRECO})`} />
+          <AdminToggleField label="Tricê" preco={TRICE_PRECO} />
+          <AdminToggleField label="Tiras" preco={TIRAS_PRECO} />
+          <AdminToggleField label="Franja" preco={FRANJA_PRECO} />
+          <AdminToggleField label="Corrente" preco={CORRENTE_PRECO} />
         </div>
       ),
     },
@@ -566,13 +561,18 @@ function BootFormLayout({
             <AdminSelectField label="Cor da Sola" catSlug="cor-sola" fallback={COR_SOLA} {...common} required />
             <AdminSelectField label="Cor da Vira" catSlug="cor-vira" fallback={COR_VIRA} {...common} />
           </div>
-          <AdminToggleRef label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} />
+          <AdminToggleField label="Costura Atrás" preco={COSTURA_ATRAS_PRECO} />
         </div>
       ),
     },
     {
       title: 'Carimbo a Fogo',
-      render: () => <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} />,
+      render: () => (
+        <div className="flex flex-wrap items-center gap-3">
+          <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} />
+          <AdminTextRef label="Descrição do carimbo" />
+        </div>
+      ),
     },
     {
       title: 'Adicional',
@@ -592,7 +592,7 @@ function BootFormLayout({
   const ordered = sectionOrder.map(i => ({ ...sections[i], originalIndex: i }));
 
   return (
-    <div className="bg-card rounded-xl p-6 md:p-8 border border-border/60 space-y-6">
+    <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
       {ordered.map((sec, orderIdx) => (
         <Section
           key={sec.originalIndex}
