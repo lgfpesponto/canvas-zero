@@ -1225,6 +1225,92 @@ export default function AdminConfigFichaPage() {
     );
   };
 
+  // Build a map of all boot fallback arrays by catSlug
+  const BOOT_FALLBACK_MAP: Record<string, { label: string; preco: number }[]> = isBoot ? {
+    'tamanhos': TAMANHOS.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'generos': GENEROS.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'modelos': MODELOS.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'acessorios': ACESSORIOS.map(a => typeof a === 'string' ? { label: a, preco: 0 } : a),
+    'tipos-couro': TIPOS_COURO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cores-couro': CORES_COURO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'desenvolvimento': DESENVOLVIMENTO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'bordados-cano': BORDADOS_CANO.map(b => typeof b === 'string' ? { label: b, preco: 0 } : b),
+    'bordados-gaspea': BORDADOS_GASPEA.map(b => typeof b === 'string' ? { label: b, preco: 0 } : b),
+    'bordados-taloneira': BORDADOS_TALONEIRA.map(b => typeof b === 'string' ? { label: b, preco: 0 } : b),
+    'laser-cano': LASER_OPTIONS.map(l => ({ label: l, preco: 0 })),
+    'laser-gaspea': LASER_OPTIONS.map(l => ({ label: l, preco: 0 })),
+    'laser-taloneira': LASER_OPTIONS.map(l => ({ label: l, preco: 0 })),
+    'cor-glitter': COR_GLITTER.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cor-linha': COR_LINHA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cor-borrachinha': COR_BORRACHINHA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cor-vivo': COR_VIVO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'area-metal': AREA_METAL.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'tipo-metal': TIPO_METAL.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cor-metal': COR_METAL.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'solados': SOLADO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'formato-bico': FORMATO_BICO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cor-sola': COR_SOLA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'cor-vira': COR_VIRA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'carimbo': CARIMBO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+  } : {};
+
+  // Count total unsaved fallback items
+  const countUnsavedFallbacks = () => {
+    if (!isBoot || !categorias) return 0;
+    let count = 0;
+    for (const [slug, fb] of Object.entries(BOOT_FALLBACK_MAP)) {
+      const cat = categorias.find(c => c.slug === slug);
+      if (!cat) { count += fb.length; continue; }
+      const catVars = (allVariacoes || []).filter(v => v.categoria_id === cat.id);
+      const dbNames = new Set(catVars.map(v => v.nome.toLowerCase()));
+      count += fb.filter(f => !dbNames.has(f.label.toLowerCase())).length;
+    }
+    return count;
+  };
+
+  const unsavedCount = countUnsavedFallbacks();
+
+  const handleSaveAllFallbacksToDb = async () => {
+    if (!isBoot || !categorias || unsavedCount === 0) return;
+    setSavingAllToDb(true);
+    let saved = 0;
+    let errors = 0;
+    try {
+      for (const [slug, fb] of Object.entries(BOOT_FALLBACK_MAP)) {
+        let cat = categorias.find(c => c.slug === slug);
+        // Create category if it doesn't exist
+        if (!cat) {
+          const { data, error } = await supabase.from('ficha_categorias')
+            .insert({ ficha_tipo_id: tipo.id, slug, nome: slug, ordem: 0 })
+            .select('*').single();
+          if (error) { errors++; continue; }
+          cat = data as FichaCategoria;
+        }
+        const catVars = (allVariacoes || []).filter(v => v.categoria_id === cat!.id);
+        const dbNames = new Set(catVars.map(v => v.nome.toLowerCase()));
+        const toInsert = fb.filter(f => !dbNames.has(f.label.toLowerCase()));
+        if (toInsert.length === 0) continue;
+        const rows = toInsert.map((item, i) => ({
+          categoria_id: cat!.id,
+          nome: item.label,
+          preco_adicional: item.preco || 0,
+          ordem: catVars.length + i,
+        }));
+        const { error } = await supabase.from('ficha_variacoes').insert(rows);
+        if (error) { errors += toInsert.length; } else { saved += toInsert.length; }
+      }
+      if (errors > 0) toast.error(`${errors} itens com erro`);
+      if (saved > 0) toast.success(`${saved} variações salvas no banco!`);
+      refetchCats();
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+    } catch (err: any) {
+      toast.error('Erro: ' + err.message);
+    } finally {
+      setSavingAllToDb(false);
+    }
+  };
+
   const handleMoveSectionBoot = (currentIdx: number, dir: 'up' | 'down') => {
     setSectionOrder(prev => {
       const next = [...prev];
