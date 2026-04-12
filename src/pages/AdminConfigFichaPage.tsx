@@ -10,6 +10,7 @@ import {
   type FichaCategoria, type FichaVariacao, type FichaCampo,
 } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
+import SearchableSelect from '@/components/SearchableSelect';
 import React from 'react';
 import {
   ArrowLeft, Layers, CheckCircle, Plus, ChevronDown, ChevronRight,
