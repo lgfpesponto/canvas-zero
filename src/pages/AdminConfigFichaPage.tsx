@@ -118,6 +118,7 @@ function AdminEditableOptions({
   const [newPreco, setNewPreco] = useState('0');
   const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
   const [relOpen, setRelOpen] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handleCreateCategory = () => {
     const ordem = allCategorias.length + 1;
@@ -137,7 +138,9 @@ function AdminEditableOptions({
       {
         onSuccess: () => {
           toast.success('Variação adicionada');
-          setNewNome(''); setNewPreco('0'); setShowAddDialog(false);
+          setNewNome('');
+          setNewPreco('0');
+          setShowAddDialog(false);
           refetch();
         },
         onError: () => toast.error('Erro ao adicionar'),
@@ -148,8 +151,12 @@ function AdminEditableOptions({
   if (!cat) {
     return (
       <div className="mt-1">
-        <button type="button" onClick={handleCreateCategory} disabled={insertCategoria.isPending}
-          className="text-xs text-primary hover:underline flex items-center gap-1">
+        <button
+          type="button"
+          onClick={handleCreateCategory}
+          disabled={insertCategoria.isPending}
+          className="text-xs text-primary hover:underline flex items-center gap-1"
+        >
           <Plus size={12} /> Criar categoria "{catLabel}" no banco
         </button>
       </div>
@@ -162,8 +169,11 @@ function AdminEditableOptions({
 
   const openEditPanel = () => {
     const state: Record<string, { nome: string; preco: string }> = {};
-    (variacoes || []).forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) }; });
+    (variacoes || []).forEach(v => {
+      state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) };
+    });
     setEditState(state);
+    setSelectedIds(new Set());
     setShowEditPanel(true);
     setShowBulkEdit(false);
     setBulkValue('');
@@ -196,11 +206,34 @@ function AdminEditableOptions({
     setShowBulkEdit(false);
   };
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Remover ${selectedIds.size} variação(ões)?`)) return;
+    for (const id of selectedIds) {
+      await deleteVariacao.mutateAsync(id);
+    }
+    toast.success('Variações removidas');
+    setSelectedIds(new Set());
+    refetch();
+  };
+
   const handleDelete = async (id: string, nome: string) => {
     if (!confirm(`Remover "${nome}"?`)) return;
     await deleteVariacao.mutateAsync(id);
     toast.success('Removida');
-    setEditState(prev => { const next = { ...prev }; delete next[id]; return next; });
+    setEditState(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     refetch();
   };
 
@@ -249,6 +282,9 @@ function AdminEditableOptions({
             <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
             <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
             <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={handleDeleteSelected} className="px-2 py-1 bg-destructive text-destructive-foreground rounded text-xs font-medium hover:opacity-90">Apagar selecionadas ({selectedIds.size})</button>
+            )}
             {showBulkEdit && (
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">Adicionar:</span>
@@ -261,6 +297,7 @@ function AdminEditableOptions({
             {items.map(item => (
               <React.Fragment key={item.id}>
                 <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
+                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="accent-destructive w-3 h-3 shrink-0" />
                   <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: e.target.value, preco: prev[item.id]?.preco ?? String(item.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
                   <span className="text-xs text-muted-foreground shrink-0">R$</span>
                   <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: prev[item.id]?.nome ?? item.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
@@ -307,7 +344,7 @@ function AdminEditableOptions({
   );
 }
 
-/* ─── AdminSelectField: Shows saved options visually with edit/delete ─── */
+/* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
 }: {
@@ -317,75 +354,21 @@ function AdminSelectField({
   onRefetchCats: () => void; required?: boolean;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
-  const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
-  const deleteVariacao = useDeleteVariacao();
-  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
-  const [deleteMode, setDeleteMode] = useState(false);
-  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias: allCategorias, allVariacoes, onRefetchCats };
+  const { data: variacoes } = useFichaVariacoes(cat?.id);
+  const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
 
-  const items = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  const dbOptions: string[] = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome)
     : [];
-
-  const fallbackItems: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
+  const fallbackOptions: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
     ? (fallback as string[])
     : (fallback as { label: string; preco?: number }[]).map(f => f.preco ? `${f.label} (R$${f.preco})` : f.label);
-
-  const toggleSelect = (id: string) => {
-    setSelectedForDelete(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedForDelete.size === 0) return;
-    if (!confirm(`Remover ${selectedForDelete.size} variação(ões)?`)) return;
-    for (const id of selectedForDelete) {
-      await deleteVariacao.mutateAsync(id);
-    }
-    toast.success(`${selectedForDelete.size} variação(ões) removida(s)`);
-    setSelectedForDelete(new Set());
-    setDeleteMode(false);
-    refetch();
-  };
+  const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-1">
-        <label className={cls.label + ' mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
-        {items.length > 0 && (
-          <button type="button" onClick={() => { setDeleteMode(!deleteMode); setSelectedForDelete(new Set()); }}
-            className={`text-xs ${deleteMode ? 'text-destructive font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
-            {deleteMode ? 'Cancelar seleção' : 'Selecionar'}
-          </button>
-        )}
-        {deleteMode && selectedForDelete.size > 0 && (
-          <button type="button" onClick={handleDeleteSelected} className="text-xs text-destructive font-medium flex items-center gap-1">
-            <Trash2 size={12} /> Apagar ({selectedForDelete.size})
-          </button>
-        )}
-      </div>
-
-      {items.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50 mb-1">
-          {items.map(v => (
-            <label key={v.id} className={cls.checkItem + (deleteMode ? ' cursor-pointer' : '')}>
-              {deleteMode && (
-                <input type="checkbox" checked={selectedForDelete.has(v.id)} onChange={() => toggleSelect(v.id)} className="accent-destructive w-4 h-4" />
-              )}
-              <span className={v.ativo === false ? 'line-through opacity-50' : ''}>
-                {v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}
-              </span>
-            </label>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-muted-foreground mb-1 italic">
-          Usando valores padrão ({fallbackItems.length} opções): {fallbackItems.slice(0, 5).join(', ')}{fallbackItems.length > 5 ? '...' : ''}
-        </div>
-      )}
+      <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+      <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
       <AdminEditableOptions {...common} />
     </div>
   );
@@ -401,64 +384,26 @@ function AdminMultiSelect({
   onRefetchCats: () => void;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
-  const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
-  const deleteVariacao = useDeleteVariacao();
-  const common = { catSlug, catLabel, fichaTipoId, allCategorias: allCategorias, allVariacoes, onRefetchCats };
-
-  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
-  const [deleteMode, setDeleteMode] = useState(false);
+  const { data: variacoes } = useFichaVariacoes(cat?.id);
+  const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
 
   const items = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional, id: v.id, ativo: v.ativo }))
-    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')).map(f => ({ ...f, id: '', ativo: true }));
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional }))
+    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 
   const hasSearch = catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser') || items.length > 10;
   const [search, setSearch] = useState('');
   const filtered = search ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase())) : items;
 
-  // Separate bordado variado
   const normal = filtered.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
   const variado = filtered.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
   const display = [...normal, ...variado];
   const firstVariadoIdx = display.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
 
-  const toggleSelect = (id: string) => {
-    setSelectedForDelete(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedForDelete.size === 0) return;
-    if (!confirm(`Remover ${selectedForDelete.size} variação(ões)?`)) return;
-    for (const id of selectedForDelete) {
-      await deleteVariacao.mutateAsync(id);
-    }
-    toast.success(`${selectedForDelete.size} variação(ões) removida(s)`);
-    setSelectedForDelete(new Set());
-    setDeleteMode(false);
-    refetch();
-  };
-
-  const hasDbItems = variacoes && variacoes.length > 0;
-
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <label className={cls.label + ' mb-0'}>{catLabel}</label>
-        {hasDbItems && (
-          <button type="button" onClick={() => { setDeleteMode(!deleteMode); setSelectedForDelete(new Set()); }}
-            className={`text-xs ${deleteMode ? 'text-destructive font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
-            {deleteMode ? 'Cancelar seleção' : 'Selecionar'}
-          </button>
-        )}
-        {deleteMode && selectedForDelete.size > 0 && (
-          <button type="button" onClick={handleDeleteSelected} className="text-xs text-destructive font-medium flex items-center gap-1">
-            <Trash2 size={12} /> Apagar ({selectedForDelete.size})
-          </button>
-        )}
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -470,20 +415,13 @@ function AdminMultiSelect({
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {display.map((item, idx) => (
-          <React.Fragment key={item.id || item.label}>
+          <React.Fragment key={item.label}>
             {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
-            <label className={cls.checkItem + (deleteMode ? ' cursor-pointer' : '')}>
-              {deleteMode && item.id && (
-                <input type="checkbox" checked={selectedForDelete.has(item.id)} onChange={() => toggleSelect(item.id)} className="accent-destructive w-4 h-4" />
-              )}
-              {!deleteMode && (
-                <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
-              )}
-              <span className={item.ativo === false ? 'line-through opacity-50' : ''}>
-                {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
-              </span>
+            <label className={cls.checkItem}>
+              <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
             </label>
           </React.Fragment>
         ))}
@@ -523,29 +461,22 @@ function BootFormLayout({
   onRefetchCats: () => void; sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
 }) {
   const common = { fichaTipoId, allCategorias: categorias, allVariacoes, onRefetchCats };
+  void sectionOrder;
+  void onMoveSection;
 
-  const sections = [
-    {
-      title: 'Tamanho / Gênero / Modelo',
-      render: () => (
-        <div className="grid sm:grid-cols-3 gap-4">
-          <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required />
-          <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required />
-          <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required />
-        </div>
-      ),
-    },
-    {
-      title: 'Sob Medida',
-      render: () => <AdminToggleField label="Sob Medida" preco={SOB_MEDIDA_PRECO} />,
-    },
-    {
-      title: 'Acessórios',
-      render: () => <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} />,
-    },
-    {
-      title: 'Couros',
-      render: () => (
+  return (
+    <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required />
+        <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required />
+        <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required />
+      </div>
+
+      <AdminToggleField label="Sob Medida" preco={SOB_MEDIDA_PRECO} />
+
+      <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} />
+
+      <Section title="Couros">
         <div className="grid sm:grid-cols-2 gap-4">
           <AdminSelectField label="Tipo Couro do Cano" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
           <AdminSelectField label="Cor Couro do Cano" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
@@ -554,15 +485,11 @@ function BootFormLayout({
           <AdminSelectField label="Tipo Couro da Taloneira" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
           <AdminSelectField label="Cor Couro da Taloneira" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
         </div>
-      ),
-    },
-    {
-      title: 'Desenvolvimento',
-      render: () => <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} />,
-    },
-    {
-      title: 'Bordados',
-      render: () => (
+      </Section>
+
+      <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} />
+
+      <Section title="Bordados">
         <div className="space-y-4">
           <AdminMultiSelect catSlug="bordados-cano" catLabel="Bordado do Cano" fallback={BORDADOS_CANO} {...common} />
           <AdminTextRef label="Cor do Bordado do Cano" />
@@ -573,15 +500,11 @@ function BootFormLayout({
           <AdminMultiSelect catSlug="bordados-taloneira" catLabel="Bordado da Taloneira" fallback={BORDADOS_TALONEIRA} {...common} />
           <AdminTextRef label="Cor do Bordado da Taloneira" />
         </div>
-      ),
-    },
-    {
-      title: 'Nome Bordado',
-      render: () => <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} />,
-    },
-    {
-      title: 'Laser',
-      render: () => (
+      </Section>
+
+      <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} />
+
+      <Section title="Laser">
         <div className="space-y-4">
           <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
           <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
@@ -597,25 +520,21 @@ function BootFormLayout({
 
           <AdminToggleField label="Pintura" preco={PINTURA_PRECO} />
         </div>
-      ),
-    },
-    {
-      title: 'Estampa',
-      render: () => <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} />,
-    },
-    {
-      title: 'Pesponto',
-      render: () => (
+      </Section>
+
+      <hr className="border-border" />
+
+      <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} />
+
+      <Section title="Pesponto">
         <div className="grid sm:grid-cols-3 gap-4">
           <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required />
           <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required />
           <AdminSelectField label="Cor do Vivo" catSlug="cor-vivo" fallback={COR_VIVO} {...common} required />
         </div>
-      ),
-    },
-    {
-      title: 'Metais',
-      render: () => (
+      </Section>
+
+      <Section title="Metais">
         <div className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
             <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} />
@@ -640,22 +559,27 @@ function BootFormLayout({
             <AdminToggleField label="Cavalo" preco={CAVALO_METAL_PRECO} />
           </div>
         </div>
-      ),
-    },
-    {
-      title: 'Extras',
-      render: () => (
+      </Section>
+
+      <Section title="Extras">
+        <AdminToggleField label="Tricê" preco={TRICE_PRECO} />
+        <AdminToggleField label="Tiras" preco={TIRAS_PRECO} />
         <div className="space-y-2">
-          <AdminToggleField label="Tricê" preco={TRICE_PRECO} />
-          <AdminToggleField label="Tiras" preco={TIRAS_PRECO} />
           <AdminToggleField label="Franja" preco={FRANJA_PRECO} />
-          <AdminToggleField label="Corrente" preco={CORRENTE_PRECO} />
+          <div className="grid sm:grid-cols-2 gap-3 pl-4">
+            <AdminTextRef label="Tipo de couro da franja" />
+            <AdminTextRef label="Cor da franja" />
+          </div>
         </div>
-      ),
-    },
-    {
-      title: 'Solados',
-      render: () => (
+        <div className="space-y-2">
+          <AdminToggleField label="Corrente" preco={CORRENTE_PRECO} />
+          <div className="pl-4">
+            <AdminTextRef label="Cor da corrente" />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Solados">
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required />
@@ -665,48 +589,26 @@ function BootFormLayout({
           </div>
           <AdminToggleField label="Costura Atrás" preco={COSTURA_ATRAS_PRECO} />
         </div>
-      ),
-    },
-    {
-      title: 'Carimbo a Fogo',
-      render: () => (
+      </Section>
+
+      <Section title="Carimbo a Fogo">
         <div className="flex flex-wrap items-center gap-3">
           <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} />
           <AdminTextRef label="Descrição do carimbo" />
         </div>
-      ),
-    },
-    {
-      title: 'Adicional',
-      render: () => (
+      </Section>
+
+      <Section title="Adicional">
         <div className="grid sm:grid-cols-2 gap-4">
           <AdminTextRef label="Descrição do Adicional" />
           <AdminTextRef label="Valor do Adicional (R$)" />
         </div>
-      ),
-    },
-    {
-      title: 'Observação',
-      render: () => <AdminTextRef label="Observação" />,
-    },
-  ];
+      </Section>
 
-  const ordered = sectionOrder.map(i => ({ ...sections[i], originalIndex: i }));
-
-  return (
-    <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
-      {ordered.map((sec, orderIdx) => (
-        <Section
-          key={sec.originalIndex}
-          title={sec.title}
-          onMoveUp={() => onMoveSection(sec.originalIndex, 'up')}
-          onMoveDown={() => onMoveSection(sec.originalIndex, 'down')}
-          isFirst={orderIdx === 0}
-          isLast={orderIdx === ordered.length - 1}
-        >
-          {sec.render()}
-        </Section>
-      ))}
+      <div>
+        <label className={cls.label}>Observação</label>
+        <textarea disabled rows={3} className={cls.input + ' min-h-[80px] opacity-50 italic'} placeholder="(preenchido pelo vendedor)" />
+      </div>
     </div>
   );
 }
@@ -1113,8 +1015,8 @@ export default function AdminConfigFichaPage() {
         animate={{ opacity: 1, x: 0 }}
         className="mx-auto max-w-4xl"
       >
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+                {/* Header */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={() => navigate('/admin/configuracoes')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -1123,45 +1025,90 @@ export default function AdminConfigFichaPage() {
           </button>
           {isBoot && (
             <div className="flex flex-wrap items-center gap-2">
-              {/* + Campo: adds a new field (categoria) to the boot form */}
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <Dialog open={novoCampoOpen} onOpenChange={setNovoCampoOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1">
-                    <Plus className="h-4 w-4" /> Campo
+                    <Plus className="h-4 w-4" /> + campo
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                   <DialogHeader><DialogTitle className="font-montserrat lowercase">novo campo</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
-                    <Label>Nome do campo</Label>
-                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Cor especial, Forro..." />
-                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar campo</Button>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Nome</Label>
+                        <Input value={novoCampo.nome} onChange={e => setNovoCampo(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Cor principal" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tipo</Label>
+                        <Select value={novoCampo.tipo} onValueChange={v => setNovoCampo(p => ({ ...p, tipo: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>{TIPOS_CAMPO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Vínculo</Label>
+                        <Select value={novoCampo.vinculo || 'none'} onValueChange={v => setNovoCampo(p => ({ ...p, vinculo: v === 'none' ? '' : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                          <SelectContent>{VINCULOS.map(v => <SelectItem key={v.value || 'none'} value={v.value || 'none'}>{v.label}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Depende de (relacionamento)</Label>
+                        <Select value={novoCampo.relacionamento || 'none'} onValueChange={v => setNovoCampo(p => ({ ...p, relacionamento: v === 'none' ? '' : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {(campos || []).map(c => <SelectItem key={c.id} value={c.slug}>{c.nome}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={novoCampo.obrigatorio} onCheckedChange={v => setNovoCampo(p => ({ ...p, obrigatorio: v }))} />
+                        <Label className="text-xs">obrigatório</Label>
+                      </div>
+                      {novoCampo.tipo === 'checkbox' && (
+                        <div className="flex items-center gap-2">
+                          <Switch checked={novoCampo.descCondicional} onCheckedChange={v => setNovoCampo(p => ({ ...p, descCondicional: v }))} />
+                          <Label className="text-xs">descrição condicional</Label>
+                        </div>
+                      )}
+                    </div>
+                    {['selecao', 'multipla'].includes(novoCampo.tipo) && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">Opções (Nome | Preço, uma por linha)</Label>
+                        <Textarea rows={4} value={novoCampo.opcoesRaw} onChange={e => setNovoCampo(p => ({ ...p, opcoesRaw: e.target.value }))} placeholder={'Opção A | 10.00
+Opção B | 0
+Opção C'} />
+                      </div>
+                    )}
+                    <Button onClick={handleAddCampo} disabled={insertCampo.isPending} className="w-full">Adicionar campo</Button>
                   </div>
                 </DialogContent>
               </Dialog>
 
-              {/* + Categoria: adds a new category group */}
-              <Dialog>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1">
-                    <Layers className="h-4 w-4" /> Categoria
+                    <Layers className="h-4 w-4" /> + categoria
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
-                    <Label>Nome da categoria</Label>
-                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais, Aviamentos..." />
+                    <Label>Nome</Label>
+                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais" />
                     <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar categoria</Button>
                   </div>
                 </DialogContent>
               </Dialog>
 
-              {/* Sincronizar: sync changes with the production sheet */}
-              <Button size="sm" variant="default" className="gap-1" onClick={() => {
-                toast.success('Configurações sincronizadas com a ficha de produção do "Faça seu pedido"');
-              }}>
-                <CheckCircle className="h-4 w-4" /> Sincronizar
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => toast.success('Alterações desta configuração são usadas como base da ficha de produção')}>
+                <CheckCircle className="h-4 w-4" /> sincronizar
               </Button>
             </div>
           )}
