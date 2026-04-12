@@ -79,10 +79,11 @@ const cls = {
 };
 
 /* ─── Shared Section component (mirrors OrderPage) ─── */
-function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categoriaId, onRename, onDelete }: {
+function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categoriaId, onRename, onDelete, required, onToggleRequired }: {
   title: string; children: React.ReactNode;
   onMoveUp?: () => void; onMoveDown?: () => void; isFirst?: boolean; isLast?: boolean;
   categoriaId?: string; onRename?: (id: string, nome: string) => void; onDelete?: (id: string) => void;
+  required?: boolean; onToggleRequired?: () => void;
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editName, setEditName] = useState(title);
@@ -98,18 +99,27 @@ function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categ
     <div className="space-y-3">
       <div className="flex items-center gap-2 border-b border-border pb-1">
         {editingTitle ? (
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
             <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="text-base font-bold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} />
             <button type="button" onClick={handleSaveTitle} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
             <button type="button" onClick={() => setEditingTitle(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
             {onDelete && categoriaId && (
               <button type="button" onClick={() => { if (confirm(`Apagar seção "${title}"?`)) onDelete(categoriaId); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
             )}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrigatório
+              </label>
+            )}
           </div>
         ) : (
           <>
-            <h3 className="text-base font-display font-bold flex-1">{title}</h3>
-            {categoriaId && onRename && (
+            <h3 className="text-base font-display font-bold flex-1">
+              {title}
+              {required && <span className="text-destructive ml-0.5">*</span>}
+            </h3>
+            {(categoriaId && onRename || onToggleRequired || onDelete) && (
               <button type="button" onClick={() => { setEditName(title); setEditingTitle(true); }} className="text-muted-foreground hover:text-primary" title="Editar seção"><Pencil size={14} /></button>
             )}
           </>
@@ -512,15 +522,19 @@ function AdminEditableOptions({
 /* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
+  onRename, onDelete, onToggleRequired,
 }: {
   label: string; catSlug: string;
   fallback: string[] | { label: string; preco?: number }[];
   fichaTipoId: string; allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   onRefetchCats: () => void; required?: boolean;
+  onRename?: (newLabel: string) => void; onDelete?: () => void; onToggleRequired?: () => void;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(label);
 
   const fbNorm = (Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string')
     ? (fallback as string[]).map(f => ({ label: f, preco: 0 }))
@@ -538,9 +552,36 @@ function AdminSelectField({
   merged.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   const options = merged.map(m => m.preco > 0 ? `${m.label} (R$${m.preco})` : m.label);
 
+  const handleSaveLabel = () => {
+    if (onRename && editLabel.trim() && editLabel.trim() !== label) onRename(editLabel.trim());
+    setEditing(false);
+  };
+
   return (
     <div>
-      <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+      <div className="flex items-center gap-1.5 mb-1">
+        {editing ? (
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+            <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(); if (e.key === 'Escape') setEditing(false); }} />
+            <button type="button" onClick={handleSaveLabel} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+            {onDelete && <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrig.
+              </label>
+            )}
+          </div>
+        ) : (
+          <>
+            <label className={cls.label + ' !mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+            {(onRename || onDelete || onToggleRequired) && (
+              <button type="button" onClick={() => { setEditLabel(label); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo"><Pencil size={13} /></button>
+            )}
+          </>
+        )}
+      </div>
       <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
       <AdminEditableOptions {...common} fallback={fbNorm} />
     </div>
@@ -550,15 +591,19 @@ function AdminSelectField({
 /* ─── AdminMultiSelect: Same grid as OrderPage MultiSelect but admin mode ─── */
 function AdminMultiSelect({
   catSlug, catLabel, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
+  onRename, onDelete, onToggleRequired, required,
 }: {
   catSlug: string; catLabel: string;
   fallback: { label: string; preco: number }[];
   fichaTipoId: string; allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   onRefetchCats: () => void;
+  onRename?: (newLabel: string) => void; onDelete?: () => void; onToggleRequired?: () => void; required?: boolean;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(catLabel);
 
   const dbMapM = new Map((variacoes || []).map(v => [v.nome.toLowerCase(), v]));
   const mergedM = fallback.map(f => {
@@ -582,10 +627,35 @@ function AdminMultiSelect({
   const display = [...normal, ...variado];
   const firstVariadoIdx = display.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
 
+  const handleSaveLabel = () => {
+    if (onRename && editLabel.trim() && editLabel.trim() !== catLabel) onRename(editLabel.trim());
+    setEditing(false);
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <label className={cls.label + ' mb-0'}>{catLabel}</label>
+        {editing ? (
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+            <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(); if (e.key === 'Escape') setEditing(false); }} />
+            <button type="button" onClick={handleSaveLabel} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+            {onDelete && <button type="button" onClick={() => { if (confirm(`Apagar campo "${catLabel}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrig.
+              </label>
+            )}
+          </div>
+        ) : (
+          <>
+            <label className={cls.label + ' mb-0'}>{catLabel}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+            {(onRename || onDelete || onToggleRequired) && (
+              <button type="button" onClick={() => { setEditLabel(catLabel); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo"><Pencil size={13} /></button>
+            )}
+          </>
+        )}
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -615,7 +685,9 @@ function AdminMultiSelect({
 }
 
 /* ─── AdminToggleField: Same as OrderPage ToggleField but with edit capability ─── */
-function AdminToggleField({ label, preco }: { label: string; preco: number }) {
+function AdminToggleField({ label, preco, onDelete, onToggleRequired, required }: {
+  label: string; preco: number; onDelete?: () => void; onToggleRequired?: () => void; required?: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(label);
   const [editPreco, setEditPreco] = useState(String(preco));
@@ -624,26 +696,22 @@ function AdminToggleField({ label, preco }: { label: string; preco: number }) {
     <div className="flex flex-wrap items-center gap-3">
       {editing ? (
         <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="text"
-            value={editLabel}
-            onChange={e => setEditLabel(e.target.value)}
-            className="bg-background border border-primary rounded px-2 py-1 text-sm font-semibold w-32"
-            autoFocus
-          />
+          <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="bg-background border border-primary rounded px-2 py-1 text-sm font-semibold w-32" autoFocus />
           <span className="text-sm text-muted-foreground">(+R$</span>
-          <input
-            type="text"
-            value={editPreco}
-            onChange={e => setEditPreco(e.target.value)}
-            className="bg-background border border-primary rounded px-2 py-1 text-sm w-16"
-          />
+          <input type="text" value={editPreco} onChange={e => setEditPreco(e.target.value)} className="bg-background border border-primary rounded px-2 py-1 text-sm w-16" />
           <span className="text-sm text-muted-foreground">)</span>
           <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">OK</button>
+          {onDelete && <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>}
+          {onToggleRequired && (
+            <label className="flex items-center gap-1 text-xs">
+              <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+              Obrig.
+            </label>
+          )}
         </div>
       ) : (
         <>
-          <span className="text-sm font-semibold min-w-[120px]">{label} (+R${preco}):</span>
+          <span className="text-sm font-semibold min-w-[120px]">{label}{required && <span className="text-destructive ml-0.5">*</span>} (+R${preco}):</span>
           <button type="button" onClick={() => { setEditLabel(label); setEditPreco(String(preco)); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo">
             <Pencil size={13} />
           </button>
@@ -659,7 +727,10 @@ function AdminToggleField({ label, preco }: { label: string; preco: number }) {
 }
 
 /* ─── AdminTextFieldRef: Same as OrderPage text input, with edit/delete ─── */
-function AdminTextRef({ label, onRename, onDelete }: { label: string; onRename?: (newLabel: string) => void; onDelete?: () => void }) {
+function AdminTextRef({ label, onRename, onDelete, required, onToggleRequired }: {
+  label: string; onRename?: (newLabel: string) => void; onDelete?: () => void;
+  required?: boolean; onToggleRequired?: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(label);
 
@@ -674,25 +745,24 @@ function AdminTextRef({ label, onRename, onDelete }: { label: string; onRename?:
     <div>
       <div className="flex items-center gap-1.5 mb-1">
         {editing ? (
-          <div className="flex items-center gap-1.5 flex-1">
-            <input
-              type="text"
-              value={editLabel}
-              onChange={e => setEditLabel(e.target.value)}
-              className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1"
-              autoFocus
-              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
-            />
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+            <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }} />
             <button type="button" onClick={handleSave} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
             <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
             {onDelete && (
               <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
             )}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrig.
+              </label>
+            )}
           </div>
         ) : (
           <>
-            <label className={cls.label + ' !mb-0'}>{label}</label>
-            {(onRename || onDelete) && (
+            <label className={cls.label + ' !mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+            {(onRename || onDelete || onToggleRequired) && (
               <button type="button" onClick={() => { setEditLabel(label); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo">
                 <Pencil size={13} />
               </button>
@@ -716,8 +786,8 @@ function BootFormLayout({
   const common = { fichaTipoId, allCategorias: categorias, allVariacoes, onRefetchCats };
   const updateCategoria = useUpdateCategoria();
   const deleteCategoria = useDeleteCategoria();
-  void sectionOrder;
-  void onMoveSection;
+  const [hiddenSections, setHiddenSections] = useState<Set<number>>(new Set());
+  const [requiredSections, setRequiredSections] = useState<Set<number>>(new Set());
 
   const handleRenameCategory = (id: string, nome: string) => {
     updateCategoria.mutate({ id, nome }, {
@@ -733,90 +803,144 @@ function BootFormLayout({
     });
   };
 
-  // Find category IDs for sections (by slug pattern)
   const findCatId = (slug: string) => categorias.find(c => c.slug === slug)?.id;
 
-  return (
-    <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
-      {/* Header fields — Número, Vendedor, Cliente */}
-      <div className="grid sm:grid-cols-3 gap-4">
-        <AdminTextRef label="Nº do Pedido" />
-        <AdminTextRef label="Vendedor" />
-        <AdminTextRef label="Cliente" />
-      </div>
+  const toggleHidden = (idx: number) => {
+    setHiddenSections(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
+  };
 
-      <div className="grid sm:grid-cols-3 gap-4">
-        <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required />
-        <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required />
-        <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required />
-      </div>
+  const toggleRequired = (idx: number) => {
+    setRequiredSections(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
+  };
 
-      <AdminToggleField label="Sob Medida" preco={SOB_MEDIDA_PRECO} />
-
-      <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} />
-
-      <Section title="Couros" categoriaId={findCatId('tipos-couro')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <AdminSelectField label="Tipo Couro do Cano" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
-          <AdminSelectField label="Cor Couro do Cano" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
-          <AdminSelectField label="Tipo Couro da Gáspea" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
-          <AdminSelectField label="Cor Couro da Gáspea" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
-          <AdminSelectField label="Tipo Couro da Taloneira" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
-          <AdminSelectField label="Cor Couro da Taloneira" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
-        </div>
-      </Section>
-
-      <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} />
-
-      <Section title="Bordados" categoriaId={findCatId('bordados-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
-        <div className="space-y-4">
-          <AdminMultiSelect catSlug="bordados-cano" catLabel="Bordado do Cano" fallback={BORDADOS_CANO} {...common} />
-          <AdminTextRef label="Cor do Bordado do Cano" />
-
-          <AdminMultiSelect catSlug="bordados-gaspea" catLabel="Bordado da Gáspea" fallback={BORDADOS_GASPEA} {...common} />
-          <AdminTextRef label="Cor do Bordado da Gáspea" />
-
-          <AdminMultiSelect catSlug="bordados-taloneira" catLabel="Bordado da Taloneira" fallback={BORDADOS_TALONEIRA} {...common} />
-          <AdminTextRef label="Cor do Bordado da Taloneira" />
-        </div>
-      </Section>
-
-      <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} />
-
-      <Section title="Laser" categoriaId={findCatId('laser-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
-        <div className="space-y-4">
-          <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_CANO_PRECO }))} {...common} />
-          <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
-          <AdminTextRef label="Cor do Bordado (Cano)" />
-
-          <AdminMultiSelect catSlug="laser-gaspea" catLabel="Laser da Gáspea" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_GASPEA_PRECO }))} {...common} />
-          <AdminSelectField label={`Cor Glitter/Tecido da Gáspea (+R$${GLITTER_GASPEA_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
-          <AdminTextRef label="Cor do Bordado (Gáspea)" />
-
-          <AdminMultiSelect catSlug="laser-taloneira" catLabel="Laser da Taloneira" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_TALONEIRA_PRECO }))} {...common} />
-          <AdminSelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
-          <AdminTextRef label="Cor do Bordado (Taloneira)" />
-
-          <AdminToggleField label="Pintura" preco={PINTURA_PRECO} />
-        </div>
-      </Section>
-
-      <hr className="border-border" />
-
-      <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} />
-
-      <Section title="Pesponto" categoriaId={findCatId('cor-linha')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
+  // Define all sections as an array
+  const allSections: { id: number; title: string; render: () => React.ReactNode }[] = [
+    { id: 0, title: 'Identificação', render: () => (
+      <Section title="Identificação" onMoveUp={() => onMoveSection(0, 'up')} onMoveDown={() => onMoveSection(0, 'down')}
+        isFirst={sectionOrder.indexOf(0) === 0} isLast={sectionOrder.indexOf(0) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(0)} required={requiredSections.has(0)} onToggleRequired={() => toggleRequired(0)}>
         <div className="grid sm:grid-cols-3 gap-4">
-          <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required />
-          <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required />
-          <AdminSelectField label="Cor do Vivo" catSlug="cor-vivo" fallback={COR_VIVO} {...common} required />
+          <AdminTextRef label="Nº do Pedido" onRename={() => {}} onDelete={() => {}} required onToggleRequired={() => {}} />
+          <AdminTextRef label="Vendedor" onRename={() => {}} onDelete={() => {}} required onToggleRequired={() => {}} />
+          <AdminTextRef label="Cliente" onRename={() => {}} onDelete={() => {}} required onToggleRequired={() => {}} />
         </div>
       </Section>
-
-      <Section title="Metais" categoriaId={findCatId('area-metal')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
+    )},
+    { id: 1, title: 'Tamanho/Gênero/Modelo', render: () => (
+      <Section title="Tamanho / Gênero / Modelo" onMoveUp={() => onMoveSection(1, 'up')} onMoveDown={() => onMoveSection(1, 'down')}
+        isFirst={sectionOrder.indexOf(1) === 0} isLast={sectionOrder.indexOf(1) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(1)} required={requiredSections.has(1)} onToggleRequired={() => toggleRequired(1)}>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+        </div>
+      </Section>
+    )},
+    { id: 2, title: 'Sob Medida', render: () => (
+      <Section title="Sob Medida" onMoveUp={() => onMoveSection(2, 'up')} onMoveDown={() => onMoveSection(2, 'down')}
+        isFirst={sectionOrder.indexOf(2) === 0} isLast={sectionOrder.indexOf(2) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(2)} onToggleRequired={() => toggleRequired(2)} required={requiredSections.has(2)}>
+        <AdminToggleField label="Sob Medida" preco={SOB_MEDIDA_PRECO} onDelete={() => toggleHidden(2)} onToggleRequired={() => toggleRequired(2)} required={requiredSections.has(2)} />
+      </Section>
+    )},
+    { id: 3, title: 'Acessórios', render: () => (
+      <Section title="Acessórios" onMoveUp={() => onMoveSection(3, 'up')} onMoveDown={() => onMoveSection(3, 'down')}
+        isFirst={sectionOrder.indexOf(3) === 0} isLast={sectionOrder.indexOf(3) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(3)} onToggleRequired={() => toggleRequired(3)} required={requiredSections.has(3)}>
+        <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} onRename={() => {}} onDelete={() => toggleHidden(3)} onToggleRequired={() => toggleRequired(3)} required={requiredSections.has(3)} />
+      </Section>
+    )},
+    { id: 4, title: 'Couros', render: () => (
+      <Section title="Couros" categoriaId={findCatId('tipos-couro')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(4, 'up')} onMoveDown={() => onMoveSection(4, 'down')}
+        isFirst={sectionOrder.indexOf(4) === 0} isLast={sectionOrder.indexOf(4) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(4)} required={requiredSections.has(4)}>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <AdminSelectField label="Tipo Couro do Cano" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Cor Couro do Cano" catSlug="cores-couro" fallback={CORES_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Tipo Couro da Gáspea" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Cor Couro da Gáspea" catSlug="cores-couro" fallback={CORES_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Tipo Couro da Taloneira" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Cor Couro da Taloneira" catSlug="cores-couro" fallback={CORES_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+        </div>
+      </Section>
+    )},
+    { id: 5, title: 'Desenvolvimento', render: () => (
+      <Section title="Desenvolvimento" onMoveUp={() => onMoveSection(5, 'up')} onMoveDown={() => onMoveSection(5, 'down')}
+        isFirst={sectionOrder.indexOf(5) === 0} isLast={sectionOrder.indexOf(5) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(5)} onToggleRequired={() => toggleRequired(5)} required={requiredSections.has(5)}>
+        <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} onRename={() => {}} onDelete={() => toggleHidden(5)} onToggleRequired={() => toggleRequired(5)} required={requiredSections.has(5)} />
+      </Section>
+    )},
+    { id: 6, title: 'Bordados', render: () => (
+      <Section title="Bordados" categoriaId={findCatId('bordados-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(6, 'up')} onMoveDown={() => onMoveSection(6, 'down')}
+        isFirst={sectionOrder.indexOf(6) === 0} isLast={sectionOrder.indexOf(6) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(6)} required={requiredSections.has(6)}>
+        <div className="space-y-4">
+          <AdminMultiSelect catSlug="bordados-cano" catLabel="Bordado do Cano" fallback={BORDADOS_CANO} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Cor do Bordado do Cano" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminMultiSelect catSlug="bordados-gaspea" catLabel="Bordado da Gáspea" fallback={BORDADOS_GASPEA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Cor do Bordado da Gáspea" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminMultiSelect catSlug="bordados-taloneira" catLabel="Bordado da Taloneira" fallback={BORDADOS_TALONEIRA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Cor do Bordado da Taloneira" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+        </div>
+      </Section>
+    )},
+    { id: 7, title: 'Nome Bordado', render: () => (
+      <Section title="Nome Bordado" onMoveUp={() => onMoveSection(7, 'up')} onMoveDown={() => onMoveSection(7, 'down')}
+        isFirst={sectionOrder.indexOf(7) === 0} isLast={sectionOrder.indexOf(7) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(7)} onToggleRequired={() => toggleRequired(7)} required={requiredSections.has(7)}>
+        <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} onDelete={() => toggleHidden(7)} onToggleRequired={() => toggleRequired(7)} required={requiredSections.has(7)} />
+      </Section>
+    )},
+    { id: 8, title: 'Laser', render: () => (
+      <Section title="Laser" categoriaId={findCatId('laser-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(8, 'up')} onMoveDown={() => onMoveSection(8, 'down')}
+        isFirst={sectionOrder.indexOf(8) === 0} isLast={sectionOrder.indexOf(8) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(8)} required={requiredSections.has(8)}>
+        <div className="space-y-4">
+          <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_CANO_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Cor do Bordado (Cano)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminMultiSelect catSlug="laser-gaspea" catLabel="Laser da Gáspea" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_GASPEA_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label={`Cor Glitter/Tecido da Gáspea (+R$${GLITTER_GASPEA_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Cor do Bordado (Gáspea)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminMultiSelect catSlug="laser-taloneira" catLabel="Laser da Taloneira" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_TALONEIRA_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Cor do Bordado (Taloneira)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminToggleField label="Pintura" preco={PINTURA_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
+        </div>
+      </Section>
+    )},
+    { id: 9, title: 'Estampa', render: () => (
+      <Section title="Estampa" onMoveUp={() => onMoveSection(9, 'up')} onMoveDown={() => onMoveSection(9, 'down')}
+        isFirst={sectionOrder.indexOf(9) === 0} isLast={sectionOrder.indexOf(9) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(9)} onToggleRequired={() => toggleRequired(9)} required={requiredSections.has(9)}>
+        <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} onDelete={() => toggleHidden(9)} onToggleRequired={() => toggleRequired(9)} required={requiredSections.has(9)} />
+      </Section>
+    )},
+    { id: 10, title: 'Pesponto', render: () => (
+      <Section title="Pesponto" categoriaId={findCatId('cor-linha')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(10, 'up')} onMoveDown={() => onMoveSection(10, 'down')}
+        isFirst={sectionOrder.indexOf(10) === 0} isLast={sectionOrder.indexOf(10) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(10)} required={requiredSections.has(10)}>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminSelectField label="Cor do Vivo" catSlug="cor-vivo" fallback={COR_VIVO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+        </div>
+      </Section>
+    )},
+    { id: 11, title: 'Metais', render: () => (
+      <Section title="Metais" categoriaId={findCatId('area-metal')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(11, 'up')} onMoveDown={() => onMoveSection(11, 'down')}
+        isFirst={sectionOrder.indexOf(11) === 0} isLast={sectionOrder.indexOf(11) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(11)} required={requiredSections.has(11)}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
-            <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} />
+            <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
             <div>
               <label className={cls.label}>Tipo do Metal</label>
               <div className="flex flex-col gap-1">
@@ -829,65 +953,92 @@ function BootFormLayout({
               </div>
               <AdminEditableOptions catSlug="tipo-metal" catLabel="Tipo do Metal" {...common} fallback={TIPO_METAL.map(t => ({ label: t, preco: 0 }))} />
             </div>
-            <AdminSelectField label="Cor do Metal" catSlug="cor-metal" fallback={COR_METAL} {...common} />
+            <AdminSelectField label="Cor do Metal" catSlug="cor-metal" fallback={COR_METAL} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
-            <AdminToggleField label="Strass" preco={STRASS_PRECO} />
-            <AdminToggleField label="Cruz" preco={CRUZ_METAL_PRECO} />
-            <AdminToggleField label="Bridão" preco={BRIDAO_METAL_PRECO} />
-            <AdminToggleField label="Cavalo" preco={CAVALO_METAL_PRECO} />
+            <AdminToggleField label="Strass" preco={STRASS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminToggleField label="Cruz" preco={CRUZ_METAL_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminToggleField label="Bridão" preco={BRIDAO_METAL_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminToggleField label="Cavalo" preco={CAVALO_METAL_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
           </div>
         </div>
       </Section>
-
-      <Section title="Extras">
-        <AdminToggleField label="Tricê" preco={TRICE_PRECO} />
-        <AdminToggleField label="Tiras" preco={TIRAS_PRECO} />
+    )},
+    { id: 12, title: 'Extras', render: () => (
+      <Section title="Extras" onMoveUp={() => onMoveSection(12, 'up')} onMoveDown={() => onMoveSection(12, 'down')}
+        isFirst={sectionOrder.indexOf(12) === 0} isLast={sectionOrder.indexOf(12) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(12)} onToggleRequired={() => toggleRequired(12)} required={requiredSections.has(12)}>
+        <AdminToggleField label="Tricê" preco={TRICE_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
+        <AdminToggleField label="Tiras" preco={TIRAS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
         <div className="space-y-2">
-          <AdminToggleField label="Franja" preco={FRANJA_PRECO} />
+          <AdminToggleField label="Franja" preco={FRANJA_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
           <div className="grid sm:grid-cols-2 gap-3 pl-4">
-            <AdminTextRef label="Tipo de couro da franja" />
-            <AdminTextRef label="Cor da franja" />
+            <AdminTextRef label="Tipo de couro da franja" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminTextRef label="Cor da franja" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           </div>
         </div>
         <div className="space-y-2">
-          <AdminToggleField label="Corrente" preco={CORRENTE_PRECO} />
+          <AdminToggleField label="Corrente" preco={CORRENTE_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
           <div className="pl-4">
-            <AdminTextRef label="Cor da corrente" />
+            <AdminTextRef label="Cor da corrente" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           </div>
         </div>
       </Section>
-
-      <Section title="Solados" categoriaId={findCatId('solados')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
+    )},
+    { id: 13, title: 'Solados', render: () => (
+      <Section title="Solados" categoriaId={findCatId('solados')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(13, 'up')} onMoveDown={() => onMoveSection(13, 'down')}
+        isFirst={sectionOrder.indexOf(13) === 0} isLast={sectionOrder.indexOf(13) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(13)} required={requiredSections.has(13)}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required />
-            <AdminSelectField label="Formato do Bico" catSlug="formato-bico" fallback={FORMATO_BICO} {...common} required />
-            <AdminSelectField label="Cor da Sola" catSlug="cor-sola" fallback={COR_SOLA} {...common} required />
-            <AdminSelectField label="Cor da Vira" catSlug="cor-vira" fallback={COR_VIRA} {...common} />
+            <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminSelectField label="Formato do Bico" catSlug="formato-bico" fallback={FORMATO_BICO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminSelectField label="Cor da Sola" catSlug="cor-sola" fallback={COR_SOLA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+            <AdminSelectField label="Cor da Vira" catSlug="cor-vira" fallback={COR_VIRA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           </div>
-          <AdminToggleField label="Costura Atrás" preco={COSTURA_ATRAS_PRECO} />
+          <AdminToggleField label="Costura Atrás" preco={COSTURA_ATRAS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
         </div>
       </Section>
-
-      <Section title="Carimbo a Fogo" categoriaId={findCatId('carimbo')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
+    )},
+    { id: 14, title: 'Carimbo a Fogo', render: () => (
+      <Section title="Carimbo a Fogo" categoriaId={findCatId('carimbo')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+        onMoveUp={() => onMoveSection(14, 'up')} onMoveDown={() => onMoveSection(14, 'down')}
+        isFirst={sectionOrder.indexOf(14) === 0} isLast={sectionOrder.indexOf(14) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(14)} required={requiredSections.has(14)}>
         <div className="flex flex-wrap items-center gap-3">
-          <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} />
-          <AdminTextRef label="Descrição do carimbo" />
+          <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Descrição do carimbo" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
         </div>
       </Section>
-
-      <Section title="Adicional">
+    )},
+    { id: 15, title: 'Adicional', render: () => (
+      <Section title="Adicional" onMoveUp={() => onMoveSection(15, 'up')} onMoveDown={() => onMoveSection(15, 'down')}
+        isFirst={sectionOrder.indexOf(15) === 0} isLast={sectionOrder.indexOf(15) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(15)} onToggleRequired={() => toggleRequired(15)} required={requiredSections.has(15)}>
         <div className="grid sm:grid-cols-2 gap-4">
-          <AdminTextRef label="Descrição do Adicional" />
-          <AdminTextRef label="Valor do Adicional (R$)" />
+          <AdminTextRef label="Descrição do Adicional" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminTextRef label="Valor do Adicional (R$)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
         </div>
       </Section>
-
-      <div>
-        <label className={cls.label}>Observação</label>
+    )},
+    { id: 16, title: 'Observação', render: () => (
+      <Section title="Observação" onMoveUp={() => onMoveSection(16, 'up')} onMoveDown={() => onMoveSection(16, 'down')}
+        isFirst={sectionOrder.indexOf(16) === 0} isLast={sectionOrder.indexOf(16) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(16)} onToggleRequired={() => toggleRequired(16)} required={requiredSections.has(16)}>
         <textarea disabled rows={3} className={cls.input + ' min-h-[80px] opacity-50 italic'} placeholder="(preenchido pelo vendedor)" />
-      </div>
+      </Section>
+    )},
+  ];
+
+  const sectionMap = new Map(allSections.map(s => [s.id, s]));
+
+  return (
+    <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+      {sectionOrder.filter(id => !hiddenSections.has(id)).map(id => {
+        const sec = sectionMap.get(id);
+        return sec ? <div key={id}>{sec.render()}</div> : null;
+      })}
     </div>
   );
 }
@@ -1205,7 +1356,7 @@ export default function AdminConfigFichaPage() {
   const [savingAllToDb, setSavingAllToDb] = useState(false);
 
   // 16 sections for boot
-  const BOOT_SECTION_COUNT = 16;
+  const BOOT_SECTION_COUNT = 17;
   const [sectionOrder, setSectionOrder] = useState<number[]>([]);
 
   useEffect(() => {
