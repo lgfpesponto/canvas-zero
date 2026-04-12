@@ -573,8 +573,27 @@ function BootFormLayout({
   onRefetchCats: () => void; sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
 }) {
   const common = { fichaTipoId, allCategorias: categorias, allVariacoes, onRefetchCats };
+  const updateCategoria = useUpdateCategoria();
+  const deleteCategoria = useDeleteCategoria();
   void sectionOrder;
   void onMoveSection;
+
+  const handleRenameCategory = (id: string, nome: string) => {
+    updateCategoria.mutate({ id, nome }, {
+      onSuccess: () => { toast.success('Categoria renomeada'); onRefetchCats(); },
+      onError: () => toast.error('Erro ao renomear'),
+    });
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    deleteCategoria.mutate(id, {
+      onSuccess: () => { toast.success('Categoria apagada'); onRefetchCats(); },
+      onError: () => toast.error('Erro ao apagar'),
+    });
+  };
+
+  // Find category IDs for sections (by slug pattern)
+  const findCatId = (slug: string) => categorias.find(c => c.slug === slug)?.id;
 
   return (
     <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
@@ -588,7 +607,7 @@ function BootFormLayout({
 
       <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} />
 
-      <Section title="Couros">
+      <Section title="Couros" categoriaId={findCatId('tipos-couro')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="grid sm:grid-cols-2 gap-4">
           <AdminSelectField label="Tipo Couro do Cano" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required />
           <AdminSelectField label="Cor Couro do Cano" catSlug="cores-couro" fallback={CORES_COURO} {...common} required />
@@ -601,7 +620,7 @@ function BootFormLayout({
 
       <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} />
 
-      <Section title="Bordados">
+      <Section title="Bordados" categoriaId={findCatId('bordados-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="space-y-4">
           <AdminMultiSelect catSlug="bordados-cano" catLabel="Bordado do Cano" fallback={BORDADOS_CANO} {...common} />
           <AdminTextRef label="Cor do Bordado do Cano" />
@@ -616,7 +635,7 @@ function BootFormLayout({
 
       <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} />
 
-      <Section title="Laser">
+      <Section title="Laser" categoriaId={findCatId('laser-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="space-y-4">
           <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: 0 }))} {...common} />
           <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} />
@@ -638,7 +657,7 @@ function BootFormLayout({
 
       <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} />
 
-      <Section title="Pesponto">
+      <Section title="Pesponto" categoriaId={findCatId('cor-linha')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="grid sm:grid-cols-3 gap-4">
           <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required />
           <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required />
@@ -646,7 +665,7 @@ function BootFormLayout({
         </div>
       </Section>
 
-      <Section title="Metais">
+      <Section title="Metais" categoriaId={findCatId('area-metal')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
             <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} />
@@ -660,7 +679,7 @@ function BootFormLayout({
                   </label>
                 ))}
               </div>
-              <AdminEditableOptions catSlug="tipo-metal" catLabel="Tipo do Metal" {...common} />
+              <AdminEditableOptions catSlug="tipo-metal" catLabel="Tipo do Metal" {...common} fallback={TIPO_METAL.map(t => ({ label: t, preco: 0 }))} />
             </div>
             <AdminSelectField label="Cor do Metal" catSlug="cor-metal" fallback={COR_METAL} {...common} />
           </div>
@@ -691,7 +710,7 @@ function BootFormLayout({
         </div>
       </Section>
 
-      <Section title="Solados">
+      <Section title="Solados" categoriaId={findCatId('solados')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required />
@@ -703,7 +722,7 @@ function BootFormLayout({
         </div>
       </Section>
 
-      <Section title="Carimbo a Fogo">
+      <Section title="Carimbo a Fogo" categoriaId={findCatId('carimbo')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}>
         <div className="flex flex-wrap items-center gap-3">
           <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} />
           <AdminTextRef label="Descrição do carimbo" />
