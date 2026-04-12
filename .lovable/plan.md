@@ -2,37 +2,30 @@
 
 ## Problema
 
-1. **Itens do fallback nao editaveis**: O painel de edicao (lapis) so mostra variacoes que ja existem no banco (`variacoes`). Itens que vem do fallback e nao foram salvos no banco nao aparecem no painel de edicao -- portanto nao podem ser renomeados, removidos ou ter preco alterado.
+1. O badge "não salvo" deveria mostrar "salvo no banco" para itens que JA existem no banco, e nao mostrar nada ou mostrar um indicador diferente para itens de fallback. Atualmente o badge "não salvo" aparece nos itens de fallback mas o usuario quer que o texto seja diferente.
 
-2. **Categorias/subtitulos nao editaveis**: Os titulos das secoes (Couros, Bordados, Laser, etc.) e os labels dos campos (Tamanho, Modelo, etc.) nao tem opcao de edicao. O admin precisa poder renomear ou apagar categorias.
+2. Falta um botao "Salvar no banco" no topo do modal de edicao que persista TODOS os itens de fallback de uma vez no banco de dados (bulk save), sem precisar editar um por um.
 
 ## Solucao
 
-### 1. Tornar fallbacks editaveis no painel de edicao
+### 1. Trocar badge "não salvo" por indicador correto
 
-Quando o admin clica no lapis, o `openEditPanel` precisa construir o `editState` combinando fallback + DB (mesmo merge que ja acontece na exibicao). Para cada item do fallback que nao existe no banco, mostrar com um indicador "(fallback)" e ao salvar, criar automaticamente como `ficha_variacoes` no banco. Assim todos os itens ficam editaveis.
+- Itens de fallback (sem dbId): mostrar badge "não salvo" em amarelo (como esta)
+- Itens do banco (com dbId): mostrar badge "salvo no banco" em verde
+- Isso ja da clareza ao admin sobre o estado de cada item
 
-**Alteracoes em `AdminEditableOptions`:**
-- Receber `fallback` como prop (passado de `AdminSelectField` e `AdminMultiSelect`)
-- No `openEditPanel`, construir lista merged (fallback base + DB override + DB extras) igual ao merge ja existente
-- Cada item tera: `dbId` (se existe no banco) ou `null` (se e fallback puro)
-- No `handleSaveAll`: itens com `dbId` fazem `updateVariacao`; itens sem `dbId` que foram editados fazem `insertVariacao` (criando no banco)
-- Itens de fallback tambem podem ser marcados para exclusao (serao inseridos como `ativo: false`)
+### 2. Adicionar botao "Salvar tudo no banco" no header do modal
 
-### 2. Lapis nas categorias/subtitulos para editar nome ou apagar
-
-**Alteracoes no componente `Section`:**
-- Adicionar props opcionais: `categoriaId`, `onRename`, `onDelete`
-- Quando `categoriaId` existir, mostrar um icone de lapis ao lado do titulo
-- Ao clicar no lapis, abrir um mini painel inline com input para renomear e botao para apagar a categoria
-- Usar `useUpdateCategoria` para renomear e `useDeleteCategoria` para apagar
-
-**Alteracoes no `BootFormLayout`:**
-- Passar `categoriaId` e callbacks de rename/delete para cada `Section` que corresponde a uma categoria do banco
-
-**Alteracoes em `AdminSelectField`:**
-- Adicionar lapis ao lado do label do campo para permitir renomear o nome da categoria (slug permanece o mesmo)
+Na barra de acoes do modal (linha 396-403), adicionar um botao "Salvar no banco" que:
+- Percorre todos os itens do `editState` que tem `isFallback: true`
+- Insere cada um no banco via `insertVariacao` com `categoria_id`, `nome`, `preco_adicional` e `ordem: 0`
+- Atualiza o `editState` para marcar como `isFallback: false` e preencher o `dbId`
+- Mostra toast de sucesso e faz `refetch()`
+- O botao so aparece se existir pelo menos 1 item com `isFallback: true`
 
 ### Arquivo alterado
-- `src/pages/AdminConfigFichaPage.tsx` -- componentes `AdminEditableOptions`, `Section`, `AdminSelectField`, `AdminMultiSelect` e `BootFormLayout`
+- `src/pages/AdminConfigFichaPage.tsx` -- componente `AdminEditableOptions`:
+  - Linha 396-403: adicionar botao "Salvar no banco" na barra de acoes
+  - Linha 430: trocar badge para mostrar "salvo no banco" (verde) quando `!isFallback` e `dbId` existe, e "não salvo" (amarelo) quando `isFallback`
+  - Nova funcao `handleSaveAllToDb` que faz bulk insert dos fallback items
 
