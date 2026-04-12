@@ -472,7 +472,7 @@ function AdminSelectField({
     <div>
       <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
       <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
-      <AdminEditableOptions {...common} />
+      <AdminEditableOptions {...common} fallback={fbNorm} />
     </div>
   );
 }
