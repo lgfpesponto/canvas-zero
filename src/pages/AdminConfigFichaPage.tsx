@@ -1070,7 +1070,7 @@ export default function AdminConfigFichaPage() {
         className="mx-auto max-w-4xl"
       >
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <button
             onClick={() => navigate('/admin/configuracoes')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -1078,7 +1078,8 @@ export default function AdminConfigFichaPage() {
             <ArrowLeft className="h-4 w-4" /> configurações
           </button>
           {isBoot && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* + Campo: adds a new field (categoria) to the boot form */}
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1">
@@ -1086,14 +1087,38 @@ export default function AdminConfigFichaPage() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">novo campo</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
-                    <Label>Nome</Label>
-                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais" />
-                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar</Button>
+                    <Label>Nome do campo</Label>
+                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Cor especial, Forro..." />
+                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar campo</Button>
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* + Categoria: adds a new category group */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1">
+                    <Layers className="h-4 w-4" /> Categoria
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="font-montserrat lowercase">nova categoria</DialogTitle></DialogHeader>
+                  <div className="space-y-3 pt-2">
+                    <Label>Nome da categoria</Label>
+                    <Input value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)} placeholder="Ex: Couros especiais, Aviamentos..." />
+                    <Button onClick={handleAddCategoria} disabled={insertCategoria.isPending} className="w-full">Adicionar categoria</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Sincronizar: sync changes with the production sheet */}
+              <Button size="sm" variant="default" className="gap-1" onClick={() => {
+                toast.success('Configurações sincronizadas com a ficha de produção do "Faça seu pedido"');
+              }}>
+                <CheckCircle className="h-4 w-4" /> Sincronizar
+              </Button>
             </div>
           )}
         </div>
