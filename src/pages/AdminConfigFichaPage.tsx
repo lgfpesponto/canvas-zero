@@ -1085,6 +1085,7 @@ export default function AdminConfigFichaPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: tipo } = useFichaTipoBySlug(slug || '');
   const { data: categorias, refetch: refetchCats } = useFichaCategorias(tipo?.id);
