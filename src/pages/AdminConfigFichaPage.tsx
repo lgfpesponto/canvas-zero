@@ -328,14 +328,33 @@ function AdminEditableOptions({
     refetch();
   };
 
-  const handleRelChange = (varId: string, catSlugTarget: string, selectedValues: string[]) => {
-    const v = variacoes?.find(x => x.id === varId);
-    if (!v) return;
-    const rel = ((v as any).relacionamento as Record<string, string[]> | null) || {};
+  const handleRelChange = async (itemKey: string, catSlugTarget: string, selectedValues: string[]) => {
+    let dbId = editState[itemKey]?.dbId;
+    
+    // If fallback item, auto-save to DB first
+    if (!dbId && editState[itemKey]?.isFallback && cat) {
+      const s = editState[itemKey];
+      await insertVariacao.mutateAsync({
+        categoria_id: cat.id,
+        nome: s.nome,
+        preco_adicional: parseFloat(s.preco) || 0,
+        ordem: 0,
+      });
+      const { data: newVar } = await supabase.from('ficha_variacoes').select('id').eq('categoria_id', cat.id).eq('nome', s.nome).single();
+      if (!newVar) { toast.error('Erro ao salvar variação'); return; }
+      dbId = newVar.id;
+      // Update edit state to reflect it's now in DB
+      setEditState(prev => ({ ...prev, [itemKey]: { ...prev[itemKey], dbId, isFallback: false } }));
+      await refetch();
+    }
+    
+    if (!dbId) return;
+    const v = variacoes?.find(x => x.id === dbId);
+    const rel = ((v as any)?.relacionamento as Record<string, string[]> | null) || {};
     const newRel = { ...rel, [catSlugTarget]: selectedValues };
     Object.keys(newRel).forEach(k => { if (newRel[k].length === 0) delete newRel[k]; });
     const finalRel = Object.keys(newRel).length > 0 ? newRel : null;
-    updateVariacao.mutate({ id: varId, relacionamento: finalRel }, {
+    updateVariacao.mutate({ id: dbId, relacionamento: finalRel }, {
       onSuccess: () => { toast.success('Relacionamento salvo'); refetch(); },
     });
   };
