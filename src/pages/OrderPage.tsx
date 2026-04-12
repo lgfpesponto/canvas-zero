@@ -839,20 +839,27 @@ const OrderPage = () => {
   };
 
   /* ───── items from DB (with static fallback) ───── */
+  const sortAlpha = (arr: {label:string;preco:number}[]) => {
+    const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
+    const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
+    normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    return [...normal, ...variado];
+  };
   const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
+    const ficha = getByCustomCategory(cat);
+    if (ficha.length > 0) return sortAlpha(ficha);
     const db = getByCategoria(cat);
-    if (db.length === 0) return fallback;
-    const normal = db.filter(o => !o.label.toLowerCase().startsWith('bordado variado'));
-    const variado = db.filter(o => o.label.toLowerCase().startsWith('bordado variado'));
-    return [...normal, ...variado].map(o => ({ label: o.label, preco: o.preco }));
+    if (db.length > 0) return sortAlpha(db.map(o => ({ label: o.label, preco: o.preco })));
+    return sortAlpha(fallback);
   };
   const mergedBordadoCano = getDbItems('bordado_cano', BORDADOS_CANO);
   const mergedBordadoGaspea = getDbItems('bordado_gaspea', BORDADOS_GASPEA);
   const mergedBordadoTaloneira = getDbItems('bordado_taloneira', BORDADOS_TALONEIRA);
   const getLaserItems = (cat: string) => {
     const db = getByCategoria(cat);
-    if (db.length === 0) return LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
-    return db.map(o => ({ label: o.label, preco: o.preco }));
+    if (db.length === 0) return sortAlpha(LASER_OPTIONS.map(l => ({ label: l, preco: 0 })));
+    return sortAlpha(db.map(o => ({ label: o.label, preco: o.preco })));
   };
   const mergedLaserCano = getLaserItems('laser_cano');
   const mergedLaserGaspea = getLaserItems('laser_gaspea');
