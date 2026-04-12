@@ -277,30 +277,30 @@ function AdminEditableOptions({
       )}
 
       {showEditPanel && (
-        <div className="border border-primary/30 rounded-lg p-3 bg-muted/50 mb-2 space-y-2">
-          <div className="flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
-            <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
-            <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
-            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
+        <div className="border border-primary/30 rounded-lg p-4 bg-muted/50 mb-2 space-y-3">
+          <div className="flex flex-wrap items-center gap-2 mb-1 pb-2 border-b border-border">
+            <button type="button" onClick={handleSaveAll} className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
+            <button type="button" onClick={() => setShowEditPanel(false)} className="px-3 py-1.5 bg-muted border border-border rounded text-sm hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-3 py-1.5 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80">Ed. massa</button>
             {selectedIds.size > 0 && (
-              <button type="button" onClick={handleDeleteSelected} className="px-2 py-1 bg-destructive text-destructive-foreground rounded text-xs font-medium hover:opacity-90">Apagar selecionadas ({selectedIds.size})</button>
+              <button type="button" onClick={handleDeleteSelected} className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded text-sm font-medium hover:opacity-90">Apagar selecionadas ({selectedIds.size})</button>
             )}
             {showBulkEdit && (
               <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Adicionar:</span>
-                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-xs border border-border rounded px-2 py-1 bg-background w-16" placeholder="+5" />
-                <button type="button" onClick={handleBulkApply} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">OK</button>
+                <span className="text-sm text-muted-foreground">Adicionar:</span>
+                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-sm border border-border rounded px-2 py-1.5 bg-background w-20" placeholder="+5" />
+                <button type="button" onClick={handleBulkApply} className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">OK</button>
               </div>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60 overflow-y-auto">
+          <div className="grid grid-cols-1 gap-2 max-h-[70vh] overflow-y-auto">
             {items.map(item => (
               <React.Fragment key={item.id}>
-                <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="accent-destructive w-3 h-3 shrink-0" />
-                  <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: e.target.value, preco: prev[item.id]?.preco ?? String(item.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
-                  <span className="text-xs text-muted-foreground shrink-0">R$</span>
-                  <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: prev[item.id]?.nome ?? item.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
+                <div className="flex items-center gap-2 p-2 bg-primary/5 rounded border border-primary/20">
+                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="accent-destructive w-4 h-4 shrink-0" />
+                  <input type="text" value={editState[item.id]?.nome ?? item.label} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: e.target.value, preco: prev[item.id]?.preco ?? String(item.preco) } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1 min-w-0" />
+                  <span className="text-sm text-muted-foreground shrink-0">R$</span>
+                  <input type="number" value={editState[item.id]?.preco ?? String(item.preco)} onChange={e => setEditState(prev => ({ ...prev, [item.id]: { ...prev[item.id], nome: prev[item.id]?.nome ?? item.label, preco: e.target.value } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background w-20 shrink-0" />
                   <button type="button" onClick={() => setRelOpen(relOpen === item.id ? null : item.id)} className={`shrink-0 ${item.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={12} /></button>
                   <button type="button" onClick={() => handleDelete(item.id, item.label)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
                 </div>
