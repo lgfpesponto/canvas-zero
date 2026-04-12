@@ -408,53 +408,81 @@ function AdminEditableOptions({
             </div>
           )}
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {editItems.map(([key, item]) => (
-              <React.Fragment key={key}>
-                <div className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/5 border-primary/20'}`}>
-                  <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggleSelected(key)} className="accent-destructive w-4 h-4 shrink-0" />
-                  <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" placeholder="Nome da variação" />
-                  <span className="text-sm text-muted-foreground shrink-0">R$</span>
-                  <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
-                  {item.isFallback && <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-amber-500 text-amber-600">fallback</Badge>}
-                  {item.dbId && (
-                    <button type="button" onClick={() => setRelOpen(relOpen === key ? null : key)} className={`shrink-0 ${item.dbId && mergedItems.find(m => m.dbId === item.dbId)?.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={14} /></button>
-                  )}
-                  <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={14} /></button>
-                </div>
-                {relOpen === key && item.dbId && (
-                  <div className="p-3 border border-primary/20 rounded-lg bg-background ml-6">
-                    <p className="text-xs font-medium mb-2">Relacionamentos: {item.nome}</p>
-                    <div className="space-y-2">
-                      {otherCats.map(oc => {
-                        const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
-                        if (catVars.length === 0) return null;
-                        const v = variacoes?.find(x => x.id === item.dbId);
-                        const rel = ((v as any)?.relacionamento as Record<string, string[]> | null) || {};
-                        const selected = rel[oc.slug] || [];
-                        return (
-                          <div key={oc.id} className="space-y-0.5">
-                            <Label className="text-xs font-medium">{oc.nome}</Label>
-                            <div className="flex flex-wrap gap-1">
-                              {catVars.map(cv => {
-                                const isSelected = selected.includes(cv.nome);
-                                return (
-                                  <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
-                                    const newSel = isSelected ? selected.filter(s => s !== cv.nome) : [...selected, cv.nome];
-                                    handleRelChange(item.dbId!, oc.slug, newSel);
-                                  }}>
-                                    {cv.nome}
-                                  </Badge>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+            {editItems.map(([key, item]) => {
+              // Get relationship data - from DB or from merged
+              const dbVar = item.dbId ? variacoes?.find(x => x.id === item.dbId) : null;
+              const itemRel = dbVar ? ((dbVar as any).relacionamento as Record<string, string[]> | null) : null;
+              const hasRel = itemRel && Object.keys(itemRel).length > 0;
+              
+              // Filter categories for relationship panel
+              const filteredRelCats = relCatFilter 
+                ? otherCats.filter(oc => oc.id === relCatFilter)
+                : otherCats;
+
+              return (
+                <React.Fragment key={key}>
+                  <div className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/5 border-primary/20'}`}>
+                    <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggleSelected(key)} className="accent-destructive w-4 h-4 shrink-0" />
+                    <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" placeholder="Nome da variação" />
+                    <span className="text-sm text-muted-foreground shrink-0">R$</span>
+                    <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
+                    {item.isFallback && <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-amber-500/50 text-amber-700">não salvo</Badge>}
+                    <button type="button" onClick={() => { setRelOpen(relOpen === key ? null : key); setRelCatFilter(''); }} className={`shrink-0 ${hasRel ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={14} /></button>
+                    <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={14} /></button>
                   </div>
-                )}
-              </React.Fragment>
-            ))}
+                  {relOpen === key && (
+                    <div className="p-3 border border-primary/20 rounded-lg bg-background ml-6 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium flex-1">Relacionamentos: {item.nome}</p>
+                        {item.isFallback && <span className="text-[10px] text-amber-600">(será salvo ao vincular)</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Search size={14} className="text-muted-foreground shrink-0" />
+                        <select 
+                          value={relCatFilter} 
+                          onChange={e => setRelCatFilter(e.target.value)}
+                          className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1"
+                        >
+                          <option value="">Todas as categorias</option>
+                          {otherCats.filter(oc => allVariacoes.some(av => av.categoria_id === oc.id && av.ativo)).map(oc => (
+                            <option key={oc.id} value={oc.id}>{oc.nome}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {filteredRelCats.map(oc => {
+                          const catVars = allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo);
+                          if (catVars.length === 0) return null;
+                          const rel = itemRel || {};
+                          const selected = rel[oc.slug] || [];
+                          return (
+                            <div key={oc.id} className="space-y-1">
+                              <Label className="text-xs font-semibold text-primary">{oc.nome}</Label>
+                              <div className="flex flex-wrap gap-1">
+                                {catVars.map(cv => {
+                                  const isSelected = selected.includes(cv.nome);
+                                  return (
+                                    <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
+                                      const newSel = isSelected ? selected.filter(s => s !== cv.nome) : [...selected, cv.nome];
+                                      handleRelChange(key, oc.slug, newSel);
+                                    }}>
+                                      {cv.nome}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {filteredRelCats.every(oc => allVariacoes.filter(av => av.categoria_id === oc.id && av.ativo).length === 0) && (
+                          <p className="text-xs text-muted-foreground text-center py-2">Nenhuma variação encontrada</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
