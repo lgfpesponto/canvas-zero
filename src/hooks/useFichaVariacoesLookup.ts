@@ -29,7 +29,7 @@ export function useFichaVariacoesLookup() {
     (async () => {
       const { data, error } = await supabase
         .from('ficha_variacoes')
-        .select('nome, preco_adicional, categoria_id, ficha_categorias!inner(slug)')
+        .select('nome, preco_adicional, categoria_id, relacionamento, ficha_categorias!inner(slug)')
         .eq('ativo', true);
       if (error) {
         console.error('Error fetching ficha_variacoes:', error);
@@ -40,6 +40,7 @@ export function useFichaVariacoesLookup() {
         nome: d.nome,
         preco_adicional: Number(d.preco_adicional) || 0,
         categoria_slug: d.ficha_categorias?.slug || '',
+        relacionamento: d.relacionamento || null,
       }));
       setItems(mapped);
       setLoading(false);
