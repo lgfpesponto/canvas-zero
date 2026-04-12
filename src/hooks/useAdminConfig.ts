@@ -171,7 +171,7 @@ export function useFichaCampos(fichaTipoId: string | undefined) {
 export function useUpdateVariacao() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: { id: string; nome?: string; preco_adicional?: number; ativo?: boolean }) => {
+    mutationFn: async (v: { id: string; nome?: string; preco_adicional?: number; ativo?: boolean; ordem?: number; relacionamento?: any }) => {
       const { id, ...rest } = v;
       const { error } = await supabase.from('ficha_variacoes').update(rest).eq('id', id);
       if (error) throw error;
@@ -225,5 +225,106 @@ export function useInsertCategoria() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_categorias'] }),
+  });
+}
+
+export function useUpdateCategoria() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (c: { id: string; nome?: string; ordem?: number; ativo?: boolean }) => {
+      const { id, ...rest } = c;
+      const { error } = await supabase.from('ficha_categorias').update(rest).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_categorias'] }),
+  });
+}
+
+export function useDeleteCategoria() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Delete all variations first
+      await supabase.from('ficha_variacoes').delete().eq('categoria_id', id);
+      const { error } = await supabase.from('ficha_categorias').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ficha_categorias'] });
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+    },
+  });
+}
+
+export function useInsertVariacao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { categoria_id: string; nome: string; preco_adicional: number; ordem: number }) => {
+      const { error } = await supabase.from('ficha_variacoes').insert(v);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_variacoes'] }),
+  });
+}
+
+export function useInsertFichaCampo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (c: {
+      ficha_tipo_id: string; nome: string; slug: string; tipo: string;
+      obrigatorio: boolean; ordem: number; opcoes: any; vinculo: string | null;
+      desc_condicional: boolean; relacionamento?: any;
+    }) => {
+      const { error } = await supabase.from('ficha_campos').insert(c);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_campos'] }),
+  });
+}
+
+export function useUpdateFichaCampo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (c: { id: string; nome?: string; slug?: string; tipo?: string; obrigatorio?: boolean; ordem?: number; opcoes?: any; vinculo?: string | null; desc_condicional?: boolean; ativo?: boolean; relacionamento?: any }) => {
+      const { id, ...rest } = c;
+      const { error } = await supabase.from('ficha_campos').update(rest).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_campos'] }),
+  });
+}
+
+export function useDeleteFichaCampo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('ficha_campos').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_campos'] }),
+  });
+}
+
+export function useAllVariacoesByFichaTipo(fichaTipoId: string | undefined) {
+  return useQuery({
+    queryKey: ['ficha_variacoes_all', fichaTipoId],
+    queryFn: async () => {
+      // Get all categories for this ficha tipo
+      const { data: cats, error: catErr } = await supabase
+        .from('ficha_categorias')
+        .select('id')
+        .eq('ficha_tipo_id', fichaTipoId!);
+      if (catErr) throw catErr;
+      if (!cats || cats.length === 0) return [] as FichaVariacao[];
+      const catIds = cats.map(c => c.id);
+      const { data, error } = await supabase
+        .from('ficha_variacoes')
+        .select('*')
+        .in('categoria_id', catIds)
+        .order('ordem');
+      if (error) throw error;
+      return data as FichaVariacao[];
+    },
+    enabled: !!fichaTipoId,
   });
 }
