@@ -1450,6 +1450,7 @@ export default function AdminConfigFichaPage() {
               <Button size="sm" variant="outline" className="gap-1" onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_categorias'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_campos'] });
                 queryClient.invalidateQueries({ queryKey: ['ficha_tipos'] });
