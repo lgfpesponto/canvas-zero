@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FichaVariacaoItem {
@@ -22,35 +23,27 @@ const CATEGORY_MAP: Record<string, string> = {
 };
 
 export function useFichaVariacoesLookup() {
-  const [items, setItems] = useState<FichaVariacaoItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: ['ficha_variacoes_lookup'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('ficha_variacoes')
         .select('nome, preco_adicional, categoria_id, relacionamento, ficha_categorias!inner(slug)')
         .eq('ativo', true);
       if (error) {
         console.error('Error fetching ficha_variacoes:', error);
-        setLoading(false);
-        return;
+        return [] as FichaVariacaoItem[];
       }
-      const mapped = (data || []).map((d: any) => ({
+      return (data || []).map((d: any) => ({
         nome: d.nome,
         preco_adicional: Number(d.preco_adicional) || 0,
         categoria_slug: d.ficha_categorias?.slug || '',
         relacionamento: d.relacionamento || null,
       }));
-      setItems(mapped);
-      setLoading(false);
-    })();
-  }, []);
+    },
+    staleTime: 30_000,
+  });
 
-  /**
-   * Get items for a given custom_options category key (e.g. 'bordado_cano').
-   * Returns ficha_variacoes items mapped to the corresponding ficha_categorias slug.
-   */
   const getByCustomCategory = useCallback((customCat: string): { label: string; preco: number }[] => {
     const fichaSlug = CATEGORY_MAP[customCat];
     if (!fichaSlug) return [];
@@ -59,10 +52,6 @@ export function useFichaVariacoesLookup() {
       .map(i => ({ label: i.nome, preco: i.preco_adicional }));
   }, [items]);
 
-  /**
-   * Find the price for a specific item by name + custom category.
-   * Returns undefined if not found in ficha_variacoes.
-   */
   const findFichaPrice = useCallback((itemName: string, customCat: string): number | undefined => {
     const fichaSlug = CATEGORY_MAP[customCat];
     if (!fichaSlug) return undefined;
