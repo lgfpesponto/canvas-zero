@@ -1356,7 +1356,7 @@ export default function AdminConfigFichaPage() {
   const [savingAllToDb, setSavingAllToDb] = useState(false);
 
   // 16 sections for boot
-  const BOOT_SECTION_COUNT = 16;
+  const BOOT_SECTION_COUNT = 17;
   const [sectionOrder, setSectionOrder] = useState<number[]>([]);
 
   useEffect(() => {
