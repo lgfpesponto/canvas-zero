@@ -1,31 +1,54 @@
 
 
-## Problema
+## Plano: Campos editaveis, removiveis, obrigatorios e reordenaveis
 
-1. O badge "não salvo" deveria mostrar "salvo no banco" para itens que JA existem no banco, e nao mostrar nada ou mostrar um indicador diferente para itens de fallback. Atualmente o badge "não salvo" aparece nos itens de fallback mas o usuario quer que o texto seja diferente.
+### Problema atual
+- Campos como "Observação", "Desenvolvimento", campos de texto (AdminTextRef), e toggles (AdminToggleField) nao tem opcao de editar nome, apagar ou marcar como obrigatorio
+- As secoes do BootFormLayout estao hardcoded e nao podem ser reordenadas
+- `sectionOrder` e `onMoveSection` existem mas estao com `void` (nao usados)
 
-2. Falta um botao "Salvar no banco" no topo do modal de edicao que persista TODOS os itens de fallback de uma vez no banco de dados (bulk save), sem precisar editar um por um.
+### Solucao
 
-## Solucao
+#### 1. Refatorar BootFormLayout para secoes reordenaveis
+Transformar cada bloco (Header, Tamanho/Genero/Modelo, Sob Medida, Acessorios, Couros, Desenvolvimento, Bordados, Nome Bordado, Laser, Estampa, Pesponto, Metais, Extras, Solados, Carimbo, Adicional, Observacao) em um array de objetos com `id`, `title`, `render`. Usar `sectionOrder` para determinar a ordem de renderizacao. Setas up/down em cada secao movem a secao inteira (com todos os campos filhos).
 
-### 1. Trocar badge "não salvo" por indicador correto
+#### 2. Adicionar controles a todos os campos
+- **AdminTextRef**: ja tem pencil/delete, adicionar toggle "obrigatorio" (asterisco vermelho)
+- **AdminToggleField**: ja tem pencil para nome/preco, adicionar botao de apagar e toggle obrigatorio
+- **AdminSelectField**: adicionar pencil no label para renomear, botao apagar e toggle obrigatorio
+- **AdminMultiSelect**: idem ao SelectField
+- **Section**: ja tem pencil/delete, adicionar toggle obrigatorio no titulo
 
-- Itens de fallback (sem dbId): mostrar badge "não salvo" em amarelo (como esta)
-- Itens do banco (com dbId): mostrar badge "salvo no banco" em verde
-- Isso ja da clareza ao admin sobre o estado de cada item
+#### 3. Garantir que soma nao depende da ordem
+A soma de precos ja e calculada no formulario de pedido (OrderPage) somando todos os campos preenchidos independentemente da posicao. A reordenacao so afeta a visualizacao, nao a logica de calculo. Nenhuma alteracao necessaria na logica de precos.
 
-### 2. Adicionar botao "Salvar tudo no banco" no header do modal
+### Detalhes tecnicos
 
-Na barra de acoes do modal (linha 396-403), adicionar um botao "Salvar no banco" que:
-- Percorre todos os itens do `editState` que tem `isFallback: true`
-- Insere cada um no banco via `insertVariacao` com `categoria_id`, `nome`, `preco_adicional` e `ordem: 0`
-- Atualiza o `editState` para marcar como `isFallback: false` e preencher o `dbId`
-- Mostra toast de sucesso e faz `refetch()`
-- O botao so aparece se existir pelo menos 1 item com `isFallback: true`
+**Arquivo**: `src/pages/AdminConfigFichaPage.tsx`
 
-### Arquivo alterado
-- `src/pages/AdminConfigFichaPage.tsx` -- componente `AdminEditableOptions`:
-  - Linha 396-403: adicionar botao "Salvar no banco" na barra de acoes
-  - Linha 430: trocar badge para mostrar "salvo no banco" (verde) quando `!isFallback` e `dbId` existe, e "não salvo" (amarelo) quando `isFallback`
-  - Nova funcao `handleSaveAllToDb` que faz bulk insert dos fallback items
+**AdminToggleField** (linha 618):
+- Adicionar props `onDelete` e `onToggleRequired` + estado `required`
+- Mostrar botao Apagar no modo edicao
+- Mostrar asterisco quando obrigatorio + switch para alternar
+
+**AdminTextRef** (linha 662):
+- Adicionar prop `required` e `onToggleRequired`
+- Mostrar asterisco vermelho quando obrigatorio
+- Mostrar switch no modo edicao para alternar obrigatoriedade
+
+**AdminSelectField** (linha 512):
+- Adicionar props `onRename`, `onDelete`, `onToggleRequired`
+- Pencil no label para renomear, botao apagar, switch obrigatorio
+
+**AdminMultiSelect** (linha 550):
+- Mesmo tratamento do SelectField
+
+**BootFormLayout** (linha 709):
+- Definir array de secoes com chave e funcao render
+- Usar `sectionOrder` (que ja existe no estado) para ordenar as secoes
+- Ativar `onMoveSection` (ja existe mas esta com `void`) para trocar posicoes
+- Cada Section recebe `onMoveUp`/`onMoveDown` usando o array reordenavel
+- Ao mover uma Section tipo "Couros", todos os campos dentro dela movem junto
+
+**Nota**: as alteracoes de nome/obrigatoriedade/exclusao nos campos da bota sao visuais no admin (preview). Para persistencia real, o sistema ja usa `ficha_campos` e `ficha_categorias` no banco. Os campos nativos da bota (hardcoded) nao precisam de persistencia de ordem pois a ordem visual e controlada pelo `sectionOrder` local.
 
