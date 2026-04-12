@@ -401,12 +401,16 @@ function AdminMultiSelect({
   onRefetchCats: () => void;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
-  const { data: variacoes } = useFichaVariacoes(cat?.id);
-  const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const { data: variacoes, refetch } = useFichaVariacoes(cat?.id);
+  const deleteVariacao = useDeleteVariacao();
+  const common = { catSlug, catLabel, fichaTipoId, allCategorias: allCategorias, allVariacoes, onRefetchCats };
+
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [deleteMode, setDeleteMode] = useState(false);
 
   const items = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional }))
-    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => ({ label: v.nome, preco: v.preco_adicional, id: v.id, ativo: v.ativo }))
+    : [...fallback].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')).map(f => ({ ...f, id: '', ativo: true }));
 
   const hasSearch = catLabel.toLowerCase().includes('bordado') || catLabel.toLowerCase().includes('laser') || items.length > 10;
   const [search, setSearch] = useState('');
@@ -418,10 +422,43 @@ function AdminMultiSelect({
   const display = [...normal, ...variado];
   const firstVariadoIdx = display.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
 
+  const toggleSelect = (id: string) => {
+    setSelectedForDelete(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedForDelete.size === 0) return;
+    if (!confirm(`Remover ${selectedForDelete.size} variação(ões)?`)) return;
+    for (const id of selectedForDelete) {
+      await deleteVariacao.mutateAsync(id);
+    }
+    toast.success(`${selectedForDelete.size} variação(ões) removida(s)`);
+    setSelectedForDelete(new Set());
+    setDeleteMode(false);
+    refetch();
+  };
+
+  const hasDbItems = variacoes && variacoes.length > 0;
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <label className={cls.label + ' mb-0'}>{catLabel}</label>
+        {hasDbItems && (
+          <button type="button" onClick={() => { setDeleteMode(!deleteMode); setSelectedForDelete(new Set()); }}
+            className={`text-xs ${deleteMode ? 'text-destructive font-medium' : 'text-muted-foreground hover:text-foreground'}`}>
+            {deleteMode ? 'Cancelar seleção' : 'Selecionar'}
+          </button>
+        )}
+        {deleteMode && selectedForDelete.size > 0 && (
+          <button type="button" onClick={handleDeleteSelected} className="text-xs text-destructive font-medium flex items-center gap-1">
+            <Trash2 size={12} /> Apagar ({selectedForDelete.size})
+          </button>
+        )}
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -433,13 +470,20 @@ function AdminMultiSelect({
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {display.map((item, idx) => (
-          <React.Fragment key={item.label}>
+          <React.Fragment key={item.id || item.label}>
             {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
-            <label className={cls.checkItem}>
-              <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
-              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+            <label className={cls.checkItem + (deleteMode ? ' cursor-pointer' : '')}>
+              {deleteMode && item.id && (
+                <input type="checkbox" checked={selectedForDelete.has(item.id)} onChange={() => toggleSelect(item.id)} className="accent-destructive w-4 h-4" />
+              )}
+              {!deleteMode && (
+                <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+              )}
+              <span className={item.ativo === false ? 'line-through opacity-50' : ''}>
+                {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
+              </span>
             </label>
           </React.Fragment>
         ))}
