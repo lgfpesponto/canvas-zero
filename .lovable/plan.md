@@ -1,25 +1,38 @@
 
 
 ## Problema
-O painel de edição das variações (lápis) tem inputs muito pequenos (`text-xs`, `py-0.5`, `w-14`) e o container está limitado a `max-h-60` (~240px), dificultando a edição de nomes e preços.
 
-## Solução
-Aumentar o espaço do painel de edição e os inputs para tornar a edição confortável.
+1. **Itens do fallback nao editaveis**: O painel de edicao (lapis) so mostra variacoes que ja existem no banco (`variacoes`). Itens que vem do fallback e nao foram salvos no banco nao aparecem no painel de edicao -- portanto nao podem ser renomeados, removidos ou ter preco alterado.
 
-### Alterações em `AdminEditableOptions` (src/pages/AdminConfigFichaPage.tsx)
+2. **Categorias/subtitulos nao editaveis**: Os titulos das secoes (Couros, Bordados, Laser, etc.) e os labels dos campos (Tamanho, Modelo, etc.) nao tem opcao de edicao. O admin precisa poder renomear ou apagar categorias.
 
-1. **Container do painel de edição** (linha 280): remover `max-h-60` do grid e aumentar o padding do container de `p-3` para `p-4`
+## Solucao
 
-2. **Grid de itens** (linha 296): mudar de `grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60` para `grid-cols-1 gap-2 max-h-[70vh] overflow-y-auto` — uma coluna para mais espaço horizontal e altura maior
+### 1. Tornar fallbacks editaveis no painel de edicao
 
-3. **Inputs de nome** (linha 301): aumentar de `text-xs px-1 py-0.5` para `text-sm px-2 py-1.5` 
+Quando o admin clica no lapis, o `openEditPanel` precisa construir o `editState` combinando fallback + DB (mesmo merge que ja acontece na exibicao). Para cada item do fallback que nao existe no banco, mostrar com um indicador "(fallback)" e ao salvar, criar automaticamente como `ficha_variacoes` no banco. Assim todos os itens ficam editaveis.
 
-4. **Inputs de preço** (linha 303): aumentar de `text-xs w-14 px-1 py-0.5` para `text-sm w-20 px-2 py-1.5`
+**Alteracoes em `AdminEditableOptions`:**
+- Receber `fallback` como prop (passado de `AdminSelectField` e `AdminMultiSelect`)
+- No `openEditPanel`, construir lista merged (fallback base + DB override + DB extras) igual ao merge ja existente
+- Cada item tera: `dbId` (se existe no banco) ou `null` (se e fallback puro)
+- No `handleSaveAll`: itens com `dbId` fazem `updateVariacao`; itens sem `dbId` que foram editados fazem `insertVariacao` (criando no banco)
+- Itens de fallback tambem podem ser marcados para exclusao (serao inseridos como `ativo: false`)
 
-5. **Cada row de item** (linha 299): aumentar padding de `p-1` para `p-2` e gap de `gap-1` para `gap-2`
+### 2. Lapis nas categorias/subtitulos para editar nome ou apagar
 
-6. **Botões de ação** (Salvar/Cancelar, linha 282): aumentar de `text-xs px-2 py-1` para `text-sm px-3 py-1.5`
+**Alteracoes no componente `Section`:**
+- Adicionar props opcionais: `categoriaId`, `onRename`, `onDelete`
+- Quando `categoriaId` existir, mostrar um icone de lapis ao lado do titulo
+- Ao clicar no lapis, abrir um mini painel inline com input para renomear e botao para apagar a categoria
+- Usar `useUpdateCategoria` para renomear e `useDeleteCategoria` para apagar
+
+**Alteracoes no `BootFormLayout`:**
+- Passar `categoriaId` e callbacks de rename/delete para cada `Section` que corresponde a uma categoria do banco
+
+**Alteracoes em `AdminSelectField`:**
+- Adicionar lapis ao lado do label do campo para permitir renomear o nome da categoria (slug permanece o mesmo)
 
 ### Arquivo alterado
-- `src/pages/AdminConfigFichaPage.tsx` — apenas classes CSS dentro de `AdminEditableOptions`, sem alterar estrutura do layout
+- `src/pages/AdminConfigFichaPage.tsx` -- componentes `AdminEditableOptions`, `Section`, `AdminSelectField`, `AdminMultiSelect` e `BootFormLayout`
 
