@@ -1352,7 +1352,7 @@ export default function AdminConfigFichaPage() {
   const [novoCampoOpen, setNovoCampoOpen] = useState(false);
   const [novoCampo, setNovoCampo] = useState({ nome: '', tipo: 'texto', obrigatorio: false, descCondicional: false, opcoesRaw: '', relacionamento: '' });
   const [novoItemOpen, setNovoItemOpen] = useState(false);
-  const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', vinculo: '', relacionamento: '' });
+  const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
 
   // 16 sections for boot
@@ -1445,7 +1445,7 @@ export default function AdminConfigFichaPage() {
       {
         onSuccess: () => {
           toast.success(`"${nome}" adicionado`);
-          setNovoItem({ categoriaId: '', nome: '', preco: '0', vinculo: '', relacionamento: '' });
+          setNovoItem({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
           setNovoItemOpen(false);
           refetchCats();
         },
@@ -1601,10 +1601,15 @@ export default function AdminConfigFichaPage() {
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <Label className="text-xs">Vínculo</Label>
-                        <Select value={novoItem.vinculo || 'none'} onValueChange={v => setNovoItem(p => ({ ...p, vinculo: v === 'none' ? '' : v }))}>
-                          <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                          <SelectContent>{VINCULOS.map(v => <SelectItem key={v.value || 'none'} value={v.value || 'none'}>{v.label}</SelectItem>)}</SelectContent>
+                        <Label className="text-xs">Tipo</Label>
+                        <Select value={novoItem.tipo} onValueChange={v => setNovoItem(p => ({ ...p, tipo: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="toggle">Tem/Não tem</SelectItem>
+                            <SelectItem value="variacao">Variação (escolha única)</SelectItem>
+                            <SelectItem value="multipla">Múltipla escolha</SelectItem>
+                            <SelectItem value="texto">Texto</SelectItem>
+                          </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
