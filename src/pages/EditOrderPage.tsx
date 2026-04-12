@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO,
