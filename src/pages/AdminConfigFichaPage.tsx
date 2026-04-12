@@ -79,10 +79,11 @@ const cls = {
 };
 
 /* ─── Shared Section component (mirrors OrderPage) ─── */
-function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categoriaId, onRename, onDelete }: {
+function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categoriaId, onRename, onDelete, required, onToggleRequired }: {
   title: string; children: React.ReactNode;
   onMoveUp?: () => void; onMoveDown?: () => void; isFirst?: boolean; isLast?: boolean;
   categoriaId?: string; onRename?: (id: string, nome: string) => void; onDelete?: (id: string) => void;
+  required?: boolean; onToggleRequired?: () => void;
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editName, setEditName] = useState(title);
@@ -98,18 +99,27 @@ function Section({ title, children, onMoveUp, onMoveDown, isFirst, isLast, categ
     <div className="space-y-3">
       <div className="flex items-center gap-2 border-b border-border pb-1">
         {editingTitle ? (
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
             <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="text-base font-bold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} />
             <button type="button" onClick={handleSaveTitle} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
             <button type="button" onClick={() => setEditingTitle(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
             {onDelete && categoriaId && (
               <button type="button" onClick={() => { if (confirm(`Apagar seção "${title}"?`)) onDelete(categoriaId); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
             )}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrigatório
+              </label>
+            )}
           </div>
         ) : (
           <>
-            <h3 className="text-base font-display font-bold flex-1">{title}</h3>
-            {categoriaId && onRename && (
+            <h3 className="text-base font-display font-bold flex-1">
+              {title}
+              {required && <span className="text-destructive ml-0.5">*</span>}
+            </h3>
+            {(categoriaId && onRename || onToggleRequired || onDelete) && (
               <button type="button" onClick={() => { setEditName(title); setEditingTitle(true); }} className="text-muted-foreground hover:text-primary" title="Editar seção"><Pencil size={14} /></button>
             )}
           </>
@@ -512,15 +522,19 @@ function AdminEditableOptions({
 /* ─── AdminSelectField: Same as OrderPage SelectField but with admin tools ─── */
 function AdminSelectField({
   label, catSlug, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats, required,
+  onRename, onDelete, onToggleRequired,
 }: {
   label: string; catSlug: string;
   fallback: string[] | { label: string; preco?: number }[];
   fichaTipoId: string; allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   onRefetchCats: () => void; required?: boolean;
+  onRename?: (newLabel: string) => void; onDelete?: () => void; onToggleRequired?: () => void;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(label);
 
   const fbNorm = (Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string')
     ? (fallback as string[]).map(f => ({ label: f, preco: 0 }))
@@ -538,9 +552,36 @@ function AdminSelectField({
   merged.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   const options = merged.map(m => m.preco > 0 ? `${m.label} (R$${m.preco})` : m.label);
 
+  const handleSaveLabel = () => {
+    if (onRename && editLabel.trim() && editLabel.trim() !== label) onRename(editLabel.trim());
+    setEditing(false);
+  };
+
   return (
     <div>
-      <label className={cls.label}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+      <div className="flex items-center gap-1.5 mb-1">
+        {editing ? (
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+            <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(); if (e.key === 'Escape') setEditing(false); }} />
+            <button type="button" onClick={handleSaveLabel} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+            {onDelete && <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrig.
+              </label>
+            )}
+          </div>
+        ) : (
+          <>
+            <label className={cls.label + ' !mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+            {(onRename || onDelete || onToggleRequired) && (
+              <button type="button" onClick={() => { setEditLabel(label); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo"><Pencil size={13} /></button>
+            )}
+          </>
+        )}
+      </div>
       <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
       <AdminEditableOptions {...common} fallback={fbNorm} />
     </div>
@@ -550,15 +591,19 @@ function AdminSelectField({
 /* ─── AdminMultiSelect: Same grid as OrderPage MultiSelect but admin mode ─── */
 function AdminMultiSelect({
   catSlug, catLabel, fallback, fichaTipoId, allCategorias, allVariacoes, onRefetchCats,
+  onRename, onDelete, onToggleRequired, required,
 }: {
   catSlug: string; catLabel: string;
   fallback: { label: string; preco: number }[];
   fichaTipoId: string; allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   onRefetchCats: () => void;
+  onRename?: (newLabel: string) => void; onDelete?: () => void; onToggleRequired?: () => void; required?: boolean;
 }) {
   const cat = allCategorias.find(c => c.slug === catSlug);
   const { data: variacoes } = useFichaVariacoes(cat?.id);
   const common = { catSlug, catLabel, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(catLabel);
 
   const dbMapM = new Map((variacoes || []).map(v => [v.nome.toLowerCase(), v]));
   const mergedM = fallback.map(f => {
@@ -582,10 +627,35 @@ function AdminMultiSelect({
   const display = [...normal, ...variado];
   const firstVariadoIdx = display.findIndex(i => i.label.toLowerCase().startsWith('bordado variado'));
 
+  const handleSaveLabel = () => {
+    if (onRename && editLabel.trim() && editLabel.trim() !== catLabel) onRename(editLabel.trim());
+    setEditing(false);
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <label className={cls.label + ' mb-0'}>{catLabel}</label>
+        {editing ? (
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+            <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveLabel(); if (e.key === 'Escape') setEditing(false); }} />
+            <button type="button" onClick={handleSaveLabel} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+            {onDelete && <button type="button" onClick={() => { if (confirm(`Apagar campo "${catLabel}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrig.
+              </label>
+            )}
+          </div>
+        ) : (
+          <>
+            <label className={cls.label + ' mb-0'}>{catLabel}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+            {(onRename || onDelete || onToggleRequired) && (
+              <button type="button" onClick={() => { setEditLabel(catLabel); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo"><Pencil size={13} /></button>
+            )}
+          </>
+        )}
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -615,7 +685,9 @@ function AdminMultiSelect({
 }
 
 /* ─── AdminToggleField: Same as OrderPage ToggleField but with edit capability ─── */
-function AdminToggleField({ label, preco }: { label: string; preco: number }) {
+function AdminToggleField({ label, preco, onDelete, onToggleRequired, required }: {
+  label: string; preco: number; onDelete?: () => void; onToggleRequired?: () => void; required?: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(label);
   const [editPreco, setEditPreco] = useState(String(preco));
@@ -624,26 +696,22 @@ function AdminToggleField({ label, preco }: { label: string; preco: number }) {
     <div className="flex flex-wrap items-center gap-3">
       {editing ? (
         <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="text"
-            value={editLabel}
-            onChange={e => setEditLabel(e.target.value)}
-            className="bg-background border border-primary rounded px-2 py-1 text-sm font-semibold w-32"
-            autoFocus
-          />
+          <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="bg-background border border-primary rounded px-2 py-1 text-sm font-semibold w-32" autoFocus />
           <span className="text-sm text-muted-foreground">(+R$</span>
-          <input
-            type="text"
-            value={editPreco}
-            onChange={e => setEditPreco(e.target.value)}
-            className="bg-background border border-primary rounded px-2 py-1 text-sm w-16"
-          />
+          <input type="text" value={editPreco} onChange={e => setEditPreco(e.target.value)} className="bg-background border border-primary rounded px-2 py-1 text-sm w-16" />
           <span className="text-sm text-muted-foreground">)</span>
           <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">OK</button>
+          {onDelete && <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>}
+          {onToggleRequired && (
+            <label className="flex items-center gap-1 text-xs">
+              <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+              Obrig.
+            </label>
+          )}
         </div>
       ) : (
         <>
-          <span className="text-sm font-semibold min-w-[120px]">{label} (+R${preco}):</span>
+          <span className="text-sm font-semibold min-w-[120px]">{label}{required && <span className="text-destructive ml-0.5">*</span>} (+R${preco}):</span>
           <button type="button" onClick={() => { setEditLabel(label); setEditPreco(String(preco)); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo">
             <Pencil size={13} />
           </button>
@@ -659,7 +727,10 @@ function AdminToggleField({ label, preco }: { label: string; preco: number }) {
 }
 
 /* ─── AdminTextFieldRef: Same as OrderPage text input, with edit/delete ─── */
-function AdminTextRef({ label, onRename, onDelete }: { label: string; onRename?: (newLabel: string) => void; onDelete?: () => void }) {
+function AdminTextRef({ label, onRename, onDelete, required, onToggleRequired }: {
+  label: string; onRename?: (newLabel: string) => void; onDelete?: () => void;
+  required?: boolean; onToggleRequired?: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(label);
 
@@ -674,25 +745,24 @@ function AdminTextRef({ label, onRename, onDelete }: { label: string; onRename?:
     <div>
       <div className="flex items-center gap-1.5 mb-1">
         {editing ? (
-          <div className="flex items-center gap-1.5 flex-1">
-            <input
-              type="text"
-              value={editLabel}
-              onChange={e => setEditLabel(e.target.value)}
-              className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1"
-              autoFocus
-              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
-            />
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+            <input type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }} />
             <button type="button" onClick={handleSave} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
             <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
             {onDelete && (
               <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
             )}
+            {onToggleRequired && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={required} onChange={() => onToggleRequired()} className="accent-destructive" />
+                Obrig.
+              </label>
+            )}
           </div>
         ) : (
           <>
-            <label className={cls.label + ' !mb-0'}>{label}</label>
-            {(onRename || onDelete) && (
+            <label className={cls.label + ' !mb-0'}>{label}{required && <span className="text-destructive ml-0.5">*</span>}</label>
+            {(onRename || onDelete || onToggleRequired) && (
               <button type="button" onClick={() => { setEditLabel(label); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo">
                 <Pencil size={13} />
               </button>
