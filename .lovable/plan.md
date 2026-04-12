@@ -1,50 +1,25 @@
 
 
 ## Problema
+O painel de edição das variações (lápis) tem inputs muito pequenos (`text-xs`, `py-0.5`, `w-14`) e o container está limitado a `max-h-60` (~240px), dificultando a edição de nomes e preços.
 
-O `AdminSelectField` e `AdminMultiSelect` usam esta logica (linha 366):
-```
-const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
-```
-Se existir **qualquer** registro no banco para uma categoria (ex: "tamanhos" tem apenas "10"), ele ignora completamente o fallback (TAMANHOS = 24-45). Por isso so aparece 1 tamanho em vez de 22.
+## Solução
+Aumentar o espaço do painel de edição e os inputs para tornar a edição confortável.
 
-O mesmo problema afeta "tipos-couro" (1 registro no DB) e qualquer outra categoria parcialmente populada.
+### Alterações em `AdminEditableOptions` (src/pages/AdminConfigFichaPage.tsx)
 
-## Solucao
+1. **Container do painel de edição** (linha 280): remover `max-h-60` do grid e aumentar o padding do container de `p-3` para `p-4`
 
-Mudar a logica de merge em `AdminSelectField` e `AdminMultiSelect` para **sempre usar o fallback como base** e sobrepor com dados do DB quando existirem. Itens do DB que nao estao no fallback tambem aparecem (foram adicionados pelo admin).
+2. **Grid de itens** (linha 296): mudar de `grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60` para `grid-cols-1 gap-2 max-h-[70vh] overflow-y-auto` — uma coluna para mais espaço horizontal e altura maior
 
-### Alteracao em AdminSelectField (linhas 360-366)
+3. **Inputs de nome** (linha 301): aumentar de `text-xs px-1 py-0.5` para `text-sm px-2 py-1.5` 
 
-```typescript
-// Merge: fallback como base, DB sobrepoe precos/nomes
-const fallbackOptions = (Array.isArray(fallback) && typeof fallback[0] === 'string')
-  ? (fallback as string[]).map(f => ({ label: f, preco: 0 }))
-  : (fallback as { label: string; preco?: number }[]).map(f => ({ label: f.label, preco: f.preco || 0 }));
+4. **Inputs de preço** (linha 303): aumentar de `text-xs w-14 px-1 py-0.5` para `text-sm w-20 px-2 py-1.5`
 
-const dbMap = new Map((variacoes || []).map(v => [v.nome.toLowerCase(), v]));
+5. **Cada row de item** (linha 299): aumentar padding de `p-1` para `p-2` e gap de `gap-1` para `gap-2`
 
-// Start with fallback, enrich with DB data
-const merged = fallbackOptions.map(f => {
-  const dbItem = dbMap.get(f.label.toLowerCase());
-  return dbItem ? { label: dbItem.nome, preco: dbItem.preco_adicional } : f;
-});
-// Add DB-only items (admin added, not in fallback)
-(variacoes || []).forEach(v => {
-  if (!fallbackOptions.some(f => f.label.toLowerCase() === v.nome.toLowerCase())) {
-    merged.push({ label: v.nome, preco: v.preco_adicional });
-  }
-});
-// Sort alphabetically
-merged.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+6. **Botões de ação** (Salvar/Cancelar, linha 282): aumentar de `text-xs px-2 py-1` para `text-sm px-3 py-1.5`
 
-const options = merged.map(m => m.preco > 0 ? `${m.label} (R$${m.preco})` : m.label);
-```
-
-### Alteracao em AdminMultiSelect (linhas 390-392)
-
-Mesma logica de merge: fallback como base, DB sobrepoe, itens extras do DB sao adicionados.
-
-### Arquivos alterados
-- `src/pages/AdminConfigFichaPage.tsx` -- apenas as funcoes `AdminSelectField` e `AdminMultiSelect`, sem mexer no layout/estrutura
+### Arquivo alterado
+- `src/pages/AdminConfigFichaPage.tsx` — apenas classes CSS dentro de `AdminEditableOptions`, sem alterar estrutura do layout
 
