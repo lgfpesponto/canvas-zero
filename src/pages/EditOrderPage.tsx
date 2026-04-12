@@ -231,6 +231,7 @@ const EditOrderPage = () => {
   const { isAdmin, updateOrder, allProfiles } = useAuth();
   const { order, loading: orderLoading } = useOrderById(id);
   const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
+  const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
   const navigate = useNavigate();
 
   const [numeroPedido, setNumeroPedido] = useState('');
