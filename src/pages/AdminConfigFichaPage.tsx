@@ -658,13 +658,52 @@ function AdminToggleField({ label, preco }: { label: string; preco: number }) {
   );
 }
 
-/* ─── AdminTextFieldRef: Same as OrderPage text input ─── */
-const AdminTextRef = ({ label }: { label: string }) => (
-  <div>
-    <label className={cls.label}>{label}</label>
-    <input type="text" disabled placeholder="(preenchido pelo vendedor)" className={cls.input + ' opacity-50 italic'} />
-  </div>
-);
+/* ─── AdminTextFieldRef: Same as OrderPage text input, with edit/delete ─── */
+function AdminTextRef({ label, onRename, onDelete }: { label: string; onRename?: (newLabel: string) => void; onDelete?: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(label);
+
+  const handleSave = () => {
+    if (onRename && editLabel.trim() && editLabel.trim() !== label) {
+      onRename(editLabel.trim());
+    }
+    setEditing(false);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1">
+        {editing ? (
+          <div className="flex items-center gap-1.5 flex-1">
+            <input
+              type="text"
+              value={editLabel}
+              onChange={e => setEditLabel(e.target.value)}
+              className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
+            />
+            <button type="button" onClick={handleSave} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+            <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+            {onDelete && (
+              <button type="button" onClick={() => { if (confirm(`Apagar campo "${label}"?`)) onDelete(); }} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
+            )}
+          </div>
+        ) : (
+          <>
+            <label className={cls.label + ' !mb-0'}>{label}</label>
+            {(onRename || onDelete) && (
+              <button type="button" onClick={() => { setEditLabel(label); setEditing(true); }} className="text-muted-foreground hover:text-primary" title="Editar campo">
+                <Pencil size={13} />
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      <input type="text" disabled placeholder="(preenchido pelo vendedor)" className={cls.input + ' opacity-50 italic'} />
+    </div>
+  );
+}
 
 /* ─── Boot Form Layout (exact mirror of OrderPage form sections) ─── */
 function BootFormLayout({
