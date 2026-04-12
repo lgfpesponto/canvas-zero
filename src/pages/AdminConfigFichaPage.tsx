@@ -321,9 +321,13 @@ function AdminSelectField({
   const common = { catSlug, catLabel: label, fichaTipoId, allCategorias, allVariacoes, onRefetchCats };
 
   // Build options: use DB if available, else fallback
-  const options: (string | { label: string; preco?: number })[] = variacoes && variacoes.length > 0
-    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? { label: v.nome, preco: v.preco_adicional } : v.nome)
-    : fallback;
+  const dbOptions: string[] = variacoes && variacoes.length > 0
+    ? [...variacoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome)
+    : [];
+  const fallbackOptions: string[] = Array.isArray(fallback) && fallback.length > 0 && typeof fallback[0] === 'string'
+    ? (fallback as string[])
+    : (fallback as { label: string; preco?: number }[]).map(f => f.preco ? `${f.label} (R$${f.preco})` : f.label);
+  const options = dbOptions.length > 0 ? dbOptions : fallbackOptions;
 
   return (
     <div>
