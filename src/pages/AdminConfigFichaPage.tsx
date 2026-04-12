@@ -539,7 +539,7 @@ function AdminMultiSelect({
         ))}
         {display.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
       </div>
-      <AdminEditableOptions {...common} />
+      <AdminEditableOptions {...common} fallback={fallback} />
     </div>
   );
 }
