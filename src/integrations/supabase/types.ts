@@ -75,6 +75,7 @@ export type Database = {
           obrigatorio: boolean | null
           opcoes: Json | null
           ordem: number | null
+          relacionamento: Json | null
           slug: string
           tipo: string
           vinculo: string | null
@@ -88,6 +89,7 @@ export type Database = {
           obrigatorio?: boolean | null
           opcoes?: Json | null
           ordem?: number | null
+          relacionamento?: Json | null
           slug: string
           tipo: string
           vinculo?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           obrigatorio?: boolean | null
           opcoes?: Json | null
           ordem?: number | null
+          relacionamento?: Json | null
           slug?: string
           tipo?: string
           vinculo?: string | null
@@ -188,6 +191,7 @@ export type Database = {
           nome: string
           ordem: number | null
           preco_adicional: number | null
+          relacionamento: Json | null
         }
         Insert: {
           ativo?: boolean | null
@@ -196,6 +200,7 @@ export type Database = {
           nome: string
           ordem?: number | null
           preco_adicional?: number | null
+          relacionamento?: Json | null
         }
         Update: {
           ativo?: boolean | null
@@ -204,6 +209,7 @@ export type Database = {
           nome?: string
           ordem?: number | null
           preco_adicional?: number | null
+          relacionamento?: Json | null
         }
         Relationships: [
           {
