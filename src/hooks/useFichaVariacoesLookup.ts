@@ -5,6 +5,7 @@ export interface FichaVariacaoItem {
   nome: string;
   preco_adicional: number;
   categoria_slug: string;
+  relacionamento: Record<string, string[]> | null;
 }
 
 /**
