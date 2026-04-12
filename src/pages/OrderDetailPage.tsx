@@ -2,6 +2,8 @@ import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { useOrderById } from '@/hooks/useOrderById';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
@@ -13,7 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  MODELOS, ACESSORIOS, BORDADOS, COURO_PRECOS, SOLADO, COR_SOLA, COR_VIRA,
+  MODELOS, ACESSORIOS, BORDADOS, BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA,
+  COURO_PRECOS, SOLADO, COR_SOLA, COR_VIRA,
   CARIMBO, AREA_METAL, DESENVOLVIMENTO,
   SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO, PINTURA_PRECO,
   TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, CRUZ_METAL_PRECO,
@@ -28,6 +31,8 @@ const OrderDetailPage = () => {
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
+  const { findFichaPrice } = useFichaVariacoesLookup();
+  const { getByCategoria } = useCustomOptions();
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');
@@ -137,9 +142,17 @@ const OrderDetailPage = () => {
   });
   const desenvP = DESENVOLVIMENTO.find(d => d.label === order.desenvolvimento)?.preco;
   if (desenvP) priceItems.push(['Desenvolvimento: ' + order.desenvolvimento, desenvP]);
-  [order.bordadoCano, order.bordadoGaspea, order.bordadoTaloneira].forEach(bStr => {
+  const findDetailPrice = (b: string, cat: string, fallback: { label: string; preco: number }[]) =>
+    findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
+
+  const bordadoPairs: [string | undefined, string, { label: string; preco: number }[]][] = [
+    [order.bordadoCano, 'bordado_cano', BORDADOS_CANO],
+    [order.bordadoGaspea, 'bordado_gaspea', BORDADOS_GASPEA],
+    [order.bordadoTaloneira, 'bordado_taloneira', BORDADOS_TALONEIRA],
+  ];
+  bordadoPairs.forEach(([bStr, cat, fallback]) => {
     if (bStr) bStr.split(', ').filter(Boolean).forEach(b => {
-      const p = BORDADOS.find(x => x.label === b)?.preco;
+      const p = findDetailPrice(b, cat, fallback);
       if (p) priceItems.push([b, p]);
     });
   });
