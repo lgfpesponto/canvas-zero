@@ -401,7 +401,7 @@ function AdminEditableOptions({
                 if (fallbacks.length === 0) return;
                 try {
                   for (const [key, it] of fallbacks) {
-                    const { data, error } = await supabase.from('ficha_variacoes').insert({ categoria_id: catId, nome: it.nome, preco_adicional: Number(it.preco) || 0, ordem: 0 }).select('id').single();
+                    const { data, error } = await supabase.from('ficha_variacoes').insert({ categoria_id: cat!.id, nome: it.nome, preco_adicional: Number(it.preco) || 0, ordem: 0 }).select('id').single();
                     if (error) throw error;
                     setEditState(prev => ({ ...prev, [key]: { ...prev[key], isFallback: false, dbId: data.id } }));
                   }
