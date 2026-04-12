@@ -1304,7 +1304,17 @@ export default function AdminConfigFichaPage() {
                 </DialogContent>
               </Dialog>
 
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => toast.success('Alterações desta configuração são usadas como base da ficha de produção')}>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => {
+                // Invalidate all ficha-related queries so OrderPage picks up changes
+                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_categorias'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_campos'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_tipos'] });
+                queryClient.invalidateQueries({ queryKey: ['ficha_workflow'] });
+                refetchCats();
+                toast.success('Configurações sincronizadas! As alterações serão refletidas na ficha de produção.');
+              }}>
                 <CheckCircle className="h-4 w-4" /> sincronizar
               </Button>
             </div>
