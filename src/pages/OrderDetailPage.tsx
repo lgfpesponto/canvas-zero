@@ -15,7 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  MODELOS, ACESSORIOS, BORDADOS, COURO_PRECOS, SOLADO, COR_SOLA, COR_VIRA,
+  MODELOS, ACESSORIOS, BORDADOS, BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA,
+  COURO_PRECOS, SOLADO, COR_SOLA, COR_VIRA,
   CARIMBO, AREA_METAL, DESENVOLVIMENTO,
   SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO, PINTURA_PRECO,
   TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, CRUZ_METAL_PRECO,
@@ -30,6 +31,8 @@ const OrderDetailPage = () => {
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
+  const { findFichaPrice } = useFichaVariacoesLookup();
+  const { getByCategoria } = useCustomOptions();
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');
