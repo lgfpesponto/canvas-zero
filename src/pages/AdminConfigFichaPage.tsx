@@ -395,6 +395,21 @@ function AdminEditableOptions({
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
             <button type="button" onClick={handleSaveAll} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
+            {Object.values(editState).some(it => it.isFallback) && (
+              <button type="button" onClick={async () => {
+                const fallbacks = Object.entries(editState).filter(([, it]) => it.isFallback);
+                if (fallbacks.length === 0) return;
+                try {
+                  for (const [key, it] of fallbacks) {
+                    const { data, error } = await supabase.from('ficha_variacoes').insert({ categoria_id: catId, nome: it.nome, preco_adicional: Number(it.preco) || 0, ordem: 0 }).select('id').single();
+                    if (error) throw error;
+                    setEditState(prev => ({ ...prev, [key]: { ...prev[key], isFallback: false, dbId: data.id } }));
+                  }
+                  toast.success(`${fallbacks.length} variações salvas no banco!`);
+                  refetch();
+                } catch (err: any) { toast.error('Erro ao salvar: ' + err.message); }
+              }} className="px-4 py-2 bg-accent text-accent-foreground rounded text-sm font-medium hover:bg-accent/80 border border-border">💾 Salvar no banco ({Object.values(editState).filter(it => it.isFallback).length})</button>
+            )}
             <button type="button" onClick={() => setShowEditPanel(false)} className="px-4 py-2 bg-muted border border-border rounded text-sm hover:bg-muted/80">Cancelar</button>
             <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-4 py-2 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80">Ed. massa</button>
             {selectedIds.size > 0 && (
@@ -427,7 +442,10 @@ function AdminEditableOptions({
                     <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" placeholder="Nome da variação" />
                     <span className="text-sm text-muted-foreground shrink-0">R$</span>
                     <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
-                    {item.isFallback && <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-amber-500/50 text-amber-700">não salvo</Badge>}
+                    {item.isFallback
+                      ? <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-amber-500/50 text-amber-700">não salvo</Badge>
+                      : <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-green-500/50 text-green-700 bg-green-50">salvo no banco</Badge>
+                    }
                     <button type="button" onClick={() => { setRelOpen(relOpen === key ? null : key); setRelCatFilter(''); }} className={`shrink-0 ${hasRel ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={14} /></button>
                     <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={14} /></button>
                   </div>
