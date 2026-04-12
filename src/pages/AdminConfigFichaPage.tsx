@@ -367,39 +367,42 @@ function AdminEditableOptions({
         </div>
       )}
 
-      {showEditPanel && (
-        <div className="border border-primary/30 rounded-lg p-4 bg-muted/50 mb-2 space-y-3">
-          <div className="flex flex-wrap items-center gap-2 mb-1 pb-2 border-b border-border">
-            <button type="button" onClick={handleSaveAll} className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
-            <button type="button" onClick={() => setShowEditPanel(false)} className="px-3 py-1.5 bg-muted border border-border rounded text-sm hover:bg-muted/80">Cancelar</button>
-            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-3 py-1.5 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80">Ed. massa</button>
+      <Dialog open={showEditPanel} onOpenChange={setShowEditPanel}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-montserrat lowercase">editar variações — {catLabel}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
+            <button type="button" onClick={handleSaveAll} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
+            <button type="button" onClick={() => setShowEditPanel(false)} className="px-4 py-2 bg-muted border border-border rounded text-sm hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-4 py-2 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80">Ed. massa</button>
             {selectedIds.size > 0 && (
-              <button type="button" onClick={handleDeleteSelected} className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded text-sm font-medium hover:opacity-90">Apagar selecionadas ({selectedIds.size})</button>
-            )}
-            {showBulkEdit && (
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-muted-foreground">Adicionar:</span>
-                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-sm border border-border rounded px-2 py-1.5 bg-background w-20" placeholder="+5" />
-                <button type="button" onClick={handleBulkApply} className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">OK</button>
-              </div>
+              <button type="button" onClick={handleDeleteSelected} className="px-4 py-2 bg-destructive text-destructive-foreground rounded text-sm font-medium hover:opacity-90">Apagar selecionadas ({selectedIds.size})</button>
             )}
           </div>
-          <div className="grid grid-cols-1 gap-2 max-h-[70vh] overflow-y-auto">
+          {showBulkEdit && (
+            <div className="flex items-center gap-2 pb-2">
+              <span className="text-sm text-muted-foreground">Adicionar valor a todos:</span>
+              <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-sm border border-border rounded px-3 py-2 bg-background w-24" placeholder="+5" />
+              <button type="button" onClick={handleBulkApply} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Aplicar</button>
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
             {editItems.map(([key, item]) => (
               <React.Fragment key={key}>
-                <div className={`flex items-center gap-2 p-2 rounded border ${item.isFallback ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/5 border-primary/20'}`}>
+                <div className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/5 border-primary/20'}`}>
                   <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggleSelected(key)} className="accent-destructive w-4 h-4 shrink-0" />
-                  <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1 min-w-0" />
+                  <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" placeholder="Nome da variação" />
                   <span className="text-sm text-muted-foreground shrink-0">R$</span>
-                  <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-2 py-1.5 bg-background w-20 shrink-0" />
-                  {item.isFallback && <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0 border-amber-500 text-amber-600">fallback</Badge>}
+                  <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
+                  {item.isFallback && <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-amber-500 text-amber-600">fallback</Badge>}
                   {item.dbId && (
-                    <button type="button" onClick={() => setRelOpen(relOpen === key ? null : key)} className={`shrink-0 ${item.dbId && mergedItems.find(m => m.dbId === item.dbId)?.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={12} /></button>
+                    <button type="button" onClick={() => setRelOpen(relOpen === key ? null : key)} className={`shrink-0 ${item.dbId && mergedItems.find(m => m.dbId === item.dbId)?.relacionamento ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={14} /></button>
                   )}
-                  <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
+                  <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={14} /></button>
                 </div>
                 {relOpen === key && item.dbId && (
-                  <div className="col-span-full p-2 border border-primary/20 rounded bg-background mb-1">
+                  <div className="p-3 border border-primary/20 rounded-lg bg-background ml-6">
                     <p className="text-xs font-medium mb-2">Relacionamentos: {item.nome}</p>
                     <div className="space-y-2">
                       {otherCats.map(oc => {
@@ -433,8 +436,8 @@ function AdminEditableOptions({
               </React.Fragment>
             ))}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
