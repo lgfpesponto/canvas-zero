@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -238,6 +239,7 @@ const MultiSelect = ({
 const OrderPage = () => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
   const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
+  const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
@@ -593,7 +595,7 @@ const OrderPage = () => {
   const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira]
     .reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
   const findPrice = (b: string, cat: string, fallback: {label:string;preco:number}[]) =>
-    getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
+    findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
     bordadoCano.reduce((sum, b) => sum + findPrice(b, 'bordado_cano', BORDADOS_CANO), 0) +
     bordadoGaspea.reduce((sum, b) => sum + findPrice(b, 'bordado_gaspea', BORDADOS_GASPEA), 0) +
@@ -837,20 +839,27 @@ const OrderPage = () => {
   };
 
   /* ───── items from DB (with static fallback) ───── */
+  const sortAlpha = (arr: {label:string;preco:number}[]) => {
+    const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
+    const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
+    normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    return [...normal, ...variado];
+  };
   const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
+    const ficha = getByCustomCategory(cat);
+    if (ficha.length > 0) return sortAlpha(ficha);
     const db = getByCategoria(cat);
-    if (db.length === 0) return fallback;
-    const normal = db.filter(o => !o.label.toLowerCase().startsWith('bordado variado'));
-    const variado = db.filter(o => o.label.toLowerCase().startsWith('bordado variado'));
-    return [...normal, ...variado].map(o => ({ label: o.label, preco: o.preco }));
+    if (db.length > 0) return sortAlpha(db.map(o => ({ label: o.label, preco: o.preco })));
+    return sortAlpha(fallback);
   };
   const mergedBordadoCano = getDbItems('bordado_cano', BORDADOS_CANO);
   const mergedBordadoGaspea = getDbItems('bordado_gaspea', BORDADOS_GASPEA);
   const mergedBordadoTaloneira = getDbItems('bordado_taloneira', BORDADOS_TALONEIRA);
   const getLaserItems = (cat: string) => {
     const db = getByCategoria(cat);
-    if (db.length === 0) return LASER_OPTIONS.map(l => ({ label: l, preco: 0 }));
-    return db.map(o => ({ label: o.label, preco: o.preco }));
+    if (db.length === 0) return sortAlpha(LASER_OPTIONS.map(l => ({ label: l, preco: 0 })));
+    return sortAlpha(db.map(o => ({ label: o.label, preco: o.preco })));
   };
   const mergedLaserCano = getLaserItems('laser_cano');
   const mergedLaserGaspea = getLaserItems('laser_gaspea');
