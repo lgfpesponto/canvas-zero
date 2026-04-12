@@ -150,6 +150,7 @@ function AdminEditableOptions({
   // editState keyed by dbId or "fb_index" for fallback-only items
   const [editState, setEditState] = useState<Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }>>({});
   const [relOpen, setRelOpen] = useState<string | null>(null);
+  const [relCatFilter, setRelCatFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handleCreateCategory = () => {
