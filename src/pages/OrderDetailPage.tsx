@@ -142,9 +142,17 @@ const OrderDetailPage = () => {
   });
   const desenvP = DESENVOLVIMENTO.find(d => d.label === order.desenvolvimento)?.preco;
   if (desenvP) priceItems.push(['Desenvolvimento: ' + order.desenvolvimento, desenvP]);
-  [order.bordadoCano, order.bordadoGaspea, order.bordadoTaloneira].forEach(bStr => {
+  const findDetailPrice = (b: string, cat: string, fallback: { label: string; preco: number }[]) =>
+    findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
+
+  const bordadoPairs: [string | undefined, string, { label: string; preco: number }[]][] = [
+    [order.bordadoCano, 'bordado_cano', BORDADOS_CANO],
+    [order.bordadoGaspea, 'bordado_gaspea', BORDADOS_GASPEA],
+    [order.bordadoTaloneira, 'bordado_taloneira', BORDADOS_TALONEIRA],
+  ];
+  bordadoPairs.forEach(([bStr, cat, fallback]) => {
     if (bStr) bStr.split(', ').filter(Boolean).forEach(b => {
-      const p = BORDADOS.find(x => x.label === b)?.preco;
+      const p = findDetailPrice(b, cat, fallback);
       if (p) priceItems.push([b, p]);
     });
   });
