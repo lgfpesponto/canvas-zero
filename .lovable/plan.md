@@ -1,30 +1,33 @@
 
 
-## Plano: Alinhar visual dos campos na configuracao com o formulario publicado
+## Plano: Corrigir lapis de edicao e ordenar variacoes alfabeticamente
 
-### Problema
+### Problemas
 
-Na aba configuracao > ficha de producao > bota, o `BootFieldRenderer` renderiza todos os campos de forma incorreta comparado ao formulario "Faca seu Pedido":
+1. **Lapis nao responde ao clique**: O botao do lapis na linha 1140 tem area de clique muito pequena (icone de 13px sem padding). Alem disso, o componente `SearchableSelect` (usado em campos `selecao`) pode criar uma camada invisivel que bloqueia cliques nos botoes vizinhos.
 
-| Tipo | OrderPage (correto) | Admin Config (atual) |
-|---|---|---|
-| `selecao` | `SearchableSelect` (dropdown com busca) | Radio buttons em caixa bordada |
-| `multipla` | Grid de checkboxes em caixa com busca | Similar, mas sem separador "Bordados Variados" |
-| `checkbox` | Select "Tem/Nao tem" + campo texto condicional | Select desabilitado sem indicacao de texto condicional |
+2. **Variacoes sem ordem alfabetica**: No `BootFieldRenderer`, as variacoes (`activeVars`) nao sao ordenadas. Na `CategoriaSection` (fichas dinamicas) ja existe `sortAlpha` (linha 1443), mas o `BootFieldRenderer` nao aplica nenhuma ordenacao.
 
 ### Alteracoes
 
-**Arquivo: `src/pages/AdminConfigFichaPage.tsx`** - funcao `BootFieldRenderer`
+**Arquivo: `src/pages/AdminConfigFichaPage.tsx`**
 
-1. **Tipo `selecao`**: Trocar o grid de radio buttons por um `SearchableSelect` desabilitado (preview) mostrando as variacoes como opcoes. Manter os botoes admin (adicionar, editar variacoes) acima do componente.
+1. **Aumentar area de clique do lapis** (~linha 1140):
+   - Adicionar `p-1.5 rounded hover:bg-muted relative z-10` ao botao do lapis do `renderLabel`
+   - Aplicar o mesmo aos botoes Plus e Pencil do `adminControls` (~linhas 1199-1201)
 
-2. **Tipo `multipla`**: Manter o grid de checkboxes (ja esta similar ao OrderPage), mas adicionar o separador "Bordados Variados" quando aplicavel, igual ao MultiSelect do OrderPage.
+2. **Ordenar `activeVars` alfabeticamente** (~linha 1041):
+   - Trocar `const activeVars = variacoes.filter(v => v.ativo !== false);` por:
+   ```
+   const activeVars = variacoes
+     .filter(v => v.ativo !== false)
+     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+   ```
+   - Manter "Bordado Variado" ao final da lista (como ja e feito no formulario publicado)
 
-3. **Tipo `checkbox`**: Ja renderiza como select "Tem/Nao tem" (correto), mas adicionar preview do campo de texto condicional quando `desc_condicional = true`, mostrando um input desabilitado ao lado igual ao OrderPage.
+3. **Ordenar variacoes no painel de edicao** (~linha 1288):
+   - Ordenar `Object.entries(editState)` alfabeticamente ao renderizar a lista de edicao no Dialog
 
-### Detalhes tecnicos
-
-- O `SearchableSelect` para tipo `selecao` recebera as variacoes como `options` (array de strings com os nomes)
-- Os botoes de admin (Plus, Pencil para variacoes, Dialog de edicao) continuam acima do componente visual
-- Para `checkbox` com `desc_condicional`, adicionar um `<input disabled placeholder="(campo de texto se Tem)">` ao lado do select
+4. **Ordenar opcoes no `SearchableSelect`** do tipo `selecao` (~linha 1225):
+   - Ordenar o array `options` alfabeticamente antes de passar ao componente
 
