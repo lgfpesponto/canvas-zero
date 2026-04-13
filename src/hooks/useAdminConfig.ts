@@ -24,6 +24,7 @@ export interface FichaCategoria {
 export interface FichaVariacao {
   id: string;
   categoria_id: string;
+  campo_id: string | null;
   nome: string;
   preco_adicional: number;
   ativo: boolean;
