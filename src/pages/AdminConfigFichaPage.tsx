@@ -930,6 +930,7 @@ function BootFieldRenderer({
   const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
+  const [search, setSearch] = useState('');
 
   const activeVars = variacoes.filter(v => v.ativo !== false);
   const hasVariations = campo.tipo === 'selecao' || campo.tipo === 'multipla';
