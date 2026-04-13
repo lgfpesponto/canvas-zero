@@ -1382,6 +1382,9 @@ export default function AdminConfigFichaPage() {
   const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
 
+  const isBoot = slug === 'bota';
+  const isDynamic = tipo?.tipo_ficha === 'dinamica';
+
   // Boot sections: 17 hardcoded + dynamic extra categories
   const [sectionOrder, setSectionOrder] = useState<number[]>([]);
 
@@ -1403,9 +1406,6 @@ export default function AdminConfigFichaPage() {
       return prev;
     });
   }, [totalSections]);
-
-  const isBoot = slug === 'bota';
-  const isDynamic = tipo?.tipo_ficha === 'dinamica';
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
