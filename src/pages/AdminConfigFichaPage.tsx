@@ -1389,6 +1389,7 @@ export default function AdminConfigFichaPage() {
   const [novoItemOpen, setNovoItemOpen] = useState(false);
   const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
+  const [novoItemSectionLabel, setNovoItemSectionLabel] = useState('');
 
   const isBoot = slug === 'bota';
   const isDynamic = tipo?.tipo_ficha === 'dinamica';
