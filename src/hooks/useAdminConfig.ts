@@ -47,6 +47,7 @@ export interface FichaWorkflow {
 export interface FichaCampo {
   id: string;
   ficha_tipo_id: string;
+  categoria_id: string | null;
   nome: string;
   slug: string;
   tipo: string;
