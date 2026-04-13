@@ -792,11 +792,12 @@ function AdminTextRef({ label, onRename, onDelete, required, onToggleRequired }:
 /* ─── Boot Form Layout (data-driven from visual categories → fields → variations) ─── */
 function BootFormLayout({
   fichaTipoId, categorias, allVariacoes, campos, onRefetchCats, onRefetchCampos,
-  sectionOrder, onMoveSection,
+  sectionOrder, onMoveSection, bootFallbackMap,
 }: {
   fichaTipoId: string; categorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   campos: FichaCampo[]; onRefetchCats: () => void; onRefetchCampos: () => void;
   sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
+  bootFallbackMap: Record<string, { label: string; preco: number }[]>;
 }) {
   const updateCategoria = useUpdateCategoria();
   const deleteCategoria = useDeleteCategoria();
@@ -874,15 +875,26 @@ function BootFormLayout({
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
     };
+    // Legacy slug map: campo slugs (singular) -> category slugs (plural)
+    const LEGACY_SLUG_MAP: Record<string, string> = {
+      'tamanho': 'tamanhos',
+      'genero': 'generos',
+      'modelo': 'modelos',
+    };
+
     const renderField = (campo: FichaCampo, fieldIdx: number) => {
       let fieldVars = varsByCampo.get(campo.id) || [];
       // Fallback: if no campo_id variations, try category-based variations matching campo slug
-      if (fieldVars.length === 0 && campo.slug) {
-        const matchCat = (categorias || []).find(c => c.slug === campo.slug);
-        if (matchCat) {
-          fieldVars = (allVariacoes || []).filter(v => v.categoria_id === matchCat.id);
+      const resolvedSlug = LEGACY_SLUG_MAP[campo.slug] || campo.slug;
+      let matchedCat: FichaCategoria | undefined;
+      if (fieldVars.length === 0 && resolvedSlug) {
+        matchedCat = (categorias || []).find(c => c.slug === resolvedSlug);
+        if (matchedCat) {
+          fieldVars = (allVariacoes || []).filter(v => v.categoria_id === matchedCat!.id);
         }
       }
+      // Resolve fallback array for this field
+      const fallbackArr = bootFallbackMap[resolvedSlug] || undefined;
       return (
         <BootFieldRenderer
           key={campo.id}
@@ -896,6 +908,8 @@ function BootFormLayout({
           allVariacoes={allVariacoes}
           fichaTipoId={fichaTipoId}
           onRefetchCats={onRefetchCats}
+          fallback={fallbackArr}
+          resolvedCatId={matchedCat?.id}
         />
       );
     };
@@ -1023,11 +1037,14 @@ function BootFormLayout({
 function BootFieldRenderer({
   campo, variacoes, catCampos, fieldIdx, onReorder, onRefetch,
   allCategorias, allVariacoes, fichaTipoId, onRefetchCats,
+  fallback, resolvedCatId,
 }: {
   campo: FichaCampo; variacoes: FichaVariacao[]; catCampos: FichaCampo[];
   fieldIdx: number; onReorder: (dir: 'up' | 'down') => void; onRefetch: () => void;
   allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   fichaTipoId: string; onRefetchCats: () => void;
+  fallback?: { label: string; preco: number }[];
+  resolvedCatId?: string;
 }) {
   const updateCampo = useUpdateFichaCampo();
   const deleteCampo = useDeleteFichaCampo();
@@ -1040,14 +1057,35 @@ function BootFieldRenderer({
   const [addVarName, setAddVarName] = useState('');
   const [addVarPreco, setAddVarPreco] = useState('0');
   const [showAddVar, setShowAddVar] = useState(false);
-  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
+  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }>>({});
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
 
-  const activeVars = variacoes
-    .filter(v => v.ativo !== false)
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  // Build merged items: DB variations + fallback items not yet in DB
+  const fb = fallback || [];
+  const dbMap = new Map(variacoes.filter(v => v.ativo !== false).map(v => [v.nome.toLowerCase(), v]));
+  type MergedVar = { id: string; nome: string; preco_adicional: number; dbId: string | null; isFallback: boolean; ordem: number; ativo: boolean };
+  const mergedVars: MergedVar[] = [];
+  const usedDbIds = new Set<string>();
+
+  fb.forEach((f, idx) => {
+    const d = dbMap.get(f.label.toLowerCase());
+    if (d) {
+      usedDbIds.add(d.id);
+      mergedVars.push({ id: d.id, nome: d.nome, preco_adicional: d.preco_adicional, dbId: d.id, isFallback: false, ordem: d.ordem ?? idx, ativo: d.ativo ?? true });
+    } else {
+      mergedVars.push({ id: `fb_${idx}`, nome: f.label, preco_adicional: f.preco, dbId: null, isFallback: true, ordem: idx, ativo: true });
+    }
+  });
+  variacoes.filter(v => v.ativo !== false).forEach(v => {
+    if (!usedDbIds.has(v.id)) {
+      mergedVars.push({ id: v.id, nome: v.nome, preco_adicional: v.preco_adicional, dbId: v.id, isFallback: false, ordem: v.ordem ?? 0, ativo: true });
+    }
+  });
+  mergedVars.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const activeVars = mergedVars;
   const hasVariations = campo.tipo === 'selecao' || campo.tipo === 'multipla';
 
   const handleSaveName = () => {
@@ -1065,10 +1103,12 @@ function BootFieldRenderer({
 
   const handleAddVariacao = () => {
     if (!addVarName.trim()) return;
-    // Use campo's visual category, fallback to first variation's category, or resolve by campo slug
-    let catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    // Use resolvedCatId, campo's visual category, fallback to first variation's category, or resolve by campo slug
+    let catId = resolvedCatId || campo.categoria_id || variacoes[0]?.categoria_id;
     if (!catId && campo.slug) {
-      const matchCat = (allCategorias || []).find(c => c.slug === campo.slug);
+      const LEGACY_SLUG_MAP: Record<string, string> = { 'tamanho': 'tamanhos', 'genero': 'generos', 'modelo': 'modelos' };
+      const resolved = LEGACY_SLUG_MAP[campo.slug] || campo.slug;
+      const matchCat = (allCategorias || []).find(c => c.slug === resolved);
       if (matchCat) catId = matchCat.id;
     }
     if (!catId) {
@@ -1082,8 +1122,8 @@ function BootFieldRenderer({
   };
 
   const openEditPanel = () => {
-    const state: Record<string, { nome: string; preco: string }> = {};
-    activeVars.forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) }; });
+    const state: Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }> = {};
+    activeVars.forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional), dbId: v.dbId, isFallback: v.isFallback }; });
     setEditState(state);
     setShowVarPanel(true);
     setShowBulkEdit(false);
@@ -1091,10 +1131,24 @@ function BootFieldRenderer({
   };
 
   const handleSaveAllVars = async () => {
-    for (const v of activeVars) {
-      const s = editState[v.id];
-      if (s && (s.nome !== v.nome || parseFloat(s.preco) !== v.preco_adicional)) {
-        await updateVariacao.mutateAsync({ id: v.id, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+    // Resolve category id for persisting fallback items
+    let catId = resolvedCatId || campo.categoria_id || variacoes[0]?.categoria_id;
+    for (const [key, s] of Object.entries(editState)) {
+      if (s.dbId) {
+        // Existing DB item - update if changed
+        const orig = variacoes.find(v => v.id === s.dbId);
+        if (orig && (s.nome !== orig.nome || parseFloat(s.preco) !== orig.preco_adicional)) {
+          await updateVariacao.mutateAsync({ id: s.dbId, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+        }
+      } else if (s.isFallback && catId) {
+        // Fallback item - persist to DB
+        await insertVariacao.mutateAsync({
+          categoria_id: catId,
+          campo_id: campo.id,
+          nome: s.nome,
+          preco_adicional: parseFloat(s.preco) || 0,
+          ordem: 0,
+        });
       }
     }
     toast.success('Alterações salvas');
@@ -1302,7 +1356,8 @@ function BootFieldRenderer({
           )}
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
             {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => (
-              <div key={key} className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
+              <div key={key} className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' : 'bg-primary/5 border-primary/20'}`}>
+                {item.isFallback && <Badge variant="outline" className="text-[10px] shrink-0 text-yellow-700 border-yellow-400">não salvo</Badge>}
                 <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
                 <span className="text-sm text-muted-foreground shrink-0">R$</span>
                 <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
@@ -1310,7 +1365,9 @@ function BootFieldRenderer({
                 <button type="button" onClick={() => handleReorderVar(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowDown size={14} /></button>
                 <button type="button" onClick={async () => {
                   if (confirm(`Remover "${item.nome}"?`)) {
-                    await deleteVariacao.mutateAsync(key);
+                    if (item.dbId) {
+                      await deleteVariacao.mutateAsync(item.dbId);
+                    }
                     setEditState(prev => { const n = { ...prev }; delete n[key]; return n; });
                     toast.success('Removida');
                     onRefetch();
@@ -2004,6 +2061,7 @@ export default function AdminConfigFichaPage() {
               onRefetchCampos={refetchCampos}
               sectionOrder={sectionOrder}
               onMoveSection={handleMoveSectionBoot}
+              bootFallbackMap={BOOT_FALLBACK_MAP}
             />
           </section>
         )}
