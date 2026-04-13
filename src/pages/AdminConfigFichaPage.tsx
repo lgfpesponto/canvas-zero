@@ -1081,7 +1081,6 @@ function BootFieldRenderer({
   }
 
   // selecao or multipla
-  const [search, setSearch] = useState('');
   const filtered = search ? activeVars.filter(v => v.nome.toLowerCase().includes(search.toLowerCase())) : activeVars;
 
   return (
