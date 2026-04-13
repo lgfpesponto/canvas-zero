@@ -1061,6 +1061,8 @@ function BootFieldRenderer({
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
+  const [relOpen, setRelOpen] = useState<string | null>(null);
+  const [relCatFilter, setRelCatFilter] = useState('');
 
   // Build merged items: DB variations + fallback items not yet in DB
   const fb = fallback || [];
