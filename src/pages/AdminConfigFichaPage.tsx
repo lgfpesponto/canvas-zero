@@ -953,6 +953,20 @@ function BootFormLayout({
       );
     }
 
+    // Solados: grid of selecao fields (Solado, Bico, Cor Sola, Cor Vira) + Costura Atrás toggle below
+    if (cat.slug === 'solados-visual') {
+      const gridFields = catCampos.filter(c => c.tipo === 'selecao');
+      const toggleFields = catCampos.filter(c => c.tipo !== 'selecao');
+      return (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {gridFields.map((campo) => renderField(campo, catCampos.indexOf(campo)))}
+          </div>
+          {toggleFields.map((campo) => renderField(campo, catCampos.indexOf(campo)))}
+        </>
+      );
+    }
+
     // Default: apply grid class if defined, otherwise vertical stack
     if (gridClass) {
       return (
