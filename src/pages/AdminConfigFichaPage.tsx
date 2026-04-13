@@ -1175,23 +1175,26 @@ function BootFieldRenderer({
 
   if (campo.tipo === 'checkbox') {
     return (
-      <div className="flex flex-wrap items-center gap-3">
+      <div>
         {renderLabel()}
-        <select disabled className={cls.inputSmall + ' w-28 opacity-60'}>
-          <option>Não tem</option>
-          <option>Tem</option>
-        </select>
-        {campo.desc_condicional && <span className="text-xs text-muted-foreground italic">(abre campo de texto se "Tem")</span>}
+        <div className="flex flex-wrap items-center gap-3">
+          <select disabled className={cls.inputSmall + ' w-28 opacity-60'}>
+            <option>Não tem</option>
+            <option>Tem</option>
+          </select>
+          {campo.desc_condicional && (
+            <input type="text" disabled placeholder="(campo de texto se Tem)" className={cls.input + ' flex-1 min-w-[150px] opacity-40 italic'} />
+          )}
+        </div>
       </div>
     );
   }
 
-  // selecao or multipla
+  // selecao or multipla - admin controls shared
   const filtered = search ? activeVars.filter(v => v.nome.toLowerCase().includes(search.toLowerCase())) : activeVars;
 
-  return (
-    <div>
-      {renderLabel()}
+  const adminControls = (
+    <>
       <div className="flex items-center gap-1.5 mb-1">
         <button type="button" onClick={() => setShowAddVar(true)} className="text-primary hover:text-primary/80" title="Adicionar variação"><Plus size={14} /></button>
         {activeVars.length > 0 && (
@@ -1214,22 +1217,53 @@ function BootFieldRenderer({
           <button type="button" onClick={() => { setShowAddVar(false); setAddVarName(''); setAddVarPreco('0'); }} className="px-3 py-2 bg-muted border border-border rounded-md text-sm">Cancelar</button>
         </div>
       )}
+    </>
+  );
 
-      {activeVars.length > 10 && (
+  // SELECAO: render as SearchableSelect (dropdown with search) like OrderPage
+  if (campo.tipo === 'selecao') {
+    const options = activeVars.map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome);
+    return (
+      <div>
+        {renderLabel()}
+        {adminControls}
+        <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+      </div>
+    );
+  }
+
+  // MULTIPLA: render as open checkbox grid like OrderPage
+  const hasSearchBar = campo.nome.toLowerCase().includes('bordado') || campo.nome.toLowerCase().includes('laser') || activeVars.length > 10;
+  const normal = filtered.filter(v => !v.nome.toLowerCase().startsWith('bordado variado'));
+  const variado = filtered.filter(v => v.nome.toLowerCase().startsWith('bordado variado'));
+  const display = [...normal, ...variado];
+  const firstVariadoIdx = display.findIndex(v => v.nome.toLowerCase().startsWith('bordado variado'));
+
+  return (
+    <div>
+      {renderLabel()}
+      {adminControls}
+
+      {hasSearchBar && (
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." className={cls.input + ' pl-8 !py-1.5 text-xs'} />
         </div>
       )}
 
-      <div className={`grid ${campo.tipo === 'multipla' ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1'} gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50`}>
-        {filtered.map(v => (
-          <label key={v.id} className={cls.checkItem}>
-            <input type={campo.tipo === 'multipla' ? 'checkbox' : 'radio'} checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
-            <span>{v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}</span>
-          </label>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+        {display.map((v, idx) => (
+          <React.Fragment key={v.id}>
+            {idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
+            )}
+            <label className={cls.checkItem}>
+              <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+              <span>{v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}</span>
+            </label>
+          </React.Fragment>
         ))}
-        {filtered.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
+        {display.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
       </div>
 
       {/* Edit panel dialog */}
