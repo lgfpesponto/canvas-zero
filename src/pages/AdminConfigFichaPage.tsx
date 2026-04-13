@@ -1583,7 +1583,7 @@ export default function AdminConfigFichaPage() {
     const tipo = tipoMap[novoItem.tipo] || 'texto';
     insertCampo.mutate(
       {
-        ficha_tipo_id: tipo_id_ref,
+        ficha_tipo_id: tipo.id,
         categoria_id: novoItem.categoriaId,
         nome,
         slug: slugify(nome),
