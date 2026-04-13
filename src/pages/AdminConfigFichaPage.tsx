@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -875,7 +875,14 @@ function BootFormLayout({
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
     };
     const renderField = (campo: FichaCampo, fieldIdx: number) => {
-      const fieldVars = varsByCampo.get(campo.id) || [];
+      let fieldVars = varsByCampo.get(campo.id) || [];
+      // Fallback: if no campo_id variations, try category-based variations matching campo slug
+      if (fieldVars.length === 0 && campo.slug) {
+        const matchCat = (categorias || []).find(c => c.slug === campo.slug);
+        if (matchCat) {
+          fieldVars = (allVariacoes || []).filter(v => v.categoria_id === matchCat.id);
+        }
+      }
       return (
         <BootFieldRenderer
           key={campo.id}
@@ -1058,8 +1065,12 @@ function BootFieldRenderer({
 
   const handleAddVariacao = () => {
     if (!addVarName.trim()) return;
-    // Use campo's visual category, or fallback to first variation's category
-    const catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    // Use campo's visual category, fallback to first variation's category, or resolve by campo slug
+    let catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    if (!catId && campo.slug) {
+      const matchCat = (allCategorias || []).find(c => c.slug === campo.slug);
+      if (matchCat) catId = matchCat.id;
+    }
     if (!catId) {
       toast.error('Categoria não encontrada para este campo');
       return;
@@ -1275,6 +1286,7 @@ function BootFieldRenderer({
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-montserrat lowercase">editar variações — {campo.nome}</DialogTitle>
+            <DialogDescription className="sr-only">Editar nomes e preços das variações do campo {campo.nome}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
             <button type="button" onClick={handleSaveAllVars} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
