@@ -950,14 +950,14 @@ function BootFieldRenderer({
 
   const handleAddVariacao = () => {
     if (!addVarName.trim()) return;
-    // Find the old technical category to maintain backward compat
-    const oldCatId = variacoes[0]?.categoria_id;
-    if (!oldCatId) {
-      toast.error('Categoria técnica não encontrada para este campo');
+    // Use campo's visual category, or fallback to first variation's category
+    const catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    if (!catId) {
+      toast.error('Categoria não encontrada para este campo');
       return;
     }
     insertVariacao.mutate(
-      { categoria_id: oldCatId, campo_id: campo.id, nome: addVarName.trim(), preco_adicional: parseFloat(addVarPreco) || 0, ordem: activeVars.length + 1 },
+      { categoria_id: catId, campo_id: campo.id, nome: addVarName.trim(), preco_adicional: parseFloat(addVarPreco) || 0, ordem: activeVars.length + 1 },
       { onSuccess: () => { toast.success('Variação adicionada'); setAddVarName(''); setAddVarPreco('0'); setShowAddVar(false); onRefetch(); } }
     );
   };
