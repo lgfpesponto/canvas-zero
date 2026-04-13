@@ -1,33 +1,77 @@
 
+Descobri o motivo principal do problema dos botões de editar em “Tamanho”, “Gênero” e “Modelo” na ficha de produção da bota.
 
-## Plano: Corrigir lapis de edicao e ordenar variacoes alfabeticamente
+1. Causa real
+- Esses campos estão sendo renderizados pelo `BootFieldRenderer`.
+- O `BootFieldRenderer` só busca variações ligadas diretamente ao campo por `campo_id`:
+  - `varsByCampo.get(campo.id)` em `src/pages/AdminConfigFichaPage.tsx:877-883`
+- Porém, as opções clássicas da bota (`tamanhos`, `generos`, `modelos`) continuam definidas como fallback/categoria:
+  - `BOOT_FALLBACK_MAP` em `src/pages/AdminConfigFichaPage.tsx:1755-1759`
+- Ou seja: a página tem duas lógicas diferentes:
+  - lógica antiga por categoria/fallback
+  - lógica nova por campo (`campo_id`)
+- Para esses três campos, a interface visual existe, mas o editor do `BootFieldRenderer` não recebe corretamente o conjunto de variações que o usuário espera editar.
 
-### Problemas
+2. Por que parece que “clico no lápis e nada acontece”
+- O lápis do nome do campo abre só a edição do título do campo.
+- O lápis de variações depende de `activeVars`, que vem apenas das variações com `campo_id`.
+- Como “Tamanho”, “Gênero” e “Modelo” ainda vivem principalmente no fluxo de fallback/categoria, esse editor fica inconsistente ou vazio para esses casos.
+- Isso explica por que alguns campos funcionam e esses três não.
 
-1. **Lapis nao responde ao clique**: O botao do lapis na linha 1140 tem area de clique muito pequena (icone de 13px sem padding). Alem disso, o componente `SearchableSelect` (usado em campos `selecao`) pode criar uma camada invisivel que bloqueia cliques nos botoes vizinhos.
+3. Evidências no código
+- `BootFormLayout` monta variações só por `campo_id`:
+  - `src/pages/AdminConfigFichaPage.tsx:825-835`
+- `BootFieldRenderer` recebe `variacoes={fieldVars}`:
+  - `src/pages/AdminConfigFichaPage.tsx:877-892`
+- `activeVars` depende apenas desse array:
+  - `src/pages/AdminConfigFichaPage.tsx:1041-1044`
+- Já os dados de “Tamanho”, “Gênero” e “Modelo” existem no fallback por slug:
+  - `src/pages/AdminConfigFichaPage.tsx:1755-1759`
 
-2. **Variacoes sem ordem alfabetica**: No `BootFieldRenderer`, as variacoes (`activeVars`) nao sao ordenadas. Na `CategoriaSection` (fichas dinamicas) ja existe `sortAlpha` (linha 1443), mas o `BootFieldRenderer` nao aplica nenhuma ordenacao.
+4. Fator secundário encontrado
+- Há warning real do modal:
+  - `Missing Description or aria-describedby for DialogContent`
+- Isso precisa ser corrigido, mas não é a causa principal da falha desses três campos. É mais um problema de acessibilidade/estabilidade do dialog.
 
-### Alteracoes
+5. Plano de correção
+- Unificar a edição desses campos da bota para que `BootFieldRenderer` também consiga trabalhar com fallback/categoria quando não houver variações vinculadas por `campo_id`.
+- Prioridade:
+  1. detectar quando o campo da bota corresponde a slugs como `tamanhos`, `generos`, `modelos`
+  2. montar uma lista mesclada:
+     - variações do banco por `campo_id`
+     - ou, se estiver vazio, fallback/categoria por slug
+  3. fazer o editor abrir sempre com itens reais para esses campos
+  4. salvar novas edições convertendo fallback em registro persistido no banco
+  5. manter tudo em ordem alfabética
+  6. adicionar `DialogDescription` nos modais para eliminar o warning
 
-**Arquivo: `src/pages/AdminConfigFichaPage.tsx`**
+6. Implementação sugerida
+- Arquivo principal:
+  - `src/pages/AdminConfigFichaPage.tsx`
+- Ajustes:
+  - criar um resolvedor de variações da bota por campo/slug
+  - reutilizar a mesma lógica de merge já usada em `AdminEditableOptions`
+  - aplicar isso especificamente em `BootFieldRenderer`
+- Arquivo secundário:
+  - `src/components/ui/dialog.tsx` ou os usos do dialog em `AdminConfigFichaPage.tsx`
+- Ajustes:
+  - garantir `DialogDescription` nos modais de edição
 
-1. **Aumentar area de clique do lapis** (~linha 1140):
-   - Adicionar `p-1.5 rounded hover:bg-muted relative z-10` ao botao do lapis do `renderLabel`
-   - Aplicar o mesmo aos botoes Plus e Pencil do `adminControls` (~linhas 1199-1201)
+7. Resultado esperado após a correção
+- editar “Tamanho”, “Gênero” e “Modelo” passa a funcionar
+- apagar e alterar variações desses campos passa a funcionar
+- a lista continua em ordem alfabética
+- o comportamento fica consistente entre campos nativos da bota e campos criados no banco
 
-2. **Ordenar `activeVars` alfabeticamente** (~linha 1041):
-   - Trocar `const activeVars = variacoes.filter(v => v.ativo !== false);` por:
-   ```
-   const activeVars = variacoes
-     .filter(v => v.ativo !== false)
-     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-   ```
-   - Manter "Bordado Variado" ao final da lista (como ja e feito no formulario publicado)
+Detalhes técnicos
+```text
+Hoje:
+campo da bota -> BootFieldRenderer -> busca só por campo_id
+                               -> Tamanho/Gênero/Modelo ainda dependem de fallback/categoria
+                               -> editor inconsistente
 
-3. **Ordenar variacoes no painel de edicao** (~linha 1288):
-   - Ordenar `Object.entries(editState)` alfabeticamente ao renderizar a lista de edicao no Dialog
-
-4. **Ordenar opcoes no `SearchableSelect`** do tipo `selecao` (~linha 1225):
-   - Ordenar o array `options` alfabeticamente antes de passar ao componente
-
+Depois:
+campo da bota -> BootFieldRenderer -> busca por campo_id
+                               -> se vazio, resolve por slug/fallback + DB da categoria
+                               -> editor sempre recebe itens editáveis
+```
