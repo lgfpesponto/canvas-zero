@@ -1577,22 +1577,32 @@ export default function AdminConfigFichaPage() {
     const nome = novoItem.nome.trim();
     if (!novoItem.categoriaId) { toast.error('Selecione uma categoria'); return; }
     if (!nome) { toast.error('Informe o nome'); return; }
-    const catVars = (allVariacoes || []).filter(v => v.categoria_id === novoItem.categoriaId);
-    const ordem = catVars.length + 1;
-    const preco = parseFloat(novoItem.preco.replace(',', '.')) || 0;
-    const relacionamento = novoItem.relacionamento ? { depende_de: novoItem.relacionamento } : undefined;
-    insertVariacaoMut.mutate(
-      { categoria_id: novoItem.categoriaId, nome, preco_adicional: preco, ordem, ...(relacionamento ? { relacionamento } : {}) } as any,
+    const catCampos = (campos || []).filter(c => c.categoria_id === novoItem.categoriaId);
+    const ordem = catCampos.length + 1;
+    const tipoMap: Record<string, string> = { 'toggle': 'checkbox', 'variacao': 'selecao', 'multipla': 'multipla', 'texto': 'texto' };
+    const tipo = tipoMap[novoItem.tipo] || 'texto';
+    insertCampo.mutate(
+      {
+        ficha_tipo_id: tipo_id_ref,
+        categoria_id: novoItem.categoriaId,
+        nome,
+        slug: slugify(nome),
+        tipo,
+        obrigatorio: false,
+        ordem,
+        opcoes: [],
+        vinculo: null,
+        desc_condicional: tipo === 'checkbox',
+      },
       {
         onSuccess: () => {
-          toast.success(`"${nome}" adicionado`);
+          toast.success(`Campo "${nome}" adicionado`);
           setNovoItem({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
           setNovoItemOpen(false);
-          refetchCats();
-          queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
-          queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+          refetchCampos();
+          queryClient.invalidateQueries({ queryKey: ['ficha_campos'] });
         },
-        onError: () => toast.error('Erro ao adicionar'),
+        onError: () => toast.error('Erro ao adicionar campo'),
       },
     );
   };
