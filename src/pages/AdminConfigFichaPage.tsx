@@ -792,11 +792,12 @@ function AdminTextRef({ label, onRename, onDelete, required, onToggleRequired }:
 /* ─── Boot Form Layout (data-driven from visual categories → fields → variations) ─── */
 function BootFormLayout({
   fichaTipoId, categorias, allVariacoes, campos, onRefetchCats, onRefetchCampos,
-  sectionOrder, onMoveSection,
+  sectionOrder, onMoveSection, bootFallbackMap,
 }: {
   fichaTipoId: string; categorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   campos: FichaCampo[]; onRefetchCats: () => void; onRefetchCampos: () => void;
   sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
+  bootFallbackMap: Record<string, { label: string; preco: number }[]>;
 }) {
   const updateCategoria = useUpdateCategoria();
   const deleteCategoria = useDeleteCategoria();
@@ -893,7 +894,7 @@ function BootFormLayout({
         }
       }
       // Resolve fallback array for this field
-      const fallbackArr = BOOT_FALLBACK_MAP[resolvedSlug] || undefined;
+      const fallbackArr = bootFallbackMap[resolvedSlug] || undefined;
       return (
         <BootFieldRenderer
           key={campo.id}
