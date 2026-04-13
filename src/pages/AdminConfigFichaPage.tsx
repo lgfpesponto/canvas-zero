@@ -1188,6 +1188,43 @@ function BootFieldRenderer({
     updateVariacao.mutate({ id: swapId, ordem: idx });
   };
 
+  const handleRelChange = async (key: string, catSlug: string, newSel: string[]) => {
+    const item = editState[key];
+    if (!item) return;
+    // If fallback, persist first
+    let dbId = item.dbId;
+    if (!dbId && item.isFallback) {
+      let catId = resolvedCatId || campo.categoria_id || variacoes[0]?.categoria_id;
+      if (!catId && campo.slug) {
+        const LEGACY_SLUG_MAP: Record<string, string> = { 'tamanho': 'tamanhos', 'genero': 'generos', 'modelo': 'modelos' };
+        const resolved = LEGACY_SLUG_MAP[campo.slug] || campo.slug;
+        const matchCat = (allCategorias || []).find(c => c.slug === resolved);
+        if (matchCat) catId = matchCat.id;
+      }
+      if (!catId) { toast.error('Salve o item antes de vincular'); return; }
+      const { data, error } = await supabase.from('ficha_variacoes').insert({
+        categoria_id: catId, campo_id: campo.id, nome: item.nome,
+        preco_adicional: parseFloat(item.preco) || 0, ordem: 0,
+      }).select('id').single();
+      if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+      dbId = data.id;
+      setEditState(prev => ({ ...prev, [key]: { ...prev[key], dbId: data.id, isFallback: false } }));
+    }
+    if (!dbId) return;
+    // Build updated relacionamento
+    const dbVar = variacoes.find(v => v.id === dbId);
+    const curRel = (dbVar as any)?.relacionamento as Record<string, string[]> | null || {};
+    const newRel = { ...curRel, [catSlug]: newSel.length > 0 ? newSel : undefined };
+    // Clean empty
+    Object.keys(newRel).forEach(k => { if (!newRel[k] || (newRel[k] as string[]).length === 0) delete newRel[k]; });
+    updateVariacao.mutate({ id: dbId, relacionamento: Object.keys(newRel).length > 0 ? newRel : null }, {
+      onSuccess: () => { toast.success('Relacionamento salvo'); onRefetch(); },
+    });
+  };
+
+  // Other categories for relationship panel
+  const otherCats = (allCategorias || []).filter(c => c.id !== resolvedCatId && c.id !== campo.categoria_id);
+
   // Render field label with controls
   const renderLabel = () => (
     <div className="flex items-center gap-1.5 mb-1 relative z-20">
