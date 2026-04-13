@@ -1123,7 +1123,7 @@ function BootFieldRenderer({
 
   // Render field label with controls
   const renderLabel = () => (
-    <div className="flex items-center gap-1.5 mb-1">
+    <div className="flex items-center gap-1.5 mb-1 relative z-20">
       {editing ? (
         <div className="flex items-center gap-1.5 flex-1 flex-wrap">
           <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditing(false); }} />
@@ -1197,7 +1197,7 @@ function BootFieldRenderer({
 
   const adminControls = (
     <>
-      <div className="flex items-center gap-1.5 mb-1">
+      <div className="flex items-center gap-1.5 mb-1 relative z-20">
         <button type="button" onClick={() => setShowAddVar(true)} className="text-primary hover:text-primary/80 p-1.5 rounded hover:bg-muted relative z-10 min-w-[24px] min-h-[24px] flex items-center justify-center" title="Adicionar variação"><Plus size={14} /></button>
         {activeVars.length > 0 && (
           <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80 p-1.5 rounded hover:bg-muted relative z-10 min-w-[24px] min-h-[24px] flex items-center justify-center" title="Editar variações"><Pencil size={12} /></button>
@@ -1229,7 +1229,9 @@ function BootFieldRenderer({
       <div>
         {renderLabel()}
         {adminControls}
-        <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+        <div className="pointer-events-none opacity-60">
+          <SearchableSelect options={options} value="" onValueChange={() => {}} placeholder="Selecione..." />
+        </div>
       </div>
     );
   }
