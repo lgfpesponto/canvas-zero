@@ -1,86 +1,66 @@
 
-Descobri por que ainda não funciona.
+Descobri o motivo de ainda não funcionar.
 
-O problema principal não é mais só “clique” nem só o modal: a lógica continua incompleta para os campos legados da bota.
+Problema principal
+- O botão de editar existe e o `openEditPanel` é chamado.
+- Mas em `BootFieldRenderer` o modal `<Dialog>` de edição está renderizado apenas no fluxo final usado por campos `multipla`.
+- Os campos `Tamanho`, `Gênero` e `Modelo` são do tipo `selecao`.
+- No ramo `if (campo.tipo === 'selecao')`, o componente faz `return` antes do bloco do `<Dialog>`.
+- Resultado: ao clicar no lápis, `showVarPanel` muda para `true`, mas não existe nenhum modal montado para esse tipo de campo.
 
-1. Causa real que ainda sobra
-- O `BootFieldRenderer` abre o editor usando apenas `activeVars`, que vem de `variacoes`.
-- Essas `variacoes` são montadas assim:
-  - primeiro por `campo_id`
-  - se vazio, tenta fallback por `campo.slug === categoria.slug`
-- Mas os campos problemáticos costumam usar slug singular no campo:
-  - `tamanho`, `genero`, `modelo`
-- E os fallbacks/categorias da bota usam slug plural:
-  - `tamanhos`, `generos`, `modelos`
-- Então esse fallback falha para esses 3 casos. Resultado:
-  - `fieldVars` fica vazio
-  - `activeVars` fica vazio
-  - o botão “editar variações” não tem itens para abrir corretamente
+Evidência no código
+- `src/pages/AdminConfigFichaPage.tsx:1124-1130`
+  - `openEditPanel()` define `setShowVarPanel(true)`
+- `src/pages/AdminConfigFichaPage.tsx:1291-1300`
+  - ramo de `campo.tipo === 'selecao'` retorna antes
+- `src/pages/AdminConfigFichaPage.tsx:1338-1380`
+  - o `<Dialog open={showVarPanel}>...` só aparece depois, no retorno do fluxo de `multipla`
 
-2. Evidência no código
-- Fallback atual:
-  - `src/pages/AdminConfigFichaPage.tsx:878-885`
-- Ele procura categoria com:
-  - `categorias.find(c => c.slug === campo.slug)`
-- Só que os fallbacks oficiais estão em:
-  - `BOOT_FALLBACK_MAP`
-  - `tamanhos`, `generos`, `modelos`
-  - `src/pages/AdminConfigFichaPage.tsx:1768-1771`
-- O editor funcional de fallback já existe em outro lugar:
-  - `AdminEditableOptions`
-  - ele faz merge entre fallback + banco e trata item “não salvo”
-  - `src/pages/AdminConfigFichaPage.tsx:210-374`
-- O `BootFieldRenderer` não reaproveita essa lógica; ele só trabalha com registros já resolvidos em `variacoes`.
+Por que parecia ser outra coisa
+- O fallback de slug singular/plural (`tamanho -> tamanhos`, etc.) realmente precisava existir e continua importante para montar as opções.
+- Os warnings de `ref` em `SearchableSelect` e `Dialog` também são reais.
+- Mas o bloqueio funcional mais direto agora é estrutural: para `selecao`, o editor simplesmente não está no JSX retornado.
 
-3. Fator secundário real
-- Ainda existe warning de ref no console:
-  - `Badge` está sendo usado de forma que algum componente pai tenta passar `ref`
-  - `Dialog` também aparece no stack
-- Isso é ruído real e deve ser corrigido, mas não explica sozinho por que só `Tamanho`, `Gênero` e `Modelo` falham.
-- O bug funcional principal é a incompatibilidade de slugs + ausência de merge fallback no `BootFieldRenderer`.
+Plano de correção
+1. Extrair o modal de edição de variações para um bloco compartilhado dentro de `BootFieldRenderer`
+   - usar o mesmo modal para `selecao` e `multipla`
+   - manter suporte a itens fallback “não salvos”
 
-4. O que precisa ser feito
-- Criar um resolvedor explícito para campos legados da bota:
-  - `tamanho -> tamanhos`
-  - `genero -> generos`
-  - `modelo -> modelos`
-- Fazer o `BootFieldRenderer` receber uma lista mesclada:
-  - variações persistidas por `campo_id`
-  - ou por categoria
-  - mais fallbacks do `BOOT_FALLBACK_MAP`
-- Fazer o editor de variações da bota suportar também itens fallback “não salvos”, igual ao `AdminEditableOptions`
-- Ao salvar:
-  - atualizar os itens já persistidos
-  - inserir no banco os itens fallback editados
-  - permitir apagar fallback convertendo-o em registro inativo, igual ao fluxo já existente
-- Manter ordenação alfabética em:
-  - preview
-  - lista de edição
-  - resultado salvo
+2. Reestruturar o retorno do `BootFieldRenderer`
+   - evitar `return` antecipado em `selecao` sem incluir o modal
+   - renderizar:
+     - label
+     - controles admin
+     - preview específico do tipo
+     - modal compartilhado
 
-5. Ajustes adicionais
-- Corrigir `DialogHeader` e `DialogFooter` para `forwardRef` em `src/components/ui/dialog.tsx`
-- Garantir `DialogDescription` em todos os modais relevantes
-- Revisar `Badge` se algum wrapper estiver tentando aplicar `ref` nele dentro do modal/lista
+3. Preservar a lógica já existente
+   - manter merge entre fallback + banco
+   - manter `LEGACY_SLUG_MAP` para `tamanho`, `genero`, `modelo`
+   - manter ordenação alfabética no preview e na lista de edição
 
-6. Resultado esperado
-- “Tamanho”, “Gênero” e “Modelo” passam a abrir o editor corretamente
-- editar, apagar e adicionar variações volta a funcionar nesses campos
-- itens fallback passam a ser tratados como editáveis mesmo antes de estarem salvos no banco
-- tudo continua em ordem alfabética
+4. Corrigir o warning restante do `SearchableSelect`
+   - revisar `PopoverTrigger asChild` para garantir que o trigger receba `ref` corretamente
+   - se necessário, transformar o botão interno em componente com `forwardRef` ou simplificar a estrutura do trigger
+
+5. Validar os três casos afetados
+   - `Tamanho`
+   - `Gênero`
+   - `Modelo`
+   - confirmar abrir, editar, salvar, adicionar e apagar
 
 Detalhes técnicos
 ```text
 Hoje:
-campo.slug = tamanho/genero/modelo
-fallback slug = tamanhos/generos/modelos
-comparação exata falha
-=> variacoes vazias
-=> editor inconsistente
+campo tipo = selecao
+-> botão chama openEditPanel()
+-> setShowVarPanel(true)
+-> componente retorna antes do <Dialog>
+-> nenhum modal aparece
 
 Depois:
-campo legado -> mapa de slug legado
-             -> merge fallback + banco
-             -> editor da bota com suporte a itens não salvos
-             -> persistência correta ao salvar
+campo tipo = selecao ou multipla
+-> botão chama openEditPanel()
+-> modal compartilhado sempre está montado
+-> editor abre normalmente
 ```
