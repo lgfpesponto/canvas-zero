@@ -1356,7 +1356,8 @@ function BootFieldRenderer({
           )}
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
             {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => (
-              <div key={key} className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
+              <div key={key} className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' : 'bg-primary/5 border-primary/20'}`}>
+                {item.isFallback && <Badge variant="outline" className="text-[10px] shrink-0 text-yellow-700 border-yellow-400">não salvo</Badge>}
                 <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
                 <span className="text-sm text-muted-foreground shrink-0">R$</span>
                 <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
@@ -1364,7 +1365,9 @@ function BootFieldRenderer({
                 <button type="button" onClick={() => handleReorderVar(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowDown size={14} /></button>
                 <button type="button" onClick={async () => {
                   if (confirm(`Remover "${item.nome}"?`)) {
-                    await deleteVariacao.mutateAsync(key);
+                    if (item.dbId) {
+                      await deleteVariacao.mutateAsync(item.dbId);
+                    }
                     setEditState(prev => { const n = { ...prev }; delete n[key]; return n; });
                     toast.success('Removida');
                     onRefetch();
