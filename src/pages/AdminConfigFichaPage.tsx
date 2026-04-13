@@ -1868,7 +1868,9 @@ export default function AdminConfigFichaPage() {
               fichaTipoId={tipo.id}
               categorias={categorias}
               allVariacoes={allVariacoes || []}
+              campos={campos || []}
               onRefetchCats={refetchCats}
+              onRefetchCampos={refetchCampos}
               sectionOrder={sectionOrder}
               onMoveSection={handleMoveSectionBoot}
             />
