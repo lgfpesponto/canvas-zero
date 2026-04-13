@@ -1065,8 +1065,12 @@ function BootFieldRenderer({
 
   const handleAddVariacao = () => {
     if (!addVarName.trim()) return;
-    // Use campo's visual category, or fallback to first variation's category
-    const catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    // Use campo's visual category, fallback to first variation's category, or resolve by campo slug
+    let catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    if (!catId && campo.slug) {
+      const matchCat = (allCategorias || []).find(c => c.slug === campo.slug);
+      if (matchCat) catId = matchCat.id;
+    }
     if (!catId) {
       toast.error('Categoria não encontrada para este campo');
       return;
