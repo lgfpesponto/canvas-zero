@@ -1,77 +1,86 @@
 
-Descobri o motivo principal do problema dos botões de editar em “Tamanho”, “Gênero” e “Modelo” na ficha de produção da bota.
+Descobri por que ainda não funciona.
 
-1. Causa real
-- Esses campos estão sendo renderizados pelo `BootFieldRenderer`.
-- O `BootFieldRenderer` só busca variações ligadas diretamente ao campo por `campo_id`:
-  - `varsByCampo.get(campo.id)` em `src/pages/AdminConfigFichaPage.tsx:877-883`
-- Porém, as opções clássicas da bota (`tamanhos`, `generos`, `modelos`) continuam definidas como fallback/categoria:
-  - `BOOT_FALLBACK_MAP` em `src/pages/AdminConfigFichaPage.tsx:1755-1759`
-- Ou seja: a página tem duas lógicas diferentes:
-  - lógica antiga por categoria/fallback
-  - lógica nova por campo (`campo_id`)
-- Para esses três campos, a interface visual existe, mas o editor do `BootFieldRenderer` não recebe corretamente o conjunto de variações que o usuário espera editar.
+O problema principal não é mais só “clique” nem só o modal: a lógica continua incompleta para os campos legados da bota.
 
-2. Por que parece que “clico no lápis e nada acontece”
-- O lápis do nome do campo abre só a edição do título do campo.
-- O lápis de variações depende de `activeVars`, que vem apenas das variações com `campo_id`.
-- Como “Tamanho”, “Gênero” e “Modelo” ainda vivem principalmente no fluxo de fallback/categoria, esse editor fica inconsistente ou vazio para esses casos.
-- Isso explica por que alguns campos funcionam e esses três não.
+1. Causa real que ainda sobra
+- O `BootFieldRenderer` abre o editor usando apenas `activeVars`, que vem de `variacoes`.
+- Essas `variacoes` são montadas assim:
+  - primeiro por `campo_id`
+  - se vazio, tenta fallback por `campo.slug === categoria.slug`
+- Mas os campos problemáticos costumam usar slug singular no campo:
+  - `tamanho`, `genero`, `modelo`
+- E os fallbacks/categorias da bota usam slug plural:
+  - `tamanhos`, `generos`, `modelos`
+- Então esse fallback falha para esses 3 casos. Resultado:
+  - `fieldVars` fica vazio
+  - `activeVars` fica vazio
+  - o botão “editar variações” não tem itens para abrir corretamente
 
-3. Evidências no código
-- `BootFormLayout` monta variações só por `campo_id`:
-  - `src/pages/AdminConfigFichaPage.tsx:825-835`
-- `BootFieldRenderer` recebe `variacoes={fieldVars}`:
-  - `src/pages/AdminConfigFichaPage.tsx:877-892`
-- `activeVars` depende apenas desse array:
-  - `src/pages/AdminConfigFichaPage.tsx:1041-1044`
-- Já os dados de “Tamanho”, “Gênero” e “Modelo” existem no fallback por slug:
-  - `src/pages/AdminConfigFichaPage.tsx:1755-1759`
+2. Evidência no código
+- Fallback atual:
+  - `src/pages/AdminConfigFichaPage.tsx:878-885`
+- Ele procura categoria com:
+  - `categorias.find(c => c.slug === campo.slug)`
+- Só que os fallbacks oficiais estão em:
+  - `BOOT_FALLBACK_MAP`
+  - `tamanhos`, `generos`, `modelos`
+  - `src/pages/AdminConfigFichaPage.tsx:1768-1771`
+- O editor funcional de fallback já existe em outro lugar:
+  - `AdminEditableOptions`
+  - ele faz merge entre fallback + banco e trata item “não salvo”
+  - `src/pages/AdminConfigFichaPage.tsx:210-374`
+- O `BootFieldRenderer` não reaproveita essa lógica; ele só trabalha com registros já resolvidos em `variacoes`.
 
-4. Fator secundário encontrado
-- Há warning real do modal:
-  - `Missing Description or aria-describedby for DialogContent`
-- Isso precisa ser corrigido, mas não é a causa principal da falha desses três campos. É mais um problema de acessibilidade/estabilidade do dialog.
+3. Fator secundário real
+- Ainda existe warning de ref no console:
+  - `Badge` está sendo usado de forma que algum componente pai tenta passar `ref`
+  - `Dialog` também aparece no stack
+- Isso é ruído real e deve ser corrigido, mas não explica sozinho por que só `Tamanho`, `Gênero` e `Modelo` falham.
+- O bug funcional principal é a incompatibilidade de slugs + ausência de merge fallback no `BootFieldRenderer`.
 
-5. Plano de correção
-- Unificar a edição desses campos da bota para que `BootFieldRenderer` também consiga trabalhar com fallback/categoria quando não houver variações vinculadas por `campo_id`.
-- Prioridade:
-  1. detectar quando o campo da bota corresponde a slugs como `tamanhos`, `generos`, `modelos`
-  2. montar uma lista mesclada:
-     - variações do banco por `campo_id`
-     - ou, se estiver vazio, fallback/categoria por slug
-  3. fazer o editor abrir sempre com itens reais para esses campos
-  4. salvar novas edições convertendo fallback em registro persistido no banco
-  5. manter tudo em ordem alfabética
-  6. adicionar `DialogDescription` nos modais para eliminar o warning
+4. O que precisa ser feito
+- Criar um resolvedor explícito para campos legados da bota:
+  - `tamanho -> tamanhos`
+  - `genero -> generos`
+  - `modelo -> modelos`
+- Fazer o `BootFieldRenderer` receber uma lista mesclada:
+  - variações persistidas por `campo_id`
+  - ou por categoria
+  - mais fallbacks do `BOOT_FALLBACK_MAP`
+- Fazer o editor de variações da bota suportar também itens fallback “não salvos”, igual ao `AdminEditableOptions`
+- Ao salvar:
+  - atualizar os itens já persistidos
+  - inserir no banco os itens fallback editados
+  - permitir apagar fallback convertendo-o em registro inativo, igual ao fluxo já existente
+- Manter ordenação alfabética em:
+  - preview
+  - lista de edição
+  - resultado salvo
 
-6. Implementação sugerida
-- Arquivo principal:
-  - `src/pages/AdminConfigFichaPage.tsx`
-- Ajustes:
-  - criar um resolvedor de variações da bota por campo/slug
-  - reutilizar a mesma lógica de merge já usada em `AdminEditableOptions`
-  - aplicar isso especificamente em `BootFieldRenderer`
-- Arquivo secundário:
-  - `src/components/ui/dialog.tsx` ou os usos do dialog em `AdminConfigFichaPage.tsx`
-- Ajustes:
-  - garantir `DialogDescription` nos modais de edição
+5. Ajustes adicionais
+- Corrigir `DialogHeader` e `DialogFooter` para `forwardRef` em `src/components/ui/dialog.tsx`
+- Garantir `DialogDescription` em todos os modais relevantes
+- Revisar `Badge` se algum wrapper estiver tentando aplicar `ref` nele dentro do modal/lista
 
-7. Resultado esperado após a correção
-- editar “Tamanho”, “Gênero” e “Modelo” passa a funcionar
-- apagar e alterar variações desses campos passa a funcionar
-- a lista continua em ordem alfabética
-- o comportamento fica consistente entre campos nativos da bota e campos criados no banco
+6. Resultado esperado
+- “Tamanho”, “Gênero” e “Modelo” passam a abrir o editor corretamente
+- editar, apagar e adicionar variações volta a funcionar nesses campos
+- itens fallback passam a ser tratados como editáveis mesmo antes de estarem salvos no banco
+- tudo continua em ordem alfabética
 
 Detalhes técnicos
 ```text
 Hoje:
-campo da bota -> BootFieldRenderer -> busca só por campo_id
-                               -> Tamanho/Gênero/Modelo ainda dependem de fallback/categoria
-                               -> editor inconsistente
+campo.slug = tamanho/genero/modelo
+fallback slug = tamanhos/generos/modelos
+comparação exata falha
+=> variacoes vazias
+=> editor inconsistente
 
 Depois:
-campo da bota -> BootFieldRenderer -> busca por campo_id
-                               -> se vazio, resolve por slug/fallback + DB da categoria
-                               -> editor sempre recebe itens editáveis
+campo legado -> mapa de slug legado
+             -> merge fallback + banco
+             -> editor da bota com suporte a itens não salvos
+             -> persistência correta ao salvar
 ```
