@@ -950,14 +950,14 @@ function BootFieldRenderer({
 
   const handleAddVariacao = () => {
     if (!addVarName.trim()) return;
-    // Find the old technical category to maintain backward compat
-    const oldCatId = variacoes[0]?.categoria_id;
-    if (!oldCatId) {
-      toast.error('Categoria técnica não encontrada para este campo');
+    // Use campo's visual category, or fallback to first variation's category
+    const catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    if (!catId) {
+      toast.error('Categoria não encontrada para este campo');
       return;
     }
     insertVariacao.mutate(
-      { categoria_id: oldCatId, campo_id: campo.id, nome: addVarName.trim(), preco_adicional: parseFloat(addVarPreco) || 0, ordem: activeVars.length + 1 },
+      { categoria_id: catId, campo_id: campo.id, nome: addVarName.trim(), preco_adicional: parseFloat(addVarPreco) || 0, ordem: activeVars.length + 1 },
       { onSuccess: () => { toast.success('Variação adicionada'); setAddVarName(''); setAddVarPreco('0'); setShowAddVar(false); onRefetch(); } }
     );
   };
@@ -1480,7 +1480,7 @@ export default function AdminConfigFichaPage() {
   const [novoItemOpen, setNovoItemOpen] = useState(false);
   const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
-  const [novoItemSectionLabel, setNovoItemSectionLabel] = useState('');
+  const [_novoItemSectionLabel, _setNovoItemSectionLabel] = useState('');
 
   const isBoot = slug === 'bota';
   const isDynamic = tipo?.tipo_ficha === 'dinamica';
@@ -1735,57 +1735,21 @@ export default function AdminConfigFichaPage() {
                     <div className="space-y-1">
                       <Label className="text-xs">Seção</Label>
                       {(() => {
-                        const BOOT_VISUAL_SECTIONS: { label: string; slugs: string[] }[] = [
-                          { label: 'Tamanho / Gênero / Modelo', slugs: ['tamanhos', 'generos', 'modelos'] },
-                          { label: 'Acessórios', slugs: ['acessorios'] },
-                          { label: 'Couros', slugs: ['tipos-couro', 'cores-couro'] },
-                          { label: 'Desenvolvimento', slugs: ['desenvolvimento'] },
-                          { label: 'Bordados', slugs: ['bordados-cano', 'bordados-gaspea', 'bordados-taloneira'] },
-                          { label: 'Laser', slugs: ['laser-cano', 'laser-gaspea', 'laser-taloneira', 'cor-glitter'] },
-                          { label: 'Pesponto', slugs: ['cor-linha', 'cor-borrachinha', 'cor-vivo'] },
-                          { label: 'Metais', slugs: ['area-metal', 'tipo-metal', 'cor-metal'] },
-                          { label: 'Solados', slugs: ['solados', 'formato-bico', 'cor-sola', 'cor-vira'] },
-                          { label: 'Carimbo a Fogo', slugs: ['carimbo'] },
-                        ];
-                        const allMappedSlugs = new Set(BOOT_VISUAL_SECTIONS.flatMap(s => s.slugs));
-                        (categorias || []).filter(c => !allMappedSlugs.has(c.slug)).forEach(c => {
-                          BOOT_VISUAL_SECTIONS.push({ label: c.nome, slugs: [c.slug] });
-                        });
-                        const currentSection = BOOT_VISUAL_SECTIONS.find(s => s.label === novoItemSectionLabel);
-                        const subCats = currentSection ? currentSection.slugs.map(slug => (categorias || []).find(c => c.slug === slug)).filter(Boolean) : [];
+                        // Use visual categories from database instead of hardcoded slugs
+                        const visualCats = (categorias || []).filter(c => c.ativo !== false).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
 
                         return (
                           <div className="space-y-2">
-                            <Select value={novoItemSectionLabel} onValueChange={v => {
-                              setNovoItemSectionLabel(v);
-                              const sec = BOOT_VISUAL_SECTIONS.find(s => s.label === v);
-                              if (sec && sec.slugs.length === 1) {
-                                const cat = (categorias || []).find(c => c.slug === sec.slugs[0]);
-                                if (cat) setNovoItem(p => ({ ...p, categoriaId: cat.id }));
-                              } else {
-                                setNovoItem(p => ({ ...p, categoriaId: '' }));
-                              }
+                            <Select value={novoItem.categoriaId} onValueChange={v => {
+                              setNovoItem(p => ({ ...p, categoriaId: v }));
                             }}>
-                              <SelectTrigger><SelectValue placeholder="Selecione a seção..." /></SelectTrigger>
+                              <SelectTrigger><SelectValue placeholder="Selecione a categoria..." /></SelectTrigger>
                               <SelectContent>
-                                {BOOT_VISUAL_SECTIONS.map(s => (
-                                  <SelectItem key={s.label} value={s.label}>{s.label}</SelectItem>
+                                {visualCats.map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                            {currentSection && currentSection.slugs.length > 1 && (
-                              <div className="space-y-1">
-                                <Label className="text-xs">Sub-categoria</Label>
-                                <Select value={novoItem.categoriaId} onValueChange={v => setNovoItem(p => ({ ...p, categoriaId: v }))}>
-                                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                  <SelectContent>
-                                    {subCats.map(cat => cat && (
-                                      <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
