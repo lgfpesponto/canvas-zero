@@ -862,7 +862,7 @@ function BootFormLayout({
     'couros': 'grid sm:grid-cols-2 gap-4',
     'pesponto-visual': 'grid sm:grid-cols-3 gap-4',
     'metais-visual': '', // special handling
-    'solados-visual': 'grid sm:grid-cols-2 lg:grid-cols-4 gap-4',
+    'solados-visual': '', // special handling
     'adicional-visual': 'grid sm:grid-cols-2 gap-4',
   };
 
