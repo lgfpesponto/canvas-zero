@@ -1103,10 +1103,12 @@ function BootFieldRenderer({
 
   const handleAddVariacao = () => {
     if (!addVarName.trim()) return;
-    // Use campo's visual category, fallback to first variation's category, or resolve by campo slug
-    let catId = campo.categoria_id || variacoes[0]?.categoria_id;
+    // Use resolvedCatId, campo's visual category, fallback to first variation's category, or resolve by campo slug
+    let catId = resolvedCatId || campo.categoria_id || variacoes[0]?.categoria_id;
     if (!catId && campo.slug) {
-      const matchCat = (allCategorias || []).find(c => c.slug === campo.slug);
+      const LEGACY_SLUG_MAP: Record<string, string> = { 'tamanho': 'tamanhos', 'genero': 'generos', 'modelo': 'modelos' };
+      const resolved = LEGACY_SLUG_MAP[campo.slug] || campo.slug;
+      const matchCat = (allCategorias || []).find(c => c.slug === resolved);
       if (matchCat) catId = matchCat.id;
     }
     if (!catId) {
@@ -1120,8 +1122,8 @@ function BootFieldRenderer({
   };
 
   const openEditPanel = () => {
-    const state: Record<string, { nome: string; preco: string }> = {};
-    activeVars.forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) }; });
+    const state: Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }> = {};
+    activeVars.forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional), dbId: v.dbId, isFallback: v.isFallback }; });
     setEditState(state);
     setShowVarPanel(true);
     setShowBulkEdit(false);
@@ -1129,10 +1131,24 @@ function BootFieldRenderer({
   };
 
   const handleSaveAllVars = async () => {
-    for (const v of activeVars) {
-      const s = editState[v.id];
-      if (s && (s.nome !== v.nome || parseFloat(s.preco) !== v.preco_adicional)) {
-        await updateVariacao.mutateAsync({ id: v.id, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+    // Resolve category id for persisting fallback items
+    let catId = resolvedCatId || campo.categoria_id || variacoes[0]?.categoria_id;
+    for (const [key, s] of Object.entries(editState)) {
+      if (s.dbId) {
+        // Existing DB item - update if changed
+        const orig = variacoes.find(v => v.id === s.dbId);
+        if (orig && (s.nome !== orig.nome || parseFloat(s.preco) !== orig.preco_adicional)) {
+          await updateVariacao.mutateAsync({ id: s.dbId, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+        }
+      } else if (s.isFallback && catId) {
+        // Fallback item - persist to DB
+        await insertVariacao.mutateAsync({
+          categoria_id: catId,
+          campo_id: campo.id,
+          nome: s.nome,
+          preco_adicional: parseFloat(s.preco) || 0,
+          ordem: 0,
+        });
       }
     }
     toast.success('Alterações salvas');
@@ -2042,6 +2058,7 @@ export default function AdminConfigFichaPage() {
               onRefetchCampos={refetchCampos}
               sectionOrder={sectionOrder}
               onMoveSection={handleMoveSectionBoot}
+              bootFallbackMap={BOOT_FALLBACK_MAP}
             />
           </section>
         )}
