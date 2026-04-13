@@ -1029,6 +1029,29 @@ function BootFormLayout({
           </Section>
         );
       })}
+
+      {/* ─── Campos finais: Quantidade, Prazo e Valor Total (preview) ─── */}
+      <div className="mt-8 space-y-4 border-t border-border pt-6 opacity-60 pointer-events-none">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Campos finais (preview)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Quantidade</Label>
+            <Input type="number" defaultValue={1} readOnly className="w-full" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Prazo de Produção</Label>
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
+              15 dias úteis
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Valor Total</Label>
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm font-bold text-primary">
+              R$ 0,00
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2103,6 +2126,17 @@ export default function AdminConfigFichaPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {isBoot && (
+                <>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate('/pedido?mode=template')}>
+                    <Plus className="h-4 w-4" /> Criar Modelo
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate('/pedido')}>
+                    <Layers className="h-4 w-4" /> Modelos
+                  </Button>
+                </>
+              )}
 
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
