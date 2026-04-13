@@ -874,15 +874,26 @@ function BootFormLayout({
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
       queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
     };
+    // Legacy slug map: campo slugs (singular) -> category slugs (plural)
+    const LEGACY_SLUG_MAP: Record<string, string> = {
+      'tamanho': 'tamanhos',
+      'genero': 'generos',
+      'modelo': 'modelos',
+    };
+
     const renderField = (campo: FichaCampo, fieldIdx: number) => {
       let fieldVars = varsByCampo.get(campo.id) || [];
       // Fallback: if no campo_id variations, try category-based variations matching campo slug
-      if (fieldVars.length === 0 && campo.slug) {
-        const matchCat = (categorias || []).find(c => c.slug === campo.slug);
-        if (matchCat) {
-          fieldVars = (allVariacoes || []).filter(v => v.categoria_id === matchCat.id);
+      const resolvedSlug = LEGACY_SLUG_MAP[campo.slug] || campo.slug;
+      let matchedCat: FichaCategoria | undefined;
+      if (fieldVars.length === 0 && resolvedSlug) {
+        matchedCat = (categorias || []).find(c => c.slug === resolvedSlug);
+        if (matchedCat) {
+          fieldVars = (allVariacoes || []).filter(v => v.categoria_id === matchedCat!.id);
         }
       }
+      // Resolve fallback array for this field
+      const fallbackArr = BOOT_FALLBACK_MAP[resolvedSlug] || undefined;
       return (
         <BootFieldRenderer
           key={campo.id}
@@ -896,6 +907,8 @@ function BootFormLayout({
           allVariacoes={allVariacoes}
           fichaTipoId={fichaTipoId}
           onRefetchCats={onRefetchCats}
+          fallback={fallbackArr}
+          resolvedCatId={matchedCat?.id}
         />
       );
     };
@@ -1023,11 +1036,14 @@ function BootFormLayout({
 function BootFieldRenderer({
   campo, variacoes, catCampos, fieldIdx, onReorder, onRefetch,
   allCategorias, allVariacoes, fichaTipoId, onRefetchCats,
+  fallback, resolvedCatId,
 }: {
   campo: FichaCampo; variacoes: FichaVariacao[]; catCampos: FichaCampo[];
   fieldIdx: number; onReorder: (dir: 'up' | 'down') => void; onRefetch: () => void;
   allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
   fichaTipoId: string; onRefetchCats: () => void;
+  fallback?: { label: string; preco: number }[];
+  resolvedCatId?: string;
 }) {
   const updateCampo = useUpdateFichaCampo();
   const deleteCampo = useDeleteFichaCampo();
@@ -1040,14 +1056,35 @@ function BootFieldRenderer({
   const [addVarName, setAddVarName] = useState('');
   const [addVarPreco, setAddVarPreco] = useState('0');
   const [showAddVar, setShowAddVar] = useState(false);
-  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
+  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string; dbId: string | null; isFallback: boolean }>>({});
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
 
-  const activeVars = variacoes
-    .filter(v => v.ativo !== false)
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  // Build merged items: DB variations + fallback items not yet in DB
+  const fb = fallback || [];
+  const dbMap = new Map(variacoes.filter(v => v.ativo !== false).map(v => [v.nome.toLowerCase(), v]));
+  type MergedVar = { id: string; nome: string; preco_adicional: number; dbId: string | null; isFallback: boolean; ordem: number; ativo: boolean };
+  const mergedVars: MergedVar[] = [];
+  const usedDbIds = new Set<string>();
+
+  fb.forEach((f, idx) => {
+    const d = dbMap.get(f.label.toLowerCase());
+    if (d) {
+      usedDbIds.add(d.id);
+      mergedVars.push({ id: d.id, nome: d.nome, preco_adicional: d.preco_adicional, dbId: d.id, isFallback: false, ordem: d.ordem ?? idx, ativo: d.ativo ?? true });
+    } else {
+      mergedVars.push({ id: `fb_${idx}`, nome: f.label, preco_adicional: f.preco, dbId: null, isFallback: true, ordem: idx, ativo: true });
+    }
+  });
+  variacoes.filter(v => v.ativo !== false).forEach(v => {
+    if (!usedDbIds.has(v.id)) {
+      mergedVars.push({ id: v.id, nome: v.nome, preco_adicional: v.preco_adicional, dbId: v.id, isFallback: false, ordem: v.ordem ?? 0, ativo: true });
+    }
+  });
+  mergedVars.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const activeVars = mergedVars;
   const hasVariations = campo.tipo === 'selecao' || campo.tipo === 'multipla';
 
   const handleSaveName = () => {
