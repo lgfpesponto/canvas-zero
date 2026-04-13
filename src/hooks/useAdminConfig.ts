@@ -294,7 +294,7 @@ export function useInsertFichaCampo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (c: {
-      ficha_tipo_id: string; nome: string; slug: string; tipo: string;
+      ficha_tipo_id: string; categoria_id?: string; nome: string; slug: string; tipo: string;
       obrigatorio: boolean; ordem: number; opcoes: any; vinculo: string | null;
       desc_condicional: boolean; relacionamento?: any;
     }) => {
