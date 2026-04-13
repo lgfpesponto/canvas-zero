@@ -1,29 +1,52 @@
 
 
-## Plano: Substituir "Vínculo" por "Tipo" no botão "+ campo" da Bota
+## Plano: Corrigir "+ campo" e "+ categoria" na ficha de Bota
 
-### O que muda
+### Problemas identificados
 
-No dialog "+ campo" da ficha de Bota (linhas 1572-1624), o campo **"Vínculo"** (Nenhum / Cálculo de Preço / Numeração) será substituído por **"Tipo"** com as opções que fazem sentido para o usuário:
+1. **"+ campo" - categorias no dropdown**: O dropdown de categorias ja usa `categorias` do banco, que tem 30 categorias. Funciona tecnicamente, mas apos adicionar uma variacao, o query `ficha_variacoes_all` nao e invalidado, entao o novo item nao aparece na tela.
 
-- **Tem/Não tem** — como o campo "Nome Bordado" (toggle sim/não)
-- **Variação** — como "Tipo de Couro" (seleção única)
-- **Múltipla escolha** — como "Bordados" (seleciona vários)
-- **Texto** — como "Vendedor" (campo de texto livre)
+2. **"+ categoria" - nao aparece na ficha**: O `handleAddCategoria` insere a categoria no banco corretamente, mas o `BootFormLayout` tem **17 secoes hardcoded** (indices 0-16). Categorias novas nao tem uma secao correspondente, entao nunca aparecem na visualizacao.
 
-### Alterações em `src/pages/AdminConfigFichaPage.tsx`
+3. **`handleAddItem` nao passa `relacionamento`**: A variavel `relacionamento` e calculada mas nao incluida no payload do `insertVariacaoMut.mutate`.
 
-1. **Criar constante `TIPOS_CAMPO_BOOT`** com os 4 tipos na linguagem do usuário:
-   - `{ value: 'toggle', label: 'Tem/Não tem' }`
-   - `{ value: 'variacao', label: 'Variação (escolha única)' }`
-   - `{ value: 'multipla', label: 'Múltipla escolha' }`
-   - `{ value: 'texto', label: 'Texto' }`
+4. **`sectionOrder` fixo em 17**: `BOOT_SECTION_COUNT = 17` e `sectionOrder` e inicializado com indices 0-16. Novas categorias precisam gerar secoes dinamicas adicionais.
 
-2. **No estado `novoItem`** (linha 1355): substituir `vinculo` por `tipo` (valor padrão `'variacao'`)
+### Alteracoes em `src/pages/AdminConfigFichaPage.tsx`
 
-3. **No dialog** (linhas 1603-1608): trocar o Select de "Vínculo" por "Tipo" usando `TIPOS_CAMPO_BOOT`
+**1. Renderizar categorias extras apos as 17 secoes fixas**
 
-4. **No reset** (linha 1448): trocar `vinculo: ''` por `tipo: 'variacao'`
+No `BootFormLayout`, apos as 17 secoes hardcoded, detectar categorias do banco que NAO tem slug mapeado nas secoes fixas (como "Teste", "top", "Preencher" que ja existem no banco). Para cada uma, renderizar uma secao generica com `AdminMultiSelect` ou `AdminSelectField` baseado no tipo, permitindo editar/renomear/apagar.
 
-5. **No handler `handleAddItem`**: mapear o `tipo` selecionado para o campo correto no banco (o `vinculo` do banco receberá `null`, e o campo será criado com o tipo adequado)
+```text
+allSections[0..16] = secoes fixas (hardcoded)
+allSections[17+]   = categorias extras do banco (dinamicas)
+```
+
+**2. Atualizar `BOOT_SECTION_COUNT` e `sectionOrder`**
+
+Em vez de fixo em 17, calcular como `17 + extraCategorias.length`. Atualizar `sectionOrder` quando `categorias` muda (via useEffect).
+
+**3. Corrigir invalidacao de queries no `handleAddItem`**
+
+Apos sucesso, invalidar tambem `ficha_variacoes_all` para que o novo item apareca:
+```typescript
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+  // ... resto
+}
+```
+
+**4. Passar `relacionamento` no payload do `handleAddItem`**
+
+Incluir o campo `relacionamento` no objeto passado ao `insertVariacaoMut.mutate`.
+
+**5. Filtrar categorias no dropdown do "+ campo"**
+
+O dropdown ja mostra todas as categorias. Opcionalmente filtrar para mostrar apenas categorias relevantes (as que tem slug mapeado nas secoes + as extras).
+
+### Resultado esperado
+
+- "+ campo": dropdown mostra categorias existentes, ao adicionar o item aparece imediatamente na secao correspondente
+- "+ categoria": ao criar uma nova categoria, ela aparece como uma nova secao no final da ficha, com possibilidade de adicionar variacoes, renomear e apagar
 
