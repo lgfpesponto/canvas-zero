@@ -789,291 +789,382 @@ function AdminTextRef({ label, onRename, onDelete, required, onToggleRequired }:
   );
 }
 
-/* ─── Boot Form Layout (exact mirror of OrderPage form sections) ─── */
+/* ─── Boot Form Layout (data-driven from visual categories → fields → variations) ─── */
 function BootFormLayout({
-  fichaTipoId, categorias, allVariacoes, onRefetchCats,
+  fichaTipoId, categorias, allVariacoes, campos, onRefetchCats, onRefetchCampos,
   sectionOrder, onMoveSection,
 }: {
   fichaTipoId: string; categorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
-  onRefetchCats: () => void; sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
+  campos: FichaCampo[]; onRefetchCats: () => void; onRefetchCampos: () => void;
+  sectionOrder: number[]; onMoveSection: (idx: number, dir: 'up' | 'down') => void;
 }) {
-  const common = { fichaTipoId, allCategorias: categorias, allVariacoes, onRefetchCats };
   const updateCategoria = useUpdateCategoria();
   const deleteCategoria = useDeleteCategoria();
-  const [hiddenSections, setHiddenSections] = useState<Set<number>>(new Set());
-  const [requiredSections, setRequiredSections] = useState<Set<number>>(new Set());
+  const updateCampo = useUpdateFichaCampo();
+  const deleteCampo = useDeleteFichaCampo();
+  const insertVariacao = useInsertVariacao();
+  const updateVariacao = useUpdateVariacao();
+  const deleteVariacao = useDeleteVariacao();
+  const queryClient = useQueryClient();
+
+  // Visual categories only (ativo = true), sorted by ordem
+  const visualCats = (categorias || []).filter(c => c.ativo !== false).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+
+  // Group campos by categoria_id
+  const camposByCat = new Map<string, FichaCampo[]>();
+  (campos || []).filter(c => c.ativo !== false).forEach(c => {
+    if (c.categoria_id) {
+      const list = camposByCat.get(c.categoria_id) || [];
+      list.push(c);
+      camposByCat.set(c.categoria_id, list);
+    }
+  });
+  // Sort each group
+  camposByCat.forEach((list) => list.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)));
+
+  // Group variations by campo_id
+  const varsByCampo = new Map<string, FichaVariacao[]>();
+  (allVariacoes || []).forEach(v => {
+    if ((v as any).campo_id) {
+      const cid = (v as any).campo_id as string;
+      const list = varsByCampo.get(cid) || [];
+      list.push(v);
+      varsByCampo.set(cid, list);
+    }
+  });
+  varsByCampo.forEach((list) => list.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)));
 
   const handleRenameCategory = (id: string, nome: string) => {
     updateCategoria.mutate({ id, nome }, {
       onSuccess: () => { toast.success('Categoria renomeada'); onRefetchCats(); },
-      onError: () => toast.error('Erro ao renomear'),
     });
   };
 
   const handleDeleteCategory = (id: string) => {
     deleteCategoria.mutate(id, {
       onSuccess: () => { toast.success('Categoria apagada'); onRefetchCats(); },
-      onError: () => toast.error('Erro ao apagar'),
     });
   };
 
-  const findCatId = (slug: string) => categorias.find(c => c.slug === slug)?.id;
-
-  const toggleHidden = (idx: number) => {
-    setHiddenSections(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
+  const handleReorderField = (campo: FichaCampo, dir: 'up' | 'down', catCampos: FichaCampo[]) => {
+    const idx = catCampos.findIndex(c => c.id === campo.id);
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= catCampos.length) return;
+    const other = catCampos[swapIdx];
+    updateCampo.mutate({ id: campo.id, ordem: other.ordem ?? swapIdx });
+    updateCampo.mutate({ id: other.id, ordem: campo.ordem ?? idx }, { onSuccess: () => onRefetchCampos() });
   };
-
-  const toggleRequired = (idx: number) => {
-    setRequiredSections(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
-  };
-
-  // Define all sections as an array
-  const allSections: { id: number; title: string; render: () => React.ReactNode }[] = [
-    { id: 0, title: 'Identificação', render: () => (
-      <Section title="Identificação" onMoveUp={() => onMoveSection(0, 'up')} onMoveDown={() => onMoveSection(0, 'down')}
-        isFirst={sectionOrder.indexOf(0) === 0} isLast={sectionOrder.indexOf(0) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(0)} required={requiredSections.has(0)} onToggleRequired={() => toggleRequired(0)}>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <AdminTextRef label="Nº do Pedido" onRename={() => {}} onDelete={() => {}} required onToggleRequired={() => {}} />
-          <AdminTextRef label="Vendedor" onRename={() => {}} onDelete={() => {}} required onToggleRequired={() => {}} />
-          <AdminTextRef label="Cliente" onRename={() => {}} onDelete={() => {}} required onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 1, title: 'Tamanho/Gênero/Modelo', render: () => (
-      <Section title="Tamanho / Gênero / Modelo" onMoveUp={() => onMoveSection(1, 'up')} onMoveDown={() => onMoveSection(1, 'down')}
-        isFirst={sectionOrder.indexOf(1) === 0} isLast={sectionOrder.indexOf(1) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(1)} required={requiredSections.has(1)} onToggleRequired={() => toggleRequired(1)}>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <AdminSelectField label="Tamanho" catSlug="tamanhos" fallback={TAMANHOS} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Gênero" catSlug="generos" fallback={GENEROS} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Modelo" catSlug="modelos" fallback={MODELOS} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 2, title: 'Sob Medida', render: () => (
-      <Section title="Sob Medida" onMoveUp={() => onMoveSection(2, 'up')} onMoveDown={() => onMoveSection(2, 'down')}
-        isFirst={sectionOrder.indexOf(2) === 0} isLast={sectionOrder.indexOf(2) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(2)} onToggleRequired={() => toggleRequired(2)} required={requiredSections.has(2)}>
-        <AdminToggleField label="Sob Medida" preco={SOB_MEDIDA_PRECO} onDelete={() => toggleHidden(2)} onToggleRequired={() => toggleRequired(2)} required={requiredSections.has(2)} />
-      </Section>
-    )},
-    { id: 3, title: 'Acessórios', render: () => (
-      <Section title="Acessórios" onMoveUp={() => onMoveSection(3, 'up')} onMoveDown={() => onMoveSection(3, 'down')}
-        isFirst={sectionOrder.indexOf(3) === 0} isLast={sectionOrder.indexOf(3) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(3)} onToggleRequired={() => toggleRequired(3)} required={requiredSections.has(3)}>
-        <AdminMultiSelect catSlug="acessorios" catLabel="Acessórios" fallback={ACESSORIOS} {...common} onRename={() => {}} onDelete={() => toggleHidden(3)} onToggleRequired={() => toggleRequired(3)} required={requiredSections.has(3)} />
-      </Section>
-    )},
-    { id: 4, title: 'Couros', render: () => (
-      <Section title="Couros" categoriaId={findCatId('tipos-couro')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(4, 'up')} onMoveDown={() => onMoveSection(4, 'down')}
-        isFirst={sectionOrder.indexOf(4) === 0} isLast={sectionOrder.indexOf(4) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(4)} required={requiredSections.has(4)}>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <AdminSelectField label="Tipo Couro do Cano" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Cor Couro do Cano" catSlug="cores-couro" fallback={CORES_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Tipo Couro da Gáspea" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Cor Couro da Gáspea" catSlug="cores-couro" fallback={CORES_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Tipo Couro da Taloneira" catSlug="tipos-couro" fallback={TIPOS_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Cor Couro da Taloneira" catSlug="cores-couro" fallback={CORES_COURO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 5, title: 'Desenvolvimento', render: () => (
-      <Section title="Desenvolvimento" onMoveUp={() => onMoveSection(5, 'up')} onMoveDown={() => onMoveSection(5, 'down')}
-        isFirst={sectionOrder.indexOf(5) === 0} isLast={sectionOrder.indexOf(5) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(5)} onToggleRequired={() => toggleRequired(5)} required={requiredSections.has(5)}>
-        <AdminSelectField label="Desenvolvimento" catSlug="desenvolvimento" fallback={DESENVOLVIMENTO} {...common} onRename={() => {}} onDelete={() => toggleHidden(5)} onToggleRequired={() => toggleRequired(5)} required={requiredSections.has(5)} />
-      </Section>
-    )},
-    { id: 6, title: 'Bordados', render: () => (
-      <Section title="Bordados" categoriaId={findCatId('bordados-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(6, 'up')} onMoveDown={() => onMoveSection(6, 'down')}
-        isFirst={sectionOrder.indexOf(6) === 0} isLast={sectionOrder.indexOf(6) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(6)} required={requiredSections.has(6)}>
-        <div className="space-y-4">
-          <AdminMultiSelect catSlug="bordados-cano" catLabel="Bordado do Cano" fallback={BORDADOS_CANO} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Cor do Bordado do Cano" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminMultiSelect catSlug="bordados-gaspea" catLabel="Bordado da Gáspea" fallback={BORDADOS_GASPEA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Cor do Bordado da Gáspea" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminMultiSelect catSlug="bordados-taloneira" catLabel="Bordado da Taloneira" fallback={BORDADOS_TALONEIRA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Cor do Bordado da Taloneira" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 7, title: 'Laser', render: () => (
-      <Section title="Laser" categoriaId={findCatId('laser-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(7, 'up')} onMoveDown={() => onMoveSection(7, 'down')}
-        isFirst={sectionOrder.indexOf(7) === 0} isLast={sectionOrder.indexOf(7) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(7)} required={requiredSections.has(7)}>
-        <div className="space-y-4">
-          <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_CANO_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Cor do Bordado (Cano)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminMultiSelect catSlug="laser-gaspea" catLabel="Laser da Gáspea" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_GASPEA_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label={`Cor Glitter/Tecido da Gáspea (+R$${GLITTER_GASPEA_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Cor do Bordado (Gáspea)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminMultiSelect catSlug="laser-taloneira" catLabel="Laser da Taloneira" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_TALONEIRA_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Cor do Bordado (Taloneira)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminToggleField label="Pintura" preco={PINTURA_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 8, title: 'Estampa', render: () => (
-      <Section title="Estampa" onMoveUp={() => onMoveSection(8, 'up')} onMoveDown={() => onMoveSection(8, 'down')}
-        isFirst={sectionOrder.indexOf(8) === 0} isLast={sectionOrder.indexOf(8) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(8)} onToggleRequired={() => toggleRequired(8)} required={requiredSections.has(8)}>
-        <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} onDelete={() => toggleHidden(8)} onToggleRequired={() => toggleRequired(8)} required={requiredSections.has(8)} />
-      </Section>
-    )},
-    { id: 9, title: 'Pesponto', render: () => (
-      <Section title="Pesponto" categoriaId={findCatId('cor-linha')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(9, 'up')} onMoveDown={() => onMoveSection(9, 'down')}
-        isFirst={sectionOrder.indexOf(9) === 0} isLast={sectionOrder.indexOf(9) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(9)} required={requiredSections.has(9)}>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminSelectField label="Cor do Vivo" catSlug="cor-vivo" fallback={COR_VIVO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 10, title: 'Metais', render: () => (
-      <Section title="Metais" categoriaId={findCatId('area-metal')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(10, 'up')} onMoveDown={() => onMoveSection(10, 'down')}
-        isFirst={sectionOrder.indexOf(10) === 0} isLast={sectionOrder.indexOf(10) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(10)} required={requiredSections.has(10)}>
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-3 gap-4">
-            <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-            <div>
-              <label className={cls.label}>Tipo do Metal</label>
-              <div className="flex flex-col gap-1">
-                {TIPO_METAL.map(t => (
-                  <label key={t} className={cls.checkItem}>
-                    <input type="checkbox" checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
-                    {t}
-                  </label>
-                ))}
-              </div>
-              <AdminEditableOptions catSlug="tipo-metal" catLabel="Tipo do Metal" {...common} fallback={TIPO_METAL.map(t => ({ label: t, preco: 0 }))} />
-            </div>
-            <AdminSelectField label="Cor do Metal" catSlug="cor-metal" fallback={COR_METAL} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            <AdminToggleField label="Strass" preco={STRASS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminToggleField label="Cruz" preco={CRUZ_METAL_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminToggleField label="Bridão" preco={BRIDAO_METAL_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminToggleField label="Cavalo" preco={CAVALO_METAL_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-          </div>
-        </div>
-      </Section>
-    )},
-    { id: 11, title: 'Extras', render: () => (
-      <Section title="Extras" onMoveUp={() => onMoveSection(11, 'up')} onMoveDown={() => onMoveSection(11, 'down')}
-        isFirst={sectionOrder.indexOf(11) === 0} isLast={sectionOrder.indexOf(11) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(11)} onToggleRequired={() => toggleRequired(11)} required={requiredSections.has(11)}>
-        <AdminToggleField label="Tricê" preco={TRICE_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-        <AdminToggleField label="Tiras" preco={TIRAS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-        <div className="space-y-2">
-          <AdminToggleField label="Franja" preco={FRANJA_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-          <div className="grid sm:grid-cols-2 gap-3 pl-4">
-            <AdminTextRef label="Tipo de couro da franja" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminTextRef label="Cor da franja" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <AdminToggleField label="Corrente" preco={CORRENTE_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-          <div className="pl-4">
-            <AdminTextRef label="Cor da corrente" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          </div>
-        </div>
-      </Section>
-    )},
-    { id: 12, title: 'Solados', render: () => (
-      <Section title="Solados" categoriaId={findCatId('solados')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(12, 'up')} onMoveDown={() => onMoveSection(12, 'down')}
-        isFirst={sectionOrder.indexOf(12) === 0} isLast={sectionOrder.indexOf(12) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(12)} required={requiredSections.has(12)}>
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminSelectField label="Formato do Bico" catSlug="formato-bico" fallback={FORMATO_BICO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminSelectField label="Cor da Sola" catSlug="cor-sola" fallback={COR_SOLA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-            <AdminSelectField label="Cor da Vira" catSlug="cor-vira" fallback={COR_VIRA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          </div>
-          <AdminToggleField label="Costura Atrás" preco={COSTURA_ATRAS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 13, title: 'Carimbo a Fogo', render: () => (
-      <Section title="Carimbo a Fogo" categoriaId={findCatId('carimbo')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(13, 'up')} onMoveDown={() => onMoveSection(13, 'down')}
-        isFirst={sectionOrder.indexOf(13) === 0} isLast={sectionOrder.indexOf(13) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(13)} required={requiredSections.has(13)}>
-        <div className="flex flex-wrap items-center gap-3">
-          <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Descrição do carimbo" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 14, title: 'Adicional', render: () => (
-      <Section title="Adicional" onMoveUp={() => onMoveSection(14, 'up')} onMoveDown={() => onMoveSection(14, 'down')}
-        isFirst={sectionOrder.indexOf(14) === 0} isLast={sectionOrder.indexOf(14) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(14)} onToggleRequired={() => toggleRequired(14)} required={requiredSections.has(14)}>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <AdminTextRef label="Descrição do Adicional" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-          <AdminTextRef label="Valor do Adicional (R$)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
-        </div>
-      </Section>
-    )},
-    { id: 15, title: 'Observação', render: () => (
-      <Section title="Observação" onMoveUp={() => onMoveSection(15, 'up')} onMoveDown={() => onMoveSection(15, 'down')}
-        isFirst={sectionOrder.indexOf(15) === 0} isLast={sectionOrder.indexOf(15) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(15)} onToggleRequired={() => toggleRequired(15)} required={requiredSections.has(15)}>
-        <textarea disabled rows={3} className={cls.input + ' min-h-[80px] opacity-50 italic'} placeholder="(preenchido pelo vendedor)" />
-      </Section>
-    )},
-  ];
-
-  // Detect extra categories not mapped to any hardcoded section
-  const HARDCODED_SLUGS = new Set([
-    'tamanhos', 'generos', 'modelos', 'acessorios', 'tipos-couro', 'cores-couro',
-    'desenvolvimento', 'bordados-cano', 'bordados-gaspea', 'bordados-taloneira',
-    'laser-cano', 'laser-gaspea', 'laser-taloneira', 'cor-glitter',
-    'cor-linha', 'cor-borrachinha', 'cor-vivo', 'cor-vira', 'formato-bico',
-    'solados', 'cor-sola', 'area-metal', 'tipo-metal', 'cor-metal', 'carimbo',
-  ]);
-  const extraCats = categorias.filter(c => !HARDCODED_SLUGS.has(c.slug));
-
-  extraCats.forEach((cat, i) => {
-    const sectionId = 16 + i;
-    allSections.push({
-      id: sectionId,
-      title: cat.nome,
-      render: () => (
-        <Section title={cat.nome} categoriaId={cat.id} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-          onMoveUp={() => onMoveSection(sectionId, 'up')} onMoveDown={() => onMoveSection(sectionId, 'down')}
-          isFirst={sectionOrder.indexOf(sectionId) === 0} isLast={sectionOrder.indexOf(sectionId) === sectionOrder.length - 1}
-          onToggleRequired={() => toggleRequired(sectionId)} required={requiredSections.has(sectionId)}>
-          <AdminMultiSelect catSlug={cat.slug} catLabel={cat.nome} fallback={[]} {...common}
-            onRename={() => {}} onDelete={() => toggleHidden(sectionId)} onToggleRequired={() => toggleRequired(sectionId)} />
-        </Section>
-      ),
-    });
-  });
-
-  const sectionMap = new Map(allSections.map(s => [s.id, s]));
 
   return (
     <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
-      {sectionOrder.filter(id => !hiddenSections.has(id)).map(id => {
-        const sec = sectionMap.get(id);
-        return sec ? <div key={id}>{sec.render()}</div> : null;
+      {visualCats.map((cat, catIdx) => {
+        const catCampos = camposByCat.get(cat.id) || [];
+        return (
+          <Section
+            key={cat.id}
+            title={cat.nome}
+            categoriaId={cat.id}
+            onRename={handleRenameCategory}
+            onDelete={handleDeleteCategory}
+            onMoveUp={() => onMoveSection(catIdx, 'up')}
+            onMoveDown={() => onMoveSection(catIdx, 'down')}
+            isFirst={catIdx === 0}
+            isLast={catIdx === visualCats.length - 1}
+          >
+            <div className="space-y-4">
+              {catCampos.map((campo, fieldIdx) => {
+                const fieldVars = varsByCampo.get(campo.id) || [];
+                return (
+                  <BootFieldRenderer
+                    key={campo.id}
+                    campo={campo}
+                    variacoes={fieldVars}
+                    catCampos={catCampos}
+                    fieldIdx={fieldIdx}
+                    onReorder={(dir) => handleReorderField(campo, dir, catCampos)}
+                    onRefetch={() => {
+                      onRefetchCampos();
+                      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+                      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+                      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+                    }}
+                    allCategorias={categorias}
+                    allVariacoes={allVariacoes}
+                    fichaTipoId={fichaTipoId}
+                    onRefetchCats={onRefetchCats}
+                  />
+                );
+              })}
+              {catCampos.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">Nenhum campo nesta categoria.</p>
+              )}
+            </div>
+          </Section>
+        );
       })}
+    </div>
+  );
+}
+
+/* ─── BootFieldRenderer: renders a single field based on its type ─── */
+function BootFieldRenderer({
+  campo, variacoes, catCampos, fieldIdx, onReorder, onRefetch,
+  allCategorias, allVariacoes, fichaTipoId, onRefetchCats,
+}: {
+  campo: FichaCampo; variacoes: FichaVariacao[]; catCampos: FichaCampo[];
+  fieldIdx: number; onReorder: (dir: 'up' | 'down') => void; onRefetch: () => void;
+  allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  fichaTipoId: string; onRefetchCats: () => void;
+}) {
+  const updateCampo = useUpdateFichaCampo();
+  const deleteCampo = useDeleteFichaCampo();
+  const insertVariacao = useInsertVariacao();
+  const updateVariacao = useUpdateVariacao();
+  const deleteVariacao = useDeleteVariacao();
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(campo.nome);
+  const [showVarPanel, setShowVarPanel] = useState(false);
+  const [addVarName, setAddVarName] = useState('');
+  const [addVarPreco, setAddVarPreco] = useState('0');
+  const [showAddVar, setShowAddVar] = useState(false);
+  const [editState, setEditState] = useState<Record<string, { nome: string; preco: string }>>({});
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkValue, setBulkValue] = useState('');
+  const [search, setSearch] = useState('');
+
+  const activeVars = variacoes.filter(v => v.ativo !== false);
+  const hasVariations = campo.tipo === 'selecao' || campo.tipo === 'multipla';
+
+  const handleSaveName = () => {
+    if (editName.trim() && editName.trim() !== campo.nome) {
+      updateCampo.mutate({ id: campo.id, nome: editName.trim(), slug: slugify(editName.trim()) }, { onSuccess: onRefetch });
+    }
+    setEditing(false);
+  };
+
+  const handleDeleteField = () => {
+    if (confirm(`Remover campo "${campo.nome}"?`)) {
+      deleteCampo.mutate(campo.id, { onSuccess: () => { toast.success('Campo removido'); onRefetch(); } });
+    }
+  };
+
+  const handleAddVariacao = () => {
+    if (!addVarName.trim()) return;
+    // Find the old technical category to maintain backward compat
+    const oldCatId = variacoes[0]?.categoria_id;
+    if (!oldCatId) {
+      toast.error('Categoria técnica não encontrada para este campo');
+      return;
+    }
+    insertVariacao.mutate(
+      { categoria_id: oldCatId, campo_id: campo.id, nome: addVarName.trim(), preco_adicional: parseFloat(addVarPreco) || 0, ordem: activeVars.length + 1 },
+      { onSuccess: () => { toast.success('Variação adicionada'); setAddVarName(''); setAddVarPreco('0'); setShowAddVar(false); onRefetch(); } }
+    );
+  };
+
+  const openEditPanel = () => {
+    const state: Record<string, { nome: string; preco: string }> = {};
+    activeVars.forEach(v => { state[v.id] = { nome: v.nome, preco: String(v.preco_adicional) }; });
+    setEditState(state);
+    setShowVarPanel(true);
+    setShowBulkEdit(false);
+    setBulkValue('');
+  };
+
+  const handleSaveAllVars = async () => {
+    for (const v of activeVars) {
+      const s = editState[v.id];
+      if (s && (s.nome !== v.nome || parseFloat(s.preco) !== v.preco_adicional)) {
+        await updateVariacao.mutateAsync({ id: v.id, nome: s.nome, preco_adicional: parseFloat(s.preco) || 0 });
+      }
+    }
+    toast.success('Alterações salvas');
+    setShowVarPanel(false);
+    onRefetch();
+  };
+
+  const handleBulkApply = () => {
+    const inc = parseFloat(bulkValue);
+    if (isNaN(inc) || inc === 0) return;
+    setEditState(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        const cur = parseFloat(next[key].preco) || 0;
+        next[key] = { ...next[key], preco: String(Math.max(0, cur + inc)) };
+      }
+      return next;
+    });
+    setBulkValue('');
+    setShowBulkEdit(false);
+  };
+
+  const handleReorderVar = (varId: string, dir: 'up' | 'down') => {
+    const editItems = Object.entries(editState).sort(([a], [b]) => {
+      const va = activeVars.find(v => v.id === a);
+      const vb = activeVars.find(v => v.id === b);
+      return ((va?.ordem ?? 0) - (vb?.ordem ?? 0));
+    });
+    const idx = editItems.findIndex(([k]) => k === varId);
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= editItems.length) return;
+    const [itemId] = editItems[idx];
+    const [swapId] = editItems[swapIdx];
+    updateVariacao.mutate({ id: itemId, ordem: swapIdx }, { onSuccess: () => onRefetch() });
+    updateVariacao.mutate({ id: swapId, ordem: idx });
+  };
+
+  // Render field label with controls
+  const renderLabel = () => (
+    <div className="flex items-center gap-1.5 mb-1">
+      {editing ? (
+        <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+          <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="text-sm font-semibold bg-background border border-primary rounded px-2 py-0.5 flex-1" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditing(false); }} />
+          <button type="button" onClick={handleSaveName} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">OK</button>
+          <button type="button" onClick={() => setEditing(false)} className="text-xs px-2 py-1 bg-muted border border-border rounded">✕</button>
+          <button type="button" onClick={handleDeleteField} className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded">Apagar</button>
+        </div>
+      ) : (
+        <>
+          <label className={cls.label + ' !mb-0'}>
+            {campo.nome}
+            {campo.obrigatorio && <span className="text-destructive ml-0.5">*</span>}
+          </label>
+          <Badge variant="secondary" className="text-[10px]">{campo.tipo}</Badge>
+          {campo.desc_condicional && <Badge variant="outline" className="text-[10px]">desc. condicional</Badge>}
+          <button type="button" onClick={() => { setEditName(campo.nome); setEditing(true); }} className="text-muted-foreground hover:text-primary"><Pencil size={13} /></button>
+          <Button size="icon" variant="ghost" className="h-5 w-5" disabled={fieldIdx === 0} onClick={() => onReorder('up')}><ArrowUp className="h-3 w-3" /></Button>
+          <Button size="icon" variant="ghost" className="h-5 w-5" disabled={fieldIdx === catCampos.length - 1} onClick={() => onReorder('down')}><ArrowDown className="h-3 w-3" /></Button>
+        </>
+      )}
+    </div>
+  );
+
+  // Render based on field type
+  if (campo.tipo === 'texto') {
+    return (
+      <div>
+        {renderLabel()}
+        <input type="text" disabled placeholder="(preenchido pelo vendedor)" className={cls.input + ' opacity-50 italic'} />
+      </div>
+    );
+  }
+
+  if (campo.tipo === 'numero') {
+    return (
+      <div>
+        {renderLabel()}
+        <input type="number" disabled placeholder="0.00" className={cls.input + ' opacity-50 italic w-32'} />
+      </div>
+    );
+  }
+
+  if (campo.tipo === 'textarea') {
+    return (
+      <div>
+        {renderLabel()}
+        <textarea disabled rows={3} className={cls.input + ' min-h-[80px] opacity-50 italic'} placeholder="(preenchido pelo vendedor)" />
+      </div>
+    );
+  }
+
+  if (campo.tipo === 'checkbox') {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        {renderLabel()}
+        <select disabled className={cls.inputSmall + ' w-28 opacity-60'}>
+          <option>Não tem</option>
+          <option>Tem</option>
+        </select>
+        {campo.desc_condicional && <span className="text-xs text-muted-foreground italic">(abre campo de texto se "Tem")</span>}
+      </div>
+    );
+  }
+
+  // selecao or multipla
+  const filtered = search ? activeVars.filter(v => v.nome.toLowerCase().includes(search.toLowerCase())) : activeVars;
+
+  return (
+    <div>
+      {renderLabel()}
+      <div className="flex items-center gap-1.5 mb-1">
+        <button type="button" onClick={() => setShowAddVar(true)} className="text-primary hover:text-primary/80" title="Adicionar variação"><Plus size={14} /></button>
+        {activeVars.length > 0 && (
+          <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80" title="Editar variações"><Pencil size={12} /></button>
+        )}
+        <span className="text-xs text-muted-foreground">({activeVars.length} opções)</span>
+      </div>
+
+      {showAddVar && (
+        <div className="flex flex-wrap items-end gap-2 mb-2 p-3 border border-primary/30 rounded-lg bg-muted/50">
+          <div className="flex-1 min-w-[150px]">
+            <label className="text-xs font-medium">Nome</label>
+            <input type="text" value={addVarName} onChange={e => setAddVarName(e.target.value)} placeholder="Nome da variação..." className={cls.inputSmall + ' w-full'} />
+          </div>
+          <div className="w-24">
+            <label className="text-xs font-medium">Valor (R$)</label>
+            <input type="number" value={addVarPreco} onChange={e => setAddVarPreco(e.target.value)} placeholder="0" className={cls.inputSmall + ' w-full'} />
+          </div>
+          <button type="button" onClick={handleAddVariacao} className="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium">Salvar</button>
+          <button type="button" onClick={() => { setShowAddVar(false); setAddVarName(''); setAddVarPreco('0'); }} className="px-3 py-2 bg-muted border border-border rounded-md text-sm">Cancelar</button>
+        </div>
+      )}
+
+      {activeVars.length > 10 && (
+        <div className="relative mb-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." className={cls.input + ' pl-8 !py-1.5 text-xs'} />
+        </div>
+      )}
+
+      <div className={`grid ${campo.tipo === 'multipla' ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1'} gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50`}>
+        {filtered.map(v => (
+          <label key={v.id} className={cls.checkItem}>
+            <input type={campo.tipo === 'multipla' ? 'checkbox' : 'radio'} checked={false} readOnly className="accent-primary w-4 h-4 opacity-50" />
+            <span>{v.nome} {v.preco_adicional > 0 && <span className="text-muted-foreground text-xs">(R${v.preco_adicional})</span>}</span>
+          </label>
+        ))}
+        {filtered.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
+      </div>
+
+      {/* Edit panel dialog */}
+      <Dialog open={showVarPanel} onOpenChange={setShowVarPanel}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-montserrat lowercase">editar variações — {campo.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
+            <button type="button" onClick={handleSaveAllVars} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
+            <button type="button" onClick={() => setShowVarPanel(false)} className="px-4 py-2 bg-muted border border-border rounded text-sm hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-4 py-2 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80">Ed. massa</button>
+          </div>
+          {showBulkEdit && (
+            <div className="flex items-center gap-2 pb-2">
+              <span className="text-sm text-muted-foreground">Adicionar valor a todos:</span>
+              <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-sm border border-border rounded px-3 py-2 bg-background w-24" placeholder="+5" />
+              <button type="button" onClick={handleBulkApply} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Aplicar</button>
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {Object.entries(editState).map(([key, item]) => (
+              <div key={key} className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
+                <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
+                <span className="text-sm text-muted-foreground shrink-0">R$</span>
+                <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
+                <button type="button" onClick={() => handleReorderVar(key, 'up')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowUp size={14} /></button>
+                <button type="button" onClick={() => handleReorderVar(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowDown size={14} /></button>
+                <button type="button" onClick={async () => {
+                  if (confirm(`Remover "${item.nome}"?`)) {
+                    await deleteVariacao.mutateAsync(key);
+                    setEditState(prev => { const n = { ...prev }; delete n[key]; return n; });
+                    toast.success('Removida');
+                    onRefetch();
+                  }
+                }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1486,22 +1577,32 @@ export default function AdminConfigFichaPage() {
     const nome = novoItem.nome.trim();
     if (!novoItem.categoriaId) { toast.error('Selecione uma categoria'); return; }
     if (!nome) { toast.error('Informe o nome'); return; }
-    const catVars = (allVariacoes || []).filter(v => v.categoria_id === novoItem.categoriaId);
-    const ordem = catVars.length + 1;
-    const preco = parseFloat(novoItem.preco.replace(',', '.')) || 0;
-    const relacionamento = novoItem.relacionamento ? { depende_de: novoItem.relacionamento } : undefined;
-    insertVariacaoMut.mutate(
-      { categoria_id: novoItem.categoriaId, nome, preco_adicional: preco, ordem, ...(relacionamento ? { relacionamento } : {}) } as any,
+    const catCampos = (campos || []).filter(c => c.categoria_id === novoItem.categoriaId);
+    const ordem = catCampos.length + 1;
+    const tipoMap: Record<string, string> = { 'toggle': 'checkbox', 'variacao': 'selecao', 'multipla': 'multipla', 'texto': 'texto' };
+    const tipo = tipoMap[novoItem.tipo] || 'texto';
+    insertCampo.mutate(
+      {
+        ficha_tipo_id: tipo_id_ref,
+        categoria_id: novoItem.categoriaId,
+        nome,
+        slug: slugify(nome),
+        tipo,
+        obrigatorio: false,
+        ordem,
+        opcoes: [],
+        vinculo: null,
+        desc_condicional: tipo === 'checkbox',
+      },
       {
         onSuccess: () => {
-          toast.success(`"${nome}" adicionado`);
+          toast.success(`Campo "${nome}" adicionado`);
           setNovoItem({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
           setNovoItemOpen(false);
-          refetchCats();
-          queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
-          queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+          refetchCampos();
+          queryClient.invalidateQueries({ queryKey: ['ficha_campos'] });
         },
-        onError: () => toast.error('Erro ao adicionar'),
+        onError: () => toast.error('Erro ao adicionar campo'),
       },
     );
   };
@@ -1777,7 +1878,9 @@ export default function AdminConfigFichaPage() {
               fichaTipoId={tipo.id}
               categorias={categorias}
               allVariacoes={allVariacoes || []}
+              campos={campos || []}
               onRefetchCats={refetchCats}
+              onRefetchCampos={refetchCampos}
               sectionOrder={sectionOrder}
               onMoveSection={handleMoveSectionBoot}
             />

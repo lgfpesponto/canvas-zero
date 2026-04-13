@@ -24,6 +24,7 @@ export interface FichaCategoria {
 export interface FichaVariacao {
   id: string;
   categoria_id: string;
+  campo_id: string | null;
   nome: string;
   preco_adicional: number;
   ativo: boolean;
@@ -46,6 +47,7 @@ export interface FichaWorkflow {
 export interface FichaCampo {
   id: string;
   ficha_tipo_id: string;
+  categoria_id: string | null;
   nome: string;
   slug: string;
   tipo: string;
@@ -166,6 +168,24 @@ export function useFichaCampos(fichaTipoId: string | undefined) {
   });
 }
 
+/* ───── Queries by campo_id ───── */
+
+export function useFichaVariacoesByCampo(campoId: string | undefined) {
+  return useQuery({
+    queryKey: ['ficha_variacoes_campo', campoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ficha_variacoes')
+        .select('*')
+        .eq('campo_id', campoId!)
+        .order('ordem');
+      if (error) throw error;
+      return data as FichaVariacao[];
+    },
+    enabled: !!campoId,
+  });
+}
+
 /* ───── Mutations ───── */
 
 export function useUpdateVariacao() {
@@ -259,11 +279,14 @@ export function useDeleteCategoria() {
 export function useInsertVariacao() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: { categoria_id: string; nome: string; preco_adicional: number; ordem: number }) => {
+    mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number }) => {
       const { error } = await supabase.from('ficha_variacoes').insert(v);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_variacoes'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+    },
   });
 }
 
@@ -271,7 +294,7 @@ export function useInsertFichaCampo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (c: {
-      ficha_tipo_id: string; nome: string; slug: string; tipo: string;
+      ficha_tipo_id: string; categoria_id?: string; nome: string; slug: string; tipo: string;
       obrigatorio: boolean; ordem: number; opcoes: any; vinculo: string | null;
       desc_condicional: boolean; relacionamento?: any;
     }) => {
