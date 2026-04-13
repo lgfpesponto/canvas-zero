@@ -1588,12 +1588,12 @@ export default function AdminConfigFichaPage() {
         categoria_id: novoItem.categoriaId,
         nome,
         slug: slugify(nome),
-        tipo,
+        tipo: tipoCampo,
         obrigatorio: false,
         ordem,
         opcoes: [],
         vinculo: null,
-        desc_condicional: tipo === 'checkbox',
+        desc_condicional: tipoCampo === 'checkbox',
       },
       {
         onSuccess: () => {
