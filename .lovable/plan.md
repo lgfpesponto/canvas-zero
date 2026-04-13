@@ -1,107 +1,68 @@
 
-Objetivo: fazer a ficha de produção da Bota respeitar a hierarquia real Categoria → Campo → Variação, porque hoje o sistema da Bota ainda está modelado como “categoria técnica → variações”, e por isso o “+ campo” cria variações em vez de campos.
 
-Diagnóstico confirmado
-- A ficha `bota` no banco está como `tipo_ficha = 'classica'`.
-- A tabela `ficha_campos` da Bota está vazia.
-- O botão `+ campo` em `src/pages/AdminConfigFichaPage.tsx` chama `handleAddItem()` e insere em `ficha_variacoes`, então ele cria variações, não campos.
-- A reordenação atual dos itens também está errada para esse caso: o modal ordena alfabeticamente antes do swap, então a troca por `ordem` não reflete bem na tela.
-- Hoje as “categorias” do banco da Bota são técnicas e não batem com as categorias visuais que você definiu. As atuais são:
-  `modelos, cores-couro, bordados-cano, bordados-gaspea, bordados-taloneira, solados, acessorios, cor-glitter, cor-linha, cor-sola, cor-vira, formato-bico, desenvolvimento, carimbo, area-metal, cor-borrachinha, cor-vivo, tipos-couro, tamanhos, generos, laser-cano, laser-gaspea, laser-taloneira, tipo-metal, cor-metal`
-- Bordados e Laser publicados não estão totalmente aqui:
-  - `custom_options` tem dados ativos publicados: `bordado_cano 58`, `bordado_gaspea 47`, `bordado_taloneira 24`, `laser_cano 22`, `laser_gaspea 23`, `laser_taloneira 23`
-  - já em `ficha_variacoes`, a Bota tem bordados parciais e os lasers estão zerados.
+## Plano: Corrigir variações ausentes e manter formato visual original
 
-Estrutura alvo no banco
-```text
-Categoria visual
-  └── Campo
-        └── Variações (quando o campo for seleção/múltipla)
-```
+### Problema
 
-Categorias finais da Bota no banco
-- Identificação
-- Tamanho / Gênero / Modelo
-- Sob Medida
-- Acessórios
-- Couros
-- Desenvolvimento
-- Bordados
-- Laser
-- Estampa
-- Pesponto
-- Metais
-- Extras
-- Solados
-- Carimbo a Fogo
-- Adicional
-- Observação
+A migração anterior criou os campos corretamente na tabela `ficha_campos`, mas alguns campos ficaram **sem variações vinculadas**:
+- **Gênero** → 0 variações (deveria ter: Feminino, Masculino)
+- **Tipo do Metal** → 0 variações (deveria ter: Rebite, Bola Grande)
+- **Cor do Metal** → 0 variações (deveria ter: Níquel, Ouro Velho, Dourado)
+- **Tipo de Couro** → apenas 1 variação (deveria ter 20 tipos)
 
-Regra importante
-- “Nome Bordado” deixa de ser categoria e vira campo dentro de “Bordados”, abaixo dos demais campos.
+Além disso, o formato visual na página de configuração mudou (BootFieldRenderer genérico) quando deveria manter o formato original da versão publicada.
 
-Plano de implementação
+### O que fazer
 
-1. Ajustar o modelo do banco
-- Adicionar `categoria_id` em `ficha_campos`, para cada campo pertencer a uma categoria visual.
-- Adicionar `campo_id` em `ficha_variacoes`, para cada variação pertencer a um campo específico.
-- Adicionar metadados mínimos em `ficha_campos` para representar os casos reais da Bota:
-  - tipos: `texto`, `numero`, `selecao`, `multipla`, `checkbox`, `textarea`
-  - preço base para campos tipo “tem/não tem”
-  - config extra quando necessário
-- Manter compatibilidade com o que já existe, para não quebrar o resto do sistema durante a transição.
+**1. Migração SQL: inserir variações faltantes**
 
-2. Reorganizar os dados da Bota
-- Transformar as categorias técnicas atuais em campos dentro das categorias visuais.
-- Criar os campos reais da Bota no banco, por exemplo:
-  - `Tamanho / Gênero / Modelo` → campos `Tamanho`, `Gênero`, `Modelo`
-  - `Acessórios` → campo `Acessórios`
-  - `Bordados` → `Bordado do Cano`, `Cor do Bordado do Cano`, `Bordado da Gáspea`, `Cor...`, `Bordado da Taloneira`, `Cor...`, `Nome Bordado`
-  - `Extras` → `Tricê`, `Tiras`, `Franja`, `Corrente` e seus campos dependentes de descrição
-  - `Adicional` → campo numérico de valor + campo de texto
-- Migrar as opções existentes para `ficha_variacoes` no campo correto.
-- Importar para a Bota tudo que está publicado em `custom_options` para bordados e laser, sem perder preço nem duplicar item já existente.
+Inserir nas `ficha_variacoes` (com `campo_id` preenchido) as variações que faltam, buscando os dados de `orderFieldsConfig.ts`:
 
-3. Refatorar a tela de Configurações da Bota
-- Trocar o editor hardcoded atual por um editor orientado a:
-  - categoria visual
-  - campos daquela categoria
-  - variações daquele campo
-- O botão `+ categoria` passará a criar categoria visual real.
-- O botão `+ campo` passará a:
-  - puxar sempre as categorias reais da ficha
-  - criar um registro em `ficha_campos`
-  - não criar mais `ficha_variacoes`
-- As variações passarão a ser adicionadas dentro do campo correto, não diretamente na categoria.
+| Campo (slug) | Variações a inserir |
+|---|---|
+| `genero` | Feminino, Masculino |
+| `tipo_metal` | Rebite, Bola Grande |
+| `cor_metal` | Níquel, Ouro Velho, Dourado |
+| `tipo_couro` | 19 tipos faltantes (Crazy Horse, Látego, Fóssil, etc.) |
+| `cor_couro` | Verificar se tem todas as 31 cores |
+| `modelo` | Verificar se tem todos os 21 modelos |
 
-4. Corrigir reordenação
-- Permitir mover campos dentro da categoria usando `ordem` em `ficha_campos`.
-- Permitir mover variações dentro do campo usando `ordem` em `ficha_variacoes`.
-- Remover a ordenação alfabética que hoje interfere na reordenação manual.
+Também verificar e completar: `cor_glitter`, `cor_linha`, `cor_borrachinha`, `cor_vivo`, `formato_bico`, `solado`, `cor_sola`, `cor_vira`, `carimbo`, `desenvolvimento`, `acessorios`, `metais` (Área de Metal).
 
-5. Sincronizar com a ficha publicada
-- Fazer a Bota administrativa puxar bordados e lasers já publicados.
-- Corrigir a leitura de laser para não depender de categoria errada.
-- Atualizar os helpers que hoje leem parcialmente `custom_options` e parcialmente `ficha_variacoes`, para a origem canônica ficar consistente.
+Cada variação usa `categoria_id` da categoria antiga inativa (para backward compat) + `campo_id` do campo visual novo.
 
-Arquivos/tabelas envolvidos
-- Banco:
-  - `ficha_categorias`
-  - `ficha_campos`
-  - `ficha_variacoes`
-  - leitura/migração de `custom_options`
-- Frontend:
-  - `src/pages/AdminConfigFichaPage.tsx`
-  - `src/hooks/useAdminConfig.ts`
-  - `src/hooks/useFichaVariacoesLookup.ts`
-  - `src/pages/OrderPage.tsx`
-  - `src/pages/EditOrderPage.tsx`
+**2. Restaurar formato visual do BootFormLayout**
 
-Resultado esperado
-- O banco passa a refletir a formulação real da ficha.
-- “+ campo” cria campo de verdade.
-- Cada campo fica dentro da sua categoria.
-- Variações ficam dentro do campo correto.
-- “Nome Bordado” fica dentro de “Bordados”.
-- É possível mover campos dentro das categorias.
-- Bordados e lasers publicados aparecem também na configuração da Bota.
+O `BootFieldRenderer` atual renderiza de forma genérica. Restaurar para usar o mesmo visual da versão publicada (OrderPage):
+- `selecao` → dropdown SearchableSelect (igual SelectField do OrderPage)
+- `multipla` → grid de checkboxes com busca (igual MultiSelect do OrderPage)
+- `checkbox` → toggle Tem/Não Tem com campo de texto condicional (igual ToggleField)
+- `texto` → input text desabilitado
+- `numero` → input number desabilitado
+- `textarea` → textarea desabilitado
+
+Manter os controles admin (renomear, reordenar ↑↓, editar variações, adicionar variação) mas com o layout visual idêntico ao formulário publicado.
+
+**3. Atualizar dropdown do "+ campo"**
+
+O dropdown de seções no diálogo "+ campo" ainda usa slugs técnicos antigos. Atualizar para usar as 16 categorias visuais ativas do banco de dados.
+
+**4. Tipos de campo: manter os 6 existentes**
+
+Os 6 tipos já existentes no banco (`texto`, `selecao`, `multipla`, `checkbox`, `numero`, `textarea`) cobrem todos os campos da ficha. Não criar tipos novos. Mapeamento:
+
+| Componente no OrderPage | Tipo no banco |
+|---|---|
+| SelectField (dropdown) | `selecao` |
+| MultiSelect (checkboxes) | `multipla` |
+| ToggleField (Tem/Não tem) | `checkbox` |
+| Input text | `texto` |
+| Input number | `numero` |
+| Textarea | `textarea` |
+
+### Arquivos a editar
+
+- **Migração SQL** — inserir variações faltantes para genero, tipo_metal, cor_metal, tipo_couro, etc.
+- **`src/pages/AdminConfigFichaPage.tsx`** — restaurar BootFieldRenderer com layout visual original; atualizar dropdown "+ campo"
+- **`src/hooks/useAdminConfig.ts`** — ajustar `useAllVariacoesByFichaTipo` para buscar variações por `campo_id`
+
