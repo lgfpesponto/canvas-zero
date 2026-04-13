@@ -279,11 +279,14 @@ export function useDeleteCategoria() {
 export function useInsertVariacao() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: { categoria_id: string; nome: string; preco_adicional: number; ordem: number }) => {
+    mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number }) => {
       const { error } = await supabase.from('ficha_variacoes').insert(v);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_variacoes'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+    },
   });
 }
 
