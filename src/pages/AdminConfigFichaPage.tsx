@@ -1382,49 +1382,7 @@ function BootFieldRenderer({
         {display.length === 0 && <p className="col-span-full text-xs text-muted-foreground text-center py-2">Nenhuma variação</p>}
       </div>
 
-      {/* Edit panel dialog */}
-      <Dialog open={showVarPanel} onOpenChange={setShowVarPanel}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-montserrat lowercase">editar variações — {campo.nome}</DialogTitle>
-            <DialogDescription className="sr-only">Editar nomes e preços das variações do campo {campo.nome}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
-            <button type="button" onClick={handleSaveAllVars} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Salvar</button>
-            <button type="button" onClick={() => setShowVarPanel(false)} className="px-4 py-2 bg-muted border border-border rounded text-sm hover:bg-muted/80">Cancelar</button>
-            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-4 py-2 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80">Ed. massa</button>
-          </div>
-          {showBulkEdit && (
-            <div className="flex items-center gap-2 pb-2">
-              <span className="text-sm text-muted-foreground">Adicionar valor a todos:</span>
-              <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-sm border border-border rounded px-3 py-2 bg-background w-24" placeholder="+5" />
-              <button type="button" onClick={handleBulkApply} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Aplicar</button>
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => (
-              <div key={key} className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' : 'bg-primary/5 border-primary/20'}`}>
-                {item.isFallback && <Badge variant="outline" className="text-[10px] shrink-0 text-yellow-700 border-yellow-400">não salvo</Badge>}
-                <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
-                <span className="text-sm text-muted-foreground shrink-0">R$</span>
-                <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
-                <button type="button" onClick={() => handleReorderVar(key, 'up')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowUp size={14} /></button>
-                <button type="button" onClick={() => handleReorderVar(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowDown size={14} /></button>
-                <button type="button" onClick={async () => {
-                  if (confirm(`Remover "${item.nome}"?`)) {
-                    if (item.dbId) {
-                      await deleteVariacao.mutateAsync(item.dbId);
-                    }
-                    setEditState(prev => { const n = { ...prev }; delete n[key]; return n; });
-                    toast.success('Removida');
-                    onRefetch();
-                  }
-                }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {editDialog}
     </div>
   );
 }
