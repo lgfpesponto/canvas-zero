@@ -373,6 +373,18 @@ function AdminEditableOptions({
   const otherCats = allCategorias.filter(c => c.id !== cat.id);
   const editItems = Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
+  const handleReorderItem = (key: string, dir: 'up' | 'down') => {
+    const idx = editItems.findIndex(([k]) => k === key);
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= editItems.length) return;
+    const [, item] = editItems[idx];
+    const [, swapItem] = editItems[swapIdx];
+    if (item.dbId && swapItem.dbId) {
+      updateVariacao.mutate({ id: item.dbId, ordem: swapIdx }, { onSuccess: () => refetch() });
+      updateVariacao.mutate({ id: swapItem.dbId, ordem: idx });
+    }
+  };
+
   return (
     <div className="mt-1">
       <div className="flex items-center gap-1.5 mb-1">
@@ -456,6 +468,8 @@ function AdminEditableOptions({
                       ? <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-amber-500/50 text-amber-700">não salvo</Badge>
                       : <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0 border-green-500/50 text-green-700 bg-green-50">salvo no banco</Badge>
                     }
+                    <button type="button" onClick={() => handleReorderItem(key, 'up')} className="text-muted-foreground hover:text-primary shrink-0" title="Mover para cima"><ArrowUp size={14} /></button>
+                    <button type="button" onClick={() => handleReorderItem(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0" title="Mover para baixo"><ArrowDown size={14} /></button>
                     <button type="button" onClick={() => { setRelOpen(relOpen === key ? null : key); setRelCatFilter(''); }} className={`shrink-0 ${hasRel ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={14} /></button>
                     <button type="button" onClick={() => handleDelete(key, item.nome)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={14} /></button>
                   </div>
@@ -885,21 +899,15 @@ function BootFormLayout({
           <AdminTextRef label="Cor do Bordado da Gáspea" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           <AdminMultiSelect catSlug="bordados-taloneira" catLabel="Bordado da Taloneira" fallback={BORDADOS_TALONEIRA} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           <AdminTextRef label="Cor do Bordado da Taloneira" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
+          <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
         </div>
       </Section>
     )},
-    { id: 7, title: 'Nome Bordado', render: () => (
-      <Section title="Nome Bordado" onMoveUp={() => onMoveSection(7, 'up')} onMoveDown={() => onMoveSection(7, 'down')}
-        isFirst={sectionOrder.indexOf(7) === 0} isLast={sectionOrder.indexOf(7) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(7)} onToggleRequired={() => toggleRequired(7)} required={requiredSections.has(7)}>
-        <AdminToggleField label="Nome Bordado" preco={NOME_BORDADO_PRECO} onDelete={() => toggleHidden(7)} onToggleRequired={() => toggleRequired(7)} required={requiredSections.has(7)} />
-      </Section>
-    )},
-    { id: 8, title: 'Laser', render: () => (
+    { id: 7, title: 'Laser', render: () => (
       <Section title="Laser" categoriaId={findCatId('laser-cano')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(8, 'up')} onMoveDown={() => onMoveSection(8, 'down')}
-        isFirst={sectionOrder.indexOf(8) === 0} isLast={sectionOrder.indexOf(8) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(8)} required={requiredSections.has(8)}>
+        onMoveUp={() => onMoveSection(7, 'up')} onMoveDown={() => onMoveSection(7, 'down')}
+        isFirst={sectionOrder.indexOf(7) === 0} isLast={sectionOrder.indexOf(7) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(7)} required={requiredSections.has(7)}>
         <div className="space-y-4">
           <AdminMultiSelect catSlug="laser-cano" catLabel="Laser do Cano" fallback={LASER_OPTIONS.map(l => ({ label: l, preco: LASER_CANO_PRECO }))} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           <AdminSelectField label={`Cor Glitter/Tecido do Cano (+R$${GLITTER_CANO_PRECO})`} catSlug="cor-glitter" fallback={COR_GLITTER} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
@@ -914,18 +922,18 @@ function BootFormLayout({
         </div>
       </Section>
     )},
-    { id: 9, title: 'Estampa', render: () => (
-      <Section title="Estampa" onMoveUp={() => onMoveSection(9, 'up')} onMoveDown={() => onMoveSection(9, 'down')}
-        isFirst={sectionOrder.indexOf(9) === 0} isLast={sectionOrder.indexOf(9) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(9)} onToggleRequired={() => toggleRequired(9)} required={requiredSections.has(9)}>
-        <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} onDelete={() => toggleHidden(9)} onToggleRequired={() => toggleRequired(9)} required={requiredSections.has(9)} />
+    { id: 8, title: 'Estampa', render: () => (
+      <Section title="Estampa" onMoveUp={() => onMoveSection(8, 'up')} onMoveDown={() => onMoveSection(8, 'down')}
+        isFirst={sectionOrder.indexOf(8) === 0} isLast={sectionOrder.indexOf(8) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(8)} onToggleRequired={() => toggleRequired(8)} required={requiredSections.has(8)}>
+        <AdminToggleField label="Estampa" preco={ESTAMPA_PRECO} onDelete={() => toggleHidden(8)} onToggleRequired={() => toggleRequired(8)} required={requiredSections.has(8)} />
       </Section>
     )},
-    { id: 10, title: 'Pesponto', render: () => (
+    { id: 9, title: 'Pesponto', render: () => (
       <Section title="Pesponto" categoriaId={findCatId('cor-linha')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(10, 'up')} onMoveDown={() => onMoveSection(10, 'down')}
-        isFirst={sectionOrder.indexOf(10) === 0} isLast={sectionOrder.indexOf(10) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(10)} required={requiredSections.has(10)}>
+        onMoveUp={() => onMoveSection(9, 'up')} onMoveDown={() => onMoveSection(9, 'down')}
+        isFirst={sectionOrder.indexOf(9) === 0} isLast={sectionOrder.indexOf(9) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(9)} required={requiredSections.has(9)}>
         <div className="grid sm:grid-cols-3 gap-4">
           <AdminSelectField label="Cor da Linha" catSlug="cor-linha" fallback={COR_LINHA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           <AdminSelectField label="Cor da Borrachinha" catSlug="cor-borrachinha" fallback={COR_BORRACHINHA} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
@@ -933,11 +941,11 @@ function BootFormLayout({
         </div>
       </Section>
     )},
-    { id: 11, title: 'Metais', render: () => (
+    { id: 10, title: 'Metais', render: () => (
       <Section title="Metais" categoriaId={findCatId('area-metal')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(11, 'up')} onMoveDown={() => onMoveSection(11, 'down')}
-        isFirst={sectionOrder.indexOf(11) === 0} isLast={sectionOrder.indexOf(11) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(11)} required={requiredSections.has(11)}>
+        onMoveUp={() => onMoveSection(10, 'up')} onMoveDown={() => onMoveSection(10, 'down')}
+        isFirst={sectionOrder.indexOf(10) === 0} isLast={sectionOrder.indexOf(10) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(10)} required={requiredSections.has(10)}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
             <AdminSelectField label="Área do Metal" catSlug="area-metal" fallback={AREA_METAL} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
@@ -964,10 +972,10 @@ function BootFormLayout({
         </div>
       </Section>
     )},
-    { id: 12, title: 'Extras', render: () => (
-      <Section title="Extras" onMoveUp={() => onMoveSection(12, 'up')} onMoveDown={() => onMoveSection(12, 'down')}
-        isFirst={sectionOrder.indexOf(12) === 0} isLast={sectionOrder.indexOf(12) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(12)} onToggleRequired={() => toggleRequired(12)} required={requiredSections.has(12)}>
+    { id: 11, title: 'Extras', render: () => (
+      <Section title="Extras" onMoveUp={() => onMoveSection(11, 'up')} onMoveDown={() => onMoveSection(11, 'down')}
+        isFirst={sectionOrder.indexOf(11) === 0} isLast={sectionOrder.indexOf(11) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(11)} onToggleRequired={() => toggleRequired(11)} required={requiredSections.has(11)}>
         <AdminToggleField label="Tricê" preco={TRICE_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
         <AdminToggleField label="Tiras" preco={TIRAS_PRECO} onDelete={() => {}} onToggleRequired={() => {}} />
         <div className="space-y-2">
@@ -985,11 +993,11 @@ function BootFormLayout({
         </div>
       </Section>
     )},
-    { id: 13, title: 'Solados', render: () => (
+    { id: 12, title: 'Solados', render: () => (
       <Section title="Solados" categoriaId={findCatId('solados')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(13, 'up')} onMoveDown={() => onMoveSection(13, 'down')}
-        isFirst={sectionOrder.indexOf(13) === 0} isLast={sectionOrder.indexOf(13) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(13)} required={requiredSections.has(13)}>
+        onMoveUp={() => onMoveSection(12, 'up')} onMoveDown={() => onMoveSection(12, 'down')}
+        isFirst={sectionOrder.indexOf(12) === 0} isLast={sectionOrder.indexOf(12) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(12)} required={requiredSections.has(12)}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <AdminSelectField label="Tipo de Solado" catSlug="solados" fallback={SOLADO} {...common} required onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
@@ -1001,31 +1009,31 @@ function BootFormLayout({
         </div>
       </Section>
     )},
-    { id: 14, title: 'Carimbo a Fogo', render: () => (
+    { id: 13, title: 'Carimbo a Fogo', render: () => (
       <Section title="Carimbo a Fogo" categoriaId={findCatId('carimbo')} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
-        onMoveUp={() => onMoveSection(14, 'up')} onMoveDown={() => onMoveSection(14, 'down')}
-        isFirst={sectionOrder.indexOf(14) === 0} isLast={sectionOrder.indexOf(14) === sectionOrder.length - 1}
-        onToggleRequired={() => toggleRequired(14)} required={requiredSections.has(14)}>
+        onMoveUp={() => onMoveSection(13, 'up')} onMoveDown={() => onMoveSection(13, 'down')}
+        isFirst={sectionOrder.indexOf(13) === 0} isLast={sectionOrder.indexOf(13) === sectionOrder.length - 1}
+        onToggleRequired={() => toggleRequired(13)} required={requiredSections.has(13)}>
         <div className="flex flex-wrap items-center gap-3">
           <AdminSelectField label="Carimbo" catSlug="carimbo" fallback={CARIMBO} {...common} onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           <AdminTextRef label="Descrição do carimbo" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
         </div>
       </Section>
     )},
-    { id: 15, title: 'Adicional', render: () => (
-      <Section title="Adicional" onMoveUp={() => onMoveSection(15, 'up')} onMoveDown={() => onMoveSection(15, 'down')}
-        isFirst={sectionOrder.indexOf(15) === 0} isLast={sectionOrder.indexOf(15) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(15)} onToggleRequired={() => toggleRequired(15)} required={requiredSections.has(15)}>
+    { id: 14, title: 'Adicional', render: () => (
+      <Section title="Adicional" onMoveUp={() => onMoveSection(14, 'up')} onMoveDown={() => onMoveSection(14, 'down')}
+        isFirst={sectionOrder.indexOf(14) === 0} isLast={sectionOrder.indexOf(14) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(14)} onToggleRequired={() => toggleRequired(14)} required={requiredSections.has(14)}>
         <div className="grid sm:grid-cols-2 gap-4">
           <AdminTextRef label="Descrição do Adicional" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
           <AdminTextRef label="Valor do Adicional (R$)" onRename={() => {}} onDelete={() => {}} onToggleRequired={() => {}} />
         </div>
       </Section>
     )},
-    { id: 16, title: 'Observação', render: () => (
-      <Section title="Observação" onMoveUp={() => onMoveSection(16, 'up')} onMoveDown={() => onMoveSection(16, 'down')}
-        isFirst={sectionOrder.indexOf(16) === 0} isLast={sectionOrder.indexOf(16) === sectionOrder.length - 1}
-        onDelete={() => toggleHidden(16)} onToggleRequired={() => toggleRequired(16)} required={requiredSections.has(16)}>
+    { id: 15, title: 'Observação', render: () => (
+      <Section title="Observação" onMoveUp={() => onMoveSection(15, 'up')} onMoveDown={() => onMoveSection(15, 'down')}
+        isFirst={sectionOrder.indexOf(15) === 0} isLast={sectionOrder.indexOf(15) === sectionOrder.length - 1}
+        onDelete={() => toggleHidden(15)} onToggleRequired={() => toggleRequired(15)} required={requiredSections.has(15)}>
         <textarea disabled rows={3} className={cls.input + ' min-h-[80px] opacity-50 italic'} placeholder="(preenchido pelo vendedor)" />
       </Section>
     )},
@@ -1042,7 +1050,7 @@ function BootFormLayout({
   const extraCats = categorias.filter(c => !HARDCODED_SLUGS.has(c.slug));
 
   extraCats.forEach((cat, i) => {
-    const sectionId = 17 + i;
+    const sectionId = 16 + i;
     allSections.push({
       id: sectionId,
       title: cat.nome,
@@ -1381,11 +1389,12 @@ export default function AdminConfigFichaPage() {
   const [novoItemOpen, setNovoItemOpen] = useState(false);
   const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
+  const [novoItemSectionLabel, setNovoItemSectionLabel] = useState('');
 
   const isBoot = slug === 'bota';
   const isDynamic = tipo?.tipo_ficha === 'dinamica';
 
-  // Boot sections: 17 hardcoded + dynamic extra categories
+  // Boot sections: 16 hardcoded + dynamic extra categories
   const [sectionOrder, setSectionOrder] = useState<number[]>([]);
 
   const HARDCODED_BOOT_SLUGS = new Set([
@@ -1396,7 +1405,7 @@ export default function AdminConfigFichaPage() {
     'solados', 'cor-sola', 'area-metal', 'tipo-metal', 'cor-metal', 'carimbo',
   ]);
   const extraCatsCount = isBoot && categorias ? categorias.filter(c => !HARDCODED_BOOT_SLUGS.has(c.slug)).length : 0;
-  const totalSections = 17 + extraCatsCount;
+  const totalSections = 16 + extraCatsCount;
 
   useEffect(() => {
     setSectionOrder(prev => {
@@ -1622,15 +1631,62 @@ export default function AdminConfigFichaPage() {
                   <DialogHeader><DialogTitle className="font-montserrat lowercase">adicionar item a uma categoria</DialogTitle></DialogHeader>
                   <div className="space-y-3 pt-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Categoria</Label>
-                      <Select value={novoItem.categoriaId} onValueChange={v => setNovoItem(p => ({ ...p, categoriaId: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Selecione a categoria..." /></SelectTrigger>
-                        <SelectContent>
-                          {(categorias || []).map(cat => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-xs">Seção</Label>
+                      {(() => {
+                        const BOOT_VISUAL_SECTIONS: { label: string; slugs: string[] }[] = [
+                          { label: 'Tamanho / Gênero / Modelo', slugs: ['tamanhos', 'generos', 'modelos'] },
+                          { label: 'Acessórios', slugs: ['acessorios'] },
+                          { label: 'Couros', slugs: ['tipos-couro', 'cores-couro'] },
+                          { label: 'Desenvolvimento', slugs: ['desenvolvimento'] },
+                          { label: 'Bordados', slugs: ['bordados-cano', 'bordados-gaspea', 'bordados-taloneira'] },
+                          { label: 'Laser', slugs: ['laser-cano', 'laser-gaspea', 'laser-taloneira', 'cor-glitter'] },
+                          { label: 'Pesponto', slugs: ['cor-linha', 'cor-borrachinha', 'cor-vivo'] },
+                          { label: 'Metais', slugs: ['area-metal', 'tipo-metal', 'cor-metal'] },
+                          { label: 'Solados', slugs: ['solados', 'formato-bico', 'cor-sola', 'cor-vira'] },
+                          { label: 'Carimbo a Fogo', slugs: ['carimbo'] },
+                        ];
+                        const allMappedSlugs = new Set(BOOT_VISUAL_SECTIONS.flatMap(s => s.slugs));
+                        (categorias || []).filter(c => !allMappedSlugs.has(c.slug)).forEach(c => {
+                          BOOT_VISUAL_SECTIONS.push({ label: c.nome, slugs: [c.slug] });
+                        });
+                        const currentSection = BOOT_VISUAL_SECTIONS.find(s => s.label === novoItemSectionLabel);
+                        const subCats = currentSection ? currentSection.slugs.map(slug => (categorias || []).find(c => c.slug === slug)).filter(Boolean) : [];
+
+                        return (
+                          <div className="space-y-2">
+                            <Select value={novoItemSectionLabel} onValueChange={v => {
+                              setNovoItemSectionLabel(v);
+                              const sec = BOOT_VISUAL_SECTIONS.find(s => s.label === v);
+                              if (sec && sec.slugs.length === 1) {
+                                const cat = (categorias || []).find(c => c.slug === sec.slugs[0]);
+                                if (cat) setNovoItem(p => ({ ...p, categoriaId: cat.id }));
+                              } else {
+                                setNovoItem(p => ({ ...p, categoriaId: '' }));
+                              }
+                            }}>
+                              <SelectTrigger><SelectValue placeholder="Selecione a seção..." /></SelectTrigger>
+                              <SelectContent>
+                                {BOOT_VISUAL_SECTIONS.map(s => (
+                                  <SelectItem key={s.label} value={s.label}>{s.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {currentSection && currentSection.slugs.length > 1 && (
+                              <div className="space-y-1">
+                                <Label className="text-xs">Sub-categoria</Label>
+                                <Select value={novoItem.categoriaId} onValueChange={v => setNovoItem(p => ({ ...p, categoriaId: v }))}>
+                                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>
+                                    {subCats.map(cat => cat && (
+                                      <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
