@@ -1,52 +1,30 @@
 
 
-## Plano: Corrigir campos de Couro e Glitter para refletir as 3 partes da bota
+## Plano: Alinhar visual dos campos na configuracao com o formulario publicado
 
 ### Problema
 
-A migração anterior criou campos genéricos únicos (`tipo_couro`, `cor_couro`, `cor_glitter`) quando na realidade o formulário publicado e a tabela `orders` usam campos separados por parte da bota:
+Na aba configuracao > ficha de producao > bota, o `BootFieldRenderer` renderiza todos os campos de forma incorreta comparado ao formulario "Faca seu Pedido":
 
-| Campo atual (errado) | Campos corretos (como na versão publicada) |
-|---|---|
-| Tipo de Couro | Couro do Cano, Couro da Gáspea, Couro da Taloneira |
-| Cor do Couro | Cor do Couro do Cano, Cor do Couro da Gáspea, Cor do Couro da Taloneira |
-| Cor do Glitter | Cor do Glitter do Cano, Cor do Glitter da Gáspea, Cor do Glitter da Taloneira |
+| Tipo | OrderPage (correto) | Admin Config (atual) |
+|---|---|---|
+| `selecao` | `SearchableSelect` (dropdown com busca) | Radio buttons em caixa bordada |
+| `multipla` | Grid de checkboxes em caixa com busca | Similar, mas sem separador "Bordados Variados" |
+| `checkbox` | Select "Tem/Nao tem" + campo texto condicional | Select desabilitado sem indicacao de texto condicional |
 
-As colunas da tabela `orders` confirmam isso: `couro_cano`, `couro_gaspea`, `couro_taloneira`, `cor_couro_cano`, `cor_couro_gaspea`, `cor_couro_taloneira`, `cor_glitter_cano`, `cor_glitter_gaspea`, `cor_glitter_taloneira`.
+### Alteracoes
 
-### O que fazer
+**Arquivo: `src/pages/AdminConfigFichaPage.tsx`** - funcao `BootFieldRenderer`
 
-**1. SQL (insert tool): Substituir campos genéricos pelos campos por parte**
+1. **Tipo `selecao`**: Trocar o grid de radio buttons por um `SearchableSelect` desabilitado (preview) mostrando as variacoes como opcoes. Manter os botoes admin (adicionar, editar variacoes) acima do componente.
 
-Na categoria "Couros":
-- Desativar os campos genéricos `tipo_couro` e `cor_couro`
-- Inserir 6 novos campos:
-  - `couro_cano` (selecao), `couro_gaspea` (selecao), `couro_taloneira` (selecao)
-  - `cor_couro_cano` (selecao), `cor_couro_gaspea` (selecao), `cor_couro_taloneira` (selecao)
-- Cada um dos 3 campos de tipo couro recebe as mesmas 20 variações (TIPOS_COURO do orderFieldsConfig)
-- Cada um dos 3 campos de cor couro recebe as mesmas 31 variações (CORES_COURO)
+2. **Tipo `multipla`**: Manter o grid de checkboxes (ja esta similar ao OrderPage), mas adicionar o separador "Bordados Variados" quando aplicavel, igual ao MultiSelect do OrderPage.
 
-Na categoria "Laser":
-- Desativar o campo genérico `cor_glitter`
-- Inserir 3 novos campos:
-  - `cor_glitter_cano` (selecao), `cor_glitter_gaspea` (selecao), `cor_glitter_taloneira` (selecao)
-- Cada um recebe as mesmas 8 variações (COR_GLITTER)
+3. **Tipo `checkbox`**: Ja renderiza como select "Tem/Nao tem" (correto), mas adicionar preview do campo de texto condicional quando `desc_condicional = true`, mostrando um input desabilitado ao lado igual ao OrderPage.
 
-**2. SQL (insert tool): Inserir variações faltantes nos outros campos**
+### Detalhes tecnicos
 
-Campos que já existem corretamente mas precisam de variações:
-- `genero`: Feminino, Masculino
-- `tipo_metal`: Rebite, Bola Grande
-- `cor_metal`: Níquel, Ouro Velho, Dourado
-
-**3. Frontend: Restaurar layout visual original**
-
-`AdminConfigFichaPage.tsx` — O `BootFieldRenderer` deve renderizar cada campo usando o componente visual correto baseado no tipo, mantendo controles admin (renomear, reordenar, editar variações).
-
-`useAdminConfig.ts` — Ajustar `useAllVariacoesByFichaTipo` para buscar variações via `campo_id`.
-
-### Arquivos a editar
-- SQL via insert tool (dados)
-- `src/pages/AdminConfigFichaPage.tsx`
-- `src/hooks/useAdminConfig.ts`
+- O `SearchableSelect` para tipo `selecao` recebera as variacoes como `options` (array de strings com os nomes)
+- Os botoes de admin (Plus, Pencil para variacoes, Dialog de edicao) continuam acima do componente visual
+- Para `checkbox` com `desc_condicional`, adicionar um `<input disabled placeholder="(campo de texto se Tem)">` ao lado do select
 
