@@ -1,66 +1,46 @@
 
-Descobri o motivo de ainda não funcionar.
 
-Problema principal
-- O botão de editar existe e o `openEditPanel` é chamado.
-- Mas em `BootFieldRenderer` o modal `<Dialog>` de edição está renderizado apenas no fluxo final usado por campos `multipla`.
-- Os campos `Tamanho`, `Gênero` e `Modelo` são do tipo `selecao`.
-- No ramo `if (campo.tipo === 'selecao')`, o componente faz `return` antes do bloco do `<Dialog>`.
-- Resultado: ao clicar no lápis, `showVarPanel` muda para `true`, mas não existe nenhum modal montado para esse tipo de campo.
+## Problema
 
-Evidência no código
-- `src/pages/AdminConfigFichaPage.tsx:1124-1130`
-  - `openEditPanel()` define `setShowVarPanel(true)`
-- `src/pages/AdminConfigFichaPage.tsx:1291-1300`
-  - ramo de `campo.tipo === 'selecao'` retorna antes
-- `src/pages/AdminConfigFichaPage.tsx:1338-1380`
-  - o `<Dialog open={showVarPanel}>...` só aparece depois, no retorno do fluxo de `multipla`
+O `BootFieldRenderer` (editor de variações dos campos da bota) não possui o botão de relacionamento (`Link2` / 🔗) dentro do modal de edição. Esse botão existe apenas no componente `AdminEditableOptions` (usado pelas categorias clássicas como Bordados, Laser, etc.), mas nunca foi portado para o `BootFieldRenderer`.
 
-Por que parecia ser outra coisa
-- O fallback de slug singular/plural (`tamanho -> tamanhos`, etc.) realmente precisava existir e continua importante para montar as opções.
-- Os warnings de `ref` em `SearchableSelect` e `Dialog` também são reais.
-- Mas o bloqueio funcional mais direto agora é estrutural: para `selecao`, o editor simplesmente não está no JSX retornado.
+## Plano
 
-Plano de correção
-1. Extrair o modal de edição de variações para um bloco compartilhado dentro de `BootFieldRenderer`
-   - usar o mesmo modal para `selecao` e `multipla`
-   - manter suporte a itens fallback “não salvos”
+### 1. Adicionar botão de relacionamento no modal do BootFieldRenderer
 
-2. Reestruturar o retorno do `BootFieldRenderer`
-   - evitar `return` antecipado em `selecao` sem incluir o modal
-   - renderizar:
-     - label
-     - controles admin
-     - preview específico do tipo
-     - modal compartilhado
+No modal de edição de variações (`editDialog`, linhas 1291-1334 de `AdminConfigFichaPage.tsx`), adicionar para cada item:
+- Botão `Link2` ao lado dos botões de reordenar/excluir
+- Ao clicar, expande um painel inline de relacionamento (igual ao `AdminEditableOptions`)
+- O painel mostra as outras categorias/campos da ficha e permite selecionar quais variações são vinculadas
 
-3. Preservar a lógica já existente
-   - manter merge entre fallback + banco
-   - manter `LEGACY_SLUG_MAP` para `tamanho`, `genero`, `modelo`
-   - manter ordenação alfabética no preview e na lista de edição
+### 2. Lógica de relacionamento
 
-4. Corrigir o warning restante do `SearchableSelect`
-   - revisar `PopoverTrigger asChild` para garantir que o trigger receba `ref` corretamente
-   - se necessário, transformar o botão interno em componente com `forwardRef` ou simplificar a estrutura do trigger
+Reutilizar a mesma lógica já existente no `AdminEditableOptions`:
+- Estado `relOpen` para controlar qual item está com o painel aberto
+- Estado `relCatFilter` para filtro de pesquisa por categoria
+- Carregar todas as variações da ficha (`allVariacoes`) para listar como opções
+- Carregar todas as categorias para agrupar as opções
+- Salvar no campo `relacionamento` (jsonb) da variação via `updateVariacao`
 
-5. Validar os três casos afetados
-   - `Tamanho`
-   - `Gênero`
-   - `Modelo`
-   - confirmar abrir, editar, salvar, adicionar e apagar
+### 3. Props necessárias
 
-Detalhes técnicos
-```text
-Hoje:
-campo tipo = selecao
--> botão chama openEditPanel()
--> setShowVarPanel(true)
--> componente retorna antes do <Dialog>
--> nenhum modal aparece
+O `BootFieldRenderer` precisa receber:
+- `allVariacoes` — todas as variações de todas as categorias da ficha (já disponível via `useAllVariacoesByFichaTipo`)
+- `allCategorias` — todas as categorias da ficha (já passada como `allCategorias`)
 
-Depois:
-campo tipo = selecao ou multipla
--> botão chama openEditPanel()
--> modal compartilhado sempre está montado
--> editor abre normalmente
-```
+### 4. Itens fallback (não salvos)
+
+Para itens fallback que ainda não estão no banco:
+- O botão de relacionamento fica desabilitado ou mostra aviso "(salve primeiro)"
+- Só é possível criar relacionamento após persistir o item
+
+### Detalhes técnicos
+
+Arquivo: `src/pages/AdminConfigFichaPage.tsx`
+
+Mudanças no `BootFieldRenderer`:
+- Adicionar estados: `relOpen`, `relCatFilter`
+- No `editDialog`, adicionar botão `Link2` por item
+- Adicionar painel colapsável de relacionamento por item (cópia da lógica das linhas 477-540 do `AdminEditableOptions`)
+- Handler `handleSaveRel` para salvar `relacionamento` via `updateVariacao.mutate`
+
