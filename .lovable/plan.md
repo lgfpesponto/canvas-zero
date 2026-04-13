@@ -1,46 +1,34 @@
 
 
-## Problema
+## Plano: Adicionar Modelos e Campos Finais ao Admin da Bota
 
-O `BootFieldRenderer` (editor de variações dos campos da bota) não possui o botão de relacionamento (`Link2` / 🔗) dentro do modal de edição. Esse botão existe apenas no componente `AdminEditableOptions` (usado pelas categorias clássicas como Bordados, Laser, etc.), mas nunca foi portado para o `BootFieldRenderer`.
+### Contexto
+A página admin da bota precisa ter os botões "Criar Modelo" e "Modelos" no topo, e os campos "Quantidade", "Prazo de Produção" e "Valor Total" no final -- igual a versão publicada (`OrderPage.tsx`). A estrutura de edição existente (editar, mover, relacionar, adicionar) permanece intocada.
 
-## Plano
+### Alterações
 
-### 1. Adicionar botão de relacionamento no modal do BootFieldRenderer
+#### 1. Botões "Criar Modelo" e "Modelos" no header (apenas bota)
+- No bloco de botões admin (linhas ~2107-2143), adicionar dois botões antes dos existentes:
+  - **"Criar Modelo"** — redireciona para `/pedido` com modo template (`?mode=template`)
+  - **"Modelos"** — abre dialog de modelos usando `useTemplateManagement`, exibindo lista de modelos salvos com opção de editar/excluir
+- Importar `useTemplateManagement`, ícones `List` (já importado como parte do projeto)
 
-No modal de edição de variações (`editDialog`, linhas 1291-1334 de `AdminConfigFichaPage.tsx`), adicionar para cada item:
-- Botão `Link2` ao lado dos botões de reordenar/excluir
-- Ao clicar, expande um painel inline de relacionamento (igual ao `AdminEditableOptions`)
-- O painel mostra as outras categorias/campos da ficha e permite selecionar quais variações são vinculadas
+#### 2. Campos Quantidade, Prazo e Valor Total no final do BootFormLayout
+- Após o loop de categorias no `BootFormLayout` (linha ~1031), adicionar uma seção final com:
+  - **Quantidade**: input numérico readonly com valor 1, estilo igual ao OrderPage
+  - **Prazo de Produção**: box informativo "15 dias úteis"
+  - **Valor Total**: box com "R$ 0,00" (visual, sem cálculo real no admin)
+- Todos com `opacity-60 pointer-events-none` para indicar que são apenas preview no modo admin
 
-### 2. Lógica de relacionamento
+#### 3. Nenhuma alteração na lógica de edição existente
+- `BootFieldRenderer`, `editDialog`, relacionamentos, fallback, reordenação -- tudo permanece como está
 
-Reutilizar a mesma lógica já existente no `AdminEditableOptions`:
-- Estado `relOpen` para controlar qual item está com o painel aberto
-- Estado `relCatFilter` para filtro de pesquisa por categoria
-- Carregar todas as variações da ficha (`allVariacoes`) para listar como opções
-- Carregar todas as categorias para agrupar as opções
-- Salvar no campo `relacionamento` (jsonb) da variação via `updateVariacao`
-
-### 3. Props necessárias
-
-O `BootFieldRenderer` precisa receber:
-- `allVariacoes` — todas as variações de todas as categorias da ficha (já disponível via `useAllVariacoesByFichaTipo`)
-- `allCategorias` — todas as categorias da ficha (já passada como `allCategorias`)
-
-### 4. Itens fallback (não salvos)
-
-Para itens fallback que ainda não estão no banco:
-- O botão de relacionamento fica desabilitado ou mostra aviso "(salve primeiro)"
-- Só é possível criar relacionamento após persistir o item
+### Arquivo modificado
+- `src/pages/AdminConfigFichaPage.tsx`
 
 ### Detalhes técnicos
-
-Arquivo: `src/pages/AdminConfigFichaPage.tsx`
-
-Mudanças no `BootFieldRenderer`:
-- Adicionar estados: `relOpen`, `relCatFilter`
-- No `editDialog`, adicionar botão `Link2` por item
-- Adicionar painel colapsável de relacionamento por item (cópia da lógica das linhas 477-540 do `AdminEditableOptions`)
-- Handler `handleSaveRel` para salvar `relacionamento` via `updateVariacao.mutate`
+- Importar `useTemplateManagement` de `@/hooks/useTemplateManagement`
+- Adicionar estado para dialog de modelos no componente principal `AdminConfigFichaPage`
+- Os botões de modelo ficam no mesmo `div` dos botões "+ campo", "+ categoria", "sincronizar"
+- Campos finais são JSX estático dentro do retorno do `BootFormLayout`, após `{visualCats.map(...)}`
 
