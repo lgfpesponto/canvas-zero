@@ -1645,24 +1645,17 @@ export default function AdminConfigFichaPage() {
                           { label: 'Solados', slugs: ['solados', 'formato-bico', 'cor-sola', 'cor-vira'] },
                           { label: 'Carimbo a Fogo', slugs: ['carimbo'] },
                         ];
-                        // Add dynamic extra categories
                         const allMappedSlugs = new Set(BOOT_VISUAL_SECTIONS.flatMap(s => s.slugs));
                         (categorias || []).filter(c => !allMappedSlugs.has(c.slug)).forEach(c => {
                           BOOT_VISUAL_SECTIONS.push({ label: c.nome, slugs: [c.slug] });
                         });
-
-                        const selectedSection = BOOT_VISUAL_SECTIONS.find(s => {
-                          const cat = (categorias || []).find(c => c.id === novoItem.categoriaId);
-                          return cat && s.slugs.includes(cat.slug);
-                        });
-                        const [sectionLabel, setSectionLabel] = useState('');
-                        const currentSection = BOOT_VISUAL_SECTIONS.find(s => s.label === sectionLabel);
+                        const currentSection = BOOT_VISUAL_SECTIONS.find(s => s.label === novoItemSectionLabel);
                         const subCats = currentSection ? currentSection.slugs.map(slug => (categorias || []).find(c => c.slug === slug)).filter(Boolean) : [];
 
                         return (
                           <div className="space-y-2">
-                            <Select value={sectionLabel} onValueChange={v => {
-                              setSectionLabel(v);
+                            <Select value={novoItemSectionLabel} onValueChange={v => {
+                              setNovoItemSectionLabel(v);
                               const sec = BOOT_VISUAL_SECTIONS.find(s => s.label === v);
                               if (sec && sec.slugs.length === 1) {
                                 const cat = (categorias || []).find(c => c.slug === sec.slugs[0]);
