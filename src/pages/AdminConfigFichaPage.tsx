@@ -1061,6 +1061,8 @@ function BootFieldRenderer({
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
+  const [relOpen, setRelOpen] = useState<string | null>(null);
+  const [relCatFilter, setRelCatFilter] = useState('');
 
   // Build merged items: DB variations + fallback items not yet in DB
   const fb = fallback || [];
@@ -1186,6 +1188,43 @@ function BootFieldRenderer({
     updateVariacao.mutate({ id: swapId, ordem: idx });
   };
 
+  const handleRelChange = async (key: string, catSlug: string, newSel: string[]) => {
+    const item = editState[key];
+    if (!item) return;
+    // If fallback, persist first
+    let dbId = item.dbId;
+    if (!dbId && item.isFallback) {
+      let catId = resolvedCatId || campo.categoria_id || variacoes[0]?.categoria_id;
+      if (!catId && campo.slug) {
+        const LEGACY_SLUG_MAP: Record<string, string> = { 'tamanho': 'tamanhos', 'genero': 'generos', 'modelo': 'modelos' };
+        const resolved = LEGACY_SLUG_MAP[campo.slug] || campo.slug;
+        const matchCat = (allCategorias || []).find(c => c.slug === resolved);
+        if (matchCat) catId = matchCat.id;
+      }
+      if (!catId) { toast.error('Salve o item antes de vincular'); return; }
+      const { data, error } = await supabase.from('ficha_variacoes').insert({
+        categoria_id: catId, campo_id: campo.id, nome: item.nome,
+        preco_adicional: parseFloat(item.preco) || 0, ordem: 0,
+      }).select('id').single();
+      if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+      dbId = data.id;
+      setEditState(prev => ({ ...prev, [key]: { ...prev[key], dbId: data.id, isFallback: false } }));
+    }
+    if (!dbId) return;
+    // Build updated relacionamento
+    const dbVar = variacoes.find(v => v.id === dbId);
+    const curRel = (dbVar as any)?.relacionamento as Record<string, string[]> | null || {};
+    const newRel = { ...curRel, [catSlug]: newSel.length > 0 ? newSel : undefined };
+    // Clean empty
+    Object.keys(newRel).forEach(k => { if (!newRel[k] || (newRel[k] as string[]).length === 0) delete newRel[k]; });
+    updateVariacao.mutate({ id: dbId, relacionamento: Object.keys(newRel).length > 0 ? newRel : null }, {
+      onSuccess: () => { toast.success('Relacionamento salvo'); onRefetch(); },
+    });
+  };
+
+  // Other categories for relationship panel
+  const otherCats = (allCategorias || []).filter(c => c.id !== resolvedCatId && c.id !== campo.categoria_id);
+
   // Render field label with controls
   const renderLabel = () => (
     <div className="flex items-center gap-1.5 mb-1 relative z-20">
@@ -1308,26 +1347,80 @@ function BootFieldRenderer({
           </div>
         )}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => (
-            <div key={key} className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' : 'bg-primary/5 border-primary/20'}`}>
-              {item.isFallback && <Badge variant="outline" className="text-[10px] shrink-0 text-yellow-700 border-yellow-400">não salvo</Badge>}
-              <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
-              <span className="text-sm text-muted-foreground shrink-0">R$</span>
-              <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
-              <button type="button" onClick={() => handleReorderVar(key, 'up')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowUp size={14} /></button>
-              <button type="button" onClick={() => handleReorderVar(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowDown size={14} /></button>
-              <button type="button" onClick={async () => {
-                if (confirm(`Remover "${item.nome}"?`)) {
-                  if (item.dbId) {
-                    await deleteVariacao.mutateAsync(item.dbId);
-                  }
-                  setEditState(prev => { const n = { ...prev }; delete n[key]; return n; });
-                  toast.success('Removida');
-                  onRefetch();
-                }
-              }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={14} /></button>
-            </div>
-          ))}
+          {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => {
+            const dbVar = item.dbId ? variacoes.find(x => x.id === item.dbId) : null;
+            const itemRel = dbVar ? ((dbVar as any).relacionamento as Record<string, string[]> | null) : null;
+            const hasRel = itemRel && Object.keys(itemRel).length > 0;
+            const filteredRelCats = relCatFilter ? otherCats.filter(oc => oc.id === relCatFilter) : otherCats;
+
+            return (
+              <React.Fragment key={key}>
+                <div className={`flex items-center gap-3 p-3 rounded-lg border ${item.isFallback ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/5 border-primary/20'}`}>
+                  {item.isFallback && <Badge variant="outline" className="text-[10px] shrink-0 border-amber-500/50 text-amber-700">não salvo</Badge>}
+                  <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
+                  <span className="text-sm text-muted-foreground shrink-0">R$</span>
+                  <input type="number" value={item.preco} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], preco: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background w-24 shrink-0" />
+                  <button type="button" onClick={() => handleReorderVar(key, 'up')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowUp size={14} /></button>
+                  <button type="button" onClick={() => handleReorderVar(key, 'down')} className="text-muted-foreground hover:text-primary shrink-0"><ArrowDown size={14} /></button>
+                  <button type="button" onClick={() => { setRelOpen(relOpen === key ? null : key); setRelCatFilter(''); }} className={`shrink-0 ${hasRel ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Relacionamento"><Link2 size={14} /></button>
+                  <button type="button" onClick={async () => {
+                    if (confirm(`Remover "${item.nome}"?`)) {
+                      if (item.dbId) { await deleteVariacao.mutateAsync(item.dbId); }
+                      setEditState(prev => { const n = { ...prev }; delete n[key]; return n; });
+                      toast.success('Removida');
+                      onRefetch();
+                    }
+                  }} className="text-destructive hover:text-destructive/80 shrink-0"><Trash2 size={14} /></button>
+                </div>
+                {relOpen === key && (
+                  <div className="p-3 border border-primary/20 rounded-lg bg-background ml-6 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-medium flex-1">Relacionamentos: {item.nome}</p>
+                      {item.isFallback && <span className="text-[10px] text-amber-600">(será salvo ao vincular)</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Search size={14} className="text-muted-foreground shrink-0" />
+                      <select value={relCatFilter} onChange={e => setRelCatFilter(e.target.value)} className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1">
+                        <option value="">Todas as categorias</option>
+                        {otherCats.filter(oc => (allVariacoes || []).some(av => av.categoria_id === oc.id && av.ativo)).map(oc => (
+                          <option key={oc.id} value={oc.id}>{oc.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {filteredRelCats.map(oc => {
+                        const catVars = (allVariacoes || []).filter(av => av.categoria_id === oc.id && av.ativo);
+                        if (catVars.length === 0) return null;
+                        const rel = itemRel || {};
+                        const selected = rel[oc.slug] || [];
+                        return (
+                          <div key={oc.id} className="space-y-1">
+                            <Label className="text-xs font-semibold text-primary">{oc.nome}</Label>
+                            <div className="flex flex-wrap gap-1">
+                              {catVars.map(cv => {
+                                const isSelected = selected.includes(cv.nome);
+                                return (
+                                  <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
+                                    const newSel = isSelected ? selected.filter((s: string) => s !== cv.nome) : [...selected, cv.nome];
+                                    handleRelChange(key, oc.slug, newSel);
+                                  }}>
+                                    {cv.nome}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {filteredRelCats.every(oc => (allVariacoes || []).filter(av => av.categoria_id === oc.id && av.ativo).length === 0) && (
+                        <p className="text-xs text-muted-foreground text-center py-2">Nenhuma variação encontrada</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </DialogContent>
     </Dialog>
