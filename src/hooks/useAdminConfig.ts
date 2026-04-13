@@ -168,6 +168,24 @@ export function useFichaCampos(fichaTipoId: string | undefined) {
   });
 }
 
+/* ───── Queries by campo_id ───── */
+
+export function useFichaVariacoesByCampo(campoId: string | undefined) {
+  return useQuery({
+    queryKey: ['ficha_variacoes_campo', campoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ficha_variacoes')
+        .select('*')
+        .eq('campo_id', campoId!)
+        .order('ordem');
+      if (error) throw error;
+      return data as FichaVariacao[];
+    },
+    enabled: !!campoId,
+  });
+}
+
 /* ───── Mutations ───── */
 
 export function useUpdateVariacao() {
