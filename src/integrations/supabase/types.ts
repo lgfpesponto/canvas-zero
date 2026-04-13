@@ -68,6 +68,7 @@ export type Database = {
       ficha_campos: {
         Row: {
           ativo: boolean | null
+          categoria_id: string | null
           desc_condicional: boolean | null
           ficha_tipo_id: string
           id: string
@@ -82,6 +83,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          categoria_id?: string | null
           desc_condicional?: boolean | null
           ficha_tipo_id: string
           id?: string
@@ -96,6 +98,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          categoria_id?: string | null
           desc_condicional?: boolean | null
           ficha_tipo_id?: string
           id?: string
@@ -109,6 +112,13 @@ export type Database = {
           vinculo?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ficha_campos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_categorias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ficha_campos_ficha_tipo_id_fkey"
             columns: ["ficha_tipo_id"]
@@ -186,6 +196,7 @@ export type Database = {
       ficha_variacoes: {
         Row: {
           ativo: boolean | null
+          campo_id: string | null
           categoria_id: string
           id: string
           nome: string
@@ -195,6 +206,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          campo_id?: string | null
           categoria_id: string
           id?: string
           nome: string
@@ -204,6 +216,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          campo_id?: string | null
           categoria_id?: string
           id?: string
           nome?: string
@@ -212,6 +225,13 @@ export type Database = {
           relacionamento?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ficha_variacoes_campo_id_fkey"
+            columns: ["campo_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_campos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ficha_variacoes_categoria_id_fkey"
             columns: ["categoria_id"]
