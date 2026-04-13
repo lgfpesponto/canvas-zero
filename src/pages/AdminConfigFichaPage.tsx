@@ -1580,19 +1580,20 @@ export default function AdminConfigFichaPage() {
     const catCampos = (campos || []).filter(c => c.categoria_id === novoItem.categoriaId);
     const ordem = catCampos.length + 1;
     const tipoMap: Record<string, string> = { 'toggle': 'checkbox', 'variacao': 'selecao', 'multipla': 'multipla', 'texto': 'texto' };
-    const tipo = tipoMap[novoItem.tipo] || 'texto';
+    const tipoCampo = tipoMap[novoItem.tipo] || 'texto';
+    if (!tipo?.id) { toast.error('Ficha não encontrada'); return; }
     insertCampo.mutate(
       {
-        ficha_tipo_id: tipo_id_ref,
+        ficha_tipo_id: tipo.id,
         categoria_id: novoItem.categoriaId,
         nome,
         slug: slugify(nome),
-        tipo,
+        tipo: tipoCampo,
         obrigatorio: false,
         ordem,
         opcoes: [],
         vinculo: null,
-        desc_condicional: tipo === 'checkbox',
+        desc_condicional: tipoCampo === 'checkbox',
       },
       {
         onSuccess: () => {
