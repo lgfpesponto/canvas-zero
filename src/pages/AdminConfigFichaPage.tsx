@@ -855,6 +855,120 @@ function BootFormLayout({
     updateCampo.mutate({ id: other.id, ordem: campo.ordem ?? idx }, { onSuccess: () => onRefetchCampos() });
   };
 
+  // Grid layout per category slug (mirrors OrderPage)
+  const GRID_LAYOUTS: Record<string, string> = {
+    'identificacao': 'grid sm:grid-cols-2 gap-4',
+    'tamanho-genero-modelo': 'grid sm:grid-cols-3 gap-4',
+    'couros': 'grid sm:grid-cols-2 gap-4',
+    'pesponto-visual': 'grid sm:grid-cols-3 gap-4',
+    'metais-visual': '', // special handling
+    'solados-visual': 'grid sm:grid-cols-2 lg:grid-cols-4 gap-4',
+    'adicional-visual': 'grid sm:grid-cols-2 gap-4',
+  };
+
+  const renderCategoryFields = (cat: FichaCategoria, catCampos: FichaCampo[]) => {
+    const gridClass = GRID_LAYOUTS[cat.slug];
+    const refetchAll = () => {
+      onRefetchCampos();
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
+      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+    };
+    const renderField = (campo: FichaCampo, fieldIdx: number) => {
+      const fieldVars = varsByCampo.get(campo.id) || [];
+      return (
+        <BootFieldRenderer
+          key={campo.id}
+          campo={campo}
+          variacoes={fieldVars}
+          catCampos={catCampos}
+          fieldIdx={fieldIdx}
+          onReorder={(dir) => handleReorderField(campo, dir, catCampos)}
+          onRefetch={refetchAll}
+          allCategorias={categorias}
+          allVariacoes={allVariacoes}
+          fichaTipoId={fichaTipoId}
+          onRefetchCats={onRefetchCats}
+        />
+      );
+    };
+
+    // Metais: first 3 fields (Área, Tipo, Cor) in 3-col grid, rest as toggles in 3-col grid
+    if (cat.slug === 'metais-visual') {
+      const topFields = catCampos.filter(c => ['area_metal', 'tipo_metal', 'cor_metal'].includes(c.slug));
+      const toggleFields = catCampos.filter(c => !['area_metal', 'tipo_metal', 'cor_metal'].includes(c.slug));
+      return (
+        <>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {topFields.map((campo, idx) => renderField(campo, catCampos.indexOf(campo)))}
+          </div>
+          {toggleFields.length > 0 && (
+            <div className="grid sm:grid-cols-3 gap-4">
+              {toggleFields.map((campo) => renderField(campo, catCampos.indexOf(campo)))}
+            </div>
+          )}
+        </>
+      );
+    }
+
+    // Bordados: group MultiSelect + Cor text fields by part (cano, gáspea, taloneira), then Nome Bordado
+    if (cat.slug === 'bordados-visual') {
+      const parts = ['cano', 'gaspea', 'taloneira'];
+      const nomeBordado = catCampos.find(c => c.slug === 'nome_bordado');
+      return (
+        <>
+          {parts.map(part => {
+            const multi = catCampos.find(c => c.slug === `bordado_${part}`);
+            const cor = catCampos.find(c => c.slug === `cor_bordado_${part}`);
+            return (
+              <React.Fragment key={part}>
+                {multi && renderField(multi, catCampos.indexOf(multi))}
+                {cor && renderField(cor, catCampos.indexOf(cor))}
+              </React.Fragment>
+            );
+          })}
+          {nomeBordado && renderField(nomeBordado, catCampos.indexOf(nomeBordado))}
+        </>
+      );
+    }
+
+    // Laser: group MultiSelect + Cor Glitter by part, then Pintura at end
+    if (cat.slug === 'laser-visual') {
+      const parts = ['cano', 'gaspea', 'taloneira'];
+      const pintura = catCampos.find(c => c.slug === 'pintura');
+      return (
+        <>
+          {parts.map(part => {
+            const laser = catCampos.find(c => c.slug === `laser_${part}`);
+            const glitter = catCampos.find(c => c.slug === `cor_glitter_${part}`);
+            return (
+              <React.Fragment key={part}>
+                {laser && renderField(laser, catCampos.indexOf(laser))}
+                {glitter && renderField(glitter, catCampos.indexOf(glitter))}
+              </React.Fragment>
+            );
+          })}
+          {pintura && renderField(pintura, catCampos.indexOf(pintura))}
+        </>
+      );
+    }
+
+    // Default: apply grid class if defined, otherwise vertical stack
+    if (gridClass) {
+      return (
+        <div className={gridClass}>
+          {catCampos.map((campo, fieldIdx) => renderField(campo, fieldIdx))}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {catCampos.map((campo, fieldIdx) => renderField(campo, fieldIdx))}
+      </>
+    );
+  };
+
   return (
     <div className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
       {visualCats.map((cat, catIdx) => {
@@ -872,29 +986,7 @@ function BootFormLayout({
             isLast={catIdx === visualCats.length - 1}
           >
             <div className="space-y-4">
-              {catCampos.map((campo, fieldIdx) => {
-                const fieldVars = varsByCampo.get(campo.id) || [];
-                return (
-                  <BootFieldRenderer
-                    key={campo.id}
-                    campo={campo}
-                    variacoes={fieldVars}
-                    catCampos={catCampos}
-                    fieldIdx={fieldIdx}
-                    onReorder={(dir) => handleReorderField(campo, dir, catCampos)}
-                    onRefetch={() => {
-                      onRefetchCampos();
-                      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
-                      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
-                      queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
-                    }}
-                    allCategorias={categorias}
-                    allVariacoes={allVariacoes}
-                    fichaTipoId={fichaTipoId}
-                    onRefetchCats={onRefetchCats}
-                  />
-                );
-              })}
+              {renderCategoryFields(cat, catCampos)}
               {catCampos.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">Nenhum campo nesta categoria.</p>
               )}
