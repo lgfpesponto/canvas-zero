@@ -1031,6 +1031,33 @@ function BootFormLayout({
     )},
   ];
 
+  // Detect extra categories not mapped to any hardcoded section
+  const HARDCODED_SLUGS = new Set([
+    'tamanhos', 'generos', 'modelos', 'acessorios', 'tipos-couro', 'cores-couro',
+    'desenvolvimento', 'bordados-cano', 'bordados-gaspea', 'bordados-taloneira',
+    'laser-cano', 'laser-gaspea', 'laser-taloneira', 'cor-glitter',
+    'cor-linha', 'cor-borrachinha', 'cor-vivo', 'cor-vira', 'formato-bico',
+    'solados', 'cor-sola', 'area-metal', 'tipo-metal', 'cor-metal', 'carimbo',
+  ]);
+  const extraCats = categorias.filter(c => !HARDCODED_SLUGS.has(c.slug));
+
+  extraCats.forEach((cat, i) => {
+    const sectionId = 17 + i;
+    allSections.push({
+      id: sectionId,
+      title: cat.nome,
+      render: () => (
+        <Section title={cat.nome} categoriaId={cat.id} onRename={handleRenameCategory} onDelete={handleDeleteCategory}
+          onMoveUp={() => onMoveSection(sectionId, 'up')} onMoveDown={() => onMoveSection(sectionId, 'down')}
+          isFirst={sectionOrder.indexOf(sectionId) === 0} isLast={sectionOrder.indexOf(sectionId) === sectionOrder.length - 1}
+          onToggleRequired={() => toggleRequired(sectionId)} required={requiredSections.has(sectionId)}>
+          <AdminMultiSelect catSlug={cat.slug} catLabel={cat.nome} fallback={[]} {...common}
+            onRename={() => {}} onDelete={() => toggleHidden(sectionId)} onToggleRequired={() => toggleRequired(sectionId)} />
+        </Section>
+      ),
+    });
+  });
+
   const sectionMap = new Map(allSections.map(s => [s.id, s]));
 
   return (
@@ -1355,13 +1382,27 @@ export default function AdminConfigFichaPage() {
   const [novoItem, setNovoItem] = useState({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
   const [savingAllToDb, setSavingAllToDb] = useState(false);
 
-  // 16 sections for boot
-  const BOOT_SECTION_COUNT = 17;
+  // Boot sections: 17 hardcoded + dynamic extra categories
   const [sectionOrder, setSectionOrder] = useState<number[]>([]);
 
+  const HARDCODED_BOOT_SLUGS = new Set([
+    'tamanhos', 'generos', 'modelos', 'acessorios', 'tipos-couro', 'cores-couro',
+    'desenvolvimento', 'bordados-cano', 'bordados-gaspea', 'bordados-taloneira',
+    'laser-cano', 'laser-gaspea', 'laser-taloneira', 'cor-glitter',
+    'cor-linha', 'cor-borrachinha', 'cor-vivo', 'cor-vira', 'formato-bico',
+    'solados', 'cor-sola', 'area-metal', 'tipo-metal', 'cor-metal', 'carimbo',
+  ]);
+  const extraCatsCount = isBoot && categorias ? categorias.filter(c => !HARDCODED_BOOT_SLUGS.has(c.slug)).length : 0;
+  const totalSections = 17 + extraCatsCount;
+
   useEffect(() => {
-    setSectionOrder(Array.from({ length: BOOT_SECTION_COUNT }, (_, i) => i));
-  }, []);
+    setSectionOrder(prev => {
+      const needed = Array.from({ length: totalSections }, (_, i) => i);
+      // Only reset if length changed
+      if (prev.length !== needed.length) return needed;
+      return prev;
+    });
+  }, [totalSections]);
 
   const isBoot = slug === 'bota';
   const isDynamic = tipo?.tipo_ficha === 'dinamica';
@@ -1441,13 +1482,15 @@ export default function AdminConfigFichaPage() {
     const preco = parseFloat(novoItem.preco.replace(',', '.')) || 0;
     const relacionamento = novoItem.relacionamento ? { depende_de: novoItem.relacionamento } : undefined;
     insertVariacaoMut.mutate(
-      { categoria_id: novoItem.categoriaId, nome, preco_adicional: preco, ordem } as any,
+      { categoria_id: novoItem.categoriaId, nome, preco_adicional: preco, ordem, ...(relacionamento ? { relacionamento } : {}) } as any,
       {
         onSuccess: () => {
           toast.success(`"${nome}" adicionado`);
           setNovoItem({ categoriaId: '', nome: '', preco: '0', tipo: 'variacao', relacionamento: '' });
           setNovoItemOpen(false);
           refetchCats();
+          queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+          queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
         },
         onError: () => toast.error('Erro ao adicionar'),
       },
