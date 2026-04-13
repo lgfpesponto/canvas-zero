@@ -862,7 +862,7 @@ function BootFormLayout({
     'couros': 'grid sm:grid-cols-2 gap-4',
     'pesponto-visual': 'grid sm:grid-cols-3 gap-4',
     'metais-visual': '', // special handling
-    'solados-visual': 'grid sm:grid-cols-2 lg:grid-cols-4 gap-4',
+    'solados-visual': '', // special handling
     'adicional-visual': 'grid sm:grid-cols-2 gap-4',
   };
 
@@ -949,6 +949,20 @@ function BootFormLayout({
             );
           })}
           {pintura && renderField(pintura, catCampos.indexOf(pintura))}
+        </>
+      );
+    }
+
+    // Solados: grid of selecao fields (Solado, Bico, Cor Sola, Cor Vira) + Costura Atrás toggle below
+    if (cat.slug === 'solados-visual') {
+      const gridFields = catCampos.filter(c => c.tipo === 'selecao');
+      const toggleFields = catCampos.filter(c => c.tipo !== 'selecao');
+      return (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {gridFields.map((campo) => renderField(campo, catCampos.indexOf(campo)))}
+          </div>
+          {toggleFields.map((campo) => renderField(campo, catCampos.indexOf(campo)))}
         </>
       );
     }
