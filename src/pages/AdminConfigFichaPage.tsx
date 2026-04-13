@@ -1038,7 +1038,9 @@ function BootFieldRenderer({
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
 
-  const activeVars = variacoes.filter(v => v.ativo !== false);
+  const activeVars = variacoes
+    .filter(v => v.ativo !== false)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   const hasVariations = campo.tipo === 'selecao' || campo.tipo === 'multipla';
 
   const handleSaveName = () => {
@@ -1137,7 +1139,7 @@ function BootFieldRenderer({
           </label>
           <Badge variant="secondary" className="text-[10px]">{campo.tipo}</Badge>
           {campo.desc_condicional && <Badge variant="outline" className="text-[10px]">desc. condicional</Badge>}
-          <button type="button" onClick={() => { setEditName(campo.nome); setEditing(true); }} className="text-muted-foreground hover:text-primary"><Pencil size={13} /></button>
+          <button type="button" onClick={() => { setEditName(campo.nome); setEditing(true); }} className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-muted relative z-10 min-w-[24px] min-h-[24px] flex items-center justify-center"><Pencil size={13} /></button>
           <Button size="icon" variant="ghost" className="h-5 w-5" disabled={fieldIdx === 0} onClick={() => onReorder('up')}><ArrowUp className="h-3 w-3" /></Button>
           <Button size="icon" variant="ghost" className="h-5 w-5" disabled={fieldIdx === catCampos.length - 1} onClick={() => onReorder('down')}><ArrowDown className="h-3 w-3" /></Button>
         </>
@@ -1196,9 +1198,9 @@ function BootFieldRenderer({
   const adminControls = (
     <>
       <div className="flex items-center gap-1.5 mb-1">
-        <button type="button" onClick={() => setShowAddVar(true)} className="text-primary hover:text-primary/80" title="Adicionar variação"><Plus size={14} /></button>
+        <button type="button" onClick={() => setShowAddVar(true)} className="text-primary hover:text-primary/80 p-1.5 rounded hover:bg-muted relative z-10 min-w-[24px] min-h-[24px] flex items-center justify-center" title="Adicionar variação"><Plus size={14} /></button>
         {activeVars.length > 0 && (
-          <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80" title="Editar variações"><Pencil size={12} /></button>
+          <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80 p-1.5 rounded hover:bg-muted relative z-10 min-w-[24px] min-h-[24px] flex items-center justify-center" title="Editar variações"><Pencil size={12} /></button>
         )}
         <span className="text-xs text-muted-foreground">({activeVars.length} opções)</span>
       </div>
@@ -1222,7 +1224,7 @@ function BootFieldRenderer({
 
   // SELECAO: render as SearchableSelect (dropdown with search) like OrderPage
   if (campo.tipo === 'selecao') {
-    const options = activeVars.map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome);
+    const options = [...activeVars].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => v.preco_adicional > 0 ? `${v.nome} (R$${v.preco_adicional})` : v.nome);
     return (
       <div>
         {renderLabel()}
@@ -1285,7 +1287,7 @@ function BootFieldRenderer({
             </div>
           )}
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {Object.entries(editState).map(([key, item]) => (
+            {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => (
               <div key={key} className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
                 <input type="text" value={item.nome} onChange={e => setEditState(prev => ({ ...prev, [key]: { ...prev[key], nome: e.target.value } }))} className="text-sm border border-border rounded px-3 py-2 bg-background flex-1 min-w-[180px]" />
                 <span className="text-sm text-muted-foreground shrink-0">R$</span>
