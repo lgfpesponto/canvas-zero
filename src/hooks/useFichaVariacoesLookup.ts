@@ -14,12 +14,12 @@ export interface FichaVariacaoItem {
  * Laser uses a single shared category in ficha but 3 separate in custom_options.
  */
 const CATEGORY_MAP: Record<string, string> = {
-  'bordado_cano': 'bordados-cano',
-  'bordado_gaspea': 'bordados-gaspea',
-  'bordado_taloneira': 'bordados-taloneira',
-  'laser_cano': 'laser',
-  'laser_gaspea': 'laser',
-  'laser_taloneira': 'laser',
+  'bordado_cano': 'bordado_cano',
+  'bordado_gaspea': 'bordado_gaspea',
+  'bordado_taloneira': 'bordado_taloneira',
+  'laser_cano': 'laser_cano',
+  'laser_gaspea': 'laser_gaspea',
+  'laser_taloneira': 'laser_taloneira',
 };
 
 export function useFichaVariacoesLookup() {
@@ -28,7 +28,7 @@ export function useFichaVariacoesLookup() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ficha_variacoes')
-        .select('nome, preco_adicional, categoria_id, relacionamento, ficha_categorias!inner(slug)')
+        .select('nome, preco_adicional, campo_id, relacionamento, ficha_campos!inner(slug)')
         .eq('ativo', true);
       if (error) {
         console.error('Error fetching ficha_variacoes:', error);
@@ -37,7 +37,7 @@ export function useFichaVariacoesLookup() {
       return (data || []).map((d: any) => ({
         nome: d.nome,
         preco_adicional: Number(d.preco_adicional) || 0,
-        categoria_slug: d.ficha_categorias?.slug || '',
+        categoria_slug: d.ficha_campos?.slug || '',
         relacionamento: d.relacionamento || null,
       }));
     },
