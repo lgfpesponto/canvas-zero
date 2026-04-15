@@ -191,7 +191,7 @@ export default function AdminConfigVariacoesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {variacoes?.map(v => (
+                  {filteredVariacoes.map(v => (
                     <TableRow key={v.id}>
                       <TableCell className="text-xs text-muted-foreground">{v.ordem}</TableCell>
                       <TableCell>
@@ -239,10 +239,10 @@ export default function AdminConfigVariacoesPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {variacoes?.length === 0 && (
+                  {filteredVariacoes.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        Nenhuma variação cadastrada. Use "Entrada em Massa" para adicionar.
+                        {searchTerm ? 'Nenhuma variação encontrada' : 'Nenhuma variação cadastrada. Use "Entrada em Massa" para adicionar.'}
                       </TableCell>
                     </TableRow>
                   )}
@@ -250,7 +250,8 @@ export default function AdminConfigVariacoesPage() {
               </Table>
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
       </motion.div>
     </div>
   );
