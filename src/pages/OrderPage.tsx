@@ -774,9 +774,9 @@ const OrderPage = () => {
 
     // Single-selects
     checkSingle('modelo', 'Modelo', MODELOS.map(m => m.label));
-    checkSingle('tipoCouroCano', 'Couro Cano', TIPOS_COURO.map(t => t.label));
-    checkSingle('tipoCouroGaspea', 'Couro Gáspea', TIPOS_COURO.map(t => t.label));
-    checkSingle('tipoCouroTaloneira', 'Couro Taloneira', TIPOS_COURO.map(t => t.label));
+    checkSingle('tipoCouroCano', 'Couro Cano', TIPOS_COURO as string[]);
+    checkSingle('tipoCouroGaspea', 'Couro Gáspea', TIPOS_COURO as string[]);
+    checkSingle('tipoCouroTaloneira', 'Couro Taloneira', TIPOS_COURO as string[]);
     checkSingle('corLinha', 'Cor da Linha', COR_LINHA as string[]);
     checkSingle('corBorrachinha', 'Cor da Borrachinha', COR_BORRACHINHA as string[]);
     checkSingle('corVivo', 'Cor do Vivo', COR_VIVO as string[]);
