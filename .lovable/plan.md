@@ -1,31 +1,50 @@
 
 
-## Plano: Validação de variações ao restaurar rascunho
+## Plano: Corrigir listagem de vendedores no filtro
 
 ### Problema
-Rascunhos restauram valores diretamente do localStorage sem verificar se as variações ainda existem na ficha atual — mesmo problema que os modelos tinham antes da correção.
+A função `fetchVendedores()` em `src/hooks/useOrders.ts` faz `supabase.from('orders').select('vendedor, cliente')` sem paginação. O Supabase limita a 1000 linhas por padrão, e com 1539 pedidos, vendedores que só aparecem nos pedidos mais recentes (ou mais antigos) ficam de fora.
 
 ### Solução
-Reutilizar a mesma lógica de `validateAndPopulateTemplate` já implementada para modelos, aplicando-a aos dados do rascunho quando o formulário é inicializado.
+Buscar os vendedores em lotes paginados de 1000, acumulando todos os nomes distintos.
 
-### Alterações
+### Alteração
 
-#### Arquivo: `src/pages/OrderPage.tsx`
+#### Arquivo: `src/hooks/useOrders.ts` — função `fetchVendedores`
 
-1. **Extrair a lógica de validação** que hoje está dentro de `validateAndPopulateTemplate` para uma função reutilizável `validateFormData(fd)` que retorna `{ cleanedData, warnings }` sem efeito colateral (sem chamar `populateFormFromTemplate`)
+Substituir a query única por um loop paginado:
 
-2. **Aplicar validação ao carregar rascunho**: No bloco de inicialização (onde `df = draftState?.form || {}`), se `draftState` existir, rodar `validateFormData(df)` para limpar valores fantasma e mostrar toast de aviso
+```typescript
+export async function fetchVendedores(): Promise<string[]> {
+  const names = new Set<string>();
+  const BATCH = 1000;
+  let offset = 0;
+  let hasMore = true;
 
-3. **Usar os dados limpos** como valores iniciais dos `useState` em vez dos dados brutos do rascunho
+  while (hasMore) {
+    const { data } = await supabase
+      .from('orders')
+      .select('vendedor, cliente')
+      .range(offset, offset + BATCH - 1);
 
-4. **Manter `validateAndPopulateTemplate`** chamando `validateFormData` internamente para não quebrar o fluxo de modelos
+    if (!data || data.length === 0) { hasMore = false; break; }
 
-### Detalhe técnico
-Como a validação depende de arrays que são construídos com dados do banco (`mergedBordadoCano`, `MODELOS`, etc.), e esses dados podem não estar disponíveis no momento da inicialização dos `useState`, a validação será executada em um `useEffect` que roda uma vez quando os dados do banco carregam, limpando os campos inválidos e mostrando o toast.
+    data.forEach((o: any) => {
+      if (o.vendedor) names.add(o.vendedor);
+      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+        names.add(o.cliente.trim());
+      }
+    });
+
+    if (data.length < BATCH) hasMore = false;
+    offset += BATCH;
+  }
+
+  return [...names].sort();
+}
+```
 
 ### O que NÃO muda
-- Fluxo de salvar rascunho permanece idêntico
-- Layout e campos do formulário não mudam
-- Lógica de modelos continua funcionando
-- Preços e filtros dinâmicos não são afetados
+- Nenhum outro filtro, layout ou lógica é afetado
+- A lógica de vendedores virtuais (Juliana) permanece idêntica
 
