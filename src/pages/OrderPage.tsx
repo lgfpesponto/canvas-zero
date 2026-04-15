@@ -421,7 +421,109 @@ const OrderPage = () => {
     await tmpl.deleteTemplate(id, user.id);
   };
 
-  const handleUseTemplate = (formData: Record<string, string>) => {
+  /* ───── items from DB (with static fallback) ───── */
+  const sortAlpha = (arr: {label:string;preco:number}[]) => {
+    const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
+    const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
+    normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    return [...normal, ...variado];
+  };
+  const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
+    const ficha = getByCustomCategory(cat);
+    if (ficha.length > 0) return sortAlpha(ficha);
+    const db = getByCategoria(cat);
+    if (db.length > 0) return sortAlpha(db.map(o => ({ label: o.label, preco: o.preco })));
+    return sortAlpha(fallback);
+  };
+  const mergedBordadoCano = getDbItems('bordado_cano', BORDADOS_CANO);
+  const mergedBordadoGaspea = getDbItems('bordado_gaspea', BORDADOS_GASPEA);
+  const mergedBordadoTaloneira = getDbItems('bordado_taloneira', BORDADOS_TALONEIRA);
+  const getLaserItems = (cat: string) => {
+    const db = getByCategoria(cat);
+    if (db.length === 0) return sortAlpha(LASER_OPTIONS.map(l => ({ label: l, preco: 0 })));
+    return sortAlpha(db.map(o => ({ label: o.label, preco: o.preco })));
+  };
+  const mergedLaserCano = getLaserItems('laser_cano');
+  const mergedLaserGaspea = getLaserItems('laser_gaspea');
+  const mergedLaserTaloneira = getLaserItems('laser_taloneira');
+
+  /* ───── form data validation (shared by templates & drafts) ───── */
+  const validateFormData = useCallback((fd: Record<string, string>): { cleanedData: Record<string, string>; warnings: string[] } => {
+    const warnings: string[] = [];
+    const cleaned = { ...fd };
+
+    const checkSingle = (key: string, label: string, options: string[]) => {
+      if (cleaned[key] && !options.includes(cleaned[key])) {
+        warnings.push(`${label}: "${cleaned[key]}" não existe mais`);
+        cleaned[key] = '';
+      }
+    };
+
+    const checkMulti = (key: string, label: string, options: string[]) => {
+      if (!cleaned[key]) return;
+      const saved = cleaned[key].split('||').filter(Boolean);
+      const removed = saved.filter(v => !options.includes(v));
+      if (removed.length > 0) {
+        warnings.push(`${label}: ${removed.map(r => `"${r}"`).join(', ')} removido(s)`);
+        cleaned[key] = saved.filter(v => options.includes(v)).join('||');
+      }
+    };
+
+    checkSingle('modelo', 'Modelo', MODELOS.map(m => m.label));
+    checkSingle('tipoCouroCano', 'Couro Cano', TIPOS_COURO as string[]);
+    checkSingle('tipoCouroGaspea', 'Couro Gáspea', TIPOS_COURO as string[]);
+    checkSingle('tipoCouroTaloneira', 'Couro Taloneira', TIPOS_COURO as string[]);
+    checkSingle('corLinha', 'Cor da Linha', COR_LINHA as string[]);
+    checkSingle('corBorrachinha', 'Cor da Borrachinha', COR_BORRACHINHA as string[]);
+    checkSingle('corVivo', 'Cor do Vivo', COR_VIVO as string[]);
+    checkSingle('desenvolvimento', 'Desenvolvimento', DESENVOLVIMENTO.map(d => d.label));
+    checkSingle('areaMetal', 'Área do Metal', AREA_METAL.map(a => a.label));
+    checkSingle('corMetal', 'Cor do Metal', COR_METAL);
+    checkSingle('solado', 'Solado', SOLADO.map(s => s.label));
+    checkSingle('formatoBico', 'Formato do Bico', FORMATO_BICO);
+    checkSingle('corVira', 'Cor da Vira', COR_VIRA.map(c => c.label));
+    checkSingle('carimbo', 'Carimbo', CARIMBO.map(c => c.label));
+
+    const labels = (items: { label: string }[]) => items.map(i => i.label);
+    checkMulti('bordadoCano', 'Bordado Cano', labels(mergedBordadoCano));
+    checkMulti('bordadoGaspea', 'Bordado Gáspea', labels(mergedBordadoGaspea));
+    checkMulti('bordadoTaloneira', 'Bordado Taloneira', labels(mergedBordadoTaloneira));
+    checkMulti('laserCano', 'Laser Cano', labels(mergedLaserCano));
+    checkMulti('laserGaspea', 'Laser Gáspea', labels(mergedLaserGaspea));
+    checkMulti('laserTaloneira', 'Laser Taloneira', labels(mergedLaserTaloneira));
+    checkMulti('tipoMetal', 'Tipo de Metal', TIPO_METAL);
+    checkMulti('acessorios', 'Acessórios', ACESSORIOS.map(a => a.label));
+
+    return { cleanedData: cleaned, warnings };
+  }, [mergedBordadoCano, mergedBordadoGaspea, mergedBordadoTaloneira, mergedLaserCano, mergedLaserGaspea, mergedLaserTaloneira]);
+
+  const validateAndPopulateTemplate = (fd: Record<string, string>) => {
+    const { cleanedData, warnings } = validateFormData(fd);
+    if (warnings.length > 0) {
+      toast.warning('Variações removidas ou renomeadas', {
+        description: warnings.join('\n'),
+        duration: 8000,
+      });
+    }
+    populateFormFromTemplate(cleanedData);
+  };
+
+  /* ───── draft validation on load ───── */
+  const draftValidatedRef = useRef(false);
+  useEffect(() => {
+    if (draftValidatedRef.current || !draftState || fichaLoading) return;
+    draftValidatedRef.current = true;
+    const { cleanedData, warnings } = validateFormData(draftState.form);
+    if (warnings.length > 0) {
+      toast.warning('Rascunho: variações removidas ou renomeadas', {
+        description: warnings.join('\n'),
+        duration: 8000,
+      });
+      populateFormFromTemplate(cleanedData);
+    }
+  }, [draftState, fichaLoading, validateFormData, populateFormFromTemplate]);
+
     tmpl.setShowTemplates(false);
     validateAndPopulateTemplate({ ...formData });
     setProductChoice('bota');
