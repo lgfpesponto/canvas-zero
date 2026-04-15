@@ -239,7 +239,7 @@ const MultiSelect = ({
 /* ───── main component ───── */
 const OrderPage = () => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
-  const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
+  const { getByCategoria } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
 
