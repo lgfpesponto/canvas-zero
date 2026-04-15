@@ -1,41 +1,27 @@
 
 
-## Plano: Adicionar campo de busca nos dois painéis de edição de variações
+## Plano: Remover botões não utilizados da página de configurações (Ficha Bota)
 
-### Problema
-Os dois dialogs de edição de variações dentro de `AdminConfigFichaPage.tsx` não possuem campo de busca — apenas `AdminConfigVariacoesPage.tsx` (rota `/admin/configuracoes/:slug/:categoriaId`) tem a lupa.
+### Escopo
 
-### Alterações
+Remover **apenas** da página `src/pages/AdminConfigFichaPage.tsx` os seguintes botões da barra de ações:
 
-#### Arquivo: `src/pages/AdminConfigFichaPage.tsx`
+1. **"Criar Modelo"** — não é usado nesta página de configuração
+2. **"Modelos"** — não é usado nesta página de configuração
+3. **"sincronizar"** — sem função real (apenas invalida cache)
 
-**1. Dialog do `AdminEditableOptions` (linha ~413)**
-- Adicionar estado `varSearchTerm` (ou reutilizar nome similar)
-- Inserir input com ícone `Search` entre a barra de ações (linha ~440) e a lista de variações (linha ~448)
-- Filtrar `editItems` por `item.nome` (case-insensitive) antes do `.map()`
-- Limpar o filtro ao abrir/fechar o dialog
+### O que NÃO muda (garantia explícita)
 
-**2. Dialog do `CampoEditavel` / `editDialog` (linha ~1354)**
-- Adicionar estado `varSearchTerm` no componente
-- Inserir input com ícone `Search` entre a barra de ações (linha ~1366) e a lista (linha ~1374)
-- Filtrar `Object.entries(editState)` por `item.nome` antes do `.map()`
-- Limpar o filtro ao abrir/fechar o dialog
+- **Formulário "Faça seu pedido" (OrderPage / DynamicOrderPage)**: botões de Criar Modelo e Modelos permanecem intactos
+- **Sistema de templates**: tabela `order_templates`, hooks `useTemplateManagement`, geração de grades — zero alterações
+- **Lógica de modelos vs fichas alteradas**: regras de compatibilidade quando a ficha muda após criação do modelo — preservadas
+- **Todo o restante da AdminConfigFichaPage**: edição de variações, campos, categorias, reordenação, "Salvar no banco"
 
-### Layout dentro dos Dialogs
-```text
-┌─────────────────────────────────────────────┐
-│ editar variações — [nome]                   │
-├─────────────────────────────────────────────┤
-│ [Salvar] [Cancelar] [Ed. massa]             │
-│ [🔍 Pesquisar variações...                ] │  ← NOVO
-│                                             │
-│  ☐ Couro Nobuck        R$ 50.00  ↑↓ 🔗 🗑  │
-│  ☐ Couro Liso          R$ 0.00   ↑↓ 🔗 🗑  │
-│  ...                                       │
-└─────────────────────────────────────────────┘
-```
+### Alteração técnica
 
-### O que NÃO muda
-- Lógica de salvar, reordenar, relacionamentos, edição em massa
-- `AdminConfigVariacoesPage.tsx` já tem busca e permanece igual
+**Arquivo**: `src/pages/AdminConfigFichaPage.tsx`
+
+- Remover o bloco condicional `{isBoot && (<>...</>)}` que renderiza os botões "Criar Modelo" e "Modelos" na barra de ações (~linhas 2154-2159)
+- Remover o botão "sincronizar" (~linhas 2185-2197)
+- Nenhum outro arquivo é tocado
 
