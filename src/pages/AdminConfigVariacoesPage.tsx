@@ -4,7 +4,7 @@ import {
   useFichaVariacoes, useUpdateVariacao, useDeleteVariacao, useBulkInsertVariacoes,
 } from '@/hooks/useAdminConfig';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
