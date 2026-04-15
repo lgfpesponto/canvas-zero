@@ -71,105 +71,17 @@ const MultiSelect = ({
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
 }) => {
   const [search, setSearch] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showEditPanel, setShowEditPanel] = useState(false);
-  const [showBulkEdit, setShowBulkEdit] = useState(false);
-  const [bulkValue, setBulkValue] = useState('');
-  const [newLabel, setNewLabel] = useState('');
-  const [newPreco, setNewPreco] = useState('');
-  const [editState, setEditState] = useState<Record<string, { label: string; preco: string }>>({});
   const hasSearch = label.toLowerCase().includes('bordado') || label.toLowerCase().includes('laser');
-  const isLaser = label.toLowerCase().includes('laser');
   const filtered = search
     ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
     : items;
   const firstVariadoIdx = filtered.findIndex(i => i.label.startsWith('Bordado Variado'));
 
-  const handleAdd = async () => {
-    if (!newLabel.trim() || !categoria || !onAddOption) return;
-    let preco = 0;
-    if (isLaser) {
-      if (categoria.includes('cano')) preco = 50;
-      else if (categoria.includes('gaspea')) preco = 50;
-      else preco = 0;
-    } else {
-      preco = parseFloat(newPreco) || 0;
-    }
-    await onAddOption(categoria, newLabel.trim(), preco);
-    setNewLabel('');
-    setNewPreco('');
-    setShowAddDialog(false);
-  };
-
-  const openEditPanel = () => {
-    const state: Record<string, { label: string; preco: string }> = {};
-    (customOptions || []).forEach(o => {
-      state[o.id] = { label: o.label, preco: String(o.preco) };
-    });
-    setEditState(state);
-    setShowEditPanel(true);
-    setShowBulkEdit(false);
-    setBulkValue('');
-  };
-
-  const handleSaveAll = async () => {
-    for (const opt of (customOptions || [])) {
-      const s = editState[opt.id];
-      if (s && (s.label !== opt.label || parseFloat(s.preco) !== opt.preco)) {
-        await onUpdateOption!(opt.id, s.label, parseFloat(s.preco) || 0);
-      }
-    }
-    setShowEditPanel(false);
-  };
-
-  const handleBulkApply = () => {
-    const inc = parseFloat(bulkValue);
-    if (isNaN(inc) || inc === 0) return;
-    setEditState(prev => {
-      const next = { ...prev };
-      for (const key of Object.keys(next)) {
-        const cur = parseFloat(next[key].preco) || 0;
-        next[key] = { ...next[key], preco: String(Math.max(0, cur + inc)) };
-      }
-      return next;
-    });
-    setBulkValue('');
-    setShowBulkEdit(false);
-  };
-
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <label className={cls.label + ' mb-0'}>{label}</label>
-        {isAdm && categoria && onAddOption && (
-          <>
-            <button type="button" onClick={() => setShowAddDialog(true)} className="text-primary hover:text-primary/80 transition-colors" title="Adicionar variação">
-              <Plus size={16} />
-            </button>
-            {customOptions && customOptions.length > 0 && onUpdateOption && onDeleteOption && (
-              <button type="button" onClick={openEditPanel} className="text-primary hover:text-primary/80 transition-colors" title="Editar variações">
-                <Pencil size={14} />
-              </button>
-            )}
-          </>
-        )}
       </div>
-      {showAddDialog && (
-        <div className="flex flex-wrap items-end gap-2 mb-2 p-3 border border-primary/30 rounded-lg bg-muted/50">
-          <div className="flex-1 min-w-[150px]">
-            <label className="text-xs font-medium">Nome</label>
-            <input type="text" value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Nome da variação..." className={cls.inputSmall + ' w-full'} />
-          </div>
-          {!isLaser && (
-            <div className="w-24">
-              <label className="text-xs font-medium">Valor (R$)</label>
-              <input type="number" value={newPreco} onChange={e => setNewPreco(e.target.value)} placeholder="0" className={cls.inputSmall + ' w-full'} />
-            </div>
-          )}
-          <button type="button" onClick={handleAdd} className="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90">Salvar</button>
-          <button type="button" onClick={() => { setShowAddDialog(false); setNewLabel(''); setNewPreco(''); }} className="px-3 py-2 bg-muted border border-border rounded-md text-sm hover:bg-muted/80">Cancelar</button>
-        </div>
-      )}
       {hasSearch && (
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -183,50 +95,20 @@ const MultiSelect = ({
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
-        {showEditPanel && (
-          <div className="col-span-full flex flex-wrap items-center gap-2 mb-1 pb-1 border-b border-border">
-            <button type="button" onClick={handleSaveAll} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">Salvar</button>
-            <button type="button" onClick={() => setShowEditPanel(false)} className="px-2 py-1 bg-muted border border-border rounded text-xs hover:bg-muted/80">Cancelar</button>
-            <button type="button" onClick={() => setShowBulkEdit(!showBulkEdit)} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-secondary/80">Ed. massa</button>
-            {showBulkEdit && (
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Adicionar:</span>
-                <input type="number" value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="text-xs border border-border rounded px-2 py-1 bg-background w-16" placeholder="+5" />
-                <button type="button" onClick={handleBulkApply} className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90">OK</button>
-              </div>
+        {filtered.map((item, idx) => (
+          <React.Fragment key={item.label}>
+            {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
+              <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
-          </div>
-        )}
-        {filtered.map((item, idx) => {
-          const customOpt = showEditPanel ? customOptions?.find(o => o.label === item.label || editState[o.id]?.label === item.label) : null;
-          return (
-            <React.Fragment key={item.label}>
-              {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
-                <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
-              )}
-              {showEditPanel && customOpt ? (
-                <div className="flex items-center gap-1 p-1 bg-primary/5 rounded border border-primary/20">
-                  <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
-                    if (e.target.checked) onChange([...selected, item.label]);
-                    else onChange(selected.filter(s => s !== item.label));
-                  }} className="accent-primary w-3 h-3 shrink-0" />
-                  <input type="text" value={editState[customOpt.id]?.label ?? customOpt.label} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: e.target.value, preco: prev[customOpt.id]?.preco ?? String(customOpt.preco) } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background flex-1 min-w-0" />
-                  <span className="text-xs text-muted-foreground shrink-0">R$</span>
-                  <input type="number" value={editState[customOpt.id]?.preco ?? String(customOpt.preco)} onChange={e => setEditState(prev => ({ ...prev, [customOpt.id]: { ...prev[customOpt.id], label: prev[customOpt.id]?.label ?? customOpt.label, preco: e.target.value } }))} className="text-xs border border-border rounded px-1 py-0.5 bg-background w-14 shrink-0" />
-                  <button type="button" onClick={() => onDeleteOption!(customOpt.id)} className="text-destructive hover:text-destructive/80 shrink-0" title="Excluir"><Trash2 size={12} /></button>
-                </div>
-              ) : (
-                <label className={cls.checkItem}>
-                  <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
-                    if (e.target.checked) onChange([...selected, item.label]);
-                    else onChange(selected.filter(s => s !== item.label));
-                  }} className="accent-primary w-4 h-4" />
-                  <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
-                </label>
-              )}
-            </React.Fragment>
-          );
-        })}
+            <label className={cls.checkItem}>
+              <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
+                if (e.target.checked) onChange([...selected, item.label]);
+                else onChange(selected.filter(s => s !== item.label));
+              }} className="accent-primary w-4 h-4" />
+              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+            </label>
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
