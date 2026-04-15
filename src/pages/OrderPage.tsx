@@ -751,24 +751,25 @@ const OrderPage = () => {
   const mergedLaserGaspea = getLaserItems('laser_gaspea');
   const mergedLaserTaloneira = getLaserItems('laser_taloneira');
 
-  /* ───── template validation ───── */
-  const validateAndPopulateTemplate = (fd: Record<string, string>) => {
+  /* ───── form data validation (shared by templates & drafts) ───── */
+  const validateFormData = useCallback((fd: Record<string, string>): { cleanedData: Record<string, string>; warnings: string[] } => {
     const warnings: string[] = [];
+    const cleaned = { ...fd };
 
     const checkSingle = (key: string, label: string, options: string[]) => {
-      if (fd[key] && !options.includes(fd[key])) {
-        warnings.push(`${label}: "${fd[key]}" não existe mais`);
-        fd = { ...fd, [key]: '' };
+      if (cleaned[key] && !options.includes(cleaned[key])) {
+        warnings.push(`${label}: "${cleaned[key]}" não existe mais`);
+        cleaned[key] = '';
       }
     };
 
     const checkMulti = (key: string, label: string, options: string[]) => {
-      if (!fd[key]) return;
-      const saved = fd[key].split('||').filter(Boolean);
+      if (!cleaned[key]) return;
+      const saved = cleaned[key].split('||').filter(Boolean);
       const removed = saved.filter(v => !options.includes(v));
       if (removed.length > 0) {
         warnings.push(`${label}: ${removed.map(r => `"${r}"`).join(', ')} removido(s)`);
-        fd = { ...fd, [key]: saved.filter(v => options.includes(v)).join('||') };
+        cleaned[key] = saved.filter(v => options.includes(v)).join('||');
       }
     };
 
@@ -799,15 +800,34 @@ const OrderPage = () => {
     checkMulti('tipoMetal', 'Tipo de Metal', TIPO_METAL);
     checkMulti('acessorios', 'Acessórios', ACESSORIOS.map(a => a.label));
 
+    return { cleanedData: cleaned, warnings };
+  }, [mergedBordadoCano, mergedBordadoGaspea, mergedBordadoTaloneira, mergedLaserCano, mergedLaserGaspea, mergedLaserTaloneira]);
+
+  const validateAndPopulateTemplate = (fd: Record<string, string>) => {
+    const { cleanedData, warnings } = validateFormData(fd);
     if (warnings.length > 0) {
       toast.warning('Variações removidas ou renomeadas', {
         description: warnings.join('\n'),
         duration: 8000,
       });
     }
-
-    populateFormFromTemplate(fd);
+    populateFormFromTemplate(cleanedData);
   };
+
+  /* ───── draft validation on load ───── */
+  const draftValidatedRef = useRef(false);
+  useEffect(() => {
+    if (draftValidatedRef.current || !draftState || fichaLoading) return;
+    draftValidatedRef.current = true;
+    const { cleanedData, warnings } = validateFormData(draftState.form);
+    if (warnings.length > 0) {
+      toast.warning('Rascunho: variações removidas ou renomeadas', {
+        description: warnings.join('\n'),
+        duration: 8000,
+      });
+      populateFormFromTemplate(cleanedData);
+    }
+  }, [draftState, fichaLoading, validateFormData, populateFormFromTemplate]);
 
   /* ───── mirror data (only filled fields, NO value) ───── */
   const mirrorRows: [string, string][] = [
