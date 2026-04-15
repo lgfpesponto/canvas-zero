@@ -4,7 +4,7 @@ import {
   useFichaVariacoes, useUpdateVariacao, useDeleteVariacao, useBulkInsertVariacoes,
 } from '@/hooks/useAdminConfig';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ export default function AdminConfigVariacoesPage() {
   const bulkInsert = useBulkInsertVariacoes();
 
   const [bulkText, setBulkText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [parsed, setParsed] = useState<ParsedItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoriaNome, setCategoriaNome] = useState('');
@@ -158,11 +159,25 @@ export default function AdminConfigVariacoesPage() {
           </Dialog>
         </div>
 
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar variações..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => <div key={i} className="h-12 animate-pulse rounded bg-muted" />)}
           </div>
-        ) : (
+        ) : (() => {
+          const filteredVariacoes = (variacoes ?? []).filter(v =>
+            v.nome.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+          return (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
               <Table>
@@ -176,7 +191,7 @@ export default function AdminConfigVariacoesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {variacoes?.map(v => (
+                  {filteredVariacoes.map(v => (
                     <TableRow key={v.id}>
                       <TableCell className="text-xs text-muted-foreground">{v.ordem}</TableCell>
                       <TableCell>
@@ -224,10 +239,10 @@ export default function AdminConfigVariacoesPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {variacoes?.length === 0 && (
+                  {filteredVariacoes.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        Nenhuma variação cadastrada. Use "Entrada em Massa" para adicionar.
+                        {searchTerm ? 'Nenhuma variação encontrada' : 'Nenhuma variação cadastrada. Use "Entrada em Massa" para adicionar.'}
                       </TableCell>
                     </TableRow>
                   )}
@@ -235,7 +250,8 @@ export default function AdminConfigVariacoesPage() {
               </Table>
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
       </motion.div>
     </div>
   );
