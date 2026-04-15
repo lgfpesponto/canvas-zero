@@ -906,6 +906,7 @@ function BootFormLayout({
           onRefetch={refetchAll}
           allCategorias={categorias}
           allVariacoes={allVariacoes}
+          allCampos={campos || []}
           fichaTipoId={fichaTipoId}
           onRefetchCats={onRefetchCats}
           fallback={fallbackArr}
@@ -1059,12 +1060,13 @@ function BootFormLayout({
 /* ─── BootFieldRenderer: renders a single field based on its type ─── */
 function BootFieldRenderer({
   campo, variacoes, catCampos, fieldIdx, onReorder, onRefetch,
-  allCategorias, allVariacoes, fichaTipoId, onRefetchCats,
+  allCategorias, allVariacoes, allCampos, fichaTipoId, onRefetchCats,
   fallback, resolvedCatId,
 }: {
   campo: FichaCampo; variacoes: FichaVariacao[]; catCampos: FichaCampo[];
   fieldIdx: number; onReorder: (dir: 'up' | 'down') => void; onRefetch: () => void;
   allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  allCampos: FichaCampo[];
   fichaTipoId: string; onRefetchCats: () => void;
   fallback?: { label: string; preco: number }[];
   resolvedCatId?: string;
@@ -1245,8 +1247,8 @@ function BootFieldRenderer({
     });
   };
 
-  // Other categories for relationship panel
-  const otherCats = (allCategorias || []).filter(c => c.id !== resolvedCatId && c.id !== campo.categoria_id);
+  // Other campos for relationship panel (use campo slugs, not category slugs)
+  const otherCampos = (allCampos || []).filter(c => c.id !== campo.id && c.ativo !== false && (c.tipo === 'selecao' || c.tipo === 'multipla'));
 
   // Render field label with controls
   const renderLabel = () => (
@@ -1374,7 +1376,7 @@ function BootFieldRenderer({
             const dbVar = item.dbId ? variacoes.find(x => x.id === item.dbId) : null;
             const itemRel = dbVar ? ((dbVar as any).relacionamento as Record<string, string[]> | null) : null;
             const hasRel = itemRel && Object.keys(itemRel).length > 0;
-            const filteredRelCats = relCatFilter ? otherCats.filter(oc => oc.id === relCatFilter) : otherCats;
+            const filteredRelCampos = relCatFilter ? otherCampos.filter(oc => oc.id === relCatFilter) : otherCampos;
 
             return (
               <React.Fragment key={key}>
@@ -1404,23 +1406,23 @@ function BootFieldRenderer({
                     <div className="flex items-center gap-2">
                       <Search size={14} className="text-muted-foreground shrink-0" />
                       <select value={relCatFilter} onChange={e => setRelCatFilter(e.target.value)} className="text-sm border border-border rounded px-2 py-1.5 bg-background flex-1">
-                        <option value="">Todas as categorias</option>
-                        {otherCats.filter(oc => (allVariacoes || []).some(av => av.categoria_id === oc.id && av.ativo)).map(oc => (
+                        <option value="">Todos os campos</option>
+                        {otherCampos.map(oc => (
                           <option key={oc.id} value={oc.id}>{oc.nome}</option>
                         ))}
                       </select>
                     </div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {filteredRelCats.map(oc => {
-                        const catVars = (allVariacoes || []).filter(av => av.categoria_id === oc.id && av.ativo);
-                        if (catVars.length === 0) return null;
+                      {filteredRelCampos.map(oc => {
+                        const campoVars = (allVariacoes || []).filter(av => (av as any).campo_id === oc.id && av.ativo);
+                        if (campoVars.length === 0) return null;
                         const rel = itemRel || {};
                         const selected = rel[oc.slug] || [];
                         return (
                           <div key={oc.id} className="space-y-1">
                             <Label className="text-xs font-semibold text-primary">{oc.nome}</Label>
                             <div className="flex flex-wrap gap-1">
-                              {catVars.map(cv => {
+                              {campoVars.map(cv => {
                                 const isSelected = selected.includes(cv.nome);
                                 return (
                                   <Badge key={cv.id} variant={isSelected ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => {
@@ -1435,7 +1437,7 @@ function BootFieldRenderer({
                           </div>
                         );
                       })}
-                      {filteredRelCats.every(oc => (allVariacoes || []).filter(av => av.categoria_id === oc.id && av.ativo).length === 0) && (
+                      {filteredRelCampos.every(oc => (allVariacoes || []).filter(av => (av as any).campo_id === oc.id && av.ativo).length === 0) && (
                         <p className="text-xs text-muted-foreground text-center py-2">Nenhuma variação encontrada</p>
                       )}
                     </div>
