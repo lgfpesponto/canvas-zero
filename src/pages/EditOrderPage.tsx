@@ -561,12 +561,12 @@ const EditOrderPage = () => {
 
           <Section title="Couros">
             <div className="grid sm:grid-cols-2 gap-4">
-              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getCoresCouroFiltradas(v).includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} />
-              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={getCoresCouroFiltradas(tipoCouroCano)} />
-              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => { setTipoCouroGaspea(v); if (corCouroGaspea && !getCoresCouroFiltradas(v).includes(corCouroGaspea)) setCorCouroGaspea(''); }} options={TIPOS_COURO} />
-              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={getCoresCouroFiltradas(tipoCouroGaspea)} />
-              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => { setTipoCouroTaloneira(v); if (corCouroTaloneira && !getCoresCouroFiltradas(v).includes(corCouroTaloneira)) setCorCouroTaloneira(''); }} options={TIPOS_COURO} />
-              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={getCoresCouroFiltradas(tipoCouroTaloneira)} />
+              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getDynCoresCouro(v, 'couro_cano', 'cor_couro_cano').includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} />
+              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} />
+              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => { setTipoCouroGaspea(v); if (corCouroGaspea && !getDynCoresCouro(v, 'couro_gaspea', 'cor_couro_gaspea').includes(corCouroGaspea)) setCorCouroGaspea(''); }} options={TIPOS_COURO} />
+              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={getDynCoresCouro(tipoCouroGaspea, 'couro_gaspea', 'cor_couro_gaspea')} />
+              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => { setTipoCouroTaloneira(v); if (corCouroTaloneira && !getDynCoresCouro(v, 'couro_taloneira', 'cor_couro_taloneira').includes(corCouroTaloneira)) setCorCouroTaloneira(''); }} options={TIPOS_COURO} />
+              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={getDynCoresCouro(tipoCouroTaloneira, 'couro_taloneira', 'cor_couro_taloneira')} />
             </div>
           </Section>
 
