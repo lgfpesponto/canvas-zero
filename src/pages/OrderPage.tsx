@@ -524,6 +524,7 @@ const OrderPage = () => {
     }
   }, [draftState, fichaLoading, validateFormData, populateFormFromTemplate]);
 
+  const handleUseTemplate = (formData: Record<string, string>) => {
     tmpl.setShowTemplates(false);
     validateAndPopulateTemplate({ ...formData });
     setProductChoice('bota');
