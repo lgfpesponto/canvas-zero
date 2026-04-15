@@ -163,6 +163,7 @@ function AdminEditableOptions({
   const [relOpen, setRelOpen] = useState<string | null>(null);
   const [relCatFilter, setRelCatFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [varSearchTerm, setVarSearchTerm] = useState('');
 
   const handleCreateCategory = () => {
     const ordem = allCategorias.length + 1;
@@ -410,7 +411,7 @@ function AdminEditableOptions({
         </div>
       )}
 
-      <Dialog open={showEditPanel} onOpenChange={setShowEditPanel}>
+      <Dialog open={showEditPanel} onOpenChange={(open) => { setShowEditPanel(open); if (!open) setVarSearchTerm(''); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-montserrat lowercase">editar variações — {catLabel}</DialogTitle>
@@ -445,8 +446,17 @@ function AdminEditableOptions({
               <button type="button" onClick={handleBulkApply} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Aplicar</button>
             </div>
           )}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar variações..."
+              value={varSearchTerm}
+              onChange={e => setVarSearchTerm(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {editItems.map(([key, item]) => {
+            {editItems.filter(([, item]) => item.nome.toLowerCase().includes(varSearchTerm.toLowerCase())).map(([key, item]) => {
               // Get relationship data - from DB or from merged
               const dbVar = item.dbId ? variacoes?.find(x => x.id === item.dbId) : null;
               const itemRel = dbVar ? ((dbVar as any).relacionamento as Record<string, string[]> | null) : null;
@@ -1086,6 +1096,7 @@ function BootFieldRenderer({
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
+  const [varSearchTerm, setVarSearchTerm] = useState('');
   const [relOpen, setRelOpen] = useState<string | null>(null);
   const [relCatFilter, setRelCatFilter] = useState('');
 
@@ -1353,7 +1364,7 @@ function BootFieldRenderer({
 
   // Shared edit panel dialog (used by both selecao and multipla)
   const editDialog = (
-    <Dialog open={showVarPanel} onOpenChange={setShowVarPanel}>
+    <Dialog open={showVarPanel} onOpenChange={(open) => { setShowVarPanel(open); if (!open) setVarSearchTerm(''); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-montserrat lowercase">editar variações — {campo.nome}</DialogTitle>
@@ -1371,8 +1382,17 @@ function BootFieldRenderer({
             <button type="button" onClick={handleBulkApply} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">Aplicar</button>
           </div>
         )}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar variações..."
+            value={varSearchTerm}
+            onChange={e => setVarSearchTerm(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).map(([key, item]) => {
+          {Object.entries(editState).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, 'pt-BR')).filter(([, item]) => item.nome.toLowerCase().includes(varSearchTerm.toLowerCase())).map(([key, item]) => {
             const dbVar = item.dbId ? variacoes.find(x => x.id === item.dbId) : null;
             const itemRel = dbVar ? ((dbVar as any).relacionamento as Record<string, string[]> | null) : null;
             const hasRel = itemRel && Object.keys(itemRel).length > 0;
