@@ -2149,16 +2149,6 @@ export default function AdminConfigFichaPage() {
                 </DialogContent>
               </Dialog>
 
-              {isBoot && (
-                <>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate('/pedido?mode=template')}>
-                    <Plus className="h-4 w-4" /> Criar Modelo
-                  </Button>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate('/pedido')}>
-                    <Layers className="h-4 w-4" /> Modelos
-                  </Button>
-                </>
-              )}
 
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
@@ -2182,19 +2172,6 @@ export default function AdminConfigFichaPage() {
                 </Button>
               )}
 
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes'] });
-                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_all'] });
-                queryClient.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
-                queryClient.invalidateQueries({ queryKey: ['ficha_categorias'] });
-                queryClient.invalidateQueries({ queryKey: ['ficha_campos'] });
-                queryClient.invalidateQueries({ queryKey: ['ficha_tipos'] });
-                queryClient.invalidateQueries({ queryKey: ['ficha_workflow'] });
-                refetchCats();
-                toast.success('Configurações sincronizadas! As alterações serão refletidas na ficha de produção.');
-              }}>
-                <CheckCircle className="h-4 w-4" /> sincronizar
-              </Button>
             </div>
           )}
         </div>
