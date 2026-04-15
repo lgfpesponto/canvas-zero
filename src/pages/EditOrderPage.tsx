@@ -5,7 +5,7 @@ import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicate
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Link2, X, Save, ArrowLeft, Search } from 'lucide-react';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
