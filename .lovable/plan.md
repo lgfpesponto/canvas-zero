@@ -1,29 +1,33 @@
 
 
-## Plano: Remover edição/adição de variações do formulário de pedido da Bota
+## Plano: Validação de variações ao carregar modelo
 
-### Contexto
-Os campos de Bordado e Laser no "Faça seu pedido" → Bota possuem botões de adicionar (+) e editar (✏️) variações inline. Essa funcionalidade agora está centralizada na página de Configurações → Ficha de Produção → Bota, então precisa ser removida do formulário de pedido.
+### Problema
+Quando um modelo (template) é carregado via "Preencher" ou "Editar", valores salvos que foram renomeados ou removidos da ficha são preenchidos silenciosamente — o campo fica com um valor "fantasma" que não existe mais nas opções disponíveis.
+
+### Escopo
+- Variações novas já aparecem naturalmente nos dropdowns (são populados do banco em tempo real). O modelo apenas pré-seleciona valores salvos — não interfere nas opções disponíveis.
+- O problema está apenas em valores salvos que não existem mais.
 
 ### Alterações
 
-#### 1. `src/pages/OrderPage.tsx`
-- Remover as props de edição das 6 chamadas do `MultiSelect` (bordado_cano, bordado_gaspea, bordado_taloneira, laser_cano, laser_gaspea, laser_taloneira):
-  - Remover: `isAdmin`, `categoria`, `onAddOption`, `customOptions`, `onUpdateOption`, `onDeleteOption`, `onBulkUpdatePreco`
-- Se `useCustomOptions` não for mais usado por nenhum outro campo neste arquivo, remover o import e a chamada do hook
+#### Arquivo: `src/pages/OrderPage.tsx`
 
-#### 2. `src/pages/EditOrderPage.tsx`
-- Mesma remoção das props de edição nos 6 `MultiSelect` de bordados e laser
-- Se `useCustomOptions` não for mais usado, remover import e chamada
+1. **Criar função `validateTemplateData`** que recebe o `form_data` do template e compara cada campo de seleção contra as opções atuais disponíveis:
+   - Campos simples (modelo, solado, formatoBico, corSola, corVira, tipoCouroCano/Gaspea/Taloneira, corCouroCano/Gaspea/Taloneira, corLinha, corBorrachinha, etc.) → verificar se o valor salvo existe nas opções atuais
+   - Campos multi-select (bordadoCano, bordadoGaspea, bordadoTaloneira, laserCano, laserGaspea, laserTaloneira, tipoMetal, acessorios) → filtrar apenas os valores que ainda existem, coletar os removidos
 
-#### 3. Componente `MultiSelect` (inline em ambos os arquivos)
-- O componente continua existindo para seleção de opções, apenas não recebe mais as props de admin
-- A lógica de add/edit/delete dentro do `MultiSelect` permanece no código (não quebra nada), mas simplesmente não será acionada pois as props não serão passadas
+2. **Mostrar toast de aviso** listando os campos com valores removidos/renomeados, ex: `"Modelo 'X' não existe mais na ficha. Bordado Cano: 'Y' foi removido."`
+
+3. **Limpar campos inválidos** automaticamente (setar como vazio ou filtrar do array) para evitar valores fantasma
+
+4. **Integrar validação** em `handleUseTemplate` e `handleEditTemplate`, chamando `validateTemplateData` antes de `populateFormFromTemplate`
+
+#### Arquivo: `src/pages/EditOrderPage.tsx`
+- Mesma lógica se templates forem usados lá (verificar se aplica)
 
 ### O que NÃO muda
-- O `MultiSelect` continua funcionando para **selecionar** variações
-- As variações continuam vindo do banco (`useFichaVariacoesLookup`)
-- Nenhum campo, layout ou fluxo do formulário é alterado
-- A lógica de preços permanece intacta
-- A tabela `custom_options` e o hook `useCustomOptions` continuam existindo para outros usos
+- Layout, fluxo, preços, opções dos dropdowns
+- Variações novas continuam aparecendo normalmente nos selects
+- Templates salvos no banco não são alterados — a validação é apenas na leitura
 
