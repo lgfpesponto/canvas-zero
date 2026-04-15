@@ -163,6 +163,7 @@ function AdminEditableOptions({
   const [relOpen, setRelOpen] = useState<string | null>(null);
   const [relCatFilter, setRelCatFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [varSearchTerm, setVarSearchTerm] = useState('');
 
   const handleCreateCategory = () => {
     const ordem = allCategorias.length + 1;
@@ -1086,6 +1087,7 @@ function BootFieldRenderer({
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkValue, setBulkValue] = useState('');
   const [search, setSearch] = useState('');
+  const [varSearchTerm, setVarSearchTerm] = useState('');
   const [relOpen, setRelOpen] = useState<string | null>(null);
   const [relCatFilter, setRelCatFilter] = useState('');
 
