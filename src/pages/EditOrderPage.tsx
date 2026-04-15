@@ -53,13 +53,9 @@ const ToggleField = ({ label, value, onChange, textValue, onTextChange, textPlac
   </div>
 );
 
-const MultiSelect = ({ label, items, selected, onChange, isAdmin: isAdm, categoria, onAddOption,
-  customOptions, onUpdateOption, onDeleteOption, onBulkUpdatePreco,
+const MultiSelect = ({ label, items, selected, onChange,
 }: {
   label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
-  isAdmin?: boolean; categoria?: string; onAddOption?: (cat: string, label: string, preco: number) => Promise<any>;
-  customOptions?: CustomOption[]; onUpdateOption?: (id: string, label: string, preco: number) => Promise<void>; onDeleteOption?: (id: string) => Promise<void>;
-  onBulkUpdatePreco?: (categoria: string, increment: number) => Promise<void>;
 }) => {
   const [search, setSearch] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
