@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -240,6 +241,13 @@ const OrderPage = () => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
   const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
+  const { getFilteredOptions } = useDynamicFieldFilter();
+
+  /** Returns filtered color options for a leather part, using DB relationships with hardcoded fallback */
+  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
+    const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
+    return dbResult ?? getCoresCouroFiltradas(tipoCouro);
+  }, [getFilteredOptions]);
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
@@ -1037,12 +1045,12 @@ const OrderPage = () => {
           {/* 7 Couros */}
           <Section title="Couros">
             <div className="grid sm:grid-cols-2 gap-4">
-              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getCoresCouroFiltradas(v).includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} required />
-              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={getCoresCouroFiltradas(tipoCouroCano)} required />
-              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => { setTipoCouroGaspea(v); if (corCouroGaspea && !getCoresCouroFiltradas(v).includes(corCouroGaspea)) setCorCouroGaspea(''); }} options={TIPOS_COURO} required />
-              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={getCoresCouroFiltradas(tipoCouroGaspea)} required />
-              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => { setTipoCouroTaloneira(v); if (corCouroTaloneira && !getCoresCouroFiltradas(v).includes(corCouroTaloneira)) setCorCouroTaloneira(''); }} options={TIPOS_COURO} required />
-              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={getCoresCouroFiltradas(tipoCouroTaloneira)} required />
+              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getDynCoresCouro(v, 'couro_cano', 'cor_couro_cano').includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} required />
+              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required />
+              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => { setTipoCouroGaspea(v); if (corCouroGaspea && !getDynCoresCouro(v, 'couro_gaspea', 'cor_couro_gaspea').includes(corCouroGaspea)) setCorCouroGaspea(''); }} options={TIPOS_COURO} required />
+              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={getDynCoresCouro(tipoCouroGaspea, 'couro_gaspea', 'cor_couro_gaspea')} required />
+              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => { setTipoCouroTaloneira(v); if (corCouroTaloneira && !getDynCoresCouro(v, 'couro_taloneira', 'cor_couro_taloneira').includes(corCouroTaloneira)) setCorCouroTaloneira(''); }} options={TIPOS_COURO} required />
+              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={getDynCoresCouro(tipoCouroTaloneira, 'couro_taloneira', 'cor_couro_taloneira')} required />
             </div>
           </Section>
 
