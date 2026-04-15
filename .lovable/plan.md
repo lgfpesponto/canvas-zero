@@ -1,32 +1,41 @@
 
 
-## Plano: Adicionar campo de busca na listagem de variações
+## Plano: Adicionar campo de busca nos dois painéis de edição de variações
 
-### O que muda
-Adicionar um campo de pesquisa com ícone de lupa acima da tabela de variações em `AdminConfigVariacoesPage.tsx`, permitindo filtrar as variações pelo nome enquanto digita.
+### Problema
+Os dois dialogs de edição de variações dentro de `AdminConfigFichaPage.tsx` não possuem campo de busca — apenas `AdminConfigVariacoesPage.tsx` (rota `/admin/configuracoes/:slug/:categoriaId`) tem a lupa.
 
-### Alteração
+### Alterações
 
-#### Arquivo: `src/pages/AdminConfigVariacoesPage.tsx`
+#### Arquivo: `src/pages/AdminConfigFichaPage.tsx`
 
-1. Adicionar estado `searchTerm` (`useState('')`)
-2. Inserir um `Input` com ícone `Search` (lucide) entre o cabeçalho e o `Card` da tabela
-3. Filtrar `variacoes` pelo `searchTerm` antes de renderizar no `TableBody` — filtro case-insensitive por `nome`
-4. Mostrar mensagem "Nenhuma variação encontrada" quando o filtro não retornar resultados
+**1. Dialog do `AdminEditableOptions` (linha ~413)**
+- Adicionar estado `varSearchTerm` (ou reutilizar nome similar)
+- Inserir input com ícone `Search` entre a barra de ações (linha ~440) e a lista de variações (linha ~448)
+- Filtrar `editItems` por `item.nome` (case-insensitive) antes do `.map()`
+- Limpar o filtro ao abrir/fechar o dialog
 
-### Layout
+**2. Dialog do `CampoEditavel` / `editDialog` (linha ~1354)**
+- Adicionar estado `varSearchTerm` no componente
+- Inserir input com ícone `Search` entre a barra de ações (linha ~1366) e a lista (linha ~1374)
+- Filtrar `Object.entries(editState)` por `item.nome` antes do `.map()`
+- Limpar o filtro ao abrir/fechar o dialog
+
+### Layout dentro dos Dialogs
 ```text
-[← voltar]
-[título: variações]                    [entrada em massa]
-[🔍 Pesquisar variações...                              ]
-┌──────────────────────────────────────────────────────┐
-│ #  │ Nome          │ Preço Adicional │ Ativo │  🗑   │
-│ 1  │ Couro Nobuck  │ 50.00           │  ✓    │  ...  │
-│ 2  │ Couro Liso    │ 0.00            │  ✓    │  ...  │
-└──────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│ editar variações — [nome]                   │
+├─────────────────────────────────────────────┤
+│ [Salvar] [Cancelar] [Ed. massa]             │
+│ [🔍 Pesquisar variações...                ] │  ← NOVO
+│                                             │
+│  ☐ Couro Nobuck        R$ 50.00  ↑↓ 🔗 🗑  │
+│  ☐ Couro Liso          R$ 0.00   ↑↓ 🔗 🗑  │
+│  ...                                       │
+└─────────────────────────────────────────────┘
 ```
 
 ### O que NÃO muda
-- Lógica de edição inline, exclusão, entrada em massa
-- Ordenação e dados no banco
+- Lógica de salvar, reordenar, relacionamentos, edição em massa
+- `AdminConfigVariacoesPage.tsx` já tem busca e permanece igual
 
