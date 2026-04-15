@@ -32,6 +32,7 @@ export default function AdminConfigVariacoesPage() {
   const bulkInsert = useBulkInsertVariacoes();
 
   const [bulkText, setBulkText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [parsed, setParsed] = useState<ParsedItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoriaNome, setCategoriaNome] = useState('');
