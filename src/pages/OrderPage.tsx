@@ -423,13 +423,13 @@ const OrderPage = () => {
 
   const handleUseTemplate = (formData: Record<string, string>) => {
     tmpl.setShowTemplates(false);
-    populateFormFromTemplate(formData);
+    validateAndPopulateTemplate({ ...formData });
     setProductChoice('bota');
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
     tmpl.startEditing(template);
-    populateFormFromTemplate(template.form_data);
+    validateAndPopulateTemplate({ ...template.form_data });
     setMode('template');
     setProductChoice('bota');
   };
