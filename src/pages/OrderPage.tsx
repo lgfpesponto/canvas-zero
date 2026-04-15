@@ -751,6 +751,64 @@ const OrderPage = () => {
   const mergedLaserGaspea = getLaserItems('laser_gaspea');
   const mergedLaserTaloneira = getLaserItems('laser_taloneira');
 
+  /* ───── template validation ───── */
+  const validateAndPopulateTemplate = (fd: Record<string, string>) => {
+    const warnings: string[] = [];
+
+    const checkSingle = (key: string, label: string, options: string[]) => {
+      if (fd[key] && !options.includes(fd[key])) {
+        warnings.push(`${label}: "${fd[key]}" não existe mais`);
+        fd = { ...fd, [key]: '' };
+      }
+    };
+
+    const checkMulti = (key: string, label: string, options: string[]) => {
+      if (!fd[key]) return;
+      const saved = fd[key].split('||').filter(Boolean);
+      const removed = saved.filter(v => !options.includes(v));
+      if (removed.length > 0) {
+        warnings.push(`${label}: ${removed.map(r => `"${r}"`).join(', ')} removido(s)`);
+        fd = { ...fd, [key]: saved.filter(v => options.includes(v)).join('||') };
+      }
+    };
+
+    // Single-selects
+    checkSingle('modelo', 'Modelo', MODELOS.map(m => m.label));
+    checkSingle('tipoCouroCano', 'Couro Cano', TIPOS_COURO.map(t => t.label));
+    checkSingle('tipoCouroGaspea', 'Couro Gáspea', TIPOS_COURO.map(t => t.label));
+    checkSingle('tipoCouroTaloneira', 'Couro Taloneira', TIPOS_COURO.map(t => t.label));
+    checkSingle('corLinha', 'Cor da Linha', COR_LINHA);
+    checkSingle('corBorrachinha', 'Cor da Borrachinha', COR_BORRACHINHA);
+    checkSingle('corVivo', 'Cor do Vivo', COR_VIVO);
+    checkSingle('desenvolvimento', 'Desenvolvimento', DESENVOLVIMENTO.map(d => d.label));
+    checkSingle('areaMetal', 'Área do Metal', AREA_METAL.map(a => a.label));
+    checkSingle('corMetal', 'Cor do Metal', COR_METAL);
+    checkSingle('solado', 'Solado', SOLADO.map(s => s.label));
+    checkSingle('formatoBico', 'Formato do Bico', FORMATO_BICO);
+    checkSingle('corVira', 'Cor da Vira', COR_VIRA.map(c => c.label));
+    checkSingle('carimbo', 'Carimbo', CARIMBO.map(c => c.label));
+
+    // Multi-selects
+    const labels = (items: { label: string }[]) => items.map(i => i.label);
+    checkMulti('bordadoCano', 'Bordado Cano', labels(mergedBordadoCano));
+    checkMulti('bordadoGaspea', 'Bordado Gáspea', labels(mergedBordadoGaspea));
+    checkMulti('bordadoTaloneira', 'Bordado Taloneira', labels(mergedBordadoTaloneira));
+    checkMulti('laserCano', 'Laser Cano', labels(mergedLaserCano));
+    checkMulti('laserGaspea', 'Laser Gáspea', labels(mergedLaserGaspea));
+    checkMulti('laserTaloneira', 'Laser Taloneira', labels(mergedLaserTaloneira));
+    checkMulti('tipoMetal', 'Tipo de Metal', TIPO_METAL);
+    checkMulti('acessorios', 'Acessórios', ACESSORIOS.map(a => a.label));
+
+    if (warnings.length > 0) {
+      toast.warning('Variações removidas ou renomeadas', {
+        description: warnings.join('\n'),
+        duration: 8000,
+      });
+    }
+
+    populateFormFromTemplate(fd);
+  };
+
   /* ───── mirror data (only filled fields, NO value) ───── */
   const mirrorRows: [string, string][] = [
     ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
