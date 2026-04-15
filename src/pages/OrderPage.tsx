@@ -241,6 +241,13 @@ const OrderPage = () => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
   const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
+  const { getFilteredOptions } = useDynamicFieldFilter();
+
+  /** Returns filtered color options for a leather part, using DB relationships with hardcoded fallback */
+  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
+    const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
+    return dbResult ?? getCoresCouroFiltradas(tipoCouro);
+  }, [getFilteredOptions]);
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();

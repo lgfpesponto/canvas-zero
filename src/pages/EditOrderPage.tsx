@@ -233,6 +233,12 @@ const EditOrderPage = () => {
   const { order, loading: orderLoading } = useOrderById(id);
   const { getByCategoria, addOption, updateOption, deleteOption, bulkUpdatePreco } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
+  const { getFilteredOptions } = useDynamicFieldFilter();
+
+  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
+    const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
+    return dbResult ?? getCoresCouroFiltradas(tipoCouro);
+  }, [getFilteredOptions]);
   const navigate = useNavigate();
 
   const [numeroPedido, setNumeroPedido] = useState('');
