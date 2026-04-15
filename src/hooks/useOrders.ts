@@ -256,14 +256,29 @@ export async function fetchOrderByScan(code: string): Promise<Order | null> {
 
 /** Fetch distinct vendedores from all orders */
 export async function fetchVendedores(): Promise<string[]> {
-  const { data } = await supabase.from('orders').select('vendedor, cliente');
-  if (!data) return [];
   const names = new Set<string>();
-  data.forEach((o: any) => {
-    if (o.vendedor) names.add(o.vendedor);
-    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-      names.add(o.cliente.trim());
-    }
-  });
+  const BATCH = 1000;
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data } = await supabase
+      .from('orders')
+      .select('vendedor, cliente')
+      .range(offset, offset + BATCH - 1);
+
+    if (!data || data.length === 0) { hasMore = false; break; }
+
+    data.forEach((o: any) => {
+      if (o.vendedor) names.add(o.vendedor);
+      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
+        names.add(o.cliente.trim());
+      }
+    });
+
+    if (data.length < BATCH) hasMore = false;
+    offset += BATCH;
+  }
+
   return [...names].sort();
 }
