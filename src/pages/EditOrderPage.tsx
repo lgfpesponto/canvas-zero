@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link2, X, Save, ArrowLeft, Plus, Search, Pencil, Trash2 } from 'lucide-react';
-import { useCustomOptions, CustomOption } from '@/hooks/useCustomOptions';
+import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 import {
