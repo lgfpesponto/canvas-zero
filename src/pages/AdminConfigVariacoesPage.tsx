@@ -159,11 +159,25 @@ export default function AdminConfigVariacoesPage() {
           </Dialog>
         </div>
 
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar variações..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => <div key={i} className="h-12 animate-pulse rounded bg-muted" />)}
           </div>
-        ) : (
+        ) : (() => {
+          const filteredVariacoes = (variacoes ?? []).filter(v =>
+            v.nome.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+          return (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
               <Table>
