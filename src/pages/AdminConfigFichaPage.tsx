@@ -1364,7 +1364,7 @@ function BootFieldRenderer({
 
   // Shared edit panel dialog (used by both selecao and multipla)
   const editDialog = (
-    <Dialog open={showVarPanel} onOpenChange={setShowVarPanel}>
+    <Dialog open={showVarPanel} onOpenChange={(open) => { setShowVarPanel(open); if (!open) setVarSearchTerm(''); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-montserrat lowercase">editar variações — {campo.nome}</DialogTitle>
