@@ -1,33 +1,31 @@
 
 
-## Plano: Validação de variações ao carregar modelo
+## Plano: Validação de variações ao restaurar rascunho
 
 ### Problema
-Quando um modelo (template) é carregado via "Preencher" ou "Editar", valores salvos que foram renomeados ou removidos da ficha são preenchidos silenciosamente — o campo fica com um valor "fantasma" que não existe mais nas opções disponíveis.
+Rascunhos restauram valores diretamente do localStorage sem verificar se as variações ainda existem na ficha atual — mesmo problema que os modelos tinham antes da correção.
 
-### Escopo
-- Variações novas já aparecem naturalmente nos dropdowns (são populados do banco em tempo real). O modelo apenas pré-seleciona valores salvos — não interfere nas opções disponíveis.
-- O problema está apenas em valores salvos que não existem mais.
+### Solução
+Reutilizar a mesma lógica de `validateAndPopulateTemplate` já implementada para modelos, aplicando-a aos dados do rascunho quando o formulário é inicializado.
 
 ### Alterações
 
 #### Arquivo: `src/pages/OrderPage.tsx`
 
-1. **Criar função `validateTemplateData`** que recebe o `form_data` do template e compara cada campo de seleção contra as opções atuais disponíveis:
-   - Campos simples (modelo, solado, formatoBico, corSola, corVira, tipoCouroCano/Gaspea/Taloneira, corCouroCano/Gaspea/Taloneira, corLinha, corBorrachinha, etc.) → verificar se o valor salvo existe nas opções atuais
-   - Campos multi-select (bordadoCano, bordadoGaspea, bordadoTaloneira, laserCano, laserGaspea, laserTaloneira, tipoMetal, acessorios) → filtrar apenas os valores que ainda existem, coletar os removidos
+1. **Extrair a lógica de validação** que hoje está dentro de `validateAndPopulateTemplate` para uma função reutilizável `validateFormData(fd)` que retorna `{ cleanedData, warnings }` sem efeito colateral (sem chamar `populateFormFromTemplate`)
 
-2. **Mostrar toast de aviso** listando os campos com valores removidos/renomeados, ex: `"Modelo 'X' não existe mais na ficha. Bordado Cano: 'Y' foi removido."`
+2. **Aplicar validação ao carregar rascunho**: No bloco de inicialização (onde `df = draftState?.form || {}`), se `draftState` existir, rodar `validateFormData(df)` para limpar valores fantasma e mostrar toast de aviso
 
-3. **Limpar campos inválidos** automaticamente (setar como vazio ou filtrar do array) para evitar valores fantasma
+3. **Usar os dados limpos** como valores iniciais dos `useState` em vez dos dados brutos do rascunho
 
-4. **Integrar validação** em `handleUseTemplate` e `handleEditTemplate`, chamando `validateTemplateData` antes de `populateFormFromTemplate`
+4. **Manter `validateAndPopulateTemplate`** chamando `validateFormData` internamente para não quebrar o fluxo de modelos
 
-#### Arquivo: `src/pages/EditOrderPage.tsx`
-- Mesma lógica se templates forem usados lá (verificar se aplica)
+### Detalhe técnico
+Como a validação depende de arrays que são construídos com dados do banco (`mergedBordadoCano`, `MODELOS`, etc.), e esses dados podem não estar disponíveis no momento da inicialização dos `useState`, a validação será executada em um `useEffect` que roda uma vez quando os dados do banco carregam, limpando os campos inválidos e mostrando o toast.
 
 ### O que NÃO muda
-- Layout, fluxo, preços, opções dos dropdowns
-- Variações novas continuam aparecendo normalmente nos selects
-- Templates salvos no banco não são alterados — a validação é apenas na leitura
+- Fluxo de salvar rascunho permanece idêntico
+- Layout e campos do formulário não mudam
+- Lógica de modelos continua funcionando
+- Preços e filtros dinâmicos não são afetados
 
