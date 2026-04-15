@@ -906,6 +906,7 @@ function BootFormLayout({
           onRefetch={refetchAll}
           allCategorias={categorias}
           allVariacoes={allVariacoes}
+          allCampos={campos || []}
           fichaTipoId={fichaTipoId}
           onRefetchCats={onRefetchCats}
           fallback={fallbackArr}
@@ -1059,12 +1060,13 @@ function BootFormLayout({
 /* ─── BootFieldRenderer: renders a single field based on its type ─── */
 function BootFieldRenderer({
   campo, variacoes, catCampos, fieldIdx, onReorder, onRefetch,
-  allCategorias, allVariacoes, fichaTipoId, onRefetchCats,
+  allCategorias, allVariacoes, allCampos, fichaTipoId, onRefetchCats,
   fallback, resolvedCatId,
 }: {
   campo: FichaCampo; variacoes: FichaVariacao[]; catCampos: FichaCampo[];
   fieldIdx: number; onReorder: (dir: 'up' | 'down') => void; onRefetch: () => void;
   allCategorias: FichaCategoria[]; allVariacoes: FichaVariacao[];
+  allCampos: FichaCampo[];
   fichaTipoId: string; onRefetchCats: () => void;
   fallback?: { label: string; preco: number }[];
   resolvedCatId?: string;
@@ -1245,8 +1247,8 @@ function BootFieldRenderer({
     });
   };
 
-  // Other categories for relationship panel
-  const otherCats = (allCategorias || []).filter(c => c.id !== resolvedCatId && c.id !== campo.categoria_id);
+  // Other campos for relationship panel (use campo slugs, not category slugs)
+  const otherCampos = (allCampos || []).filter(c => c.id !== campo.id && c.ativo !== false && (c.tipo === 'selecao' || c.tipo === 'multipla'));
 
   // Render field label with controls
   const renderLabel = () => (
