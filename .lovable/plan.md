@@ -1,37 +1,45 @@
 
 
-## Problema: Relacionamentos não aparecem na UI
+## Plano: Corrigir lookup de variações para usar campo_id
 
-### Causa raiz
-O painel de relacionamentos do `BootFieldRenderer` itera sobre **categorias** (`ficha_categorias`) e usa `oc.slug` (slug da categoria) como chave. Porém, a migração armazenou os relacionamentos usando **slugs dos campos** (`ficha_campos.slug`).
+### Problema
+O hook `useFichaVariacoesLookup` busca variações fazendo join com `ficha_categorias` via `categoria_id`. Porém, novas variações adicionadas pelo admin recebem um `categoria_id` de categoria visual (ex: `bordados-visual`), enquanto o `CATEGORY_MAP` espera slugs de categoria de dados (ex: `bordados-gaspea`). Resultado: variações novas não aparecem.
 
-Exemplo concreto:
-- Migração salvou: `{"modelo": ["Bota Infantil"], "solado": ["Infantil"]}`
-- UI procura: `rel["modelos"]`, `rel["solados-visual"]` (slugs das categorias)
-- Resultado: nunca encontra match, badges nunca ficam selecionados
+### Solução
+Alterar **apenas** o hook `useFichaVariacoesLookup.ts` para fazer join com `ficha_campos` (via `campo_id`) em vez de `ficha_categorias` (via `categoria_id`). O `CATEGORY_MAP` passa a mapear para slugs de **campos** em vez de slugs de categorias.
 
-Além disso, o painel agrupa por **categoria**, mas vários campos compartilham a mesma categoria (ex: Solado, Formato do Bico, Cor da Sola e Cor da Vira estão todos na categoria `solados-visual`). Isso impede distinguir a qual campo o relacionamento se refere.
+### Alterações
 
-### Solução: duas etapas
+#### Arquivo: `src/hooks/useFichaVariacoesLookup.ts`
 
-#### 1. Atualizar o `BootFieldRenderer` para iterar por **campos** em vez de categorias
-- Em vez de `otherCats = allCategorias.filter(...)`, listar os **outros campos** (`ficha_campos`) do mesmo `ficha_tipo_id`
-- Cada campo aparece como seção no painel, mostrando apenas suas variações
-- A chave do relacionamento passa a ser o **slug do campo** (ex: `modelo`, `solado`, `formato_bico`)
-- O `handleRelChange` já salva corretamente com o slug passado; basta passar o campo slug em vez do categoria slug
+1. Mudar `CATEGORY_MAP` para usar slugs de campo:
+   - `bordado_cano` → `bordado_cano`
+   - `bordado_gaspea` → `bordado_gaspea`
+   - `bordado_taloneira` → `bordado_taloneira`
+   - `laser_cano` → `laser_cano`
+   - `laser_gaspea` → `laser_gaspea`
+   - `laser_taloneira` → `laser_taloneira`
 
-Mudanças no código (`src/pages/AdminConfigFichaPage.tsx`):
-- Adicionar prop `allCampos: FichaCampo[]` ao `BootFieldRenderer`
-- Substituir `otherCats` por `otherCampos = allCampos.filter(c => c.id !== campo.id && (c.tipo === 'selecao' || c.tipo === 'multipla'))`
-- No painel de relacionamento, iterar sobre `otherCampos`, buscando variações por `campo_id` em vez de `categoria_id`
-- Usar `campo.slug` como chave do jsonb (match com a migração)
+2. Mudar a query de:
+   ```
+   .select('nome, preco_adicional, categoria_id, relacionamento, ficha_categorias!inner(slug)')
+   ```
+   Para:
+   ```
+   .select('nome, preco_adicional, campo_id, relacionamento, ficha_campos!inner(slug)')
+   ```
 
-#### 2. Nenhuma alteração nos dados da migração
-Os dados já estão corretos usando campo slugs (`modelo`, `solado`, `formato_bico`, `cor_vira`, `cor_sola`, `cor_couro_cano`, etc.). A correção é apenas no código da UI.
+3. Mudar o mapeamento de `categoria_slug` para `campo_slug` internamente (renomear o campo na interface para `campo_slug` ou manter o nome `categoria_slug` para compatibilidade -- vou manter o mesmo nome de propriedade para não quebrar nada externo)
 
-### Arquivo modificado
-- `src/pages/AdminConfigFichaPage.tsx`
+4. Ajustar o `.map()` para usar `d.ficha_campos?.slug` em vez de `d.ficha_categorias?.slug`
 
-### Resultado esperado
-Ao clicar no 🔗 de uma variação (ex: tamanho "24"), o painel mostrará os campos Modelo, Solado, Formato do Bico, etc. como seções separadas, com os badges já selecionados de acordo com os relacionamentos persistidos na migração.
+### O que NÃO muda
+- `OrderPage.tsx` -- zero alterações
+- `EditOrderPage.tsx` -- zero alterações
+- `OrderDetailPage.tsx` -- zero alterações
+- A interface pública (`getByCustomCategory`, `findFichaPrice`) permanece idêntica
+- Os retornos (`{ label, preco }[]` e `number | undefined`) não mudam
+
+### Risco
+Nenhum. A mudança é interna ao hook. Os consumidores chamam `getByCustomCategory('bordado_gaspea')` e recebem o mesmo formato de volta. A única diferença é que agora a filtragem usa `campo_id` → `ficha_campos.slug`, que é sempre correto tanto para variações antigas quanto novas.
 
