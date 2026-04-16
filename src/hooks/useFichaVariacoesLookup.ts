@@ -20,6 +20,9 @@ const CATEGORY_MAP: Record<string, string> = {
   'laser_cano': 'laser_cano',
   'laser_gaspea': 'laser_gaspea',
   'laser_taloneira': 'laser_taloneira',
+  'couro_cano': 'couro_cano',
+  'couro_gaspea': 'couro_gaspea',
+  'couro_taloneira': 'couro_taloneira',
 };
 
 export function useFichaVariacoesLookup() {

@@ -296,7 +296,11 @@ const EditOrderPage = () => {
 
   const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
-  const couroPreco = [tipoCouroCano, tipoCouroGaspea, tipoCouroTaloneira].reduce((sum, t) => sum + (COURO_PRECOS[t] || 0), 0);
+  const couroPreco = [
+    [tipoCouroCano, 'couro_cano'],
+    [tipoCouroGaspea, 'couro_gaspea'],
+    [tipoCouroTaloneira, 'couro_taloneira'],
+  ].reduce((sum, [t, cat]) => sum + (findFichaPrice(t, cat) ?? COURO_PRECOS[t] ?? 0), 0);
   const findPrice = (b: string, cat: string, fallback: {label:string;preco:number}[]) =>
     findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
   const bordadoPreco =
