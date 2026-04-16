@@ -137,8 +137,14 @@ const OrderDetailPage = () => {
       if (p) priceItems.push([a, p]);
     });
   }
-  [order.couroCano, order.couroGaspea, order.couroTaloneira].forEach(t => {
-    if (t && COURO_PRECOS[t]) priceItems.push(['Couro: ' + t, COURO_PRECOS[t]]);
+  [
+    [order.couroCano, 'couro_cano'],
+    [order.couroGaspea, 'couro_gaspea'],
+    [order.couroTaloneira, 'couro_taloneira'],
+  ].forEach(([t, cat]) => {
+    if (!t) return;
+    const p = findFichaPrice(t, cat) ?? COURO_PRECOS[t] ?? 0;
+    if (p) priceItems.push(['Couro: ' + t, p]);
   });
   const desenvP = DESENVOLVIMENTO.find(d => d.label === order.desenvolvimento)?.preco;
   if (desenvP) priceItems.push(['Desenvolvimento: ' + order.desenvolvimento, desenvP]);
