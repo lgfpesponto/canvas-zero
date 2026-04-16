@@ -162,6 +162,13 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
       if (det.corCouro) couroFields.push({ label: 'Cor:', value: String(det.corCouro).toLowerCase() });
       if (couroFields.length) categories.push({ title: 'COURO', fields: couroFields });
 
+      const fivelaFields: CatField[] = [];
+      if (det.fivela) {
+        const fivelaText = det.fivela === 'Outro' && det.fivelaOutroDesc ? `outro — ${det.fivelaOutroDesc}` : det.fivela.toLowerCase();
+        fivelaFields.push({ label: 'Tipo:', value: fivelaText });
+      }
+      if (fivelaFields.length) categories.push({ title: 'FIVELA', fields: fivelaFields });
+
       const bordFields: CatField[] = [];
       if (det.bordadoP === 'Tem') bordFields.push({ label: 'Bordado P:', value: `${det.bordadoPDesc || ''}${det.bordadoPCor ? ' ' + det.bordadoPCor : ''}`.toLowerCase() });
       if (det.nomeBordado === 'Tem') bordFields.push({ label: 'Nome:', value: `${det.nomeBordadoDesc || ''}${det.nomeBordadoCor ? ' cor: ' + det.nomeBordadoCor : ''}${det.nomeBordadoFonte ? ' fonte: ' + det.nomeBordadoFonte : ''}`.toLowerCase() });
@@ -177,8 +184,9 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
       const colWidth = (pw - m * 2 - 4);
       const startX = m + 3;
       let cy = descTop;
+      let truncated = false;
       categories.forEach(cat => {
-        if (cy > descBottom) return;
+        if (cy > descBottom) { truncated = true; return; }
         doc.setFillColor(232, 232, 232);
         doc.rect(startX - 1, cy - 3.5, colWidth, 5, 'F');
         doc.setFontSize(9);
@@ -186,7 +194,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
         doc.text(cat.title, startX, cy);
         cy += fieldGap;
         cat.fields.forEach(f => {
-          if (cy > descBottom) return;
+          if (cy > descBottom) { truncated = true; return; }
           doc.setFontSize(fs);
           if (f.label) {
             doc.setFont('helvetica', 'bold');
@@ -196,6 +204,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
             const valLines = doc.splitTextToSize(f.value, colWidth - lw - 3);
             valLines.forEach((line: string, li: number) => {
               if (cy + li * (fieldGap * 0.8) <= descBottom) doc.text(line, startX + lw, cy + li * (fieldGap * 0.8));
+              else truncated = true;
             });
             cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
           } else {
@@ -203,12 +212,20 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
             const valLines = doc.splitTextToSize(f.value, colWidth - 3);
             valLines.forEach((line: string, li: number) => {
               if (cy + li * (fieldGap * 0.8) <= descBottom) doc.text(line, startX, cy + li * (fieldGap * 0.8));
+              else truncated = true;
             });
             cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
           }
         });
         cy += catGap;
       });
+      if (truncated) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(200, 0, 0);
+        doc.text('...conteúdo excedido', startX, descBottom + 3);
+        doc.setTextColor(0, 0, 0);
+      }
 
       const stubTop = ph - 34;
       doc.setLineWidth(0.3);
@@ -363,6 +380,10 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
     if (order.adicionalDesc) extrasFields.push({ label: 'Adicional:', value: `${order.adicionalDesc} R$${order.adicionalValor || 0}` });
     if (extrasFields.length) categories.push({ title: 'EXTRAS', fields: extrasFields });
 
+    if (order.desenvolvimento) {
+      categories.push({ title: 'DESENVOLVIMENTO', fields: [{ label: '', value: order.desenvolvimento }] });
+    }
+
     if (order.observacao) {
       categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
     }
@@ -385,6 +406,12 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
     };
 
     const catHeights = categories.map(c => estimateCatHeight(c));
+    const totalContentHeight = catHeights.reduce((s, h) => s + h, 0);
+    const availableHeight = (descBottom - descTop) * 3; // 3 columns
+    // Reduce font if content is dense
+    const useFontSize = totalContentHeight > availableHeight * 0.95 ? 9 : fs;
+    const useFieldGap = totalContentHeight > availableHeight * 0.95 ? 4.5 : fieldGap;
+
     const colHeights = [0, 0, 0];
     const colCats: number[][] = [[], [], []];
     catHeights.forEach((h, i) => {
@@ -395,18 +422,19 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
 
     const renderCats = (catIndices: number[], startX: number) => {
       let cy = descTop;
+      let truncated = false;
       catIndices.forEach(ci => {
         const cat = categories[ci];
-        if (cy > descBottom) return;
+        if (cy > descBottom) { truncated = true; return; }
         doc.setFillColor(232, 232, 232);
         doc.rect(startX - 1, cy - 3.5, colWidth, 5, 'F');
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.text(cat.title, startX, cy);
-        cy += fieldGap;
+        cy += useFieldGap;
         cat.fields.forEach(f => {
-          if (cy > descBottom) return;
-          doc.setFontSize(fs);
+          if (cy > descBottom) { truncated = true; return; }
+          doc.setFontSize(useFontSize);
           if (f.label) {
             doc.setFont('helvetica', 'bold');
             doc.text(f.label, startX, cy);
@@ -414,24 +442,31 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
             doc.setFont('helvetica', 'normal');
             const valLines = doc.splitTextToSize(f.value, colWidth - lw - 3);
             valLines.forEach((line: string, li: number) => {
-              if (cy + li * (fieldGap * 0.8) <= descBottom) {
-                doc.text(line, startX + lw, cy + li * (fieldGap * 0.8));
-              }
+              if (cy + li * (useFieldGap * 0.8) <= descBottom) {
+                doc.text(line, startX + lw, cy + li * (useFieldGap * 0.8));
+              } else { truncated = true; }
             });
-            cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
+            cy += Math.max(valLines.length, 1) * (useFieldGap * 0.8);
           } else {
             doc.setFont('helvetica', 'normal');
             const valLines = doc.splitTextToSize(f.value, colWidth - 3);
             valLines.forEach((line: string, li: number) => {
-              if (cy + li * (fieldGap * 0.8) <= descBottom) {
-                doc.text(line, startX, cy + li * (fieldGap * 0.8));
-              }
+              if (cy + li * (useFieldGap * 0.8) <= descBottom) {
+                doc.text(line, startX, cy + li * (useFieldGap * 0.8));
+              } else { truncated = true; }
             });
-            cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
+            cy += Math.max(valLines.length, 1) * (useFieldGap * 0.8);
           }
         });
         cy += catGap;
       });
+      if (truncated) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(200, 0, 0);
+        doc.text('...conteúdo excedido', startX, descBottom + 3);
+        doc.setTextColor(0, 0, 0);
+      }
     };
 
     renderCats(colCats[0], col1X);
