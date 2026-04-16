@@ -184,8 +184,9 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
       const colWidth = (pw - m * 2 - 4);
       const startX = m + 3;
       let cy = descTop;
+      let truncated = false;
       categories.forEach(cat => {
-        if (cy > descBottom) return;
+        if (cy > descBottom) { truncated = true; return; }
         doc.setFillColor(232, 232, 232);
         doc.rect(startX - 1, cy - 3.5, colWidth, 5, 'F');
         doc.setFontSize(9);
@@ -193,7 +194,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
         doc.text(cat.title, startX, cy);
         cy += fieldGap;
         cat.fields.forEach(f => {
-          if (cy > descBottom) return;
+          if (cy > descBottom) { truncated = true; return; }
           doc.setFontSize(fs);
           if (f.label) {
             doc.setFont('helvetica', 'bold');
@@ -203,6 +204,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
             const valLines = doc.splitTextToSize(f.value, colWidth - lw - 3);
             valLines.forEach((line: string, li: number) => {
               if (cy + li * (fieldGap * 0.8) <= descBottom) doc.text(line, startX + lw, cy + li * (fieldGap * 0.8));
+              else truncated = true;
             });
             cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
           } else {
@@ -210,12 +212,20 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
             const valLines = doc.splitTextToSize(f.value, colWidth - 3);
             valLines.forEach((line: string, li: number) => {
               if (cy + li * (fieldGap * 0.8) <= descBottom) doc.text(line, startX, cy + li * (fieldGap * 0.8));
+              else truncated = true;
             });
             cy += Math.max(valLines.length, 1) * (fieldGap * 0.8);
           }
         });
         cy += catGap;
       });
+      if (truncated) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(200, 0, 0);
+        doc.text('...conteúdo excedido', startX, descBottom + 3);
+        doc.setTextColor(0, 0, 0);
+      }
 
       const stubTop = ph - 34;
       doc.setLineWidth(0.3);
