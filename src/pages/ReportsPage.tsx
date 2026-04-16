@@ -357,7 +357,7 @@ const ReportsPage = () => {
                     <button onClick={() => setShowProgressModal(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity">
                       <RefreshCw size={16} /> Mudar progresso de produção
                     </button>
-                    <button onClick={() => { setSelectedIds(new Set()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
+                    <button onClick={() => { setSelectedIds(new Set()); setScannedOrdersMap(new Map()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
                       Limpar seleção
                     </button>
                   </div>
