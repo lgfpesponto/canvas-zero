@@ -194,6 +194,7 @@ const ReportsPage = () => {
     setSelectedProgress('');
     setProgressObservacao('');
     setSelectedIds(new Set());
+    setScannedOrdersMap(new Map());
     setLastScannedNumero(null);
     setShowSelectedList(false);
     refetchOrders();
