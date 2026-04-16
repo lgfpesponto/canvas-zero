@@ -176,9 +176,13 @@ const ReportsPage = () => {
     }
   };
 
-  const ordersToExport = useMemo(() => selectedIds.size > 0
-    ? serverOrders.filter(o => selectedIds.has(o.id))
-    : serverOrders, [selectedIds, serverOrders]);
+  const ordersToExport = useMemo(() => {
+    if (selectedIds.size === 0) return serverOrders;
+    // Merge server orders + scanned orders map for full coverage
+    const allMap = new Map(serverOrders.map(o => [o.id, o]));
+    scannedOrdersMap.forEach((o, id) => { if (!allMap.has(id)) allMap.set(id, o); });
+    return [...allMap.values()].filter(o => selectedIds.has(o.id));
+  }, [selectedIds, serverOrders, scannedOrdersMap]);
 
   const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
