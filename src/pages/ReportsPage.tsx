@@ -319,7 +319,7 @@ const ReportsPage = () => {
                   </div>
                   {showSelectedList && (
                     <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
-                      {serverOrders.filter(o => selectedIds.has(o.id)).map(o => (
+                      {[...scannedOrdersMap.values()].filter(o => selectedIds.has(o.id)).map(o => (
                         <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
                           <span className="font-bold text-green-300">{o.numero}</span>
                           <div className="flex items-center gap-2">
