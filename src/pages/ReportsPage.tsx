@@ -50,6 +50,7 @@ const ReportsPage = () => {
     return v ? new Set(v.split(',')) : new Set(defaultProduto);
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
   // Bulk progress modal
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -175,9 +176,13 @@ const ReportsPage = () => {
     }
   };
 
-  const ordersToExport = useMemo(() => selectedIds.size > 0
-    ? serverOrders.filter(o => selectedIds.has(o.id))
-    : serverOrders, [selectedIds, serverOrders]);
+  const ordersToExport = useMemo(() => {
+    if (selectedIds.size === 0) return serverOrders;
+    // Merge server orders + scanned orders map for full coverage
+    const allMap = new Map(serverOrders.map(o => [o.id, o]));
+    scannedOrdersMap.forEach((o, id) => { if (!allMap.has(id)) allMap.set(id, o); });
+    return [...allMap.values()].filter(o => selectedIds.has(o.id));
+  }, [selectedIds, serverOrders, scannedOrdersMap]);
 
   const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
@@ -189,6 +194,7 @@ const ReportsPage = () => {
     setSelectedProgress('');
     setProgressObservacao('');
     setSelectedIds(new Set());
+    setScannedOrdersMap(new Map());
     setLastScannedNumero(null);
     setShowSelectedList(false);
     refetchOrders();
@@ -211,6 +217,12 @@ const ReportsPage = () => {
           next.add(match.id);
           setLastScannedNumero(match.numero);
           playBeep();
+          return next;
+        });
+        // Accumulate scanned order data so "Visualizar pedidos" always has it
+        setScannedOrdersMap(prev => {
+          const next = new Map(prev);
+          next.set(match.id, match);
           return next;
         });
         setScanFilterId(match.id);
@@ -308,7 +320,7 @@ const ReportsPage = () => {
                   </div>
                   {showSelectedList && (
                     <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
-                      {serverOrders.filter(o => selectedIds.has(o.id)).map(o => (
+                      {[...scannedOrdersMap.values()].filter(o => selectedIds.has(o.id)).map(o => (
                         <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
                           <span className="font-bold text-green-300">{o.numero}</span>
                           <div className="flex items-center gap-2">
@@ -346,7 +358,7 @@ const ReportsPage = () => {
                     <button onClick={() => setShowProgressModal(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity">
                       <RefreshCw size={16} /> Mudar progresso de produção
                     </button>
-                    <button onClick={() => { setSelectedIds(new Set()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
+                    <button onClick={() => { setSelectedIds(new Set()); setScannedOrdersMap(new Map()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
                       Limpar seleção
                     </button>
                   </div>
