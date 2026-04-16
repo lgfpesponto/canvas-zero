@@ -1,43 +1,34 @@
 
 
-## Diagnóstico: Preços de couro embutidos no código, não visíveis no admin
+## Diagnóstico: "Visualizar pedidos" não mostra os pedidos escaneados
 
-### Situação atual
+### Causa raiz
 
-Os preços dos tipos de couro estão **hardcoded** no arquivo `src/lib/orderFieldsConfig.ts` no objeto `COURO_PRECOS`:
+Na linha 311 de `ReportsPage.tsx`, a lista de pedidos selecionados é construída assim:
 
-```text
-Estilizado em Dinossauro  → R$ 50
-Estilizado em Avestruz    → R$ 10
-Estilizado em Tatu        → R$ 40
-Aramado                   → R$ 40
-Escamado                  → R$ 20
-Estilizado Duplo          → R$ 20
-Vaca Holandesa            → R$ 15
-Vaca Pintada              → R$ 15
+```typescript
+serverOrders.filter(o => selectedIds.has(o.id))
 ```
 
-No banco de dados (`ficha_variacoes`), os campos `couro_cano`, `couro_gaspea` e `couro_taloneira` existem mas **todas as variações estão com `preco_adicional = 0`**. O formulário de pedido (`OrderPage.tsx`) usa `COURO_PRECOS[t]` diretamente — nunca consulta `ficha_variacoes` para couros.
+O problema: `serverOrders` é **paginado** e contém apenas os pedidos da página atual. Quando você escaneia vários pedidos sequencialmente, cada scan define `scanFilterId` para o último pedido escaneado — fazendo `serverOrders` conter apenas esse último pedido. Os pedidos escaneados anteriormente **não estão mais em `serverOrders`**, então o filtro retorna lista vazia.
 
-Ou seja: diferente de bordados e laser (que já usam a cascata `ficha_variacoes → custom_options → fallback`), os couros **pulam** essa cascata e vão direto no hardcoded.
+O mesmo problema afeta o `ordersToExport` (linha 178-179) e as verificações de PDF (linhas 674+).
 
-### Plano de correção
+### Correção proposta
 
-#### 1. Atualizar preços no banco de dados
-Executar UPDATE nos registros de `ficha_variacoes` para os campos `couro_cano`, `couro_gaspea` e `couro_taloneira`, preenchendo o `preco_adicional` com os valores do `COURO_PRECOS` hardcoded. As 3 partes (cano, gáspea, taloneira) compartilham os mesmos tipos de couro, então os mesmos preços se aplicam.
+**Arquivo: `src/pages/ReportsPage.tsx`**
 
-#### 2. Integrar couros na cascata de preços
-Adicionar `couro_cano`, `couro_gaspea` e `couro_taloneira` ao `CATEGORY_MAP` em `useFichaVariacoesLookup.ts`, permitindo que `findFichaPrice` funcione para couros.
+1. **Adicionar estado para pedidos escaneados**: Criar um `Map<string, Order>` local (`scannedOrdersMap`) que acumula todos os pedidos escaneados durante a sessão do scanner
 
-#### 3. Alterar cálculo de preço no formulário
-Em `OrderPage.tsx`, `EditOrderPage.tsx` e `OrderDetailPage.tsx`, substituir `COURO_PRECOS[t]` pela cascata `findFichaPrice(t, 'couro_cano') ?? COURO_PRECOS[t] ?? 0` — mantendo o fallback hardcoded como segurança.
+2. **Alimentar o map no handleScan**: Quando `fetchOrderByScan` retorna um pedido, armazená-lo no map além de adicioná-lo ao `selectedIds`
+
+3. **Corrigir "Visualizar pedidos"**: Na seção `showSelectedList`, usar o `scannedOrdersMap` como fonte dos pedidos selecionados em vez de `serverOrders.filter(...)`
+
+4. **Corrigir `ordersToExport`**: Usar `fetchOrdersByIds` (já importado) ou o map local para garantir que todos os pedidos selecionados estejam disponíveis para exportação e mudança de status
 
 ### O que NÃO muda
-- Os valores finais dos pedidos existentes (preços já salvos no banco)
-- A lista de tipos de couro disponíveis (continua vindo de `TIPOS_COURO`)
-- A lógica de cores por tipo de couro
-- O `COURO_PRECOS` permanece como fallback de segurança
-
-### Resultado
-Depois da mudança, ao alterar o preço de um couro na página de configurações, o novo valor será usado automaticamente no "Faça seu pedido". Os preços ficarão visíveis e editáveis no admin.
+- Lógica de scan (`fetchOrderByScan`) continua igual
+- Paginação e filtros normais não são afetados
+- O `selectedIds` continua sendo o Set de controle
+- O beep e feedback visual continuam iguais
 
