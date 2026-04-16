@@ -162,6 +162,13 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
       if (det.corCouro) couroFields.push({ label: 'Cor:', value: String(det.corCouro).toLowerCase() });
       if (couroFields.length) categories.push({ title: 'COURO', fields: couroFields });
 
+      const fivelaFields: CatField[] = [];
+      if (det.fivela) {
+        const fivelaText = det.fivela === 'Outro' && det.fivelaOutroDesc ? `outro — ${det.fivelaOutroDesc}` : det.fivela.toLowerCase();
+        fivelaFields.push({ label: 'Tipo:', value: fivelaText });
+      }
+      if (fivelaFields.length) categories.push({ title: 'FIVELA', fields: fivelaFields });
+
       const bordFields: CatField[] = [];
       if (det.bordadoP === 'Tem') bordFields.push({ label: 'Bordado P:', value: `${det.bordadoPDesc || ''}${det.bordadoPCor ? ' ' + det.bordadoPCor : ''}`.toLowerCase() });
       if (det.nomeBordado === 'Tem') bordFields.push({ label: 'Nome:', value: `${det.nomeBordadoDesc || ''}${det.nomeBordadoCor ? ' cor: ' + det.nomeBordadoCor : ''}${det.nomeBordadoFonte ? ' fonte: ' + det.nomeBordadoFonte : ''}`.toLowerCase() });
