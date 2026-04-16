@@ -214,6 +214,12 @@ const ReportsPage = () => {
           playBeep();
           return next;
         });
+        // Accumulate scanned order data so "Visualizar pedidos" always has it
+        setScannedOrdersMap(prev => {
+          const next = new Map(prev);
+          next.set(match.id, match);
+          return next;
+        });
         setScanFilterId(match.id);
       } else {
         navigate(`/pedido/${match.id}`);
