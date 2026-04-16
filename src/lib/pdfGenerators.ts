@@ -363,6 +363,10 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
     if (order.adicionalDesc) extrasFields.push({ label: 'Adicional:', value: `${order.adicionalDesc} R$${order.adicionalValor || 0}` });
     if (extrasFields.length) categories.push({ title: 'EXTRAS', fields: extrasFields });
 
+    if (order.desenvolvimento) {
+      categories.push({ title: 'DESENVOLVIMENTO', fields: [{ label: '', value: order.desenvolvimento }] });
+    }
+
     if (order.observacao) {
       categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
     }
