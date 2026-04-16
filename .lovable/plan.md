@@ -1,34 +1,37 @@
 
 
-## Diagnóstico: "Visualizar pedidos" não mostra os pedidos escaneados
+## Correção: Metais, Strass, Cruz, Bridão e Cavalo não aparecem na ficha impressa sem "Área Metal"
 
-### Causa raiz
+### Problema
+No PDF (`pdfGenerators.ts` linhas 355-367), toda a seção METAIS só é criada quando `order.metais` (Área Metal) está preenchido. Se o usuário marca apenas Strass, Cruz, Bridão ou Cavalo sem selecionar área de metal, nada aparece na ficha impressa.
 
-Na linha 311 de `ReportsPage.tsx`, a lista de pedidos selecionados é construída assim:
-
-```typescript
-serverOrders.filter(o => selectedIds.has(o.id))
-```
-
-O problema: `serverOrders` é **paginado** e contém apenas os pedidos da página atual. Quando você escaneia vários pedidos sequencialmente, cada scan define `scanFilterId` para o último pedido escaneado — fazendo `serverOrders` conter apenas esse último pedido. Os pedidos escaneados anteriormente **não estão mais em `serverOrders`**, então o filtro retorna lista vazia.
-
-O mesmo problema afeta o `ordersToExport` (linha 178-179) e as verificações de PDF (linhas 674+).
+Além disso, **Cavalo (metal)**, **Franja** e **Corrente** — que são salvos dentro de `extraDetalhes` (JSONB) — **nunca são renderizados no PDF nem na página de detalhes** (`OrderDetailPage.tsx`).
 
 ### Correção proposta
 
-**Arquivo: `src/pages/ReportsPage.tsx`**
+#### 1. PDF (`src/lib/pdfGenerators.ts`)
+- Extrair `cavaloMetal`, `franja`, `corrente` de `order.extraDetalhes`
+- Substituir a condição `if (order.metais)` por uma verificação abrangente:
+  ```
+  hasMetalData = metais || tipoMetal || corMetal || strassQtd || 
+                 cruzMetalQtd || bridaoMetalQtd || cavaloMetalQtd
+  ```
+- Dentro do bloco, montar "Metais:" só se houver área/tipo/cor
+- Montar os extras (strass, cruz, bridão, cavalo) independentemente
+- Adicionar franja e corrente na seção EXTRAS do PDF
 
-1. **Adicionar estado para pedidos escaneados**: Criar um `Map<string, Order>` local (`scannedOrdersMap`) que acumula todos os pedidos escaneados durante a sessão do scanner
-
-2. **Alimentar o map no handleScan**: Quando `fetchOrderByScan` retorna um pedido, armazená-lo no map além de adicioná-lo ao `selectedIds`
-
-3. **Corrigir "Visualizar pedidos"**: Na seção `showSelectedList`, usar o `scannedOrdersMap` como fonte dos pedidos selecionados em vez de `serverOrders.filter(...)`
-
-4. **Corrigir `ordersToExport`**: Usar `fetchOrdersByIds` (já importado) ou o map local para garantir que todos os pedidos selecionados estejam disponíveis para exportação e mudança de status
+#### 2. Detalhes do pedido (`src/pages/OrderDetailPage.tsx`)
+- Adicionar na lista `details` (após Bridão):
+  - `['Cavalo (metal)', ...]` lendo de `order.extraDetalhes`
+  - `['Franja', ...]` lendo de `order.extraDetalhes`  
+  - `['Corrente', ...]` lendo de `order.extraDetalhes`
+- Adicionar no breakdown de preço:
+  - Cavalo metal (qtd × R$5)
+  - Franja (R$15)
+  - Corrente (R$10)
 
 ### O que NÃO muda
-- Lógica de scan (`fetchOrderByScan`) continua igual
-- Paginação e filtros normais não são afetados
-- O `selectedIds` continua sendo o Set de controle
-- O beep e feedback visual continuam iguais
+- Formulário de pedido (já funciona corretamente)
+- Dados salvos no banco
+- Estrutura geral do PDF
 
