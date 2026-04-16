@@ -353,18 +353,25 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
     categories.push({ title: 'SOLADOS', fields: soladoFields });
 
     const metaisFields: CatField[] = [];
-    if (order.metais) {
-      const metalParts = [order.metais.toLowerCase()];
-      if (order.tipoMetal) metalParts.push(order.tipoMetal.toLowerCase());
-      if (order.corMetal) metalParts.push(order.corMetal.toLowerCase());
-      metaisFields.push({ label: 'Metais:', value: metalParts.join(', ') });
+    const det: any = order.extraDetalhes || {};
+    const cavaloMetalQtd = det.cavaloMetal ? (Number(det.cavaloMetalQtd) || 0) : 0;
+    const hasMetalData = !!(order.metais || order.tipoMetal || order.corMetal ||
+      order.strassQtd || order.cruzMetalQtd || order.bridaoMetalQtd || cavaloMetalQtd);
+    if (hasMetalData) {
+      if (order.metais) {
+        const metalParts = [order.metais.toLowerCase()];
+        if (order.tipoMetal) metalParts.push(order.tipoMetal.toLowerCase());
+        if (order.corMetal) metalParts.push(order.corMetal.toLowerCase());
+        metaisFields.push({ label: 'Metais:', value: metalParts.join(', ') });
+      }
       const metalExtras: string[] = [];
       if (order.strassQtd) metalExtras.push(`strass x${order.strassQtd}`);
       if (order.cruzMetalQtd) metalExtras.push(`cruz x${order.cruzMetalQtd}`);
-      if (order.bridaoMetalQtd) metalExtras.push(`bridao x${order.bridaoMetalQtd}`);
+      if (order.bridaoMetalQtd) metalExtras.push(`bridão x${order.bridaoMetalQtd}`);
+      if (cavaloMetalQtd) metalExtras.push(`cavalo x${cavaloMetalQtd}`);
       if (metalExtras.length) metaisFields.push({ label: '', value: metalExtras.join(', ') });
+      categories.push({ title: 'METAIS', fields: metaisFields });
     }
-    if (metaisFields.length) categories.push({ title: 'METAIS', fields: metaisFields });
 
     const acessorioFields: CatField[] = [];
     if (order.acessorios) acessorioFields.push({ label: '', value: order.acessorios });
@@ -373,6 +380,8 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
     const extrasFields: CatField[] = [];
     if (order.trisce === 'Sim' && order.triceDesc) extrasFields.push({ label: 'Tricê:', value: order.triceDesc.toLowerCase() });
     if (order.tiras === 'Sim' && order.tirasDesc) extrasFields.push({ label: 'Tiras:', value: order.tirasDesc.toLowerCase() });
+    if (det.franja) extrasFields.push({ label: 'Franja:', value: [det.franjaCouro, det.franjaCor].filter(Boolean).join(' — ').toLowerCase() || 'sim' });
+    if (det.corrente) extrasFields.push({ label: 'Corrente:', value: det.correnteCor?.toLowerCase() || 'sim' });
     if (order.costuraAtras === 'Sim') extrasFields.push({ label: 'Costura atrás:', value: 'sim' });
     if (order.estampa === 'Sim') extrasFields.push({ label: 'Estampa:', value: order.estampaDesc || 'sim' });
     if (order.pintura === 'Sim') extrasFields.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });

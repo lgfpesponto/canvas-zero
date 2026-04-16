@@ -20,7 +20,8 @@ import {
   CARIMBO, AREA_METAL, DESENVOLVIMENTO,
   SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO, PINTURA_PRECO,
   TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, CRUZ_METAL_PRECO,
-  BRIDAO_METAL_PRECO, LASER_CANO_PRECO, LASER_GASPEA_PRECO, GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
+  BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO, FRANJA_PRECO, CORRENTE_PRECO,
+  LASER_CANO_PRECO, LASER_GASPEA_PRECO, GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
   VIRA_HIDDEN,
 } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
@@ -115,8 +116,11 @@ const OrderDetailPage = () => {
     ['Strass', order.strassQtd ? `${order.strassQtd} un.` : ''],
     ['Cruz (metal)', order.cruzMetalQtd ? `${order.cruzMetalQtd} un.` : ''],
     ['Bridão (metal)', order.bridaoMetalQtd ? `${order.bridaoMetalQtd} un.` : ''],
+    ['Cavalo (metal)', (order.extraDetalhes as any)?.cavaloMetal ? `${(order.extraDetalhes as any).cavaloMetalQtd || 0} un.` : ''],
     ['Tricê', order.trisce === 'Sim' ? (order.triceDesc || 'Sim') : ''],
     ['Tiras', order.tiras === 'Sim' ? (order.tirasDesc || 'Sim') : ''],
+    ['Franja', (order.extraDetalhes as any)?.franja ? [(order.extraDetalhes as any).franjaCouro, (order.extraDetalhes as any).franjaCor].filter(Boolean).join(' — ') || 'Sim' : ''],
+    ['Corrente', (order.extraDetalhes as any)?.corrente ? ((order.extraDetalhes as any).correnteCor || 'Sim') : ''],
     ['Solado', order.solado],
     ['Formato do Bico', order.formatoBico || ''],
     ['Cor da Sola', order.corSola || ''],
@@ -174,8 +178,12 @@ const OrderDetailPage = () => {
   if (order.strassQtd) priceItems.push([`Strass (${order.strassQtd} un.)`, order.strassQtd * STRASS_PRECO]);
   if (order.cruzMetalQtd) priceItems.push([`Cruz metal (${order.cruzMetalQtd} un.)`, order.cruzMetalQtd * CRUZ_METAL_PRECO]);
   if (order.bridaoMetalQtd) priceItems.push([`Bridão metal (${order.bridaoMetalQtd} un.)`, order.bridaoMetalQtd * BRIDAO_METAL_PRECO]);
+  const detP: any = order.extraDetalhes || {};
+  if (detP.cavaloMetal && detP.cavaloMetalQtd) priceItems.push([`Cavalo metal (${detP.cavaloMetalQtd} un.)`, detP.cavaloMetalQtd * CAVALO_METAL_PRECO]);
   if (order.trisce === 'Sim') priceItems.push(['Tricê', TRICE_PRECO]);
   if (order.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
+  if (detP.franja) priceItems.push(['Franja', FRANJA_PRECO]);
+  if (detP.corrente) priceItems.push(['Corrente', CORRENTE_PRECO]);
   const soladoP = SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
   const corSolaP = COR_SOLA.find(c => c.label === order.corSola)?.preco;
