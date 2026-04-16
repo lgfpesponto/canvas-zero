@@ -1,27 +1,31 @@
 
 
-## Plano: Remover botões não utilizados da página de configurações (Ficha Bota)
+## Diagnóstico: Informações faltando nas fichas impressas (PDF)
 
-### Escopo
+### Problemas encontrados
 
-Remover **apenas** da página `src/pages/AdminConfigFichaPage.tsx` os seguintes botões da barra de ações:
+#### 1. Campo "Desenvolvimento" nunca é impresso (BOTA)
+O campo `desenvolvimento` é coletado no formulário de pedido (`OrderPage.tsx` linha 166), salvo no banco de dados, mas **nunca é adicionado ao PDF** em `pdfGenerators.ts`. Ele simplesmente não existe na construção das categorias do PDF (linhas 296-368).
 
-1. **"Criar Modelo"** — não é usado nesta página de configuração
-2. **"Modelos"** — não é usado nesta página de configuração
-3. **"sincronizar"** — sem função real (apenas invalida cache)
+#### 2. Campo "Fivela" nunca é impresso (CINTO)
+O campo `fivela` é obrigatório no formulário de cinto (`BeltOrderPage.tsx` linha 140), salvo no `extraDetalhes`, mas o PDF de cinto (linhas 129-239) **não renderiza a fivela**. Só mostra COURO, BORDADOS, CARIMBO e OBS.
 
-### O que NÃO muda (garantia explícita)
+#### 3. Truncamento silencioso de conteúdo
+Nas linhas 400 e 408, o código faz `if (cy > descBottom) return;` — se uma coluna ultrapassar o limite de espaço (~62.5mm por coluna), os campos restantes são **silenciosamente descartados** sem nenhum aviso ou continuação em outra página.
 
-- **Formulário "Faça seu pedido" (OrderPage / DynamicOrderPage)**: botões de Criar Modelo e Modelos permanecem intactos
-- **Sistema de templates**: tabela `order_templates`, hooks `useTemplateManagement`, geração de grades — zero alterações
-- **Lógica de modelos vs fichas alteradas**: regras de compatibilidade quando a ficha muda após criação do modelo — preservadas
-- **Todo o restante da AdminConfigFichaPage**: edição de variações, campos, categorias, reordenação, "Salvar no banco"
+### Correções propostas
 
-### Alteração técnica
+**Arquivo: `src/lib/pdfGenerators.ts`**
 
-**Arquivo**: `src/pages/AdminConfigFichaPage.tsx`
+1. **Adicionar "Desenvolvimento"** na seção de categorias do boot layout — como uma nova categoria entre EXTRAS ou em posição própria, exibindo o valor quando preenchido
 
-- Remover o bloco condicional `{isBoot && (<>...</>)}` que renderiza os botões "Criar Modelo" e "Modelos" na barra de ações (~linhas 2154-2159)
-- Remover o botão "sincronizar" (~linhas 2185-2197)
-- Nenhum outro arquivo é tocado
+2. **Adicionar "Fivela"** no layout de cinto — como uma nova categoria após COURO, exibindo o tipo e descrição personalizada quando "Outro"
+
+3. **Melhorar tratamento de overflow** — em vez de silenciosamente ignorar campos que ultrapassam `descBottom`, redistribuir melhor as categorias ou adicionar indicação visual quando conteúdo é cortado
+
+### O que NÃO muda
+- Estrutura geral do PDF (A5 landscape, 3 colunas, stubs com barcode)
+- Ordenação por tipo de couro
+- Lógica de QR code e barcode
+- Demais campos já renderizados corretamente
 
