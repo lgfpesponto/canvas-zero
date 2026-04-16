@@ -50,6 +50,7 @@ const ReportsPage = () => {
     return v ? new Set(v.split(',')) : new Set(defaultProduto);
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
   // Bulk progress modal
   const [showProgressModal, setShowProgressModal] = useState(false);
