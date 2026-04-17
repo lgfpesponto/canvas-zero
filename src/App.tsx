@@ -21,7 +21,7 @@ import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
 import DynamicOrderPage from "./pages/DynamicOrderPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
-import VerifyCodePage from "./pages/VerifyCodePage";
+// import VerifyCodePage from "./pages/VerifyCodePage"; // Temporariamente desativado — reativar descomentando esta linha e a rota /verificar abaixo
 import AdminConfigPage from "./pages/AdminConfigPage";
 import AdminConfigFichaPage from "./pages/AdminConfigFichaPage";
 import AdminConfigVariacoesPage from "./pages/AdminConfigVariacoesPage";
