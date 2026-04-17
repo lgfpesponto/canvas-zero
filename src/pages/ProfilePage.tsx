@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
-  const { isLoggedIn, isAdmin, user, updateProfile } = useAuth();
+  const { isLoggedIn, isAdmin, user, updateProfile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Server-side aggregated data
@@ -17,11 +17,9 @@ const ProfilePage = () => {
 
   useEffect(() => {
     if (!user || isAdmin) return;
-    // Fetch pending value
     supabase.rpc('get_pending_value', { vendor: user.nomeCompleto }).then(({ data }) => {
       if (data !== null) setPendente(Number(data));
     });
-    // Fetch production counts
     supabase.rpc('get_production_counts').then(({ data }) => {
       if (data && data[0]) {
         setBotasProducao(Number(data[0].in_production));
@@ -29,6 +27,13 @@ const ProfilePage = () => {
       }
     });
   }, [user, isAdmin]);
+
+  // Redirect only after auth is fully loaded — avoids flicker/false logout
+  useEffect(() => {
+    if (!authLoading && (!isLoggedIn || !user)) {
+      navigate('/login');
+    }
+  }, [authLoading, isLoggedIn, user, navigate]);
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const [editing, setEditing] = useState(false);
@@ -39,10 +44,14 @@ const ProfilePage = () => {
     cpfCnpj: '',
   });
 
-  if (!isLoggedIn || !user) {
-    navigate('/login');
-    return null;
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
   }
+  if (!isLoggedIn || !user) return null;
 
   const startEdit = () => {
     setForm({

@@ -39,10 +39,9 @@ Deno.serve(async (req) => {
 
     const callerId = claimsData.claims.sub as string;
 
-    // Check admin role
-    const { data: isAdmin } = await anonClient.rpc("has_role", {
+    // Check admin role (any admin)
+    const { data: isAdmin } = await anonClient.rpc("is_any_admin", {
       _user_id: callerId,
-      _role: "admin",
     });
 
     if (!isAdmin) {
