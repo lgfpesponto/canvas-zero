@@ -176,13 +176,24 @@ const ReportsPage = () => {
     }
   };
 
+  // Memoize merged map separately so it only rebuilds when source data changes (not on every toggle)
+  const mergedOrdersMap = useMemo(() => {
+    const m = new Map(serverOrders.map(o => [o.id, o] as const));
+    scannedOrdersMap.forEach((o, id) => { if (!m.has(id)) m.set(id, o); });
+    return m;
+  }, [serverOrders, scannedOrdersMap]);
+
   const ordersToExport = useMemo(() => {
     if (selectedIds.size === 0) return serverOrders;
-    // Merge server orders + scanned orders map for full coverage
-    const allMap = new Map(serverOrders.map(o => [o.id, o]));
-    scannedOrdersMap.forEach((o, id) => { if (!allMap.has(id)) allMap.set(id, o); });
-    return [...allMap.values()].filter(o => selectedIds.has(o.id));
-  }, [selectedIds, serverOrders, scannedOrdersMap]);
+    const out: import('@/contexts/AuthContext').Order[] = [];
+    selectedIds.forEach(id => { const o = mergedOrdersMap.get(id); if (o) out.push(o); });
+    return out;
+  }, [selectedIds, serverOrders, mergedOrdersMap]);
+
+  const selectedScannedList = useMemo(
+    () => [...scannedOrdersMap.values()].filter(o => selectedIds.has(o.id)),
+    [scannedOrdersMap, selectedIds]
+  );
 
   const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
