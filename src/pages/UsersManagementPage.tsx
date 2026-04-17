@@ -128,14 +128,49 @@ const UsersManagementPage = () => {
     });
   };
 
+  const sanitizeUsername = (u: string) =>
+    u.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+
   const handleSave = async () => {
     if (!editProfile) return;
     setSaving(true);
 
-    // Update profile fields
+    const newUsernameRaw = (editForm.nome_usuario || '').trim();
+    const oldUsernameSanitized = sanitizeUsername(editProfile.nome_usuario);
+    const newUsernameSanitized = sanitizeUsername(newUsernameRaw);
+
+    if (!newUsernameSanitized) {
+      toast({ title: 'Nome de usuário inválido', description: 'Use apenas letras e números.', variant: 'destructive' });
+      setSaving(false);
+      return;
+    }
+
+    // 1) If username changed, sync Supabase Auth email FIRST (login depends on it)
+    if (newUsernameSanitized !== oldUsernameSanitized) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const credRes = await supabase.functions.invoke('update-user-credentials', {
+        body: { userId: editProfile.id, nomeUsuario: newUsernameSanitized },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (credRes.error || credRes.data?.error) {
+        toast({
+          title: 'Erro ao atualizar login do usuário',
+          description: credRes.error?.message || credRes.data?.error || 'Falha desconhecida',
+          variant: 'destructive',
+        });
+        setSaving(false);
+        return;
+      }
+    }
+
+    // 2) Update profile fields (use sanitized username so it matches the login)
     const { error } = await supabase.from('profiles').update({
       nome_completo: editForm.nome_completo || '',
-      nome_usuario: editForm.nome_usuario || '',
+      nome_usuario: newUsernameSanitized,
       email: editForm.email || '',
       telefone: editForm.telefone || '',
       cpf_cnpj: editForm.cpf_cnpj || '',
@@ -147,7 +182,7 @@ const UsersManagementPage = () => {
       return;
     }
 
-    // Update role if changed
+    // 3) Update role if changed
     if (editForm.role && editForm.role !== editProfile.role) {
       const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', editProfile.id).maybeSingle();
       if (existingRole) {
@@ -157,7 +192,7 @@ const UsersManagementPage = () => {
       }
     }
 
-    // Update password if provided
+    // 4) Update password if provided
     if (editForm.newPassword && editForm.newPassword.length > 0) {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
