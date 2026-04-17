@@ -1,108 +1,125 @@
 
-## Diagnóstico
+## Diagnóstico objetivo
 
-Do I know what the issue is? Sim, com boa precisão.
+**Do I know what the issue is? Sim.**
 
-O sistema não parece estar “caído” no Supabase/Auth. As evidências apontam para um problema de autenticação no frontend e possível divergência entre o login exibido no cadastro e o login real salvo no Auth.
+O backend está aceitando a autenticação da Fernanda, mas o frontend ainda está tratando a sessão como “não pronta”. Por isso parece que “entrou no backend mas não entrou no sistema”.
 
-### O que encontrei
-- Os logs de Auth mostram `/token` e `/user` respondendo com sucesso; então o backend de autenticação está funcionando.
-- O horário “13:10” que apareceu antes está em UTC/log do Supabase, não no horário local de Brasília. Então isso não prova login fantasma; foi interpretação de fuso.
-- Em `src/contexts/AuthContext.tsx`, a inicialização está frágil:
-  - `getSession()` roda antes de registrar `onAuthStateChange`
-  - o callback chama função async sem controle de readiness
-  - `isLoggedIn` depende de `!!user`, mas várias telas não esperam `loading`
-- Isso pode gerar estado inconsistente: sessão existe, mas o app ainda não carregou o profile/role e parece “travado” ou deslogado.
-- Há um segundo problema importante no fluxo de usuários:
-  - o login usa `${username}@7estrivos.app`
-  - mas ao editar usuário em `UsersManagementPage.tsx`, altera só `profiles.nome_usuario`
-  - não existe sincronização do email real em `auth.users`
-  - então o “usuário” mostrado na tela pode não ser mais o login real
-- Também existe inconsistência de normalização:
-  - login sanitiza mais agressivamente
-  - create-user sanitiza diferente
-  - isso pode quebrar logins dependendo do nome de usuário
+### O que confirma isso
+- Os logs de auth mostram **refresh/login com sucesso** para `fernanda@7estrivos.app`.
+- Então o problema **não é senha errada** nem Auth do Supabase fora do ar.
+- No código atual, `isLoggedIn` depende de `!!user` em `AuthContext.tsx`.
+- Só que `user` só é preenchido **depois** de buscar `profiles` + `user_roles`.
+- E o `loading` é desligado no `finally` do `getSession()`, mesmo que o `loadProfile()` ainda não tenha terminado.
+- Resultado: a sessão já existe no Supabase, mas a UI ainda vê `user = null` e renderiza como deslogado.
+
+## Problema exato no código
+
+### 1. Race condition no auth
+Em `src/contexts/AuthContext.tsx`:
+- o listener de auth dispara `loadProfile(session.user.id)` em `setTimeout`
+- `getSession()` também chama `loadProfile()`
+- mas `setLoading(false)` acontece antes de garantir que o profile terminou de carregar
+
+Isso permite este cenário:
+
+```text
+Supabase restaura sessão -> token válido
+loading vira false
+user ainda é null por alguns instantes
+UI entende "não logado"
+dashboard/login/header mostram estado errado
+```
+
+### 2. Telas ainda dependem só de `isLoggedIn`
+Várias páginas ainda fazem:
+
+- `if (!isLoggedIn) ...`
+- ou redirecionam/renderizam antes de esperar o auth realmente estabilizar
+
+Arquivos com esse padrão:
+- `src/pages/ReportsPage.tsx`
+- `src/pages/OrderPage.tsx`
+- `src/pages/BeltOrderPage.tsx`
+- `src/pages/DraftsPage.tsx`
+- `src/pages/TrackOrderPage.tsx`
+- `src/pages/DynamicOrderPage.tsx`
+- `src/pages/Index.tsx`
+- `src/components/Header.tsx`
+
+Então o login pode até funcionar no backend, mas a interface continua como visitante.
+
+### 3. Problema secundário já identificado
+Ainda existe risco de divergência entre:
+- `profiles.nome_usuario`
+- e o email/login real do Auth (`username@7estrivos.app`)
+
+Isso não explica sozinho o sintoma atual, mas continua sendo parte da correção para evitar novos bloqueios.
 
 ## Plano de correção
 
-### 1. Fortalecer a inicialização da autenticação
-Arquivos: `src/contexts/AuthContext.tsx`
+### 1. Corrigir o estado de prontidão do auth
+Arquivo: `src/contexts/AuthContext.tsx`
 
 Vou ajustar para:
-- registrar `onAuthStateChange` antes de `getSession()`
-- tratar a autenticação com um estado explícito de readiness
-- evitar `await` direto dentro do callback do `onAuthStateChange`
-- processar corretamente `INITIAL_SESSION`, `SIGNED_IN`, `TOKEN_REFRESHED` e `SIGNED_OUT`
-- só liberar `loading=false` quando a restauração da sessão/profile terminar
+- separar **sessão restaurada** de **perfil carregado**
+- só finalizar `loading` quando o fluxo inteiro terminar
+- impedir chamadas concorrentes de `loadProfile`
+- manter o usuário autenticado baseado na sessão válida, sem “piscar” para deslogado no meio
 
-Objetivo: impedir condição de corrida na subida do app.
+### 2. Proteger a UI enquanto o auth não está pronto
+Arquivos:
+- `src/components/Header.tsx`
+- `src/pages/Index.tsx`
+- `src/pages/ReportsPage.tsx`
+- `src/pages/OrderPage.tsx`
+- `src/pages/BeltOrderPage.tsx`
+- `src/pages/DraftsPage.tsx`
+- `src/pages/TrackOrderPage.tsx`
+- `src/pages/DynamicOrderPage.tsx`
 
-### 2. Proteger a navegação enquanto o auth ainda está carregando
-Arquivos principais:
-- `src/pages/LoginPage.tsx`
-- `src/pages/ProfilePage.tsx`
-- telas que redirecionam com base em `isLoggedIn`/`user`
+Vou fazer essas telas:
+- esperarem `loading === false`
+- exibirem “Carregando...” em vez de assumir logout
+- só redirecionarem/renderizarem conteúdo de visitante depois que o auth estiver realmente resolvido
 
-Vou fazer as telas esperarem o auth estar pronto antes de:
-- redirecionar para `/login`
-- renderizar estado de “deslogado”
-- navegar logo após o submit do login
-
-Objetivo: evitar falsa sensação de travamento ou logout logo após autenticar.
-
-### 3. Corrigir a divergência entre username do perfil e login real
+### 3. Manter login e username sincronizados
 Arquivos:
 - `src/pages/UsersManagementPage.tsx`
-- edge functions de gestão de usuário
+- `supabase/functions/update-user-credentials/index.ts`
 
-Vou alinhar o fluxo para que, ao alterar nome de usuário:
-- o login real no Supabase Auth também seja atualizado
-- a mesma regra de sanitização seja usada em criar, editar e logar
+Vou manter a sincronização entre:
+- username exibido
+- email real do Supabase Auth
+- sanitização única do login
 
-Se durante a execução eu confirmar que a Fernanda está com `profiles.nome_usuario` diferente do email/login real do Auth, corrijo isso também.
+Assim evitamos casos em que o usuário digita o login “certo na tela”, mas o Auth espera outro.
 
-### 4. Corrigir reset/admin de senha
-Arquivos:
-- `supabase/functions/update-user-password/index.ts`
-- possivelmente `delete-user/index.ts` pelo mesmo padrão
-
-Hoje a validação usa `has_role(..., 'admin')`, o que pode bloquear admins válidos como `admin_master`.
-Vou trocar para a checagem administrativa correta já usada no restante do projeto (`is_any_admin`).
-
-Objetivo: garantir que redefinição de senha funcione de verdade para teste e suporte.
-
-### 5. Melhorar o feedback do login
+### 4. Melhorar diagnóstico do login
 Arquivos:
 - `src/contexts/AuthContext.tsx`
 - `src/pages/LoginPage.tsx`
 
-Vou ajustar para:
-- distinguir credencial inválida vs falha de rede vs timeout
-- evitar botão preso em “ENTRANDO...”
-- registrar erro útil no console quando houver falha real
+Vou melhorar para:
+- diferenciar credencial inválida, timeout e falha de rede
+- registrar erros úteis no console
+- evitar sensação de “travou” quando o token entrou mas o perfil ainda não carregou
 
 ## Resultado esperado
-Depois dessas mudanças:
-- o login não deve mais ficar em estado inconsistente
-- páginas não devem parecer “carregando infinito” por corrida de sessão/profile
-- o usuário exibido no cadastro vai bater com o login real
-- redefinir senha da Fernanda passará a ser confiável
-- o problema deixa de depender de cache/localStorage corrompido para “funcionar”
+
+Depois da correção:
+- quando o backend renovar/aceitar a sessão, a UI vai acompanhar corretamente
+- a Fernanda não ficará com “login válido no backend” e “fora do sistema” no frontend
+- páginas não vão mais mostrar estado de visitante durante a restauração da sessão
+- o fluxo de login ficará consistente em refresh, aba nova e retorno ao sistema
 
 ## Validação que farei na execução
-- testar login da Fernanda com credencial válida
-- testar refresh da página com sessão já ativa
-- testar logout/login novamente
-- testar edição de username e confirmar que o novo login funciona
-- testar reset de senha via gerenciamento de usuários
-- verificar o fluxo completo no preview e no publicado
+- login da Fernanda com credencial válida
+- refresh da página com sessão ativa
+- retorno para `/` após autenticar
+- abertura de páginas protegidas sem cair em falso logout
+- teste com usuário admin_producao e vendedor
+- verificação do fluxo publicado, não só preview
 
 ## Detalhes técnicos
-Arquivos mais suspeitos e que serão corrigidos:
-- `src/contexts/AuthContext.tsx`
-- `src/pages/LoginPage.tsx`
-- `src/pages/ProfilePage.tsx`
-- `src/pages/UsersManagementPage.tsx`
-- `supabase/functions/update-user-password/index.ts`
-
-Não vejo necessidade de migration no banco para essa correção; o problema está na camada de auth/session e sincronização com Supabase Auth.
+A causa principal não parece ser “autenticação recusada”, e sim **frontend liberando a renderização cedo demais**. O Supabase aceita a sessão, mas o app ainda não terminou de reconstruir `user`, `role` e permissões quando a interface decide o que mostrar.
