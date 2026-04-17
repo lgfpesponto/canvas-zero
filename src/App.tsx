@@ -21,7 +21,7 @@ import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
 import DynamicOrderPage from "./pages/DynamicOrderPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
-import VerifyCodePage from "./pages/VerifyCodePage";
+// import VerifyCodePage from "./pages/VerifyCodePage"; // Temporariamente desativado — reativar descomentando esta linha e a rota /verificar abaixo
 import AdminConfigPage from "./pages/AdminConfigPage";
 import AdminConfigFichaPage from "./pages/AdminConfigFichaPage";
 import AdminConfigVariacoesPage from "./pages/AdminConfigVariacoesPage";
@@ -55,7 +55,7 @@ const App = () => (
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/rascunhos" element={<DraftsPage />} />
             <Route path="/usuarios" element={<UsersManagementPage />} />
-            <Route path="/verificar" element={<VerifyCodePage />} />
+            {/* <Route path="/verificar" element={<VerifyCodePage />} /> */}
             <Route path="/admin/configuracoes" element={<AdminConfigPage />} />
             <Route path="/admin/configuracoes/:slug" element={<AdminConfigFichaPage />} />
             <Route path="/admin/configuracoes/:slug/:categoriaId" element={<AdminConfigVariacoesPage />} />
