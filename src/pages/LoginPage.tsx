@@ -1,28 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import logo from '@/assets/logo-7estrivos.png';
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // If user is already logged in (e.g. opened /login with active session), redirect to home
+  useEffect(() => {
+    if (!authLoading && isLoggedIn) {
+      navigate('/');
+    }
+  }, [authLoading, isLoggedIn, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!username || !password) { setError('Preencha todos os campos.'); return; }
     setLoading(true);
-    const result = await login(username, password);
-    setLoading(false);
-    if (result === 'ok') {
-      navigate('/');
-    } else {
-      setError('Usuário ou senha incorretos.');
+    try {
+      const result = await login(username, password);
+      if (result === 'ok') {
+        navigate('/');
+      } else {
+        setError('Usuário ou senha incorretos. Verifique e tente novamente.');
+      }
+    } catch (err: any) {
+      console.error('[LoginPage] submit exception:', err);
+      setError('Falha de conexão. Verifique sua internet e tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,7 +57,9 @@ const LoginPage = () => {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Seu nome de usuário"
-                className="w-full bg-muted rounded-lg px-4 py-3 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                autoComplete="username"
+                disabled={loading}
+                className="w-full bg-muted rounded-lg px-4 py-3 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
               />
             </div>
             <div>
@@ -54,7 +69,9 @@ const LoginPage = () => {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Sua senha"
-                className="w-full bg-muted rounded-lg px-4 py-3 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                autoComplete="current-password"
+                disabled={loading}
+                className="w-full bg-muted rounded-lg px-4 py-3 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
               />
             </div>
 

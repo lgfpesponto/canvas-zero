@@ -6,6 +6,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const sanitizeUsername = (u: string) =>
+  u.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,7 +25,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller is admin
     const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -39,49 +43,52 @@ Deno.serve(async (req) => {
 
     const callerId = claimsData.claims.sub as string;
 
-    // Check admin role (any admin)
-    const { data: isAdmin } = await anonClient.rpc("is_any_admin", {
+    const { data: isAdminResult } = await anonClient.rpc("is_any_admin", {
       _user_id: callerId,
     });
 
-    if (!isAdmin) {
+    if (!isAdminResult) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { userId } = await req.json();
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "userId is required" }), {
+    const { userId, nomeUsuario } = await req.json();
+    if (!userId || !nomeUsuario) {
+      return new Response(JSON.stringify({ error: "userId e nomeUsuario são obrigatórios" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Prevent deleting self
-    if (userId === callerId) {
-      return new Response(
-        JSON.stringify({ error: "Cannot delete yourself" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const sanitized = sanitizeUsername(nomeUsuario);
+    if (!sanitized) {
+      return new Response(JSON.stringify({ error: "Nome de usuário inválido" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    const newEmail = `${sanitized}@7estrivos.app`;
 
-    // Use service role to delete user from auth (cascades to profiles, user_roles)
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId);
-    if (deleteError) {
-      return new Response(JSON.stringify({ error: deleteError.message }), {
-        status: 500,
+    // Update Supabase Auth email so login keeps matching the username
+    const { error: updateAuthErr } = await serviceClient.auth.admin.updateUserById(userId, {
+      email: newEmail,
+      email_confirm: true,
+    });
+    if (updateAuthErr) {
+      return new Response(JSON.stringify({ error: `Auth: ${updateAuthErr.message}` }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, email: newEmail }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -224,65 +224,87 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isFernanda = role === 'admin_producao';
 
-  /* ───── Load profile from DB ───── */
-  const loadProfile = useCallback(async (authUserId: string) => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUserId)
-      .single();
+  /* ───── Load profile from DB (never throws) ───── */
+  const loadProfile = useCallback(async (authUserId: string): Promise<User | null> => {
+    try {
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUserId)
+        .maybeSingle();
 
-    if (!profile) return null;
+      if (profileErr) console.error('[Auth] loadProfile profile error:', profileErr.message);
+      if (!profile) {
+        console.warn('[Auth] No profile row for user', authUserId);
+        return null;
+      }
 
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', authUserId);
+      const { data: roles, error: rolesErr } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authUserId);
+      if (rolesErr) console.error('[Auth] loadProfile roles error:', rolesErr.message);
 
-    const userRole = (roles?.[0] as any)?.role as AppRole | undefined;
-    const hasAdmin = ['admin_master', 'admin_producao', 'admin'].includes(userRole || '');
+      const userRole = (roles?.[0] as any)?.role as AppRole | undefined;
+      const hasAdmin = ['admin_master', 'admin_producao', 'admin'].includes(userRole || '');
 
-    const u: User = {
-      id: authUserId,
-      nomeCompleto: profile.nome_completo,
-      nomeUsuario: profile.nome_usuario,
-      telefone: profile.telefone,
-      email: profile.email,
-      cpfCnpj: profile.cpf_cnpj,
-      isAdmin: hasAdmin,
-      role: userRole,
-    };
+      const u: User = {
+        id: authUserId,
+        nomeCompleto: profile.nome_completo,
+        nomeUsuario: profile.nome_usuario,
+        telefone: profile.telefone,
+        email: profile.email,
+        cpfCnpj: profile.cpf_cnpj,
+        isAdmin: hasAdmin,
+        role: userRole,
+      };
 
-    setUser(u);
-    setIsAdmin(hasAdmin);
-    setRole(userRole || null);
-    return u;
+      setUser(u);
+      setIsAdmin(hasAdmin);
+      setRole(userRole || null);
+      return u;
+    } catch (e) {
+      console.error('[Auth] loadProfile exception:', e);
+      return null;
+    }
   }, []);
 
-  /* ───── Auth state listener ───── */
+  /* ───── Auth state listener (subscription FIRST, then getSession) ───── */
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
-      if (session?.user) {
-        await loadProfile(session.user.id);
-      }
-      if (isMounted) setLoading(false);
-    });
-
+    // 1) Register listener BEFORE getSession to avoid races
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
-        if (event === 'SIGNED_IN' && session?.user) {
-          loadProfile(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT' || !session?.user) {
           setUser(null);
           setIsAdmin(false);
           setRole(null);
+          return;
+        }
+        // Fire-and-forget; never await inside the callback
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+          setTimeout(() => {
+            if (isMounted) loadProfile(session.user.id);
+          }, 0);
         }
       }
     );
+
+    // 2) Then restore existing session
+    supabase.auth.getSession()
+      .then(async ({ data: { session }, error }) => {
+        if (!isMounted) return;
+        if (error) console.error('[Auth] getSession error:', error.message);
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        }
+      })
+      .catch((e) => console.error('[Auth] getSession exception:', e))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
     return () => {
       isMounted = false;
@@ -290,14 +312,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [loadProfile]);
 
-  /* ───── Login ───── */
-  const login = useCallback(async (username: string, password: string): Promise<'ok' | 'error'> => {
-    const sanitized = username.toLowerCase()
+  /* ───── Username sanitization (single source of truth) ───── */
+  const sanitizeUsername = (u: string) =>
+    u.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]/g, '');
+
+  /* ───── Login (with timeout + clearer errors) ───── */
+  const login = useCallback(async (username: string, password: string): Promise<'ok' | 'error'> => {
+    const sanitized = sanitizeUsername(username);
+    if (!sanitized) {
+      console.warn('[Auth] login: username vazio após sanitização');
+      return 'error';
+    }
     const email = `${sanitized}@7estrivos.app`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? 'error' : 'ok';
+    try {
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<{ error: Error }>((resolve) =>
+          setTimeout(() => resolve({ error: new Error('timeout') }), 15000)
+        ),
+      ]) as { error: any };
+      if (result.error) {
+        console.error('[Auth] login error:', result.error?.message || result.error);
+        return 'error';
+      }
+      return 'ok';
+    } catch (e) {
+      console.error('[Auth] login exception:', e);
+      return 'error';
+    }
   }, []);
 
   /* ───── Register ───── */

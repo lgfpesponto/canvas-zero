@@ -38,12 +38,12 @@ Deno.serve(async (req) => {
 
     const callerId = claimsData.claims.sub as string;
 
-    const { data: isAdmin } = await anonClient.rpc("has_role", {
+    // Use is_any_admin (admin_master / admin_producao / admin)
+    const { data: isAdminResult } = await anonClient.rpc("is_any_admin", {
       _user_id: callerId,
-      _role: "admin",
     });
 
-    if (!isAdmin) {
+    if (!isAdminResult) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -53,6 +53,12 @@ Deno.serve(async (req) => {
     const { userId, newPassword } = await req.json();
     if (!userId || !newPassword) {
       return new Response(JSON.stringify({ error: "userId and newPassword are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return new Response(JSON.stringify({ error: "Senha deve ter pelo menos 6 caracteres" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
