@@ -106,14 +106,14 @@ const LoginPage = () => {
             </div>
 
             {error && (
-              <p className={`text-sm ${errorKind === 'network' || errorKind === 'timeout' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'}`}>
+              <p className={`text-sm ${errorKind === 'network' || errorKind === 'timeout' ? 'text-primary' : 'text-destructive'}`}>
                 {error}
               </p>
             )}
 
             {errorKind === 'network' && (
-              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-foreground/90 space-y-2">
-                <div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
+              <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-xs text-foreground/90 space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-primary">
                   <WifiOff className="w-4 h-4" />
                   Diagnóstico de conexão
                 </div>
