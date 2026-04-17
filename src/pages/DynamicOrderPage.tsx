@@ -23,7 +23,7 @@ interface CampoOpcao {
 
 export default function DynamicOrderPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const { data: tipo, isLoading: tipoLoading } = useFichaTipoBySlug(slug || '');
@@ -45,8 +45,10 @@ export default function DynamicOrderPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!isLoggedIn && !tipoLoading) navigate('/login', { replace: true });
-  }, [isLoggedIn, tipoLoading, navigate]);
+    // Wait for auth to settle before redirecting; otherwise we kick the user
+    // out while their session is still being restored.
+    if (!authLoading && !isLoggedIn && !tipoLoading) navigate('/login', { replace: true });
+  }, [authLoading, isLoggedIn, tipoLoading, navigate]);
 
   const activeCampos = useMemo(() => 
     campos?.filter(c => c.ativo !== false).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)) || [],

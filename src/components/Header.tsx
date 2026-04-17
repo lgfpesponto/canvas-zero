@@ -5,12 +5,14 @@ import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const Header = () => {
-  const { isLoggedIn, user, isAdmin, role, logout } = useAuth();
+  const { isLoggedIn, user, isAdmin, role, logout, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
 
   const isJuliana = role === 'admin_master';
+  // Treat user as logged in while auth is still hydrating to avoid flicker
+  const showAsLogged = isLoggedIn || authLoading;
 
   useEffect(() => {
     if (!isAdmin || !isJuliana) return;
@@ -26,7 +28,7 @@ const Header = () => {
     } catch {}
   }, [isAdmin, isJuliana, location.pathname]);
 
-  const navItems = isLoggedIn
+  const navItems = showAsLogged
     ? [
         { label: 'FAÇA SEU PEDIDO', path: '/pedido' },
         { label: 'EXTRAS', path: '/extras' },
@@ -73,7 +75,7 @@ const Header = () => {
               {item.label}
             </Link>
           ))}
-          {isLoggedIn && (
+          {showAsLogged && isLoggedIn && (
             <button
               onClick={logout}
               className="ml-2 flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-primary hover:bg-destructive/10 transition-colors"
@@ -110,7 +112,7 @@ const Header = () => {
               {item.label}
             </Link>
           ))}
-          {isLoggedIn && (
+          {showAsLogged && isLoggedIn && (
             <button
               onClick={() => { logout(); setMenuOpen(false); }}
               className="w-full text-left px-4 py-3 rounded-md text-sm font-semibold text-primary hover:bg-destructive/10"

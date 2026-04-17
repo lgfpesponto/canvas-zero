@@ -269,45 +269,77 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  /* ───── Auth state listener (subscription FIRST, then getSession) ───── */
+  /* ───── Auth state listener (subscription FIRST, then getSession) ─────
+   * IMPORTANT: loading must remain true until profile/role are fully loaded.
+   * Otherwise the UI flickers as "logged out" while session is still hydrating. */
   useEffect(() => {
     let isMounted = true;
+    let initialResolved = false;
+    let lastLoadedUserId: string | null = null;
+    let inflight: Promise<unknown> | null = null;
+
+    const finishInitial = () => {
+      if (!isMounted || initialResolved) return;
+      initialResolved = true;
+      setLoading(false);
+    };
+
+    const hydrate = async (userId: string) => {
+      // Prevent concurrent loads for the same user
+      if (lastLoadedUserId === userId && inflight) {
+        await inflight;
+        return;
+      }
+      lastLoadedUserId = userId;
+      inflight = loadProfile(userId).finally(() => { inflight = null; });
+      await inflight;
+    };
 
     // 1) Register listener BEFORE getSession to avoid races
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
+
         if (event === 'SIGNED_OUT' || !session?.user) {
+          lastLoadedUserId = null;
           setUser(null);
           setIsAdmin(false);
           setRole(null);
+          finishInitial();
           return;
         }
-        // Fire-and-forget; never await inside the callback
+
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+          // Fire-and-forget; never await inside the callback
           setTimeout(() => {
-            if (isMounted) loadProfile(session.user.id);
+            if (!isMounted) return;
+            hydrate(session.user.id).finally(finishInitial);
           }, 0);
         }
       }
     );
 
-    // 2) Then restore existing session
+    // 2) Then restore existing session — only finish initial loading after profile is hydrated
     supabase.auth.getSession()
       .then(async ({ data: { session }, error }) => {
         if (!isMounted) return;
         if (error) console.error('[Auth] getSession error:', error.message);
         if (session?.user) {
-          await loadProfile(session.user.id);
+          await hydrate(session.user.id);
         }
+        finishInitial();
       })
-      .catch((e) => console.error('[Auth] getSession exception:', e))
-      .finally(() => {
-        if (isMounted) setLoading(false);
+      .catch((e) => {
+        console.error('[Auth] getSession exception:', e);
+        finishInitial();
       });
+
+    // Safety net: never leave the app stuck on "loading" forever
+    const safety = setTimeout(finishInitial, 8000);
 
     return () => {
       isMounted = false;
+      clearTimeout(safety);
       subscription.unsubscribe();
     };
   }, [loadProfile]);

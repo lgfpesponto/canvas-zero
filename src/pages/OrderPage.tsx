@@ -116,7 +116,7 @@ const MultiSelect = ({
 
 /* ───── main component ───── */
 const OrderPage = () => {
-  const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles } = useAuth();
+  const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
@@ -536,6 +536,14 @@ const OrderPage = () => {
     setMode('template');
     setProductChoice('bota');
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
