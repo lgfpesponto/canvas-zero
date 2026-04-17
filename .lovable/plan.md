@@ -1,53 +1,108 @@
 
+## Diagnóstico
 
-## Diagnóstico inicial: site lento ou não carrega
+Do I know what the issue is? Sim, com boa precisão.
 
-### O que verifiquei (modo leitura)
-- **Dev server**: rodando normal (Vite v5.4.19, sem erros)
-- **Console do browser**: sem erros nos logs capturados
-- **Network**: nenhuma requisição falhada nos logs capturados
-- **TypeScript**: compila sem erros
-- **Banco Supabase**: nenhum erro/fatal nos logs recentes
-- **Sessão atual**: o preview está carregando normalmente (replay mostra Hero + botões renderizados)
+O sistema não parece estar “caído” no Supabase/Auth. As evidências apontam para um problema de autenticação no frontend e possível divergência entre o login exibido no cadastro e o login real salvo no Auth.
 
-### Causas mais prováveis
+### O que encontrei
+- Os logs de Auth mostram `/token` e `/user` respondendo com sucesso; então o backend de autenticação está funcionando.
+- O horário “13:10” que apareceu antes está em UTC/log do Supabase, não no horário local de Brasília. Então isso não prova login fantasma; foi interpretação de fuso.
+- Em `src/contexts/AuthContext.tsx`, a inicialização está frágil:
+  - `getSession()` roda antes de registrar `onAuthStateChange`
+  - o callback chama função async sem controle de readiness
+  - `isLoggedIn` depende de `!!user`, mas várias telas não esperam `loading`
+- Isso pode gerar estado inconsistente: sessão existe, mas o app ainda não carregou o profile/role e parece “travado” ou deslogado.
+- Há um segundo problema importante no fluxo de usuários:
+  - o login usa `${username}@7estrivos.app`
+  - mas ao editar usuário em `UsersManagementPage.tsx`, altera só `profiles.nome_usuario`
+  - não existe sincronização do email real em `auth.users`
+  - então o “usuário” mostrado na tela pode não ser mais o login real
+- Também existe inconsistência de normalização:
+  - login sanitiza mais agressivamente
+  - create-user sanitiza diferente
+  - isso pode quebrar logins dependendo do nome de usuário
 
-Como não consigo reproduzir o problema agora, vejo 4 causas plausíveis pelo histórico recente de mudanças:
+## Plano de correção
 
-1. **Cache do Service Worker / build antigo no navegador**  
-   Após várias mudanças seguidas (ReportsPage, OrderDetailPage, pdfGenerators, hooks de couro), o navegador pode ter ficado com chunks JS antigos em cache que não combinam com a nova versão. Isso causa tela branca, "loading infinito" ou erro silencioso de import.
+### 1. Fortalecer a inicialização da autenticação
+Arquivos: `src/contexts/AuthContext.tsx`
 
-2. **Re-renders pesados em `ReportsPage`**  
-   A página agora mantém um `Map` extra (`scannedOrdersMap`) e o `useMemo` de `ordersToExport` recria um Map a cada mudança de `serverOrders`. Em listas grandes (centenas de pedidos), isso pode travar a UI por alguns segundos ao trocar de página ou aplicar filtro.
+Vou ajustar para:
+- registrar `onAuthStateChange` antes de `getSession()`
+- tratar a autenticação com um estado explícito de readiness
+- evitar `await` direto dentro do callback do `onAuthStateChange`
+- processar corretamente `INITIAL_SESSION`, `SIGNED_IN`, `TOKEN_REFRESHED` e `SIGNED_OUT`
+- só liberar `loading=false` quando a restauração da sessão/profile terminar
 
-3. **Consulta lenta no Supabase**  
-   `useOrders` busca pedidos paginados + contagem total. Se a tabela cresceu muito ou se houver filtros aplicados sem índice adequado, a primeira carga pode demorar 5–15s. Edge logs do Supabase ajudariam a confirmar.
+Objetivo: impedir condição de corrida na subida do app.
 
-4. **Hook `useFichaVariacoesLookup` carregando muitas variações**  
-   Foi atualizado recentemente para incluir 3 categorias novas de couro. Se faz query sem cache/limit, pode atrasar render de OrderPage / EditOrderPage.
+### 2. Proteger a navegação enquanto o auth ainda está carregando
+Arquivos principais:
+- `src/pages/LoginPage.tsx`
+- `src/pages/ProfilePage.tsx`
+- telas que redirecionam com base em `isLoggedIn`/`user`
 
-### Plano de investigação (em modo execução)
+Vou fazer as telas esperarem o auth estar pronto antes de:
+- redirecionar para `/login`
+- renderizar estado de “deslogado”
+- navegar logo após o submit do login
 
-1. **Coletar evidência objetiva** — pedir ao usuário (ou usar browser tools quando aprovado) para reproduzir uma vez com DevTools aberto, e em paralelo eu inspeciono:
-   - Edge logs do Supabase (latência das queries)
-   - Postgres logs (slow queries)
-   - Network do preview ao vivo
-2. **Mitigar cache** — adicionar uma query string de versão ao `index.html` ou orientar o usuário a fazer hard refresh (Ctrl+Shift+R) e confirmar se resolve. Se sim, é cache.
-3. **Otimizar `ReportsPage`** se confirmado o gargalo:
-   - Trocar o `Map` em estado por `useRef` (não dispara re-render)
-   - Memoizar `serverOrders.map(o => [o.id, o])` em separado
-4. **Revisar query de `useOrders`** — se demorando, adicionar `select` mais enxuto e garantir índice em `(data_criacao desc, hora_criacao desc)`.
+Objetivo: evitar falsa sensação de travamento ou logout logo após autenticar.
 
-### Perguntas para focar o diagnóstico
-- O problema acontece **em qualquer página** ou só em **/relatorios**?
-- Acontece para **todos os usuários** ou só para administradores (que têm dashboards mais pesados)?
-- É **lento** (carrega depois de 10–30s) ou **trava de vez** (tela branca permanente)?
-- Aparece logo ao abrir o site, ou depois de **alguma ação específica** (escanear, abrir detalhes, gerar PDF)?
+### 3. Corrigir a divergência entre username do perfil e login real
+Arquivos:
+- `src/pages/UsersManagementPage.tsx`
+- edge functions de gestão de usuário
 
-### O que NÃO vou mudar antes de confirmar a causa
-- Lógica de pedidos, preços, ou PDFs
-- Estrutura do banco
-- Auth / RBAC
+Vou alinhar o fluxo para que, ao alterar nome de usuário:
+- o login real no Supabase Auth também seja atualizado
+- a mesma regra de sanitização seja usada em criar, editar e logar
 
-Sem essas respostas, qualquer "otimização" agora é chute e pode introduzir bug pior. Prefiro confirmar o sintoma exato antes de tocar em código.
+Se durante a execução eu confirmar que a Fernanda está com `profiles.nome_usuario` diferente do email/login real do Auth, corrijo isso também.
 
+### 4. Corrigir reset/admin de senha
+Arquivos:
+- `supabase/functions/update-user-password/index.ts`
+- possivelmente `delete-user/index.ts` pelo mesmo padrão
+
+Hoje a validação usa `has_role(..., 'admin')`, o que pode bloquear admins válidos como `admin_master`.
+Vou trocar para a checagem administrativa correta já usada no restante do projeto (`is_any_admin`).
+
+Objetivo: garantir que redefinição de senha funcione de verdade para teste e suporte.
+
+### 5. Melhorar o feedback do login
+Arquivos:
+- `src/contexts/AuthContext.tsx`
+- `src/pages/LoginPage.tsx`
+
+Vou ajustar para:
+- distinguir credencial inválida vs falha de rede vs timeout
+- evitar botão preso em “ENTRANDO...”
+- registrar erro útil no console quando houver falha real
+
+## Resultado esperado
+Depois dessas mudanças:
+- o login não deve mais ficar em estado inconsistente
+- páginas não devem parecer “carregando infinito” por corrida de sessão/profile
+- o usuário exibido no cadastro vai bater com o login real
+- redefinir senha da Fernanda passará a ser confiável
+- o problema deixa de depender de cache/localStorage corrompido para “funcionar”
+
+## Validação que farei na execução
+- testar login da Fernanda com credencial válida
+- testar refresh da página com sessão já ativa
+- testar logout/login novamente
+- testar edição de username e confirmar que o novo login funciona
+- testar reset de senha via gerenciamento de usuários
+- verificar o fluxo completo no preview e no publicado
+
+## Detalhes técnicos
+Arquivos mais suspeitos e que serão corrigidos:
+- `src/contexts/AuthContext.tsx`
+- `src/pages/LoginPage.tsx`
+- `src/pages/ProfilePage.tsx`
+- `src/pages/UsersManagementPage.tsx`
+- `supabase/functions/update-user-password/index.ts`
+
+Não vejo necessidade de migration no banco para essa correção; o problema está na camada de auth/session e sincronização com Supabase Auth.
