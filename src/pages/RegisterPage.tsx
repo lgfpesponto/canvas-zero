@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const RegisterPage = () => {
@@ -12,6 +13,7 @@ const RegisterPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState<Record<string, boolean>>({});
 
   const update = (field: string, value: string) => {
     if (field === 'nomeUsuario') {
@@ -59,18 +61,34 @@ const RegisterPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {fields.map(f => (
-              <div key={f.key}>
-                <label className="block text-sm font-semibold mb-1">{f.label}</label>
-                <input
-                  type={f.type}
-                  value={form[f.key as keyof typeof form]}
-                  onChange={e => update(f.key, e.target.value)}
-                  placeholder={f.placeholder}
-                  className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                />
-              </div>
-            ))}
+            {fields.map(f => {
+              const isPwd = f.type === 'password';
+              const visible = !!showPwd[f.key];
+              return (
+                <div key={f.key}>
+                  <label className="block text-sm font-semibold mb-1">{f.label}</label>
+                  <div className="relative">
+                    <input
+                      type={isPwd ? (visible ? 'text' : 'password') : f.type}
+                      value={form[f.key as keyof typeof form]}
+                      onChange={e => update(f.key, e.target.value)}
+                      placeholder={f.placeholder}
+                      className={`w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none ${isPwd ? 'pr-12' : ''}`}
+                    />
+                    {isPwd && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd(prev => ({ ...prev, [f.key]: !prev[f.key] }))}
+                        aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+                        className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {visible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
 
             {error && <p className="text-destructive text-sm">{error}</p>}
 

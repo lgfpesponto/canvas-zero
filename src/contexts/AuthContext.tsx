@@ -189,7 +189,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   isAdmin: boolean;
   role: AppRole | null;
-  login: (username: string, password: string) => Promise<'ok' | 'error'>;
+  login: (username: string, password: string) => Promise<'ok' | 'invalid_credentials' | 'network' | 'timeout' | 'error'>;
   register: (data: Omit<User, 'id' | 'isAdmin'> & { senha: string }) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<Omit<User, 'id' | 'isAdmin'>>) => void;
@@ -351,13 +351,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .replace(/[^a-z0-9]/g, '');
 
   /* ───── Login (with timeout + clearer errors) ───── */
-  const login = useCallback(async (username: string, password: string): Promise<'ok' | 'error'> => {
+  const login = useCallback(async (username: string, password: string): Promise<'ok' | 'invalid_credentials' | 'network' | 'timeout' | 'error'> => {
     const sanitized = sanitizeUsername(username);
     if (!sanitized) {
       console.warn('[Auth] login: username vazio após sanitização');
-      return 'error';
+      return 'invalid_credentials';
     }
     const email = `${sanitized}@7estrivos.app`;
+
+    const classifyError = (err: any): 'invalid_credentials' | 'network' | 'timeout' | 'error' => {
+      const msg = (err?.message || String(err || '')).toLowerCase();
+      if (msg.includes('timeout')) return 'timeout';
+      if (
+        msg.includes('failed to fetch') ||
+        msg.includes('networkerror') ||
+        msg.includes('err_name_not_resolved') ||
+        msg.includes('err_internet_disconnected') ||
+        msg.includes('err_connection') ||
+        err?.name === 'TypeError'
+      ) return 'network';
+      if (msg.includes('invalid login') || msg.includes('invalid credentials') || msg.includes('invalid email')) {
+        return 'invalid_credentials';
+      }
+      return 'invalid_credentials';
+    };
+
     try {
       const result = await Promise.race([
         supabase.auth.signInWithPassword({ email, password }),
@@ -367,12 +385,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ]) as { error: any };
       if (result.error) {
         console.error('[Auth] login error:', result.error?.message || result.error);
-        return 'error';
+        return classifyError(result.error);
       }
       return 'ok';
     } catch (e) {
       console.error('[Auth] login exception:', e);
-      return 'error';
+      return classifyError(e);
     }
   }, []);
 
