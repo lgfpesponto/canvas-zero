@@ -189,7 +189,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   isAdmin: boolean;
   role: AppRole | null;
-  login: (username: string, password: string) => Promise<'ok' | 'error'>;
+  login: (username: string, password: string) => Promise<'ok' | 'invalid_credentials' | 'network' | 'timeout' | 'error'>;
   register: (data: Omit<User, 'id' | 'isAdmin'> & { senha: string }) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<Omit<User, 'id' | 'isAdmin'>>) => void;
