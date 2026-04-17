@@ -1,36 +1,28 @@
 
 
-## O que vou fazer (temporário, reversível)
+O usuário pediu pra eu testar o login do site, igual fiz de manhã. Vou rodar os mesmos testes de conectividade pra confirmar se o Supabase continua respondendo normalmente.
 
-### 1. Esconder a entrada da tela de verificação
-- `src/App.tsx`: comentar a rota `/verificar` e o import do `VerifyCodePage`.
-- Não apago o arquivo `src/pages/VerifyCodePage.tsx`, nem as edge functions `send-verification-code` / `verify-code`, nem a coluna `verificado` na tabela `profiles`. Tudo continua disponível para reativação futura.
+## Teste a executar (quando aprovar)
 
-### 2. Não mexer em nada do login do Supabase
-- `signInWithPassword` continua igual.
-- `AuthContext.login` já distingue `network` / `timeout` / `invalid_credentials` / `ok`.
-- A `LoginPage` já mostra o bloco de "Diagnóstico de conexão" quando o erro é de rede.
+Os mesmos 3 testes de conectividade de manhã:
 
-### 3. Como reativar no futuro (1 linha de código)
-- Descomentar o import e a rota `/verificar` em `src/App.tsx`. Pronto, volta tudo: a tela, o envio de código por email/SMS, o `verify-code`, e a coluna `verificado` continuam intactos no banco e nas edge functions.
+1. **DNS lookup** do `uxpcqqxlypshickabeyq.supabase.co` — confirma se o domínio resolve
+2. **Health check** no GoTrue (`/auth/v1/health`) — confirma se o serviço de auth está no ar
+3. **Tentativa de login real** com credencial inválida — confirma se o endpoint `/auth/v1/token` está respondendo `invalid_credentials` corretamente (prova ponta a ponta que dá pra logar)
 
-## O que NÃO vou fazer agora
-- Não vou apagar `VerifyCodePage.tsx`.
-- Não vou apagar as edge functions de verificação.
-- Não vou criar migration nem mexer na coluna `verificado`.
-- Não vou mexer no Supabase client / URL.
+## O que vou reportar
 
-## Aviso importante (responsabilidade)
-A causa real do "não consigo entrar em várias máquinas" pelo print é **`DNS_PROBE_FINISHED_NXDOMAIN` em `uxpcqqxlypshickabeyq.supabase.co`** — bloqueio de DNS na rede dessas máquinas. Remover a tela de verificação **não vai resolver isso** porque o login nem chega a ser tentado. Seguindo seu pedido, faço a remoção temporária mesmo assim, mas o problema de conectividade vai continuar até atacar uma das duas frentes:
+Tabela com:
+- Status de cada teste (✅/❌)
+- Tempo de resposta
+- IP do servidor
+- Comparação com o teste de manhã (mudou alguma coisa?)
 
-- TI das máquinas afetadas liberar `*.supabase.co` no firewall/DNS, ou
-- Configurar Custom Domain do Supabase (plano Pro, ~25 USD/mês) para `api.7estrivos.com.br`.
+## Por que precisa aprovar
 
-## Arquivos alterados
-- `src/App.tsx` (1 import + 1 rota comentados)
+Estou em modo plan (read-only). Pra rodar `curl` e `nslookup` preciso passar pro modo default. Aprova que eu rodo os 3 testes em paralelo e te trago o resultado em ~10 segundos.
 
-## Resultado esperado após implementar
-- Tela de verificação some do app.
-- Login continua funcionando exatamente como hoje (quem consegue conectar no Supabase entra; quem não consegue continua sem entrar).
-- Reativação futura: descomentar 2 linhas em `App.tsx`.
+## O que NÃO vou mexer
+
+Zero código. Só teste de conectividade pra te dar diagnóstico atual do Supabase.
 
