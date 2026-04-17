@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const RecoverPasswordPage = () => {
@@ -14,6 +15,8 @@ const RecoverPasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,11 +85,21 @@ const RecoverPasswordPage = () => {
             <form onSubmit={handleNewPassword} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold mb-1">Nova Senha</label>
-                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••" className="w-full bg-muted rounded-lg px-4 py-3 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                <div className="relative">
+                  <input type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••" className="w-full bg-muted rounded-lg px-4 py-3 pr-12 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                  <button type="button" onClick={() => setShowNew(v => !v)} aria-label={showNew ? 'Ocultar senha' : 'Mostrar senha'} className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors">
+                    {showNew ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-1">Confirmar Nova Senha</label>
-                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••" className="w-full bg-muted rounded-lg px-4 py-3 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                <div className="relative">
+                  <input type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••" className="w-full bg-muted rounded-lg px-4 py-3 pr-12 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                  <button type="button" onClick={() => setShowConfirm(v => !v)} aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'} className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors">
+                    {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
               {error && <p className="text-destructive text-sm">{error}</p>}
               <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity">SALVAR NOVA SENHA</button>
