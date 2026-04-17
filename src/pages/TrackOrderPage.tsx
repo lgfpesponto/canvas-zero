@@ -12,9 +12,17 @@ const statusColors: Record<string, string> = {
 };
 
 const TrackOrderPage = () => {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const { orders, loading } = useOrdersQuery({ enabled: isLoggedIn });
   const navigate = useNavigate();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

@@ -12,7 +12,7 @@ const fadeIn = {
 };
 
 const Index = () => {
-  const { isLoggedIn, role } = useAuth();
+  const { isLoggedIn, role, loading: authLoading } = useAuth();
 
   return (
     <div className="min-h-screen">
@@ -39,7 +39,11 @@ const Index = () => {
       </section>
 
       {/* Dashboard by role */}
-      {isLoggedIn ? (
+      {authLoading ? (
+        <section className="container mx-auto px-4 py-16 text-center text-muted-foreground">
+          Carregando...
+        </section>
+      ) : isLoggedIn ? (
         role === 'admin_producao' ? (
           <FernandaDashboard />
         ) : role === 'admin_master' ? (

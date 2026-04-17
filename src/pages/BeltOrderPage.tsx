@@ -28,7 +28,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const BeltOrderPage = () => {
-  const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
+  const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const draftData = (location.state as any)?.draft;
@@ -104,6 +104,14 @@ const BeltOrderPage = () => {
       setLoadedDraftId(draftData.id);
     }
   }, [draftData]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

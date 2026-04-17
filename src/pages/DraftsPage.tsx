@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 
 const DraftsPage = () => {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [search, setSearch] = useState('');
@@ -16,6 +16,14 @@ const DraftsPage = () => {
   useEffect(() => {
     if (user) setDrafts(getDrafts(user.id));
   }, [user]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

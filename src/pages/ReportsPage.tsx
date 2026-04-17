@@ -27,7 +27,7 @@ const formatDateBR = (date: string, time?: string) => {
 };
 
 const ReportsPage = () => {
-  const { isLoggedIn, isAdmin, isFernanda, user, deleteOrder, deleteOrderBatch, updateOrderStatus } = useAuth();
+  const { isLoggedIn, isAdmin, isFernanda, user, deleteOrder, deleteOrderBatch, updateOrderStatus, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -267,6 +267,14 @@ const ReportsPage = () => {
     setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     toast.success('Pedido excluído com sucesso!');
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
