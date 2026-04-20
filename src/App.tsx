@@ -25,6 +25,7 @@ import VerifyCodePage from "./pages/VerifyCodePage";
 import AdminConfigPage from "./pages/AdminConfigPage";
 import AdminConfigFichaPage from "./pages/AdminConfigFichaPage";
 import AdminConfigVariacoesPage from "./pages/AdminConfigVariacoesPage";
+import FinanceiroPage from "./pages/FinanceiroPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/admin/configuracoes/:slug" element={<AdminConfigFichaPage />} />
             <Route path="/admin/configuracoes/:slug/:categoriaId" element={<AdminConfigVariacoesPage />} />
             <Route path="/pedido-dinamico/:slug" element={<DynamicOrderPage />} />
+            <Route path="/financeiro" element={<FinanceiroPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SelectedOrdersProvider>
