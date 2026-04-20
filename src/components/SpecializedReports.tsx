@@ -17,7 +17,7 @@ import {
   getForma,
 } from '@/lib/orderFieldsConfig';
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
-import { getCouroSortKey } from '@/lib/pdfGenerators';
+import { getCouroSortKey, stampPageNumbers } from '@/lib/pdfGenerators';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -428,6 +428,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     });
 
     const dateFile = dataBR.replace(/\//g, '-');
+    stampPageNumbers(doc);
     doc.save(`Escalação - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -503,6 +504,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
 
     const dateFile = dataBR.replace(/\//g, '-');
+    stampPageNumbers(doc);
     doc.save(`Forro - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -546,6 +548,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     });
 
     const dateFile = dataBR.replace(/\//g, '-');
+    stampPageNumbers(doc);
     doc.save(`Palmilha - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -589,6 +592,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     });
 
     const dateFile = dataBR.replace(/\//g, '-');
+    stampPageNumbers(doc);
     doc.save(`Forma - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -677,6 +681,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text(`${totalQtd} pares`, cx[3] + 2, y + 7);
 
     const dateFile = dataBR.replace(/\//g, '-');
+    stampPageNumbers(doc);
     doc.save(`Pesponto - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -744,6 +749,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       y += rowH;
     }
 
+    stampPageNumbers(doc);
     doc.save('relatorio-metais.pdf');
   };
 
@@ -887,6 +893,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       y += rowH;
     }
 
+    stampPageNumbers(doc);
     doc.save('relatorio-bordados.pdf');
   };
 
@@ -987,6 +994,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       y += rowH;
     }
 
+    stampPageNumbers(doc);
     doc.save('relatorio-corte.pdf');
   };
 
@@ -1080,6 +1088,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
+    stampPageNumbers(doc);
     doc.save(`Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
   };
 
@@ -1328,6 +1337,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
+    stampPageNumbers(doc);
     doc.save(`Cobrança - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
   };
 
@@ -1420,6 +1430,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text('TOTAL', mx + 2, y + 7);
     doc.text(String(rows.reduce((s, r) => s + r.quantidade, 0)), mx + fieldLabels.length * fieldColW + 2, y + 7);
 
+    stampPageNumbers(doc);
     doc.save(`relatorio-${filterTipoProduto}.pdf`);
   };
 

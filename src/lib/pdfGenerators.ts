@@ -3,6 +3,27 @@ import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import { orderBarcodeValue } from '@/contexts/AuthContext';
 
+/**
+ * Stamps "Página X-Y" in the top-right corner of every page.
+ * Must be called once, immediately before doc.save(...).
+ * Adapts to any page size/orientation via getWidth().
+ */
+export function stampPageNumbers(doc: jsPDF) {
+  const total = (doc as any).internal.pages.length - 1;
+  if (total <= 0) return;
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const prevSize = (doc as any).internal.getFontSize?.() ?? 10;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Página ${i}-${total}`, pageWidth - 6, 6, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(prevSize);
+  }
+}
+
 const formatDateBR = (date: string, time?: string) => {
   const [y, m, d] = date.split('-');
   return `${d}/${m}/${y}${time ? ` — ${time}` : ''}`;
@@ -64,6 +85,7 @@ export function generateReportPDF(ordersToExport: any[]) {
   doc.setFont('helvetica', 'bold');
   doc.text(`Total de Pedidos: ${list.length}`, 14, y + 5);
   doc.text(`Valor Total: ${formatCurrency(list.reduce((s, o) => s + o.preco * o.quantidade, 0))}`, 14, y + 12);
+  stampPageNumbers(doc);
   doc.save('relatorio-pedidos.pdf');
 }
 
@@ -540,6 +562,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
   const yyyy = now.getFullYear();
   const hh = String(now.getHours()).padStart(2, '0');
   const min = String(now.getMinutes()).padStart(2, '0');
+  stampPageNumbers(doc);
   doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
 }
 
@@ -605,5 +628,6 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
   doc.text(`Valor total da comissão: ${formatCurrency(total)}`, 14, y + 16);
 
   const [yearStr, monthStr] = monthLabel.includes(' ') ? [monthLabel.split(' ')[1], monthLabel.split(' ')[0]] : ['', ''];
+  stampPageNumbers(doc);
   doc.save(`Comissão - Rancho Chique - ${monthStr}-${yearStr}.pdf`);
 }
