@@ -274,6 +274,90 @@ export type Database = {
           },
         ]
       }
+      financeiro_a_pagar: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_emissao: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string | null
+          fornecedor: string
+          id: string
+          nota_url: string | null
+          numero_nota: string
+          status: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_emissao: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao?: string | null
+          fornecedor: string
+          id?: string
+          nota_url?: string | null
+          numero_nota: string
+          status?: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string | null
+          fornecedor?: string
+          id?: string
+          nota_url?: string | null
+          numero_nota?: string
+          status?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      financeiro_a_receber: {
+        Row: {
+          comprovante_url: string | null
+          created_at: string
+          created_by: string | null
+          data_pagamento: string
+          descricao: string | null
+          destinatario: string
+          id: string
+          tipo: string
+          valor: number
+          vendedor: string
+        }
+        Insert: {
+          comprovante_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_pagamento: string
+          descricao?: string | null
+          destinatario: string
+          id?: string
+          tipo: string
+          valor?: number
+          vendedor: string
+        }
+        Update: {
+          comprovante_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string
+          descricao?: string | null
+          destinatario?: string
+          id?: string
+          tipo?: string
+          valor?: number
+          vendedor?: string
+        }
+        Relationships: []
+      }
       gravata_stock: {
         Row: {
           cor_brilho: string | null
