@@ -1,43 +1,46 @@
 
 
-## Erro nos comprovantes — diagnóstico e correção
+## Dois problemas — diagnóstico e correção
 
-### O que está acontecendo
+### 1. "api.7estrivos.com.br está bloqueado" ao abrir comprovante
 
-Os logs da Edge Function `extract-comprovante` mostram **HTTP 401 (não autorizado)** em todas as chamadas — o erro "Edge Function returned a non-2xx status code" que aparece pra você é exatamente isso.
+**Não é bug do app.** O log de rede mostra que a URL assinada do PDF foi gerada com sucesso (status 200). O bloqueio (`ERR_BLOCKED_BY_CLIENT`) vem do **próprio Microsoft Edge ou de uma extensão de bloqueador** instalada no seu navegador, que está marcando o domínio `api.7estrivos.com.br` como suspeito por algum motivo (provavelmente porque é um subdomínio recente sem reputação).
 
-Causa raiz: a função foi configurada com `verify_jwt = true` em `supabase/config.toml`. O Supabase tenta validar o token JWT do usuário antes mesmo do código rodar e está rejeitando — provavelmente porque o `client.ts` aponta pro domínio customizado (`api.7estrivos.com.br`), enquanto as Edge Functions são chamadas direto em `*.supabase.co`, e o token acaba não sendo aceito naquele endpoint.
+**Como vou resolver no app**: em vez de abrir o PDF/imagem em **nova aba** (que cai no bloqueio do navegador), vou exibir dentro de um **modal de visualização embutido** na própria página Financeiro. Como o conteúdo é carregado via fetch+blob (não como navegação), o bloqueador do Edge não interfere.
 
-### Correção
+- **Para PDF**: abre num `<iframe>` dentro de um Dialog grande (90% da tela)
+- **Para imagem (JPG/PNG/HEIC)**: abre num `<img>` dentro do mesmo Dialog
+- Mantenho um botão "Baixar arquivo" no modal que faz download direto via blob, também imune ao bloqueador
+- Função `openPdf` em `financeiroHelpers.ts` ganha versão nova `getSignedUrl(path)` que retorna a URL, e o componente decide o que fazer
 
-Mudar **uma linha** em `supabase/config.toml`:
+**Arquivos**: `src/components/financeiro/financeiroHelpers.ts`, `src/components/financeiro/FinanceiroAReceber.tsx`, `src/components/financeiro/FinanceiroAPagar.tsx` (mesmo modal, reaproveitado).
 
-```toml
-[functions.extract-comprovante]
-verify_jwt = false
-```
+### 2. "Duplicou o valor"
 
-Isso desliga a validação automática de JWT. **Não é problema de segurança** porque:
-- A função só extrai dados de um arquivo que o próprio cliente envia (não acessa banco nem retorna dados sensíveis)
-- O acesso à página Financeiro já é protegido por RBAC (`admin_master`) no frontend
-- A chave da IA (`LOVABLE_API_KEY`) continua só no servidor
+**Conferi o banco**: existe **apenas 1 registro** salvo (R$ 12.778,80, Débora Cristina, vendedor Rafael Silva, 02/04/2026). **Não houve duplicação real no banco**.
 
-É exatamente o mesmo padrão usado por outras funções de utilidade do projeto (`send-verification-code`, `verify-code`) que processam dados sem precisar do JWT do usuário.
+O que provavelmente você viu foi:
+- O card do comprovante com status "Salvo" continuou aparecendo dentro do modal "Novo Recebimento", **e** a linha já apareceu na tabela embaixo → parece dois, mas é o mesmo
+- OU: o resumo "Total recebido" no topo somou com algum outro registro antigo do mês
 
-### Após o deploy
+**Como vou resolver pra não confundir mais**:
+- Depois de salvar com sucesso, **fechar o modal automaticamente** (já fecha, mas vou garantir que limpa antes de fechar) e **remover o card "Salvo" da lista interna** imediatamente, pra nunca dar a sensação visual de duplicata
+- Adicionar uma **proteção contra clique duplo** no botão "Salvar Tudo" (desabilita enquanto `savingAll === true`, já tem, mas vou reforçar com guard)
+- Adicionar **deduplicação por hash do arquivo** ao adicionar comprovantes: se o mesmo PDF/foto for arrastado duas vezes na mesma sessão, mostra aviso "este comprovante já foi adicionado" e ignora
 
-Vou redeployar a função pra aplicar a mudança e você consegue testar arrastando o mesmo PDF de novo — deve voltar com data/valor/destinatário extraídos pela IA.
+**Arquivo**: `src/components/financeiro/FinanceiroAReceber.tsx` (mesmo padrão depois aplicado em A Pagar se quiser).
 
 ### O que NÃO mexo
 
-- Código da função em si — está correto, suporta PDF e imagem
-- Lógica de upload, validação, ou UI do formulário
-- RLS das tabelas `financeiro_a_receber` / `financeiro_a_pagar`
+- Lógica da Edge Function (extração via IA continua igual, está funcionando)
+- Estrutura da tabela `financeiro_a_receber`
+- Cálculo do resumo (Total/Empresa/Fornecedor)
+- Upload pro Storage
 
 ### Validação (você faz depois)
 
-1. Abrir Financeiro › A Receber › "Registrar Recebimento"
-2. Arrastar o `Comprovante-2AA33F25...pdf` que deu erro
-3. Conferir que os campos data, valor e destinatário aparecem preenchidos
-4. Testar também com uma foto JPG de comprovante
+1. Abrir Financeiro › A Receber, clicar no ícone de olho/PDF de um registro → deve abrir o visualizador embutido **sem cair no bloqueio do Edge**
+2. Tentar baixar pelo botão "Baixar arquivo" do modal → deve funcionar mesmo com o bloqueador ativo
+3. Registrar um novo recebimento → após salvar, o card desaparece e só aparece na tabela embaixo (sem sensação de duplicata)
+4. Tentar arrastar o mesmo PDF duas vezes → segundo é ignorado com aviso
 
