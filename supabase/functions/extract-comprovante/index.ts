@@ -1,4 +1,4 @@
-// Extrai dados de comprovantes de pagamento (PDF) usando Lovable AI Gateway
+// Extrai dados de comprovantes de pagamento (PDF ou imagem) usando Lovable AI Gateway
 // Retorna: data_pagamento, valor, destinatario_nome, destinatario_documento, tipo
 
 const corsHeaders = {
@@ -17,6 +17,17 @@ function normalizeText(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+function detectMimeFromName(name: string): string {
+  const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'heic') return 'image/heic';
+  if (ext === 'heif') return 'image/heif';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  return 'application/octet-stream';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -28,14 +39,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { pdfBase64, fileName } = await req.json();
-    if (!pdfBase64) {
-      return new Response(JSON.stringify({ error: 'pdfBase64 obrigatório' }), {
+    const body = await req.json();
+    // Compat: aceita pdfBase64 (legado) ou fileBase64 + mimeType
+    const fileBase64: string = body.fileBase64 || body.pdfBase64;
+    const fileName: string = body.fileName || 'comprovante';
+    const mimeType: string = body.mimeType || detectMimeFromName(fileName);
+
+    if (!fileBase64) {
+      return new Response(JSON.stringify({ error: 'fileBase64 obrigatório' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const systemPrompt = `Você analisa comprovantes de pagamento (PIX, TED, DOC, boleto) brasileiros em PDF.
+    const isImage = mimeType.startsWith('image/');
+    const isPdf = mimeType === 'application/pdf';
+
+    if (!isImage && !isPdf) {
+      return new Response(JSON.stringify({ error: 'Tipo de arquivo não suportado (use PDF ou imagem)' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const systemPrompt = `Você analisa comprovantes de pagamento (PIX, TED, DOC, boleto) brasileiros — em PDF ou imagem (foto/print de tela).
 Extraia EXATAMENTE estes dados e retorne via tool call:
 - data_pagamento: data efetiva da transferência (formato YYYY-MM-DD)
 - valor: valor pago em reais (número, sem R$ nem separador de milhar; use ponto decimal)
@@ -45,6 +70,23 @@ Extraia EXATAMENTE estes dados e retorne via tool call:
 
 Se algum campo não estiver claro no comprovante, retorne string vazia ou 0 para valor.
 NUNCA invente dados.`;
+
+    // Monta o conteúdo do usuário conforme o tipo
+    const userContent: any[] = [
+      { type: 'text', text: `Extraia os dados deste comprovante (arquivo: ${fileName}).` },
+    ];
+
+    if (isPdf) {
+      userContent.push({
+        type: 'file',
+        file: { filename: fileName, file_data: `data:application/pdf;base64,${fileBase64}` },
+      });
+    } else {
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: `data:${mimeType};base64,${fileBase64}` },
+      });
+    }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -56,13 +98,7 @@ NUNCA invente dados.`;
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: `Extraia os dados deste comprovante (arquivo: ${fileName || 'comprovante.pdf'}).` },
-              { type: 'file', file: { filename: fileName || 'comprovante.pdf', file_data: `data:application/pdf;base64,${pdfBase64}` } },
-            ],
-          },
+          { role: 'user', content: userContent },
         ],
         tools: [{
           type: 'function',
