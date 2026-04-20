@@ -1,107 +1,58 @@
 
 
-## Aba Financeiro (exclusiva para usuário 7estrivos / Juliana)
+## Numeração de páginas em todos os PDFs
 
-Nova aba no menu, visível só para `admin_master`, com duas seções: **A Receber** (comprovantes que vendedoras enviam) e **A Pagar** (notas para o CNPJ da empresa).
+Adicionar um carimbo "Página X-Y" no topo de cada página de todos os relatórios PDF — para você nunca perder folha de produção.
 
-## Estrutura
+## Como vai aparecer
 
-### 1. Banco de dados (migration)
+- **Posição**: canto superior direito de cada página (não atrapalha cabeçalho do relatório)
+- **Formato**: `Página 1-3`, `Página 2-3`, `Página 3-3` (exatamente como você pediu — separador `-`)
+- **Estilo**: fonte pequena (8pt), cinza, discreta — só pra conferência
+- **Aplicado em todas as páginas** do PDF, inclusive a primeira
 
-**Tabela `financeiro_a_receber`** — comprovantes recebidos
-- `id` uuid PK
-- `vendedor` text (quem mandou — selecionado da lista de vendedores existentes)
-- `data_pagamento` date
-- `valor` numeric
-- `destinatario` text (para quem foi: "Empresa" ou nome do fornecedor)
-- `tipo` text ("empresa" | "fornecedor") — pra filtrar/identificar
-- `descricao` text (opcional)
-- `comprovante_url` text (PDF no Storage)
-- `created_at`, `created_by` (uuid do user que cadastrou)
+## Onde vai entrar
 
-**Tabela `financeiro_a_pagar`** — notas/contas do CNPJ
-- `id` uuid PK
-- `fornecedor` text
-- `numero_nota` text
-- `data_emissao` date
-- `data_vencimento` date
-- `valor` numeric
-- `status` text ("em_aberto" | "pago")
-- `data_pagamento` date (preenchida quando marca como pago)
-- `nota_url` text (PDF no Storage)
-- `descricao` text (opcional)
-- `created_at`, `created_by`
+Crio uma função utilitária `stampPageNumbers(doc)` em `src/lib/pdfGenerators.ts` que:
+1. Lê o total de páginas com `doc.internal.pages.length - 1` (jsPDF guarda número correto)
+2. Itera de 1 até N, faz `doc.setPage(i)` e desenha `Página i-N` no canto superior direito, respeitando a largura da página (funciona em A4 retrato, A4 paisagem e A5 paisagem da Ficha Sagrada)
+3. É chamada **uma única vez, logo antes de `doc.save(...)`** em cada gerador
 
-**RLS:** Ambas tabelas — só `admin_master` pode SELECT/INSERT/UPDATE/DELETE (usar função `has_role(auth.uid(), 'admin_master')`).
+## Geradores que recebem o carimbo
 
-**Storage bucket `financeiro`** (privado)
-- Pastas: `a-receber/` e `a-pagar/`
-- RLS: só admin_master lê/escreve
-- PDFs servidos via signed URLs (1h)
+Vou inserir a chamada `stampPageNumbers(doc)` antes do `save` em todos esses pontos:
 
-### 2. Rota e navegação
+**`src/lib/pdfGenerators.ts`**
+- `generateReportPDF` (Relatório de Pedidos)
+- `generateProductionSheetPDF` (Fichas de Produção A5 — layout sagrado)
+- `generateCommissionPDF` (Comissão Rancho Chique)
 
-- Nova rota `/financeiro` em `App.tsx` → componente `FinanceiroPage`
-- Item "FINANCEIRO" no `Header.tsx`, condicional a `role === 'admin_master'`
-- Página redireciona pra `/` se quem acessar não for admin_master
+**`src/components/SpecializedReports.tsx`** (12 geradores diferentes)
+- Escalação, Forro, Palmilha, Forma, Pesponto, Metais, Bordados, Corte, Expedição, Cobrança, Extras Cintos, e demais variantes que usam `new jsPDF(...)`
 
-### 3. UI (`src/pages/FinanceiroPage.tsx`)
+**`src/components/SoladoBoard.tsx`**
+- Exportação dos quadros de solado
 
-Layout com `Tabs` (shadcn) — duas abas: **A Receber** | **A Pagar**.
+**`src/pages/PiecesReportPage.tsx`**
+- Relatório por Peças
 
-**Aba A Receber:**
-- Botão "Registrar Recebimento" abre Dialog com formulário:
-  - Vendedor (Select com lista de vendedores existentes nos `orders`, mesma lógica usada no AdminDashboard)
-  - Tipo (Radio: "Para a Empresa" | "Para Fornecedor")
-  - Destinatário (texto livre — se "Fornecedor", obrigatório; se "Empresa", auto-preenche "Empresa")
-  - Data do pagamento (date picker)
-  - Valor (R$)
-  - Descrição (opcional)
-  - Upload de comprovante (PDF, obrigatório, max 5MB)
-- Tabela listando todos os recebimentos: Vendedor | Data | Valor | Destinatário | Tipo (badge) | PDF (botão "Ver") | Ações (excluir)
-- Filtros: período (mês atual / últimos 30d / customizado), vendedor, tipo
-- Card resumo no topo: Total recebido no período, total pra empresa, total pra fornecedores
+## Detalhes técnicos
 
-**Aba A Pagar:**
-- Botão "Lançar Nota" abre Dialog com formulário:
-  - Fornecedor (texto)
-  - Número da nota (texto)
-  - Data de emissão
-  - Data de vencimento
-  - Valor (R$)
-  - Descrição (opcional)
-  - Upload da nota (PDF, opcional)
-- Tabela: Fornecedor | Nº Nota | Emissão | Vencimento | Valor | Status (badge verde/vermelho) | Nota (botão Ver) | Ações (marcar como pago, excluir)
-- Ação "Marcar como pago" abre mini-dialog perguntando data de pagamento
-- Filtros: status (todos / em aberto / pagos), período de vencimento, fornecedor
-- Cards resumo: Total a pagar (em aberto), Total pago no mês, Vencendo nos próximos 7 dias (alerta vermelho se houver)
-
-### 4. Comportamentos
-
-- **Upload de PDF**: validação client-side (tipo `application/pdf`, tamanho ≤ 5MB), nome único `{uuid}.pdf` no bucket
-- **Visualizar PDF**: gera signed URL (`createSignedUrl`, 3600s) e abre em nova aba
-- **Excluir registro**: confirma com AlertDialog, remove arquivo do Storage junto
-- **Moeda**: usar `formatCurrency` de `@/lib/order-logic`
-- **Datas**: input nativo `type="date"`, formatação BR na exibição
+- A função se adapta ao tamanho da página via `doc.internal.pageSize.getWidth()` — funciona em qualquer formato/orientação sem ajuste manual
+- Como o stamp roda **no final**, ele pega o total real de páginas mesmo nos relatórios que adicionam páginas dinamicamente conforme o conteúdo
+- Zero impacto no layout existente (apenas escreve no espaço livre do topo direito, ~10mm da borda)
+- A "Ficha Sagrada" (A5 paisagem, uma ficha por página) também ganha — útil quando você imprime várias e precisa conferir se imprimiu tudo
 
 ## O que NÃO mexo
 
-- Pedidos, dashboard, vendedores existentes — zero impacto
-- Outras roles continuam sem ver nada de financeiro
-- Estrutura do Supabase atual (só adiciona, não altera)
-
-## Ordem de execução
-
-1. Migration: 2 tabelas + RLS + bucket + policies do storage
-2. `FinanceiroPage.tsx` com as duas abas
-3. Componentes: `FinanceiroAReceber.tsx`, `FinanceiroAPagar.tsx`, dialogs de cadastro
-4. Rota em `App.tsx`
-5. Item no `Header.tsx` (condicional admin_master)
+- Nenhum layout, nenhuma tabela, nenhum cabeçalho existente
+- Padrão de nomes de arquivo continua igual
+- Lógica de quebra de página continua igual
 
 ## Validação (você faz depois)
 
-1. Logar como Juliana (7estrivos) → ver "FINANCEIRO" no menu
-2. Cadastrar um recebimento com PDF de teste → conferir que aparece na lista e o PDF abre
-3. Lançar uma nota a pagar → marcar como paga → conferir mudança de status
-4. Logar como Fernanda ou vendedor → confirmar que a aba **não** aparece e `/financeiro` redireciona
+1. Gerar Ficha de Produção com 5+ pedidos → conferir `Página 1-N`, `2-N`... no topo direito
+2. Gerar relatório de Bordados ou Corte com várias páginas → idem
+3. Gerar Relatório por Peças → idem
+4. Gerar PDF que cabe em 1 página só → deve mostrar `Página 1-1`
 
