@@ -45,6 +45,7 @@ interface AReceberRow {
 type ExtractedItem = {
   id: string;
   file: File;
+  hash: string;
   status: 'pending' | 'processing' | 'ready' | 'error' | 'saving' | 'saved';
   error?: string;
   data_pagamento: string;
