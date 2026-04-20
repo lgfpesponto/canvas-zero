@@ -76,6 +76,7 @@ const FinanceiroAReceber = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AReceberRow | null>(null);
+  const [viewerPath, setViewerPath] = useState<string | null>(null);
 
   // filters
   const [filterPeriodo, setFilterPeriodo] = useState<'mes' | '30d' | 'todos'>('mes');
