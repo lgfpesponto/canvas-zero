@@ -1,46 +1,89 @@
 
 
-## Dois problemas — diagnóstico e correção
+## Alerta de duplicidade com confirmação obrigatória
 
-### 1. "api.7estrivos.com.br está bloqueado" ao abrir comprovante
+### Regra nova
 
-**Não é bug do app.** O log de rede mostra que a URL assinada do PDF foi gerada com sucesso (status 200). O bloqueio (`ERR_BLOCKED_BY_CLIENT`) vem do **próprio Microsoft Edge ou de uma extensão de bloqueador** instalada no seu navegador, que está marcando o domínio `api.7estrivos.com.br` como suspeito por algum motivo (provavelmente porque é um subdomínio recente sem reputação).
+Sempre que o sistema detectar que um comprovante pode ser duplicado, **parar o salvamento** e exibir um diálogo de confirmação. Só prossegue se o usuário clicar "Sim, salvar mesmo assim".
 
-**Como vou resolver no app**: em vez de abrir o PDF/imagem em **nova aba** (que cai no bloqueio do navegador), vou exibir dentro de um **modal de visualização embutido** na própria página Financeiro. Como o conteúdo é carregado via fetch+blob (não como navegação), o bloqueador do Edge não interfere.
+### O que conta como "duplicidade"
 
-- **Para PDF**: abre num `<iframe>` dentro de um Dialog grande (90% da tela)
-- **Para imagem (JPG/PNG/HEIC)**: abre num `<img>` dentro do mesmo Dialog
-- Mantenho um botão "Baixar arquivo" no modal que faz download direto via blob, também imune ao bloqueador
-- Função `openPdf` em `financeiroHelpers.ts` ganha versão nova `getSignedUrl(path)` que retorna a URL, e o componente decide o que fazer
+Um comprovante é considerado possível duplicata se **já existe no banco** (na mesma aba — A Receber ou A Pagar) um registro com:
 
-**Arquivos**: `src/components/financeiro/financeiroHelpers.ts`, `src/components/financeiro/FinanceiroAReceber.tsx`, `src/components/financeiro/FinanceiroAPagar.tsx` (mesmo modal, reaproveitado).
+- **Mesmo valor** (R$ exato), **E**
+- **Mesma data de pagamento**, **E**
+- **Mesmo destinatário** (case-insensitive, trim)
 
-### 2. "Duplicou o valor"
+Essa tripla é forte o suficiente pra apontar duplicata real sem dar falso positivo (duas transferências do mesmo dia pro mesmo destino com valor idêntico ao centavo é raríssimo).
 
-**Conferi o banco**: existe **apenas 1 registro** salvo (R$ 12.778,80, Débora Cristina, vendedor Rafael Silva, 02/04/2026). **Não houve duplicação real no banco**.
+Adicionalmente, se o **hash do arquivo** (SHA-256 do PDF/foto) já existir em qualquer registro do banco, é duplicata **certa** (mesmo arquivo já foi enviado antes) — nesse caso o aviso é mais forte.
 
-O que provavelmente você viu foi:
-- O card do comprovante com status "Salvo" continuou aparecendo dentro do modal "Novo Recebimento", **e** a linha já apareceu na tabela embaixo → parece dois, mas é o mesmo
-- OU: o resumo "Total recebido" no topo somou com algum outro registro antigo do mês
+### Fluxo de UX
 
-**Como vou resolver pra não confundir mais**:
-- Depois de salvar com sucesso, **fechar o modal automaticamente** (já fecha, mas vou garantir que limpa antes de fechar) e **remover o card "Salvo" da lista interna** imediatamente, pra nunca dar a sensação visual de duplicata
-- Adicionar uma **proteção contra clique duplo** no botão "Salvar Tudo" (desabilita enquanto `savingAll === true`, já tem, mas vou reforçar com guard)
-- Adicionar **deduplicação por hash do arquivo** ao adicionar comprovantes: se o mesmo PDF/foto for arrastado duas vezes na mesma sessão, mostra aviso "este comprovante já foi adicionado" e ignora
+Quando o usuário clica **"Salvar X recebimento(s)"** (ou "Salvar X pagamento(s)"):
 
-**Arquivo**: `src/components/financeiro/FinanceiroAReceber.tsx` (mesmo padrão depois aplicado em A Pagar se quiser).
+1. Antes de inserir cada item, consulta o banco procurando registros com a mesma tripla `valor + data + destinatário` **ou** mesmo `comprovante_hash`
+2. Se nenhum item é duplicado → salva tudo normalmente (comportamento atual)
+3. Se 1+ itens são suspeitos de duplicata → abre `AlertDialog` listando cada um:
+
+```text
+⚠️ Possível duplicidade detectada
+
+• Comprovante-2AA3...pdf
+  R$ 6.221,65 — 15/04/2026 — Débora Cristina
+  Já existe registro idêntico salvo em 15/04/2026.
+
+• Recibo-Stone.pdf
+  Mesmo arquivo já foi enviado anteriormente (hash idêntico).
+
+Deseja salvar mesmo assim?
+
+[Cancelar]  [Sim, salvar todos]  [Salvar só os não duplicados]
+```
+
+4. **Cancelar** → volta pro modal sem salvar nada
+5. **Sim, salvar todos** → salva inclusive os duplicados (caso seja transferência legítima repetida)
+6. **Salvar só os não duplicados** → salva apenas os que passaram na verificação, mantém os suspeitos no card pra o usuário revisar
+
+### Mudanças técnicas
+
+**1. Banco** — adicionar coluna `comprovante_hash text` em `financeiro_a_receber` e `financeiro_a_pagar` (nullable, índice btree). Backfill opcional fica em null pros registros antigos.
+
+**2. Salvar o hash** ao inserir — `FinanceiroAReceber.tsx` e `FinanceiroAPagar.tsx` já calculam `fileHash` no momento do upload; só passar pro insert.
+
+**3. Função de checagem** em `financeiroHelpers.ts`:
+
+```ts
+checkDuplicates(table, items): Promise<DuplicateInfo[]>
+// retorna lista com { itemId, reason: 'hash' | 'triple', existingId, existingDate }
+```
+
+Faz UMA query OR com `.or()` cobrindo todos os candidatos de uma vez (evita N requisições).
+
+**4. Novo componente** `DuplicateConfirmDialog.tsx` reutilizável entre A Receber e A Pagar — recebe lista de duplicatas e callbacks (cancelar / salvar todos / salvar só não duplicados).
+
+**5. Integrar no `handleSaveAll`** das duas abas: rodar `checkDuplicates` antes do loop de insert; se vier não-vazio, abrir o dialog e aguardar a decisão antes de continuar.
+
+### Arquivos
+
+- **Migração SQL**: adicionar coluna `comprovante_hash` em duas tabelas + índice
+- `src/components/financeiro/financeiroHelpers.ts` — função `checkDuplicates`
+- `src/components/financeiro/DuplicateConfirmDialog.tsx` — novo
+- `src/components/financeiro/FinanceiroAReceber.tsx` — usar checagem + dialog, salvar hash
+- `src/components/financeiro/FinanceiroAPagar.tsx` — mesmo
 
 ### O que NÃO mexo
 
-- Lógica da Edge Function (extração via IA continua igual, está funcionando)
-- Estrutura da tabela `financeiro_a_receber`
-- Cálculo do resumo (Total/Empresa/Fornecedor)
-- Upload pro Storage
+- Edge Function de extração (separado, próximo passo se quiser)
+- Visualizador de comprovante
+- Lógica de upload pro Storage
+- RLS
 
 ### Validação (você faz depois)
 
-1. Abrir Financeiro › A Receber, clicar no ícone de olho/PDF de um registro → deve abrir o visualizador embutido **sem cair no bloqueio do Edge**
-2. Tentar baixar pelo botão "Baixar arquivo" do modal → deve funcionar mesmo com o bloqueador ativo
-3. Registrar um novo recebimento → após salvar, o card desaparece e só aparece na tabela embaixo (sem sensação de duplicata)
-4. Tentar arrastar o mesmo PDF duas vezes → segundo é ignorado com aviso
+1. Tentar registrar de novo o mesmo PDF Stone (R$ 6.221,65 — 15/04 — Débora) → deve abrir alerta de duplicata por hash + tripla
+2. Cancelar → nada é salvo
+3. Tentar de novo e clicar "Salvar só os não duplicados" → nada salva (era só um, era duplicado)
+4. Registrar comprovante completamente novo → salva direto sem alerta
+5. Misturar 1 novo + 1 duplicado → alerta lista só o duplicado, opção "salvar só os não duplicados" salva 1
 
