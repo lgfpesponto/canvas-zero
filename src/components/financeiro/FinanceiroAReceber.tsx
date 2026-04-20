@@ -25,9 +25,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  deletePdf, fetchVendedoresList, formatDateBR, openPdf,
+  deletePdf, fetchVendedoresList, fileHash, formatDateBR,
   todayISO, uploadPdf, validateComprovante,
 } from './financeiroHelpers';
+import { ComprovanteViewer } from './ComprovanteViewer';
 
 interface AReceberRow {
   id: string;
@@ -44,6 +45,7 @@ interface AReceberRow {
 type ExtractedItem = {
   id: string;
   file: File;
+  hash: string;
   status: 'pending' | 'processing' | 'ready' | 'error' | 'saving' | 'saved';
   error?: string;
   data_pagamento: string;
@@ -74,6 +76,7 @@ const FinanceiroAReceber = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AReceberRow | null>(null);
+  const [viewerPath, setViewerPath] = useState<string | null>(null);
 
   // filters
   const [filterPeriodo, setFilterPeriodo] = useState<'mes' | '30d' | 'todos'>('mes');
@@ -165,15 +168,22 @@ const FinanceiroAReceber = () => {
   const handleFilesSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const newItems: ExtractedItem[] = [];
+    const existingHashes = new Set(items.map(i => i.hash));
     for (const file of Array.from(files)) {
       const err = validateComprovante(file);
       if (err) {
         toast({ title: `${file.name}: ${err}`, variant: 'destructive' });
         continue;
       }
+      const hash = await fileHash(file);
+      if (existingHashes.has(hash) || newItems.some(n => n.hash === hash)) {
+        toast({ title: `${file.name}: já adicionado nesta sessão`, variant: 'destructive' });
+        continue;
+      }
       newItems.push({
         id: crypto.randomUUID(),
         file,
+        hash,
         status: 'pending',
         data_pagamento: todayISO(),
         valor: '',
@@ -184,7 +194,6 @@ const FinanceiroAReceber = () => {
     }
     if (newItems.length === 0) return;
     setItems(prev => [...prev, ...newItems]);
-    // process in parallel (max 3 at a time to avoid rate limit)
     for (let i = 0; i < newItems.length; i += 3) {
       const batch = newItems.slice(i, i + 3);
       await Promise.all(batch.map(processFile));
@@ -200,11 +209,11 @@ const FinanceiroAReceber = () => {
   };
 
   const handleSaveAll = async () => {
+    if (savingAll) return;
     if (!fVendedor) { toast({ title: 'Selecione o vendedor', variant: 'destructive' }); return; }
     const ready = items.filter(i => i.status === 'ready');
     if (ready.length === 0) { toast({ title: 'Nenhum comprovante pronto pra salvar', variant: 'destructive' }); return; }
 
-    // validate each ready item
     for (const it of ready) {
       const v = parseFloat(it.valor.replace(',', '.'));
       if (!v || v <= 0) { toast({ title: `Valor inválido em ${it.file.name}`, variant: 'destructive' }); return; }
@@ -217,6 +226,7 @@ const FinanceiroAReceber = () => {
 
     setSavingAll(true);
     let okCount = 0;
+    const savedIds: string[] = [];
     for (const it of ready) {
       updateItem(it.id, { status: 'saving' });
       try {
@@ -234,7 +244,7 @@ const FinanceiroAReceber = () => {
           created_by: user?.id,
         });
         if (error) throw error;
-        updateItem(it.id, { status: 'saved' });
+        savedIds.push(it.id);
         okCount++;
       } catch (e: any) {
         updateItem(it.id, { status: 'error', error: e.message });
@@ -243,8 +253,13 @@ const FinanceiroAReceber = () => {
     setSavingAll(false);
     toast({ title: `${okCount} recebimento(s) salvo(s)!` });
     if (okCount > 0) {
-      setDialogOpen(false);
-      resetForm();
+      // remove cards salvos imediatamente pra evitar sensação de duplicata visual
+      const remaining = items.filter(i => !savedIds.includes(i.id) && i.status !== 'ready');
+      setItems(prev => prev.filter(i => !savedIds.includes(i.id)));
+      if (remaining.length === 0) {
+        setDialogOpen(false);
+        resetForm();
+      }
       load();
     }
   };
@@ -482,7 +497,7 @@ const FinanceiroAReceber = () => {
                   </TableCell>
                   <TableCell>
                     {r.comprovante_url ? (
-                      <Button size="sm" variant="ghost" onClick={() => openPdf(r.comprovante_url!)}>
+                      <Button size="sm" variant="ghost" onClick={() => setViewerPath(r.comprovante_url!)}>
                         <FileText size={14} className="mr-1" /> Ver
                       </Button>
                     ) : <span className="text-xs text-muted-foreground">—</span>}
@@ -515,6 +530,12 @@ const FinanceiroAReceber = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ComprovanteViewer
+        path={viewerPath}
+        open={!!viewerPath}
+        onOpenChange={(o) => !o && setViewerPath(null)}
+      />
     </div>
   );
 };
