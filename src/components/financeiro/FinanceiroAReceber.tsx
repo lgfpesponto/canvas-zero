@@ -364,7 +364,7 @@ const FinanceiroAReceber = () => {
                           {it.status === 'processing' && <Loader2 size={14} className="animate-spin text-primary shrink-0" />}
                           {it.status === 'ready' && <Badge variant="default" className="shrink-0">Pronto</Badge>}
                           {it.status === 'saving' && <Badge variant="secondary" className="shrink-0">Salvando...</Badge>}
-                          {it.status === 'saved' && <Badge variant="default" className="shrink-0 bg-green-600">Salvo</Badge>}
+                          {it.status === 'saved' && <Badge variant="default" className="shrink-0">Salvo</Badge>}
                           {it.status === 'error' && <Badge variant="destructive" className="shrink-0">Erro</Badge>}
                         </div>
                         <Button size="sm" variant="ghost" onClick={() => removeItem(it.id)} disabled={it.status === 'saving'}>
