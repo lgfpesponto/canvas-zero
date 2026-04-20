@@ -1,58 +1,83 @@
 
 
-## Numeração de páginas em todos os PDFs
+## Histórico de Impressão dos Pedidos
 
-Adicionar um carimbo "Página X-Y" no topo de cada página de todos os relatórios PDF — para você nunca perder folha de produção.
+Adicionar rastreamento de impressões: toda vez que uma ficha PDF de um pedido for gerada, registrar quem imprimiu, quando, e mostrar um ícone de impressora no card do pedido.
 
-## Como vai aparecer
+## Como vai funcionar
 
-- **Posição**: canto superior direito de cada página (não atrapalha cabeçalho do relatório)
-- **Formato**: `Página 1-3`, `Página 2-3`, `Página 3-3` (exatamente como você pediu — separador `-`)
-- **Estilo**: fonte pequena (8pt), cinza, discreta — só pra conferência
-- **Aplicado em todas as páginas** do PDF, inclusive a primeira
+### 1. Novo campo no banco
 
-## Onde vai entrar
+Adicionar coluna `impressoes` (jsonb, default `[]`) na tabela `orders`. Cada item:
+```json
+{ "data": "2026-04-20", "hora": "14:32", "usuario": "Juliana ADM", "tipo": "Ficha de Produção" }
+```
+- Migration cria a coluna sem mexer em nada existente
+- `dbRowToOrder` e `orderToDbRow` em `src/lib/order-logic.ts` ganham o mapeamento
+- Tipo `Order` em `AuthContext.tsx` ganha `impressoes?: { data; hora; usuario; tipo }[]`
 
-Crio uma função utilitária `stampPageNumbers(doc)` em `src/lib/pdfGenerators.ts` que:
-1. Lê o total de páginas com `doc.internal.pages.length - 1` (jsPDF guarda número correto)
-2. Itera de 1 até N, faz `doc.setPage(i)` e desenha `Página i-N` no canto superior direito, respeitando a largura da página (funciona em A4 retrato, A4 paisagem e A5 paisagem da Ficha Sagrada)
-3. É chamada **uma única vez, logo antes de `doc.save(...)`** em cada gerador
+### 2. Registro automático ao imprimir
 
-## Geradores que recebem o carimbo
+Onde já chamamos `doc.save(...)` para fichas/relatórios de pedidos específicos, gravamos a impressão dos pedidos envolvidos:
 
-Vou inserir a chamada `stampPageNumbers(doc)` antes do `save` em todos esses pontos:
+- **`generateProductionSheetPDF`** (Ficha Sagrada A5) → registra em **todos** os pedidos da lista, tipo `"Ficha de Produção"`
+- **`generateReportPDF`** (Relatório por Filtros) → registra tipo `"Relatório de Pedidos"`
+- **Relatórios especializados** em `SpecializedReports.tsx` (Corte, Bordados, Pesponto, Forro, Forma, Palmilha, Metais, Expedição, Cobrança, Escalação, Extras) → cada um registra com seu próprio tipo (ex: `"Relatório de Corte"`)
+- **`SoladoBoard.tsx`** e **`PiecesReportPage.tsx`** → registram com tipo correspondente
 
-**`src/lib/pdfGenerators.ts`**
-- `generateReportPDF` (Relatório de Pedidos)
-- `generateProductionSheetPDF` (Fichas de Produção A5 — layout sagrado)
-- `generateCommissionPDF` (Comissão Rancho Chique)
+Implementação: nova função utilitária `registerOrderPrints(orderIds: string[], tipo: string, usuario: string)` em `src/lib/printHistory.ts` que faz um `update` em batch — busca os `impressoes` atuais e adiciona o novo registro. Roda em background (sem await bloqueante na UX).
 
-**`src/components/SpecializedReports.tsx`** (12 geradores diferentes)
-- Escalação, Forro, Palmilha, Forma, Pesponto, Metais, Bordados, Corte, Expedição, Cobrança, Extras Cintos, e demais variantes que usam `new jsPDF(...)`
+### 3. Visual no card do pedido (`OrderCard.tsx`)
 
-**`src/components/SoladoBoard.tsx`**
-- Exportação dos quadros de solado
+Quando `order.impressoes?.length > 0`, mostra ícone `Printer` (lucide-react) ao lado do número do pedido, com badge contador se >1:
+```
+7E-AB1234 🖨️3   — Juliana
+```
+Tooltip ao passar o mouse: "Impresso 3x — última: 20/04 14:32"
 
-**`src/pages/PiecesReportPage.tsx`**
-- Relatório por Peças
+### 4. Aba na página de detalhes (`OrderDetailPage.tsx`)
+
+Junto da grid `Histórico de Produção | Histórico de Alterações`, transformar em 3 colunas em telas grandes (ou empilhar em telas menores) adicionando **Histórico de Impressão**:
+```
+┌─ Produção ─┐ ┌─ Alterações ─┐ ┌─ Impressões ─┐
+│ ...        │ │ ...          │ │ 20/04 14:32  │
+│            │ │              │ │ Juliana ADM  │
+│            │ │              │ │ Ficha Prod.  │
+└────────────┘ └──────────────┘ └──────────────┘
+```
+Lista cronológica reversa (mais recente primeiro), com ícone de impressora.
 
 ## Detalhes técnicos
 
-- A função se adapta ao tamanho da página via `doc.internal.pageSize.getWidth()` — funciona em qualquer formato/orientação sem ajuste manual
-- Como o stamp roda **no final**, ele pega o total real de páginas mesmo nos relatórios que adicionam páginas dinamicamente conforme o conteúdo
-- Zero impacto no layout existente (apenas escreve no espaço livre do topo direito, ~10mm da borda)
-- A "Ficha Sagrada" (A5 paisagem, uma ficha por página) também ganha — útil quando você imprime várias e precisa conferir se imprimiu tudo
+- **Quem imprimiu**: pega `user.nome_completo` (ou `nome_usuario` como fallback) do `useAuth()` no momento do clique no botão de impressão
+- **Data/hora**: usa `formatBrasiliaDate()` e `formatBrasiliaTime()` (já existentes), igual ao `historico` e `alteracoes`
+- **Performance**: o registro é assíncrono e não bloqueia o `doc.save()` — se falhar, não atrapalha a impressão
+- **Pedidos envolvidos**: para fichas de produção em lote (ex: imprimiu 50 fichas), grava nos 50 pedidos de uma vez via `.in('id', ids)` + update individual em paralelo
+- **Backward compat**: pedidos antigos sem `impressoes` são tratados como `[]` (sem ícone, sem coluna na detalhes)
+
+## Arquivos a editar/criar
+
+- **Migration** — `ALTER TABLE orders ADD COLUMN impressoes jsonb NOT NULL DEFAULT '[]'::jsonb`
+- **Criar** `src/lib/printHistory.ts` — função `registerOrderPrints`
+- `src/contexts/AuthContext.tsx` — adicionar `impressoes` no tipo `Order`
+- `src/lib/order-logic.ts` — mapear nos dois sentidos
+- `src/lib/pdfGenerators.ts` — chamar `registerOrderPrints` antes de `doc.save` em `generateProductionSheetPDF` e `generateReportPDF`
+- `src/components/SpecializedReports.tsx` — chamar nas 12 funções de export
+- `src/components/SoladoBoard.tsx` e `src/pages/PiecesReportPage.tsx` — idem
+- `src/components/OrderCard.tsx` — ícone `Printer` condicional + tooltip
+- `src/pages/OrderDetailPage.tsx` — terceira coluna "Histórico de Impressão"
 
 ## O que NÃO mexo
 
-- Nenhum layout, nenhuma tabela, nenhum cabeçalho existente
-- Padrão de nomes de arquivo continua igual
-- Lógica de quebra de página continua igual
+- Lógica de geração dos PDFs em si — só adiciono uma chamada antes do `save`
+- Layout dos PDFs — sem alteração
+- Histórico de produção e alterações existentes — sem alteração
+- Numeração de páginas (já implementada) — continua funcionando
 
 ## Validação (você faz depois)
 
-1. Gerar Ficha de Produção com 5+ pedidos → conferir `Página 1-N`, `2-N`... no topo direito
-2. Gerar relatório de Bordados ou Corte com várias páginas → idem
-3. Gerar Relatório por Peças → idem
-4. Gerar PDF que cabe em 1 página só → deve mostrar `Página 1-1`
+1. Imprimir uma Ficha de Produção com 3 pedidos selecionados → abrir cada um, conferir aba "Histórico de Impressão" com seu nome, data e hora
+2. Voltar à lista → conferir ícone 🖨️ nos 3 pedidos com contador "1"
+3. Imprimir o mesmo pedido outra vez → contador vai pra "2", lista mostra 2 entradas
+4. Imprimir um Relatório de Corte → conferir que aparece como tipo "Relatório de Corte" no histórico
 
