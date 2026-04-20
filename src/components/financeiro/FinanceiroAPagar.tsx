@@ -325,7 +325,7 @@ const FinanceiroAPagar = () => {
                     <TableCell className="font-semibold">{formatCurrency(Number(r.valor))}</TableCell>
                     <TableCell>
                       {r.status === 'pago' ? (
-                        <Badge className="bg-emerald-600 hover:bg-emerald-700">Pago</Badge>
+                        <Badge className="bg-primary hover:bg-primary/90">Pago</Badge>
                       ) : (
                         <Badge variant="destructive">Em aberto</Badge>
                       )}
@@ -342,7 +342,7 @@ const FinanceiroAPagar = () => {
                         {r.status === 'em_aberto' && (
                           <Button size="sm" variant="ghost" title="Marcar como pago"
                             onClick={() => { setPayTarget(r); setPayDate(todayISO()); }}>
-                            <CheckCircle2 size={14} className="text-emerald-600" />
+                            <CheckCircle2 size={14} className="text-primary" />
                           </Button>
                         )}
                         <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)}>
