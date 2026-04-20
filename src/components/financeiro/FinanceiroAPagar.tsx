@@ -24,8 +24,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  deletePdf, formatDateBR, openPdf, todayISO, uploadPdf, validatePdf,
+  deletePdf, formatDateBR, todayISO, uploadPdf, validatePdf,
 } from './financeiroHelpers';
+import { ComprovanteViewer } from './ComprovanteViewer';
 
 interface APagarRow {
   id: string;
@@ -51,6 +52,7 @@ const FinanceiroAPagar = () => {
   const [deleteTarget, setDeleteTarget] = useState<APagarRow | null>(null);
   const [payTarget, setPayTarget] = useState<APagarRow | null>(null);
   const [payDate, setPayDate] = useState(todayISO());
+  const [viewerPath, setViewerPath] = useState<string | null>(null);
 
   // filters
   const [filterStatus, setFilterStatus] = useState<string>('todos');
@@ -332,7 +334,7 @@ const FinanceiroAPagar = () => {
                     </TableCell>
                     <TableCell>
                       {r.nota_url ? (
-                        <Button size="sm" variant="ghost" onClick={() => openPdf(r.nota_url!)}>
+                        <Button size="sm" variant="ghost" onClick={() => setViewerPath(r.nota_url!)}>
                           <FileText size={14} className="mr-1" /> Ver
                         </Button>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
@@ -389,6 +391,12 @@ const FinanceiroAPagar = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ComprovanteViewer
+        path={viewerPath}
+        open={!!viewerPath}
+        onOpenChange={(o) => !o && setViewerPath(null)}
+      />
     </div>
   );
 };
