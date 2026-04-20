@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { stampPageNumbers } from '@/lib/pdfGenerators';
 
 const PIECE_FIELDS = [
   { key: 'tamanho', label: 'Tamanho' },
@@ -70,6 +71,7 @@ const PiecesReportPage = () => {
       y += 8;
     });
 
+    stampPageNumbers(doc);
     doc.save('relatorio-pecas.pdf');
   };
 

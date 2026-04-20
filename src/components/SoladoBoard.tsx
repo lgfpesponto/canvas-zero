@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
 import type { Order } from '@/contexts/AuthContext';
 import jsPDF from 'jspdf';
+import { stampPageNumbers } from '@/lib/pdfGenerators';
 
 interface SoladoBoardProps {
   title: string;
@@ -206,6 +207,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
       y += 4;
     });
 
+    stampPageNumbers(doc);
     doc.save(`${title.toLowerCase().replace(/\s+/g, '-')}-${dateStr.replace(/\//g, '-')}.pdf`);
   };
 
