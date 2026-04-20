@@ -1,4 +1,4 @@
 project_id = "uxpcqqxlypshickabeyq"
 
 [functions.extract-comprovante]
-verify_jwt = true
+verify_jwt = false
