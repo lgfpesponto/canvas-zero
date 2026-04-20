@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   deletePdf, fetchVendedoresList, formatDateBR, openPdf,
-  todayISO, uploadPdf, validatePdf,
+  todayISO, uploadPdf, validateComprovante,
 } from './financeiroHelpers';
 
 interface AReceberRow {
@@ -139,8 +139,9 @@ const FinanceiroAReceber = () => {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'processing', error: undefined } : i));
     try {
       const base64 = await fileToBase64(item.file);
+      const mimeType = item.file.type || (item.file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
       const { data, error } = await supabase.functions.invoke('extract-comprovante', {
-        body: { pdfBase64: base64, fileName: item.file.name },
+        body: { fileBase64: base64, fileName: item.file.name, mimeType },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -165,7 +166,7 @@ const FinanceiroAReceber = () => {
     if (!files || files.length === 0) return;
     const newItems: ExtractedItem[] = [];
     for (const file of Array.from(files)) {
-      const err = validatePdf(file);
+      const err = validateComprovante(file);
       if (err) {
         toast({ title: `${file.name}: ${err}`, variant: 'destructive' });
         continue;
@@ -338,17 +339,17 @@ const FinanceiroAReceber = () => {
               </div>
 
               <div>
-                <Label>Comprovantes (PDF — pode arrastar vários)</Label>
+                <Label>Comprovantes (PDF ou foto — pode arrastar vários)</Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mt-1">
                   <Upload className="mx-auto mb-2 text-muted-foreground" size={28} />
                   <Input
                     type="file"
-                    accept="application/pdf"
+                    accept="application/pdf,image/*"
                     multiple
                     onChange={(e) => handleFilesSelected(e.target.files)}
                     className="cursor-pointer"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">A IA vai extrair data, valor e destinatário automaticamente</p>
+                  <p className="text-xs text-muted-foreground mt-2">Aceita PDF, JPG, PNG ou foto da tela. A IA extrai data, valor e destinatário automaticamente.</p>
                 </div>
               </div>
 
