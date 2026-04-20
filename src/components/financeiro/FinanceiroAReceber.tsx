@@ -25,9 +25,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  deletePdf, fetchVendedoresList, formatDateBR, openPdf,
+  deletePdf, fetchVendedoresList, fileHash, formatDateBR,
   todayISO, uploadPdf, validateComprovante,
 } from './financeiroHelpers';
+import { ComprovanteViewer } from './ComprovanteViewer';
 
 interface AReceberRow {
   id: string;

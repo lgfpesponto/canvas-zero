@@ -38,13 +38,28 @@ export async function uploadPdf(file: File, folder: 'a-receber' | 'a-pagar'): Pr
   return path;
 }
 
-export async function openPdf(path: string) {
+export async function getSignedUrl(path: string): Promise<string | null> {
   const { data, error } = await supabase.storage.from('financeiro').createSignedUrl(path, 3600);
-  if (error || !data?.signedUrl) {
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
+export async function openPdf(path: string) {
+  const url = await getSignedUrl(path);
+  if (!url) {
     alert('Não foi possível abrir o arquivo.');
     return;
   }
-  window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+// Hash SHA-256 do arquivo (hex) — usado para deduplicação de comprovantes
+export async function fileHash(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export async function deletePdf(path: string) {
