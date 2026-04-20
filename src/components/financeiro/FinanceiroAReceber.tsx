@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, FileText, Filter } from 'lucide-react';
+import { Plus, Trash2, FileText, Filter, Loader2, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,31 @@ interface AReceberRow {
   created_at: string;
 }
 
+type ExtractedItem = {
+  id: string;
+  file: File;
+  status: 'pending' | 'processing' | 'ready' | 'error' | 'saving' | 'saved';
+  error?: string;
+  data_pagamento: string;
+  valor: string;
+  destinatario: string;
+  tipo: 'empresa' | 'fornecedor';
+  descricao: string;
+};
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 const FinanceiroAReceber = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -48,7 +73,6 @@ const FinanceiroAReceber = () => {
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AReceberRow | null>(null);
 
   // filters
@@ -56,18 +80,14 @@ const FinanceiroAReceber = () => {
   const [filterVendedor, setFilterVendedor] = useState<string>('todos');
   const [filterTipo, setFilterTipo] = useState<string>('todos');
 
-  // form
+  // form (multi-PDF flow)
   const [fVendedor, setFVendedor] = useState('');
-  const [fTipo, setFTipo] = useState<'empresa' | 'fornecedor'>('empresa');
-  const [fDestinatario, setFDestinatario] = useState('');
-  const [fData, setFData] = useState(todayISO());
-  const [fValor, setFValor] = useState('');
-  const [fDescricao, setFDescricao] = useState('');
-  const [fFile, setFFile] = useState<File | null>(null);
+  const [items, setItems] = useState<ExtractedItem[]>([]);
+  const [savingAll, setSavingAll] = useState(false);
 
   const resetForm = () => {
-    setFVendedor(''); setFTipo('empresa'); setFDestinatario('');
-    setFData(todayISO()); setFValor(''); setFDescricao(''); setFFile(null);
+    setFVendedor('');
+    setItems([]);
   };
 
   const load = async () => {
@@ -115,41 +135,116 @@ const FinanceiroAReceber = () => {
     return { total, empresa, fornecedor };
   }, [filtered]);
 
-  const handleSubmit = async () => {
-    if (!fVendedor) { toast({ title: 'Selecione o vendedor', variant: 'destructive' }); return; }
-    if (!fData) { toast({ title: 'Informe a data', variant: 'destructive' }); return; }
-    const valorNum = parseFloat(fValor.replace(',', '.'));
-    if (!valorNum || valorNum <= 0) { toast({ title: 'Valor inválido', variant: 'destructive' }); return; }
-    const destinatario = fTipo === 'empresa' ? 'Empresa' : fDestinatario.trim();
-    if (fTipo === 'fornecedor' && !destinatario) {
-      toast({ title: 'Informe o fornecedor', variant: 'destructive' }); return;
-    }
-    if (!fFile) { toast({ title: 'Anexe o comprovante PDF', variant: 'destructive' }); return; }
-    const err = validatePdf(fFile);
-    if (err) { toast({ title: err, variant: 'destructive' }); return; }
-
-    setSubmitting(true);
+  const processFile = async (item: ExtractedItem) => {
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'processing', error: undefined } : i));
     try {
-      const path = await uploadPdf(fFile, 'a-receber');
-      const { error } = await supabase.from('financeiro_a_receber').insert({
-        vendedor: fVendedor,
-        data_pagamento: fData,
-        valor: valorNum,
-        destinatario,
-        tipo: fTipo,
-        descricao: fDescricao.trim() || null,
-        comprovante_url: path,
-        created_by: user?.id,
+      const base64 = await fileToBase64(item.file);
+      const { data, error } = await supabase.functions.invoke('extract-comprovante', {
+        body: { pdfBase64: base64, fileName: item.file.name },
       });
       if (error) throw error;
-      toast({ title: 'Recebimento registrado!' });
+      if (data?.error) throw new Error(data.error);
+
+      setItems(prev => prev.map(i => i.id === item.id ? {
+        ...i,
+        status: 'ready',
+        data_pagamento: data.data_pagamento || todayISO(),
+        valor: data.valor ? String(data.valor) : '',
+        destinatario: data.destinatario || '',
+        tipo: (data.tipo === 'empresa' ? 'empresa' : 'fornecedor') as 'empresa' | 'fornecedor',
+        descricao: data.descricao || '',
+      } : i));
+    } catch (e: any) {
+      setItems(prev => prev.map(i => i.id === item.id ? {
+        ...i, status: 'error', error: e.message || 'Falha ao extrair',
+      } : i));
+    }
+  };
+
+  const handleFilesSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const newItems: ExtractedItem[] = [];
+    for (const file of Array.from(files)) {
+      const err = validatePdf(file);
+      if (err) {
+        toast({ title: `${file.name}: ${err}`, variant: 'destructive' });
+        continue;
+      }
+      newItems.push({
+        id: crypto.randomUUID(),
+        file,
+        status: 'pending',
+        data_pagamento: todayISO(),
+        valor: '',
+        destinatario: '',
+        tipo: 'empresa',
+        descricao: '',
+      });
+    }
+    if (newItems.length === 0) return;
+    setItems(prev => [...prev, ...newItems]);
+    // process in parallel (max 3 at a time to avoid rate limit)
+    for (let i = 0; i < newItems.length; i += 3) {
+      const batch = newItems.slice(i, i + 3);
+      await Promise.all(batch.map(processFile));
+    }
+  };
+
+  const updateItem = (id: string, patch: Partial<ExtractedItem>) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
+  };
+
+  const removeItem = (id: string) => {
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const handleSaveAll = async () => {
+    if (!fVendedor) { toast({ title: 'Selecione o vendedor', variant: 'destructive' }); return; }
+    const ready = items.filter(i => i.status === 'ready');
+    if (ready.length === 0) { toast({ title: 'Nenhum comprovante pronto pra salvar', variant: 'destructive' }); return; }
+
+    // validate each ready item
+    for (const it of ready) {
+      const v = parseFloat(it.valor.replace(',', '.'));
+      if (!v || v <= 0) { toast({ title: `Valor inválido em ${it.file.name}`, variant: 'destructive' }); return; }
+      if (!it.data_pagamento) { toast({ title: `Data inválida em ${it.file.name}`, variant: 'destructive' }); return; }
+      const dest = it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim();
+      if (it.tipo === 'fornecedor' && !dest) {
+        toast({ title: `Destinatário obrigatório em ${it.file.name}`, variant: 'destructive' }); return;
+      }
+    }
+
+    setSavingAll(true);
+    let okCount = 0;
+    for (const it of ready) {
+      updateItem(it.id, { status: 'saving' });
+      try {
+        const path = await uploadPdf(it.file, 'a-receber');
+        const valorNum = parseFloat(it.valor.replace(',', '.'));
+        const destinatario = it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim();
+        const { error } = await supabase.from('financeiro_a_receber').insert({
+          vendedor: fVendedor,
+          data_pagamento: it.data_pagamento,
+          valor: valorNum,
+          destinatario,
+          tipo: it.tipo,
+          descricao: it.descricao.trim() || null,
+          comprovante_url: path,
+          created_by: user?.id,
+        });
+        if (error) throw error;
+        updateItem(it.id, { status: 'saved' });
+        okCount++;
+      } catch (e: any) {
+        updateItem(it.id, { status: 'error', error: e.message });
+      }
+    }
+    setSavingAll(false);
+    toast({ title: `${okCount} recebimento(s) salvo(s)!` });
+    if (okCount > 0) {
       setDialogOpen(false);
       resetForm();
       load();
-    } catch (e: any) {
-      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -227,8 +322,10 @@ const FinanceiroAReceber = () => {
           <DialogTrigger asChild>
             <Button><Plus size={16} className="mr-1" /> Registrar Recebimento</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Novo Recebimento</DialogTitle></DialogHeader>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Novo Recebimento (extração automática via IA)</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label>Vendedor (quem mandou)</Label>
@@ -239,46 +336,112 @@ const FinanceiroAReceber = () => {
                   </SelectContent>
                 </Select>
               </div>
+
               <div>
-                <Label>Tipo</Label>
-                <RadioGroup value={fTipo} onValueChange={(v: any) => setFTipo(v)} className="flex gap-4 mt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <RadioGroupItem value="empresa" /> Para a Empresa
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <RadioGroupItem value="fornecedor" /> Para Fornecedor
-                  </label>
-                </RadioGroup>
+                <Label>Comprovantes (PDF — pode arrastar vários)</Label>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mt-1">
+                  <Upload className="mx-auto mb-2 text-muted-foreground" size={28} />
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    onChange={(e) => handleFilesSelected(e.target.files)}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">A IA vai extrair data, valor e destinatário automaticamente</p>
+                </div>
               </div>
-              {fTipo === 'fornecedor' && (
-                <div>
-                  <Label>Destinatário (fornecedor)</Label>
-                  <Input value={fDestinatario} onChange={e => setFDestinatario(e.target.value)} placeholder="Nome do fornecedor" />
+
+              {items.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm">Comprovantes ({items.length})</h4>
+                  {items.map((it) => (
+                    <Card key={it.id} className="p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <FileText size={16} className="shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium truncate">{it.file.name}</span>
+                          {it.status === 'processing' && <Loader2 size={14} className="animate-spin text-primary shrink-0" />}
+                          {it.status === 'ready' && <Badge variant="default" className="shrink-0">Pronto</Badge>}
+                          {it.status === 'saving' && <Badge variant="secondary" className="shrink-0">Salvando...</Badge>}
+                          {it.status === 'saved' && <Badge variant="default" className="shrink-0">Salvo</Badge>}
+                          {it.status === 'error' && <Badge variant="destructive" className="shrink-0">Erro</Badge>}
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => removeItem(it.id)} disabled={it.status === 'saving'}>
+                          <X size={14} />
+                        </Button>
+                      </div>
+
+                      {it.status === 'error' && (
+                        <div className="text-xs text-destructive mb-2">
+                          {it.error}
+                          <Button size="sm" variant="link" className="h-auto p-0 ml-2" onClick={() => processFile(it)}>
+                            Tentar novamente
+                          </Button>
+                        </div>
+                      )}
+
+                      {(it.status === 'ready' || it.status === 'saving' || it.status === 'saved') && (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Data</Label>
+                              <Input type="date" value={it.data_pagamento}
+                                onChange={(e) => updateItem(it.id, { data_pagamento: e.target.value })}
+                                disabled={it.status !== 'ready'} />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Valor (R$)</Label>
+                              <Input type="number" step="0.01" min="0" value={it.valor}
+                                onChange={(e) => updateItem(it.id, { valor: e.target.value })}
+                                disabled={it.status !== 'ready'} />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Tipo</Label>
+                            <RadioGroup
+                              value={it.tipo}
+                              onValueChange={(v: any) => updateItem(it.id, { tipo: v, destinatario: v === 'empresa' ? 'Empresa' : '' })}
+                              className="flex gap-4 mt-1"
+                              disabled={it.status !== 'ready'}
+                            >
+                              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                <RadioGroupItem value="empresa" /> Para a Empresa
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                <RadioGroupItem value="fornecedor" /> Para Fornecedor
+                              </label>
+                            </RadioGroup>
+                          </div>
+                          {it.tipo === 'fornecedor' && (
+                            <div>
+                              <Label className="text-xs">Destinatário (fornecedor)</Label>
+                              <Input value={it.destinatario}
+                                onChange={(e) => updateItem(it.id, { destinatario: e.target.value })}
+                                placeholder="Nome do fornecedor"
+                                disabled={it.status !== 'ready'} />
+                            </div>
+                          )}
+                          <div>
+                            <Label className="text-xs">Descrição</Label>
+                            <Textarea value={it.descricao} rows={1}
+                              onChange={(e) => updateItem(it.id, { descricao: e.target.value })}
+                              disabled={it.status !== 'ready'} />
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Data do pagamento</Label>
-                  <Input type="date" value={fData} onChange={e => setFData(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Valor (R$)</Label>
-                  <Input type="number" step="0.01" min="0" value={fValor} onChange={e => setFValor(e.target.value)} placeholder="0,00" />
-                </div>
-              </div>
-              <div>
-                <Label>Descrição (opcional)</Label>
-                <Textarea value={fDescricao} onChange={e => setFDescricao(e.target.value)} rows={2} />
-              </div>
-              <div>
-                <Label>Comprovante (PDF, máx. 5MB)</Label>
-                <Input type="file" accept="application/pdf" onChange={e => setFFile(e.target.files?.[0] || null)} />
-              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSubmit} disabled={submitting}>
-                {submitting ? 'Salvando...' : 'Salvar'}
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={savingAll}>Cancelar</Button>
+              <Button
+                onClick={handleSaveAll}
+                disabled={savingAll || items.filter(i => i.status === 'ready').length === 0 || !fVendedor}
+              >
+                {savingAll ? <><Loader2 size={14} className="animate-spin mr-1" /> Salvando...</> : `Salvar ${items.filter(i => i.status === 'ready').length} recebimento(s)`}
               </Button>
             </DialogFooter>
           </DialogContent>
