@@ -1,89 +1,97 @@
 
 
-## Alerta de duplicidade com confirmação obrigatória
+## Seleção, totais e edição inline nos lançamentos
 
-### Regra nova
+### O que vou adicionar
 
-Sempre que o sistema detectar que um comprovante pode ser duplicado, **parar o salvamento** e exibir um diálogo de confirmação. Só prossegue se o usuário clicar "Sim, salvar mesmo assim".
+Aplicado **nas duas abas** (A Receber e A Pagar):
 
-### O que conta como "duplicidade"
+**1. Coluna de seleção (checkbox)**
 
-Um comprovante é considerado possível duplicata se **já existe no banco** (na mesma aba — A Receber ou A Pagar) um registro com:
+- Checkbox no cabeçalho (selecionar/deselecionar todos os visíveis)
+- Checkbox em cada linha
+- Estado de seleção é **local da aba** (não persiste entre abas, não persiste após reload — comportamento esperado pra contexto financeiro)
 
-- **Mesmo valor** (R$ exato), **E**
-- **Mesma data de pagamento**, **E**
-- **Mesmo destinatário** (case-insensitive, trim)
+**2. Card "Total Selecionado" sempre visível**
 
-Essa tripla é forte o suficiente pra apontar duplicata real sem dar falso positivo (duas transferências do mesmo dia pro mesmo destino com valor idêntico ao centavo é raríssimo).
+Adicionar **um card a mais** na grade de resumo do topo (o resumo passa de 3 cards pra 4 cards):
 
-Adicionalmente, se o **hash do arquivo** (SHA-256 do PDF/foto) já existir em qualquer registro do banco, é duplicata **certa** (mesmo arquivo já foi enviado antes) — nesse caso o aviso é mais forte.
+- A Receber: `Total recebido (filtrado)` | `Para Empresa` | `Para Fornecedor` | **`Selecionado: X itens — R$ Y`** ← novo
+- A Pagar: `Em aberto` | `Pago no mês` | `Vencendo 7 dias` | **`Selecionado: X itens — R$ Y`** ← novo
 
-### Fluxo de UX
+O card "Selecionado" mostra:
+- Se 0 selecionados: texto cinza "Nenhum selecionado" + dica "marque os itens da tabela"
+- Se 1+ selecionados: contagem em destaque, valor somado em destaque, botão pequeno "Limpar seleção"
 
-Quando o usuário clica **"Salvar X recebimento(s)"** (ou "Salvar X pagamento(s)"):
+**3. Barra de ações em massa (aparece só com seleção ativa)**
 
-1. Antes de inserir cada item, consulta o banco procurando registros com a mesma tripla `valor + data + destinatário` **ou** mesmo `comprovante_hash`
-2. Se nenhum item é duplicado → salva tudo normalmente (comportamento atual)
-3. Se 1+ itens são suspeitos de duplicata → abre `AlertDialog` listando cada um:
+Logo acima da tabela, quando `selecionados > 0`, aparece uma faixa fixa com:
+- "X selecionados — Total R$ Y,YY"
+- Botão **"Excluir selecionados"** (com confirmação AlertDialog: "Excluir X lançamentos? Os PDFs anexados também serão removidos.")
+- Em A Pagar: botão **"Marcar selecionados como pagos"** (abre dialog único com input de data → aplica em todos)
+- Botão "Limpar seleção"
 
-```text
-⚠️ Possível duplicidade detectada
+**4. Lápis de edição em cada lançamento**
 
-• Comprovante-2AA3...pdf
-  R$ 6.221,65 — 15/04/2026 — Débora Cristina
-  Já existe registro idêntico salvo em 15/04/2026.
+Botão `<Pencil size={14} />` ao lado do botão de excluir em cada linha. Ao clicar, abre um **dialog de edição** preenchido com os dados atuais:
 
-• Recibo-Stone.pdf
-  Mesmo arquivo já foi enviado anteriormente (hash idêntico).
+**A Receber** edita:
+- Vendedor (Select com lista de vendedores)
+- Data de pagamento
+- Valor
+- Tipo (Empresa / Fornecedor) — RadioGroup
+- Destinatário (input, desabilitado se tipo=Empresa, força "Empresa")
+- Descrição (textarea)
+- Comprovante: mostra link "Ver atual" + opção "Substituir arquivo" (upload novo PDF/foto). Se substituir, recalcula `comprovante_hash`, faz upload do novo, deleta o antigo do Storage e atualiza `comprovante_url`.
 
-Deseja salvar mesmo assim?
+**A Pagar** edita:
+- Fornecedor
+- Número da nota
+- Data de emissão
+- Data de vencimento
+- Valor
+- Descrição
+- Status (Em aberto / Pago) — se mudar pra Pago, mostra campo "Data de pagamento"
+- Nota PDF: mesma lógica de substituir/manter
 
-[Cancelar]  [Sim, salvar todos]  [Salvar só os não duplicados]
-```
+Validação: mesmas regras do formulário de criação (valor > 0, datas obrigatórias, etc).
 
-4. **Cancelar** → volta pro modal sem salvar nada
-5. **Sim, salvar todos** → salva inclusive os duplicados (caso seja transferência legítima repetida)
-6. **Salvar só os não duplicados** → salva apenas os que passaram na verificação, mantém os suspeitos no card pra o usuário revisar
+Ao salvar, faz `UPDATE` no Supabase, mostra toast de sucesso, fecha o dialog, recarrega a lista. Edição **não dispara checagem de duplicidade** (é correção, não novo lançamento).
 
 ### Mudanças técnicas
 
-**1. Banco** — adicionar coluna `comprovante_hash text` em `financeiro_a_receber` e `financeiro_a_pagar` (nullable, índice btree). Backfill opcional fica em null pros registros antigos.
+**Arquivos editados:**
 
-**2. Salvar o hash** ao inserir — `FinanceiroAReceber.tsx` e `FinanceiroAPagar.tsx` já calculam `fileHash` no momento do upload; só passar pro insert.
+- `src/components/financeiro/FinanceiroAReceber.tsx`:
+  - Estado `selectedIds: Set<string>` + handlers `toggle`, `toggleAll`, `clear`
+  - 4º card no grid de resumo (mudar `md:grid-cols-3` → `md:grid-cols-4`, ajustar pra `md:grid-cols-2 lg:grid-cols-4` pra responsividade)
+  - Coluna `<TableHead>` com checkbox master + `<TableCell>` com checkbox por linha (colSpan dos estados vazios passa de 7 pra 8)
+  - Barra de ações em massa condicional acima da `<Table>`
+  - Botão `<Pencil>` por linha → abre `editTarget` (estado novo)
+  - Novo `<Dialog>` de edição reutilizando os mesmos campos/validação do form de criação (refatorar campos pra função helper `renderReceberFields(values, onChange)` opcional, ou inline pra simplicidade)
+  - Função `handleUpdate(target, patch, newFile?)` faz upload condicional + UPDATE
+  - Função `handleBulkDelete()` itera `selectedIds`, deleta PDFs + linhas
 
-**3. Função de checagem** em `financeiroHelpers.ts`:
+- `src/components/financeiro/FinanceiroAPagar.tsx`: mesma estrutura, adaptada aos campos da tabela `financeiro_a_pagar`. Inclui também botão massa "Marcar como pagos" reaproveitando o dialog `payTarget` em modo lote.
 
-```ts
-checkDuplicates(table, items): Promise<DuplicateInfo[]>
-// retorna lista com { itemId, reason: 'hash' | 'triple', existingId, existingDate }
-```
+- `src/components/financeiro/financeiroHelpers.ts`: adicionar helper `replaceUploadedFile(oldPath, newFile, prefix)` que faz upload do novo + delete do antigo (atômico do ponto de vista do usuário; se delete falhar, mantém warning silencioso porque o registro já está atualizado).
 
-Faz UMA query OR com `.or()` cobrindo todos os candidatos de uma vez (evita N requisições).
-
-**4. Novo componente** `DuplicateConfirmDialog.tsx` reutilizável entre A Receber e A Pagar — recebe lista de duplicatas e callbacks (cancelar / salvar todos / salvar só não duplicados).
-
-**5. Integrar no `handleSaveAll`** das duas abas: rodar `checkDuplicates` antes do loop de insert; se vier não-vazio, abrir o dialog e aguardar a decisão antes de continuar.
-
-### Arquivos
-
-- **Migração SQL**: adicionar coluna `comprovante_hash` em duas tabelas + índice
-- `src/components/financeiro/financeiroHelpers.ts` — função `checkDuplicates`
-- `src/components/financeiro/DuplicateConfirmDialog.tsx` — novo
-- `src/components/financeiro/FinanceiroAReceber.tsx` — usar checagem + dialog, salvar hash
-- `src/components/financeiro/FinanceiroAPagar.tsx` — mesmo
+**Componentes shadcn usados:** `Checkbox` (já existe em `ui/checkbox.tsx`), `Dialog`, `AlertDialog`, `Pencil` icon do lucide-react.
 
 ### O que NÃO mexo
 
-- Edge Function de extração (separado, próximo passo se quiser)
-- Visualizador de comprovante
-- Lógica de upload pro Storage
-- RLS
+- Esquema do banco (tabelas e colunas atuais bastam)
+- RLS — `admin_master` já tem `update` e `delete` nas duas tabelas
+- Fluxo de criação com IA, deduplicação por hash, visualizador de comprovante
+- Edge Function `extract-comprovante`
 
 ### Validação (você faz depois)
 
-1. Tentar registrar de novo o mesmo PDF Stone (R$ 6.221,65 — 15/04 — Débora) → deve abrir alerta de duplicata por hash + tripla
-2. Cancelar → nada é salvo
-3. Tentar de novo e clicar "Salvar só os não duplicados" → nada salva (era só um, era duplicado)
-4. Registrar comprovante completamente novo → salva direto sem alerta
-5. Misturar 1 novo + 1 duplicado → alerta lista só o duplicado, opção "salvar só os não duplicados" salva 1
+1. **Seleção**: marcar 3 lançamentos em A Receber → conferir que o card "Selecionado" mostra "3 itens — R$ X" somando corretamente
+2. **Master checkbox**: clicar no checkbox do cabeçalho → todos os visíveis são marcados; clicar de novo → todos desmarcam
+3. **Filtro + seleção**: aplicar filtro de período "Mês atual", selecionar todos, mudar pra "Todos" → seleção persiste só para os IDs marcados (não rebombeia)
+4. **Edição inline**: clicar no lápis de um lançamento → corrigir o valor de R$ 12.778,80 pra R$ 6.221,65 → salvar → conferir que a tabela atualiza
+5. **Substituir comprovante**: na edição, anexar PDF novo → conferir que o "Ver" abre o novo arquivo
+6. **Exclusão em massa**: selecionar 2 lançamentos → "Excluir selecionados" → confirmar → ambos somem
+7. **Marcar pagos em massa (A Pagar)**: selecionar 3 notas em aberto → "Marcar como pagos" → escolher data → todas viram "Pago"
 
