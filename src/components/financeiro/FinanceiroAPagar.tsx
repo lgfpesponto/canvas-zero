@@ -55,6 +55,9 @@ const FinanceiroAPagar = () => {
   const [payTarget, setPayTarget] = useState<APagarRow | null>(null);
   const [payDate, setPayDate] = useState(todayISO());
   const [viewerPath, setViewerPath] = useState<string | null>(null);
+  const [dupMatches, setDupMatches] = useState<DupMatch[]>([]);
+  const [dupDialogOpen, setDupDialogOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<any>(null);
 
   // filters
   const [filterStatus, setFilterStatus] = useState<string>('todos');
