@@ -591,6 +591,15 @@ const FinanceiroAReceber = () => {
         open={!!viewerPath}
         onOpenChange={(o) => !o && setViewerPath(null)}
       />
+
+      <DuplicateConfirmDialog
+        open={dupDialogOpen}
+        matches={dupMatches}
+        onCancel={handleDupCancel}
+        onSaveAll={handleDupSaveAll}
+        onSaveOnlyNew={handleDupSaveOnlyNew}
+        saving={savingAll}
+      />
     </div>
   );
 };
