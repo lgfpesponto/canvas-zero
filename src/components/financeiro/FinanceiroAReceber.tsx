@@ -167,7 +167,7 @@ const FinanceiroAReceber = () => {
   const selection = useMemo(() => {
     const selectedRows = filtered.filter(r => selectedIds.has(r.id));
     const total = selectedRows.reduce((s, r) => s + Number(r.valor), 0);
-    return { count: selectedRows.size, total, rows: selectedRows };
+    return { count: selectedRows.length, total, rows: selectedRows };
   }, [filtered, selectedIds]);
 
   const allVisibleSelected = filtered.length > 0 && filtered.every(r => selectedIds.has(r.id));
