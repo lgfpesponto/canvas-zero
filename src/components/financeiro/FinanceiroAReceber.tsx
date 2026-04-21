@@ -229,10 +229,36 @@ const FinanceiroAReceber = () => {
       }
     }
 
+    // Checagem de duplicidade
+    setSavingAll(true);
+    try {
+      const candidates = ready.map(it => ({
+        itemId: it.id,
+        hash: it.hash,
+        valor: parseFloat(it.valor.replace(',', '.')),
+        data_pagamento: it.data_pagamento,
+        destinatario: it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim(),
+        fileName: it.file.name,
+      }));
+      const matches = await checkDuplicates('financeiro_a_receber', candidates, 'destinatario');
+      if (matches.length > 0) {
+        setDupMatches(matches);
+        setDupDialogOpen(true);
+        setSavingAll(false);
+        return;
+      }
+      await proceedSave(ready);
+    } catch (e: any) {
+      toast({ title: 'Erro ao verificar duplicatas', description: e.message, variant: 'destructive' });
+      setSavingAll(false);
+    }
+  };
+
+  const proceedSave = async (toSave: ExtractedItem[]) => {
     setSavingAll(true);
     let okCount = 0;
     const savedIds: string[] = [];
-    for (const it of ready) {
+    for (const it of toSave) {
       updateItem(it.id, { status: 'saving' });
       try {
         const path = await uploadPdf(it.file, 'a-receber');
@@ -246,6 +272,7 @@ const FinanceiroAReceber = () => {
           tipo: it.tipo,
           descricao: it.descricao.trim() || null,
           comprovante_url: path,
+          comprovante_hash: it.hash,
           created_by: user?.id,
         });
         if (error) throw error;
@@ -258,15 +285,38 @@ const FinanceiroAReceber = () => {
     setSavingAll(false);
     toast({ title: `${okCount} recebimento(s) salvo(s)!` });
     if (okCount > 0) {
-      // remove cards salvos imediatamente pra evitar sensação de duplicata visual
-      const remaining = items.filter(i => !savedIds.includes(i.id) && i.status !== 'ready');
+      const remainingItems = items.filter(i => !savedIds.includes(i.id));
       setItems(prev => prev.filter(i => !savedIds.includes(i.id)));
-      if (remaining.length === 0) {
+      if (remainingItems.length === 0) {
         setDialogOpen(false);
         resetForm();
       }
       load();
     }
+  };
+
+  const handleDupSaveAll = async () => {
+    const ready = items.filter(i => i.status === 'ready');
+    setDupDialogOpen(false);
+    setDupMatches([]);
+    await proceedSave(ready);
+  };
+
+  const handleDupSaveOnlyNew = async () => {
+    const dupIds = new Set(dupMatches.map(m => m.itemId));
+    const ready = items.filter(i => i.status === 'ready' && !dupIds.has(i.id));
+    setDupDialogOpen(false);
+    setDupMatches([]);
+    if (ready.length === 0) {
+      toast({ title: 'Nenhum comprovante novo pra salvar — todos eram duplicatas.' });
+      return;
+    }
+    await proceedSave(ready);
+  };
+
+  const handleDupCancel = () => {
+    setDupDialogOpen(false);
+    setDupMatches([]);
   };
 
   const handleDelete = async () => {
