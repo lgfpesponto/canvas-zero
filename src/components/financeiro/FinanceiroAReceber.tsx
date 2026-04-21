@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, FileText, Filter, Loader2, Upload, X } from 'lucide-react';
+import { Plus, Trash2, FileText, Filter, Loader2, Upload, X, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
@@ -26,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   checkDuplicates, deletePdf, fetchVendedoresList, fileHash, formatDateBR,
-  todayISO, uploadPdf, validateComprovante, type DupMatch,
+  replaceUploadedFile, todayISO, uploadPdf, validateComprovante, type DupMatch,
 } from './financeiroHelpers';
 import { ComprovanteViewer } from './ComprovanteViewer';
 import { DuplicateConfirmDialog } from './DuplicateConfirmDialog';
@@ -56,6 +57,17 @@ type ExtractedItem = {
   descricao: string;
 };
 
+type EditState = {
+  row: AReceberRow;
+  vendedor: string;
+  data_pagamento: string;
+  valor: string;
+  tipo: 'empresa' | 'fornecedor';
+  destinatario: string;
+  descricao: string;
+  newFile: File | null;
+};
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -78,6 +90,15 @@ const FinanceiroAReceber = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AReceberRow | null>(null);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
+
+  // selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // edit
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   // filters
   const [filterPeriodo, setFilterPeriodo] = useState<'mes' | '30d' | 'todos'>('mes');
@@ -142,6 +163,37 @@ const FinanceiroAReceber = () => {
     const fornecedor = filtered.filter(r => r.tipo === 'fornecedor').reduce((s, r) => s + Number(r.valor), 0);
     return { total, empresa, fornecedor };
   }, [filtered]);
+
+  const selection = useMemo(() => {
+    const selectedRows = filtered.filter(r => selectedIds.has(r.id));
+    const total = selectedRows.reduce((s, r) => s + Number(r.valor), 0);
+    return { count: selectedRows.length, total, rows: selectedRows };
+  }, [filtered, selectedIds]);
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every(r => selectedIds.has(r.id));
+  const someVisibleSelected = filtered.some(r => selectedIds.has(r.id));
+
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filtered.forEach(r => next.delete(r.id));
+      } else {
+        filtered.forEach(r => next.add(r.id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   const processFile = async (item: ExtractedItem) => {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'processing', error: undefined } : i));
@@ -229,7 +281,6 @@ const FinanceiroAReceber = () => {
       }
     }
 
-    // Checagem de duplicidade
     setSavingAll(true);
     try {
       const candidates = ready.map(it => ({
@@ -327,16 +378,104 @@ const FinanceiroAReceber = () => {
       if (error) throw error;
       toast({ title: 'Excluído.' });
       setDeleteTarget(null);
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(deleteTarget.id);
+        return next;
+      });
       load();
     } catch (e: any) {
       toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' });
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selection.count === 0) return;
+    setBulkDeleting(true);
+    let okCount = 0;
+    for (const r of selection.rows) {
+      try {
+        if (r.comprovante_url) await deletePdf(r.comprovante_url);
+        const { error } = await supabase.from('financeiro_a_receber').delete().eq('id', r.id);
+        if (error) throw error;
+        okCount++;
+      } catch (e: any) {
+        toast({ title: `Erro ao excluir ${r.destinatario}`, description: e.message, variant: 'destructive' });
+      }
+    }
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    clearSelection();
+    toast({ title: `${okCount} lançamento(s) excluído(s).` });
+    load();
+  };
+
+  const openEdit = (row: AReceberRow) => {
+    setEditState({
+      row,
+      vendedor: row.vendedor,
+      data_pagamento: row.data_pagamento,
+      valor: String(row.valor),
+      tipo: row.tipo,
+      destinatario: row.destinatario,
+      descricao: row.descricao || '',
+      newFile: null,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editState) return;
+    const e = editState;
+    const valorNum = parseFloat(e.valor.replace(',', '.'));
+    if (!e.vendedor) { toast({ title: 'Vendedor obrigatório', variant: 'destructive' }); return; }
+    if (!e.data_pagamento) { toast({ title: 'Data obrigatória', variant: 'destructive' }); return; }
+    if (!valorNum || valorNum <= 0) { toast({ title: 'Valor inválido', variant: 'destructive' }); return; }
+    const destinatario = e.tipo === 'empresa' ? 'Empresa' : e.destinatario.trim();
+    if (e.tipo === 'fornecedor' && !destinatario) {
+      toast({ title: 'Destinatário obrigatório', variant: 'destructive' }); return;
+    }
+    if (e.newFile) {
+      const verr = validateComprovante(e.newFile);
+      if (verr) { toast({ title: verr, variant: 'destructive' }); return; }
+    }
+
+    setEditSaving(true);
+    try {
+      let comprovante_url = e.row.comprovante_url;
+      let comprovante_hash: string | null | undefined = undefined;
+      if (e.newFile) {
+        comprovante_url = await replaceUploadedFile(e.row.comprovante_url, e.newFile, 'a-receber');
+        comprovante_hash = await fileHash(e.newFile);
+      }
+
+      const patch: any = {
+        vendedor: e.vendedor,
+        data_pagamento: e.data_pagamento,
+        valor: valorNum,
+        tipo: e.tipo,
+        destinatario,
+        descricao: e.descricao.trim() || null,
+      };
+      if (e.newFile) {
+        patch.comprovante_url = comprovante_url;
+        patch.comprovante_hash = comprovante_hash;
+      }
+      const { error } = await supabase.from('financeiro_a_receber').update(patch).eq('id', e.row.id);
+      if (error) throw error;
+      toast({ title: 'Lançamento atualizado.' });
+      setEditState(null);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-primary">{formatCurrency(totals.total)}</p></CardContent>
@@ -348,6 +487,27 @@ const FinanceiroAReceber = () => {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Para Fornecedores</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{formatCurrency(totals.fornecedor)}</p></CardContent>
+        </Card>
+        <Card className={selection.count > 0 ? 'border-primary' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Selecionado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selection.count === 0 ? (
+              <>
+                <p className="text-sm text-muted-foreground">Nenhum selecionado</p>
+                <p className="text-xs text-muted-foreground mt-1">marque os itens da tabela</p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold text-primary">{formatCurrency(selection.total)}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-xs text-muted-foreground">{selection.count} {selection.count === 1 ? 'item' : 'itens'}</p>
+                  <Button size="sm" variant="link" className="h-auto p-0 text-xs" onClick={clearSelection}>Limpar</Button>
+                </div>
+              </>
+            )}
+          </CardContent>
         </Card>
       </div>
 
@@ -519,28 +679,57 @@ const FinanceiroAReceber = () => {
         </Dialog>
       </div>
 
+      {/* Barra de ações em massa */}
+      {selection.count > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-lg border border-primary/40 bg-primary/5">
+          <p className="text-sm font-medium">
+            {selection.count} selecionado(s) — Total <span className="font-bold">{formatCurrency(selection.total)}</span>
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={clearSelection}>Limpar seleção</Button>
+            <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 size={14} className="mr-1" /> Excluir selecionados
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                    onCheckedChange={toggleAllVisible}
+                    aria-label="Selecionar todos"
+                  />
+                </TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Destinatário</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>PDF</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum registro.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro.</TableCell></TableRow>
               ) : filtered.map(r => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} data-state={selectedIds.has(r.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(r.id)}
+                      onCheckedChange={() => toggleOne(r.id)}
+                      aria-label={`Selecionar ${r.destinatario}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{r.vendedor}</TableCell>
                   <TableCell>{formatDateBR(r.data_pagamento)}</TableCell>
                   <TableCell className="font-semibold">{formatCurrency(Number(r.valor))}</TableCell>
@@ -558,9 +747,14 @@ const FinanceiroAReceber = () => {
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)}>
-                      <Trash2 size={14} className="text-destructive" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" title="Editar" onClick={() => openEdit(r)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Excluir" onClick={() => setDeleteTarget(r)}>
+                        <Trash2 size={14} className="text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -568,6 +762,94 @@ const FinanceiroAReceber = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edição */}
+      <Dialog open={!!editState} onOpenChange={(o) => !o && !editSaving && setEditState(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Editar recebimento</DialogTitle></DialogHeader>
+          {editState && (
+            <div className="space-y-3">
+              <div>
+                <Label>Vendedor</Label>
+                <Select value={editState.vendedor} onValueChange={(v) => setEditState({ ...editState, vendedor: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {vendedores.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Data</Label>
+                  <Input type="date" value={editState.data_pagamento}
+                    onChange={(e) => setEditState({ ...editState, data_pagamento: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Valor (R$)</Label>
+                  <Input type="number" step="0.01" min="0" value={editState.valor}
+                    onChange={(e) => setEditState({ ...editState, valor: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label>Tipo</Label>
+                <RadioGroup
+                  value={editState.tipo}
+                  onValueChange={(v: any) => setEditState({
+                    ...editState, tipo: v,
+                    destinatario: v === 'empresa' ? 'Empresa' : (editState.tipo === 'empresa' ? '' : editState.destinatario),
+                  })}
+                  className="flex gap-4 mt-1"
+                >
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <RadioGroupItem value="empresa" /> Para a Empresa
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <RadioGroupItem value="fornecedor" /> Para Fornecedor
+                  </label>
+                </RadioGroup>
+              </div>
+              {editState.tipo === 'fornecedor' && (
+                <div>
+                  <Label>Destinatário</Label>
+                  <Input value={editState.destinatario}
+                    onChange={(e) => setEditState({ ...editState, destinatario: e.target.value })} />
+                </div>
+              )}
+              <div>
+                <Label>Descrição</Label>
+                <Textarea rows={2} value={editState.descricao}
+                  onChange={(e) => setEditState({ ...editState, descricao: e.target.value })} />
+              </div>
+              <div>
+                <Label>Comprovante</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  {editState.row.comprovante_url && (
+                    <Button size="sm" variant="outline" type="button"
+                      onClick={() => setViewerPath(editState.row.comprovante_url!)}>
+                      <FileText size={14} className="mr-1" /> Ver atual
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  className="mt-2"
+                  onChange={(e) => setEditState({ ...editState, newFile: e.target.files?.[0] || null })}
+                />
+                {editState.newFile && (
+                  <p className="text-xs text-muted-foreground mt-1">Novo: {editState.newFile.name}</p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditState(null)} disabled={editSaving}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={editSaving}>
+              {editSaving ? <><Loader2 size={14} className="animate-spin mr-1" /> Salvando...</> : 'Salvar alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -581,6 +863,28 @@ const FinanceiroAReceber = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(o) => !bulkDeleting && setBulkDeleteOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selection.count} lançamento(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Os comprovantes PDF anexados também serão removidos.
+              Total: <strong>{formatCurrency(selection.total)}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? 'Excluindo...' : 'Excluir todos'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
