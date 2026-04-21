@@ -24,9 +24,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  deletePdf, formatDateBR, todayISO, uploadPdf, validatePdf,
+  checkDuplicates, deletePdf, fileHash, formatDateBR, todayISO, uploadPdf, validatePdf,
+  type DupMatch,
 } from './financeiroHelpers';
 import { ComprovanteViewer } from './ComprovanteViewer';
+import { DuplicateConfirmDialog } from './DuplicateConfirmDialog';
 
 interface APagarRow {
   id: string;
