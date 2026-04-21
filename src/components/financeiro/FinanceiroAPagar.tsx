@@ -24,9 +24,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  deletePdf, formatDateBR, todayISO, uploadPdf, validatePdf,
+  checkDuplicates, deletePdf, fileHash, formatDateBR, todayISO, uploadPdf, validatePdf,
+  type DupMatch,
 } from './financeiroHelpers';
 import { ComprovanteViewer } from './ComprovanteViewer';
+import { DuplicateConfirmDialog } from './DuplicateConfirmDialog';
 
 interface APagarRow {
   id: string;
@@ -53,6 +55,9 @@ const FinanceiroAPagar = () => {
   const [payTarget, setPayTarget] = useState<APagarRow | null>(null);
   const [payDate, setPayDate] = useState(todayISO());
   const [viewerPath, setViewerPath] = useState<string | null>(null);
+  const [dupMatches, setDupMatches] = useState<DupMatch[]>([]);
+  const [dupDialogOpen, setDupDialogOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<any>(null);
 
   // filters
   const [filterStatus, setFilterStatus] = useState<string>('todos');
@@ -125,7 +130,6 @@ const FinanceiroAPagar = () => {
     if (!valorNum || valorNum <= 0) { toast({ title: 'Valor inválido', variant: 'destructive' }); return; }
     if (!fEmissao || !fVencimento) { toast({ title: 'Informe as datas', variant: 'destructive' }); return; }
 
-    let path: string | null = null;
     if (fFile) {
       const err = validatePdf(fFile);
       if (err) { toast({ title: err, variant: 'destructive' }); return; }
@@ -133,17 +137,60 @@ const FinanceiroAPagar = () => {
 
     setSubmitting(true);
     try {
-      if (fFile) path = await uploadPdf(fFile, 'a-pagar');
-      const { error } = await supabase.from('financeiro_a_pagar').insert({
+      const hash = fFile ? await fileHash(fFile) : null;
+      // Checa duplicata: usa data_vencimento como data de pagamento equivalente
+      const matches = await checkDuplicates(
+        'financeiro_a_pagar',
+        [{
+          itemId: 'single',
+          hash,
+          valor: valorNum,
+          data_pagamento: fVencimento,
+          destinatario: fFornecedor.trim(),
+          fileName: fFile?.name,
+        }],
+        'fornecedor'
+      );
+
+      const payload = {
         fornecedor: fFornecedor.trim(),
         numero_nota: fNumeroNota.trim(),
         data_emissao: fEmissao,
         data_vencimento: fVencimento,
         valor: valorNum,
         status: 'em_aberto',
-        nota_url: path,
         descricao: fDescricao.trim() || null,
         created_by: user?.id,
+        _file: fFile,
+        _hash: hash,
+      };
+
+      if (matches.length > 0) {
+        // remapeia destinatario pra exibir 'fornecedor' no modal
+        setDupMatches(matches.map(m => ({ ...m, destinatario: m.destinatario })));
+        setPendingPayload(payload);
+        setDupDialogOpen(true);
+        setSubmitting(false);
+        return;
+      }
+
+      await actualInsert(payload);
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' });
+      setSubmitting(false);
+    }
+  };
+
+  const actualInsert = async (payload: any) => {
+    setSubmitting(true);
+    try {
+      let path: string | null = null;
+      if (payload._file) path = await uploadPdf(payload._file, 'a-pagar');
+      const { _file, _hash, ...insertData } = payload;
+      const { error } = await supabase.from('financeiro_a_pagar').insert({
+        ...insertData,
+        nota_url: path,
+        comprovante_hash: _hash,
       });
       if (error) throw error;
       toast({ title: 'Nota lançada!' });
@@ -155,6 +202,20 @@ const FinanceiroAPagar = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDupSaveAll = async () => {
+    setDupDialogOpen(false);
+    const p = pendingPayload;
+    setPendingPayload(null);
+    setDupMatches([]);
+    if (p) await actualInsert(p);
+  };
+
+  const handleDupCancel = () => {
+    setDupDialogOpen(false);
+    setPendingPayload(null);
+    setDupMatches([]);
   };
 
   const handleMarkPaid = async () => {
@@ -396,6 +457,15 @@ const FinanceiroAPagar = () => {
         path={viewerPath}
         open={!!viewerPath}
         onOpenChange={(o) => !o && setViewerPath(null)}
+      />
+
+      <DuplicateConfirmDialog
+        open={dupDialogOpen}
+        matches={dupMatches}
+        onCancel={handleDupCancel}
+        onSaveAll={handleDupSaveAll}
+        onSaveOnlyNew={handleDupCancel}
+        saving={submitting}
       />
     </div>
   );

@@ -276,6 +276,7 @@ export type Database = {
       }
       financeiro_a_pagar: {
         Row: {
+          comprovante_hash: string | null
           created_at: string
           created_by: string | null
           data_emissao: string
@@ -290,6 +291,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          comprovante_hash?: string | null
           created_at?: string
           created_by?: string | null
           data_emissao: string
@@ -304,6 +306,7 @@ export type Database = {
           valor?: number
         }
         Update: {
+          comprovante_hash?: string | null
           created_at?: string
           created_by?: string | null
           data_emissao?: string
@@ -321,6 +324,7 @@ export type Database = {
       }
       financeiro_a_receber: {
         Row: {
+          comprovante_hash: string | null
           comprovante_url: string | null
           created_at: string
           created_by: string | null
@@ -333,6 +337,7 @@ export type Database = {
           vendedor: string
         }
         Insert: {
+          comprovante_hash?: string | null
           comprovante_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -345,6 +350,7 @@ export type Database = {
           vendedor: string
         }
         Update: {
+          comprovante_hash?: string | null
           comprovante_url?: string | null
           created_at?: string
           created_by?: string | null

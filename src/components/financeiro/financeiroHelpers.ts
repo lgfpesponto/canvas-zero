@@ -80,6 +80,98 @@ export function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// ============= Deduplicação de comprovantes =============
+
+export type DupCandidate = {
+  itemId: string;
+  hash: string | null;
+  valor: number;
+  data_pagamento: string;
+  destinatario: string;
+  fileName?: string;
+};
+
+export type DupMatch = {
+  itemId: string;
+  fileName?: string;
+  valor: number;
+  data_pagamento: string;
+  destinatario: string;
+  reason: 'hash' | 'triple';
+  existingId: string;
+  existingDate: string;
+};
+
+/**
+ * Verifica duplicatas no banco contra uma lista de candidatos.
+ * Considera duplicata se: mesmo hash de arquivo OU mesma tripla (valor + data + destinatário).
+ */
+export async function checkDuplicates(
+  table: 'financeiro_a_receber' | 'financeiro_a_pagar',
+  candidates: DupCandidate[],
+  destinatarioField: 'destinatario' | 'fornecedor' = 'destinatario'
+): Promise<DupMatch[]> {
+  if (candidates.length === 0) return [];
+
+  const matches: DupMatch[] = [];
+  const hashes = candidates.map(c => c.hash).filter(Boolean) as string[];
+
+  // 1) Checagem por hash (uma única query)
+  let hashRows: any[] = [];
+  if (hashes.length > 0) {
+    const { data } = await supabase
+      .from(table)
+      .select(`id, comprovante_hash, valor, data_pagamento, ${destinatarioField}`)
+      .in('comprovante_hash', hashes);
+    hashRows = data || [];
+  }
+
+  // 2) Checagem por tripla — uma query por candidato (rápido, indexado)
+  for (const c of candidates) {
+    // hash match (prioritário)
+    if (c.hash) {
+      const hit = hashRows.find(r => r.comprovante_hash === c.hash);
+      if (hit) {
+        matches.push({
+          itemId: c.itemId,
+          fileName: c.fileName,
+          valor: c.valor,
+          data_pagamento: c.data_pagamento,
+          destinatario: c.destinatario,
+          reason: 'hash',
+          existingId: hit.id,
+          existingDate: hit.data_pagamento,
+        });
+        continue;
+      }
+    }
+
+    // tripla
+    const { data: tripleHits } = await supabase
+      .from(table)
+      .select(`id, data_pagamento`)
+      .eq('valor', c.valor)
+      .eq('data_pagamento', c.data_pagamento)
+      .ilike(destinatarioField, c.destinatario.trim())
+      .limit(1);
+
+    if (tripleHits && tripleHits.length > 0) {
+      matches.push({
+        itemId: c.itemId,
+        fileName: c.fileName,
+        valor: c.valor,
+        data_pagamento: c.data_pagamento,
+        destinatario: c.destinatario,
+        reason: 'triple',
+        existingId: tripleHits[0].id,
+        existingDate: tripleHits[0].data_pagamento,
+      });
+    }
+  }
+
+  return matches;
+}
+
 export async function fetchVendedoresList(): Promise<string[]> {
   const { data } = await supabase.from('orders').select('vendedor, cliente');
   const names = new Set<string>();
