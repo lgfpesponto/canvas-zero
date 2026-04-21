@@ -458,6 +458,15 @@ const FinanceiroAPagar = () => {
         open={!!viewerPath}
         onOpenChange={(o) => !o && setViewerPath(null)}
       />
+
+      <DuplicateConfirmDialog
+        open={dupDialogOpen}
+        matches={dupMatches}
+        onCancel={handleDupCancel}
+        onSaveAll={handleDupSaveAll}
+        onSaveOnlyNew={handleDupCancel}
+        saving={submitting}
+      />
     </div>
   );
 };
