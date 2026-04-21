@@ -66,6 +66,26 @@ export async function deletePdf(path: string) {
   await supabase.storage.from('financeiro').remove([path]);
 }
 
+/**
+ * Substitui um arquivo no Storage: faz upload do novo, depois tenta apagar o antigo.
+ * Se o delete do antigo falhar, retorna o novo path mesmo assim (o registro fica consistente).
+ */
+export async function replaceUploadedFile(
+  oldPath: string | null,
+  newFile: File,
+  folder: 'a-receber' | 'a-pagar'
+): Promise<string> {
+  const newPath = await uploadPdf(newFile, folder);
+  if (oldPath) {
+    try {
+      await deletePdf(oldPath);
+    } catch {
+      // silencioso — registro já está atualizado
+    }
+  }
+  return newPath;
+}
+
 export function formatDateBR(iso: string): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
