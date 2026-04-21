@@ -89,6 +89,10 @@ const FinanceiroAReceber = () => {
   const [items, setItems] = useState<ExtractedItem[]>([]);
   const [savingAll, setSavingAll] = useState(false);
 
+  // duplicate confirmation
+  const [dupMatches, setDupMatches] = useState<DupMatch[]>([]);
+  const [dupDialogOpen, setDupDialogOpen] = useState(false);
+
   const resetForm = () => {
     setFVendedor('');
     setItems([]);
