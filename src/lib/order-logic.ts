@@ -27,7 +27,7 @@ export const EXTRAS_STATUSES = [
 ];
 
 export const BELT_STATUSES = [
-  "Em aberto", "Corte", "Bordado", "Pesponto",
+  "Em aberto", "Aguardando", "Corte", "Bordado", "Pesponto",
   "Expedição", "Entregue", "Cobrado", "Pago"
 ];
 
