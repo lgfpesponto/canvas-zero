@@ -216,38 +216,44 @@ const ReportsPage = () => {
   const handleScan = useCallback(async (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
-    const match = await fetchOrderByScan(trimmed);
-    if (match) {
-      if (isAdmin) {
-        setSelectedIds(prev => {
-          if (prev.has(match.id)) {
-            playErrorBeep();
-            toast.warning('Esse pedido já está selecionado');
-            return prev;
-          }
-          const next = new Set(prev);
-          next.add(match.id);
-          setLastScannedNumero(match.numero);
-          playBeep();
-          return next;
-        });
-        // Accumulate scanned order data so "Visualizar pedidos" always has it
-        setScannedOrdersMap(prev => {
-          const next = new Map(prev);
-          next.set(match.id, match);
-          return next;
-        });
-        setScanFilterId(match.id);
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const match = await fetchOrderByScan(trimmed);
+      if (match) {
+        if (isAdmin) {
+          setSelectedIds(prev => {
+            if (prev.has(match.id)) {
+              playErrorBeep();
+              toast.warning('Esse pedido já está selecionado');
+              return prev;
+            }
+            const next = new Set(prev);
+            next.add(match.id);
+            setLastScannedNumero(match.numero);
+            playBeep();
+            return next;
+          });
+          // Accumulate scanned order data so "Visualizar pedidos" always has it
+          setScannedOrdersMap(prev => {
+            const next = new Map(prev);
+            next.set(match.id, match);
+            return next;
+          });
+          setScanFilterId(match.id);
+        } else {
+          navigate(`/pedido/${match.id}`);
+          toast.success(`Pedido ${match.numero} encontrado.`);
+        }
       } else {
-        navigate(`/pedido/${match.id}`);
-        toast.success(`Pedido ${match.numero} encontrado.`);
+        playErrorBeep();
+        toast.error(`Pedido não encontrado para código: ${trimmed}`);
       }
-    } else {
-      playErrorBeep();
-      toast.error(`Pedido não encontrado para código: ${trimmed}`);
+      setScanValue('');
+    } finally {
+      setScanning(false);
     }
-    setScanValue('');
-  }, [isAdmin, navigate, playBeep, playErrorBeep]);
+  }, [isAdmin, navigate, playBeep, playErrorBeep, scanning]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
