@@ -22,6 +22,7 @@ interface Order {
   dataCriacao: string;
   tipoExtra?: string | null;
   quantidade: number;
+  status?: string;
 }
 
 interface CommissionPanelProps {
