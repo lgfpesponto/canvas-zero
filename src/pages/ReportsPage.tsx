@@ -397,7 +397,9 @@ const ReportsPage = () => {
             ) : (
               <div className="bg-card rounded-xl p-4 western-shadow mb-4">
                 <div className="flex items-center gap-3">
-                  <ScanBarcode size={20} className="text-primary flex-shrink-0" />
+                  {scanning
+                    ? <Loader2 size={20} className="text-primary flex-shrink-0 animate-spin" />
+                    : <ScanBarcode size={20} className="text-primary flex-shrink-0" />}
                   <div className="flex-1">
                     <label className="block text-xs font-semibold mb-1">Escaneie ou digite o código de barras do pedido</label>
                     <input
@@ -411,13 +413,15 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
-                      placeholder="Escaneie o código de barras aqui..."
-                      className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                      disabled={scanning}
+                      placeholder={scanning ? 'Buscando pedido...' : 'Escaneie o código de barras aqui...'}
+                      className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
                       autoFocus
                     />
                   </div>
-                  <button onClick={() => handleScan(scanValue)} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity">
-                    Buscar
+                  <button onClick={() => handleScan(scanValue)} disabled={scanning} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+                    {scanning && <Loader2 size={14} className="animate-spin" />}
+                    {scanning ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
               </div>
