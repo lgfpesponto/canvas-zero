@@ -7,7 +7,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -39,23 +39,30 @@ const OrderDetailPage = () => {
   const [justificativaInput, setJustificativaInput] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const handleScanSubmit = useCallback(async () => {
     if (!scanValue.trim()) return;
-    const match = await fetchOrderByScan(scanValue.trim());
-    if (match) {
-      if (order && !isSelected(order.id)) {
-        toggle(order.id);
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const match = await fetchOrderByScan(scanValue.trim());
+      if (match) {
+        if (order && !isSelected(order.id)) {
+          toggle(order.id);
+        }
+        setScanValue('');
+        navigate('/pedido/' + match.id);
+      } else {
+        toast.error('Pedido não encontrado.');
+        setScanValue('');
       }
-      setScanValue('');
-      navigate('/pedido/' + match.id);
-    } else {
-      toast.error('Pedido não encontrado.');
-      setScanValue('');
+    } finally {
+      setScanning(false);
     }
-  }, [scanValue, navigate, order, isSelected, toggle]);
+  }, [scanValue, navigate, order, isSelected, toggle, scanning]);
 
   if (!order) {
     return (
@@ -316,16 +323,20 @@ const OrderDetailPage = () => {
           </div>
         )}
         {showScanner && (
-          <div className="mb-4">
+          <div className="mb-4 relative">
             <input
               ref={scanInputRef}
               value={scanValue}
               onChange={e => setScanValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleScanSubmit(); }}
-              placeholder="Digite o nº do pedido ou escaneie..."
-              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              disabled={scanning}
+              placeholder={scanning ? 'Buscando pedido...' : 'Digite o nº do pedido ou escaneie...'}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
               autoFocus
             />
+            {scanning && (
+              <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-primary" />
+            )}
           </div>
         )}
 

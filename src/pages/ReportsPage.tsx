@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X } from 'lucide-react';
+import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
@@ -62,6 +62,7 @@ const ReportsPage = () => {
   const [showScanner, setShowScanner] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const [scanValue, setScanValue] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [scanFilterId, setScanFilterId] = useState<string | null>(null);
   const [lastScannedNumero, setLastScannedNumero] = useState<string | null>(null);
   const [showSelectedList, setShowSelectedList] = useState(false);
@@ -215,38 +216,44 @@ const ReportsPage = () => {
   const handleScan = useCallback(async (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
-    const match = await fetchOrderByScan(trimmed);
-    if (match) {
-      if (isAdmin) {
-        setSelectedIds(prev => {
-          if (prev.has(match.id)) {
-            playErrorBeep();
-            toast.warning('Esse pedido já está selecionado');
-            return prev;
-          }
-          const next = new Set(prev);
-          next.add(match.id);
-          setLastScannedNumero(match.numero);
-          playBeep();
-          return next;
-        });
-        // Accumulate scanned order data so "Visualizar pedidos" always has it
-        setScannedOrdersMap(prev => {
-          const next = new Map(prev);
-          next.set(match.id, match);
-          return next;
-        });
-        setScanFilterId(match.id);
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const match = await fetchOrderByScan(trimmed);
+      if (match) {
+        if (isAdmin) {
+          setSelectedIds(prev => {
+            if (prev.has(match.id)) {
+              playErrorBeep();
+              toast.warning('Esse pedido já está selecionado');
+              return prev;
+            }
+            const next = new Set(prev);
+            next.add(match.id);
+            setLastScannedNumero(match.numero);
+            playBeep();
+            return next;
+          });
+          // Accumulate scanned order data so "Visualizar pedidos" always has it
+          setScannedOrdersMap(prev => {
+            const next = new Map(prev);
+            next.set(match.id, match);
+            return next;
+          });
+          setScanFilterId(match.id);
+        } else {
+          navigate(`/pedido/${match.id}`);
+          toast.success(`Pedido ${match.numero} encontrado.`);
+        }
       } else {
-        navigate(`/pedido/${match.id}`);
-        toast.success(`Pedido ${match.numero} encontrado.`);
+        playErrorBeep();
+        toast.error(`Pedido não encontrado para código: ${trimmed}`);
       }
-    } else {
-      playErrorBeep();
-      toast.error(`Pedido não encontrado para código: ${trimmed}`);
+      setScanValue('');
+    } finally {
+      setScanning(false);
     }
-    setScanValue('');
-  }, [isAdmin, navigate, playBeep, playErrorBeep]);
+  }, [isAdmin, navigate, playBeep, playErrorBeep, scanning]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
@@ -353,7 +360,9 @@ const ReportsPage = () => {
                     </div>
                   )}
                   <div className="flex items-center gap-3 mb-6">
-                    <ScanBarcode size={20} className="text-green-400 flex-shrink-0" />
+                    {scanning
+                      ? <Loader2 size={20} className="text-green-400 flex-shrink-0 animate-spin" />
+                      : <ScanBarcode size={20} className="text-green-400 flex-shrink-0" />}
                     <input
                       ref={scanInputRef}
                       type="text"
@@ -365,12 +374,14 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
-                      placeholder="Escaneie o código de barras aqui..."
-                      className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500"
+                      disabled={scanning}
+                      placeholder={scanning ? 'Buscando pedido...' : 'Escaneie o código de barras aqui...'}
+                      className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500 disabled:opacity-60"
                       autoFocus
                     />
-                    <button onClick={() => handleScan(scanValue)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-bold text-sm transition-colors">
-                      Buscar
+                    <button onClick={() => handleScan(scanValue)} disabled={scanning} className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+                      {scanning && <Loader2 size={14} className="animate-spin" />}
+                      {scanning ? 'Buscando...' : 'Buscar'}
                     </button>
                   </div>
                   <div className="flex gap-3">
@@ -386,7 +397,9 @@ const ReportsPage = () => {
             ) : (
               <div className="bg-card rounded-xl p-4 western-shadow mb-4">
                 <div className="flex items-center gap-3">
-                  <ScanBarcode size={20} className="text-primary flex-shrink-0" />
+                  {scanning
+                    ? <Loader2 size={20} className="text-primary flex-shrink-0 animate-spin" />
+                    : <ScanBarcode size={20} className="text-primary flex-shrink-0" />}
                   <div className="flex-1">
                     <label className="block text-xs font-semibold mb-1">Escaneie ou digite o código de barras do pedido</label>
                     <input
@@ -400,13 +413,15 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
-                      placeholder="Escaneie o código de barras aqui..."
-                      className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                      disabled={scanning}
+                      placeholder={scanning ? 'Buscando pedido...' : 'Escaneie o código de barras aqui...'}
+                      className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
                       autoFocus
                     />
                   </div>
-                  <button onClick={() => handleScan(scanValue)} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity">
-                    Buscar
+                  <button onClick={() => handleScan(scanValue)} disabled={scanning} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+                    {scanning && <Loader2 size={14} className="animate-spin" />}
+                    {scanning ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
               </div>
