@@ -39,23 +39,30 @@ const OrderDetailPage = () => {
   const [justificativaInput, setJustificativaInput] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const handleScanSubmit = useCallback(async () => {
     if (!scanValue.trim()) return;
-    const match = await fetchOrderByScan(scanValue.trim());
-    if (match) {
-      if (order && !isSelected(order.id)) {
-        toggle(order.id);
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const match = await fetchOrderByScan(scanValue.trim());
+      if (match) {
+        if (order && !isSelected(order.id)) {
+          toggle(order.id);
+        }
+        setScanValue('');
+        navigate('/pedido/' + match.id);
+      } else {
+        toast.error('Pedido não encontrado.');
+        setScanValue('');
       }
-      setScanValue('');
-      navigate('/pedido/' + match.id);
-    } else {
-      toast.error('Pedido não encontrado.');
-      setScanValue('');
+    } finally {
+      setScanning(false);
     }
-  }, [scanValue, navigate, order, isSelected, toggle]);
+  }, [scanValue, navigate, order, isSelected, toggle, scanning]);
 
   if (!order) {
     return (
