@@ -62,6 +62,7 @@ const ReportsPage = () => {
   const [showScanner, setShowScanner] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const [scanValue, setScanValue] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [scanFilterId, setScanFilterId] = useState<string | null>(null);
   const [lastScannedNumero, setLastScannedNumero] = useState<string | null>(null);
   const [showSelectedList, setShowSelectedList] = useState(false);
