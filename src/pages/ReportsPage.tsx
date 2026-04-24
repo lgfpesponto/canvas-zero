@@ -198,6 +198,10 @@ const ReportsPage = () => {
 
   const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
+    if (selectedProgress === 'Cancelado' && !progressObservacao.trim()) {
+      toast.error('Informe o motivo do cancelamento.');
+      return;
+    }
     for (const id of selectedIds) {
       await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
     }
