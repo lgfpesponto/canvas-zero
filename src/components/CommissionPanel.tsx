@@ -22,6 +22,7 @@ interface Order {
   dataCriacao: string;
   tipoExtra?: string | null;
   quantidade: number;
+  status?: string;
 }
 
 interface CommissionPanelProps {
@@ -55,6 +56,8 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
       if (!o.dataCriacao?.startsWith(selectedMonth)) return false;
       // Exclude special orders
       if (isExcluded(o.numero)) return false;
+      // Exclude canceled orders
+      if (o.status === 'Cancelado') return false;
       // Bota (ficha producao normal), Bota Pronta Entrega, or Regata
       const tipo = o.tipoExtra;
       return !tipo || tipo === 'bota_pronta_entrega' || tipo === 'regata';
