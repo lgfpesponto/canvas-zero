@@ -11,7 +11,7 @@ export const PRODUCTION_STATUSES = [
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
   "Pespontando", "Montagem", "Revisão", "Expedição",
   "Baixa Estoque", "Baixa Site (Despachado)",
-  "Entregue", "Cobrado", "Pago"
+  "Entregue", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const PRODUCTION_STATUSES_USER = [
@@ -19,16 +19,16 @@ export const PRODUCTION_STATUSES_USER = [
   "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
   "Pespontando", "Montagem", "Revisão", "Expedição",
-  "Entregue", "Cobrado", "Pago"
+  "Entregue", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const EXTRAS_STATUSES = [
-  "Em aberto", "Produzindo", "Expedição", "Entregue", "Cobrado", "Pago"
+  "Em aberto", "Produzindo", "Expedição", "Entregue", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const BELT_STATUSES = [
   "Em aberto", "Aguardando", "Corte", "Bordado", "Pesponto",
-  "Expedição", "Entregue", "Cobrado", "Pago"
+  "Expedição", "Entregue", "Cobrado", "Pago", "Cancelado"
 ];
 
 /** Statuses that mean "in production" (for dashboard counters) */
