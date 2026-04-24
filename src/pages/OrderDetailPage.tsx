@@ -280,8 +280,8 @@ const OrderDetailPage = () => {
               <CheckSquare size={16} className="inline mr-1" />
               {count} pedido{count > 1 ? 's' : ''} selecionado{count > 1 ? 's' : ''}
             </span>
-            <div className="flex items-center gap-2">
-              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={bulkStatus} onValueChange={(v) => { setBulkStatus(v); if (v !== 'Cancelado') setBulkCancelReason(''); }}>
                 <SelectTrigger className="w-48 h-8 text-xs">
                   <SelectValue placeholder="Novo progresso..." />
                 </SelectTrigger>
@@ -289,21 +289,38 @@ const OrderDetailPage = () => {
                   {PRODUCTION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {bulkStatus === 'Cancelado' && (
+                <Input
+                  value={bulkCancelReason}
+                  onChange={(e) => setBulkCancelReason(e.target.value)}
+                  placeholder="Motivo do cancelamento *"
+                  className="h-8 text-xs w-56"
+                />
+              )}
               <Button
                 size="sm"
-                disabled={!bulkStatus}
+                disabled={!bulkStatus || (bulkStatus === 'Cancelado' && !bulkCancelReason.trim())}
                 onClick={async () => {
                   if (!bulkStatus) return;
+                  if (bulkStatus === 'Cancelado' && !bulkCancelReason.trim()) {
+                    toast.error('Informe o motivo do cancelamento.');
+                    return;
+                  }
                   const ids = Array.from(selectedIds);
                   const { fetchOrdersByIds } = await import('@/hooks/useOrders');
                   const fetchedOrders = await fetchOrdersByIds(ids);
                   let updated = 0;
+                  const observacao = bulkStatus === 'Cancelado' ? bulkCancelReason.trim() : undefined;
                   for (const oid of ids) {
                     const o = fetchedOrders.find(x => x.id === oid);
                     if (!o) continue;
                     const dataHoje = formatBrasiliaDate();
                     const horaAgora = formatBrasiliaTime();
-                    const newHist = { local: bulkStatus, data: dataHoje, hora: horaAgora, descricao: `Movido para ${bulkStatus}` };
+                    const descricao = bulkStatus === 'Cancelado'
+                      ? `Cancelado: ${bulkCancelReason.trim()}`
+                      : `Movido para ${bulkStatus}`;
+                    const newHist: any = { local: bulkStatus, data: dataHoje, hora: horaAgora, descricao };
+                    if (observacao) newHist.observacao = observacao;
                     await updateOrder(oid, {
                       status: bulkStatus,
                       historico: [...(o.historico || []), newHist],
@@ -313,11 +330,12 @@ const OrderDetailPage = () => {
                   toast.success(`${updated} pedido${updated > 1 ? 's' : ''} atualizado${updated > 1 ? 's' : ''} para "${bulkStatus}"`);
                   clear();
                   setBulkStatus('');
+                  setBulkCancelReason('');
                 }}
               >
                 Mudar progresso
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => { clear(); setBulkStatus(''); }}>
+              <Button variant="ghost" size="sm" onClick={() => { clear(); setBulkStatus(''); setBulkCancelReason(''); }}>
                 Limpar
               </Button>
             </div>
