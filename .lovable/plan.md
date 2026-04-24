@@ -1,67 +1,78 @@
 
 
-## Adicionar indicador de carregamento na busca de pedido
+## Adicionar status "Cancelado" com motivo obrigatório
 
-### Problema
+### Investigação realizada
 
-Quando você bipa um código de barras ou pesquisa um pedido, a função `fetchOrderByScan` em `src/hooks/useOrders.ts` faz várias consultas em sequência ao Supabase (numero → UUID → hex suffix → legacy barcode). Isso pode levar 1-3 segundos e durante esse tempo a UI não dá nenhum feedback, parecendo travada.
+- Status são listados em `src/lib/order-logic.ts` (4 constantes: `PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER`, `EXTRAS_STATUSES`, `BELT_STATUSES`).
+- Mudança de status acontece em **dois lugares apenas**:
+  1. `src/pages/ReportsPage.tsx` — modal "Mudar Progresso de Produção" (linhas 711-753). Já tem um campo "Observação (opcional)" em textarea.
+  2. `src/pages/OrderDetailPage.tsx` — barra de seleção em massa (linhas 282-321). Não tem campo de observação hoje.
+- **Importante**: hoje **não existe** modal que peça motivo obrigatório ao mover para "Aguardando". O que existe é o campo "Observação (opcional)" no modal do ReportsPage. Vou implementar o motivo **obrigatório só para "Cancelado"** (que é o que faz sentido), seguindo o padrão visual desse mesmo modal.
 
-### Investigação necessária
+### Mudanças
 
-Preciso identificar **onde** a busca é disparada para colocar o spinner no lugar certo. Os candidatos prováveis são:
+**1. `src/lib/order-logic.ts`** — adicionar `"Cancelado"` ao final das 4 listas:
 
-1. **Header** (busca global/scanner) — `src/components/Header.tsx`
-2. **TrackOrderPage / ReportsPage** — campo de busca no topo
-3. **Algum componente de scanner** dedicado
-
-Vou ler esses arquivos pra confirmar onde `fetchOrderByScan` é chamado e como o resultado é tratado hoje.
-
-### Solução proposta (sujeito a ajuste após investigação)
-
-**1. Estado de loading local** no componente que dispara a busca:
-
-```tsx
-const [scanning, setScanning] = useState(false);
-
-const handleScan = async (code: string) => {
-  setScanning(true);
-  try {
-    const order = await fetchOrderByScan(code);
-    if (order) navigate(`/pedido/${order.id}`);
-    else toast.error('Pedido não encontrado');
-  } finally {
-    setScanning(false);
-  }
-};
+```ts
+PRODUCTION_STATUSES = [..., "Pago", "Cancelado"];
+PRODUCTION_STATUSES_USER = [..., "Pago", "Cancelado"];  // admin only ainda
+EXTRAS_STATUSES = [..., "Pago", "Cancelado"];
+BELT_STATUSES = [..., "Pago", "Cancelado"];
 ```
 
-**2. Indicador visual** — usar `Loader2` do `lucide-react` com `animate-spin` (padrão já usado no projeto):
+`PRODUCTION_STATUSES_IN_PROD` **não** muda (cancelado não é "em produção"), então não entra nos contadores.
 
-- **Overlay modal** (recomendado se a busca bloqueia navegação): card centralizado com spinner + texto "Buscando pedido..."
-- **Inline no campo de busca** (se for menos invasivo): spinner pequeno dentro do input substituindo o ícone de lupa
+**2. `src/pages/ReportsPage.tsx`** — no modal "Mudar Progresso":
+- Quando o status escolhido for `"Cancelado"`, transformar a textarea atual em **obrigatória**:
+  - Trocar label para "Motivo do cancelamento *"
+  - Trocar placeholder para "Ex: cliente desistiu, pedido duplicado..."
+  - Desabilitar botão OK enquanto vazio
+  - Em `handleBulkProgressUpdate`, gravar no histórico: `"Cancelado: <motivo>"` em vez do texto padrão.
+- Para outros status, comportamento original mantido (observação opcional).
 
-**3. Bloquear novas buscas** enquanto `scanning === true` (evita disparar 2 requests se bipar 2 vezes rápido).
+**3. `src/pages/OrderDetailPage.tsx`** — barra de bulk (linhas 282-321):
+- Mesmo tratamento: quando `bulkStatus === 'Cancelado'`, abrir um pequeno prompt (ou expandir um input inline) pedindo motivo obrigatório antes de salvar. Sem motivo, não salva.
+- Histórico recebe `"Cancelado: <motivo>"`.
 
-### Arquivos a editar (estimativa)
+**4. Exclusão de cancelados em métricas/relatórios**:
+- `get_sales_chart` (RPC) — adicionar `AND status <> 'Cancelado'` na CTE `filtered`. **Migration necessária.**
+- `AdminDashboard` — verificar contadores de "pedidos pendentes" e excluir cancelados onde aplicável (vou inspecionar ao implementar).
+- `CommissionPanel` — excluir cancelados das contagens de comissão.
+- Relatórios PDF (Corte, Pesponto, Bordados, etc.) — naturalmente saem porque os filtros de status atuais não incluem "Cancelado". Sem mudança.
+- Lista "Meus Pedidos" — cancelados continuam visíveis (data preservation), com badge cinza pelo `statusColors` default.
 
-- `src/components/Header.tsx` (ou onde estiver o scanner) — adicionar estado + UI de loading
-- Possivelmente `src/pages/ReportsPage.tsx` se a busca também roda lá
+### Migration SQL
 
-Sem mudanças em hooks, banco ou RLS — só feedback visual.
+```sql
+CREATE OR REPLACE FUNCTION public.get_sales_chart(...)
+-- adicionar na CTE filtered:
+AND o.status <> 'Cancelado'
+```
+
+### Arquivos editados
+
+- `src/lib/order-logic.ts` — 4 listas
+- `src/pages/ReportsPage.tsx` — modal "Mudar Progresso" (motivo obrigatório quando Cancelado)
+- `src/pages/OrderDetailPage.tsx` — bulk bar (motivo obrigatório quando Cancelado)
+- `src/components/CommissionPanel.tsx` — excluir cancelados
+- Migration SQL — `get_sales_chart`
 
 ### O que NÃO mexo
 
-- `fetchOrderByScan` (a lógica de busca em cascata fica igual)
-- Performance da query (otimizar isso seria outro plano — exigiria índices ou consolidar em uma RPC)
-- Banco / RLS
+- Banco da tabela `orders` (status é texto livre, aceita "Cancelado" sem migration de schema)
+- RLS / permissões (admins já podem mudar status)
+- Pedidos existentes
+- Outros status
 
 ### Validação (você faz depois)
 
-1. Bipar um pedido → conferir que o spinner aparece imediatamente e some quando o pedido abre
-2. Bipar um código inválido → spinner aparece, depois some + toast "não encontrado"
-3. Bipar 2 vezes rápido → segunda leitura é ignorada enquanto a primeira processa
+1. Selecionar pedidos → "Mudar Progresso" → escolher "Cancelado" → tentar salvar sem motivo → botão fica bloqueado.
+2. Preencher motivo → salvar → conferir histórico mostra `"Cancelado: <motivo>"`.
+3. Conferir que o pedido cancelado aparece na lista com badge cinza, **não conta** no gráfico de vendas e **não aparece** em relatórios de produção.
+4. Mudar para outros status (Aguardando, Corte, etc.) → comportamento original (observação opcional) mantido.
 
-### Pergunta antes de começar
+### Pergunta antes de implementar
 
-Quero confirmar onde a busca acontece pra fazer o spinner no lugar certo. Posso investigar isso agora (ler Header e ReportsPage) e ajustar o plano antes de implementar?
+**Quem pode cancelar?** Mesmo padrão dos outros status (admins via modal de mudança de progresso) ou só `admin_master`? Por padrão vou seguir o atual (admins em geral) — me avise se quiser restringir.
 
