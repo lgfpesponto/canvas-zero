@@ -6,7 +6,7 @@ import type { Order, OrderAlteracao } from '@/contexts/AuthContext';
 /* ───── Production statuses ───── */
 
 export const PRODUCTION_STATUSES = [
-  "Em aberto", "Aguardando", "Emprestado", "Corte", "Sem bordado",
+  "Em aberto", "Aguardando", "Emprestado", "Corte", "Baixa Corte", "Sem bordado",
   "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
   "Pespontando", "Montagem", "Revisão", "Expedição",
@@ -15,7 +15,7 @@ export const PRODUCTION_STATUSES = [
 ];
 
 export const PRODUCTION_STATUSES_USER = [
-  "Em aberto", "Aguardando", "Emprestado", "Corte", "Sem bordado",
+  "Em aberto", "Aguardando", "Emprestado", "Corte", "Baixa Corte", "Sem bordado",
   "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
   "Pespontando", "Montagem", "Revisão", "Expedição",
