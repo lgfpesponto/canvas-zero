@@ -45,8 +45,10 @@ export function useNotificacoes() {
     if (!enabled) { setNotificacoes([]); return; }
     reload();
 
-    const channel = supabase
-      .channel(`notif_vendedor_${vendedorName}`)
+    const safeName = vendedorName.replace(/[^a-zA-Z0-9_]/g, '_');
+    const channelName = `notif_vendedor_${safeName}_${Math.random().toString(36).slice(2, 8)}`;
+    const channel = supabase.channel(channelName);
+    channel
       .on(
         'postgres_changes',
         {
