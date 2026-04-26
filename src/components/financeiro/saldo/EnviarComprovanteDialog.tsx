@@ -315,7 +315,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                 multiple
                 onChange={(e) => handleFilesSelected(e.target.files)}
                 className="cursor-pointer"
-                disabled={savingAll}
+                disabled={savingAll || (isAdminMode && !selectedVendedor)}
               />
               <p className="text-xs text-muted-foreground mt-2">
                 Aceita PDF, JPG, PNG ou foto. Tamanho máximo: 10MB cada.
