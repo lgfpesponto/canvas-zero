@@ -575,20 +575,23 @@ const OrderPage = () => {
   useEffect(() => {
     if (templatesLoadedRef.current || !user) return;
     templatesLoadedRef.current = true;
-    tmpl.loadTemplates(user.id).then(() => {
-      // Aviso ao logar
-      // Lê o estado mais recente após o load
-      setTimeout(() => {
-        const recebidos = tmpl.templates.filter(t => t.seen === false);
-        if (recebidos.length > 0) {
-          const remetentes = Array.from(new Set(recebidos.map(t => t.sent_by_name).filter(Boolean)));
-          const desc = remetentes.length === 1
-            ? `de ${remetentes[0]}`
-            : `de ${remetentes.length} usuários`;
-          toast.info(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} ${desc}`, { duration: 6000 });
-        }
-      }, 100);
-    });
+    (async () => {
+      await tmpl.loadTemplates(user.id);
+      // Consulta direta para contar e descrever recebidos (não depende do state)
+      const { data } = await supabase
+        .from('order_templates')
+        .select('sent_by_name')
+        .eq('user_id', user.id)
+        .eq('seen', false);
+      const recebidos = (data as any[]) || [];
+      if (recebidos.length > 0) {
+        const remetentes = Array.from(new Set(recebidos.map(t => t.sent_by_name).filter(Boolean)));
+        const desc = remetentes.length === 1
+          ? `de ${remetentes[0]}`
+          : `de ${remetentes.length} usuários`;
+        toast.info(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} ${desc}`, { duration: 6000 });
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
