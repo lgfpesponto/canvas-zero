@@ -29,10 +29,12 @@ interface Props {
   hideWhenEmpty?: boolean;
   /** Título customizado do card. */
   title?: string;
+  /** Mostra o botão "Enviar comprovante de revendedor" (admin master). */
+  showAdminUpload?: boolean;
 }
 
 export const ComprovantesRevendedorPendentes = ({
-  onChanged, hideWhenEmpty, title = 'Comprovantes a entrar (revendedores)',
+  onChanged, hideWhenEmpty, title = 'Comprovantes a entrar (revendedores)', showAdminUpload,
 }: Props) => {
   const { toast } = useToast();
   const [pendentes, setPendentes] = useState<RevendedorComprovante[]>([]);
@@ -41,6 +43,8 @@ export const ComprovantesRevendedorPendentes = ({
   const [viewerPath, setViewerPath] = useState<string | null>(null);
   const [reprovarTarget, setReprovarTarget] = useState<RevendedorComprovante | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [enviarOpen, setEnviarOpen] = useState(false);
+  const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
     setLoading(true);
