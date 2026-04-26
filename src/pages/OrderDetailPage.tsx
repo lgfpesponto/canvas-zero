@@ -237,7 +237,7 @@ const OrderDetailPage = () => {
       case 'gravata_country': t += 30; break;
       case 'adicionar_metais': {
         const sel = (det.metaisSelecionados as string[]) || [];
-        if (sel.includes('Bola grande')) t += 15;
+        if (sel.includes('Bola grande')) { const qty = parseInt(det.qtdBolaGrande) || 1; t += 0.60 * qty; }
         if (sel.includes('Strass')) { const qty = parseInt(det.qtdStrass) || 1; t += 0.60 * qty; }
         break;
       }
@@ -649,7 +649,10 @@ const OrderDetailPage = () => {
                       break;
                     case 'adicionar_metais': {
                       const sel = (det.metaisSelecionados as string[]) || [];
-                      if (sel.includes('Bola grande')) extraPriceItems.push(['Bola grande', 15]);
+                      if (sel.includes('Bola grande')) {
+                        const qty = parseInt(det.qtdBolaGrande) || 1;
+                        extraPriceItems.push([`Bola grande (${qty}x R$0,60)`, 0.60 * qty]);
+                      }
                       if (sel.includes('Strass')) {
                         const qty = parseInt(det.qtdStrass) || 1;
                         extraPriceItems.push([`Strass (${qty}x R$0,60)`, 0.60 * qty]);
