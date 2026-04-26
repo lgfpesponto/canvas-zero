@@ -122,6 +122,15 @@ const EditOrderPage = () => {
     return dbResult ?? getCoresCouroFiltradas(tipoCouro);
   }, [getFilteredOptions]);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fotoParam = searchParams.get('foto') === '1';
+  const fotoUrlAtual = (order?.fotos || []).find(f => isHttpUrl(f)) ?? null;
+  const showFotoPanel = fotoParam && !!fotoUrlAtual;
+  const closeFotoPanel = () => {
+    const sp = new URLSearchParams(searchParams);
+    sp.delete('foto');
+    setSearchParams(sp, { replace: true });
+  };
 
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido, order?.id);
@@ -413,8 +422,9 @@ const EditOrderPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-7xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+      <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
           <ArrowLeft size={16} /> Voltar
         </button>
