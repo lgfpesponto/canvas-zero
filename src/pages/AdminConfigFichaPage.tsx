@@ -2068,9 +2068,9 @@ export default function AdminConfigFichaPage() {
     <div className="min-h-screen bg-background px-4 py-8 md:px-8" data-can-delete={canDelete ? 'true' : 'false'}>
       {!canDelete && (
         <style>{`
-          [data-can-delete="false"] .bg-destructive,
+          [data-can-delete="false"] button.bg-destructive,
           [data-can-delete="false"] button.text-destructive,
-          [data-can-delete="false"] button .lucide-trash-2 { display: none !important; }
+          [data-can-delete="false"] button:has(> svg.lucide-trash-2),
           [data-can-delete="false"] button:has(> .lucide-trash-2) { display: none !important; }
         `}</style>
       )}
