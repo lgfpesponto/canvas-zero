@@ -838,7 +838,7 @@ const OrderPage = () => {
   });
 
 
-  const resetForm = useCallback(() => {
+  const resetForm = () => {
     setVendedorSelecionado(isAdminProducao ? '' : (user?.nomeCompleto || ''));
     setNumeroPedido('');
     setCliente('');
