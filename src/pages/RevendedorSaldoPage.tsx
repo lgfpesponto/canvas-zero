@@ -12,8 +12,7 @@ import { formatCurrency } from '@/lib/order-logic';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
 import {
   fetchSaldoVendedor, fetchComprovantes, fetchPedidosCobrados, fetchBaixasVendedor,
-  type RevendedorSaldo, type RevendedorComprovante, type PedidoCobrado, type RevendedorBaixa,
-  statusLabel,
+  type RevendedorSaldo, type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from '@/components/financeiro/saldo/EnviarComprovanteDialog';
@@ -26,8 +25,7 @@ const RevendedorSaldoPage = () => {
 
   const [saldo, setSaldo] = useState<RevendedorSaldo | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
-  const [pedidos, setPedidos] = useState<PedidoCobrado[]>([]);
-  const [baixas, setBaixas] = useState<RevendedorBaixa[]>([]);
+  const [totalPendente, setTotalPendente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
@@ -51,8 +49,12 @@ const RevendedorSaldoPage = () => {
       ]);
       setSaldo(s);
       setComprovantes(c);
-      setPedidos(p);
-      setBaixas(b);
+      const baixasSet = new Set(b.map(x => x.order_id));
+      const pendente = p
+        .filter(x => !baixasSet.has(x.id))
+        .reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
+      const saldoDisp = Number(s?.saldo_disponivel || 0);
+      setTotalPendente(Math.max(0, pendente - saldoDisp));
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -61,42 +63,6 @@ const RevendedorSaldoPage = () => {
   };
 
   useEffect(() => { if (vendedorName) reload(); }, [vendedorName]);
-
-  const baixasMap = useMemo(() => new Set(baixas.map(b => b.order_id)), [baixas]);
-
-  const pedidosComStatus = useMemo(() => {
-    let saldoSimulado = saldo?.saldo_disponivel || 0;
-    let primeiroPendenteVisto = false;
-    return pedidos.map(p => {
-      const valor = (p.preco || 0) * (p.quantidade || 1);
-      const pago = baixasMap.has(p.id);
-      let visualStatus: 'pago' | 'aguardando' | 'parcial' | 'pendente' = 'pendente';
-      let restante = valor;
-      if (pago) {
-        visualStatus = 'pago';
-        restante = 0;
-      } else if (saldoSimulado >= valor) {
-        // Estranho: deveria ter sido baixado. Mostra como aguardando processamento.
-        visualStatus = 'aguardando';
-        saldoSimulado -= valor;
-        restante = 0;
-      } else if (!primeiroPendenteVisto && saldoSimulado > 0) {
-        visualStatus = 'parcial';
-        restante = valor - saldoSimulado;
-        saldoSimulado = 0;
-        primeiroPendenteVisto = true;
-      } else {
-        visualStatus = 'pendente';
-        primeiroPendenteVisto = true;
-      }
-      return { ...p, valorTotal: valor, visualStatus, restante, valorAbatido: pago ? valor : 0 };
-    });
-  }, [pedidos, baixasMap, saldo]);
-
-  const totalPendente = useMemo(
-    () => pedidosComStatus.filter(p => p.visualStatus !== 'pago').reduce((s, p) => s + p.restante, 0),
-    [pedidosComStatus]
-  );
 
   if (accessLoading) return null;
   if (!isAdminMaster && !canSeeRevendedorView) return null;
@@ -117,7 +83,7 @@ const RevendedorSaldoPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Total enviado</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">{formatCurrency(saldo?.total_recebido || 0)}</p>
@@ -150,63 +116,6 @@ const RevendedorSaldoPage = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Meus pedidos cobrados */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Meus pedidos cobrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
-          ) : pedidosComStatus.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Nenhum pedido cobrado no momento.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Valor total</TableHead>
-                  <TableHead className="text-right">Abatido</TableHead>
-                  <TableHead className="text-right">Restante</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pedidosComStatus.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{p.numero}</TableCell>
-                    <TableCell className="text-sm">
-                      {p.tipo_extra || p.modelo || '—'} {p.tamanho ? `· ${p.tamanho}` : ''}
-                      {p.quantidade > 1 && <span className="text-muted-foreground"> ×{p.quantidade}</span>}
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.valorTotal)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.valorAbatido)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.restante)}</TableCell>
-                    <TableCell>
-                      {p.visualStatus === 'pago' && (
-                        <Badge className="bg-green-600 hover:bg-green-700">Pago via saldo</Badge>
-                      )}
-                      {p.visualStatus === 'aguardando' && (
-                        <Badge variant="outline" className="border-yellow-500 text-yellow-700">Aguardando processamento</Badge>
-                      )}
-                      {p.visualStatus === 'parcial' && (
-                        <Badge variant="outline" className="border-orange-500 text-orange-700">
-                          Faltam {formatCurrency(p.restante)}
-                        </Badge>
-                      )}
-                      {p.visualStatus === 'pendente' && (
-                        <Badge variant="secondary">Pendente</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Meus comprovantes */}
       <Card className="mb-6">
