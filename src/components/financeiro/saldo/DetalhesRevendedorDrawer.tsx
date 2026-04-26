@@ -102,6 +102,60 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
     }
   };
 
+  // Limpa seleção quando muda a fila
+  useEffect(() => {
+    setSelectedPedidos(prev => {
+      const visible = new Set(filaPedidos.map(p => p.id));
+      const next = new Set<string>();
+      prev.forEach(id => { if (visible.has(id)) next.add(id); });
+      return next;
+    });
+  }, [filaPedidos]);
+
+  const allPedSelected = filaPedidos.length > 0 && selectedPedidos.size === filaPedidos.length;
+  const somePedSelected = selectedPedidos.size > 0 && !allPedSelected;
+  const togglePedAll = () => {
+    setSelectedPedidos(allPedSelected ? new Set() : new Set(filaPedidos.map(p => p.id)));
+  };
+  const togglePedOne = (id: string) => {
+    setSelectedPedidos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const totalSelecionado = useMemo(
+    () => filaPedidos.filter(p => selectedPedidos.has(p.id)).reduce((s, p) => s + p.valorTotal, 0),
+    [filaPedidos, selectedPedidos]
+  );
+
+  const handleQuitarHistorico = async () => {
+    if (!quitarMotivo.trim()) {
+      toast({ title: 'Motivo obrigatório', variant: 'destructive' });
+      return;
+    }
+    setQuitarSaving(true);
+    try {
+      const ids = Array.from(selectedPedidos);
+      const result = await quitarPedidosHistorico(ids, quitarMotivo.trim());
+      toast({
+        title: `${result.quitados} pedido(s) marcado(s) como quitado(s)`,
+        description: result.pulados > 0
+          ? `${result.pulados} pulado(s) (já tinham baixa ou valor zero). Saldo do revendedor não foi alterado.`
+          : 'Saldo do revendedor não foi alterado.',
+      });
+      setQuitarOpen(false);
+      setQuitarMotivo('');
+      setSelectedPedidos(new Set());
+      await reload();
+      onChanged();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setQuitarSaving(false);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
