@@ -231,7 +231,7 @@ export const ComprovantesRevendedorPendentes = ({
                   <TableRow>
                     <TableHead className="w-8">
                       <Checkbox
-                        checked={allSelected || (someSelected && 'indeterminate')}
+                        checked={allSelected ? true : someSelected ? 'indeterminate' : false}
                         onCheckedChange={toggleAll}
                         aria-label="Selecionar todos"
                       />
