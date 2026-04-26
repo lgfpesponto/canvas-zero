@@ -798,21 +798,19 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
     doc.text(`Filtro: ${filterProgresso === 'todos' ? 'Todos' : filterProgresso} | Total: ${filtered.length} pedidos`, mx, 32);
 
-    const cols = [22, 95, 38, 18, 9];
+    const cols = [42, 110, 18, 12];
     const cx = [
       mx,
       mx + cols[0],
       mx + cols[0] + cols[1],
       mx + cols[0] + cols[1] + cols[2],
-      mx + cols[0] + cols[1] + cols[2] + cols[3],
     ];
 
     let y = drawTableHeader(doc, 38, mx, cw, [
       { label: 'Nº PEDIDO', x: cx[0] + 2 },
       { label: 'DESCRIÇÃO DO BORDADO', x: cx[1] + 2 },
-      { label: 'CÓDIGO DE BARRAS', x: cx[2] + 2 },
-      { label: 'QR CODE', x: cx[3] + 2 },
-      { label: 'CHECK', x: cx[4] + 1 },
+      { label: 'QR CODE', x: cx[2] + 2 },
+      { label: 'CHECK', x: cx[3] + 1 },
     ]);
 
     doc.setFont('helvetica', 'normal');
