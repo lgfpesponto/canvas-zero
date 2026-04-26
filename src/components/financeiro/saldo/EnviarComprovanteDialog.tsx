@@ -220,7 +220,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         const { data: dup } = await supabase
           .from('revendedor_comprovantes' as any)
           .select('id')
-          .eq('vendedor', vendedor)
+          .eq('vendedor', targetVendedor)
           .eq('comprovante_hash', it.hash)
           .limit(1);
         if (dup && dup.length > 0) {
@@ -229,7 +229,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
 
         const path = await uploadComprovanteRevendedor(it.file);
         const { error } = await supabase.from('revendedor_comprovantes' as any).insert({
-          vendedor,
+          vendedor: targetVendedor,
           valor: it.valor,
           data_pagamento: it.data_pagamento,
           observacao: it.observacao.trim() || null,
