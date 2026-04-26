@@ -128,6 +128,55 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
+  // mantém só ids ainda visíveis
+  useEffect(() => {
+    setSelectedIds(prev => {
+      const visible = new Set(pendentes.map(p => p.id));
+      const next = new Set<string>();
+      prev.forEach(id => { if (visible.has(id)) next.add(id); });
+      return next;
+    });
+  }, [pendentes]);
+
+  const allSelected = pendentes.length > 0 && selectedIds.size === pendentes.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(pendentes.map(p => p.id)));
+  };
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDescartar = async () => {
+    if (!descartarMotivo.trim()) {
+      toast({ title: 'Motivo obrigatório', variant: 'destructive' });
+      return;
+    }
+    setDescartarSaving(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const result = await descartarComprovantesHistorico(ids, descartarMotivo.trim());
+      toast({
+        title: `${result.descartados} comprovante(s) descartado(s)`,
+        description: 'Não creditaram saldo nem geraram lançamento em A Receber.',
+      });
+      setDescartarOpen(false);
+      setDescartarMotivo('');
+      setSelectedIds(new Set());
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setDescartarSaving(false);
+    }
+  };
+
   if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
