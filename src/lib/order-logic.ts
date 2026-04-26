@@ -33,7 +33,7 @@ export const BELT_STATUSES = [
 
 /** Statuses that mean "in production" (for dashboard counters) */
 export const PRODUCTION_STATUSES_IN_PROD = [
-  'Aguardando', 'Corte', 'Sem bordado',
+  'Aguardando', 'Corte', 'Baixa Corte', 'Sem bordado',
   'Bordado Dinei', 'Bordado Sandro', 'Bordado 7Estrivos',
   'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
   'Pespontando', 'Montagem', 'Revisão', 'Expedição',
