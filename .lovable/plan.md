@@ -1,96 +1,72 @@
+## Compartilhamento de modelos entre usuários
 
+### Como vai funcionar (resumo)
 
-## Restringir exclusões apenas ao admin_master (Juliana)
+1. Na lista "Modelos Salvos", cada modelo ganha um botão **"Enviar"** (ícone de avião).
+2. Ao clicar, abre um diálogo com a lista de usuários (busca por nome) e checkboxes pra selecionar um ou vários destinatários.
+3. Você confirma → o sistema **copia** o modelo pra cada destinatário escolhido (cópia independente — eles podem editar/excluir sem afetar o seu).
+4. Quando o destinatário entra no sistema:
+   - Aparece um **toast** "Você recebeu N novos modelos de [Fulano]"
+   - O botão **"Modelos"** ganha um **badge vermelho** com o número de modelos não vistos
+   - Ao abrir a lista de modelos, esses ficam marcados com um indicador "Novo" e somem do contador depois de visualizados
 
-### Problema
+### Mudanças no banco
 
-Hoje várias políticas RLS e checagens de UI permitem que **qualquer admin** (`admin_master` + `admin_producao`) apague registros via `is_any_admin(auth.uid())`. Você quer que **só a Juliana** (`admin_master`, login `7estrivos`) consiga apagar qualquer coisa.
-
-### Investigação realizada
-
-Olhando o schema atual, as seguintes políticas de **DELETE** usam `is_any_admin()` e precisam virar `has_role(auth.uid(), 'admin_master')`:
-
-| Tabela | Política DELETE atual |
-|---|---|
-| `orders` | `Admins can delete orders` → is_any_admin |
-| `deleted_orders` | `Admins can delete deleted orders` → is_any_admin |
-| `custom_options` | `Admins can delete` → is_any_admin |
-| `ficha_tipos` | `Admins can delete ficha_tipos` → is_any_admin |
-| `ficha_categorias` | `Admins can delete ficha_categorias` → is_any_admin |
-| `ficha_campos` | `Admins can delete ficha_campos` → is_any_admin |
-| `ficha_variacoes` | `Admins can delete ficha_variacoes` → is_any_admin |
-| `ficha_workflow` | `Admins can delete ficha_workflow` → is_any_admin |
-| `status_etapas` | `Admins can delete status_etapas` → is_any_admin |
-| `gravata_stock` | `Admins can delete stock` → is_any_admin |
-| `user_roles` | `Admins can delete roles` → is_any_admin |
-
-`profiles` já não permite DELETE pra ninguém — fica como está. `financeiro_*` já é só `admin_master`. `verification_codes` é só do próprio usuário. `order_templates` é só do dono — pessoal, fica.
-
-### Mudanças
-
-**1. Migration SQL** — recriar todas as políticas DELETE acima trocando `is_any_admin(auth.uid())` por `has_role(auth.uid(), 'admin_master'::app_role)`:
-
+**1. Migration — adicionar colunas em `order_templates`:**
 ```sql
--- exemplo (replicar para as 11 tabelas)
-DROP POLICY "Admins can delete orders" ON public.orders;
-CREATE POLICY "Only admin_master can delete orders"
-  ON public.orders FOR DELETE TO authenticated
-  USING (has_role(auth.uid(), 'admin_master'::app_role));
+ALTER TABLE public.order_templates
+  ADD COLUMN sent_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN sent_by_name text,
+  ADD COLUMN seen boolean NOT NULL DEFAULT true;
+-- modelos próprios = seen=true por padrão; modelos recebidos serão criados com seen=false
 ```
 
-Depois disso, mesmo que o frontend mande um DELETE como `admin_producao`, o banco bloqueia. Essa é a camada **forte** de segurança.
+> Como já existe a regra de RLS `auth.uid() = user_id` em todos os comandos, a "transferência" funciona via INSERT do **remetente** definindo `user_id` = id do destinatário. Pra isso, a política de INSERT precisa ser ajustada:
 
-**2. Camada de UI** (esconder botões pra `admin_producao`)
-
-Vou inspecionar e ajustar (procurando por `onDelete`, `handleDelete`, ícones `Trash2`, `useDelete*` em):
-- `src/pages/AdminConfigPage.tsx` — desativar/excluir fichas
-- `src/pages/AdminConfigFichaPage.tsx` — excluir categorias/campos/variações
-- `src/pages/UsersManagementPage.tsx` — excluir usuários (já passa pela edge function `delete-user`)
-- `src/pages/ReportsPage.tsx` / `OrderDetailPage.tsx` — exclusão em massa de pedidos
-- `src/components/admin/FichaBuilder.tsx`
-- Componentes de financeiro (já é só admin_master, ok)
-
-Padrão que vou usar:
-```tsx
-const canDelete = user?.role === 'admin_master';
-{canDelete && <Button onClick={onDelete}><Trash2 /></Button>}
+**2. Migration — RLS de INSERT mais permissiva pra envio:**
+```sql
+DROP POLICY "Users can insert own templates" ON public.order_templates;
+CREATE POLICY "Users can insert templates (own or sent)"
+  ON public.order_templates FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id           -- modelo próprio
+    OR auth.uid() = sent_by        -- ou sou o remetente registrando o envio
+  );
 ```
 
-Pra `admin_producao` o botão de lixeira simplesmente não aparece, evitando frustração ("cliquei e deu erro").
+Continua seguro: você só consegue inserir um modelo pra outra pessoa se marcar a si mesmo como `sent_by`. As políticas de SELECT/UPDATE/DELETE permanecem `auth.uid() = user_id` (só o dono vê/edita/apaga).
 
-**3. Edge function `delete-user`** — adicionar checagem manual no início:
-```ts
-// só admin_master pode chamar
-const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', callerId);
-if (!roles?.some(r => r.role === 'admin_master')) {
-  return new Response('Forbidden', { status: 403 });
-}
-```
+**Importante sobre exclusão**: a regra do projeto é "só `admin_master` pode apagar". Modelos sempre foram exceção (cada vendedor sempre apagou os próprios) — vou manter assim. Se quiser que recebidos não possam ser apagados pelo destinatário, me avise.
+
+### Mudanças no frontend
+
+**`src/hooks/useTemplateManagement.ts`**
+- `TemplateRecord` ganha `sent_by_name?: string` e `seen: boolean`.
+- Nova função `sendTemplateToUsers(templateId, recipientIds, senderName)` — copia `form_data` + `nome` pra cada destinatário com `seen=false` e `sent_by=auth.uid()`.
+- Nova função `markTemplatesAsSeen(userId)` — UPDATE em massa pra zerar o badge depois que o usuário abre a lista.
+- `loadTemplates` passa a trazer também `sent_by_name` e `seen`.
+
+**`src/pages/OrderPage.tsx`**
+- Botão **"Enviar"** (ícone `Send` da lucide) em cada linha do diálogo "Modelos Salvos".
+- Novo `Dialog` interno: lista de usuários (consulta `profiles` ordenada por nome, busca + checkboxes), botão "Enviar para X usuários".
+- Badge vermelho no botão "Modelos" mostrando contagem de `seen=false`.
+- Ao abrir o diálogo de modelos, dispara `markTemplatesAsSeen` (fica visualmente marcado como "Novo" enquanto o diálogo está aberto, e zera o contador).
+- Linhas de modelos recebidos exibem rótulo "Recebido de Fulano" abaixo do nome.
+
+**`src/contexts/AuthContext.tsx`** (pequeno acréscimo)
+- Após login bem-sucedido, faz uma consulta rápida `count` em `order_templates` com `seen=false` e mostra `toast.info` com a quantidade.
 
 ### O que NÃO mexo
-
-- Políticas SELECT/INSERT/UPDATE — `admin_producao` continua com acesso normal pra ler, criar e editar.
-- `profiles` (já bloqueado pra DELETE).
-- `financeiro_*` (já é só admin_master).
-- `order_templates` (cada um apaga o próprio).
-- `verification_codes` (cada um apaga os próprios).
-- Função `is_any_admin` — continua existindo pra outras checagens não-DELETE.
-
-### Considerações importantes
-
-- **Cuidado com cascatas**: hoje `useDeleteCategoria` (em `useAdminConfig.ts`) faz `delete from ficha_variacoes` antes de `delete from ficha_categorias`. Como ambas só serão permitidas pra admin_master, segue funcionando — mas pra admin_producao vai falhar silenciosamente. Por isso a camada UI (esconder botão) é essencial.
-- **Pedidos cancelados (`Cancelado`)**: a regra de "data preservation" se mantém — admin_producao continua podendo **mover pra Cancelado** (UPDATE), mas só Juliana pode **DELETAR de fato**.
-- **Bulk delete de pedidos**: hoje qualquer admin pode fazer no `OrderDetailPage`/`ReportsPage`. Vou esconder o botão pra admin_producao.
+- Outras tabelas, outras políticas RLS.
+- Lógica de criação/edição/uso do modelo no formulário.
+- Sistema de modelos do "Estoque" ou outros.
+- Drafts (`src/lib/drafts.ts`).
 
 ### Validação (você faz depois)
+1. Criar um modelo como Fulano → clicar "Enviar" → escolher Cicrano → confirmar.
+2. Logar como Cicrano → ver toast "1 novo modelo recebido de Fulano" + badge no botão Modelos.
+3. Abrir Modelos → ver o modelo na lista com rótulo "Recebido de Fulano" → badge zera.
+4. Cicrano edita o modelo → confirmar que **não afeta** o original do Fulano.
 
-1. Logar como Fernanda (`admin_producao`) → tentar excluir uma ficha/pedido/usuário → botão de lixeira não aparece em lugar nenhum.
-2. Logar como Juliana (`admin_master` / `7estrivos`) → continua com todos os botões de exclusão funcionando normalmente.
-3. Tentar `DELETE` direto via SQL como admin_producao (cenário de segurança) → bloqueado pelo RLS.
-
-### Pergunta
-
-Tem algum caso específico onde admin_producao **precisa** apagar (ex: algum status, algum dado de produção)? Pelo que entendi, **nada** — só Juliana. Confirma?
-
-Aprovar pra eu implementar a migration + ajustes de UI.
-
+### Observação importante
+A coluna `sent_by` referencia `auth.users(id)` apenas via `ON DELETE SET NULL` (sem foreign key forte no schema público — Supabase aceita), pra que se o remetente for excluído no futuro, o modelo não suma. Vou armazenar **também** o nome em `sent_by_name` no momento do envio, garantindo que "Recebido de Fulano" continua aparecendo mesmo se o usuário deixar a empresa.
