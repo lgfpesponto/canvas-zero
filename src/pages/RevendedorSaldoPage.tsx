@@ -117,63 +117,6 @@ const RevendedorSaldoPage = () => {
         </Card>
       </div>
 
-      {/* Meus pedidos cobrados */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Meus pedidos cobrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
-          ) : pedidosComStatus.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Nenhum pedido cobrado no momento.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Valor total</TableHead>
-                  <TableHead className="text-right">Abatido</TableHead>
-                  <TableHead className="text-right">Restante</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pedidosComStatus.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{p.numero}</TableCell>
-                    <TableCell className="text-sm">
-                      {p.tipo_extra || p.modelo || '—'} {p.tamanho ? `· ${p.tamanho}` : ''}
-                      {p.quantidade > 1 && <span className="text-muted-foreground"> ×{p.quantidade}</span>}
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.valorTotal)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.valorAbatido)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.restante)}</TableCell>
-                    <TableCell>
-                      {p.visualStatus === 'pago' && (
-                        <Badge className="bg-green-600 hover:bg-green-700">Pago via saldo</Badge>
-                      )}
-                      {p.visualStatus === 'aguardando' && (
-                        <Badge variant="outline" className="border-yellow-500 text-yellow-700">Aguardando processamento</Badge>
-                      )}
-                      {p.visualStatus === 'parcial' && (
-                        <Badge variant="outline" className="border-orange-500 text-orange-700">
-                          Faltam {formatCurrency(p.restante)}
-                        </Badge>
-                      )}
-                      {p.visualStatus === 'pendente' && (
-                        <Badge variant="secondary">Pendente</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Meus comprovantes */}
       <Card className="mb-6">
         <CardHeader>
