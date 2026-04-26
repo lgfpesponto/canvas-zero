@@ -706,6 +706,160 @@ export type Database = {
         }
         Relationships: []
       }
+      revendedor_baixas_pedido: {
+        Row: {
+          created_at: string
+          id: string
+          movimento_id: string | null
+          order_id: string
+          valor_pedido: number
+          vendedor: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          movimento_id?: string | null
+          order_id: string
+          valor_pedido: number
+          vendedor: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          movimento_id?: string | null
+          order_id?: string
+          valor_pedido?: number
+          vendedor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revendedor_baixas_pedido_movimento_id_fkey"
+            columns: ["movimento_id"]
+            isOneToOne: false
+            referencedRelation: "revendedor_saldo_movimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revendedor_comprovantes: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          comprovante_hash: string | null
+          comprovante_url: string
+          created_at: string
+          data_pagamento: string
+          enviado_por: string
+          id: string
+          motivo_reprovacao: string | null
+          observacao: string | null
+          status: string
+          valor: number
+          vendedor: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          comprovante_hash?: string | null
+          comprovante_url: string
+          created_at?: string
+          data_pagamento: string
+          enviado_por: string
+          id?: string
+          motivo_reprovacao?: string | null
+          observacao?: string | null
+          status?: string
+          valor: number
+          vendedor: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          comprovante_hash?: string | null
+          comprovante_url?: string
+          created_at?: string
+          data_pagamento?: string
+          enviado_por?: string
+          id?: string
+          motivo_reprovacao?: string | null
+          observacao?: string | null
+          status?: string
+          valor?: number
+          vendedor?: string
+        }
+        Relationships: []
+      }
+      revendedor_saldo_movimentos: {
+        Row: {
+          comprovante_id: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          order_id: string | null
+          saldo_anterior: number
+          saldo_posterior: number
+          tipo: string
+          valor: number
+          vendedor: string
+        }
+        Insert: {
+          comprovante_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          order_id?: string | null
+          saldo_anterior?: number
+          saldo_posterior?: number
+          tipo: string
+          valor: number
+          vendedor: string
+        }
+        Update: {
+          comprovante_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          order_id?: string | null
+          saldo_anterior?: number
+          saldo_posterior?: number
+          tipo?: string
+          valor?: number
+          vendedor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revendedor_saldo_movimentos_comprovante_id_fkey"
+            columns: ["comprovante_id"]
+            isOneToOne: false
+            referencedRelation: "revendedor_comprovantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revendedor_saldo_visibilidade: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          vendedor: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          vendedor: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          vendedor?: string
+        }
+        Relationships: []
+      }
       status_etapas: {
         Row: {
           id: string
@@ -777,10 +931,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_revendedor_saldo: {
+        Row: {
+          saldo_disponivel: number | null
+          total_ajustes: number | null
+          total_estornos: number | null
+          total_recebido: number | null
+          total_utilizado: number | null
+          vendedor: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      ajustar_saldo_revendedor: {
+        Args: { _delta: number; _descricao: string; _vendedor: string }
+        Returns: Json
+      }
+      aprovar_comprovante_revendedor: {
+        Args: { _comprovante_id: string }
+        Returns: Json
+      }
+      current_user_nome_completo: { Args: never; Returns: string }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
+      estornar_baixa_revendedor: {
+        Args: { _baixa_id: string; _motivo: string }
+        Returns: undefined
+      }
       find_order_by_id_suffix: {
         Args: { suffix: string }
         Returns: {
@@ -900,6 +1077,15 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      reprovar_comprovante_revendedor: {
+        Args: { _comprovante_id: string; _motivo: string }
+        Returns: undefined
+      }
+      saldo_atual_revendedor: { Args: { _vendedor: string }; Returns: number }
+      tentar_baixa_automatica: {
+        Args: { _admin_id?: string; _vendedor: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role:

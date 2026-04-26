@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import FinanceiroAReceber from '@/components/financeiro/FinanceiroAReceber';
 import FinanceiroAPagar from '@/components/financeiro/FinanceiroAPagar';
+import FinanceiroSaldoRevendedor from '@/components/financeiro/saldo/FinanceiroSaldoRevendedor';
 
 const FinanceiroPage = () => {
   const { role, loading } = useAuth();
@@ -24,12 +25,16 @@ const FinanceiroPage = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="receber">A Receber</TabsTrigger>
           <TabsTrigger value="pagar">A Pagar</TabsTrigger>
+          <TabsTrigger value="saldo">Saldo do Revendedor</TabsTrigger>
         </TabsList>
         <TabsContent value="receber">
           <FinanceiroAReceber />
         </TabsContent>
         <TabsContent value="pagar">
           <FinanceiroAPagar />
+        </TabsContent>
+        <TabsContent value="saldo">
+          <FinanceiroSaldoRevendedor />
         </TabsContent>
       </Tabs>
     </div>
