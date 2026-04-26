@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
+import { isHttpUrl } from '@/lib/driveUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
@@ -22,6 +24,15 @@ const EditExtrasPage = () => {
   const { isAdmin, updateOrder, allProfiles, user } = useAuth();
   const { order, loading: orderLoading } = useOrderById(id);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fotoParam = searchParams.get('foto') === '1';
+  const fotoUrlAtual = (order?.fotos || []).find(f => isHttpUrl(f)) ?? null;
+  const showFotoPanel = fotoParam && !!fotoUrlAtual;
+  const closeFotoPanel = () => {
+    const sp = new URLSearchParams(searchParams);
+    sp.delete('foto');
+    setSearchParams(sp, { replace: true });
+  };
 
   const [form, setForm] = useState<Record<string, any>>({});
   const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
