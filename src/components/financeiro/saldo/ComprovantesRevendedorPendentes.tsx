@@ -60,6 +60,26 @@ export const ComprovantesRevendedorPendentes = ({
 
   useEffect(() => { load(); }, []);
 
+  // Realtime: atualiza a lista assim que qualquer revendedor envia/edita um comprovante
+  useEffect(() => {
+    const scheduleReload = () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      reloadTimer.current = window.setTimeout(() => { load(); }, 400);
+    };
+    const channel = supabase
+      .channel('revendedor_comprovantes_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_comprovantes' },
+        () => scheduleReload()
+      )
+      .subscribe();
+    return () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+
   const totalPendente = useMemo(
     () => pendentes.reduce((s, c) => s + Number(c.valor || 0), 0),
     [pendentes]
