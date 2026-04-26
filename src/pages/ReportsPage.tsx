@@ -265,8 +265,8 @@ const ReportsPage = () => {
     }
   }, [showScanner]);
 
-  const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport), [ordersToExport]);
-  const handleGenerateProductionSheetPDF = useCallback(() => generateProductionSheetPDF(ordersToExport), [ordersToExport]);
+  const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
+  const handleGenerateProductionSheetPDF = useCallback(() => generateProductionSheetPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
