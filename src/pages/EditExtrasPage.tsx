@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
+import { isHttpUrl } from '@/lib/driveUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
@@ -22,6 +24,15 @@ const EditExtrasPage = () => {
   const { isAdmin, updateOrder, allProfiles, user } = useAuth();
   const { order, loading: orderLoading } = useOrderById(id);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fotoParam = searchParams.get('foto') === '1';
+  const fotoUrlAtual = (order?.fotos || []).find(f => isHttpUrl(f)) ?? null;
+  const showFotoPanel = fotoParam && !!fotoUrlAtual;
+  const closeFotoPanel = () => {
+    const sp = new URLSearchParams(searchParams);
+    sp.delete('foto');
+    setSearchParams(sp, { replace: true });
+  };
 
   const [form, setForm] = useState<Record<string, any>>({});
   const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
@@ -185,14 +196,15 @@ const EditExtrasPage = () => {
       extraDetalhes: detalhes,
     });
     toast.success('Pedido atualizado com sucesso!');
-    navigate(`/pedido/${order.id}`, { replace: true });
+    navigate(`/pedido/${order.id}${fotoParam ? '?foto=1' : ''}`, { replace: true });
   };
 
   const price = calcPrice();
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-lg">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-5xl' : 'max-w-lg'} transition-[max-width] duration-300`}>
+      <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
           <ArrowLeft size={16} /> Voltar
         </button>
@@ -576,6 +588,10 @@ const EditExtrasPage = () => {
           </Button>
         </div>
       </motion.div>
+        {showFotoPanel && (
+          <FotoPedidoSidePanel url={fotoUrlAtual} onClose={closeFotoPanel} />
+        )}
+      </div>
     </div>
   );
 };

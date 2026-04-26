@@ -8,7 +8,7 @@ import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
-import { FotoPedidoDialog } from '@/components/FotoPedidoDialog';
+import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -253,9 +253,13 @@ const OrderDetailPage = () => {
 
   const alteracoes = order.alteracoes || [];
 
+  const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? null;
+  const showFotoPanel = fotoOpen && !!fotoUrlAtual;
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-3xl'} transition-[max-width] duration-300`}>
+      <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft size={16} /> Voltar
@@ -372,7 +376,10 @@ const OrderDetailPage = () => {
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl font-display font-bold">{order.numero}</h1>
                   {isAdmin && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`, { replace: true })}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                      const base = order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`;
+                      navigate(showFotoPanel ? `${base}?foto=1` : base, { replace: true });
+                    }}>
                       <Pencil size={16} />
                     </Button>
                   )}
@@ -793,12 +800,10 @@ const OrderDetailPage = () => {
           )}
         </div>
       </motion.div>
-
-      <FotoPedidoDialog
-        url={(order.fotos || []).find(f => isHttpUrl(f)) ?? null}
-        open={fotoOpen}
-        onOpenChange={setFotoOpen}
-      />
+        {showFotoPanel && (
+          <FotoPedidoSidePanel url={fotoUrlAtual} onClose={() => setFotoOpen(false)} />
+        )}
+      </div>
     </div>
   );
 };
