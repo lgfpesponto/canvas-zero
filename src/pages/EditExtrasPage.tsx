@@ -204,7 +204,6 @@ const EditExtrasPage = () => {
   return (
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-5xl' : 'max-w-lg'} transition-[max-width] duration-300`}>
       <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0"></motion.div>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
           <ArrowLeft size={16} /> Voltar
