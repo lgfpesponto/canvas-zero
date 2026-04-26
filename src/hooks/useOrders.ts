@@ -20,6 +20,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
+  const [totalProdutos, setTotalProdutos] = useState(0);
 
   const fetchOrders = useCallback(async () => {
     if (!enabled) return;
