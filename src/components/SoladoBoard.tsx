@@ -85,6 +85,8 @@ const drawBlockLayout = (doc: jsPDF, startY: number, mx: number, block: BlockDat
 };
 
 const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
+  const { user } = useAuth();
+  const userName = user?.nomeCompleto || '';
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
