@@ -1048,7 +1048,6 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       y += rowH;
     }
-    }
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Corte', userName);
