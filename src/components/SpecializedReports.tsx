@@ -364,6 +364,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // Fetch all orders from DB (no limit)
   const { orders: sourceOrders, loading: ordersLoading } = useOrdersQuery({ enabled: true });
 
+  // Pré-carrega o cache de preços (variações cadastradas no admin) para que o
+  // breakdown dos PDFs use os preços REAIS do banco — e não as constantes hardcoded.
+  useEffect(() => { ensurePriceCache(); }, []);
+
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [filterVendedor, setFilterVendedor] = useState('todos');
   const [filterProgresso, setFilterProgresso] = useState('todos');
