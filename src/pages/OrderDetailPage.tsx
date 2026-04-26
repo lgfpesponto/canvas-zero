@@ -679,7 +679,7 @@ const OrderDetailPage = () => {
                               let detail = '';
                               if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
                                 const parts: string[] = [];
-                                if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push('Bola grande');
+                                if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push(`Bola grande x${ex.dados.qtdBolaGrande || 1}`);
                                 if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
                                 detail = parts.length ? ` (${parts.join(', ')})` : '';
                               } else if (ex.tipo === 'carimbo_fogo') {
