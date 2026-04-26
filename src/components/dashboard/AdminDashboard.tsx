@@ -226,6 +226,28 @@ const AdminDashboard = () => {
 
   return (
     <section className="container mx-auto px-4 py-8">
+      {isAdminMaster && comprovantesRevendedor.count > 0 && (
+        <Link
+          to="/financeiro?tab=receber#comprovantes-revendedor"
+          className="block mb-6 rounded-xl border-2 border-destructive bg-destructive/5 p-5 hover:bg-destructive/10 transition-colors"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Wallet className="text-destructive" size={28} />
+              <div>
+                <div className="font-bold text-lg">Comprovantes a entrar</div>
+                <div className="text-sm text-muted-foreground">
+                  {comprovantesRevendedor.count} {comprovantesRevendedor.count === 1 ? 'comprovante enviado' : 'comprovantes enviados'} pelos revendedores · Total{' '}
+                  <strong className="text-destructive">{formatCurrency(comprovantesRevendedor.total)}</strong>
+                </div>
+              </div>
+            </div>
+            <span className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-bold">
+              Aprovar agora →
+            </span>
+          </div>
+        </Link>
+      )}
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left column */}
         <div className="space-y-6">
