@@ -164,6 +164,23 @@ const BeltOrderPage = () => {
   };
 
 
+  const resetForm = () => {
+    setVendedor(isAdminProducao ? '' : (user?.nomeCompleto || ''));
+    setNumeroPedido('');
+    setCliente('');
+    setTamanho('');
+    setTipoCouro(''); setCorCouro('');
+    setBordadoP(false); setBordadoPDesc(''); setBordadoPCor('');
+    setNomeBordado(false); setNomeBordadoDesc(''); setNomeBordadoCor(''); setNomeBordadoFonte('');
+    setCarimbo(''); setCarimboDesc(''); setCarimboOnde('');
+    setFivela(''); setFivelaOutroDesc('');
+    setAdicionalValor(''); setAdicionalDesc('');
+    setObservacao('');
+    setFotoUrl('');
+    setShowMirror(false);
+    setLoadedDraftId(null);
+  };
+
   const confirmOrder = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -232,8 +249,9 @@ const BeltOrderPage = () => {
 
       if (success) {
         if (loadedDraftId) deleteDraft(loadedDraftId);
-        toast.success('Pedido de cinto criado com sucesso!');
-        navigate('/relatorios');
+        const numeroSalvo = numeroPedido.trim() || '(novo)';
+        toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
+        resetForm();
       } else {
         toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
       }

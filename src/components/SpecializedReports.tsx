@@ -301,8 +301,10 @@ function buildCompositionItems(o: Order): [string, number][] {
       default: priceItems.push([extraLabel, o.preco]); break;
     }
   } else {
-    const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco;
-    if (modeloP) priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+    if (o.modelo) {
+      const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco ?? 0;
+      priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+    }
     if (o.sobMedida) priceItems.push(['Sob Medida', SOB_MEDIDA_PRECO]);
     if (o.acessorios) {
       o.acessorios.split(', ').filter(Boolean).forEach(a => {
@@ -1222,8 +1224,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             break;
         }
       } else {
-        const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco;
-        if (modeloP) priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+        if (o.modelo) {
+          const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco ?? 0;
+          priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+        }
         if (o.sobMedida) priceItems.push(['Sob Medida', SOB_MEDIDA_PRECO]);
         if (o.acessorios) {
           o.acessorios.split(', ').filter(Boolean).forEach(a => {

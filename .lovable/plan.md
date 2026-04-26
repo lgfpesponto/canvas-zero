@@ -1,72 +1,127 @@
-## Compartilhamento de modelos entre usuários
+## Plano — 4 ajustes no fluxo de pedidos
 
-### Como vai funcionar (resumo)
+### 1. Contador de selecionados nos quadros de seleção (Bordado, Laser, Acessórios)
 
-1. Na lista "Modelos Salvos", cada modelo ganha um botão **"Enviar"** (ícone de avião).
-2. Ao clicar, abre um diálogo com a lista de usuários (busca por nome) e checkboxes pra selecionar um ou vários destinatários.
-3. Você confirma → o sistema **copia** o modelo pra cada destinatário escolhido (cópia independente — eles podem editar/excluir sem afetar o seu).
-4. Quando o destinatário entra no sistema:
-   - Aparece um **toast** "Você recebeu N novos modelos de [Fulano]"
-   - O botão **"Modelos"** ganha um **badge vermelho** com o número de modelos não vistos
-   - Ao abrir a lista de modelos, esses ficam marcados com um indicador "Novo" e somem do contador depois de visualizados
+**Arquivo**: `src/pages/OrderPage.tsx` — componente `MultiSelect` (linhas 70–117).
 
-### Mudanças no banco
-
-**1. Migration — adicionar colunas em `order_templates`:**
-```sql
-ALTER TABLE public.order_templates
-  ADD COLUMN sent_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  ADD COLUMN sent_by_name text,
-  ADD COLUMN seen boolean NOT NULL DEFAULT true;
--- modelos próprios = seen=true por padrão; modelos recebidos serão criados com seen=false
+No header do quadro (linha 84–86), exibir badge ao lado do label quando `selected.length > 0`:
+```tsx
+<label className={cls.label + ' mb-0'}>
+  {label}
+  {selected.length > 0 && (
+    <span className="ml-2 inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5">
+      {selected.length} selecionado{selected.length > 1 ? 's' : ''}
+    </span>
+  )}
+</label>
 ```
 
-> Como já existe a regra de RLS `auth.uid() = user_id` em todos os comandos, a "transferência" funciona via INSERT do **remetente** definindo `user_id` = id do destinatário. Pra isso, a política de INSERT precisa ser ajustada:
+Isso atinge automaticamente todos os MultiSelect: Acessórios, Bordado Cano/Gáspea/Taloneira, Laser Cano/Gáspea/Taloneira.
 
-**2. Migration — RLS de INSERT mais permissiva pra envio:**
-```sql
-DROP POLICY "Users can insert own templates" ON public.order_templates;
-CREATE POLICY "Users can insert templates (own or sent)"
-  ON public.order_templates FOR INSERT TO authenticated
-  WITH CHECK (
-    auth.uid() = user_id           -- modelo próprio
-    OR auth.uid() = sent_by        -- ou sou o remetente registrando o envio
-  );
+---
+
+### 2. Pós-finalização: sem redirect, reset do form e toast no canto inferior direito
+
+**Comportamento novo**: ao clicar **OK — FINALIZAR** com sucesso, o usuário **permanece** na mesma página de criação (bota / cinto / extras / dinâmica), o formulário é **zerado** e aparece toast `bottom-right` confirmando o número do pedido.
+
+**Implementação por arquivo**:
+
+#### `src/pages/OrderPage.tsx` (botas)
+1. Criar função `resetForm()` que zera **todos** os states do formulário, incluindo:
+   - `vendedorSelecionado` → `''` (zerar conforme você confirmou)
+   - `numeroPedido`, `cliente`, `tamanho`, `genero`, `modelo`, `sobMedida`, `sobMedidaDesc`
+   - `acessorios` `[]`, todos os couros (tipo+cor cano/gáspea/taloneira), `desenvolvimento`
+   - todos bordados (arrays + cores + descrições variadas), `nomeBordado`/`nomeBordadoDesc`
+   - todos lasers (arrays + cores glitter + cores bordado-laser + textos "outro"), `pintura`/`pinturaDesc`
+   - `estampa`/`estampaDesc`, `corLinha`, `corBorrachinha`, `corVivo`
+   - todos metais (área, tipo, cor, strass/cruz/bridão/cavalo + qtds)
+   - `trice`/`triceDesc`, `tiras`/`tirasDesc`, `franja`/`franjaCouro`/`franjaCor`, `corrente`/`correnteCor`
+   - `solado`, `formatoBico`, `corSola`, `corVira`, `costuraAtras`, `carimbo`/`carimboDesc`
+   - `adicionalDesc`, `adicionalValor`, `observacao`, `fotoUrl` (zerar conforme confirmado)
+   - `gradeItems` `[]`, `showMirror` `false`
+   - **Não** mexer no `mode` nem no `productChoice` — usuário continua na ficha de bota.
+
+2. No `confirmOrder` (linhas 828–864), substituir `navigate('/relatorios')` por:
+```tsx
+toast.success(`Pedido ${numeroPedido.trim() || '(novo)'} lançado em Meus Pedidos!`, { position: 'bottom-right' });
+resetForm();
+```
+(Aplicado nos dois ramos: grade e pedido único; para grade usar `${totalPedidos} pedidos gerados`.)
+
+#### `src/pages/BeltOrderPage.tsx` (cintos)
+Mesma estratégia: criar `resetForm()` que zera todos os campos do cinto e substituir `navigate('/relatorios')` da linha 236 por toast `bottom-right` + reset.
+
+#### `src/pages/ExtrasPage.tsx` (extras)
+Mesma coisa: criar `resetForm(productId)` que zera os states específicos do produto submetido e substituir `navigate('/relatorios')` da linha 262.
+
+#### `src/pages/DynamicOrderPage.tsx` (fichas dinâmicas)
+Substituir `navigate('/relatorios')` da linha 154 por toast + reset (`setValues({})`, `setQuantidade(1)`, `setPrecoBase(0)`, `setObservacao('')`, `setCliente('')`).
+
+**Toast sempre com `{ position: 'bottom-right' }`** (sonner aceita por chamada).
+
+---
+
+### 3. Reset do form após criar/atualizar modelo
+
+**Arquivo**: `src/pages/OrderPage.tsx` — funções `handleSaveTemplate` (linha 409) e `handleUpdateTemplate` (linha 415).
+
+Após o `success`, chamar `resetForm()` (a mesma do ponto 2):
+```tsx
+const handleSaveTemplate = async () => {
+  if (!user) return;
+  const success = await tmpl.saveTemplate(user.id, buildFormData());
+  if (success) {
+    setMode('order');
+    resetForm();
+  }
+};
+const handleUpdateTemplate = async () => {
+  if (!user) return;
+  const success = await tmpl.updateTemplate(buildFormData());
+  if (success) {
+    setMode('order');
+    resetForm();
+  }
+};
 ```
 
-Continua seguro: você só consegue inserir um modelo pra outra pessoa se marcar a si mesmo como `sent_by`. As políticas de SELECT/UPDATE/DELETE permanecem `auth.uid() = user_id` (só o dono vê/edita/apaga).
+Assim, ao voltar pra criar outro modelo (ou pedido normal), o formulário começa em branco.
 
-**Importante sobre exclusão**: a regra do projeto é "só `admin_master` pode apagar". Modelos sempre foram exceção (cada vendedor sempre apagou os próprios) — vou manter assim. Se quiser que recebidos não possam ser apagados pelo destinatário, me avise.
+---
 
-### Mudanças no frontend
+### 4. Garantir que "Modelo" sempre apareça nos relatórios
 
-**`src/hooks/useTemplateManagement.ts`**
-- `TemplateRecord` ganha `sent_by_name?: string` e `seen: boolean`.
-- Nova função `sendTemplateToUsers(templateId, recipientIds, senderName)` — copia `form_data` + `nome` pra cada destinatário com `seen=false` e `sent_by=auth.uid()`.
-- Nova função `markTemplatesAsSeen(userId)` — UPDATE em massa pra zerar o badge depois que o usuário abre a lista.
-- `loadTemplates` passa a trazer também `sent_by_name` e `seen`.
+**Arquivo**: `src/components/SpecializedReports.tsx` (linhas 304 e 1225).
 
-**`src/pages/OrderPage.tsx`**
-- Botão **"Enviar"** (ícone `Send` da lucide) em cada linha do diálogo "Modelos Salvos".
-- Novo `Dialog` interno: lista de usuários (consulta `profiles` ordenada por nome, busca + checkboxes), botão "Enviar para X usuários".
-- Badge vermelho no botão "Modelos" mostrando contagem de `seen=false`.
-- Ao abrir o diálogo de modelos, dispara `markTemplatesAsSeen` (fica visualmente marcado como "Novo" enquanto o diálogo está aberto, e zera o contador).
-- Linhas de modelos recebidos exibem rótulo "Recebido de Fulano" abaixo do nome.
+**Bug atual**: hoje o código só inclui o modelo no breakdown de preços se ele existir no array hardcoded `MODELOS`:
+```tsx
+const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco;
+if (modeloP) priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+```
+Resultado: modelos novos cadastrados via admin (ficha_variacoes) **não aparecem** no PDF.
 
-**`src/contexts/AuthContext.tsx`** (pequeno acréscimo)
-- Após login bem-sucedido, faz uma consulta rápida `count` em `order_templates` com `seen=false` e mostra `toast.info` com a quantidade.
+**Correção**: usar fallback em cascata (Hardcoded → ficha_variacoes via `findFichaPrice`) e **sempre** incluir o nome do modelo, mesmo que o preço seja 0:
+```tsx
+const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco
+  ?? findFichaPrice(o.modelo, 'modelo')
+  ?? 0;
+if (o.modelo) priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+```
+- Aplicado nas 2 ocorrências (cobrança individual + cobrança consolidada).
+- O hook `useFichaVariacoesLookup` já existe e expõe `findFichaPrice(itemName, customCat)` — só preciso chamá-lo no topo do componente onde o breakdown é gerado.
+- Verifico também as outras seções de relatórios (Corte/Bordados/Forro já mostram `o.modelo` direto, sem depender de preço — então o ponto crítico era só o breakdown de cobrança).
+
+---
 
 ### O que NÃO mexo
-- Outras tabelas, outras políticas RLS.
-- Lógica de criação/edição/uso do modelo no formulário.
-- Sistema de modelos do "Estoque" ou outros.
-- Drafts (`src/lib/drafts.ts`).
+- Lógica de cálculo de total final (já usa `o.preco` direto, não o breakdown).
+- Outras páginas / fluxos (auditoria, drafts, edição).
+- Lista de modelos salvos (ponto 3 só zera o form, não a lista).
 
 ### Validação (você faz depois)
-1. Criar um modelo como Fulano → clicar "Enviar" → escolher Cicrano → confirmar.
-2. Logar como Cicrano → ver toast "1 novo modelo recebido de Fulano" + badge no botão Modelos.
-3. Abrir Modelos → ver o modelo na lista com rótulo "Recebido de Fulano" → badge zera.
-4. Cicrano edita o modelo → confirmar que **não afeta** o original do Fulano.
+1. Selecionar 3 bordados de cano → o badge "3 selecionados" aparece ao lado do título do quadro.
+2. Finalizar uma bota → toast no canto inferior direito, formulário **totalmente zerado**, continua na página de criação de bota.
+3. Criar um modelo novo → salvar → confirmar que o form zera; criar outro modelo do zero.
+4. Gerar um PDF de cobrança com pedido cujo modelo foi cadastrado no admin → confirmar que aparece "Modelo: X" no breakdown.
 
-### Observação importante
-A coluna `sent_by` referencia `auth.users(id)` apenas via `ON DELETE SET NULL` (sem foreign key forte no schema público — Supabase aceita), pra que se o remetente for excluído no futuro, o modelo não suma. Vou armazenar **também** o nome em `sent_by_name` no momento do envio, garantindo que "Recebido de Fulano" continua aparecendo mesmo se o usuário deixar a empresa.
+Aprova pra eu implementar tudo numa única passada.

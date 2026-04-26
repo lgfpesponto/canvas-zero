@@ -82,7 +82,14 @@ const MultiSelect = ({
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <label className={cls.label + ' mb-0'}>{label}</label>
+        <label className={cls.label + ' mb-0 flex items-center gap-2'}>
+          {label}
+          {selected.length > 0 && (
+            <span className="inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5">
+              {selected.length} selecionado{selected.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </label>
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -409,13 +416,19 @@ const OrderPage = () => {
   const handleSaveTemplate = async () => {
     if (!user) return;
     const success = await tmpl.saveTemplate(user.id, buildFormData());
-    if (success) setMode('order');
+    if (success) {
+      setMode('order');
+      resetForm();
+    }
   };
 
   const handleUpdateTemplate = async () => {
     if (!user) return;
     const success = await tmpl.updateTemplate(buildFormData());
-    if (success) setMode('order');
+    if (success) {
+      setMode('order');
+      resetForm();
+    }
   };
 
   const handleDeleteTemplate = async (id: string) => {
@@ -825,6 +838,50 @@ const OrderPage = () => {
   });
 
 
+  const resetForm = useCallback(() => {
+    setVendedorSelecionado(isAdminProducao ? '' : (user?.nomeCompleto || ''));
+    setNumeroPedido('');
+    setCliente('');
+    setTamanho(''); setGenero(''); setModelo('');
+    setSobMedida(false); setSobMedidaDesc('');
+    setAcessorios([]);
+    setTipoCouroCano(''); setCorCouroCano('');
+    setTipoCouroGaspea(''); setCorCouroGaspea('');
+    setTipoCouroTaloneira(''); setCorCouroTaloneira('');
+    setDesenvolvimento('');
+    setBordadoCano([]); setCorBordadoCano('');
+    setBordadoGaspea([]); setCorBordadoGaspea('');
+    setBordadoTaloneira([]); setCorBordadoTaloneira('');
+    setBordadoVariadoDescCano(''); setBordadoVariadoDescGaspea(''); setBordadoVariadoDescTaloneira('');
+    setNomeBordado(false); setNomeBordadoDesc('');
+    setLaserCano([]); setCorGlitterCano('');
+    setLaserGaspea([]); setCorGlitterGaspea('');
+    setLaserTaloneira([]); setCorGlitterTaloneira('');
+    setCorBordadoLaserCano(''); setCorBordadoLaserGaspea(''); setCorBordadoLaserTaloneira('');
+    setLaserOutroCanoText(''); setLaserOutroGaspeaText(''); setLaserOutroTaloneiraText('');
+    setPintura(false); setPinturaDesc('');
+    setEstampa(false); setEstampaDesc('');
+    setCorLinha(''); setCorBorrachinha(''); setCorVivo('');
+    setAreaMetal(''); setTipoMetal([]); setCorMetal('');
+    setStrass(false); setStrassQtd(0);
+    setCruzMetal(false); setCruzMetalQtd(0);
+    setBridaoMetal(false); setBridaoMetalQtd(0);
+    setCavaloMetal(false); setCavaloMetalQtd(0);
+    setTrice(false); setTriceDesc('');
+    setTiras(false); setTirasDesc('');
+    setFranja(false); setFranjaCouro(''); setFranjaCor('');
+    setCorrente(false); setCorrenteCor('');
+    setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira('');
+    setCosturaAtras(false);
+    setCarimbo(''); setCarimboDesc('');
+    setAdicionalDesc(''); setAdicionalValor(0);
+    setObservacao('');
+    setFotoUrl('');
+    setGradeItems([]);
+    setShowMirror(false);
+    setDraftId('');
+  }, [isAdminProducao, user?.nomeCompleto]);
+
   const confirmOrder = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -838,8 +895,9 @@ const OrderPage = () => {
         if (success) {
           const totalPedidos = gradeItems.reduce((s, i) => s + i.quantidade, 0);
           if (draftId) deleteDraft(draftId);
-          toast.success(`Grade criada com sucesso! ${totalPedidos} pedidos gerados.`);
-          navigate('/relatorios');
+          const numeroSalvo = numeroPedido.trim();
+          toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
+          resetForm();
         }
       } else {
         const success = await addOrder({
@@ -849,8 +907,9 @@ const OrderPage = () => {
         } as any);
         if (success) {
           if (draftId) deleteDraft(draftId);
-          toast.success('Pedido criado com sucesso!');
-          navigate('/relatorios');
+          const numeroSalvo = numeroPedido.trim() || '(novo)';
+          toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
+          resetForm();
         } else {
           toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
         }
