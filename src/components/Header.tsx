@@ -4,6 +4,7 @@ import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
 import { Menu, X, User, LogOut, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
+import NotificacoesBell from '@/components/NotificacoesBell';
 
 const Header = () => {
   const { isLoggedIn, user, isAdmin, role, logout, loading: authLoading } = useAuth();
@@ -80,23 +81,29 @@ const Header = () => {
             </Link>
           ))}
           {showAsLogged && isLoggedIn && (
-            <button
-              onClick={logout}
-              className="ml-2 flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-primary hover:bg-destructive/10 transition-colors"
-            >
-              <LogOut size={16} />
-              SAIR
-            </button>
+            <>
+              <NotificacoesBell />
+              <button
+                onClick={logout}
+                className="ml-2 flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-primary hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut size={16} />
+                SAIR
+              </button>
+            </>
           )}
         </nav>
 
-        {/* Mobile menu button */}
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden text-primary p-2"
-        >
-          {menuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Mobile: bell + menu button */}
+        <div className="flex items-center gap-1 md:hidden">
+          {showAsLogged && isLoggedIn && <NotificacoesBell />}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="text-primary p-2"
+          >
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile nav */}
