@@ -17,6 +17,9 @@ export interface RevendedorComprovante {
   aprovado_por: string | null;
   aprovado_em: string | null;
   created_at: string;
+  pagador_nome: string | null;
+  pagador_documento: string | null;
+  tipo_detectado: 'empresa' | 'fornecedor' | null;
 }
 
 export interface RevendedorSaldo {

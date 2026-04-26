@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Eye, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2 } from 'lucide-react';
+import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Eye, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2, Wallet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -55,6 +55,7 @@ const AdminDashboard = () => {
   const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
   const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
   const [vendedores, setVendedores] = useState<string[]>([]);
+  const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
 
   // Fetch vendedores list
   useEffect(() => {
@@ -108,6 +109,21 @@ const AdminDashboard = () => {
       }
     })();
   }, [chartPeriod, chartProductFilter, chartVendedorFilter]);
+
+  // Fetch comprovantes pendentes do revendedor (apenas admin_master)
+  const fetchComprovantesPendentes = useCallback(async () => {
+    if (!isAdminMaster) return;
+    const { data } = await supabase
+      .from('revendedor_comprovantes' as any)
+      .select('valor')
+      .eq('status', 'pendente');
+    if (data) {
+      const total = (data as any[]).reduce((s, c) => s + Number(c.valor || 0), 0);
+      setComprovantesRevendedor({ count: data.length, total });
+    }
+  }, [isAdminMaster]);
+
+  useEffect(() => { fetchComprovantesPendentes(); }, [fetchComprovantesPendentes]);
 
   // Solado board queries via useOrdersQuery
   const { orders: solaCouroOrders } = useOrdersQuery({
@@ -210,6 +226,28 @@ const AdminDashboard = () => {
 
   return (
     <section className="container mx-auto px-4 py-8">
+      {isAdminMaster && comprovantesRevendedor.count > 0 && (
+        <Link
+          to="/financeiro?tab=receber#comprovantes-revendedor"
+          className="block mb-6 rounded-xl border-2 border-destructive bg-destructive/5 p-5 hover:bg-destructive/10 transition-colors"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Wallet className="text-destructive" size={28} />
+              <div>
+                <div className="font-bold text-lg">Comprovantes a entrar</div>
+                <div className="text-sm text-muted-foreground">
+                  {comprovantesRevendedor.count} {comprovantesRevendedor.count === 1 ? 'comprovante enviado' : 'comprovantes enviados'} pelos revendedores · Total{' '}
+                  <strong className="text-destructive">{formatCurrency(comprovantesRevendedor.total)}</strong>
+                </div>
+              </div>
+            </div>
+            <span className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-bold">
+              Aprovar agora →
+            </span>
+          </div>
+        </Link>
+      )}
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left column */}
         <div className="space-y-6">

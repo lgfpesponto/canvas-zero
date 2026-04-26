@@ -753,7 +753,10 @@ export type Database = {
           id: string
           motivo_reprovacao: string | null
           observacao: string | null
+          pagador_documento: string | null
+          pagador_nome: string | null
           status: string
+          tipo_detectado: string | null
           valor: number
           vendedor: string
         }
@@ -768,7 +771,10 @@ export type Database = {
           id?: string
           motivo_reprovacao?: string | null
           observacao?: string | null
+          pagador_documento?: string | null
+          pagador_nome?: string | null
           status?: string
+          tipo_detectado?: string | null
           valor: number
           vendedor: string
         }
@@ -783,7 +789,10 @@ export type Database = {
           id?: string
           motivo_reprovacao?: string | null
           observacao?: string | null
+          pagador_documento?: string | null
+          pagador_nome?: string | null
           status?: string
+          tipo_detectado?: string | null
           valor?: number
           vendedor?: string
         }
