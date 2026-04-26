@@ -203,6 +203,21 @@ export const ComprovantesRevendedorPendentes = ({
           </div>
         </CardHeader>
         <CardContent>
+          {selectedIds.size > 0 && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2">
+              <span className="text-sm font-medium">
+                {selectedIds.size} comprovante(s) selecionado(s)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                  Limpar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDescartarOpen(true)}>
+                  <Archive size={14} className="mr-1" /> Descartar como histórico
+                </Button>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : pendentes.length === 0 ? (
@@ -214,6 +229,13 @@ export const ComprovantesRevendedorPendentes = ({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8">
+                      <Checkbox
+                        checked={allSelected || (someSelected && 'indeterminate')}
+                        onCheckedChange={toggleAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead>Enviado</TableHead>
                     <TableHead>Revendedor</TableHead>
                     <TableHead>Data pgto</TableHead>
@@ -227,7 +249,14 @@ export const ComprovantesRevendedorPendentes = ({
                 </TableHeader>
                 <TableBody>
                   {pendentes.map(c => (
-                    <TableRow key={c.id}>
+                    <TableRow key={c.id} data-state={selectedIds.has(c.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(c.id)}
+                          onCheckedChange={() => toggleOne(c.id)}
+                          aria-label="Selecionar"
+                        />
+                      </TableCell>
                       <TableCell className="text-xs">
                         {new Date(c.created_at).toLocaleString('pt-BR')}
                       </TableCell>
