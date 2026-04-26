@@ -473,6 +473,7 @@ export type Database = {
           historico: Json
           hora_criacao: string
           id: string
+          impressoes: Json
           laser_cano: string | null
           laser_gaspea: string | null
           laser_taloneira: string | null
@@ -555,6 +556,7 @@ export type Database = {
           historico?: Json
           hora_criacao: string
           id?: string
+          impressoes?: Json
           laser_cano?: string | null
           laser_gaspea?: string | null
           laser_taloneira?: string | null
@@ -637,6 +639,7 @@ export type Database = {
           historico?: Json
           hora_criacao?: string
           id?: string
+          impressoes?: Json
           laser_cano?: string | null
           laser_gaspea?: string | null
           laser_taloneira?: string | null
@@ -831,6 +834,7 @@ export type Database = {
           historico: Json
           hora_criacao: string
           id: string
+          impressoes: Json
           laser_cano: string | null
           laser_gaspea: string | null
           laser_taloneira: string | null
