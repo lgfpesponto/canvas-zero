@@ -793,6 +793,12 @@ const OrderDetailPage = () => {
           )}
         </div>
       </motion.div>
+
+      <FotoPedidoDialog
+        url={(order.fotos || []).find(f => isHttpUrl(f)) ?? null}
+        open={fotoOpen}
+        onOpenChange={setFotoOpen}
+      />
     </div>
   );
 };
