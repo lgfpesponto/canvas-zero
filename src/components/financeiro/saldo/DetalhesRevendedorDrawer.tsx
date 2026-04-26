@@ -43,6 +43,10 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
   const [estornoTarget, setEstornoTarget] = useState<RevendedorBaixa | null>(null);
   const [estornoMotivo, setEstornoMotivo] = useState('');
   const [estornoSaving, setEstornoSaving] = useState(false);
+  const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
+  const [quitarOpen, setQuitarOpen] = useState(false);
+  const [quitarMotivo, setQuitarMotivo] = useState('');
+  const [quitarSaving, setQuitarSaving] = useState(false);
 
   const vendedor = saldo?.vendedor || '';
 
