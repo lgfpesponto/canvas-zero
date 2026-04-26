@@ -138,7 +138,7 @@ const ReportsPage = () => {
 
   // Server-side paginated orders
   const [page, setPage] = useState(1);
-  const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
+  const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, totalProdutos, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
 
   const visibleOrders = useMemo(() => {
     if (scanFilterId) return serverOrders.filter(o => o.id === scanFilterId);
