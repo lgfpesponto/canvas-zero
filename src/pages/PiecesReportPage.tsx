@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
+import { recordPrintHistory } from '@/lib/printHistory';
 
 const PIECE_FIELDS = [
   { key: 'tamanho', label: 'Tamanho' },
@@ -24,7 +25,7 @@ const PIECE_FIELDS = [
 ];
 
 const PiecesReportPage = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { orders, loading } = useOrdersQuery({ enabled: isAdmin });
   const navigate = useNavigate();
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
