@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchSaldosTodos, fetchComprovantesPendentes,
-  type RevendedorSaldo, type RevendedorComprovante,
+  type RevendedorSaldo,
 } from '@/lib/revendedorSaldo';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
@@ -17,12 +17,8 @@ import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendent
 const FinanceiroSaldoRevendedor = () => {
   const { toast } = useToast();
   const [saldos, setSaldos] = useState<RevendedorSaldo[]>([]);
-  const [pendentes, setPendentes] = useState<RevendedorComprovante[]>([]);
+  const [pendentesCount, setPendentesCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [actionId, setActionId] = useState<string | null>(null);
-  const [viewerPath, setViewerPath] = useState<string | null>(null);
-  const [reprovarTarget, setReprovarTarget] = useState<RevendedorComprovante | null>(null);
-  const [motivoReprovacao, setMotivoReprovacao] = useState('');
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
 
   const load = async () => {
@@ -30,7 +26,7 @@ const FinanceiroSaldoRevendedor = () => {
     try {
       const [s, p] = await Promise.all([fetchSaldosTodos(), fetchComprovantesPendentes()]);
       setSaldos(s);
-      setPendentes(p);
+      setPendentesCount(p.length);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -46,40 +42,6 @@ const FinanceiroSaldoRevendedor = () => {
     const saldoTotal = saldos.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0);
     return { recebido, utilizado, saldoTotal };
   }, [saldos]);
-
-  const handleAprovar = async (c: RevendedorComprovante) => {
-    setActionId(c.id);
-    try {
-      const result: any = await aprovarComprovante(c.id);
-      const baixadas = result?.baixas_realizadas || 0;
-      toast({
-        title: 'Comprovante aprovado!',
-        description: baixadas > 0 ? `${baixadas} pedido(s) quitado(s) automaticamente.` : 'Saldo creditado.',
-      });
-      load();
-    } catch (e: any) {
-      toast({ title: 'Erro ao aprovar', description: e.message, variant: 'destructive' });
-    } finally {
-      setActionId(null);
-    }
-  };
-
-  const handleReprovar = async () => {
-    if (!reprovarTarget) return;
-    if (!motivoReprovacao.trim()) { toast({ title: 'Motivo obrigatório', variant: 'destructive' }); return; }
-    setActionId(reprovarTarget.id);
-    try {
-      await reprovarComprovante(reprovarTarget.id, motivoReprovacao.trim());
-      toast({ title: 'Comprovante reprovado.' });
-      setReprovarTarget(null);
-      setMotivoReprovacao('');
-      load();
-    } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
-    } finally {
-      setActionId(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -97,78 +59,17 @@ const FinanceiroSaldoRevendedor = () => {
           <CardHeader className="pb-2"><CardTitle className="text-sm text-primary">Saldo disponível total</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-primary">{formatCurrency(totals.saldoTotal)}</p></CardContent>
         </Card>
-        <Card className={pendentes.length > 0 ? 'border-destructive' : ''}>
+        <Card className={pendentesCount > 0 ? 'border-destructive' : ''}>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Comprovantes pendentes</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-destructive">{pendentes.length}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold text-destructive">{pendentesCount}</p></CardContent>
         </Card>
       </div>
 
-      {/* Comprovantes pendentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Comprovantes aguardando aprovação</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
-          ) : pendentes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Nenhum comprovante pendente.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Enviado em</TableHead>
-                  <TableHead>Revendedor</TableHead>
-                  <TableHead>Data pgto</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Observação</TableHead>
-                  <TableHead>Anexo</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendentes.map(c => (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-xs">
-                      {new Date(c.created_at).toLocaleString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">{c.vendedor}</TableCell>
-                    <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
-                    <TableCell className="text-right font-bold">{formatCurrency(Number(c.valor))}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                      {c.observacao || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => setViewerPath(c.comprovante_url)}>
-                        <FileText size={14} />
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          size="sm" variant="default"
-                          onClick={() => handleAprovar(c)}
-                          disabled={actionId === c.id}
-                        >
-                          {actionId === c.id ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
-                          Aprovar
-                        </Button>
-                        <Button
-                          size="sm" variant="destructive"
-                          onClick={() => setReprovarTarget(c)}
-                          disabled={actionId === c.id}
-                        >
-                          <XCircle size={14} /> Reprovar
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* Comprovantes pendentes (componente compartilhado com a aba A Receber) */}
+      <ComprovantesRevendedorPendentes
+        onChanged={load}
+        title="Comprovantes aguardando aprovação"
+      />
 
       {/* Saldo por revendedor */}
       <Card>
@@ -216,41 +117,12 @@ const FinanceiroSaldoRevendedor = () => {
         </CardContent>
       </Card>
 
-      <ComprovanteViewer
-        path={viewerPath}
-        open={!!viewerPath}
-        onOpenChange={(o) => { if (!o) setViewerPath(null); }}
-      />
-
       <DetalhesRevendedorDrawer
         open={!!detalheVendedor}
         onOpenChange={(o) => { if (!o) setDetalheVendedor(null); }}
         saldo={detalheVendedor}
         onChanged={load}
       />
-
-      <AlertDialog open={!!reprovarTarget} onOpenChange={(o) => { if (!o) { setReprovarTarget(null); setMotivoReprovacao(''); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reprovar comprovante</AlertDialogTitle>
-            <AlertDialogDescription>
-              Informe o motivo da reprovação. Ele será exibido para o revendedor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Textarea
-            placeholder="Motivo (obrigatório)"
-            value={motivoReprovacao}
-            onChange={(e) => setMotivoReprovacao(e.target.value)}
-            maxLength={500}
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!actionId}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleReprovar} disabled={!!actionId}>
-              {actionId ? <Loader2 className="animate-spin" /> : 'Reprovar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
