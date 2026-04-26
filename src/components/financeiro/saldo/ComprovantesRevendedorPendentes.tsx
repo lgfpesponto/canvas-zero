@@ -46,6 +46,10 @@ export const ComprovantesRevendedorPendentes = ({
   const [reprovarTarget, setReprovarTarget] = useState<RevendedorComprovante | null>(null);
   const [motivo, setMotivo] = useState('');
   const [enviarOpen, setEnviarOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [descartarOpen, setDescartarOpen] = useState(false);
+  const [descartarMotivo, setDescartarMotivo] = useState('');
+  const [descartarSaving, setDescartarSaving] = useState(false);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
