@@ -250,34 +250,43 @@ export default function AdminConfigVariacoesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredVariacoes.map(v => (
-                    <TableRow key={v.id}>
+                  {filteredVariacoes.map(v => {
+                    const semPreco = enforcePrice && requiresPositivePrice(categoriaSlug, v.nome) && (!v.preco_adicional || v.preco_adicional <= 0);
+                    return (
+                    <TableRow key={v.id} className={semPreco ? 'bg-destructive/5' : undefined}>
                       <TableCell className="text-xs text-muted-foreground">{v.ordem}</TableCell>
                       <TableCell>
-                        <Input
-                          defaultValue={v.nome}
-                          className="h-8 text-sm border-none shadow-none focus-visible:ring-1"
-                          onBlur={e => {
-                            if (e.target.value !== v.nome) handleInlineUpdate(v.id, 'nome', e.target.value);
-                          }}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={v.nome}
+                            className="h-8 text-sm border-none shadow-none focus-visible:ring-1"
+                            onBlur={e => {
+                              if (e.target.value !== v.nome) handleInlineUpdate(v.id, 'nome', e.target.value, v);
+                            }}
+                          />
+                          {semPreco && (
+                            <Badge variant="destructive" className="shrink-0 gap-1 text-[10px]">
+                              <AlertTriangle className="h-3 w-3" /> sem preço
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           step="0.01"
                           defaultValue={v.preco_adicional}
-                          className="h-8 text-sm border-none shadow-none focus-visible:ring-1 w-24"
+                          className={`h-8 text-sm border-none shadow-none focus-visible:ring-1 w-24 ${semPreco ? 'ring-1 ring-destructive/40' : ''}`}
                           onBlur={e => {
                             const val = parseFloat(e.target.value);
-                            if (!isNaN(val) && val !== v.preco_adicional) handleInlineUpdate(v.id, 'preco_adicional', val);
+                            if (!isNaN(val) && val !== v.preco_adicional) handleInlineUpdate(v.id, 'preco_adicional', val, v);
                           }}
                         />
                       </TableCell>
                       <TableCell className="text-center">
                         <Switch
                           checked={v.ativo}
-                          onCheckedChange={checked => handleInlineUpdate(v.id, 'ativo', checked)}
+                          onCheckedChange={checked => handleInlineUpdate(v.id, 'ativo', checked, v)}
                         />
                       </TableCell>
                       <TableCell>
@@ -297,7 +306,8 @@ export default function AdminConfigVariacoesPage() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {filteredVariacoes.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
