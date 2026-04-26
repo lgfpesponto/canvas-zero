@@ -204,6 +204,20 @@ export default function AdminConfigVariacoesPage() {
           </Dialog>
         </div>
 
+        {enforcePrice && variacoesSemPreco.length > 0 && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {variacoesSemPreco.length} variaç{variacoesSemPreco.length === 1 ? 'ão' : 'ões'} de {categoriaTipo === 'modelo' ? 'modelo' : 'bordado'} sem preço cadastrado.
+              </p>
+              <p className="text-xs opacity-80">
+                {PRICE_REQUIRED_MESSAGE} Edite o preço de cada item destacado abaixo.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
