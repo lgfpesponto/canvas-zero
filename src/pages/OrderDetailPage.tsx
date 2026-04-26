@@ -454,6 +454,7 @@ const OrderDetailPage = () => {
                 ))}
               </div>
             )}
+          </div>
 
           {/* Detalhes */}
           <h2 className="text-lg font-display font-bold mb-3">
