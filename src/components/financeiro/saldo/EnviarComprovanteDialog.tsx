@@ -181,6 +181,10 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
 
   const handleSendAll = async () => {
     if (savingAll) return;
+    if (!targetVendedor) {
+      toast({ title: 'Escolha o revendedor antes de enviar', variant: 'destructive' });
+      return;
+    }
     const ready = items.filter(i => i.status === 'ready');
     if (ready.length === 0) {
       toast({ title: 'Nenhum comprovante pronto pra enviar', variant: 'destructive' });
