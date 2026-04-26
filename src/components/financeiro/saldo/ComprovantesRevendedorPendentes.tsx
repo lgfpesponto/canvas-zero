@@ -346,6 +346,33 @@ export const ComprovantesRevendedorPendentes = ({
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={descartarOpen} onOpenChange={(o) => { if (!o && !descartarSaving) { setDescartarOpen(false); setDescartarMotivo(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar como histórico</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedIds.size} comprovante(s) será(ão) marcado(s) como descartado(s).
+              Use somente para comprovantes antigos que já foram conferidos fora do sistema.
+              <strong className="block mt-2 text-foreground">
+                Não credita saldo nem cria lançamento em A Receber.
+              </strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Motivo do descarte (obrigatório). Ex.: Já conferido manualmente antes da implantação."
+            value={descartarMotivo}
+            onChange={(e) => setDescartarMotivo(e.target.value)}
+            maxLength={500}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={descartarSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDescartar} disabled={descartarSaving}>
+              {descartarSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Descartando...</> : 'Confirmar descarte'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {showAdminUpload && (
         <EnviarComprovanteDialog
           open={enviarOpen}
