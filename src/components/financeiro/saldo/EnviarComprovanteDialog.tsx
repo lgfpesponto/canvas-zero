@@ -61,12 +61,42 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved }: Props) => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<ExtractedItem[]>([]);
   const [savingAll, setSavingAll] = useState(false);
+  const isAdminMode = !vendedor;
+  const [selectedVendedor, setSelectedVendedor] = useState<string>('');
+  const [vendedoresList, setVendedoresList] = useState<string[]>([]);
+  const [loadingVendedores, setLoadingVendedores] = useState(false);
+  const targetVendedor = vendedor || selectedVendedor;
 
-  const reset = () => setItems([]);
+  // Carrega lista de revendedores quando o dialog abre em modo admin
+  useEffect(() => {
+    if (!open || !isAdminMode) return;
+    setLoadingVendedores(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('nome_completo')
+          .order('nome_completo', { ascending: true });
+        if (error) throw error;
+        const nomes = Array.from(new Set(
+          (data || [])
+            .map((p: any) => (p.nome_completo || '').trim())
+            .filter(Boolean)
+        ));
+        setVendedoresList(nomes);
+      } catch (e: any) {
+        toast({ title: 'Erro ao carregar revendedores', description: e.message, variant: 'destructive' });
+      } finally {
+        setLoadingVendedores(false);
+      }
+    })();
+  }, [open, isAdminMode]);
+
+  const reset = () => { setItems([]); setSelectedVendedor(''); };
 
   const close = () => {
     if (savingAll) return;
