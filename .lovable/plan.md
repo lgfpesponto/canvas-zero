@@ -1,66 +1,78 @@
-
-# Visualizar foto do pedido dentro do portal
-
 ## Objetivo
 
-Adicionar um botão **"Ver foto"** no cabeçalho do detalhe do pedido (ao lado do nome do cliente/vendedor) que, ao clicar, abre a imagem **dentro do portal em um modal** — sem redirecionar para o Google Drive.
-
-## Desafio técnico: links do Google Drive
-
-O link salvo em `order.fotos[0]` geralmente vem no formato:
-```
-https://drive.google.com/file/d/{FILE_ID}/view?usp=sharing
-```
-
-Esse formato **não funciona** direto em `<img src>` (o Drive bloqueia hotlink na URL `/view`). Precisamos converter:
-
-- **Imagem direta**: `https://lh3.googleusercontent.com/d/{FILE_ID}` (funciona em `<img>`, fotos públicas)
-- **Fallback (iframe)**: `https://drive.google.com/file/d/{FILE_ID}/preview` (funciona em `<iframe>`, cobre PDFs e imagens privadas)
-
-## Plano
-
-### 1. Helper `src/lib/driveUrl.ts` (novo)
-
-Funções: `getDriveFileId(url)`, `toDriveImageUrl(url)`, `toDrivePreviewUrl(url)`, `isDriveUrl(url)`. Extraem o ID do arquivo de qualquer formato Drive (`/file/d/ID/view` ou `?id=ID`) e geram a URL apropriada.
-
-### 2. Componente `src/components/FotoPedidoDialog.tsx` (novo)
-
-- Recebe `url`, `open`, `onOpenChange`.
-- Se URL do Drive → tenta `<img src={toDriveImageUrl(url)}>` primeiro.
-- Em `onError` da imagem, faz fallback automático para `<iframe src={toDrivePreviewUrl(url)}>`.
-- Se URL não-Drive (ex.: `.jpg` direto) → `<img>` direto.
-- Botão extra "Abrir no Drive ↗" no canto.
-- Layout: `Dialog` com `max-w-4xl w-[90vw] max-h-[90vh]`, imagem com `object-contain`.
-
-### 3. Modificar `src/pages/OrderDetailPage.tsx`
-
-**No cabeçalho** (próximo à linha 362, ao lado do número/vendedor):
-- Botão "Ver foto" com ícone `ImageIcon` (lucide), **somente se** `order.fotos[0]` for URL `http(s)`.
-- Mais de 1 foto válida → "Ver fotos (N)".
-- Click → abre `FotoPedidoDialog` com `order.fotos[0]`.
-- Estado: `const [fotoOpen, setFotoOpen] = useState(false);`
-- Visível para todos que acessam a página (admin + vendedor dono).
-
-### 4. Seção "Foto de Referência" existente (linhas 548-564)
-
-Sem mudanças. O botão do topo é apenas um atalho visual; a seção continua listando todos os links.
+Trocar o **modal** atual por um **painel lateral fixo à direita** que mostra a foto do pedido enquanto o usuário continua navegando, lendo e editando a ficha. A foto fica grudada na lateral, sem bloquear o conteúdo (sem overlay escuro, sem capturar foco).
 
 ## Comportamento esperado
 
-| Cenário | Resultado |
+| Ação | Resultado |
 |---|---|
-| Link Drive `/file/d/.../view` | Modal abre `<img>` via `lh3.googleusercontent.com`; se falhar, cai para `<iframe>` preview |
-| Link direto `.jpg`/`.png` | Modal abre `<img>` direto |
-| Sem fotos | Botão não aparece |
-| 2+ fotos | "Ver fotos (2)"; modal mostra a primeira |
-| Imagem privada do Drive | Fallback iframe (pede login se necessário) |
+| Clicar em "Ver foto" no header | Painel desliza da direita, ocupa ~420px e empurra o conteúdo |
+| Painel aberto + clicar em "Editar" (lápis) | Vai para a página de edição **com a foto ainda visível** (lembra estado) |
+| Painel aberto + scroll na ficha | Foto continua visível (sticky no topo da lateral) |
+| Botão X dentro do painel | Fecha (volta ao layout normal full-width) |
+| Sem foto | Botão "Ver foto" não aparece (igual hoje) |
+| Mobile (<768px) | Painel vira overlay full-screen tipo Sheet (não cabe lateral) |
 
-## Sem mudanças de banco / backend
+## Mudanças
 
-Nenhuma migração, RPC ou edge function. `order.fotos` já é populado. Sem libs novas — `<img>`/`<iframe>` nativos + Dialog shadcn.
+### 1. Novo: `src/components/FotoPedidoSidePanel.tsx`
+
+Substitui o uso do `FotoPedidoDialog` na `OrderDetailPage`. Componente puro de apresentação:
+
+- Container **sticky**: `sticky top-4 self-start` dentro de uma coluna do grid pai.
+- Largura: `w-[420px]` desktop / `w-full` mobile.
+- Cabeçalho compacto: título "Foto do pedido" + botão **X** (fecha) + botão **"Abrir no Drive ↗"**.
+- Corpo: mesma lógica de `<img>` Drive direto (`lh3.googleusercontent.com/d/{ID}`) com fallback automático para `<iframe src=".../preview">` em `onError` — reaproveita helpers já criados em `src/lib/driveUrl.ts`.
+- Imagem com `max-h-[calc(100vh-8rem)] object-contain` para nunca estourar a viewport.
+- Sem overlay, sem `Dialog`, sem foco-trap → não atrapalha edição da ficha.
+
+### 2. `src/pages/OrderDetailPage.tsx`
+
+**Layout**: envolver o `bg-card rounded-xl ...` (linha 365) e o painel num grid responsivo:
+
+```tsx
+<div className={`grid gap-4 ${fotoOpen ? 'lg:grid-cols-[1fr_420px]' : 'grid-cols-1'}`}>
+  <div className="bg-card rounded-xl ..."> ...ficha existente... </div>
+  {fotoOpen && temFoto && (
+    <FotoPedidoSidePanel url={fotosValidas[0]} onClose={() => setFotoOpen(false)} />
+  )}
+</div>
+```
+
+- `fotoOpen` já existe (linha 47) — só muda o que ele renderiza.
+- Botão "Ver foto" (linhas 380-389) continua igual; só passa a alternar o painel lateral em vez do dialog.
+- Em telas `<lg`, o painel cai abaixo (grid colapsa naturalmente em 1 coluna).
+- Remover import e uso de `FotoPedidoDialog`; adicionar `FotoPedidoSidePanel`.
+
+### 3. Persistência durante edição (a parte importante)
+
+Hoje, clicar no lápis chama `navigate('/pedido/${id}/editar')` — sai da página e perde o estado `fotoOpen`. Para "manter a foto aberta ainda":
+
+**Opção escolhida — query param `?foto=1`**:
+- Quando `fotoOpen=true` e o usuário clica em editar, navegar para `/pedido/${id}/editar?foto=1`.
+- Em `EditOrderPage` e `EditExtrasPage`: ler `searchParams.get('foto')`, e se `=1` renderizar o mesmo `FotoPedidoSidePanel` ao lado do formulário (mesmo grid 2 colunas).
+- Botão X no painel também remove o param da URL (`navigate(pathname)`).
+- Ao salvar/voltar, o param é preservado nos `navigate` de retorno, mantendo a foto aberta também na página de detalhe.
+
+Essa abordagem evita criar contexto global e funciona em refresh/deep-link.
+
+### 4. Helpers já existentes (sem mudanças)
+
+- `src/lib/driveUrl.ts` (`isDriveUrl`, `toDriveImageUrl`, `toDrivePreviewUrl`, `isHttpUrl`) — reaproveitados.
+- `FotoPedidoDialog.tsx` — pode ser **removido** (não usado mais) ou mantido caso queira manter o modal como alternativa. Plano: **remover** para evitar código morto.
 
 ## Arquivos afetados
 
-- ➕ `src/lib/driveUrl.ts` (~25 linhas)
-- ➕ `src/components/FotoPedidoDialog.tsx` (~70 linhas)
-- ✏️ `src/pages/OrderDetailPage.tsx` (botão + estado + import)
+- ➕ `src/components/FotoPedidoSidePanel.tsx` (~70 linhas)
+- ✏️ `src/pages/OrderDetailPage.tsx` (grid + remoção do Dialog + propagar `?foto=1` no botão de editar)
+- ✏️ `src/pages/EditOrderPage.tsx` (ler query param + renderizar painel ao lado)
+- ✏️ `src/pages/EditExtrasPage.tsx` (mesmo tratamento)
+- ➖ `src/components/FotoPedidoDialog.tsx` (remover — substituído pelo SidePanel)
+
+## Sem mudanças de banco / backend
+
+Apenas frontend. Sem RPC, sem migração, sem novas libs.
+
+## Memória
+
+Sem necessidade de salvar memória nova — é uma evolução visual da feature de foto, sem impacto em regra de negócio.
