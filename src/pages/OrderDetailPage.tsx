@@ -7,7 +7,9 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
+import { FotoPedidoDialog } from '@/components/FotoPedidoDialog';
+import { isHttpUrl } from '@/lib/driveUrl';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -42,6 +44,7 @@ const OrderDetailPage = () => {
   const [scanning, setScanning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkCancelReason, setBulkCancelReason] = useState('');
+  const [fotoOpen, setFotoOpen] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const handleScanSubmit = useCallback(async () => {
@@ -361,18 +364,34 @@ const OrderDetailPage = () => {
 
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
           {/* Header: order number + vendedor (admin only) + value */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-display font-bold">{order.numero}</h1>
-              {isAdmin && (
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`, { replace: true })}>
-                  <Pencil size={16} />
-                </Button>
-              )}
-              {isAdmin && <span className="text-sm text-muted-foreground">— {order.vendedor}</span>}
-            </div>
-            <span className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</span>
-          </div>
+          {(() => {
+            const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
+            const temFoto = fotosValidas.length > 0;
+            return (
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl font-display font-bold">{order.numero}</h1>
+                  {isAdmin && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`, { replace: true })}>
+                      <Pencil size={16} />
+                    </Button>
+                  )}
+                  {isAdmin && <span className="text-sm text-muted-foreground">— {order.vendedor}</span>}
+                  {temFoto && (
+                    <button
+                      type="button"
+                      onClick={() => setFotoOpen(true)}
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline font-semibold"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
+                    </button>
+                  )}
+                </div>
+                <span className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</span>
+              </div>
+            );
+          })()}
           <p className="text-sm text-muted-foreground mb-1">
             {formatDateBR(order.dataCriacao)} — {order.horaCriacao || ''}
           </p>
@@ -774,6 +793,12 @@ const OrderDetailPage = () => {
           )}
         </div>
       </motion.div>
+
+      <FotoPedidoDialog
+        url={(order.fotos || []).find(f => isHttpUrl(f)) ?? null}
+        open={fotoOpen}
+        onOpenChange={setFotoOpen}
+      />
     </div>
   );
 };
