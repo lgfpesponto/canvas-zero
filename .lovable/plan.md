@@ -1,78 +1,150 @@
-## Objetivo
 
-Trocar o **modal** atual por um **painel lateral fixo à direita** que mostra a foto do pedido enquanto o usuário continua navegando, lendo e editando a ficha. A foto fica grudada na lateral, sem bloquear o conteúdo (sem overlay escuro, sem capturar foco).
+## Plano (6 ajustes pequenos e independentes)
 
-## Comportamento esperado
+Cada item abaixo é isolado. Posso aplicar todos juntos numa única passada de implementação.
 
-| Ação | Resultado |
-|---|---|
-| Clicar em "Ver foto" no header | Painel desliza da direita, ocupa ~420px e empurra o conteúdo |
-| Painel aberto + clicar em "Editar" (lápis) | Vai para a página de edição **com a foto ainda visível** (lembra estado) |
-| Painel aberto + scroll na ficha | Foto continua visível (sticky no topo da lateral) |
-| Botão X dentro do painel | Fecha (volta ao layout normal full-width) |
-| Sem foto | Botão "Ver foto" não aparece (igual hoje) |
-| Mobile (<768px) | Painel vira overlay full-screen tipo Sheet (não cabe lateral) |
+---
 
-## Mudanças
+### 1. Novo status de produção: **"Baixa Corte"**
 
-### 1. Novo: `src/components/FotoPedidoSidePanel.tsx`
+**Onde:** `src/lib/order-logic.ts`
 
-Substitui o uso do `FotoPedidoDialog` na `OrderDetailPage`. Componente puro de apresentação:
+Adicionar `"Baixa Corte"` em:
+- `PRODUCTION_STATUSES` (após `"Corte"`, antes de `"Sem bordado"`)
+- `PRODUCTION_STATUSES_USER` (mesma posição)
+- `PRODUCTION_STATUSES_IN_PROD` (continua contando como "em produção" para o dashboard)
 
-- Container **sticky**: `sticky top-4 self-start` dentro de uma coluna do grid pai.
-- Largura: `w-[420px]` desktop / `w-full` mobile.
-- Cabeçalho compacto: título "Foto do pedido" + botão **X** (fecha) + botão **"Abrir no Drive ↗"**.
-- Corpo: mesma lógica de `<img>` Drive direto (`lh3.googleusercontent.com/d/{ID}`) com fallback automático para `<iframe src=".../preview">` em `onError` — reaproveita helpers já criados em `src/lib/driveUrl.ts`.
-- Imagem com `max-h-[calc(100vh-8rem)] object-contain` para nunca estourar a viewport.
-- Sem overlay, sem `Dialog`, sem foco-trap → não atrapalha edição da ficha.
+Não mexe em banco — `orders.status` é texto livre, qualquer admin já pode setar via dropdown que lê dessa constante.
 
-### 2. `src/pages/OrderDetailPage.tsx`
+**Ficar atento:** confirmar que cabe nos relatórios filtrados por status (já usam a mesma constante).
 
-**Layout**: envolver o `bg-card rounded-xl ...` (linha 365) e o painel num grid responsivo:
+---
 
-```tsx
-<div className={`grid gap-4 ${fotoOpen ? 'lg:grid-cols-[1fr_420px]' : 'grid-cols-1'}`}>
-  <div className="bg-card rounded-xl ..."> ...ficha existente... </div>
-  {fotoOpen && temFoto && (
-    <FotoPedidoSidePanel url={fotosValidas[0]} onClose={() => setFotoOpen(false)} />
-  )}
-</div>
-```
+### 2. Quantidade refletida em **Meus Pedidos** (Bota Pronta Entrega, Revitalizador, Kit 2 Revitalizadores)
 
-- `fotoOpen` já existe (linha 47) — só muda o que ele renderiza.
-- Botão "Ver foto" (linhas 380-389) continua igual; só passa a alternar o painel lateral em vez do dialog.
-- Em telas `<lg`, o painel cai abaixo (grid colapsa naturalmente em 1 coluna).
-- Remover import e uso de `FotoPedidoDialog`; adicionar `FotoPedidoSidePanel`.
+**Problema atual** (`src/components/OrderCard.tsx` linha 44–45):
+- O **valor** mostrado é `order.preco` puro pra qualquer extra (deveria multiplicar por quantidade nos casos de revitalizador unitário/kit; bota_pronta_entrega já tem botas embutidas).
+- A **quantidade** mostrada (`Qtd:`) hoje só conta `extraDetalhes.botas.length` para `bota_pronta_entrega`; para revitalizadores mostra sempre `order.quantidade` (já correto).
 
-### 3. Persistência durante edição (a parte importante)
+**Correção:**
+- Em `OrderCard.tsx`:
+  - **Valor**: para `revitalizador` e `kit_revitalizador`, usar `order.preco * order.quantidade` (igual bota normal). Para `bota_pronta_entrega` continuar `order.preco` (preço já é total das botas no pedido). Demais extras: continua `order.preco`.
+  - **Qtd**: para `bota_pronta_entrega` mostrar `extraDetalhes.botas.length || order.quantidade`. Para `revitalizador`/`kit_revitalizador` continua `order.quantidade`. Demais segue como está.
 
-Hoje, clicar no lápis chama `navigate('/pedido/${id}/editar')` — sai da página e perde o estado `fotoOpen`. Para "manter a foto aberta ainda":
+**"Total de Pedidos" → "Total de Produtos"** (`src/pages/ReportsPage.tsx` linhas 605–612):
+- Renomear o label para **"Total de Produtos"**.
+- Trocar `serverCount` (contagem de linhas) por **soma das quantidades reais dos pedidos filtrados**, considerando:
+  - `bota` normal: `quantidade`
+  - `bota_pronta_entrega`: `extraDetalhes.botas.length || quantidade`
+  - `revitalizador` / `kit_revitalizador`: `quantidade`
+  - demais extras / cinto: `quantidade` (geralmente 1)
+- Implementação: estender `useOrders` (`src/hooks/useOrders.ts`) para também devolver `totalProdutos` calculado no mesmo SELECT auxiliar que já busca `preco, quantidade` (linhas 91–127 do hook), trazendo também `tipo_extra` e `extra_detalhes` para fazer a soma correta no cliente. Sem nova query.
 
-**Opção escolhida — query param `?foto=1`**:
-- Quando `fotoOpen=true` e o usuário clica em editar, navegar para `/pedido/${id}/editar?foto=1`.
-- Em `EditOrderPage` e `EditExtrasPage`: ler `searchParams.get('foto')`, e se `=1` renderizar o mesmo `FotoPedidoSidePanel` ao lado do formulário (mesmo grid 2 colunas).
-- Botão X no painel também remove o param da URL (`navigate(pathname)`).
-- Ao salvar/voltar, o param é preservado nos `navigate` de retorno, mantendo a foto aberta também na página de detalhe.
+---
 
-Essa abordagem evita criar contexto global e funciona em refresh/deep-link.
+### 3. Código de barras no **relatório de Bordados** (igual ao do Pesponto/Corte)
 
-### 4. Helpers já existentes (sem mudanças)
+**Onde:** `src/components/SpecializedReports.tsx`
 
-- `src/lib/driveUrl.ts` (`isDriveUrl`, `toDriveImageUrl`, `toDrivePreviewUrl`, `isHttpUrl`) — reaproveitados.
-- `FotoPedidoDialog.tsx` — pode ser **removido** (não usado mais) ou mantido caso queira manter o modal como alternativa. Plano: **remover** para evitar código morto.
+- **Bordados** (`generateBordadosPDF`, linhas ~893–909): hoje só renderiza QR da foto na coluna 2. Adicionar barcode (`orderBarcodeValue` + `barcodeDataUrl`, já importados) abaixo do número do pedido na coluna 0, mesmo padrão do Pesponto (linhas 670–675).
+- **Corte** (`generateCortePDF`, linhas ~995–1011): aplicar o mesmo barcode na coluna do número do pedido. O usuário disse "igual o do pesponto e do corte também" — interpreto como "Bordados deve ter, e Corte também".
 
-## Arquivos afetados
+A altura da linha (`rowH`) já é `Math.max(20, …)` em ambos, dá folga pros 10mm do barcode.
 
-- ➕ `src/components/FotoPedidoSidePanel.tsx` (~70 linhas)
-- ✏️ `src/pages/OrderDetailPage.tsx` (grid + remoção do Dialog + propagar `?foto=1` no botão de editar)
-- ✏️ `src/pages/EditOrderPage.tsx` (ler query param + renderizar painel ao lado)
-- ✏️ `src/pages/EditExtrasPage.tsx` (mesmo tratamento)
-- ➖ `src/components/FotoPedidoDialog.tsx` (remover — substituído pelo SidePanel)
+---
 
-## Sem mudanças de banco / backend
+### 4. Ficha impressa: canhoto **único** (só sola), mantendo estrutura geral
 
-Apenas frontend. Sem RPC, sem migração, sem novas libs.
+**Onde:** `src/lib/pdfGenerators.ts` linhas ~509–558 (bloco BOOT LAYOUT — stubs)
+
+Hoje a ficha tem **3 canhotos** lado a lado: BORDADO/LASER, PESPONTO, e o terceiro com info de sola/forma + barcode.
+
+**Mudança:** virar **1 canhoto só**, dividido visualmente em dois lados (ainda na mesma área `stubTop` até `ph - m`):
+- **Lado esquerdo**: código de barras (igual ao terceiro stub atual) + número do pedido por baixo.
+- **Lado direito**: as informações de **SOLA/MONTAGEM** que já existem no terceiro stub (`tamanho | solado | corSola | forma | bico | vira`).
+
+Sem alterar:
+- O resto da ficha (header, 3 colunas de categorias, linha tracejada de corte).
+- O canhoto de cinto (já é 3 stubs específicos do cinto e o usuário não pediu mudança lá — confirmar mantemos como está).
+
+Implementação: substituir as 3 chamadas de stub do bloco bota por uma única, com largura `pw - m*2`, dividida em 2 colunas (50/50).
+
+---
+
+### 5. **"Bola grande"** vira igual ao **Strass** (R$0,60 por unidade)
+
+Hoje:
+- "Bola grande" é uma seleção fixa de R$15 flat (1 unidade).
+- "Strass" é R$0,60 × quantidade (input `qtdStrass`).
+
+**Mudar Bola grande para o mesmo padrão do Strass**:
+- Novo campo `qtdBolaGrande` (`extraDetalhes`) — input numérico aparece quando "Bola grande" estiver selecionado (espelhando a UI do Strass).
+- Preço: `0.60 * qtdBolaGrande`.
+
+**Arquivos afetados** (todos os locais com a lógica atual de R$15):
+- `src/pages/ExtrasPage.tsx` (linhas 124, 532, 545–550, 650, 659–660): adicionar input `qtdBolaGrande` e trocar `total += 15` por `total += 0.60 * qtdBolaGrande`. Atualizar também o label do checkbox de `"Bola grande (R$ 15)"` para `"Bola grande (R$ 0,60/un)"`.
+- `src/pages/EditExtrasPage.tsx` (linhas 65, 115, 407, 420, 536): mesma coisa, mais inicialização do `qtdBolaGrande` no `useEffect` de carregamento (`det.qtdBolaGrande || '1'`).
+- `src/pages/OrderDetailPage.tsx` (linhas 240, 652, 679): trocar `t += 15` / `extraPriceItems.push(['Bola grande', 15])` por preço calculado com `qtdBolaGrande`. Mostrar também a quantidade na descrição (ex.: `Bola grande x12`).
+- `src/components/SpecializedReports.tsx` (linhas 272, 286, 1205, 1222): mesma adaptação no breakdown dos relatórios.
+- `src/lib/botaExtraHelpers.ts` (linha 41): atualizar cálculo `total += 0.60 * (qtdBolaGrande || 0)`.
+
+**Compat com pedidos antigos:** se um pedido salvo tinha "Bola grande" sem `qtdBolaGrande`, tratar `qtdBolaGrande || 1` para manter `R$0,60` como mínimo (o valor antigo de R$15 fica congelado nos dados do pedido — `order.preco` no banco não é recalculado retroativamente). Sem migração de banco.
+
+---
+
+### 6. **Edição de cinto** abre página correta (não a de bota)
+
+**Problema:** `OrderCard.tsx` linha 53 manda **cinto** para `/pedido/:id/editar` (rota do `EditOrderPage` que só conhece campos de bota). Já vi que a regra é `order.tipoExtra && order.tipoExtra !== 'cinto' ? extra : bota`.
+
+**Solução:** criar **`src/pages/EditBeltPage.tsx`** espelhando o fluxo do `BeltOrderPage.tsx` (mesma estrutura visual, mesmos campos do `extraDetalhes` de cinto), com:
+- Carrega o pedido via `useOrderById`.
+- Preenche o form com `order.extraDetalhes` + nº pedido + cliente + observação + foto (drive).
+- Recalcula preço com a mesma função do `BeltOrderPage`.
+- `onSave`: `update` em `orders` salvando `extra_detalhes` + `preco` + recriando `historico`/`alteracoes` igual `EditOrderPage`.
+- Suporta painel lateral de foto (`?foto=1`), igual `EditOrderPage`/`EditExtrasPage`.
+
+**Routing**:
+- Adicionar rota `<Route path="/pedido/:id/editar-cinto" element={<EditBeltPage />} />` em `src/App.tsx`.
+- Em `OrderCard.tsx` linha 53, ajustar:
+  ```ts
+  const editPath = order.tipoExtra === 'cinto'
+    ? `/pedido/${order.id}/editar-cinto`
+    : order.tipoExtra
+      ? `/pedido/${order.id}/editar-extra`
+      : `/pedido/${order.id}/editar`;
+  ```
+
+Sem mudança de banco. `extra_detalhes` já guarda os campos de cinto.
+
+---
+
+## O que NÃO muda
+
+- Banco (nenhuma migration).
+- Edge functions.
+- Dashboard, comissão, financeiro.
+- Estrutura visual da ficha de bota (categorias e header continuam como estão).
+- Canhoto da ficha de cinto (3 stubs BORDADO/PESPONTO/EXPEDIÇÃO permanecem).
+
+## Arquivos editados
+
+1. `src/lib/order-logic.ts` — novo status "Baixa Corte"
+2. `src/components/OrderCard.tsx` — qtd e valor refletindo extras corretamente
+3. `src/hooks/useOrders.ts` — devolver `totalProdutos` somando quantidades
+4. `src/pages/ReportsPage.tsx` — label "Total de Produtos" usando `totalProdutos`
+5. `src/components/SpecializedReports.tsx` — barcode em Bordados e Corte; ajuste preço Bola grande
+6. `src/lib/pdfGenerators.ts` — canhoto único de bota (sola + barcode)
+7. `src/pages/ExtrasPage.tsx` — campo `qtdBolaGrande`
+8. `src/pages/EditExtrasPage.tsx` — campo `qtdBolaGrande`
+9. `src/pages/OrderDetailPage.tsx` — exibição Bola grande com qtd
+10. `src/lib/botaExtraHelpers.ts` — cálculo Bola grande
+11. **`src/pages/EditBeltPage.tsx`** *(novo)*
+12. `src/App.tsx` — rota `/pedido/:id/editar-cinto`
+
+---
 
 ## Memória
 
-Sem necessidade de salvar memória nova — é uma evolução visual da feature de foto, sem impacto em regra de negócio.
+Vou registrar **uma** memória nova: regra de **"Total de Produtos"** (ex‑"Total de Pedidos") em Meus Pedidos somar quantidades reais com a regra especial de `bota_pronta_entrega` (botas dentro de `extraDetalhes.botas`). É uma regra de negócio nova que pode confundir em ajustes futuros.
+
+As demais mudanças são pontuais e auto‑evidentes lendo o código.
