@@ -423,6 +423,50 @@ const OrderPage = () => {
     await tmpl.deleteTemplate(id, user.id);
   };
 
+  /* ───── envio de modelos ───── */
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState<typeof tmpl.templates[number] | null>(null);
+  const [usersList, setUsersList] = useState<{ id: string; nome_completo: string; nome_usuario: string }[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [sendingInProgress, setSendingInProgress] = useState(false);
+
+  const openSendDialog = async (template: typeof tmpl.templates[number]) => {
+    if (!user) return;
+    setSendingTemplate(template);
+    setSelectedRecipients([]);
+    setRecipientSearch('');
+    setSendDialogOpen(true);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nome_completo, nome_usuario')
+      .neq('id', user.id)
+      .order('nome_completo', { ascending: true });
+    setUsersList((data as any) || []);
+  };
+
+  const toggleRecipient = (id: string) => {
+    setSelectedRecipients(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const confirmSendTemplate = async () => {
+    if (!user || !sendingTemplate || selectedRecipients.length === 0) return;
+    setSendingInProgress(true);
+    const ok = await tmpl.sendTemplateToUsers(
+      sendingTemplate,
+      selectedRecipients,
+      user.id,
+      user.nomeCompleto || user.nomeUsuario || 'Usuário',
+    );
+    setSendingInProgress(false);
+    if (ok) {
+      setSendDialogOpen(false);
+      setSendingTemplate(null);
+      setSelectedRecipients([]);
+    }
+  };
+
+
   /* ───── items from DB (with static fallback) ───── */
   const sortAlpha = (arr: {label:string;preco:number}[]) => {
     const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
