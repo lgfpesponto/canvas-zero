@@ -6,6 +6,7 @@ import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 interface OrderCardProps {
   order: any;
   isAdmin: boolean;
+  canDelete?: boolean;
   isSelected: boolean;
   onToggle: (id: string) => void;
   confirmDeleteId: string | null;
@@ -16,7 +17,7 @@ interface OrderCardProps {
 }
 
 const OrderCard = React.memo(({
-  order, isAdmin, isSelected, onToggle,
+  order, isAdmin, canDelete = false, isSelected, onToggle,
   confirmDeleteId, onConfirmDelete, onDelete,
   formatCurrency, formatDateBR,
 }: OrderCardProps) => {
