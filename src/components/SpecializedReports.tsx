@@ -895,7 +895,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.observacao) parts.push(`Obs: ${o.observacao}`);
       const descText = parts.join('\n');
       const lines = doc.splitTextToSize(descText, cols[1] - 4);
-      const rowH = Math.max(20, lines.length * 3 + 6);
+      const rowH = Math.max(18, lines.length * 3 + 6);
 
       if (y + rowH > 280) { doc.addPage(); y = 20; }
       drawTableRow(doc, y, mx, cw, cols, rowH);
@@ -904,21 +904,27 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       numLinesBord.forEach((line: string, li: number) => {
         doc.text(line, cx[0] + 2, y + 5 + li * 3);
       });
-      // Barcode (mesmo padrão do Pesponto)
-      try {
-        const bcVal = orderBarcodeValue(o.numero, o.id);
-        const bcImg = barcodeDataUrl(bcVal, { width: 1, height: 30 });
-        if (bcImg) doc.addImage(bcImg, 'PNG', cx[0] + 2, y + 5 + numLinesBord.length * 3 + 1, cols[0] - 6, 8);
-      } catch {}
       doc.setFontSize(6);
       doc.text(lines, cx[1] + 2, y + 4);
 
+      // Código de barras (coluna própria)
+      try {
+        const bcVal = orderBarcodeValue(o.numero, o.id);
+        const bcImg = barcodeDataUrl(bcVal, { width: 1, height: 30 });
+        if (bcImg) doc.addImage(bcImg, 'PNG', cx[2] + 1, y + (rowH - 10) / 2, 36, 10);
+      } catch {}
+
+      // QR code
       const fotoUrl = o.fotos?.[0];
       if (fotoUrl) {
         const qr = await qrDataUrl(fotoUrl);
-        if (qr) try { doc.addImage(qr, 'PNG', cx[2] + 3, y + 1, 14, 14); } catch {}
+        if (qr) try { doc.addImage(qr, 'PNG', cx[3] + 2, y + (rowH - 14) / 2, 14, 14); } catch {}
       }
-      // Receita: blank field (already empty rect from drawTableRow)
+
+      // Checkbox pequeno
+      doc.setLineWidth(0.3);
+      doc.rect(cx[4] + 2, y + (rowH - 5) / 2, 5, 5);
+
       y += rowH;
     }
 
