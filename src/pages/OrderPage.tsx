@@ -1362,9 +1362,20 @@ const OrderPage = () => {
             return (
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
               {filtered.map(t => (
-                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
-                  <span className="font-semibold text-sm">{t.nome}</span>
-                  <div className="flex gap-2">
+                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm truncate">{t.nome}</span>
+                      {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
+                    </div>
+                    {t.sent_by_name && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Inbox size={11} /> Recebido de {t.sent_by_name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openSendDialog(t)} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
                     <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
@@ -1376,6 +1387,61 @@ const OrderPage = () => {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* ───── Send Template Dialog ───── */}
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar modelo</DialogTitle>
+          </DialogHeader>
+          {sendingTemplate && (
+            <p className="text-sm text-muted-foreground -mt-2">
+              Enviando: <span className="font-semibold text-foreground">{sendingTemplate.nome}</span>
+            </p>
+          )}
+          <Input
+            placeholder="Pesquisar usuário..."
+            value={recipientSearch}
+            onChange={e => setRecipientSearch(e.target.value)}
+          />
+          <div className="space-y-1 max-h-[50vh] overflow-y-auto border border-border rounded-lg p-2">
+            {usersList.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Carregando usuários...</p>
+            )}
+            {usersList
+              .filter(u => {
+                const q = recipientSearch.toLowerCase();
+                return !q || u.nome_completo?.toLowerCase().includes(q) || u.nome_usuario?.toLowerCase().includes(q);
+              })
+              .map(u => {
+                const checked = selectedRecipients.includes(u.id);
+                return (
+                  <label key={u.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer">
+                    <Checkbox checked={checked} onCheckedChange={() => toggleRecipient(u.id)} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium truncate">{u.nome_completo || u.nome_usuario}</span>
+                      {u.nome_completo && u.nome_usuario && (
+                        <span className="text-xs text-muted-foreground truncate">@{u.nome_usuario}</span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+          </div>
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {selectedRecipients.length} selecionado{selectedRecipients.length !== 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSendDialogOpen(false)} disabled={sendingInProgress}>Cancelar</Button>
+              <Button onClick={confirmSendTemplate} disabled={selectedRecipients.length === 0 || sendingInProgress}>
+                <Send size={14} /> Enviar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       {/* ───── Grade de Estoque ───── */}
       <GradeEstoque
