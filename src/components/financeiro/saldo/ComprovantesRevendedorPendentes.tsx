@@ -19,6 +19,7 @@ import {
   type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
+import { EnviarComprovanteDialog } from './EnviarComprovanteDialog';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 
 interface Props {
