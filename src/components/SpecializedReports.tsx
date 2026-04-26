@@ -433,6 +433,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Escalação', userName);
     doc.save(`Escalação - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -509,6 +510,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Forro', userName);
     doc.save(`Forro - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -553,6 +555,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Palmilha', userName);
     doc.save(`Palmilha - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -597,6 +600,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Forma', userName);
     doc.save(`Forma - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -686,6 +690,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Pesponto', userName);
     doc.save(`Pesponto - ${progressoLabel} - ${dateFile}.pdf`);
   };
 
@@ -754,6 +759,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
 
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Metais', userName);
     doc.save('relatorio-metais.pdf');
   };
 
@@ -898,6 +904,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
 
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Bordados', userName);
     doc.save('relatorio-bordados.pdf');
   };
 
@@ -999,6 +1006,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
 
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Corte', userName);
     doc.save('relatorio-corte.pdf');
   };
 
@@ -1093,6 +1101,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Expedição', userName);
     doc.save(`Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
   };
 
@@ -1344,6 +1353,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Cobrança', userName);
     doc.save(`Cobrança - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
   };
 
@@ -1437,6 +1447,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text(String(rows.reduce((s, r) => s + r.quantidade, 0)), mx + fieldLabels.length * fieldColW + 2, y + 7);
 
     stampPageNumbers(doc);
+    void recordPrintHistory(filtered.map(o => o.id), 'Extras/Cintos', userName);
     doc.save(`relatorio-${filterTipoProduto}.pdf`);
   };
 
