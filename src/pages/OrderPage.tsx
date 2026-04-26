@@ -838,7 +838,7 @@ const OrderPage = () => {
   });
 
 
-  const resetForm = useCallback(() => {
+  const resetForm = () => {
     setVendedorSelecionado(isAdminProducao ? '' : (user?.nomeCompleto || ''));
     setNumeroPedido('');
     setCliente('');
@@ -880,7 +880,7 @@ const OrderPage = () => {
     setGradeItems([]);
     setShowMirror(false);
     setDraftId('');
-  }, [isAdminProducao, user?.nomeCompleto]);
+  };
 
   const confirmOrder = async () => {
     if (submitting) return;
