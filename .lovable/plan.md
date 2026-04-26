@@ -1,28 +1,111 @@
-## Ajustes na página "Meu Saldo" (`src/pages/RevendedorSaldoPage.tsx`)
 
-Pequenos ajustes visuais na visão do revendedor (Stefany), sem mexer em nenhuma lógica de saldo, banco ou aprovação.
+## Objetivo
 
-### 1. Renomear o card "Total recebido" → "Total enviado"
-- Linha ~120: alterar apenas o texto do `CardTitle` de **"Total recebido"** para **"Total enviado"**.
-- O valor exibido (`saldo?.total_recebido`) permanece igual — representa o total já creditado a partir dos comprovantes aprovados, que para o revendedor faz mais sentido como "enviado".
-- Os 4 cards continuam: **Total enviado** · **Já utilizado** · **Saldo disponível** · **A pagar (pedidos cobrados)**.
+1. Permitir à Juliana (`admin_master`) **regularizar o histórico** quitando pedidos cobrados antigos (que já foram pagos fora do sistema) **sem mexer no saldo**.
+2. Permitir descartar comprovantes pendentes **antigos** que já foram conferidos fora do sistema (sem aprovar nem creditar saldo).
+3. Garantir que comprovantes lançados pela Juliana em nome do revendedor apareçam **em tempo real** no painel "Meu Saldo" desse revendedor.
 
-### 2. Remover a seção "Meus pedidos cobrados"
-- Remover o bloco `<Card>` inteiro (linhas ~155 a ~209) que renderiza a tabela "Meus pedidos cobrados".
-- Limpar imports e estados que ficarem sem uso após a remoção:
-  - Remover `fetchPedidosCobrados`, `fetchBaixasVendedor`, tipos `PedidoCobrado` e `RevendedorBaixa` do import de `@/lib/revendedorSaldo`.
-  - Remover os states `pedidos`, `baixas` e a lógica `baixasMap` / `pedidosComStatus` que eram usados apenas para esta tabela.
-  - Manter o cálculo de `totalPendente` (usado pelo card "A pagar") — será reescrito para somar diretamente o valor dos pedidos cobrados ainda não baixados, via uma versão simplificada usando `fetchPedidosCobrados` + `fetchBaixasVendedor` (mantemos os fetches só para alimentar o card, sem renderizar a tabela). Alternativa mais limpa: manter apenas o fetch e o cálculo numérico de `totalPendente`, sem o `useMemo` de status visual.
-  - Remover imports não mais usados: `Table*`, `Badge` (se não for mais usado fora da tabela de comprovantes — verificar; ainda é usado na tabela "Meus comprovantes enviados", então mantém).
+---
 
-### O que **NÃO** muda
-- Cabeçalho "Meu Saldo" + nome do revendedor + botão "Enviar comprovante".
-- Os 4 cards de resumo (apenas o título do primeiro muda).
-- Seção "Meus comprovantes enviados" (tabela de status/aprovações).
-- Diálogo de envio de comprovante e o `ComprovanteViewer`.
-- Nenhuma mudança em banco, RPCs, edge functions, painel admin ou aba Financeiro.
+## 1. Banco — duas novas RPCs (admin_master)
 
-### Resultado visual final
-1. Header + botão Enviar comprovante
-2. 4 cards: **Total enviado** | Já utilizado | **Saldo disponível** | A pagar (pedidos cobrados)
-3. **Meus comprovantes enviados** (tabela)
+### `quitar_pedidos_historico(_order_ids uuid[], _motivo text)`
+- Valida `has_role(auth.uid(), 'admin_master')`.
+- Para cada pedido:
+  - Pula se já tem registro em `revendedor_baixas_pedido` (idempotente).
+  - Cria movimento em `revendedor_saldo_movimentos` com **tipo `ajuste_admin`**, `valor = preco × quantidade`, `saldo_anterior = saldo_posterior` (não mexe no saldo) e descrição `"[QUITAÇÃO HISTÓRICA] " || _motivo`.
+  - Insere em `revendedor_baixas_pedido` (`order_id`, `vendedor`, `valor_pedido`, `movimento_id`).
+- Retorna `jsonb` com `quitados`, `pulados`.
+- Motivo é obrigatório (auditoria).
+
+### `descartar_comprovantes_historico(_ids uuid[], _motivo text)`
+- Valida `admin_master`.
+- Atualiza cada comprovante pendente para `status = 'reprovado'`, `motivo_reprovacao = "[DESCARTE HISTÓRICO] " || _motivo`, `aprovado_por = auth.uid()`, `aprovado_em = now()`.
+- Não cria movimento, não credita saldo, não espelha em A Receber.
+- Retorna `jsonb` com `descartados`.
+
+Ambas com `SECURITY DEFINER` e `SET search_path = public`, seguindo o padrão das outras RPCs do módulo.
+
+---
+
+## 2. Frontend — Quitação histórica de pedidos cobrados
+
+**Arquivo: `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx`**
+
+Na seção **"Pedidos cobrados pendentes (FIFO)"**:
+- Adicionar coluna de checkbox por linha (somente admin_master).
+- Header com checkbox "selecionar todos" + botão **"Marcar como já quitado (histórico)"** que abre AlertDialog.
+- AlertDialog explica que essa ação **não mexe no saldo** e exige um motivo (textarea obrigatório, ex.: "Pago antes da implantação do sistema").
+- Ao confirmar → chama `quitar_pedidos_historico` com os ids selecionados → `reload()` + `onChanged()`.
+- Toast com quantidade quitada.
+
+Adicionar wrapper na lib `src/lib/revendedorSaldo.ts`:
+```ts
+export async function quitarPedidosHistorico(orderIds: string[], motivo: string)
+export async function descartarComprovantesHistorico(ids: string[], motivo: string)
+```
+
+---
+
+## 3. Frontend — Descarte de comprovantes pendentes antigos
+
+**Arquivo: `src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx`**
+
+- Adicionar coluna de checkbox por linha + checkbox no header.
+- Quando há ≥ 1 selecionado, exibir barra de ação no topo do card com:
+  - Texto "N selecionado(s)"
+  - Botão **"Descartar como histórico"** (variant outline) → abre AlertDialog com textarea de motivo obrigatório.
+- AlertDialog deixa claro: "Use somente para comprovantes antigos que já foram conferidos fora do sistema. Não credita saldo nem cria lançamento em A Receber."
+- Ao confirmar → chama `descartarComprovantesHistorico` → recarrega via realtime + `onChanged?.()`.
+- Os botões de Aprovar/Reprovar individuais continuam funcionando normalmente.
+
+---
+
+## 4. Realtime no painel "Meu Saldo" do revendedor
+
+**Arquivo: `src/pages/RevendedorSaldoPage.tsx`**
+
+- Adicionar `useEffect` que assina canal Supabase Realtime em `revendedor_comprovantes` filtrado pelo `vendedorName` atual:
+  ```ts
+  supabase.channel(`revendedor_meu_saldo_${vendedorName}`)
+    .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_comprovantes', filter: `vendedor=eq.${vendedorName}` },
+        () => scheduleReload())
+  ```
+- Também assina `revendedor_saldo_movimentos` (mesmo filtro) — assim, quando a Juliana aprova, o saldo e o card "A pagar" também se atualizam ao vivo.
+- Debounce de ~400ms (mesmo padrão usado em `ComprovantesRevendedorPendentes`).
+- A tabela `revendedor_comprovantes` já está no realtime publication (migração anterior). Vamos **adicionar `revendedor_saldo_movimentos`** ao publication na mesma migração desta tarefa.
+
+---
+
+## 5. Migração SQL (resumo)
+
+```sql
+-- 1. Habilita realtime em saldo_movimentos
+ALTER TABLE public.revendedor_saldo_movimentos REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.revendedor_saldo_movimentos;
+
+-- 2. RPC: quitar pedidos históricos (sem mexer no saldo)
+CREATE OR REPLACE FUNCTION public.quitar_pedidos_historico(_order_ids uuid[], _motivo text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ ... $$;
+
+-- 3. RPC: descartar comprovantes pendentes históricos
+CREATE OR REPLACE FUNCTION public.descartar_comprovantes_historico(_ids uuid[], _motivo text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ ... $$;
+```
+
+---
+
+## Arquivos editados
+
+- **Migração SQL nova** (RPCs + realtime publication)
+- `src/lib/revendedorSaldo.ts` (2 novos wrappers)
+- `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx` (seleção + ação de quitação histórica)
+- `src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx` (seleção + descarte em massa)
+- `src/pages/RevendedorSaldoPage.tsx` (realtime sync)
+
+## Comportamentos preservados
+
+- Aprovação normal de comprovantes continua creditando saldo + espelhando em A Receber + disparando FIFO.
+- Reprovação individual com motivo continua existindo (descarte é um atalho em massa).
+- RLS / permissões: todas as ações novas exigem `admin_master`.
