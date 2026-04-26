@@ -897,6 +897,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       numLinesBord.forEach((line: string, li: number) => {
         doc.text(line, cx[0] + 2, y + 5 + li * 3);
       });
+      // Barcode (mesmo padrão do Pesponto)
+      try {
+        const bcVal = orderBarcodeValue(o.numero, o.id);
+        const bcImg = barcodeDataUrl(bcVal, { width: 1, height: 30 });
+        if (bcImg) doc.addImage(bcImg, 'PNG', cx[0] + 2, y + 5 + numLinesBord.length * 3 + 1, cols[0] - 6, 8);
+      } catch {}
       doc.setFontSize(6);
       doc.text(lines, cx[1] + 2, y + 4);
 
