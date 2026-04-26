@@ -25,8 +25,7 @@ const RevendedorSaldoPage = () => {
 
   const [saldo, setSaldo] = useState<RevendedorSaldo | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
-  const [pedidos, setPedidos] = useState<PedidoCobrado[]>([]);
-  const [baixas, setBaixas] = useState<RevendedorBaixa[]>([]);
+  const [totalPendente, setTotalPendente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
@@ -50,8 +49,12 @@ const RevendedorSaldoPage = () => {
       ]);
       setSaldo(s);
       setComprovantes(c);
-      setPedidos(p);
-      setBaixas(b);
+      const baixasSet = new Set(b.map(x => x.order_id));
+      const pendente = p
+        .filter(x => !baixasSet.has(x.id))
+        .reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
+      const saldoDisp = Number(s?.saldo_disponivel || 0);
+      setTotalPendente(Math.max(0, pendente - saldoDisp));
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -60,42 +63,6 @@ const RevendedorSaldoPage = () => {
   };
 
   useEffect(() => { if (vendedorName) reload(); }, [vendedorName]);
-
-  const baixasMap = useMemo(() => new Set(baixas.map(b => b.order_id)), [baixas]);
-
-  const pedidosComStatus = useMemo(() => {
-    let saldoSimulado = saldo?.saldo_disponivel || 0;
-    let primeiroPendenteVisto = false;
-    return pedidos.map(p => {
-      const valor = (p.preco || 0) * (p.quantidade || 1);
-      const pago = baixasMap.has(p.id);
-      let visualStatus: 'pago' | 'aguardando' | 'parcial' | 'pendente' = 'pendente';
-      let restante = valor;
-      if (pago) {
-        visualStatus = 'pago';
-        restante = 0;
-      } else if (saldoSimulado >= valor) {
-        // Estranho: deveria ter sido baixado. Mostra como aguardando processamento.
-        visualStatus = 'aguardando';
-        saldoSimulado -= valor;
-        restante = 0;
-      } else if (!primeiroPendenteVisto && saldoSimulado > 0) {
-        visualStatus = 'parcial';
-        restante = valor - saldoSimulado;
-        saldoSimulado = 0;
-        primeiroPendenteVisto = true;
-      } else {
-        visualStatus = 'pendente';
-        primeiroPendenteVisto = true;
-      }
-      return { ...p, valorTotal: valor, visualStatus, restante, valorAbatido: pago ? valor : 0 };
-    });
-  }, [pedidos, baixasMap, saldo]);
-
-  const totalPendente = useMemo(
-    () => pedidosComStatus.filter(p => p.visualStatus !== 'pago').reduce((s, p) => s + p.restante, 0),
-    [pedidosComStatus]
-  );
 
   if (accessLoading) return null;
   if (!isAdminMaster && !canSeeRevendedorView) return null;
