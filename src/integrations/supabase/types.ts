@@ -388,6 +388,45 @@ export type Database = {
         }
         Relationships: []
       }
+      order_notificacoes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          lida: boolean
+          lida_em: string | null
+          numero: string
+          order_id: string
+          status_no_momento: string
+          vendedor: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          lida?: boolean
+          lida_em?: string | null
+          numero: string
+          order_id: string
+          status_no_momento: string
+          vendedor: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          lida?: boolean
+          lida_em?: string | null
+          numero?: string
+          order_id?: string
+          status_no_momento?: string
+          vendedor?: string
+        }
+        Relationships: []
+      }
       order_templates: {
         Row: {
           created_at: string
@@ -1090,9 +1129,15 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      marcar_notificacao_lida: { Args: { _id: string }; Returns: undefined }
+      marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }
         Returns: Json
+      }
+      registrar_alteracoes_pos_entrega: {
+        Args: { _descricoes: string[]; _order_id: string }
+        Returns: number
       }
       reprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string; _motivo: string }
