@@ -1,127 +1,76 @@
-## Plano — 4 ajustes no fluxo de pedidos
+## Objetivo
+Adicionar uma seção **"Histórico de Impressão"** no detalhe do pedido (`OrderDetailPage`) que registra automaticamente toda vez que aquele pedido foi incluído num PDF gerado — seja Ficha de Produção individual ou qualquer relatório especializado em lote (Corte, Bordados, Forro, Pesponto, Forma, Palmilha, Metais, Escalação, Expedição, Cobrança, Extras/Cintos).
 
-### 1. Contador de selecionados nos quadros de seleção (Bordado, Laser, Acessórios)
+## 1. Banco de dados (migration)
+Adicionar coluna **`impressoes jsonb NOT NULL DEFAULT '[]'`** na tabela `orders`.
 
-**Arquivo**: `src/pages/OrderPage.tsx` — componente `MultiSelect` (linhas 70–117).
-
-No header do quadro (linha 84–86), exibir badge ao lado do label quando `selected.length > 0`:
-```tsx
-<label className={cls.label + ' mb-0'}>
-  {label}
-  {selected.length > 0 && (
-    <span className="ml-2 inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5">
-      {selected.length} selecionado{selected.length > 1 ? 's' : ''}
-    </span>
-  )}
-</label>
+Estrutura de cada entrada:
+```json
+{
+  "tipo": "Ficha de Produção" | "Corte" | "Bordados" | "Forro" | ...,
+  "data": "2026-04-26",
+  "hora": "14:32",
+  "usuario": "Juliana",
+  "total_pedidos": 12   // 1 quando é ficha individual
+}
 ```
 
-Isso atinge automaticamente todos os MultiSelect: Acessórios, Bordado Cano/Gáspea/Taloneira, Laser Cano/Gáspea/Taloneira.
+Não precisa de RLS nova — herda a política existente de `orders` (admins podem update; vendedor pode update no próprio pedido). Como só admins geram PDFs/fichas, o `update` funcionará normalmente.
 
----
+## 2. Helper centralizado — `src/lib/printHistory.ts` (novo)
+Função `recordPrintHistory(orderIds: string[], tipo: string, userName: string)`:
+- Faz um `select id, impressoes` em `orders` filtrando os `orderIds`
+- Anexa a nova entrada (com `data`, `hora` em fuso Brasília, `usuario`, `total_pedidos = orderIds.length`) ao array
+- Faz update em batch (um por pedido — Supabase não suporta update array diferente em massa numa só query, mas usamos `Promise.all`)
+- Falha silenciosa (apenas `console.warn`) — nunca bloquear a geração do PDF
 
-### 2. Pós-finalização: sem redirect, reset do form e toast no canto inferior direito
+## 3. Integração nos geradores
+Em **cada função** que termina com `doc.save(...)`, chamar `recordPrintHistory(...)` logo antes do save:
 
-**Comportamento novo**: ao clicar **OK — FINALIZAR** com sucesso, o usuário **permanece** na mesma página de criação (bota / cinto / extras / dinâmica), o formulário é **zerado** e aparece toast `bottom-right` confirmando o número do pedido.
+| Arquivo | Funções a instrumentar |
+|---|---|
+| `src/lib/pdfGenerators.ts` | `generateReportPDF`, `generateProductionSheetPDF`, `generateCommissionPDF` |
+| `src/components/SpecializedReports.tsx` | `generateEscalacaoPDF`, `generateForroPDF`, `generatePalmilhaPDF`, `generateFormaPDF`, `generateNewPespontoPDF`, `generateMetaisPDF`, `generateBordadosPDF`, `generateCortePDF`, `generateExpedicaoPDF`, `generateCobrancaPDF`, `generateExtrasCintosPDF` |
+| `src/pages/PiecesReportPage.tsx` | função de geração do PDF de peças |
+| `src/components/SoladoBoard.tsx` | função de geração do PDF do quadro |
+| `src/components/CommissionPanel.tsx` | já chama `generateCommissionPDF` (coberto via item 1) |
 
-**Implementação por arquivo**:
+Para passar o `userName`, ler de `useAuth().user?.user_metadata?.nome_completo` ou do profile já carregado e propagar como argumento. Onde os geradores são funções puras em `pdfGenerators.ts`, adicionar parâmetro opcional `meta?: { userName: string }`.
 
-#### `src/pages/OrderPage.tsx` (botas)
-1. Criar função `resetForm()` que zera **todos** os states do formulário, incluindo:
-   - `vendedorSelecionado` → `''` (zerar conforme você confirmou)
-   - `numeroPedido`, `cliente`, `tamanho`, `genero`, `modelo`, `sobMedida`, `sobMedidaDesc`
-   - `acessorios` `[]`, todos os couros (tipo+cor cano/gáspea/taloneira), `desenvolvimento`
-   - todos bordados (arrays + cores + descrições variadas), `nomeBordado`/`nomeBordadoDesc`
-   - todos lasers (arrays + cores glitter + cores bordado-laser + textos "outro"), `pintura`/`pinturaDesc`
-   - `estampa`/`estampaDesc`, `corLinha`, `corBorrachinha`, `corVivo`
-   - todos metais (área, tipo, cor, strass/cruz/bridão/cavalo + qtds)
-   - `trice`/`triceDesc`, `tiras`/`tirasDesc`, `franja`/`franjaCouro`/`franjaCor`, `corrente`/`correnteCor`
-   - `solado`, `formatoBico`, `corSola`, `corVira`, `costuraAtras`, `carimbo`/`carimboDesc`
-   - `adicionalDesc`, `adicionalValor`, `observacao`, `fotoUrl` (zerar conforme confirmado)
-   - `gradeItems` `[]`, `showMirror` `false`
-   - **Não** mexer no `mode` nem no `productChoice` — usuário continua na ficha de bota.
+## 4. UI no detalhe do pedido — `src/pages/OrderDetailPage.tsx`
+Adicionar nova seção **abaixo de "Histórico de Alterações"**, com layout idêntico (mesmo card western-shadow, mesmo ícone `Printer` do `lucide-react`):
 
-2. No `confirmOrder` (linhas 828–864), substituir `navigate('/relatorios')` por:
-```tsx
-toast.success(`Pedido ${numeroPedido.trim() || '(novo)'} lançado em Meus Pedidos!`, { position: 'bottom-right' });
-resetForm();
 ```
-(Aplicado nos dois ramos: grade e pedido único; para grade usar `${totalPedidos} pedidos gerados`.)
-
-#### `src/pages/BeltOrderPage.tsx` (cintos)
-Mesma estratégia: criar `resetForm()` que zera todos os campos do cinto e substituir `navigate('/relatorios')` da linha 236 por toast `bottom-right` + reset.
-
-#### `src/pages/ExtrasPage.tsx` (extras)
-Mesma coisa: criar `resetForm(productId)` que zera os states específicos do produto submetido e substituir `navigate('/relatorios')` da linha 262.
-
-#### `src/pages/DynamicOrderPage.tsx` (fichas dinâmicas)
-Substituir `navigate('/relatorios')` da linha 154 por toast + reset (`setValues({})`, `setQuantidade(1)`, `setPrecoBase(0)`, `setObservacao('')`, `setCliente('')`).
-
-**Toast sempre com `{ position: 'bottom-right' }`** (sonner aceita por chamada).
-
----
-
-### 3. Reset do form após criar/atualizar modelo
-
-**Arquivo**: `src/pages/OrderPage.tsx` — funções `handleSaveTemplate` (linha 409) e `handleUpdateTemplate` (linha 415).
-
-Após o `success`, chamar `resetForm()` (a mesma do ponto 2):
-```tsx
-const handleSaveTemplate = async () => {
-  if (!user) return;
-  const success = await tmpl.saveTemplate(user.id, buildFormData());
-  if (success) {
-    setMode('order');
-    resetForm();
-  }
-};
-const handleUpdateTemplate = async () => {
-  if (!user) return;
-  const success = await tmpl.updateTemplate(buildFormData());
-  if (success) {
-    setMode('order');
-    resetForm();
-  }
-};
+🖨 Histórico de Impressão
+────────────────────────────
+26/04/2026 às 14:32 — Ficha de Produção — Juliana
+26/04/2026 às 15:10 — Corte (12 pedidos no lote) — Fernanda
+25/04/2026 às 09:00 — Expedição (47 pedidos no lote) — Juliana
 ```
 
-Assim, ao voltar pra criar outro modelo (ou pedido normal), o formulário começa em branco.
+Quando `total_pedidos === 1` exibir só `Tipo`; quando `> 1` exibir `Tipo (N pedidos no lote)`.
+Estado vazio: "Nenhuma impressão registrada."
 
----
-
-### 4. Garantir que "Modelo" sempre apareça nos relatórios
-
-**Arquivo**: `src/components/SpecializedReports.tsx` (linhas 304 e 1225).
-
-**Bug atual**: hoje o código só inclui o modelo no breakdown de preços se ele existir no array hardcoded `MODELOS`:
-```tsx
-const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco;
-if (modeloP) priceItems.push(['Modelo: ' + o.modelo, modeloP]);
+Tipo TypeScript adicionado ao `Order` em `AuthContext` e mapping em `dbRowToOrder` (`order-logic.ts`):
+```ts
+impressoes: (row.impressoes as any[]) || [],
 ```
-Resultado: modelos novos cadastrados via admin (ficha_variacoes) **não aparecem** no PDF.
 
-**Correção**: usar fallback em cascata (Hardcoded → ficha_variacoes via `findFichaPrice`) e **sempre** incluir o nome do modelo, mesmo que o preço seja 0:
-```tsx
-const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco
-  ?? findFichaPrice(o.modelo, 'modelo')
-  ?? 0;
-if (o.modelo) priceItems.push(['Modelo: ' + o.modelo, modeloP]);
-```
-- Aplicado nas 2 ocorrências (cobrança individual + cobrança consolidada).
-- O hook `useFichaVariacoesLookup` já existe e expõe `findFichaPrice(itemName, customCat)` — só preciso chamá-lo no topo do componente onde o breakdown é gerado.
-- Verifico também as outras seções de relatórios (Corte/Bordados/Forro já mostram `o.modelo` direto, sem depender de preço — então o ponto crítico era só o breakdown de cobrança).
+## 5. Refresh
+Após gerar o PDF, fazer `refetchOrder()` em `OrderDetailPage` se a página ativa for o detalhe — caso contrário apenas persiste no banco e aparecerá na próxima visita.
 
----
+## Arquivos editados
+- **Migration**: nova coluna `impressoes` em `orders`
+- **Novo**: `src/lib/printHistory.ts`
+- **Edit**: `src/lib/pdfGenerators.ts` (3 funções)
+- **Edit**: `src/components/SpecializedReports.tsx` (11 funções)
+- **Edit**: `src/pages/PiecesReportPage.tsx`
+- **Edit**: `src/components/SoladoBoard.tsx`
+- **Edit**: `src/pages/OrderDetailPage.tsx` (nova seção UI)
+- **Edit**: `src/lib/order-logic.ts` (`dbRowToOrder` lê `impressoes`)
+- **Edit**: `src/contexts/AuthContext.tsx` (tipo `Order` ganha `impressoes?: any[]`)
 
-### O que NÃO mexo
-- Lógica de cálculo de total final (já usa `o.preco` direto, não o breakdown).
-- Outras páginas / fluxos (auditoria, drafts, edição).
-- Lista de modelos salvos (ponto 3 só zera o form, não a lista).
-
-### Validação (você faz depois)
-1. Selecionar 3 bordados de cano → o badge "3 selecionados" aparece ao lado do título do quadro.
-2. Finalizar uma bota → toast no canto inferior direito, formulário **totalmente zerado**, continua na página de criação de bota.
-3. Criar um modelo novo → salvar → confirmar que o form zera; criar outro modelo do zero.
-4. Gerar um PDF de cobrança com pedido cujo modelo foi cadastrado no admin → confirmar que aparece "Modelo: X" no breakdown.
-
-Aprova pra eu implementar tudo numa única passada.
+## Pontos de atenção
+- **Performance**: relatórios em lote com 100+ pedidos farão 100 updates paralelos. Aceitável (RLS rápida, jsonb pequeno), mas se ficar lento podemos criar uma RPC `append_print_history(ids uuid[], entry jsonb)` em iteração futura.
+- **Fail-silent**: se o `update` falhar, o PDF já foi salvo no disco do usuário — apenas logar warning.
+- **`types.ts` do Supabase** será regenerado automaticamente após a migration.
