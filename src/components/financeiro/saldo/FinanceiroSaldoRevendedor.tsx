@@ -1,25 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Eye } from 'lucide-react';
+import { Loader2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  fetchSaldosTodos, fetchComprovantesPendentes, aprovarComprovante, reprovarComprovante,
+  fetchSaldosTodos, fetchComprovantesPendentes,
   type RevendedorSaldo, type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
-import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
-import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
+import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
 
 const FinanceiroSaldoRevendedor = () => {
   const { toast } = useToast();
