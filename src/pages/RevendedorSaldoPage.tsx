@@ -66,6 +66,31 @@ const RevendedorSaldoPage = () => {
 
   useEffect(() => { if (vendedorName) reload(); }, [vendedorName]);
 
+  // Realtime: atualiza assim que a Juliana enviar/aprovar/reprovar comprovante
+  // ou registrar movimento de saldo (entrada, baixa, ajuste, estorno).
+  useEffect(() => {
+    if (!vendedorName) return;
+    const scheduleReload = () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      reloadTimer.current = window.setTimeout(() => { reload(); }, 400);
+    };
+    const channel = supabase
+      .channel(`revendedor_meu_saldo_${vendedorName}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_comprovantes', filter: `vendedor=eq.${vendedorName}` },
+        () => scheduleReload()
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_saldo_movimentos', filter: `vendedor=eq.${vendedorName}` },
+        () => scheduleReload()
+      )
+      .subscribe();
+    return () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      supabase.removeChannel(channel);
+    };
+  }, [vendedorName]);
+
   if (accessLoading) return null;
   if (!isAdminMaster && !canSeeRevendedorView) return null;
 
