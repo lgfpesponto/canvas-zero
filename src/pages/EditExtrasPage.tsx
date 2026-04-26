@@ -63,6 +63,7 @@ const EditExtrasPage = () => {
       corBridao: det.corBridao || '',
       metaisSelecionados: det.metaisSelecionados || [],
       qtdStrass: det.qtdStrass || '1',
+      qtdBolaGrande: det.qtdBolaGrande || '1',
       corRegata: det.corRegata || '',
       descBordadoRegata: det.descBordadoRegata || '',
       descricaoProduto: det.descricaoProduto || '',
@@ -112,7 +113,7 @@ const EditExtrasPage = () => {
       case 'adicionar_metais': {
         let total = 0;
         const sel = (form.metaisSelecionados || []) as string[];
-        if (sel.includes('Bola grande')) total += 15;
+        if (sel.includes('Bola grande')) total += 0.60 * (parseInt(form.qtdBolaGrande) || 1);
         if (sel.includes('Strass')) total += 0.60 * (parseInt(form.qtdStrass) || 1);
         return total;
       }
@@ -133,7 +134,7 @@ const EditExtrasPage = () => {
     revitalizador: ['tipoRevitalizador', 'quantidade'],
     kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
     gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
-    adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'numeroPedidoBotaVinculo'],
+    adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
@@ -404,7 +405,7 @@ const EditExtrasPage = () => {
             <>
               <div className="space-y-2">
                 <Label>Tipo do metal (multi seleção) *</Label>
-                {[{ label: 'Bola grande (R$ 15)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
+                {[{ label: 'Bola grande (R$ 0,60/un)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
                   <div key={item.value} className="flex items-center gap-2">
                     <Checkbox
                       checked={((form.metaisSelecionados || []) as string[]).includes(item.value)}
@@ -417,6 +418,12 @@ const EditExtrasPage = () => {
                   </div>
                 ))}
               </div>
+              {((form.metaisSelecionados || []) as string[]).includes('Bola grande') && (
+                <div>
+                  <Label>Quantidade de bola grande *</Label>
+                  <Input type="number" min="1" value={form.qtdBolaGrande || '1'} onChange={e => set('qtdBolaGrande', e.target.value)} />
+                </div>
+              )}
               {((form.metaisSelecionados || []) as string[]).includes('Strass') && (
                 <div>
                   <Label>Quantidade de strass *</Label>
@@ -533,7 +540,7 @@ const EditExtrasPage = () => {
                       </>)}
                       {extra.tipo === 'adicionar_metais' && (<>
                         <div className="space-y-2"><Label className="text-xs">Tipo do metal *</Label>
-                          {[{ label: 'Bola grande (R$ 15)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
+                          {[{ label: 'Bola grande (R$ 0,60/un)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
                             <div key={item.value} className="flex items-center gap-2">
                               <Checkbox checked={((extra.dados.metaisSelecionados || []) as string[]).includes(item.value)} onCheckedChange={(checked) => {
                                 const sel = (extra.dados.metaisSelecionados || []) as string[];
@@ -542,6 +549,9 @@ const EditExtrasPage = () => {
                             </div>
                           ))}
                         </div>
+                        {((extra.dados.metaisSelecionados || []) as string[]).includes('Bola grande') && (
+                          <div><Label className="text-xs">Qtd. bola grande *</Label><Input type="number" min="1" value={extra.dados.qtdBolaGrande || '1'} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, qtdBolaGrande: e.target.value }, true)} /></div>
+                        )}
                         {((extra.dados.metaisSelecionados || []) as string[]).includes('Strass') && (
                           <div><Label className="text-xs">Qtd. strass *</Label><Input type="number" min="1" value={extra.dados.qtdStrass || '1'} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, qtdStrass: e.target.value }, true)} /></div>
                         )}

@@ -39,18 +39,44 @@ const OrderCard = React.memo(({
             {isAdmin && <span className="text-sm text-muted-foreground ml-2">— {order.vendedor}</span>}
           </div>
           <div className="flex items-center gap-4 text-sm flex-wrap">
-            <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
-            <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
-            <span className="font-bold text-primary">{formatCurrency(order.tipoExtra ? order.preco : order.preco * order.quantidade)}</span>
-            <span className="text-xs text-muted-foreground">Qtd: {order.tipoExtra === 'bota_pronta_entrega' ? (order.extraDetalhes?.botas?.length || 1) : order.quantidade}</span>
-            <span className="text-xs text-muted-foreground">{order.diasRestantes > 0 ? `${order.diasRestantes}d úteis` : '✓'}</span>
+            {(() => {
+              const isBotaPE = order.tipoExtra === 'bota_pronta_entrega';
+              const isRevit = order.tipoExtra === 'revitalizador' || order.tipoExtra === 'kit_revitalizador';
+              const qtd = isBotaPE
+                ? (order.extraDetalhes?.botas?.length || order.quantidade || 1)
+                : (order.quantidade || 1);
+              // Bota normal e revitalizadores multiplicam preço x quantidade.
+              // Bota Pronta Entrega já guarda o total em order.preco.
+              // Demais extras: preço unitário (geralmente quantidade = 1).
+              const valor = !order.tipoExtra
+                ? order.preco * order.quantidade
+                : isRevit
+                  ? order.preco * (order.quantidade || 1)
+                  : order.preco;
+              return (
+                <>
+                  <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
+                  <span className="font-bold text-primary">{formatCurrency(valor)}</span>
+                  <span className="text-xs text-muted-foreground">Qtd: {qtd}</span>
+                  <span className="text-xs text-muted-foreground">{order.diasRestantes > 0 ? `${order.diasRestantes}d úteis` : '✓'}</span>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
 
       {isAdmin && (
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`)} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
+          <button onClick={() => {
+            const editPath = order.tipoExtra === 'cinto'
+              ? `/pedido/${order.id}/editar-cinto`
+              : order.tipoExtra
+                ? `/pedido/${order.id}/editar-extra`
+                : `/pedido/${order.id}/editar`;
+            navigate(editPath);
+          }} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
             <Pencil size={16} />
           </button>
           {canDelete && (confirmDeleteId === order.id ? (

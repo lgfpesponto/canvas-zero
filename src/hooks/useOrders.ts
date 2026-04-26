@@ -20,6 +20,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
+  const [totalProdutos, setTotalProdutos] = useState(0);
 
   const fetchOrders = useCallback(async () => {
     if (!enabled) return;
@@ -92,8 +93,8 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
       setOrders((data || []).map(dbRowToOrder));
       setCount(totalCount || 0);
 
-      // Fetch total value separately (same filters, no pagination)
-      let valueQuery = supabase.from('orders').select('preco, quantidade');
+      // Fetch total value AND total produtos separately (same filters, no pagination)
+      let valueQuery = supabase.from('orders').select('preco, quantidade, tipo_extra, extra_detalhes');
       if (filters.searchQuery) {
         valueQuery = valueQuery.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
       }
@@ -125,7 +126,18 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
 
       const { data: valueData } = await valueQuery;
       if (valueData) {
-        setTotalValue(valueData.reduce((s, o) => s + Number(o.preco) * o.quantidade, 0));
+        setTotalValue(valueData.reduce((s, o: any) => s + Number(o.preco) * o.quantidade, 0));
+        // Total de Produtos: soma quantidades reais por tipo
+        // - Bota Pronta Entrega: usa botas[].length de extra_detalhes (quando existir)
+        // - Demais: usa o.quantidade
+        setTotalProdutos(valueData.reduce((s, o: any) => {
+          if (o.tipo_extra === 'bota_pronta_entrega') {
+            const botas = o.extra_detalhes?.botas;
+            const len = Array.isArray(botas) ? botas.length : 0;
+            return s + (len > 0 ? len : (o.quantidade || 1));
+          }
+          return s + (o.quantidade || 1);
+        }, 0));
       }
     } finally {
       setLoading(false);
@@ -136,7 +148,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
 
   const totalPages = Math.ceil(count / PAGE_SIZE);
 
-  return { orders, count, totalPages, loading, totalValue, refetch: fetchOrders, pageSize: PAGE_SIZE };
+  return { orders, count, totalPages, loading, totalValue, totalProdutos, refetch: fetchOrders, pageSize: PAGE_SIZE };
 }
 
 /** Fetch all orders matching filters in batches (for PDF export) */

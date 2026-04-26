@@ -138,7 +138,7 @@ const ReportsPage = () => {
 
   // Server-side paginated orders
   const [page, setPage] = useState(1);
-  const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
+  const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, totalProdutos, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
 
   const visibleOrders = useMemo(() => {
     if (scanFilterId) return serverOrders.filter(o => o.id === scanFilterId);
@@ -604,8 +604,8 @@ const ReportsPage = () => {
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-card rounded-xl p-4 western-shadow">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Pedidos</p>
-            <p className="text-2xl font-bold">{serverCount}</p>
+            <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Produtos</p>
+            <p className="text-2xl font-bold">{totalProdutos}</p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
