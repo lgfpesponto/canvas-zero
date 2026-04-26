@@ -6,6 +6,9 @@ export interface TemplateRecord {
   id: string;
   nome: string;
   form_data: Record<string, string>;
+  sent_by?: string | null;
+  sent_by_name?: string | null;
+  seen?: boolean;
 }
 
 export function useTemplateManagement() {
@@ -20,7 +23,7 @@ export function useTemplateManagement() {
   const loadTemplates = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('order_templates')
-      .select('id, nome, form_data')
+      .select('id, nome, form_data, sent_by, sent_by_name, seen')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     setTemplates((data as any) || []);
@@ -82,6 +85,41 @@ export function useTemplateManagement() {
     setTemplateName('');
   }, []);
 
+  const sendTemplateToUsers = useCallback(async (
+    template: TemplateRecord,
+    recipientIds: string[],
+    senderId: string,
+    senderName: string,
+  ) => {
+    if (recipientIds.length === 0) return false;
+    const rows = recipientIds.map(uid => ({
+      user_id: uid,
+      nome: template.nome,
+      form_data: template.form_data,
+      sent_by: senderId,
+      sent_by_name: senderName || 'Usuário',
+      seen: false,
+    }));
+    const { error } = await supabase.from('order_templates').insert(rows as any);
+    if (error) {
+      toast.error('Erro ao enviar modelo');
+      console.error(error);
+      return false;
+    }
+    toast.success(`Modelo enviado para ${recipientIds.length} usuário${recipientIds.length > 1 ? 's' : ''}!`);
+    return true;
+  }, []);
+
+  const markTemplatesAsSeen = useCallback(async (userId: string) => {
+    await supabase
+      .from('order_templates')
+      .update({ seen: true } as any)
+      .eq('user_id', userId)
+      .eq('seen', false);
+  }, []);
+
+  const unseenCount = templates.filter(t => t.seen === false).length;
+
   return {
     templates,
     templateName,
@@ -98,5 +136,8 @@ export function useTemplateManagement() {
     deleteTemplate,
     startEditing,
     cancelEditing,
+    sendTemplateToUsers,
+    markTemplatesAsSeen,
+    unseenCount,
   };
 }

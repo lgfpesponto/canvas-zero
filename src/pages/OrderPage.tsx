@@ -6,7 +6,9 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Plus, List, Trash2, Grid3X3, Search, Pencil, Check } from 'lucide-react';
+import { Link2, X, Eye, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
@@ -421,6 +423,50 @@ const OrderPage = () => {
     await tmpl.deleteTemplate(id, user.id);
   };
 
+  /* ───── envio de modelos ───── */
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState<typeof tmpl.templates[number] | null>(null);
+  const [usersList, setUsersList] = useState<{ id: string; nome_completo: string; nome_usuario: string }[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [sendingInProgress, setSendingInProgress] = useState(false);
+
+  const openSendDialog = async (template: typeof tmpl.templates[number]) => {
+    if (!user) return;
+    setSendingTemplate(template);
+    setSelectedRecipients([]);
+    setRecipientSearch('');
+    setSendDialogOpen(true);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nome_completo, nome_usuario')
+      .neq('id', user.id)
+      .order('nome_completo', { ascending: true });
+    setUsersList((data as any) || []);
+  };
+
+  const toggleRecipient = (id: string) => {
+    setSelectedRecipients(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const confirmSendTemplate = async () => {
+    if (!user || !sendingTemplate || selectedRecipients.length === 0) return;
+    setSendingInProgress(true);
+    const ok = await tmpl.sendTemplateToUsers(
+      sendingTemplate,
+      selectedRecipients,
+      user.id,
+      user.nomeCompleto || user.nomeUsuario || 'Usuário',
+    );
+    setSendingInProgress(false);
+    if (ok) {
+      setSendDialogOpen(false);
+      setSendingTemplate(null);
+      setSelectedRecipients([]);
+    }
+  };
+
+
   /* ───── items from DB (with static fallback) ───── */
   const sortAlpha = (arr: {label:string;preco:number}[]) => {
     const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
@@ -523,6 +569,31 @@ const OrderPage = () => {
       populateFormFromTemplate(cleanedData);
     }
   }, [draftState, fichaLoading, validateFormData, populateFormFromTemplate]);
+
+  /* ───── carregar templates no mount para mostrar contador de não vistos ───── */
+  const templatesLoadedRef = useRef(false);
+  useEffect(() => {
+    if (templatesLoadedRef.current || !user) return;
+    templatesLoadedRef.current = true;
+    (async () => {
+      await tmpl.loadTemplates(user.id);
+      // Consulta direta para contar e descrever recebidos (não depende do state)
+      const { data } = await supabase
+        .from('order_templates')
+        .select('sent_by_name')
+        .eq('user_id', user.id)
+        .eq('seen', false);
+      const recebidos = (data as any[]) || [];
+      if (recebidos.length > 0) {
+        const remetentes = Array.from(new Set(recebidos.map(t => t.sent_by_name).filter(Boolean)));
+        const desc = remetentes.length === 1
+          ? `de ${remetentes[0]}`
+          : `de ${remetentes.length} usuários`;
+        toast.info(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} ${desc}`, { duration: 6000 });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleUseTemplate = (formData: Record<string, string>) => {
     tmpl.setShowTemplates(false);
@@ -921,8 +992,13 @@ const OrderPage = () => {
               <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
                 <Plus size={16} /> Criar Modelo
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { if (user) tmpl.loadTemplates(user.id); tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); }}>
+              <Button type="button" variant="outline" size="sm" className="relative" onClick={async () => { if (user) { await tmpl.loadTemplates(user.id); } tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); if (user) { await tmpl.markTemplatesAsSeen(user.id); } }}>
                 <List size={16} /> Modelos
+                {tmpl.unseenCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {tmpl.unseenCount}
+                  </span>
+                )}
               </Button>
             </>
           )}
@@ -1286,9 +1362,20 @@ const OrderPage = () => {
             return (
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
               {filtered.map(t => (
-                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3">
-                  <span className="font-semibold text-sm">{t.nome}</span>
-                  <div className="flex gap-2">
+                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm truncate">{t.nome}</span>
+                      {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
+                    </div>
+                    {t.sent_by_name && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Inbox size={11} /> Recebido de {t.sent_by_name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openSendDialog(t)} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
                     <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
@@ -1300,6 +1387,61 @@ const OrderPage = () => {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* ───── Send Template Dialog ───── */}
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar modelo</DialogTitle>
+          </DialogHeader>
+          {sendingTemplate && (
+            <p className="text-sm text-muted-foreground -mt-2">
+              Enviando: <span className="font-semibold text-foreground">{sendingTemplate.nome}</span>
+            </p>
+          )}
+          <Input
+            placeholder="Pesquisar usuário..."
+            value={recipientSearch}
+            onChange={e => setRecipientSearch(e.target.value)}
+          />
+          <div className="space-y-1 max-h-[50vh] overflow-y-auto border border-border rounded-lg p-2">
+            {usersList.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Carregando usuários...</p>
+            )}
+            {usersList
+              .filter(u => {
+                const q = recipientSearch.toLowerCase();
+                return !q || u.nome_completo?.toLowerCase().includes(q) || u.nome_usuario?.toLowerCase().includes(q);
+              })
+              .map(u => {
+                const checked = selectedRecipients.includes(u.id);
+                return (
+                  <label key={u.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer">
+                    <Checkbox checked={checked} onCheckedChange={() => toggleRecipient(u.id)} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium truncate">{u.nome_completo || u.nome_usuario}</span>
+                      {u.nome_completo && u.nome_usuario && (
+                        <span className="text-xs text-muted-foreground truncate">@{u.nome_usuario}</span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+          </div>
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {selectedRecipients.length} selecionado{selectedRecipients.length !== 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSendDialogOpen(false)} disabled={sendingInProgress}>Cancelar</Button>
+              <Button onClick={confirmSendTemplate} disabled={selectedRecipients.length === 0 || sendingInProgress}>
+                <Send size={14} /> Enviar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       {/* ───── Grade de Estoque ───── */}
       <GradeEstoque

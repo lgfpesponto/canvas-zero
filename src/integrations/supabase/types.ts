@@ -394,6 +394,9 @@ export type Database = {
           form_data: Json
           id: string
           nome: string
+          seen: boolean
+          sent_by: string | null
+          sent_by_name: string | null
           user_id: string
         }
         Insert: {
@@ -401,6 +404,9 @@ export type Database = {
           form_data?: Json
           id?: string
           nome: string
+          seen?: boolean
+          sent_by?: string | null
+          sent_by_name?: string | null
           user_id: string
         }
         Update: {
@@ -408,6 +414,9 @@ export type Database = {
           form_data?: Json
           id?: string
           nome?: string
+          seen?: boolean
+          sent_by?: string | null
+          sent_by_name?: string | null
           user_id?: string
         }
         Relationships: []
