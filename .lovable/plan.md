@@ -1,76 +1,107 @@
+
 ## Objetivo
-Adicionar uma seção **"Histórico de Impressão"** no detalhe do pedido (`OrderDetailPage`) que registra automaticamente toda vez que aquele pedido foi incluído num PDF gerado — seja Ficha de Produção individual ou qualquer relatório especializado em lote (Corte, Bordados, Forro, Pesponto, Forma, Palmilha, Metais, Escalação, Expedição, Cobrança, Extras/Cintos).
 
-## 1. Banco de dados (migration)
-Adicionar coluna **`impressoes jsonb NOT NULL DEFAULT '[]'`** na tabela `orders`.
+Garantir que **todo Modelo e Bordado cadastrado tenha preço > 0**, bloquear no admin e no formulário qualquer brecha que cause "furo" no relatório, e fazer o breakdown dos PDFs ler os preços reais do banco (não mais constantes hardcoded).
 
-Estrutura de cada entrada:
-```json
-{
-  "tipo": "Ficha de Produção" | "Corte" | "Bordados" | "Forro" | ...,
-  "data": "2026-04-26",
-  "hora": "14:32",
-  "usuario": "Juliana",
-  "total_pedidos": 12   // 1 quando é ficha individual
+A regra **só se aplica a Modelo e Bordado**. Outras categorias (couro, solado, cor de linha, etc.) continuam podendo ter preço R$ 0 — é legítimo.
+
+---
+
+## Parte 1 — Validação no admin (cadastro de variações)
+
+### Categorias que exigem preço > 0
+Identificadas pelo `slug` da categoria:
+- **Modelo**: `modelos`, `tamanho-genero-modelo`
+- **Bordado**: `bordados-cano`, `bordados-gaspea`, `bordados-taloneira`, `bordados-visual`
+
+### Regra de "Sem bordado"
+Você escolheu opção **(a)**: variações cujo nome seja exatamente `"Sem bordado"` (case-insensitive) ficam isentas e podem ter preço R$ 0. Qualquer outra variação dessas categorias precisa de preço > 0.
+
+### Onde implementar
+
+**`src/pages/AdminConfigVariacoesPage.tsx`**
+- Receber `slug` da categoria (já vem da URL) e descobrir se é categoria "obrigatória de preço".
+- Função utilitária local `requiresPrice(categoriaSlug, nomeVariacao)` retorna `true` quando precisa validar.
+- **Inline edit** (`handleInlineUpdate`): se o campo for `preco_adicional`, validar antes de chamar mutation. Se inválido → `toast.error("Modelos e Bordados precisam ter preço > 0 para evitar furo nos relatórios")` e cancelar.
+- **Bulk import** (`handleBulkConfirm`): validar cada item; se algum bordado/modelo vier sem preço, mostrar lista de inválidos e bloquear o insert inteiro.
+- **Indicador visual**: badge vermelho `⚠ sem preço` na linha de variações legadas (Modelo/Bordado com `preco_adicional = 0` e nome ≠ "Sem bordado"). Banner no topo da página com contador "X variações precisam de preço".
+
+**`src/components/admin/FichaBuilder.tsx`**
+- Ao criar campo personalizado novo, se o nome do campo bate com "modelo" ou "bordado*", validar `opcoesRaw`: cada linha precisa ter preço > 0 (exceto "Sem bordado").
+
+**`src/hooks/useCustomOptions.ts`**
+- `addOption` e `updateOption`: bloquear se `categoria` for de bordado e `preco <= 0` (e nome ≠ "Sem bordado").
+
+---
+
+## Parte 2 — Validação no formulário de pedido
+
+**Arquivos**: `src/pages/DynamicOrderPage.tsx`, `src/pages/OrderPage.tsx`, `src/pages/EditOrderPage.tsx`
+
+- Adicionar validação no submit: campo **Modelo é obrigatório** sempre. Sem modelo → bloquear com toast `"Selecione o modelo da bota antes de continuar"`.
+- Para bordados: já são selecionados (sempre tem opção "Sem bordado"). Garantir que o submit não passe sem que o vendedor tenha escolhido alguma das opções (mesmo que seja "Sem bordado").
+- A validação já existe parcialmente para `obrigatorio: true` nos `ficha_campos` — vamos reforçar para Modelo independente da flag.
+
+---
+
+## Parte 3 — Breakdown do PDF lendo do banco
+
+**Problema atual**: `SpecializedReports.tsx` e `pdfGenerators.ts` usam constantes hardcoded (`MODELOS`, `BORDADOS_CANO`, etc.) para descobrir o preço de cada componente. Variações cadastradas via admin caem em `R$ 0` na linha do breakdown (mas o total geral está correto, pois usa `order.preco`).
+
+### Solução: utilitário `priceLookup`
+
+**Novo arquivo**: `src/lib/priceLookup.ts`
+```ts
+type PriceMap = Record<string, Record<string, number>>; // categoriaSlug -> nomeNormalizado -> preço
+
+export async function loadPriceLookup(): Promise<PriceMap> {
+  // 1. SELECT em ficha_variacoes JOIN ficha_categorias (slug, nome, preco_adicional)
+  // 2. SELECT em custom_options (categoria, label, preco)
+  // 3. Mesclar em PriceMap (variacoes têm prioridade, custom_options preenche o resto)
+}
+
+export function getPrice(map: PriceMap, categoria: string, nome?: string): number {
+  if (!nome) return 0;
+  return map[categoria]?.[nome.toLowerCase().trim()] ?? 0;
 }
 ```
 
-Não precisa de RLS nova — herda a política existente de `orders` (admins podem update; vendedor pode update no próprio pedido). Como só admins geram PDFs/fichas, o `update` funcionará normalmente.
+### Refatoração nos relatórios
 
-## 2. Helper centralizado — `src/lib/printHistory.ts` (novo)
-Função `recordPrintHistory(orderIds: string[], tipo: string, userName: string)`:
-- Faz um `select id, impressoes` em `orders` filtrando os `orderIds`
-- Anexa a nova entrada (com `data`, `hora` em fuso Brasília, `usuario`, `total_pedidos = orderIds.length`) ao array
-- Faz update em batch (um por pedido — Supabase não suporta update array diferente em massa numa só query, mas usamos `Promise.all`)
-- Falha silenciosa (apenas `console.warn`) — nunca bloquear a geração do PDF
+**`src/components/SpecializedReports.tsx`**
+- Antes de gerar qualquer PDF que use `computePriceItems`, chamar `loadPriceLookup()` uma vez e passar o mapa para a função.
+- Substituir `MODELOS.find(...)?.preco` por `getPrice(map, 'modelos', o.modelo)`.
+- Substituir cada `BORDADOS_CANO.find(...)?.preco` por `getPrice(map, 'bordados-cano', o.bordadoCano)` (idem gáspea/taloneira).
+- Linha de Modelo passa a **sempre ser impressa quando `o.modelo` existe**, com o preço real do banco.
 
-## 3. Integração nos geradores
-Em **cada função** que termina com `doc.save(...)`, chamar `recordPrintHistory(...)` logo antes do save:
+**`src/lib/pdfGenerators.ts`**
+- Mesma estratégia onde houver breakdown.
 
-| Arquivo | Funções a instrumentar |
-|---|---|
-| `src/lib/pdfGenerators.ts` | `generateReportPDF`, `generateProductionSheetPDF`, `generateCommissionPDF` |
-| `src/components/SpecializedReports.tsx` | `generateEscalacaoPDF`, `generateForroPDF`, `generatePalmilhaPDF`, `generateFormaPDF`, `generateNewPespontoPDF`, `generateMetaisPDF`, `generateBordadosPDF`, `generateCortePDF`, `generateExpedicaoPDF`, `generateCobrancaPDF`, `generateExtrasCintosPDF` |
-| `src/pages/PiecesReportPage.tsx` | função de geração do PDF de peças |
-| `src/components/SoladoBoard.tsx` | função de geração do PDF do quadro |
-| `src/components/CommissionPanel.tsx` | já chama `generateCommissionPDF` (coberto via item 1) |
+### Fallback
+Se o banco não retornar preço (variação legada sem cadastro), continua usando a constante hardcoded como último recurso — assim relatórios antigos não quebram.
 
-Para passar o `userName`, ler de `useAuth().user?.user_metadata?.nome_completo` ou do profile já carregado e propagar como argumento. Onde os geradores são funções puras em `pdfGenerators.ts`, adicionar parâmetro opcional `meta?: { userName: string }`.
+---
 
-## 4. UI no detalhe do pedido — `src/pages/OrderDetailPage.tsx`
-Adicionar nova seção **abaixo de "Histórico de Alterações"**, com layout idêntico (mesmo card western-shadow, mesmo ícone `Printer` do `lucide-react`):
+## Parte 4 — Migração de dados (correção das legadas)
 
-```
-🖨 Histórico de Impressão
-────────────────────────────
-26/04/2026 às 14:32 — Ficha de Produção — Juliana
-26/04/2026 às 15:10 — Corte (12 pedidos no lote) — Fernanda
-25/04/2026 às 09:00 — Expedição (47 pedidos no lote) — Juliana
-```
+Não vou apagar nada. Vou apenas listar o que precisa de atenção via UI:
+- Hoje os dados mostram **0 modelos sem preço** ✅ e **2 bordados sem preço** (1 em Cano, 1 em Gáspea — provavelmente "Sem bordado", que é caso permitido).
+- O banner visual no admin vai destacar isso para você revisar manualmente. Nada será modificado automaticamente, conforme regra de preservação de dados.
 
-Quando `total_pedidos === 1` exibir só `Tipo`; quando `> 1` exibir `Tipo (N pedidos no lote)`.
-Estado vazio: "Nenhuma impressão registrada."
+---
 
-Tipo TypeScript adicionado ao `Order` em `AuthContext` e mapping em `dbRowToOrder` (`order-logic.ts`):
-```ts
-impressoes: (row.impressoes as any[]) || [],
-```
+## Arquivos a editar
 
-## 5. Refresh
-Após gerar o PDF, fazer `refetchOrder()` em `OrderDetailPage` se a página ativa for o detalhe — caso contrário apenas persiste no banco e aparecerá na próxima visita.
+- `src/pages/AdminConfigVariacoesPage.tsx` — validação inline + bulk + indicador visual
+- `src/components/admin/FichaBuilder.tsx` — validação ao criar ficha
+- `src/hooks/useCustomOptions.ts` — guarda em `addOption`/`updateOption`
+- `src/pages/DynamicOrderPage.tsx` + `OrderPage.tsx` + `EditOrderPage.tsx` — Modelo obrigatório no submit
+- `src/lib/priceLookup.ts` — **novo**, mapa unificado de preços
+- `src/components/SpecializedReports.tsx` — breakdown lê do banco
+- `src/lib/pdfGenerators.ts` — breakdown lê do banco
 
-## Arquivos editados
-- **Migration**: nova coluna `impressoes` em `orders`
-- **Novo**: `src/lib/printHistory.ts`
-- **Edit**: `src/lib/pdfGenerators.ts` (3 funções)
-- **Edit**: `src/components/SpecializedReports.tsx` (11 funções)
-- **Edit**: `src/pages/PiecesReportPage.tsx`
-- **Edit**: `src/components/SoladoBoard.tsx`
-- **Edit**: `src/pages/OrderDetailPage.tsx` (nova seção UI)
-- **Edit**: `src/lib/order-logic.ts` (`dbRowToOrder` lê `impressoes`)
-- **Edit**: `src/contexts/AuthContext.tsx` (tipo `Order` ganha `impressoes?: any[]`)
+## Memória a salvar
 
-## Pontos de atenção
-- **Performance**: relatórios em lote com 100+ pedidos farão 100 updates paralelos. Aceitável (RLS rápida, jsonb pequeno), mas se ficar lento podemos criar uma RPC `append_print_history(ids uuid[], entry jsonb)` em iteração futura.
-- **Fail-silent**: se o `update` falhar, o PDF já foi salvo no disco do usuário — apenas logar warning.
-- **`types.ts` do Supabase** será regenerado automaticamente após a migration.
+`mem://features/admin/required-price-categories.md` — regra: Modelo e Bordado obrigam preço > 0 (exceto "Sem bordado"); demais categorias podem ter R$ 0.
+
+`mem://features/reports/dynamic-price-breakdown.md` — relatórios consultam preços reais via `priceLookup` em vez de constantes; modelo sempre aparece quando preenchido.

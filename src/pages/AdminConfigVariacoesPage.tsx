@@ -4,7 +4,13 @@ import {
   useFichaVariacoes, useUpdateVariacao, useDeleteVariacao, useBulkInsertVariacoes,
 } from '@/hooks/useAdminConfig';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Trash2, Search } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Search, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  getCategoriaTipo,
+  requiresPositivePrice,
+  PRICE_REQUIRED_MESSAGE,
+} from '@/lib/priceValidation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +42,7 @@ export default function AdminConfigVariacoesPage() {
   const [parsed, setParsed] = useState<ParsedItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoriaNome, setCategoriaNome] = useState('');
+  const [categoriaSlug, setCategoriaSlug] = useState('');
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
@@ -45,10 +52,18 @@ export default function AdminConfigVariacoesPage() {
 
   useEffect(() => {
     if (categoriaId) {
-      supabase.from('ficha_categorias').select('nome').eq('id', categoriaId).single()
-        .then(({ data }) => { if (data) setCategoriaNome(data.nome); });
+      supabase.from('ficha_categorias').select('nome, slug').eq('id', categoriaId).single()
+        .then(({ data }) => {
+          if (data) {
+            setCategoriaNome(data.nome);
+            setCategoriaSlug(data.slug || '');
+          }
+        });
     }
   }, [categoriaId]);
+
+  const categoriaTipo = getCategoriaTipo(categoriaSlug);
+  const enforcePrice = categoriaTipo !== 'outro';
 
   if (!user) return null;
 
@@ -66,6 +81,18 @@ export default function AdminConfigVariacoesPage() {
 
   const handleBulkConfirm = () => {
     if (!categoriaId || parsed.length === 0) return;
+
+    if (enforcePrice) {
+      const invalid = parsed.filter(p => requiresPositivePrice(categoriaSlug, p.nome) && (!p.preco || p.preco <= 0));
+      if (invalid.length > 0) {
+        toast.error(
+          `${PRICE_REQUIRED_MESSAGE} Sem preço: ${invalid.slice(0, 5).map(i => `"${i.nome}"`).join(', ')}${invalid.length > 5 ? '…' : ''}`,
+          { duration: 8000 },
+        );
+        return;
+      }
+    }
+
     const startOrdem = (variacoes?.length ?? 0) + 1;
     const items = parsed.map((p, i) => ({
       categoria_id: categoriaId,
@@ -84,9 +111,27 @@ export default function AdminConfigVariacoesPage() {
     });
   };
 
-  const handleInlineUpdate = (id: string, field: 'nome' | 'preco_adicional' | 'ativo', value: string | number | boolean) => {
+  const handleInlineUpdate = (
+    id: string,
+    field: 'nome' | 'preco_adicional' | 'ativo',
+    value: string | number | boolean,
+    variacao?: { nome: string; preco_adicional: number },
+  ) => {
+    if (enforcePrice && variacao) {
+      const nextNome = field === 'nome' ? String(value) : variacao.nome;
+      const nextPreco = field === 'preco_adicional' ? Number(value) : variacao.preco_adicional;
+      if (requiresPositivePrice(categoriaSlug, nextNome) && (!nextPreco || nextPreco <= 0)) {
+        toast.error(PRICE_REQUIRED_MESSAGE);
+        return;
+      }
+    }
     updateVariacao.mutate({ id, [field]: value });
   };
+
+  const variacoesSemPreco = (variacoes ?? []).filter(v =>
+    enforcePrice && requiresPositivePrice(categoriaSlug, v.nome) && (!v.preco_adicional || v.preco_adicional <= 0)
+  );
+
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
@@ -159,6 +204,20 @@ export default function AdminConfigVariacoesPage() {
           </Dialog>
         </div>
 
+        {enforcePrice && variacoesSemPreco.length > 0 && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">
+                {variacoesSemPreco.length} variaç{variacoesSemPreco.length === 1 ? 'ão' : 'ões'} de {categoriaTipo === 'modelo' ? 'modelo' : 'bordado'} sem preço cadastrado.
+              </p>
+              <p className="text-xs opacity-80">
+                {PRICE_REQUIRED_MESSAGE} Edite o preço de cada item destacado abaixo.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -191,34 +250,43 @@ export default function AdminConfigVariacoesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredVariacoes.map(v => (
-                    <TableRow key={v.id}>
+                  {filteredVariacoes.map(v => {
+                    const semPreco = enforcePrice && requiresPositivePrice(categoriaSlug, v.nome) && (!v.preco_adicional || v.preco_adicional <= 0);
+                    return (
+                    <TableRow key={v.id} className={semPreco ? 'bg-destructive/5' : undefined}>
                       <TableCell className="text-xs text-muted-foreground">{v.ordem}</TableCell>
                       <TableCell>
-                        <Input
-                          defaultValue={v.nome}
-                          className="h-8 text-sm border-none shadow-none focus-visible:ring-1"
-                          onBlur={e => {
-                            if (e.target.value !== v.nome) handleInlineUpdate(v.id, 'nome', e.target.value);
-                          }}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            defaultValue={v.nome}
+                            className="h-8 text-sm border-none shadow-none focus-visible:ring-1"
+                            onBlur={e => {
+                              if (e.target.value !== v.nome) handleInlineUpdate(v.id, 'nome', e.target.value, v);
+                            }}
+                          />
+                          {semPreco && (
+                            <Badge variant="destructive" className="shrink-0 gap-1 text-[10px]">
+                              <AlertTriangle className="h-3 w-3" /> sem preço
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           step="0.01"
                           defaultValue={v.preco_adicional}
-                          className="h-8 text-sm border-none shadow-none focus-visible:ring-1 w-24"
+                          className={`h-8 text-sm border-none shadow-none focus-visible:ring-1 w-24 ${semPreco ? 'ring-1 ring-destructive/40' : ''}`}
                           onBlur={e => {
                             const val = parseFloat(e.target.value);
-                            if (!isNaN(val) && val !== v.preco_adicional) handleInlineUpdate(v.id, 'preco_adicional', val);
+                            if (!isNaN(val) && val !== v.preco_adicional) handleInlineUpdate(v.id, 'preco_adicional', val, v);
                           }}
                         />
                       </TableCell>
                       <TableCell className="text-center">
                         <Switch
                           checked={v.ativo}
-                          onCheckedChange={checked => handleInlineUpdate(v.id, 'ativo', checked)}
+                          onCheckedChange={checked => handleInlineUpdate(v.id, 'ativo', checked, v)}
                         />
                       </TableCell>
                       <TableCell>
@@ -238,7 +306,8 @@ export default function AdminConfigVariacoesPage() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {filteredVariacoes.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getCategoriaTipo, requiresPositivePrice, PRICE_REQUIRED_MESSAGE } from '@/lib/priceValidation';
 
 interface CampoConfig {
   id: string;
@@ -102,6 +103,16 @@ export default function FichaBuilder({ open, onOpenChange, onCreated }: Props) {
       if (!c.nome.trim()) { toast.error('Todos os campos precisam de um nome'); return; }
       if (['selecao', 'multipla'].includes(c.tipo) && !c.opcoesRaw.trim()) {
         toast.error(`O campo "${c.nome}" precisa de opções`); return;
+      }
+      // Modelo/Bordado: bloqueia opções sem preço (exceto "Sem bordado")
+      const tipoCategoria = getCategoriaTipo(c.slug || c.nome);
+      if (tipoCategoria !== 'outro' && ['selecao', 'multipla'].includes(c.tipo)) {
+        const opcoes = parseOpcoes(c.opcoesRaw);
+        const invalid = opcoes.filter(o => requiresPositivePrice(c.slug || c.nome, o.label) && (!o.preco_adicional || o.preco_adicional <= 0));
+        if (invalid.length > 0) {
+          toast.error(`${PRICE_REQUIRED_MESSAGE} Campo "${c.nome}" — sem preço: ${invalid.slice(0, 3).map(i => `"${i.label}"`).join(', ')}${invalid.length > 3 ? '…' : ''}`, { duration: 8000 });
+          return;
+        }
       }
     }
 
