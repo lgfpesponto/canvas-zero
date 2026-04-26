@@ -110,6 +110,21 @@ const AdminDashboard = () => {
     })();
   }, [chartPeriod, chartProductFilter, chartVendedorFilter]);
 
+  // Fetch comprovantes pendentes do revendedor (apenas admin_master)
+  const fetchComprovantesPendentes = useCallback(async () => {
+    if (!isAdminMaster) return;
+    const { data } = await supabase
+      .from('revendedor_comprovantes' as any)
+      .select('valor')
+      .eq('status', 'pendente');
+    if (data) {
+      const total = (data as any[]).reduce((s, c) => s + Number(c.valor || 0), 0);
+      setComprovantesRevendedor({ count: data.length, total });
+    }
+  }, [isAdminMaster]);
+
+  useEffect(() => { fetchComprovantesPendentes(); }, [fetchComprovantesPendentes]);
+
   // Solado board queries via useOrdersQuery
   const { orders: solaCouroOrders } = useOrdersQuery({
     onlyBotas: true,
