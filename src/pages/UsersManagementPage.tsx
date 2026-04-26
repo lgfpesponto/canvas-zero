@@ -299,7 +299,7 @@ const UsersManagementPage = () => {
                       <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
                         <Pencil size={14} />
                       </Button>
-                      {!isProtected(p.nome_usuario) && (
+                      {user?.role === 'admin_master' && !isProtected(p.nome_usuario) && (
                         <Button size="sm" variant="destructive" onClick={() => setDeleteProfile(p)}>
                           <Trash2 size={14} />
                         </Button>

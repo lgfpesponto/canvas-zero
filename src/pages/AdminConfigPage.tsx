@@ -96,6 +96,7 @@ export default function AdminConfigPage() {
                       key={tipo.id}
                       tipo={tipo}
                       index={i}
+                      canDelete={user.role === 'admin_master'}
                       onDelete={() => setDeleteTarget({ id: tipo.id, nome: tipo.nome })}
                     />
                   ))}
@@ -168,9 +169,10 @@ export default function AdminConfigPage() {
   );
 }
 
-function FichaTipoCard({ tipo, index, onDelete }: {
+function FichaTipoCard({ tipo, index, canDelete = false, onDelete }: {
   tipo: { id: string; slug: string; nome: string; ativo: boolean };
   index: number;
+  canDelete?: boolean;
   onDelete: () => void;
 }) {
   const navigate = useNavigate();
@@ -196,14 +198,16 @@ function FichaTipoCard({ tipo, index, onDelete }: {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={e => { e.stopPropagation(); onDelete(); }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {canDelete && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={e => { e.stopPropagation(); onDelete(); }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
               <ChevronRight
                 className="h-4 w-4 cursor-pointer text-muted-foreground"
                 onClick={() => navigate(`/admin/configuracoes/${tipo.slug}`)}

@@ -6,6 +6,7 @@ import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 interface OrderCardProps {
   order: any;
   isAdmin: boolean;
+  canDelete?: boolean;
   isSelected: boolean;
   onToggle: (id: string) => void;
   confirmDeleteId: string | null;
@@ -16,7 +17,7 @@ interface OrderCardProps {
 }
 
 const OrderCard = React.memo(({
-  order, isAdmin, isSelected, onToggle,
+  order, isAdmin, canDelete = false, isSelected, onToggle,
   confirmDeleteId, onConfirmDelete, onDelete,
   formatCurrency, formatDateBR,
 }: OrderCardProps) => {
@@ -52,7 +53,7 @@ const OrderCard = React.memo(({
           <button onClick={() => navigate(order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`)} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
             <Pencil size={16} />
           </button>
-          {confirmDeleteId === order.id ? (
+          {canDelete && (confirmDeleteId === order.id ? (
             <div className="flex items-center gap-1">
               <button onClick={() => onDelete(order.id)} className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90">Confirmar</button>
               <button onClick={() => onConfirmDelete(null)} className="px-2 py-1 rounded-lg bg-muted text-xs font-bold hover:opacity-80">Cancelar</button>
@@ -61,7 +62,7 @@ const OrderCard = React.memo(({
             <button onClick={() => onConfirmDelete(order.id)} className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors" title="Excluir pedido">
               <Trash2 size={16} />
             </button>
-          )}
+          ))}
         </div>
       )}
     </div>
