@@ -113,7 +113,7 @@ const EditExtrasPage = () => {
       case 'adicionar_metais': {
         let total = 0;
         const sel = (form.metaisSelecionados || []) as string[];
-        if (sel.includes('Bola grande')) total += 15;
+        if (sel.includes('Bola grande')) total += 0.60 * (parseInt(form.qtdBolaGrande) || 1);
         if (sel.includes('Strass')) total += 0.60 * (parseInt(form.qtdStrass) || 1);
         return total;
       }
@@ -134,7 +134,7 @@ const EditExtrasPage = () => {
     revitalizador: ['tipoRevitalizador', 'quantidade'],
     kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
     gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
-    adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'numeroPedidoBotaVinculo'],
+    adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
