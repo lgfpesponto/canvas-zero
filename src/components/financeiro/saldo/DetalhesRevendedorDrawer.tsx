@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, RotateCcw, Pencil } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, RotateCcw, Pencil, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
@@ -18,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchMovimentos, fetchBaixasVendedor, fetchPedidosCobrados, estornarBaixa,
+  quitarPedidosHistorico,
   type RevendedorMovimento, type RevendedorBaixa, type PedidoCobrado, type RevendedorSaldo,
   tipoMovimentoLabel,
 } from '@/lib/revendedorSaldo';
