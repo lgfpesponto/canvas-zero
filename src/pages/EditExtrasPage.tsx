@@ -63,6 +63,7 @@ const EditExtrasPage = () => {
       corBridao: det.corBridao || '',
       metaisSelecionados: det.metaisSelecionados || [],
       qtdStrass: det.qtdStrass || '1',
+      qtdBolaGrande: det.qtdBolaGrande || '1',
       corRegata: det.corRegata || '',
       descBordadoRegata: det.descBordadoRegata || '',
       descricaoProduto: det.descricaoProduto || '',
