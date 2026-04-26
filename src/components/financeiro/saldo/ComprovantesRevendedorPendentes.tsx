@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Building2, User } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import {
   type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
+import { EnviarComprovanteDialog } from './EnviarComprovanteDialog';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 
 interface Props {
@@ -27,10 +29,12 @@ interface Props {
   hideWhenEmpty?: boolean;
   /** Título customizado do card. */
   title?: string;
+  /** Mostra o botão "Enviar comprovante de revendedor" (admin master). */
+  showAdminUpload?: boolean;
 }
 
 export const ComprovantesRevendedorPendentes = ({
-  onChanged, hideWhenEmpty, title = 'Comprovantes a entrar (revendedores)',
+  onChanged, hideWhenEmpty, title = 'Comprovantes a entrar (revendedores)', showAdminUpload,
 }: Props) => {
   const { toast } = useToast();
   const [pendentes, setPendentes] = useState<RevendedorComprovante[]>([]);
@@ -39,6 +43,8 @@ export const ComprovantesRevendedorPendentes = ({
   const [viewerPath, setViewerPath] = useState<string | null>(null);
   const [reprovarTarget, setReprovarTarget] = useState<RevendedorComprovante | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [enviarOpen, setEnviarOpen] = useState(false);
+  const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -53,6 +59,26 @@ export const ComprovantesRevendedorPendentes = ({
   };
 
   useEffect(() => { load(); }, []);
+
+  // Realtime: atualiza a lista assim que qualquer revendedor envia/edita um comprovante
+  useEffect(() => {
+    const scheduleReload = () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      reloadTimer.current = window.setTimeout(() => { load(); }, 400);
+    };
+    const channel = supabase
+      .channel('revendedor_comprovantes_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_comprovantes' },
+        () => scheduleReload()
+      )
+      .subscribe();
+    return () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
 
   const totalPendente = useMemo(
     () => pendentes.reduce((s, c) => s + Number(c.valor || 0), 0),
@@ -96,12 +122,12 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
-  if (hideWhenEmpty && !loading && pendentes.length === 0) return null;
+  if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
     <>
       <Card id="comprovantes-revendedor" className={pendentes.length > 0 ? 'border-destructive border-2' : ''}>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex-row items-center justify-between space-y-0 gap-2">
           <div>
             <CardTitle className="text-lg">{title}</CardTitle>
             {pendentes.length > 0 && (
@@ -110,9 +136,16 @@ export const ComprovantesRevendedorPendentes = ({
               </p>
             )}
           </div>
-          {pendentes.length > 0 && (
-            <Badge variant="destructive" className="text-base px-3 py-1">{pendentes.length}</Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {showAdminUpload && (
+              <Button size="sm" variant="outline" onClick={() => setEnviarOpen(true)}>
+                <Upload size={14} className="mr-1" /> Enviar comprovante de revendedor
+              </Button>
+            )}
+            {pendentes.length > 0 && (
+              <Badge variant="destructive" className="text-base px-3 py-1">{pendentes.length}</Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -228,6 +261,14 @@ export const ComprovantesRevendedorPendentes = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {showAdminUpload && (
+        <EnviarComprovanteDialog
+          open={enviarOpen}
+          onOpenChange={setEnviarOpen}
+          onSaved={() => { load(); onChanged?.(); }}
+        />
+      )}
     </>
   );
 };

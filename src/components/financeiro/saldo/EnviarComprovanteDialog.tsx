@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, Upload, FileText, X, Building2, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,9 @@ import { Card } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
   validateComprovante, fileHash, todayISO, formatDateBR,
@@ -21,9 +24,12 @@ import { formatCurrency } from '@/lib/order-logic';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  vendedor: string;
+  /** Quando informado, o dialog envia em nome desse vendedor (modo revendedor).
+   *  Quando vazio, mostra um seletor de revendedor (modo admin). */
+  vendedor?: string;
   onSaved: () => void;
 }
+
 
 type ItemStatus = 'processing' | 'ready' | 'error' | 'saving' | 'saved';
 
@@ -55,12 +61,42 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved }: Props) => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<ExtractedItem[]>([]);
   const [savingAll, setSavingAll] = useState(false);
+  const isAdminMode = !vendedor;
+  const [selectedVendedor, setSelectedVendedor] = useState<string>('');
+  const [vendedoresList, setVendedoresList] = useState<string[]>([]);
+  const [loadingVendedores, setLoadingVendedores] = useState(false);
+  const targetVendedor = vendedor || selectedVendedor;
 
-  const reset = () => setItems([]);
+  // Carrega lista de revendedores quando o dialog abre em modo admin
+  useEffect(() => {
+    if (!open || !isAdminMode) return;
+    setLoadingVendedores(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('nome_completo')
+          .order('nome_completo', { ascending: true });
+        if (error) throw error;
+        const nomes = Array.from(new Set(
+          (data || [])
+            .map((p: any) => (p.nome_completo || '').trim())
+            .filter(Boolean)
+        ));
+        setVendedoresList(nomes);
+      } catch (e: any) {
+        toast({ title: 'Erro ao carregar revendedores', description: e.message, variant: 'destructive' });
+      } finally {
+        setLoadingVendedores(false);
+      }
+    })();
+  }, [open, isAdminMode]);
+
+  const reset = () => { setItems([]); setSelectedVendedor(''); };
 
   const close = () => {
     if (savingAll) return;
@@ -145,6 +181,10 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
 
   const handleSendAll = async () => {
     if (savingAll) return;
+    if (!targetVendedor) {
+      toast({ title: 'Escolha o revendedor antes de enviar', variant: 'destructive' });
+      return;
+    }
     const ready = items.filter(i => i.status === 'ready');
     if (ready.length === 0) {
       toast({ title: 'Nenhum comprovante pronto pra enviar', variant: 'destructive' });
@@ -180,7 +220,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         const { data: dup } = await supabase
           .from('revendedor_comprovantes' as any)
           .select('id')
-          .eq('vendedor', vendedor)
+          .eq('vendedor', targetVendedor)
           .eq('comprovante_hash', it.hash)
           .limit(1);
         if (dup && dup.length > 0) {
@@ -189,7 +229,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
 
         const path = await uploadComprovanteRevendedor(it.file);
         const { error } = await supabase.from('revendedor_comprovantes' as any).insert({
-          vendedor,
+          vendedor: targetVendedor,
           valor: it.valor,
           data_pagamento: it.data_pagamento,
           observacao: it.observacao.trim() || null,
@@ -233,9 +273,33 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Enviar comprovante(s) de pagamento</DialogTitle>
+          <DialogTitle>
+            {isAdminMode ? 'Enviar comprovante em nome de revendedor' : 'Enviar comprovante(s) de pagamento'}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {isAdminMode && (
+            <div>
+              <Label>Revendedor</Label>
+              <Select
+                value={selectedVendedor}
+                onValueChange={setSelectedVendedor}
+                disabled={savingAll || loadingVendedores}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder={loadingVendedores ? 'Carregando...' : 'Selecione o revendedor'} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {vendedoresList.map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                O comprovante será lançado em nome desse revendedor e ficará pendente para aprovação normal.
+              </p>
+            </div>
+          )}
           <div className="text-sm bg-muted rounded p-3">
             Anexe um ou mais comprovantes (PDF ou foto). O sistema lê automaticamente
             <strong> data, valor e quem recebeu</strong>. A administração confere antes de aprovar.
@@ -251,7 +315,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                 multiple
                 onChange={(e) => handleFilesSelected(e.target.files)}
                 className="cursor-pointer"
-                disabled={savingAll}
+                disabled={savingAll || (isAdminMode && !selectedVendedor)}
               />
               <p className="text-xs text-muted-foreground mt-2">
                 Aceita PDF, JPG, PNG ou foto. Tamanho máximo: 10MB cada.
