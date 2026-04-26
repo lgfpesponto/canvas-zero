@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchComprovantesPendentes, aprovarComprovante, reprovarComprovante,
+  descartarComprovantesHistorico,
   type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
