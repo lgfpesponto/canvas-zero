@@ -416,13 +416,19 @@ const OrderPage = () => {
   const handleSaveTemplate = async () => {
     if (!user) return;
     const success = await tmpl.saveTemplate(user.id, buildFormData());
-    if (success) setMode('order');
+    if (success) {
+      setMode('order');
+      resetForm();
+    }
   };
 
   const handleUpdateTemplate = async () => {
     if (!user) return;
     const success = await tmpl.updateTemplate(buildFormData());
-    if (success) setMode('order');
+    if (success) {
+      setMode('order');
+      resetForm();
+    }
   };
 
   const handleDeleteTemplate = async (id: string) => {
