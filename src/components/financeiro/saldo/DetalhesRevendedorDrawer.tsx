@@ -362,6 +362,33 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={quitarOpen} onOpenChange={(o) => { if (!o && !quitarSaving) { setQuitarOpen(false); setQuitarMotivo(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quitar pedidos como histórico</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedPedidos.size} pedido(s) · Total {formatCurrency(totalSelecionado)}.
+              Use somente para pedidos antigos que já foram pagos fora do sistema.
+              <strong className="block mt-2 text-foreground">
+                O saldo do revendedor não será alterado. O pedido sai da lista de pendentes.
+              </strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Motivo (obrigatório). Ex.: Pago antes da implantação do sistema."
+            value={quitarMotivo}
+            onChange={(e) => setQuitarMotivo(e.target.value)}
+            maxLength={500}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={quitarSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleQuitarHistorico} disabled={quitarSaving}>
+              {quitarSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Quitando...</> : 'Confirmar quitação'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
