@@ -150,8 +150,13 @@ export default function DynamicOrderPage() {
       const { error } = await supabase.from('orders').insert(row);
       if (error) throw error;
 
-      toast.success('Pedido criado com sucesso!');
-      navigate('/relatorios');
+      toast.success(`Pedido ${numero} lançado em Meus Pedidos!`, { position: 'bottom-right' });
+      // Reset form
+      setValues({});
+      setQuantidade(1);
+      setPrecoBase(0);
+      setObservacao('');
+      setCliente('');
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Erro ao criar pedido');
