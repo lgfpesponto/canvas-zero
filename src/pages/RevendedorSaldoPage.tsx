@@ -83,7 +83,7 @@ const RevendedorSaldoPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Total enviado</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">{formatCurrency(saldo?.total_recebido || 0)}</p>
