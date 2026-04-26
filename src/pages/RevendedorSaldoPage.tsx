@@ -12,8 +12,7 @@ import { formatCurrency } from '@/lib/order-logic';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
 import {
   fetchSaldoVendedor, fetchComprovantes, fetchPedidosCobrados, fetchBaixasVendedor,
-  type RevendedorSaldo, type RevendedorComprovante, type PedidoCobrado, type RevendedorBaixa,
-  statusLabel,
+  type RevendedorSaldo, type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from '@/components/financeiro/saldo/EnviarComprovanteDialog';
