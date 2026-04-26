@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, Upload, FileText, X, Building2, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,9 @@ import { Card } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
   validateComprovante, fileHash, todayISO, formatDateBR,
@@ -21,9 +24,12 @@ import { formatCurrency } from '@/lib/order-logic';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  vendedor: string;
+  /** Quando informado, o dialog envia em nome desse vendedor (modo revendedor).
+   *  Quando vazio, mostra um seletor de revendedor (modo admin). */
+  vendedor?: string;
   onSaved: () => void;
 }
+
 
 type ItemStatus = 'processing' | 'ready' | 'error' | 'saving' | 'saved';
 
