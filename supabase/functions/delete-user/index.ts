@@ -39,13 +39,14 @@ Deno.serve(async (req) => {
 
     const callerId = claimsData.claims.sub as string;
 
-    // Check admin role (any admin)
-    const { data: isAdmin } = await anonClient.rpc("is_any_admin", {
+    // Check role: only admin_master can delete users
+    const { data: isMaster } = await anonClient.rpc("has_role", {
       _user_id: callerId,
+      _role: "admin_master",
     });
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
+    if (!isMaster) {
+      return new Response(JSON.stringify({ error: "Forbidden: only admin_master can delete users" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
