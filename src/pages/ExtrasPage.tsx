@@ -654,7 +654,7 @@ const ExtrasPage = () => {
                     </>)}
                     {extra.tipo === 'adicionar_metais' && (<>
                       <div className="space-y-2"><Label className="text-xs">Tipo do metal *</Label>
-                        {[{ label: 'Bola grande (R$ 15)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
+                        {[{ label: 'Bola grande (R$ 0,60/un)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
                           <div key={item.value} className="flex items-center gap-2">
                             <Checkbox checked={((extra.dados.metaisSelecionados || []) as string[]).includes(item.value)} onCheckedChange={(checked) => {
                               const sel = (extra.dados.metaisSelecionados || []) as string[];
@@ -663,6 +663,9 @@ const ExtrasPage = () => {
                           </div>
                         ))}
                       </div>
+                      {((extra.dados.metaisSelecionados || []) as string[]).includes('Bola grande') && (
+                        <div><Label className="text-xs">Qtd. bola grande *</Label><Input type="number" min="1" value={extra.dados.qtdBolaGrande || '1'} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, qtdBolaGrande: e.target.value }, true)} /></div>
+                      )}
                       {((extra.dados.metaisSelecionados || []) as string[]).includes('Strass') && (
                         <div><Label className="text-xs">Qtd. strass *</Label><Input type="number" min="1" value={extra.dados.qtdStrass || '1'} onChange={e => updateExtraDadosFn(eIdx, { ...extra.dados, qtdStrass: e.target.value }, true)} /></div>
                       )}
