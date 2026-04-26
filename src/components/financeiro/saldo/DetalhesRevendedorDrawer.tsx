@@ -190,13 +190,32 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
 
           {/* Pedidos pendentes */}
           <section className="mt-6">
-            <h3 className="font-semibold mb-2 text-sm uppercase text-muted-foreground">Pedidos cobrados pendentes (FIFO)</h3>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <h3 className="font-semibold text-sm uppercase text-muted-foreground">Pedidos cobrados pendentes (FIFO)</h3>
+              {selectedPedidos.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedPedidos.size} sel · {formatCurrency(totalSelecionado)}
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => setQuitarOpen(true)}>
+                    <Archive size={14} className="mr-1" /> Quitar como histórico
+                  </Button>
+                </div>
+              )}
+            </div>
             {filaPedidos.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum pedido cobrado em aberto.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8">
+                      <Checkbox
+                        checked={allPedSelected ? true : somePedSelected ? 'indeterminate' : false}
+                        onCheckedChange={togglePedAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead>Nº</TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -205,7 +224,14 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
                 </TableHeader>
                 <TableBody>
                   {filaPedidos.map(p => (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} data-state={selectedPedidos.has(p.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedPedidos.has(p.id)}
+                          onCheckedChange={() => togglePedOne(p.id)}
+                          aria-label="Selecionar"
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{p.numero}</TableCell>
                       <TableCell className="text-xs">
                         {p.tipo_extra || p.modelo || '—'} {p.tamanho ? `· ${p.tamanho}` : ''}
