@@ -967,8 +967,13 @@ const OrderPage = () => {
               <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
                 <Plus size={16} /> Criar Modelo
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { if (user) tmpl.loadTemplates(user.id); tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); }}>
+              <Button type="button" variant="outline" size="sm" className="relative" onClick={async () => { if (user) { await tmpl.loadTemplates(user.id); } tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); if (user) { await tmpl.markTemplatesAsSeen(user.id); } }}>
                 <List size={16} /> Modelos
+                {tmpl.unseenCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {tmpl.unseenCount}
+                  </span>
+                )}
               </Button>
             </>
           )}
