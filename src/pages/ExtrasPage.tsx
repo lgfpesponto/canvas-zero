@@ -530,7 +530,7 @@ const ExtrasPage = () => {
           <>
             <div className="space-y-2">
               <Label>Tipo do metal (multi seleção) *</Label>
-              {[{ label: 'Bola grande (R$ 15)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
+              {[{ label: 'Bola grande (R$ 0,60/un)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
                 <div key={item.value} className="flex items-center gap-2">
                   <Checkbox
                     checked={(form.metaisSelecionados as string[]).includes(item.value)}
@@ -543,6 +543,12 @@ const ExtrasPage = () => {
                 </div>
               ))}
             </div>
+            {(form.metaisSelecionados as string[]).includes('Bola grande') && (
+              <div>
+                <Label>Quantidade de bola grande *</Label>
+                <Input type="number" min="1" value={form.qtdBolaGrande} onChange={e => set('qtdBolaGrande', e.target.value)} />
+              </div>
+            )}
             {(form.metaisSelecionados as string[]).includes('Strass') && (
               <div>
                 <Label>Quantidade de strass *</Label>
