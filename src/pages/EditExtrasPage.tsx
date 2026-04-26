@@ -196,7 +196,7 @@ const EditExtrasPage = () => {
       extraDetalhes: detalhes,
     });
     toast.success('Pedido atualizado com sucesso!');
-    navigate(`/pedido/${order.id}`, { replace: true });
+    navigate(`/pedido/${order.id}${fotoParam ? '?foto=1' : ''}`, { replace: true });
   };
 
   const price = calcPrice();
