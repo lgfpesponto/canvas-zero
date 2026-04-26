@@ -4,10 +4,11 @@ import { Check, CheckSquare, ChevronDown, ChevronUp, Download, Filter, Maximize2
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
+import { PRODUCTION_STATUSES, useAuth } from '@/contexts/AuthContext';
 import type { Order } from '@/contexts/AuthContext';
 import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
+import { recordPrintHistory } from '@/lib/printHistory';
 
 interface SoladoBoardProps {
   title: string;
@@ -84,6 +85,8 @@ const drawBlockLayout = (doc: jsPDF, startY: number, mx: number, block: BlockDat
 };
 
 const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
+  const { user } = useAuth();
+  const userName = user?.nomeCompleto || '';
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -208,6 +211,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
     });
 
     stampPageNumbers(doc);
+    void recordPrintHistory(visibleOrders.map(o => o.id), `Quadro Solado: ${title}`, userName);
     doc.save(`${title.toLowerCase().replace(/\s+/g, '-')}-${dateStr.replace(/\//g, '-')}.pdf`);
   };
 

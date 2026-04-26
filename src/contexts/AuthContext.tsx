@@ -93,6 +93,7 @@ export interface Order {
   fotos: string[];
   historico: { data: string; hora: string; local: string; descricao: string; observacao?: string }[];
   alteracoes: OrderAlteracao[];
+  impressoes?: { tipo: string; data: string; hora: string; usuario: string; total_pedidos: number }[];
   laserCano?: string;
   corGlitterCano?: string;
   laserGaspea?: string;

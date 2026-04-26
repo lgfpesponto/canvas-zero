@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { generateCommissionPDF } from '@/lib/pdfGenerators';
+import { useAuth } from '@/contexts/AuthContext';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -30,6 +31,7 @@ interface CommissionPanelProps {
 }
 
 const CommissionPanel = ({ orders }: CommissionPanelProps) => {
+  const { user } = useAuth();
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -82,7 +84,7 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const handleGeneratePDF = () => {
-    generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth));
+    generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth), { userName: user?.nomeCompleto || '' });
   };
 
   return (

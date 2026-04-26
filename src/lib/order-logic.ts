@@ -155,6 +155,7 @@ export function dbRowToOrder(row: any): Order {
     fotos: (row.fotos as string[]) || [],
     historico: (row.historico as any[]) || [],
     alteracoes: (row.alteracoes as any[]) || [],
+    impressoes: (row.impressoes as any[]) || [],
     laserCano: row.laser_cano || undefined,
     corGlitterCano: row.cor_glitter_cano || undefined,
     laserGaspea: row.laser_gaspea || undefined,

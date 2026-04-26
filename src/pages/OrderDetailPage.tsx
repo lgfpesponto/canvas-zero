@@ -7,7 +7,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -427,6 +427,33 @@ const OrderDetailPage = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Histórico de Impressão */}
+          <div className="mb-8">
+            <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
+              <Printer size={18} /> Histórico de Impressão
+            </h2>
+            {(!order.impressoes || order.impressoes.length === 0) ? (
+              <p className="text-sm text-muted-foreground">Nenhuma impressão registrada.</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {[...order.impressoes].reverse().map((p, i) => (
+                  <div key={i} className="border-b border-border/30 pb-2 flex flex-wrap items-baseline gap-x-2">
+                    <p className="text-xs text-muted-foreground">{formatDateBR(p.data)} às {p.hora}</p>
+                    <p className="text-sm font-semibold">
+                      {p.tipo}
+                      {p.total_pedidos > 1 && (
+                        <span className="text-xs font-normal text-muted-foreground ml-1">
+                          ({p.total_pedidos} pedidos no lote)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">— {p.usuario}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Detalhes */}

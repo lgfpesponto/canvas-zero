@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import { orderBarcodeValue } from '@/contexts/AuthContext';
+import { recordPrintHistory } from '@/lib/printHistory';
 
 /**
  * Stamps "Página X-Y" in the top-right corner of every page.
@@ -55,7 +56,7 @@ function barcodeDataUrl(value: string, opts?: { width?: number; height?: number 
   } catch { return ''; }
 }
 
-export function generateReportPDF(ordersToExport: any[]) {
+export function generateReportPDF(ordersToExport: any[], meta?: { userName: string }) {
   const doc = new jsPDF();
   const list = ordersToExport.slice().sort((a, b) => {
     const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
@@ -86,10 +87,11 @@ export function generateReportPDF(ordersToExport: any[]) {
   doc.text(`Total de Pedidos: ${list.length}`, 14, y + 5);
   doc.text(`Valor Total: ${formatCurrency(list.reduce((s, o) => s + o.preco * o.quantidade, 0))}`, 14, y + 12);
   stampPageNumbers(doc);
+  void recordPrintHistory(list.map(o => o.id), 'Relatório de Pedidos', meta?.userName || '');
   doc.save('relatorio-pedidos.pdf');
 }
 
-export async function generateProductionSheetPDF(ordersToExport: any[]) {
+export async function generateProductionSheetPDF(ordersToExport: any[], meta?: { userName: string }) {
   const list = ordersToExport.slice().sort((a, b) => {
     const prioA = getCouroSortKey(a.couroCano || '');
     const prioB = getCouroSortKey(b.couroCano || '');
@@ -563,10 +565,11 @@ export async function generateProductionSheetPDF(ordersToExport: any[]) {
   const hh = String(now.getHours()).padStart(2, '0');
   const min = String(now.getMinutes()).padStart(2, '0');
   stampPageNumbers(doc);
+  void recordPrintHistory(ordersToExport.map((o: any) => o.id), 'Ficha de Produção', meta?.userName || '');
   doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
 }
 
-export function generateCommissionPDF(orders: { id: string; numero: string; dataCriacao: string }[], monthLabel: string) {
+export function generateCommissionPDF(orders: { id: string; numero: string; dataCriacao: string }[], monthLabel: string, meta?: { userName: string }) {
   const doc = new jsPDF();
   const COMMISSION_PER_SALE = 10;
 
@@ -629,5 +632,6 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 
   const [yearStr, monthStr] = monthLabel.includes(' ') ? [monthLabel.split(' ')[1], monthLabel.split(' ')[0]] : ['', ''];
   stampPageNumbers(doc);
+  void recordPrintHistory(orders.map(o => o.id), 'Comissão', meta?.userName || '');
   doc.save(`Comissão - Rancho Chique - ${monthStr}-${yearStr}.pdf`);
 }
