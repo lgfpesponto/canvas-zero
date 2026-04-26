@@ -1,271 +1,107 @@
 
-# Plano — Saldo do Revendedor + Baixa Automática em "Cobrado"
+## Objetivo
 
-> **Escopo restrito**: somente o módulo Financeiro. Nada do sistema de pedidos, fichas, relatórios, dashboards, comissão ou produção é alterado. A coluna `status` da tabela `orders` continua intocada — a baixa por saldo é registrada em **tabelas paralelas novas**, sem mexer no fluxo atual de "Cobrado → Pago" feito pelos admins.
-> 
-> **Visibilidade controlada**: apenas `admin_master` (Juliana / login `7estrivos`) e a vendedora **Stefany** (`stefany`, role `vendedor`) enxergam a nova aba. Todos os outros revendedores continuam sem acesso ao Financeiro.
+Replicar o fluxo de upload da Juliana (extração automática via IA) para os revendedores autorizados, e fazer com que **a aprovação do comprovante do revendedor**:
 
----
+1. Crie um lançamento real em **Financeiro › A Receber** (com tipo Empresa/Fornecedor decidido pelo CNPJ extraído).
+2. Credite o saldo do revendedor (já funciona).
+3. Dispare a baixa automática FIFO dos pedidos cobrados (já funciona).
 
-## Parte 1 — Modelo de dados (migrations)
+E mostrar para o admin 7estrivos um **card destacado no dashboard** com a contagem e valor total de comprovantes a entrar, com link "Aprovar agora" indo direto pra aba Saldo.
 
-Quatro tabelas novas. Nada existente é alterado.
-
-### 1.1 `revendedor_saldo_movimentos`
-Toda entrada e saída de dinheiro do revendedor passa por essa tabela — fonte única de verdade do saldo.
-
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | uuid PK | |
-| `vendedor` | text | Nome do revendedor (mesmo padrão da `orders.vendedor`) |
-| `tipo` | text CHECK in (`'entrada_comprovante'`, `'baixa_pedido'`, `'ajuste_admin'`, `'estorno'`) | |
-| `valor` | numeric | Sempre positivo. Sinal vem do `tipo` (entrada soma, baixa/estorno subtraem) |
-| `descricao` | text | Livre (motivo do ajuste, etc.) |
-| `comprovante_id` | uuid NULL | FK lógico p/ `revendedor_comprovantes` quando `tipo='entrada_comprovante'` |
-| `order_id` | uuid NULL | FK lógico p/ `orders` quando `tipo='baixa_pedido'` |
-| `saldo_anterior` | numeric | Snapshot p/ auditoria |
-| `saldo_posterior` | numeric | Snapshot p/ auditoria |
-| `created_by` | uuid | `auth.uid()` de quem gerou o lançamento |
-| `created_at` | timestamptz default now() | |
-
-Índices: `(vendedor, created_at desc)`, `(order_id)`, `(comprovante_id)`.
-
-### 1.2 `revendedor_comprovantes`
-Comprovantes enviados pelo revendedor, aguardando aprovação.
-
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | uuid PK | |
-| `vendedor` | text | |
-| `valor` | numeric | Valor declarado pelo revendedor |
-| `data_pagamento` | date | |
-| `observacao` | text NULL | |
-| `comprovante_url` | text | path no bucket `financeiro/revendedor-saldo/...` |
-| `comprovante_hash` | text | SHA-256 (anti-duplicata, igual à lógica atual de `checkDuplicates`) |
-| `status` | text CHECK in (`'pendente'`, `'aprovado'`, `'reprovado'`) default `'pendente'` | |
-| `motivo_reprovacao` | text NULL | |
-| `enviado_por` | uuid | `auth.uid()` do revendedor |
-| `aprovado_por` | uuid NULL | `auth.uid()` do admin |
-| `aprovado_em` | timestamptz NULL | |
-| `created_at` | timestamptz default now() | |
-
-Quando aprovado, o sistema cria automaticamente uma linha `entrada_comprovante` em `revendedor_saldo_movimentos` e dispara a tentativa de baixa nos pedidos pendentes (Parte 4).
-
-### 1.3 `revendedor_baixas_pedido`
-Registro 1:1 das baixas integrais — um pedido só pode aparecer aqui uma única vez (constraint `UNIQUE(order_id)`).
-
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | uuid PK | |
-| `order_id` | uuid UNIQUE | FK lógico para `orders.id` |
-| `vendedor` | text | snapshot na hora da baixa |
-| `valor_pedido` | numeric | snapshot de `preco * quantidade` |
-| `movimento_id` | uuid | FK p/ `revendedor_saldo_movimentos` (a linha de saída de saldo) |
-| `created_at` | timestamptz default now() | |
-
-A presença de uma linha aqui é o que indica **"pedido pago via saldo do revendedor"** — nunca alteramos `orders.status`.
-
-### 1.4 `revendedor_saldo_visibilidade`
-Lista de revendedores com acesso ao novo módulo (controle de visibilidade enquanto está em teste).
-
-| Coluna | Tipo |
-|---|---|
-| `id` | uuid PK |
-| `vendedor` | text UNIQUE |
-| `ativo` | boolean default true |
-| `created_at` | timestamptz |
-
-Seed inicial: `INSERT INTO revendedor_saldo_visibilidade (vendedor) VALUES ('stefany ribeiro feliciano');` — Stefany será a única revendedora liberada na fase de teste.
-
-### 1.5 RLS — políticas
-
-Todas as tabelas com RLS habilitado.
-
-- **`revendedor_saldo_movimentos`**:
-  - SELECT: `is_any_admin(auth.uid())` OU `vendedor = (SELECT nome_completo FROM profiles WHERE id = auth.uid())`
-  - INSERT/UPDATE: apenas `admin_master` (todas as inserções vêm de fluxo controlado)
-  - DELETE: bloqueado (auditoria imutável)
-- **`revendedor_comprovantes`**:
-  - SELECT: admin OU `enviado_por = auth.uid()` OU `vendedor = nome_completo do auth.uid()`
-  - INSERT: o próprio revendedor (`enviado_por = auth.uid()` AND `vendedor = nome_completo do auth.uid()`)
-  - UPDATE: apenas `admin_master` (aprovar/reprovar)
-  - DELETE: apenas `admin_master`
-- **`revendedor_baixas_pedido`**: SELECT igual ao movimento; INSERT/UPDATE/DELETE só admin_master
-- **`revendedor_saldo_visibilidade`**: SELECT autenticado (precisa pra UI saber se mostra a aba); INSERT/UPDATE/DELETE só admin_master
-
-### 1.6 Bucket de storage
-Reutilizo o bucket existente `financeiro` com prefixo novo `revendedor-saldo/{uuid}.{ext}`. Políticas do bucket já permitem upload autenticado; RLS no banco garante que o revendedor só veja os comprovantes dele.
+Nada do fluxo já existente da Juliana é alterado — só estendido.
 
 ---
 
-## Parte 2 — Funções de banco (lógica atômica de baixa)
+## 1. Tela do revendedor (`RevendedorSaldoPage` + `EnviarComprovanteDialog`)
 
-### 2.1 `aprovar_comprovante_revendedor(_comprovante_id uuid)`
-SECURITY DEFINER, só executável por admin_master. Em uma transação:
-1. Marca o comprovante como `aprovado`, grava `aprovado_por` e `aprovado_em`.
-2. Calcula o saldo atual do vendedor (soma dos movimentos).
-3. Insere `entrada_comprovante` em `revendedor_saldo_movimentos` com `saldo_anterior`/`saldo_posterior`.
-4. Chama `tentar_baixa_automatica(_vendedor)`.
+**Substituir** o dialog atual de envio (que pede valor + data + observação manualmente) por um fluxo **idêntico ao da Juliana em A Receber**:
 
-### 2.2 `tentar_baixa_automatica(_vendedor text)`
-SECURITY DEFINER. Lógica de quitação **integral**:
+- Campo de upload **multi-arquivo** (PDF + imagens), drag-and-drop.
+- Para cada arquivo:
+  - Chama `extract-comprovante` (edge function que já existe).
+  - Mostra card com status: `processing → ready → saving → saved` (ou `error` com botão "tentar novamente").
+  - Quando `ready`, exibe valor + data **somente leitura** (revendedor não edita — vai ser conferido pela admin).
+  - Campo opcional "Observação" (livre).
+  - Botão X pra remover do lote.
+- Botão "Enviar N comprovante(s)" no rodapé:
+  - Faz upload dos arquivos pra `financeiro/revendedor-saldo/`.
+  - Insere N linhas em `revendedor_comprovantes` com `status='pendente'`, valor + data extraídos pela IA, observação digitada.
+  - Mantém checagem de duplicata por hash (já existe).
 
-```
-saldo := saldo_atual(_vendedor)
-SELECT pedidos pendentes do vendedor:
-  - status = 'Cobrado'
-  - id NOT IN (SELECT order_id FROM revendedor_baixas_pedido)
-  ORDER BY data_criacao ASC, created_at ASC  -- mais antigo primeiro (FIFO)
+Vendedor é fixo (`vendedorName` do hook de acesso) — revendedor nunca escolhe.
 
-PARA CADA pedido p:
-  valor_p := p.preco * p.quantidade
-  SE saldo >= valor_p:
-    INSERT em revendedor_saldo_movimentos (tipo='baixa_pedido', valor=valor_p, order_id=p.id, saldo_anterior, saldo_posterior)
-    INSERT em revendedor_baixas_pedido (order_id=p.id, valor_pedido=valor_p, movimento_id=...)
-    saldo -= valor_p
-  SENÃO:
-    -- pedido fica como "parcialmente coberto" virtualmente:
-    -- nada é gravado, ele aparece na UI com saldo restante mostrando quanto falta
-    BREAK  -- não pula pra próximo (preserva ordem FIFO)
-```
+## 2. Painel do admin — aba Financeiro › A Receber
 
-**Regra de ouro implementada**: nenhuma baixa parcial é gravada. Se o saldo cobre 4 botas mas não a 5ª, somente as 4 são baixadas. A 5ª aparece com "faltam R$ X" calculado em tempo real (saldo restante < valor do pedido).
+**Adicionar uma nova seção no topo da aba "A Receber"** chamada **"Comprovantes a entrar (revendedores)"**:
 
-> **Decisão de FIFO**: pedidos mais antigos são quitados primeiro. Isso evita a tentação do sistema "pular" um pedido caro pra quitar dois pequenos atrás, o que distorce o fluxo. Caso prefira a regra "tentar maximizar quantidade de pedidos quitados", ajusto antes de implementar — me avise.
+- Lista todos os `revendedor_comprovantes` com `status='pendente'`.
+- Cada linha mostra:
+  - Revendedor (quem mandou)
+  - Data do pagamento (extraída IA)
+  - Valor (extraído IA)
+  - **Pagador detectado** (nome + CNPJ que a IA extraiu — preview do que será o destinatário).
+  - **Tipo sugerido**: badge "Empresa" se o CNPJ bater com `02139487000113` (Leandro Garcia Feliciano), senão "Fornecedor".
+  - Observação do revendedor.
+  - Botão "Ver anexo" (PDF/imagem viewer já existe).
+  - Botão **"Confirmar entrada"** (verde) e **"Reprovar"** (vermelho).
 
-### 2.3 `ajustar_saldo_admin(_vendedor text, _delta numeric, _descricao text)`
-SECURITY DEFINER, só admin_master. Insere `ajuste_admin` (positivo ou negativo) com `descricao` obrigatória. Dispara `tentar_baixa_automatica` se delta > 0.
+**O que muda no banco** quando admin clica em "Confirmar entrada":
 
-### 2.4 `reprovar_comprovante_revendedor(_id uuid, _motivo text)`
-SECURITY DEFINER, só admin_master. Marca como reprovado, grava motivo. Não cria movimento.
+- Estender a função RPC `aprovar_comprovante_revendedor(_comprovante_id)` para também:
+  1. Inserir uma linha em `financeiro_a_receber` com:
+     - `vendedor` = nome do revendedor que mandou
+     - `data_pagamento` = data do comprovante
+     - `valor` = valor do comprovante
+     - `tipo` = 'empresa' se CNPJ pagador = `02139487000113`, senão 'fornecedor'
+     - `destinatario` = 'Empresa' se tipo=empresa, senão nome do pagador extraído
+     - `descricao` = "Comprovante de revendedor — [observação]"
+     - `comprovante_url` = mesma URL do anexo (reutiliza o arquivo já no storage)
+     - `comprovante_hash` = mesmo hash
+  2. Continuar fazendo o que já faz: inserir movimento `entrada_comprovante`, atualizar saldo, rodar `tentar_baixa_automatica`.
 
-### 2.5 `estornar_baixa(_baixa_id uuid, _motivo text)`
-SECURITY DEFINER, só admin_master. Para corrigir baixas indevidas:
-- Insere movimento `estorno` (devolve o valor ao saldo)
-- Apaga a linha de `revendedor_baixas_pedido` (libera o pedido pra ser baixado de novo)
-- Tudo gravado com `descricao = motivo`
+Para isso preciso adicionar duas colunas em `revendedor_comprovantes`:
+- `pagador_nome text` — nome extraído pela IA (preenchido no envio)
+- `pagador_documento text` — CNPJ/CPF extraído pela IA (normalizado, só dígitos)
+- `tipo_detectado text` — 'empresa' | 'fornecedor' calculado no envio
 
-### 2.6 View `vw_revendedor_saldo`
-View `SELECT vendedor, sum(CASE tipo WHEN 'entrada_comprovante' THEN valor WHEN 'ajuste_admin' THEN valor WHEN 'estorno' THEN -valor WHEN 'baixa_pedido' THEN -valor END) AS saldo_disponivel, sum(...) AS total_recebido, sum(...) AS total_utilizado FROM revendedor_saldo_movimentos GROUP BY vendedor`.
+Esses campos são populados **no momento do envio** (front roda `extract-comprovante` antes do insert e armazena o resultado), pra a função RPC só consultar.
 
-Usada pelos cards de resumo na UI.
+**Reprovação** continua igual ao que já existe (motivo obrigatório, não cria nada em A Receber).
 
----
+## 3. Dashboard 7estrivos (`AdminDashboard`)
 
-## Parte 3 — Visibilidade da aba
+- Adicionar **card destacado** no topo do dashboard (só pra `admin_master`), borda destrutiva quando `count > 0`:
+  - Título: "Comprovantes a entrar"
+  - Contagem (N comprovantes)
+  - Valor total somado
+  - Botão "Aprovar agora" → navega pra `/financeiro` aba `receber` (URL: `/financeiro?tab=receber#comprovantes-revendedor`).
+- Faz uma RPC simples ou query direta em `revendedor_comprovantes` filtrando `status='pendente'` (RLS já permite admin ver tudo).
 
-`src/contexts/AuthContext.tsx` já expõe `role` e `user`. Adiciono um novo hook `useFinanceiroSaldoAccess()` que:
-1. Se `role === 'admin_master'` → acesso total.
-2. Senão, consulta `revendedor_saldo_visibilidade` cruzando com o `nome_completo` do profile do usuário.
-3. Retorna `{ canSeeAdminView, canSeeRevendedorView, vendedorName }`.
+## 4. Arquivos a alterar/criar
 
-`src/components/Header.tsx`:
-- O link "FINANCEIRO" já aparece só para `isJuliana` (admin_master). **Adiciono** uma condição extra: se `useFinanceiroSaldoAccess().canSeeRevendedorView`, também aparece — mas levando para uma rota diferente (`/financeiro/saldo`) com a visão limitada do revendedor.
+**Migração SQL**:
+- `ALTER TABLE revendedor_comprovantes ADD COLUMN pagador_nome text, pagador_documento text, tipo_detectado text`.
+- Recriar função `aprovar_comprovante_revendedor` para também inserir em `financeiro_a_receber` com mapeamento Empresa/Fornecedor pelo CNPJ.
 
-`src/pages/FinanceiroPage.tsx`:
-- Adiciono uma terceira aba **"Saldo do Revendedor"** (visível só para admin_master) ao lado de "A Receber" e "A Pagar".
+**Edição de código**:
+- `src/components/financeiro/saldo/EnviarComprovanteDialog.tsx` → reescrever pra usar fluxo multi-arquivo + IA (espelhando lógica de `FinanceiroAReceber`).
+- `src/lib/revendedorSaldo.ts` → adicionar campos `pagador_nome`, `pagador_documento`, `tipo_detectado` no tipo `RevendedorComprovante`.
+- `src/components/financeiro/FinanceiroAReceber.tsx` → adicionar bloco "Comprovantes a entrar (revendedores)" no topo, antes da tabela atual. Reutiliza `ComprovanteViewer` e RPCs já existentes.
+- `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx` → manter como está (continua mostrando a fila de aprovação na aba "Saldo do revendedor"; a aprovação a partir dali continua funcionando porque a RPC vai estender o comportamento).
+- `src/components/dashboard/AdminDashboard.tsx` → adicionar card "Comprovantes a entrar" no topo com link.
+- `src/pages/FinanceiroPage.tsx` → ler `?tab=` da URL pra abrir a aba certa quando vier do dashboard.
 
-Nova rota `/financeiro/saldo` (página `RevendedorSaldoPage.tsx`) — visão simplificada para o revendedor (Stefany).
+## 5. Sem regressão
 
----
+- Fluxo da Juliana em A Receber permanece **intacto** — ela continua podendo lançar manualmente recebimentos como hoje.
+- Fluxo do saldo do revendedor (FIFO, baixa integral, auditoria) **mantido** — só passa a também espelhar em A Receber quando for aprovado via revendedor.
+- Comprovantes lançados manualmente pela Juliana (no fluxo dela) **não** entram na fila do revendedor.
+- Os comprovantes pendentes ficam visíveis em **dois lugares** pro admin: na aba "A Receber" (novo bloco) e na aba "Saldo do revendedor" (já existe). A aprovação pode ser feita em qualquer um dos dois — efeito é o mesmo.
 
-## Parte 4 — UI: Painel do Admin (`FinanceiroSaldoRevendedor.tsx`)
+## 6. Pontos a confirmar antes de executar
 
-Componente novo, montado dentro da nova aba em `FinanceiroPage`. Acessível só para `admin_master`.
-
-**Layout:**
-1. **Resumo geral** (cards): total recebido (todos), total utilizado em baixas, saldo disponível agregado, comprovantes pendentes de aprovação (badge contador).
-2. **Tabela: Comprovantes pendentes** — vendedor, valor, data, observação, anexo (visualizar via `ComprovanteViewer` existente), botões Aprovar / Reprovar (com motivo). Aprovar dispara o RPC `aprovar_comprovante_revendedor`.
-3. **Tabela: Saldo por revendedor** — vendedor, total recebido, total utilizado, saldo disponível, total pendente em pedidos cobrados (calculado), botão "Detalhes" abre drawer com:
-   - Lista de movimentos (extrato cronológico inverso)
-   - Lista de baixas realizadas (pedido, valor, data, link pra ficha)
-   - Lista de pedidos pendentes (cobrados, ordenados FIFO) com indicador "faltam R$ X" no primeiro que não dá pra quitar
-   - Botão "Ajustar saldo" (abre dialog, exige motivo)
-   - Botão "Estornar baixa" em cada linha de baixa (com confirmação)
-4. **Filtro de visibilidade**: cards/tabela permitem filtrar por revendedor.
-
-Reuso de componentes: `Card`, `Table`, `Dialog`, `AlertDialog`, `ComprovanteViewer`, `formatCurrency`.
-
----
-
-## Parte 5 — UI: Painel do Revendedor (`RevendedorSaldoPage.tsx`)
-
-Página em rota `/financeiro/saldo`. Para teste, só Stefany abre — mas o componente já fica pronto para qualquer revendedor adicionado em `revendedor_saldo_visibilidade`.
-
-**Layout:**
-1. **Cards de resumo**:
-   - Saldo total recebido
-   - Saldo já utilizado em baixas
-   - **Saldo disponível** (em destaque)
-2. **Botão grande "Enviar comprovante"** — abre dialog com:
-   - Upload (PDF ou imagem; reusa `validateComprovante`)
-   - Valor pago
-   - Data do pagamento
-   - Observação (opcional)
-   - Submit insere em `revendedor_comprovantes` com `status='pendente'`
-   - Anti-duplicata por hash (mesma lógica do `checkDuplicates` atual)
-3. **Tabela: Meus comprovantes** — data, valor, status (badge: pendente / aprovado / reprovado), motivo (se reprovado), link pro arquivo.
-4. **Tabela: Meus pedidos cobrados** — lista pedidos do próprio vendedor com status `'Cobrado'`:
-   - Número, descrição (modelo + tamanho), valor total, valor abatido (sempre 0 ou valor integral — nunca parcial), valor restante, status visual:
-     - **Pago via saldo** (verde) — existe linha em `revendedor_baixas_pedido`
-     - **Aguardando saldo** (amarelo) — sem baixa, valor cabe no saldo restante mas é o próximo da fila
-     - **Parcialmente coberto** (laranja) — sem baixa, faltam R$ X pra quitar (mostra exato)
-     - **Pendente** (cinza) — sem baixa, sem saldo suficiente
-5. **Tabela: Histórico de baixas** — pedido, valor, data, comprovante de origem (rastreabilidade).
-
-O revendedor **não enxerga** dados de outros revendedores (garantido por RLS no banco, não só na UI).
-
----
-
-## Parte 6 — Auditoria
-
-Toda operação já é auditada por design via `revendedor_saldo_movimentos`:
-- `entrada_comprovante` → quem enviou (via `revendedor_comprovantes.enviado_por`), quem aprovou (`aprovado_por`), data, valor, saldo antes/depois
-- `baixa_pedido` → pedido vinculado (`order_id`), valor, saldo antes/depois, `created_by` (admin que aprovou o comprovante que gerou a baixa, ou que ajustou)
-- `ajuste_admin` → quem fez (`created_by`), motivo (`descricao`), saldo antes/depois
-- `estorno` → quem fez, motivo
-
-Na tela admin, o drawer "Detalhes do revendedor" mostra esse histórico bruto na ordem cronológica inversa, com tradução amigável dos tipos.
-
----
-
-## Parte 7 — O que NÃO é alterado (garantia)
-
-- ✅ Tabela `orders` — nenhuma coluna nova, nenhum trigger, nenhuma mudança em status. O fluxo "Cobrado → Pago" manual continua existindo paralelamente.
-- ✅ `financeiro_a_receber` e `financeiro_a_pagar` — intactos.
-- ✅ Comissão (`CommissionPanel.tsx`), relatórios, dashboards, fichas, produção — nenhum arquivo tocado.
-- ✅ Header só ganha a condição extra de visibilidade; navegação e estilos preservados.
-
----
-
-## Arquivos a criar
-
-- `supabase/migrations/{timestamp}_revendedor_saldo.sql` — 4 tabelas + RLS + 5 funções + view + seed da Stefany
-- `src/lib/revendedorSaldo.ts` — helpers TS (tipos, fetchers, RPCs)
-- `src/hooks/useFinanceiroSaldoAccess.ts` — controle de visibilidade
-- `src/hooks/useRevendedorSaldo.ts` — query + mutações (com TanStack Query)
-- `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx` — painel admin
-- `src/components/financeiro/saldo/ComprovantesPendentes.tsx` — tabela de aprovação
-- `src/components/financeiro/saldo/SaldoPorRevendedor.tsx` — tabela agregada
-- `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx` — drawer com extrato
-- `src/components/financeiro/saldo/AjusteSaldoDialog.tsx`
-- `src/components/financeiro/saldo/EnviarComprovanteDialog.tsx`
-- `src/pages/RevendedorSaldoPage.tsx` — visão do revendedor
-- Memória: `mem://features/financeiro/saldo-revendedor.md` documentando a regra de baixa integral, FIFO e visibilidade restrita
-
-## Arquivos a editar
-
-- `src/pages/FinanceiroPage.tsx` — terceira aba (admin)
-- `src/components/Header.tsx` — visibilidade condicional do link
-- `src/App.tsx` — nova rota `/financeiro/saldo`
-- `mem://index.md` — referência ao novo memo
-
----
-
-## Pontos de decisão (assumidos — me corrija antes da execução se algum estiver errado)
-
-1. **Ordem de baixa**: FIFO por data de criação do pedido (mais antigo primeiro). Alternativa seria "maximizar quantidade de pedidos quitados" ou "deixar admin escolher manualmente".
-2. **Vinculação do vendedor ao login**: usar `profiles.nome_completo` para casar com `orders.vendedor` e `revendedor_saldo_movimentos.vendedor`. É como o resto do sistema já faz hoje.
-3. **Pedidos elegíveis**: somente status `'Cobrado'` entram na fila de baixa automática. Pedidos `'Entregue'`, `'Pago'` e outros ficam fora — confirmando que o admin marca como "Cobrado" quando começa a cobrar do revendedor.
-4. **Bucket**: reutilizar `financeiro` com prefixo `revendedor-saldo/` em vez de criar bucket novo.
-5. **Reprovação**: motivo é obrigatório. Comprovante reprovado fica visível pro revendedor com o motivo.
+- ✅ Revendedor **só anexa** + observação opcional. Valor/data extraídos pela IA, não editáveis pelo revendedor (admin valida).
+- ✅ Tipo Empresa = CNPJ `02139487000113` (Leandro Garcia Feliciano). Qualquer outro CNPJ/CPF = Fornecedor com nome do pagador detectado.
+- ✅ Card no topo do dashboard 7estrivos com contagem + valor + botão "Aprovar agora" → leva pra aba A Receber.
+- ✅ Aprovação cria automaticamente o registro em A Receber + credita saldo + dispara baixa FIFO.
