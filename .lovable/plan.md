@@ -1,78 +1,96 @@
 
 
-## Adicionar status "Cancelado" com motivo obrigatório
+## Restringir exclusões apenas ao admin_master (Juliana)
+
+### Problema
+
+Hoje várias políticas RLS e checagens de UI permitem que **qualquer admin** (`admin_master` + `admin_producao`) apague registros via `is_any_admin(auth.uid())`. Você quer que **só a Juliana** (`admin_master`, login `7estrivos`) consiga apagar qualquer coisa.
 
 ### Investigação realizada
 
-- Status são listados em `src/lib/order-logic.ts` (4 constantes: `PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER`, `EXTRAS_STATUSES`, `BELT_STATUSES`).
-- Mudança de status acontece em **dois lugares apenas**:
-  1. `src/pages/ReportsPage.tsx` — modal "Mudar Progresso de Produção" (linhas 711-753). Já tem um campo "Observação (opcional)" em textarea.
-  2. `src/pages/OrderDetailPage.tsx` — barra de seleção em massa (linhas 282-321). Não tem campo de observação hoje.
-- **Importante**: hoje **não existe** modal que peça motivo obrigatório ao mover para "Aguardando". O que existe é o campo "Observação (opcional)" no modal do ReportsPage. Vou implementar o motivo **obrigatório só para "Cancelado"** (que é o que faz sentido), seguindo o padrão visual desse mesmo modal.
+Olhando o schema atual, as seguintes políticas de **DELETE** usam `is_any_admin()` e precisam virar `has_role(auth.uid(), 'admin_master')`:
+
+| Tabela | Política DELETE atual |
+|---|---|
+| `orders` | `Admins can delete orders` → is_any_admin |
+| `deleted_orders` | `Admins can delete deleted orders` → is_any_admin |
+| `custom_options` | `Admins can delete` → is_any_admin |
+| `ficha_tipos` | `Admins can delete ficha_tipos` → is_any_admin |
+| `ficha_categorias` | `Admins can delete ficha_categorias` → is_any_admin |
+| `ficha_campos` | `Admins can delete ficha_campos` → is_any_admin |
+| `ficha_variacoes` | `Admins can delete ficha_variacoes` → is_any_admin |
+| `ficha_workflow` | `Admins can delete ficha_workflow` → is_any_admin |
+| `status_etapas` | `Admins can delete status_etapas` → is_any_admin |
+| `gravata_stock` | `Admins can delete stock` → is_any_admin |
+| `user_roles` | `Admins can delete roles` → is_any_admin |
+
+`profiles` já não permite DELETE pra ninguém — fica como está. `financeiro_*` já é só `admin_master`. `verification_codes` é só do próprio usuário. `order_templates` é só do dono — pessoal, fica.
 
 ### Mudanças
 
-**1. `src/lib/order-logic.ts`** — adicionar `"Cancelado"` ao final das 4 listas:
-
-```ts
-PRODUCTION_STATUSES = [..., "Pago", "Cancelado"];
-PRODUCTION_STATUSES_USER = [..., "Pago", "Cancelado"];  // admin only ainda
-EXTRAS_STATUSES = [..., "Pago", "Cancelado"];
-BELT_STATUSES = [..., "Pago", "Cancelado"];
-```
-
-`PRODUCTION_STATUSES_IN_PROD` **não** muda (cancelado não é "em produção"), então não entra nos contadores.
-
-**2. `src/pages/ReportsPage.tsx`** — no modal "Mudar Progresso":
-- Quando o status escolhido for `"Cancelado"`, transformar a textarea atual em **obrigatória**:
-  - Trocar label para "Motivo do cancelamento *"
-  - Trocar placeholder para "Ex: cliente desistiu, pedido duplicado..."
-  - Desabilitar botão OK enquanto vazio
-  - Em `handleBulkProgressUpdate`, gravar no histórico: `"Cancelado: <motivo>"` em vez do texto padrão.
-- Para outros status, comportamento original mantido (observação opcional).
-
-**3. `src/pages/OrderDetailPage.tsx`** — barra de bulk (linhas 282-321):
-- Mesmo tratamento: quando `bulkStatus === 'Cancelado'`, abrir um pequeno prompt (ou expandir um input inline) pedindo motivo obrigatório antes de salvar. Sem motivo, não salva.
-- Histórico recebe `"Cancelado: <motivo>"`.
-
-**4. Exclusão de cancelados em métricas/relatórios**:
-- `get_sales_chart` (RPC) — adicionar `AND status <> 'Cancelado'` na CTE `filtered`. **Migration necessária.**
-- `AdminDashboard` — verificar contadores de "pedidos pendentes" e excluir cancelados onde aplicável (vou inspecionar ao implementar).
-- `CommissionPanel` — excluir cancelados das contagens de comissão.
-- Relatórios PDF (Corte, Pesponto, Bordados, etc.) — naturalmente saem porque os filtros de status atuais não incluem "Cancelado". Sem mudança.
-- Lista "Meus Pedidos" — cancelados continuam visíveis (data preservation), com badge cinza pelo `statusColors` default.
-
-### Migration SQL
+**1. Migration SQL** — recriar todas as políticas DELETE acima trocando `is_any_admin(auth.uid())` por `has_role(auth.uid(), 'admin_master'::app_role)`:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_sales_chart(...)
--- adicionar na CTE filtered:
-AND o.status <> 'Cancelado'
+-- exemplo (replicar para as 11 tabelas)
+DROP POLICY "Admins can delete orders" ON public.orders;
+CREATE POLICY "Only admin_master can delete orders"
+  ON public.orders FOR DELETE TO authenticated
+  USING (has_role(auth.uid(), 'admin_master'::app_role));
 ```
 
-### Arquivos editados
+Depois disso, mesmo que o frontend mande um DELETE como `admin_producao`, o banco bloqueia. Essa é a camada **forte** de segurança.
 
-- `src/lib/order-logic.ts` — 4 listas
-- `src/pages/ReportsPage.tsx` — modal "Mudar Progresso" (motivo obrigatório quando Cancelado)
-- `src/pages/OrderDetailPage.tsx` — bulk bar (motivo obrigatório quando Cancelado)
-- `src/components/CommissionPanel.tsx` — excluir cancelados
-- Migration SQL — `get_sales_chart`
+**2. Camada de UI** (esconder botões pra `admin_producao`)
+
+Vou inspecionar e ajustar (procurando por `onDelete`, `handleDelete`, ícones `Trash2`, `useDelete*` em):
+- `src/pages/AdminConfigPage.tsx` — desativar/excluir fichas
+- `src/pages/AdminConfigFichaPage.tsx` — excluir categorias/campos/variações
+- `src/pages/UsersManagementPage.tsx` — excluir usuários (já passa pela edge function `delete-user`)
+- `src/pages/ReportsPage.tsx` / `OrderDetailPage.tsx` — exclusão em massa de pedidos
+- `src/components/admin/FichaBuilder.tsx`
+- Componentes de financeiro (já é só admin_master, ok)
+
+Padrão que vou usar:
+```tsx
+const canDelete = user?.role === 'admin_master';
+{canDelete && <Button onClick={onDelete}><Trash2 /></Button>}
+```
+
+Pra `admin_producao` o botão de lixeira simplesmente não aparece, evitando frustração ("cliquei e deu erro").
+
+**3. Edge function `delete-user`** — adicionar checagem manual no início:
+```ts
+// só admin_master pode chamar
+const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', callerId);
+if (!roles?.some(r => r.role === 'admin_master')) {
+  return new Response('Forbidden', { status: 403 });
+}
+```
 
 ### O que NÃO mexo
 
-- Banco da tabela `orders` (status é texto livre, aceita "Cancelado" sem migration de schema)
-- RLS / permissões (admins já podem mudar status)
-- Pedidos existentes
-- Outros status
+- Políticas SELECT/INSERT/UPDATE — `admin_producao` continua com acesso normal pra ler, criar e editar.
+- `profiles` (já bloqueado pra DELETE).
+- `financeiro_*` (já é só admin_master).
+- `order_templates` (cada um apaga o próprio).
+- `verification_codes` (cada um apaga os próprios).
+- Função `is_any_admin` — continua existindo pra outras checagens não-DELETE.
+
+### Considerações importantes
+
+- **Cuidado com cascatas**: hoje `useDeleteCategoria` (em `useAdminConfig.ts`) faz `delete from ficha_variacoes` antes de `delete from ficha_categorias`. Como ambas só serão permitidas pra admin_master, segue funcionando — mas pra admin_producao vai falhar silenciosamente. Por isso a camada UI (esconder botão) é essencial.
+- **Pedidos cancelados (`Cancelado`)**: a regra de "data preservation" se mantém — admin_producao continua podendo **mover pra Cancelado** (UPDATE), mas só Juliana pode **DELETAR de fato**.
+- **Bulk delete de pedidos**: hoje qualquer admin pode fazer no `OrderDetailPage`/`ReportsPage`. Vou esconder o botão pra admin_producao.
 
 ### Validação (você faz depois)
 
-1. Selecionar pedidos → "Mudar Progresso" → escolher "Cancelado" → tentar salvar sem motivo → botão fica bloqueado.
-2. Preencher motivo → salvar → conferir histórico mostra `"Cancelado: <motivo>"`.
-3. Conferir que o pedido cancelado aparece na lista com badge cinza, **não conta** no gráfico de vendas e **não aparece** em relatórios de produção.
-4. Mudar para outros status (Aguardando, Corte, etc.) → comportamento original (observação opcional) mantido.
+1. Logar como Fernanda (`admin_producao`) → tentar excluir uma ficha/pedido/usuário → botão de lixeira não aparece em lugar nenhum.
+2. Logar como Juliana (`admin_master` / `7estrivos`) → continua com todos os botões de exclusão funcionando normalmente.
+3. Tentar `DELETE` direto via SQL como admin_producao (cenário de segurança) → bloqueado pelo RLS.
 
-### Pergunta antes de implementar
+### Pergunta
 
-**Quem pode cancelar?** Mesmo padrão dos outros status (admins via modal de mudança de progresso) ou só `admin_master`? Por padrão vou seguir o atual (admins em geral) — me avise se quiser restringir.
+Tem algum caso específico onde admin_producao **precisa** apagar (ex: algum status, algum dado de produção)? Pelo que entendi, **nada** — só Juliana. Confirma?
+
+Aprovar pra eu implementar a migration + ajustes de UI.
 
