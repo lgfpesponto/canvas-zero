@@ -1,111 +1,112 @@
-
 ## Objetivo
 
-1. Permitir à Juliana (`admin_master`) **regularizar o histórico** quitando pedidos cobrados antigos (que já foram pagos fora do sistema) **sem mexer no saldo**.
-2. Permitir descartar comprovantes pendentes **antigos** que já foram conferidos fora do sistema (sem aprovar nem creditar saldo).
-3. Garantir que comprovantes lançados pela Juliana em nome do revendedor apareçam **em tempo real** no painel "Meu Saldo" desse revendedor.
+Quando um admin (Juliana ou Fernanda) editar qualquer campo de um pedido que já tenha atingido status **Entregue**, **Cobrado** ou **Pago**, o vendedor dono do pedido recebe uma notificação no sino do dashboard. Ao clicar, vai direto para o detalhe do pedido e a notificação some/marca como lida.
 
 ---
 
-## 1. Banco — duas novas RPCs (admin_master)
+## 1) Banco de dados (migração)
 
-### `quitar_pedidos_historico(_order_ids uuid[], _motivo text)`
-- Valida `has_role(auth.uid(), 'admin_master')`.
-- Para cada pedido:
-  - Pula se já tem registro em `revendedor_baixas_pedido` (idempotente).
-  - Cria movimento em `revendedor_saldo_movimentos` com **tipo `ajuste_admin`**, `valor = preco × quantidade`, `saldo_anterior = saldo_posterior` (não mexe no saldo) e descrição `"[QUITAÇÃO HISTÓRICA] " || _motivo`.
-  - Insere em `revendedor_baixas_pedido` (`order_id`, `vendedor`, `valor_pedido`, `movimento_id`).
-- Retorna `jsonb` com `quitados`, `pulados`.
-- Motivo é obrigatório (auditoria).
+### Nova tabela `order_notificacoes`
+- `id uuid pk default gen_random_uuid()`
+- `order_id uuid not null` — referencia o pedido
+- `vendedor text not null` — nome completo do vendedor dono no momento da alteração (filtro de leitura)
+- `numero text not null` — número do pedido (snapshot, pra exibir mesmo se mudar)
+- `descricao text not null` — texto humano da alteração (ex.: "Alterado Cor do Cano de \"Preto\" para \"Marrom\"")
+- `status_no_momento text not null` — Entregue/Cobrado/Pago (pra contexto)
+- `lida boolean not null default false`
+- `lida_em timestamptz`
+- `created_at timestamptz not null default now()`
+- `created_by uuid` — admin que fez a edição (auditoria)
 
-### `descartar_comprovantes_historico(_ids uuid[], _motivo text)`
-- Valida `admin_master`.
-- Atualiza cada comprovante pendente para `status = 'reprovado'`, `motivo_reprovacao = "[DESCARTE HISTÓRICO] " || _motivo`, `aprovado_por = auth.uid()`, `aprovado_em = now()`.
-- Não cria movimento, não credita saldo, não espelha em A Receber.
-- Retorna `jsonb` com `descartados`.
+Índices: `(vendedor, lida, created_at desc)` e `(order_id)`.
 
-Ambas com `SECURITY DEFINER` e `SET search_path = public`, seguindo o padrão das outras RPCs do módulo.
+### RLS
+- **SELECT**: `vendedor = current_user_nome_completo()` OU `is_any_admin(auth.uid())` (admin pode ler pra debug; sino só renderiza se não-admin).
+- **UPDATE** (marcar lida): só o próprio dono — `vendedor = current_user_nome_completo()` e somente alterando colunas `lida`/`lida_em` (garantido via RPC `marcar_notificacao_lida`).
+- **INSERT**: bloqueado direto (`with check false`) — apenas via RPC SECURITY DEFINER.
+- **DELETE**: só `admin_master`.
 
----
+### RPCs (SECURITY DEFINER, search_path=public)
+1. **`registrar_alteracoes_pos_entrega(_order_id uuid, _descricoes text[])`**
+   - Lê o pedido; se `status` ∈ ('Entregue','Cobrado','Pago') E `vendedor` não vazio E `vendedor <> 'Estoque'`, insere uma linha por descrição.
+   - Caso contrário, não faz nada (no-op silencioso).
+   - Chamada pelo client logo após `updateOrder` quando há mudanças.
 
-## 2. Frontend — Quitação histórica de pedidos cobrados
+2. **`marcar_notificacao_lida(_id uuid)`**
+   - Valida que `vendedor = current_user_nome_completo()`.
+   - Seta `lida=true, lida_em=now()`.
 
-**Arquivo: `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx`**
+3. **`marcar_todas_notificacoes_lidas()`** (opcional, pra botão "marcar tudo como lido" no popover, se decidirmos manter — mas o gatilho de leitura é "ao clicar", então este fica como apoio).
 
-Na seção **"Pedidos cobrados pendentes (FIFO)"**:
-- Adicionar coluna de checkbox por linha (somente admin_master).
-- Header com checkbox "selecionar todos" + botão **"Marcar como já quitado (histórico)"** que abre AlertDialog.
-- AlertDialog explica que essa ação **não mexe no saldo** e exige um motivo (textarea obrigatório, ex.: "Pago antes da implantação do sistema").
-- Ao confirmar → chama `quitar_pedidos_historico` com os ids selecionados → `reload()` + `onChanged()`.
-- Toast com quantidade quitada.
-
-Adicionar wrapper na lib `src/lib/revendedorSaldo.ts`:
-```ts
-export async function quitarPedidosHistorico(orderIds: string[], motivo: string)
-export async function descartarComprovantesHistorico(ids: string[], motivo: string)
-```
-
----
-
-## 3. Frontend — Descarte de comprovantes pendentes antigos
-
-**Arquivo: `src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx`**
-
-- Adicionar coluna de checkbox por linha + checkbox no header.
-- Quando há ≥ 1 selecionado, exibir barra de ação no topo do card com:
-  - Texto "N selecionado(s)"
-  - Botão **"Descartar como histórico"** (variant outline) → abre AlertDialog com textarea de motivo obrigatório.
-- AlertDialog deixa claro: "Use somente para comprovantes antigos que já foram conferidos fora do sistema. Não credita saldo nem cria lançamento em A Receber."
-- Ao confirmar → chama `descartarComprovantesHistorico` → recarrega via realtime + `onChanged?.()`.
-- Os botões de Aprovar/Reprovar individuais continuam funcionando normalmente.
+### Realtime
+- `ALTER TABLE order_notificacoes REPLICA IDENTITY FULL;`
+- Adicionar à publication `supabase_realtime`.
 
 ---
 
-## 4. Realtime no painel "Meu Saldo" do revendedor
+## 2) Frontend
 
-**Arquivo: `src/pages/RevendedorSaldoPage.tsx`**
-
-- Adicionar `useEffect` que assina canal Supabase Realtime em `revendedor_comprovantes` filtrado pelo `vendedorName` atual:
+### `src/contexts/AuthContext.tsx` — `updateOrder`
+- Após o `supabase.from('orders').update(...)`, se `changes.length > 0` E o pedido (estado **anterior**, já lido em `current`) tinha `status ∈ {Entregue, Cobrado, Pago}`, chamar:
   ```ts
-  supabase.channel(`revendedor_meu_saldo_${vendedorName}`)
-    .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'revendedor_comprovantes', filter: `vendedor=eq.${vendedorName}` },
-        () => scheduleReload())
+  await supabase.rpc('registrar_alteracoes_pos_entrega', {
+    _order_id: id,
+    _descricoes: changes.map(c => c.descricao),
+  });
   ```
-- Também assina `revendedor_saldo_movimentos` (mesmo filtro) — assim, quando a Juliana aprova, o saldo e o card "A pagar" também se atualizam ao vivo.
-- Debounce de ~400ms (mesmo padrão usado em `ComprovantesRevendedorPendentes`).
-- A tabela `revendedor_comprovantes` já está no realtime publication (migração anterior). Vamos **adicionar `revendedor_saldo_movimentos`** ao publication na mesma migração desta tarefa.
+- A RPC ignora se status mudar pra antes de Entregue (por segurança), mas o gate principal é client-side usando `current.status`.
+- Não dispara para vendedor "Estoque" (regra já existente de pedido interno).
+
+### Novo hook `src/hooks/useNotificacoes.ts`
+- Expõe: `{ notificacoes, naoLidas, loading, marcarLida(id), marcarTodasLidas() }`.
+- Lê de `order_notificacoes` filtrado por `vendedor = user.nomeCompleto`, ordenado `created_at desc`, limit 50.
+- Subscribe realtime no canal `order_notificacoes` filtrado por vendedor → recarrega/insere ao receber INSERT/UPDATE.
+- Não roda para admin (retorna lista vazia).
+
+### Novo componente `src/components/NotificacoesBell.tsx`
+- Ícone sino (lucide `Bell`) com badge de contagem `naoLidas` (some quando 0).
+- Popover (`@/components/ui/popover`) abre lista das últimas 20:
+  - Cada item: `numero` em destaque, `descricao` truncada em 2 linhas, `created_at` relativo ("há 5 min"), bolinha azul se não lida.
+  - Ao clicar: chama `marcarLida(id)` e `navigate('/pedido/'+order_id)`.
+  - Vazio: mensagem "Nenhuma notificação".
+  - Rodapé: link "Marcar todas como lidas" (chama RPC).
+- Estilizado com tokens existentes (sem cores hardcoded fora do design system).
+
+### `src/components/Header.tsx`
+- Renderizar `<NotificacoesBell />` à esquerda do botão "SAIR" no desktop e dentro do menu mobile.
+- Só renderizar para usuários **não-admin** (`!isAdmin`) e logados (escopo definido).
+
+### Comportamento "ao clicar leva ao pedido"
+- O Popover do sino fecha ao clicar no item; navegação usa `react-router` `useNavigate`.
+- `OrderDetailPage` já existe na rota `/pedido/:id` — sem alteração necessária ali.
 
 ---
 
-## 5. Migração SQL (resumo)
+## 3) Casos cobertos / não cobertos
 
-```sql
--- 1. Habilita realtime em saldo_movimentos
-ALTER TABLE public.revendedor_saldo_movimentos REPLICA IDENTITY FULL;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.revendedor_saldo_movimentos;
+**Cobertos** (gatilho: edição de campos via `updateOrder`):
+- Edições feitas em `EditOrderPage`, `EditExtrasPage`, reatribuição de vendedor, aplicação de desconto em `OrderDetailPage`, qualquer outra chamada a `updateOrder`.
 
--- 2. RPC: quitar pedidos históricos (sem mexer no saldo)
-CREATE OR REPLACE FUNCTION public.quitar_pedidos_historico(_order_ids uuid[], _motivo text)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ ... $$;
-
--- 3. RPC: descartar comprovantes pendentes históricos
-CREATE OR REPLACE FUNCTION public.descartar_comprovantes_historico(_ids uuid[], _motivo text)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ ... $$;
-```
+**Não cobertos** (por decisão de escopo):
+- Mudança apenas de status (não dispara — só edição de campos).
+- Pedidos do vendedor "Estoque".
+- Notificação para admins.
 
 ---
 
-## Arquivos editados
+## 4) Memória (mem://)
 
-- **Migração SQL nova** (RPCs + realtime publication)
-- `src/lib/revendedorSaldo.ts` (2 novos wrappers)
-- `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx` (seleção + ação de quitação histórica)
-- `src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx` (seleção + descarte em massa)
-- `src/pages/RevendedorSaldoPage.tsx` (realtime sync)
+Adicionar em `mem://features/notificacoes/sino-vendedor.md`:
+- Notificações por edição em `orders.alteracoes` quando status já é Entregue/Cobrado/Pago.
+- Tabela `order_notificacoes` com RLS por `current_user_nome_completo()`; INSERT bloqueado, só via RPC `registrar_alteracoes_pos_entrega`.
+- Realtime ativo. Sino renderizado apenas para não-admins. "Lida" ao clicar no item.
 
-## Comportamentos preservados
+E referência no `mem://index.md` (sessão Memories).
 
-- Aprovação normal de comprovantes continua creditando saldo + espelhando em A Receber + disparando FIFO.
-- Reprovação individual com motivo continua existindo (descarte é um atalho em massa).
-- RLS / permissões: todas as ações novas exigem `admin_master`.
+---
+
+## 5) Riscos / observações
+
+- A captura do estado anterior do pedido para decidir se dispara depende de `current.status` lido **antes** do update. Já está disponível em `updateOrder`.
+- O RPC tem checagem redundante do status pra evitar inserções erradas se a chamada vier desatualizada.
+- `replica identity full` em `order_notificacoes` é necessário pro realtime entregar UPDATEs (marcar lida) — mas como o feed do vendedor depende mais de INSERTs, mesmo sem isso o sino funciona em tempo real para novas notificações.
