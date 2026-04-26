@@ -2062,8 +2062,18 @@ export default function AdminConfigFichaPage() {
     });
   };
 
+  const canDelete = user?.role === 'admin_master';
+
   return (
-    <div className="min-h-screen bg-background px-4 py-8 md:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 md:px-8" data-can-delete={canDelete ? 'true' : 'false'}>
+      {!canDelete && (
+        <style>{`
+          [data-can-delete="false"] .bg-destructive,
+          [data-can-delete="false"] button.text-destructive,
+          [data-can-delete="false"] button .lucide-trash-2 { display: none !important; }
+          [data-can-delete="false"] button:has(> .lucide-trash-2) { display: none !important; }
+        `}</style>
+      )}
       <motion.div
         initial={{ opacity: 0, x: -12 }}
         animate={{ opacity: 1, x: 0 }}
