@@ -363,6 +363,11 @@ const EditOrderPage = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!modelo) {
+      toast.error('Selecione o modelo da bota antes de continuar.');
+      return;
+    }
+
     // Check for duplicate order number if changed
     if (numeroPedido !== order.numero) {
       const { supabase } = await import('@/integrations/supabase/client');
