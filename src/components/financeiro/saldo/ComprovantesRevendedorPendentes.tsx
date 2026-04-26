@@ -122,12 +122,12 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
-  if (hideWhenEmpty && !loading && pendentes.length === 0) return null;
+  if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
     <>
       <Card id="comprovantes-revendedor" className={pendentes.length > 0 ? 'border-destructive border-2' : ''}>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex-row items-center justify-between space-y-0 gap-2">
           <div>
             <CardTitle className="text-lg">{title}</CardTitle>
             {pendentes.length > 0 && (
@@ -136,9 +136,16 @@ export const ComprovantesRevendedorPendentes = ({
               </p>
             )}
           </div>
-          {pendentes.length > 0 && (
-            <Badge variant="destructive" className="text-base px-3 py-1">{pendentes.length}</Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {showAdminUpload && (
+              <Button size="sm" variant="outline" onClick={() => setEnviarOpen(true)}>
+                <Upload size={14} className="mr-1" /> Enviar comprovante de revendedor
+              </Button>
+            )}
+            {pendentes.length > 0 && (
+              <Badge variant="destructive" className="text-base px-3 py-1">{pendentes.length}</Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
