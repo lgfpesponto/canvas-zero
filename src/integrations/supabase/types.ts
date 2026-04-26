@@ -963,6 +963,10 @@ export type Database = {
       }
       current_user_nome_completo: { Args: never; Returns: string }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
+      descartar_comprovantes_historico: {
+        Args: { _ids: string[]; _motivo: string }
+        Returns: Json
+      }
       estornar_baixa_revendedor: {
         Args: { _baixa_id: string; _motivo: string }
         Returns: undefined
@@ -1086,6 +1090,10 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      quitar_pedidos_historico: {
+        Args: { _motivo: string; _order_ids: string[] }
+        Returns: Json
+      }
       reprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string; _motivo: string }
         Returns: undefined

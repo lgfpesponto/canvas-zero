@@ -182,6 +182,24 @@ export async function estornarBaixa(baixaId: string, motivo: string) {
   if (error) throw error;
 }
 
+export async function quitarPedidosHistorico(orderIds: string[], motivo: string) {
+  const { data, error } = await supabase.rpc('quitar_pedidos_historico' as any, {
+    _order_ids: orderIds,
+    _motivo: motivo,
+  });
+  if (error) throw error;
+  return data as { quitados: number; pulados: number };
+}
+
+export async function descartarComprovantesHistorico(ids: string[], motivo: string) {
+  const { data, error } = await supabase.rpc('descartar_comprovantes_historico' as any, {
+    _ids: ids,
+    _motivo: motivo,
+  });
+  if (error) throw error;
+  return data as { descartados: number };
+}
+
 export async function fetchVisibilidade(): Promise<{ vendedor: string; ativo: boolean }[]> {
   const { data, error } = await supabase
     .from('revendedor_saldo_visibilidade' as any)
