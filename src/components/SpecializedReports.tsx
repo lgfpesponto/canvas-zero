@@ -18,6 +18,7 @@ import {
 } from '@/lib/orderFieldsConfig';
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
 import { getCouroSortKey, stampPageNumbers } from '@/lib/pdfGenerators';
+import { recordPrintHistory } from '@/lib/printHistory';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -357,7 +358,8 @@ function buildCompositionItems(o: Order): [string, number][] {
 }
 
 const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsProps) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const userName = user?.nomeCompleto || '';
   // Fetch all orders from DB (no limit)
   const { orders: sourceOrders, loading: ordersLoading } = useOrdersQuery({ enabled: true });
 
