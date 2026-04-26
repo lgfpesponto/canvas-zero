@@ -4,7 +4,13 @@ import {
   useFichaVariacoes, useUpdateVariacao, useDeleteVariacao, useBulkInsertVariacoes,
 } from '@/hooks/useAdminConfig';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Trash2, Search } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Search, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  getCategoriaTipo,
+  requiresPositivePrice,
+  PRICE_REQUIRED_MESSAGE,
+} from '@/lib/priceValidation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +42,7 @@ export default function AdminConfigVariacoesPage() {
   const [parsed, setParsed] = useState<ParsedItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoriaNome, setCategoriaNome] = useState('');
+  const [categoriaSlug, setCategoriaSlug] = useState('');
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
@@ -45,10 +52,18 @@ export default function AdminConfigVariacoesPage() {
 
   useEffect(() => {
     if (categoriaId) {
-      supabase.from('ficha_categorias').select('nome').eq('id', categoriaId).single()
-        .then(({ data }) => { if (data) setCategoriaNome(data.nome); });
+      supabase.from('ficha_categorias').select('nome, slug').eq('id', categoriaId).single()
+        .then(({ data }) => {
+          if (data) {
+            setCategoriaNome(data.nome);
+            setCategoriaSlug(data.slug || '');
+          }
+        });
     }
   }, [categoriaId]);
+
+  const categoriaTipo = getCategoriaTipo(categoriaSlug);
+  const enforcePrice = categoriaTipo !== 'outro';
 
   if (!user) return null;
 
