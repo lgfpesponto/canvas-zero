@@ -673,6 +673,7 @@ const ReportsPage = () => {
               key={order.id}
               order={order}
               isAdmin={isAdmin}
+              canDelete={user?.role === 'admin_master'}
               isSelected={selectedIds.has(order.id)}
               onToggle={toggleSelect}
               confirmDeleteId={confirmDeleteId}
