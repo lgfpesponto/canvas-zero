@@ -69,6 +69,7 @@ const FinanceiroSaldoRevendedor = () => {
       <ComprovantesRevendedorPendentes
         onChanged={load}
         title="Comprovantes aguardando aprovação"
+        showAdminUpload
       />
 
       {/* Saldo por revendedor */}
