@@ -96,6 +96,7 @@ export default function AdminConfigPage() {
                       key={tipo.id}
                       tipo={tipo}
                       index={i}
+                      canDelete={user.role === 'admin_master'}
                       onDelete={() => setDeleteTarget({ id: tipo.id, nome: tipo.nome })}
                     />
                   ))}
