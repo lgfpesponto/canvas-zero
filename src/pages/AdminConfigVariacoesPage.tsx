@@ -81,6 +81,18 @@ export default function AdminConfigVariacoesPage() {
 
   const handleBulkConfirm = () => {
     if (!categoriaId || parsed.length === 0) return;
+
+    if (enforcePrice) {
+      const invalid = parsed.filter(p => requiresPositivePrice(categoriaSlug, p.nome) && (!p.preco || p.preco <= 0));
+      if (invalid.length > 0) {
+        toast.error(
+          `${PRICE_REQUIRED_MESSAGE} Sem preço: ${invalid.slice(0, 5).map(i => `"${i.nome}"`).join(', ')}${invalid.length > 5 ? '…' : ''}`,
+          { duration: 8000 },
+        );
+        return;
+      }
+    }
+
     const startOrdem = (variacoes?.length ?? 0) + 1;
     const items = parsed.map((p, i) => ({
       categoria_id: categoriaId,
@@ -99,9 +111,27 @@ export default function AdminConfigVariacoesPage() {
     });
   };
 
-  const handleInlineUpdate = (id: string, field: 'nome' | 'preco_adicional' | 'ativo', value: string | number | boolean) => {
+  const handleInlineUpdate = (
+    id: string,
+    field: 'nome' | 'preco_adicional' | 'ativo',
+    value: string | number | boolean,
+    variacao?: { nome: string; preco_adicional: number },
+  ) => {
+    if (enforcePrice && variacao) {
+      const nextNome = field === 'nome' ? String(value) : variacao.nome;
+      const nextPreco = field === 'preco_adicional' ? Number(value) : variacao.preco_adicional;
+      if (requiresPositivePrice(categoriaSlug, nextNome) && (!nextPreco || nextPreco <= 0)) {
+        toast.error(PRICE_REQUIRED_MESSAGE);
+        return;
+      }
+    }
     updateVariacao.mutate({ id, [field]: value });
   };
+
+  const variacoesSemPreco = (variacoes ?? []).filter(v =>
+    enforcePrice && requiresPositivePrice(categoriaSlug, v.nome) && (!v.preco_adicional || v.preco_adicional <= 0)
+  );
+
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
