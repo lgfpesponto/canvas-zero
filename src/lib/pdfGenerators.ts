@@ -506,7 +506,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     renderCats(colCats[1], col2X);
     renderCats(colCats[2], col3X);
 
-    // ─── STUBS ───
+    // ─── STUB ÚNICO (montagem/sola + código de barras) ───
     const stubTop = ph - 34;
     doc.setLineWidth(0.3);
     (doc as any).setLineDash([1, 1]);
@@ -514,48 +514,43 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     (doc as any).setLineDash([]);
 
     const stubAreaW = pw - m * 2;
-    const stubW = stubAreaW / 3;
+    const halfW = stubAreaW / 2;
     const bcVal = orderBarcodeValue(order.numero, order.id);
     const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
 
-    let stubX = m;
+    // Divisória central entre os dois lados
     doc.setLineWidth(0.3);
-    doc.line(stubX + stubW, stubTop, stubX + stubW, ph - m);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('BORDADO / LASER', stubX + stubW / 2, stubTop + 4, { align: 'center' });
-    if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {} }
-    doc.setFontSize(10);
-    doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
+    doc.line(m + halfW, stubTop, m + halfW, ph - m);
 
-    stubX += stubW;
-    doc.line(stubX + stubW, stubTop, stubX + stubW, ph - m);
+    // ─── LADO ESQUERDO: código de barras + número do pedido ───
+    const leftCx = m + halfW / 2;
+    if (bcUrl) {
+      try { doc.addImage(bcUrl, 'PNG', m + 8, stubTop + 5, halfW - 16, 16); } catch {}
+    }
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('PESPONTO', stubX + stubW / 2, stubTop + 4, { align: 'center' });
-    if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 6, stubW - 12, 14); } catch {} }
-    doc.setFontSize(10);
-    doc.text(orderNumClean, stubX + stubW / 2, stubTop + 24, { align: 'center' });
+    doc.text(orderNumClean, leftCx, stubTop + 28, { align: 'center' });
 
-    stubX += stubW;
+    // ─── LADO DIREITO: informações de SOLA / MONTAGEM ───
+    const rightX = m + halfW;
+    const rightCx = rightX + halfW / 2;
     const line1Parts = [
       order.tamanho,
       (order.solado || 'borracha').toLowerCase(),
       order.corSola ? order.corSola.toLowerCase() : '',
     ].filter(Boolean).join(' ');
     const formaVal = (order as any).forma || '';
-    const stub3Line1 = formaVal ? `${line1Parts} | forma: ${formaVal}` : line1Parts;
+    const stubLine1 = formaVal ? `${line1Parts} | forma: ${formaVal}` : line1Parts;
     const bicoText = (order.formatoBico || 'quadrado').toLowerCase().replace(/\bfino\b/gi, 'BF');
     const viraText = (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
-    const stub3Line2 = `${bicoText}${viraText}`;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(stub3Line1.toUpperCase(), stubX + stubW / 2, stubTop + 6, { align: 'center' });
+    const stubLine2 = `${bicoText}${viraText}`;
     doc.setFontSize(8);
-    doc.text(stub3Line2.toUpperCase(), stubX + stubW / 2, stubTop + 12, { align: 'center' });
-    if (bcUrl) { try { doc.addImage(bcUrl, 'PNG', stubX + 6, stubTop + 13, stubW - 12, 10); } catch {} }
+    doc.setFont('helvetica', 'bold');
+    doc.text('MONTAGEM', rightCx, stubTop + 5, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(stubLine1.toUpperCase(), rightCx, stubTop + 14, { align: 'center', maxWidth: halfW - 4 });
     doc.setFontSize(9);
-    doc.text(orderNumClean, stubX + stubW / 2, stubTop + 27, { align: 'center' });
+    doc.text(stubLine2.toUpperCase(), rightCx, stubTop + 22, { align: 'center', maxWidth: halfW - 4 });
   }
 
   const now = new Date();
