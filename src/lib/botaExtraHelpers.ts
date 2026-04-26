@@ -38,7 +38,7 @@ export function calcEmbeddedExtraPrice(tipo: string, dados: Record<string, any>)
     case 'adicionar_metais': {
       let total = 0;
       const sel = (dados.metaisSelecionados || []) as string[];
-      if (sel.includes('Bola grande')) total += 15;
+      if (sel.includes('Bola grande')) total += 0.60 * (parseInt(dados.qtdBolaGrande) || 1);
       if (sel.includes('Strass')) total += 0.60 * (parseInt(dados.qtdStrass) || 1);
       return total;
     }
