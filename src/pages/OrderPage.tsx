@@ -82,7 +82,14 @@ const MultiSelect = ({
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <label className={cls.label + ' mb-0'}>{label}</label>
+        <label className={cls.label + ' mb-0 flex items-center gap-2'}>
+          {label}
+          {selected.length > 0 && (
+            <span className="inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5">
+              {selected.length} selecionado{selected.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </label>
       </div>
       {hasSearch && (
         <div className="relative mb-1">
