@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Eye, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2 } from 'lucide-react';
+import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Eye, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2, Wallet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -55,6 +55,7 @@ const AdminDashboard = () => {
   const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
   const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
   const [vendedores, setVendedores] = useState<string[]>([]);
+  const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
 
   // Fetch vendedores list
   useEffect(() => {
