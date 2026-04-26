@@ -257,9 +257,12 @@ const ExtrasPage = () => {
           await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
           fetchStock();
         }
+        const numeroSalvo = form.numeroPedidoBota.trim() || '(novo)';
         setOpenProduct(null);
-        toast({ title: `Pedido de ${product.nome} criado com sucesso!` });
-        navigate('/relatorios');
+        setForm(emptyForm());
+        setBotasPE([emptyBotaPE()]);
+        setSelectedStockId('');
+        toast({ title: `${product.nome} ${numeroSalvo} lançado em Meus Pedidos!` });
       } else {
         toast({ title: 'Erro ao salvar o pedido. Faça login novamente e tente.', variant: 'destructive' });
       }
