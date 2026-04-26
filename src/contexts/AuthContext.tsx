@@ -656,7 +656,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (newUserId) dbUpdate.user_id = newUserId;
 
     const { error } = await supabase.from('orders').update(dbUpdate).eq('id', id);
-    if (error) { console.error('Error updating order:', error); }
+    if (error) { console.error('Error updating order:', error); return; }
+
+    // Notifica vendedor se pedido já estava Entregue/Cobrado/Pago e houve mudança
+    if (changes.length > 0 && ['Entregue', 'Cobrado', 'Pago'].includes(current.status)) {
+      try {
+        await supabase.rpc('registrar_alteracoes_pos_entrega', {
+          _order_id: id,
+          _descricoes: changes.map(c => c.descricao),
+        });
+      } catch (e) {
+        console.error('Erro ao registrar notificações pós-entrega:', e);
+      }
+    }
   }, []);
 
   /* ───── Update Order Status ───── */
