@@ -73,6 +73,10 @@ const PiecesReportPage = () => {
     });
 
     stampPageNumbers(doc);
+    const allIds = orders
+      .filter(o => selectedFields.length > 0)
+      .map(o => o.id);
+    void recordPrintHistory(allIds, 'Relatório por Peças', user?.nomeCompleto || '');
     doc.save('relatorio-pecas.pdf');
   };
 
