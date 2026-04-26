@@ -1,79 +1,83 @@
-## Ajuste nos relatórios de Corte e Bordado
+## Reordenação das colunas — Relatórios de Corte e Bordado
 
-Hoje as duas tabelas usam o mesmo layout de 4 colunas:
+Ajuste só visual em `src/components/SpecializedReports.tsx`, nas funções `generateBordadosPDF` (~linhas 773–934) e `generateCortePDF` (~linhas 937–1050).
 
-`[Nº PEDIDO + barcode embaixo]  |  DESCRIÇÃO  |  QR CODE  |  RECEITA / CHECK (vazio)`
-
-Você quer:
-1. A coluna larga de "Receita" (Bordado) e "Check" (Corte) virar **um quadradinho de check pequeno** — não uma coluna larga vazia.
-2. O **código de barras sair de baixo do número do pedido** e virar **coluna própria**.
-3. A ordem das colunas passar a ser: **Nº PEDIDO → DESCRIÇÃO → CÓDIGO DE BARRAS → QR CODE → CHECK**.
-
----
-
-### Mudanças (somente `src/components/SpecializedReports.tsx`)
-
-Aplicar nas duas funções, com layout idêntico:
-- `generateBordadosPDF` (~linhas 773–921)
-- `generateCortePDF` (~linhas 924–1029)
-
-#### 1. Nova grade de colunas (largura útil = 182mm)
+### Nova ordem das colunas
 
 ```
-cols = [22, 95, 38, 18, 9]   // total = 182
-       Nº    Descrição  Bcode  QR   Check
+| Nº PEDIDO            | DESCRIÇÃO       | QR CODE | CHECK |
+| [|||||||||||||||||]  |  Cano: ...      |  [QR]   |  [☐]  |
+|     7E-AB0001        |  Gáspea: ...    |         |       |
 ```
 
-- **Nº PEDIDO**: 22mm (só texto, sem mais barcode embaixo).
-- **DESCRIÇÃO**: 95mm (continua o `splitTextToSize` existente — só ajustar `cols[1]-4`).
-- **CÓDIGO DE BARRAS**: 38mm — desenhar `barcodeImg` centralizado (`addImage` em `cx[2]+1, y+(rowH-10)/2, 36, 10`).
-- **QR CODE**: 18mm — QR de 14mm centralizado verticalmente na linha (`cx[3]+2, y+(rowH-14)/2`).
-- **CHECK**: 9mm — desenhar um quadradinho 5×5mm centralizado (`doc.rect(cx[4]+2, y+(rowH-5)/2, 5, 5)`), sem texto.
+A 1ª coluna vira **uma coluna composta**: código de barras em cima e o número do pedido escrito embaixo. O cabeçalho dela continua "Nº PEDIDO".
 
-#### 2. Cabeçalho da tabela
+### Novas larguras (total continua 182mm)
 
-Ambos passam a usar:
-```
-Nº PEDIDO | DESCRIÇÃO DO BORDADO/CORTE | CÓDIGO DE BARRAS | QR CODE | CHECK
+```ts
+// antes: const cols = [22, 95, 38, 18, 9];   // Nº | Desc | Barcode | QR | Check
+// depois:
+const cols = [42, 110, 18, 12];               // Nº+Barcode | Desc | QR | Check
 ```
 
-#### 3. Remoção do barcode embaixo do número
+- **Coluna 1 (42mm)**: barcode (~38mm de largura, 10mm de altura) centralizado em cima + nº do pedido em texto centralizado embaixo.
+- **Coluna 2 (110mm)**: descrição — fica mais enxuta que antes (era 95, agora 110 — na verdade ganha espaço porque sumiu a coluna dedicada do barcode). Se preferir descrição menor ainda, posso usar 100mm e sobrar 10mm para folga; me avise.
+- **Coluna 3 (18mm)**: QR code 14×14mm centralizado.
+- **Coluna 4 (12mm)**: quadradinho de check 5×5mm centralizado.
 
-Apagar o bloco que hoje desenha o barcode dentro da coluna `Nº PEDIDO` (linhas 900–905 em Bordados e 1008–1013 em Corte). O barcode passa a ser desenhado só na nova coluna dedicada.
+### Mudanças no desenho da linha
 
-#### 4. Altura mínima da linha
+Em ambas as funções:
 
-`rowH = Math.max(18, lines.length * 3 + 6)` — sobe um pouquinho o mínimo de 14→18mm pra dar respiro pro barcode (10mm) e pro QR (14mm) ficarem confortáveis na linha. Linhas com descrição grande continuam crescendo dinamicamente como hoje.
+1. **Cabeçalho** passa a ter 4 colunas:
+   ```
+   { label: 'Nº PEDIDO', x: cx[0] + 2 },
+   { label: 'DESCRIÇÃO DO BORDADO/CORTE', x: cx[1] + 2 },
+   { label: 'QR CODE', x: cx[2] + 2 },
+   { label: 'CHECK', x: cx[3] + 1 },
+   ```
 
-#### 5. Sem mudanças em
+2. **Coluna 1 (Nº + Barcode)** — substitui o bloco atual que escreve só o número:
+   ```ts
+   // Barcode em cima
+   try {
+     const bcVal = orderBarcodeValue(o.numero, o.id);
+     const bcImg = barcodeDataUrl(bcVal, { width: 1, height: 30 });
+     if (bcImg) doc.addImage(bcImg, 'PNG', cx[0] + 2, y + 2, 38, 8);
+   } catch {}
+   // Nº do pedido escrito embaixo do barcode, centralizado
+   doc.setFontSize(8);
+   doc.setFont('helvetica', 'bold');
+   doc.text(o.numero, cx[0] + cols[0] / 2, y + 14, { align: 'center' });
+   doc.setFont('helvetica', 'normal');
+   ```
 
-- Pesponto (continua com barcode em coluna própria, já é o padrão).
-- Filtros, ordenação, exportação, histórico de impressão.
-- Banco / hook / outros relatórios.
+3. **Descrição**: mantém `splitTextToSize(descText, cols[1] - 4)` e `doc.text(lines, cx[1] + 2, y + 4)`.
 
----
+4. **QR code**: `doc.addImage(qr, 'PNG', cx[2] + 2, y + (rowH - 14) / 2, 14, 14)`.
 
-### Resultado visual
+5. **Check**: `doc.rect(cx[3] + (cols[3] - 5) / 2, y + (rowH - 5) / 2, 5, 5)`.
 
-Antes (Bordado):
+6. **Altura mínima da linha**: subir de 18 para **20mm** para acomodar barcode (8mm) + nº (≈4mm) confortavelmente:
+   ```ts
+   const rowH = Math.max(20, lines.length * 3 + 6);
+   ```
+
+### Resultado
+
 ```
-| 7E-AB0001        | Cano: ... Cor: ... | [QR] | [coluna grande vazia    ] |
-| [||||||||||||||] | Gáspea: ...        |      |                            |
++----------------------+----------------------+--------+-------+
+|  [||||||||||||||]    | Cano: Crazy Horse Pr | [QR]   |  [☐]  |
+|     7E-AB0001        | Gáspea: ...          |        |       |
++----------------------+----------------------+--------+-------+
 ```
 
-Depois (Bordado e Corte iguais):
-```
-| 7E-AB0001 | Cano: ... Cor: ...  | [||||||||||||||] | [QR] | [☐] |
-|           | Gáspea: ...          |                  |      |     |
-```
+### Fora do escopo
 
----
+- Pesponto continua igual (já segue padrão próprio).
+- Nenhuma mudança em filtros, ordenação, exportação ou banco.
+- Sem alteração nas memórias automaticamente — se aprovar, atualizo `mem://features/reports/bordados-report-standards` e `mem://features/reports/corte-report-standards` para refletir o layout de 4 colunas com barcode+nº juntos.
 
 ### Arquivos editados
 
-- `src/components/SpecializedReports.tsx` — só as duas funções `generateBordadosPDF` e `generateCortePDF`.
-
-### Banco / memória
-
-- Sem migração.
-- Sem nova memória — é refinamento visual de relatório já documentado em `mem://features/reports/bordados-report-standards` e `mem://features/reports/corte-report-standards`. Caso aprove, posso atualizar essas duas notas pra refletir o novo layout (5 colunas com barcode dedicado e check minúsculo).
+- `src/components/SpecializedReports.tsx` (apenas as duas funções).
