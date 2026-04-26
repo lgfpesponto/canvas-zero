@@ -273,9 +273,33 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Enviar comprovante(s) de pagamento</DialogTitle>
+          <DialogTitle>
+            {isAdminMode ? 'Enviar comprovante em nome de revendedor' : 'Enviar comprovante(s) de pagamento'}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {isAdminMode && (
+            <div>
+              <Label>Revendedor</Label>
+              <Select
+                value={selectedVendedor}
+                onValueChange={setSelectedVendedor}
+                disabled={savingAll || loadingVendedores}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder={loadingVendedores ? 'Carregando...' : 'Selecione o revendedor'} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {vendedoresList.map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                O comprovante será lançado em nome desse revendedor e ficará pendente para aprovação normal.
+              </p>
+            </div>
+          )}
           <div className="text-sm bg-muted rounded p-3">
             Anexe um ou mais comprovantes (PDF ou foto). O sistema lê automaticamente
             <strong> data, valor e quem recebeu</strong>. A administração confere antes de aprovar.
