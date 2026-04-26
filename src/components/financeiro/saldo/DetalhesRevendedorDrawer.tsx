@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, RotateCcw, Pencil } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, RotateCcw, Pencil, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
@@ -18,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchMovimentos, fetchBaixasVendedor, fetchPedidosCobrados, estornarBaixa,
+  quitarPedidosHistorico,
   type RevendedorMovimento, type RevendedorBaixa, type PedidoCobrado, type RevendedorSaldo,
   tipoMovimentoLabel,
 } from '@/lib/revendedorSaldo';
@@ -41,6 +43,10 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
   const [estornoTarget, setEstornoTarget] = useState<RevendedorBaixa | null>(null);
   const [estornoMotivo, setEstornoMotivo] = useState('');
   const [estornoSaving, setEstornoSaving] = useState(false);
+  const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
+  const [quitarOpen, setQuitarOpen] = useState(false);
+  const [quitarMotivo, setQuitarMotivo] = useState('');
+  const [quitarSaving, setQuitarSaving] = useState(false);
 
   const vendedor = saldo?.vendedor || '';
 
@@ -96,6 +102,60 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
     }
   };
 
+  // Limpa seleção quando muda a fila
+  useEffect(() => {
+    setSelectedPedidos(prev => {
+      const visible = new Set(filaPedidos.map(p => p.id));
+      const next = new Set<string>();
+      prev.forEach(id => { if (visible.has(id)) next.add(id); });
+      return next;
+    });
+  }, [filaPedidos]);
+
+  const allPedSelected = filaPedidos.length > 0 && selectedPedidos.size === filaPedidos.length;
+  const somePedSelected = selectedPedidos.size > 0 && !allPedSelected;
+  const togglePedAll = () => {
+    setSelectedPedidos(allPedSelected ? new Set() : new Set(filaPedidos.map(p => p.id)));
+  };
+  const togglePedOne = (id: string) => {
+    setSelectedPedidos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const totalSelecionado = useMemo(
+    () => filaPedidos.filter(p => selectedPedidos.has(p.id)).reduce((s, p) => s + p.valorTotal, 0),
+    [filaPedidos, selectedPedidos]
+  );
+
+  const handleQuitarHistorico = async () => {
+    if (!quitarMotivo.trim()) {
+      toast({ title: 'Motivo obrigatório', variant: 'destructive' });
+      return;
+    }
+    setQuitarSaving(true);
+    try {
+      const ids = Array.from(selectedPedidos);
+      const result = await quitarPedidosHistorico(ids, quitarMotivo.trim());
+      toast({
+        title: `${result.quitados} pedido(s) marcado(s) como quitado(s)`,
+        description: result.pulados > 0
+          ? `${result.pulados} pulado(s) (já tinham baixa ou valor zero). Saldo do revendedor não foi alterado.`
+          : 'Saldo do revendedor não foi alterado.',
+      });
+      setQuitarOpen(false);
+      setQuitarMotivo('');
+      setSelectedPedidos(new Set());
+      await reload();
+      onChanged();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setQuitarSaving(false);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -130,13 +190,32 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
 
           {/* Pedidos pendentes */}
           <section className="mt-6">
-            <h3 className="font-semibold mb-2 text-sm uppercase text-muted-foreground">Pedidos cobrados pendentes (FIFO)</h3>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <h3 className="font-semibold text-sm uppercase text-muted-foreground">Pedidos cobrados pendentes (FIFO)</h3>
+              {selectedPedidos.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedPedidos.size} sel · {formatCurrency(totalSelecionado)}
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => setQuitarOpen(true)}>
+                    <Archive size={14} className="mr-1" /> Quitar como histórico
+                  </Button>
+                </div>
+              )}
+            </div>
             {filaPedidos.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum pedido cobrado em aberto.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8">
+                      <Checkbox
+                        checked={allPedSelected ? true : somePedSelected ? 'indeterminate' : false}
+                        onCheckedChange={togglePedAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead>Nº</TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -145,7 +224,14 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
                 </TableHeader>
                 <TableBody>
                   {filaPedidos.map(p => (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} data-state={selectedPedidos.has(p.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedPedidos.has(p.id)}
+                          onCheckedChange={() => togglePedOne(p.id)}
+                          aria-label="Selecionar"
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{p.numero}</TableCell>
                       <TableCell className="text-xs">
                         {p.tipo_extra || p.modelo || '—'} {p.tamanho ? `· ${p.tamanho}` : ''}
@@ -272,6 +358,33 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
             <AlertDialogCancel disabled={estornoSaving}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleEstorno} disabled={estornoSaving}>
               {estornoSaving ? <><Loader2 className="animate-spin" /> Estornando...</> : 'Confirmar estorno'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={quitarOpen} onOpenChange={(o) => { if (!o && !quitarSaving) { setQuitarOpen(false); setQuitarMotivo(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quitar pedidos como histórico</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedPedidos.size} pedido(s) · Total {formatCurrency(totalSelecionado)}.
+              Use somente para pedidos antigos que já foram pagos fora do sistema.
+              <strong className="block mt-2 text-foreground">
+                O saldo do revendedor não será alterado. O pedido sai da lista de pendentes.
+              </strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Motivo (obrigatório). Ex.: Pago antes da implantação do sistema."
+            value={quitarMotivo}
+            onChange={(e) => setQuitarMotivo(e.target.value)}
+            maxLength={500}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={quitarSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleQuitarHistorico} disabled={quitarSaving}>
+              {quitarSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Quitando...</> : 'Confirmar quitação'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

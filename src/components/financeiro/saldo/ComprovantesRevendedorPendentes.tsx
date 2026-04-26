@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchComprovantesPendentes, aprovarComprovante, reprovarComprovante,
+  descartarComprovantesHistorico,
   type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
@@ -44,6 +46,10 @@ export const ComprovantesRevendedorPendentes = ({
   const [reprovarTarget, setReprovarTarget] = useState<RevendedorComprovante | null>(null);
   const [motivo, setMotivo] = useState('');
   const [enviarOpen, setEnviarOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [descartarOpen, setDescartarOpen] = useState(false);
+  const [descartarMotivo, setDescartarMotivo] = useState('');
+  const [descartarSaving, setDescartarSaving] = useState(false);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
@@ -122,6 +128,55 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
+  // mantém só ids ainda visíveis
+  useEffect(() => {
+    setSelectedIds(prev => {
+      const visible = new Set(pendentes.map(p => p.id));
+      const next = new Set<string>();
+      prev.forEach(id => { if (visible.has(id)) next.add(id); });
+      return next;
+    });
+  }, [pendentes]);
+
+  const allSelected = pendentes.length > 0 && selectedIds.size === pendentes.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(pendentes.map(p => p.id)));
+  };
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDescartar = async () => {
+    if (!descartarMotivo.trim()) {
+      toast({ title: 'Motivo obrigatório', variant: 'destructive' });
+      return;
+    }
+    setDescartarSaving(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const result = await descartarComprovantesHistorico(ids, descartarMotivo.trim());
+      toast({
+        title: `${result.descartados} comprovante(s) descartado(s)`,
+        description: 'Não creditaram saldo nem geraram lançamento em A Receber.',
+      });
+      setDescartarOpen(false);
+      setDescartarMotivo('');
+      setSelectedIds(new Set());
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setDescartarSaving(false);
+    }
+  };
+
   if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
@@ -148,6 +203,21 @@ export const ComprovantesRevendedorPendentes = ({
           </div>
         </CardHeader>
         <CardContent>
+          {selectedIds.size > 0 && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2">
+              <span className="text-sm font-medium">
+                {selectedIds.size} comprovante(s) selecionado(s)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                  Limpar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDescartarOpen(true)}>
+                  <Archive size={14} className="mr-1" /> Descartar como histórico
+                </Button>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : pendentes.length === 0 ? (
@@ -159,6 +229,13 @@ export const ComprovantesRevendedorPendentes = ({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8">
+                      <Checkbox
+                        checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                        onCheckedChange={toggleAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead>Enviado</TableHead>
                     <TableHead>Revendedor</TableHead>
                     <TableHead>Data pgto</TableHead>
@@ -172,7 +249,14 @@ export const ComprovantesRevendedorPendentes = ({
                 </TableHeader>
                 <TableBody>
                   {pendentes.map(c => (
-                    <TableRow key={c.id}>
+                    <TableRow key={c.id} data-state={selectedIds.has(c.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(c.id)}
+                          onCheckedChange={() => toggleOne(c.id)}
+                          aria-label="Selecionar"
+                        />
+                      </TableCell>
                       <TableCell className="text-xs">
                         {new Date(c.created_at).toLocaleString('pt-BR')}
                       </TableCell>
@@ -257,6 +341,33 @@ export const ComprovantesRevendedorPendentes = ({
             <AlertDialogCancel disabled={!!actionId}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleReprovar} disabled={!!actionId}>
               {actionId ? <Loader2 className="animate-spin" /> : 'Reprovar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={descartarOpen} onOpenChange={(o) => { if (!o && !descartarSaving) { setDescartarOpen(false); setDescartarMotivo(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar como histórico</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedIds.size} comprovante(s) será(ão) marcado(s) como descartado(s).
+              Use somente para comprovantes antigos que já foram conferidos fora do sistema.
+              <strong className="block mt-2 text-foreground">
+                Não credita saldo nem cria lançamento em A Receber.
+              </strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Motivo do descarte (obrigatório). Ex.: Já conferido manualmente antes da implantação."
+            value={descartarMotivo}
+            onChange={(e) => setDescartarMotivo(e.target.value)}
+            maxLength={500}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={descartarSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDescartar} disabled={descartarSaving}>
+              {descartarSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Descartando...</> : 'Confirmar descarte'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

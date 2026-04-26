@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Upload, FileText, CheckCircle2, XCircle, Clock, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from '@/components/financeiro/saldo/EnviarComprovanteDialog';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
+import { supabase } from '@/integrations/supabase/client';
 
 const RevendedorSaldoPage = () => {
   const { loading: accessLoading, isAdminMaster, canSeeRevendedorView, vendedorName } = useFinanceiroSaldoAccess();
@@ -29,6 +30,7 @@ const RevendedorSaldoPage = () => {
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
+  const reloadTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (accessLoading) return;
@@ -63,6 +65,31 @@ const RevendedorSaldoPage = () => {
   };
 
   useEffect(() => { if (vendedorName) reload(); }, [vendedorName]);
+
+  // Realtime: atualiza assim que a Juliana enviar/aprovar/reprovar comprovante
+  // ou registrar movimento de saldo (entrada, baixa, ajuste, estorno).
+  useEffect(() => {
+    if (!vendedorName) return;
+    const scheduleReload = () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      reloadTimer.current = window.setTimeout(() => { reload(); }, 400);
+    };
+    const channel = supabase
+      .channel(`revendedor_meu_saldo_${vendedorName}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_comprovantes', filter: `vendedor=eq.${vendedorName}` },
+        () => scheduleReload()
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'revendedor_saldo_movimentos', filter: `vendedor=eq.${vendedorName}` },
+        () => scheduleReload()
+      )
+      .subscribe();
+    return () => {
+      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
+      supabase.removeChannel(channel);
+    };
+  }, [vendedorName]);
 
   if (accessLoading) return null;
   if (!isAdminMaster && !canSeeRevendedorView) return null;
