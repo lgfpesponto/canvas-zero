@@ -1242,7 +1242,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         }
       } else {
         if (o.modelo) {
-          const modeloP = MODELOS.find(m => m.label === o.modelo)?.preco ?? 0;
+          const modeloP = priceWithFallback(['modelos', 'tamanho-genero-modelo'], o.modelo, MODELOS.find(m => m.label === o.modelo)?.preco);
           priceItems.push(['Modelo: ' + o.modelo, modeloP]);
         }
         if (o.sobMedida) priceItems.push(['Sob Medida', SOB_MEDIDA_PRECO]);
@@ -1257,15 +1257,16 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         });
         const desenvP = DESENVOLVIMENTO.find(d => d.label === o.desenvolvimento)?.preco;
         if (desenvP) priceItems.push(['Desenvolvimento: ' + o.desenvolvimento, desenvP]);
-        // Bordados — use region-specific price lists
-        const bordadoLists: [string | undefined, typeof BORDADOS_CANO][] = [
-          [o.bordadoCano, BORDADOS_CANO],
-          [o.bordadoGaspea, BORDADOS_GASPEA],
-          [o.bordadoTaloneira, BORDADOS_TALONEIRA],
+        // Bordados — preço REAL do banco com fallback nas constantes
+        const bordadoLists: [string | undefined, typeof BORDADOS_CANO, string[]][] = [
+          [o.bordadoCano, BORDADOS_CANO, ['bordados-cano', 'bordado_cano']],
+          [o.bordadoGaspea, BORDADOS_GASPEA, ['bordados-gaspea', 'bordado_gaspea']],
+          [o.bordadoTaloneira, BORDADOS_TALONEIRA, ['bordados-taloneira', 'bordado_taloneira']],
         ];
-        bordadoLists.forEach(([bStr, list]) => {
+        bordadoLists.forEach(([bStr, list, cats]) => {
           if (bStr) bStr.split(', ').filter(Boolean).forEach(b => {
-            const p = list.find(x => x.label === b)?.preco;
+            const fallback = list.find(x => x.label === b)?.preco;
+            const p = priceWithFallback(cats, b, fallback);
             if (p) priceItems.push([b.includes('Bordado Variado') ? (b + ' (variado)') : b, p]);
           });
         });
