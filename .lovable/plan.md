@@ -1,112 +1,66 @@
+
+# Visualizar foto do pedido dentro do portal
+
 ## Objetivo
 
-Quando um admin (Juliana ou Fernanda) editar qualquer campo de um pedido que já tenha atingido status **Entregue**, **Cobrado** ou **Pago**, o vendedor dono do pedido recebe uma notificação no sino do dashboard. Ao clicar, vai direto para o detalhe do pedido e a notificação some/marca como lida.
+Adicionar um botão **"Ver foto"** no cabeçalho do detalhe do pedido (ao lado do nome do cliente/vendedor) que, ao clicar, abre a imagem **dentro do portal em um modal** — sem redirecionar para o Google Drive.
 
----
+## Desafio técnico: links do Google Drive
 
-## 1) Banco de dados (migração)
+O link salvo em `order.fotos[0]` geralmente vem no formato:
+```
+https://drive.google.com/file/d/{FILE_ID}/view?usp=sharing
+```
 
-### Nova tabela `order_notificacoes`
-- `id uuid pk default gen_random_uuid()`
-- `order_id uuid not null` — referencia o pedido
-- `vendedor text not null` — nome completo do vendedor dono no momento da alteração (filtro de leitura)
-- `numero text not null` — número do pedido (snapshot, pra exibir mesmo se mudar)
-- `descricao text not null` — texto humano da alteração (ex.: "Alterado Cor do Cano de \"Preto\" para \"Marrom\"")
-- `status_no_momento text not null` — Entregue/Cobrado/Pago (pra contexto)
-- `lida boolean not null default false`
-- `lida_em timestamptz`
-- `created_at timestamptz not null default now()`
-- `created_by uuid` — admin que fez a edição (auditoria)
+Esse formato **não funciona** direto em `<img src>` (o Drive bloqueia hotlink na URL `/view`). Precisamos converter:
 
-Índices: `(vendedor, lida, created_at desc)` e `(order_id)`.
+- **Imagem direta**: `https://lh3.googleusercontent.com/d/{FILE_ID}` (funciona em `<img>`, fotos públicas)
+- **Fallback (iframe)**: `https://drive.google.com/file/d/{FILE_ID}/preview` (funciona em `<iframe>`, cobre PDFs e imagens privadas)
 
-### RLS
-- **SELECT**: `vendedor = current_user_nome_completo()` OU `is_any_admin(auth.uid())` (admin pode ler pra debug; sino só renderiza se não-admin).
-- **UPDATE** (marcar lida): só o próprio dono — `vendedor = current_user_nome_completo()` e somente alterando colunas `lida`/`lida_em` (garantido via RPC `marcar_notificacao_lida`).
-- **INSERT**: bloqueado direto (`with check false`) — apenas via RPC SECURITY DEFINER.
-- **DELETE**: só `admin_master`.
+## Plano
 
-### RPCs (SECURITY DEFINER, search_path=public)
-1. **`registrar_alteracoes_pos_entrega(_order_id uuid, _descricoes text[])`**
-   - Lê o pedido; se `status` ∈ ('Entregue','Cobrado','Pago') E `vendedor` não vazio E `vendedor <> 'Estoque'`, insere uma linha por descrição.
-   - Caso contrário, não faz nada (no-op silencioso).
-   - Chamada pelo client logo após `updateOrder` quando há mudanças.
+### 1. Helper `src/lib/driveUrl.ts` (novo)
 
-2. **`marcar_notificacao_lida(_id uuid)`**
-   - Valida que `vendedor = current_user_nome_completo()`.
-   - Seta `lida=true, lida_em=now()`.
+Funções: `getDriveFileId(url)`, `toDriveImageUrl(url)`, `toDrivePreviewUrl(url)`, `isDriveUrl(url)`. Extraem o ID do arquivo de qualquer formato Drive (`/file/d/ID/view` ou `?id=ID`) e geram a URL apropriada.
 
-3. **`marcar_todas_notificacoes_lidas()`** (opcional, pra botão "marcar tudo como lido" no popover, se decidirmos manter — mas o gatilho de leitura é "ao clicar", então este fica como apoio).
+### 2. Componente `src/components/FotoPedidoDialog.tsx` (novo)
 
-### Realtime
-- `ALTER TABLE order_notificacoes REPLICA IDENTITY FULL;`
-- Adicionar à publication `supabase_realtime`.
+- Recebe `url`, `open`, `onOpenChange`.
+- Se URL do Drive → tenta `<img src={toDriveImageUrl(url)}>` primeiro.
+- Em `onError` da imagem, faz fallback automático para `<iframe src={toDrivePreviewUrl(url)}>`.
+- Se URL não-Drive (ex.: `.jpg` direto) → `<img>` direto.
+- Botão extra "Abrir no Drive ↗" no canto.
+- Layout: `Dialog` com `max-w-4xl w-[90vw] max-h-[90vh]`, imagem com `object-contain`.
 
----
+### 3. Modificar `src/pages/OrderDetailPage.tsx`
 
-## 2) Frontend
+**No cabeçalho** (próximo à linha 362, ao lado do número/vendedor):
+- Botão "Ver foto" com ícone `ImageIcon` (lucide), **somente se** `order.fotos[0]` for URL `http(s)`.
+- Mais de 1 foto válida → "Ver fotos (N)".
+- Click → abre `FotoPedidoDialog` com `order.fotos[0]`.
+- Estado: `const [fotoOpen, setFotoOpen] = useState(false);`
+- Visível para todos que acessam a página (admin + vendedor dono).
 
-### `src/contexts/AuthContext.tsx` — `updateOrder`
-- Após o `supabase.from('orders').update(...)`, se `changes.length > 0` E o pedido (estado **anterior**, já lido em `current`) tinha `status ∈ {Entregue, Cobrado, Pago}`, chamar:
-  ```ts
-  await supabase.rpc('registrar_alteracoes_pos_entrega', {
-    _order_id: id,
-    _descricoes: changes.map(c => c.descricao),
-  });
-  ```
-- A RPC ignora se status mudar pra antes de Entregue (por segurança), mas o gate principal é client-side usando `current.status`.
-- Não dispara para vendedor "Estoque" (regra já existente de pedido interno).
+### 4. Seção "Foto de Referência" existente (linhas 548-564)
 
-### Novo hook `src/hooks/useNotificacoes.ts`
-- Expõe: `{ notificacoes, naoLidas, loading, marcarLida(id), marcarTodasLidas() }`.
-- Lê de `order_notificacoes` filtrado por `vendedor = user.nomeCompleto`, ordenado `created_at desc`, limit 50.
-- Subscribe realtime no canal `order_notificacoes` filtrado por vendedor → recarrega/insere ao receber INSERT/UPDATE.
-- Não roda para admin (retorna lista vazia).
+Sem mudanças. O botão do topo é apenas um atalho visual; a seção continua listando todos os links.
 
-### Novo componente `src/components/NotificacoesBell.tsx`
-- Ícone sino (lucide `Bell`) com badge de contagem `naoLidas` (some quando 0).
-- Popover (`@/components/ui/popover`) abre lista das últimas 20:
-  - Cada item: `numero` em destaque, `descricao` truncada em 2 linhas, `created_at` relativo ("há 5 min"), bolinha azul se não lida.
-  - Ao clicar: chama `marcarLida(id)` e `navigate('/pedido/'+order_id)`.
-  - Vazio: mensagem "Nenhuma notificação".
-  - Rodapé: link "Marcar todas como lidas" (chama RPC).
-- Estilizado com tokens existentes (sem cores hardcoded fora do design system).
+## Comportamento esperado
 
-### `src/components/Header.tsx`
-- Renderizar `<NotificacoesBell />` à esquerda do botão "SAIR" no desktop e dentro do menu mobile.
-- Só renderizar para usuários **não-admin** (`!isAdmin`) e logados (escopo definido).
+| Cenário | Resultado |
+|---|---|
+| Link Drive `/file/d/.../view` | Modal abre `<img>` via `lh3.googleusercontent.com`; se falhar, cai para `<iframe>` preview |
+| Link direto `.jpg`/`.png` | Modal abre `<img>` direto |
+| Sem fotos | Botão não aparece |
+| 2+ fotos | "Ver fotos (2)"; modal mostra a primeira |
+| Imagem privada do Drive | Fallback iframe (pede login se necessário) |
 
-### Comportamento "ao clicar leva ao pedido"
-- O Popover do sino fecha ao clicar no item; navegação usa `react-router` `useNavigate`.
-- `OrderDetailPage` já existe na rota `/pedido/:id` — sem alteração necessária ali.
+## Sem mudanças de banco / backend
 
----
+Nenhuma migração, RPC ou edge function. `order.fotos` já é populado. Sem libs novas — `<img>`/`<iframe>` nativos + Dialog shadcn.
 
-## 3) Casos cobertos / não cobertos
+## Arquivos afetados
 
-**Cobertos** (gatilho: edição de campos via `updateOrder`):
-- Edições feitas em `EditOrderPage`, `EditExtrasPage`, reatribuição de vendedor, aplicação de desconto em `OrderDetailPage`, qualquer outra chamada a `updateOrder`.
-
-**Não cobertos** (por decisão de escopo):
-- Mudança apenas de status (não dispara — só edição de campos).
-- Pedidos do vendedor "Estoque".
-- Notificação para admins.
-
----
-
-## 4) Memória (mem://)
-
-Adicionar em `mem://features/notificacoes/sino-vendedor.md`:
-- Notificações por edição em `orders.alteracoes` quando status já é Entregue/Cobrado/Pago.
-- Tabela `order_notificacoes` com RLS por `current_user_nome_completo()`; INSERT bloqueado, só via RPC `registrar_alteracoes_pos_entrega`.
-- Realtime ativo. Sino renderizado apenas para não-admins. "Lida" ao clicar no item.
-
-E referência no `mem://index.md` (sessão Memories).
-
----
-
-## 5) Riscos / observações
-
-- A captura do estado anterior do pedido para decidir se dispara depende de `current.status` lido **antes** do update. Já está disponível em `updateOrder`.
-- O RPC tem checagem redundante do status pra evitar inserções erradas se a chamada vier desatualizada.
-- `replica identity full` em `order_notificacoes` é necessário pro realtime entregar UPDATEs (marcar lida) — mas como o feed do vendedor depende mais de INSERTs, mesmo sem isso o sino funciona em tempo real para novas notificações.
+- ➕ `src/lib/driveUrl.ts` (~25 linhas)
+- ➕ `src/components/FotoPedidoDialog.tsx` (~70 linhas)
+- ✏️ `src/pages/OrderDetailPage.tsx` (botão + estado + import)
