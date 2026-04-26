@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { requiresPositivePrice, PRICE_REQUIRED_MESSAGE } from '@/lib/priceValidation';
 
 export interface CustomOption {
   id: string;
@@ -36,6 +37,10 @@ export function useCustomOptions() {
   }, []);
 
   const addOption = async (categoria: string, label: string, preco: number) => {
+    if (requiresPositivePrice(categoria, label) && (!preco || preco <= 0)) {
+      toast.error(PRICE_REQUIRED_MESSAGE);
+      return null;
+    }
     const { data, error } = await supabase
       .from('custom_options')
       .insert({ categoria, label, preco })
@@ -70,6 +75,12 @@ export function useCustomOptions() {
   };
 
   const updateOption = async (id: string, label: string, preco: number) => {
+    const current = options.find(o => o.id === id);
+    const categoria = current?.categoria || '';
+    if (requiresPositivePrice(categoria, label) && (!preco || preco <= 0)) {
+      toast.error(PRICE_REQUIRED_MESSAGE);
+      return;
+    }
     const { error } = await supabase
       .from('custom_options')
       .update({ label, preco })
