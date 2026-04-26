@@ -261,6 +261,14 @@ export const ComprovantesRevendedorPendentes = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {showAdminUpload && (
+        <EnviarComprovanteDialog
+          open={enviarOpen}
+          onOpenChange={setEnviarOpen}
+          onSaved={() => { load(); onChanged?.(); }}
+        />
+      )}
     </>
   );
 };
