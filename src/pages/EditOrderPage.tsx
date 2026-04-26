@@ -650,6 +650,10 @@ const EditOrderPage = () => {
           </button>
         </form>
       </motion.div>
+        {showFotoPanel && (
+          <FotoPedidoSidePanel url={fotoUrlAtual} onClose={closeFotoPanel} />
+        )}
+      </div>
     </div>
   );
 };
