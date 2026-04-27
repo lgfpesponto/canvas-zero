@@ -70,12 +70,12 @@ export default function GestaoPage() {
     }
   }, [loading, role, navigate]);
 
-  // Subscribe ao canal de presença
+  // Subscribe ao canal de presença (instância separada para o observador)
   useEffect(() => {
     if (role !== 'admin_master') return;
 
-    const channel = supabase.channel(PRESENCE_CHANNEL, {
-      config: { presence: { key: user?.id || 'observer-' + Math.random() } },
+    const channel = supabase.channel(PRESENCE_CHANNEL + '-observer-' + Math.random().toString(36).slice(2), {
+      config: { presence: { key: PRESENCE_CHANNEL } },
     });
 
     const refresh = () => {
