@@ -180,6 +180,12 @@ export function dbRowToOrder(row: any): Order {
     extraDetalhes: row.extra_detalhes || undefined,
     numeroPedidoBota: row.numero_pedido_bota || undefined,
     cliente: row.cliente || '',
+    recorteCano: row.recorte_cano || undefined,
+    recorteGaspea: row.recorte_gaspea || undefined,
+    recorteTaloneira: row.recorte_taloneira || undefined,
+    corRecorteCano: row.cor_recorte_cano || undefined,
+    corRecorteGaspea: row.cor_recorte_gaspea || undefined,
+    corRecorteTaloneira: row.cor_recorte_taloneira || undefined,
   };
 }
 
