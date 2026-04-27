@@ -112,23 +112,23 @@ export const ComprovantesPorRevendedor = ({ saldos, onChanged }: Props) => {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Comprovantes por revendedor</CardTitle>
+          <CardTitle className="text-lg">Comprovantes por vendedor</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Filtre por revendedor para ver todos os comprovantes e dar baixa manual em comprovantes aprovados
+            Filtre por vendedor para ver todos os comprovantes e dar baixa manual em comprovantes aprovados
             (use quando o pagamento já foi usado fora do sistema, ex.: sistema antigo).
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[260px]">
-              <Label>Revendedor</Label>
+              <Label>Vendedor</Label>
               <Select value={vendedor} onValueChange={setVendedor}>
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione o revendedor" />
+                  <SelectValue placeholder="Selecione o vendedor" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {vendedoresOptions.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">Nenhum revendedor disponível</div>
+                    <div className="p-2 text-sm text-muted-foreground">Nenhum vendedor disponível</div>
                   ) : vendedoresOptions.map(v => (
                     <SelectItem key={v} value={v}>{v}</SelectItem>
                   ))}
@@ -154,11 +154,11 @@ export const ComprovantesPorRevendedor = ({ saldos, onChanged }: Props) => {
           </div>
 
           {!vendedor ? (
-            <p className="text-sm text-muted-foreground py-4">Escolha um revendedor para ver os comprovantes.</p>
+            <p className="text-sm text-muted-foreground py-4">Escolha um vendedor para ver os comprovantes.</p>
           ) : loading ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : comprovantes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Esse revendedor ainda não tem comprovantes.</p>
+            <p className="text-sm text-muted-foreground py-4">Esse vendedor ainda não tem comprovantes.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>

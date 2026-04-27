@@ -475,7 +475,7 @@ const FinanceiroAReceber = () => {
 
   return (
     <div className="space-y-6">
-      {/* Comprovantes enviados pelos revendedores aguardando aprovação */}
+      {/* Comprovantes enviados pelos vendedores aguardando aprovação */}
       <ComprovantesRevendedorPendentes onChanged={load} showAdminUpload />
 
       {/* Resumo */}

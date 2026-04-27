@@ -141,8 +141,8 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
       toast({
         title: `${result.quitados} pedido(s) marcado(s) como quitado(s)`,
         description: result.pulados > 0
-          ? `${result.pulados} pulado(s) (já tinham baixa ou valor zero). Saldo do revendedor não foi alterado.`
-          : 'Saldo do revendedor não foi alterado.',
+          ? `${result.pulados} pulado(s) (já tinham baixa ou valor zero). Saldo do vendedor não foi alterado.`
+          : 'Saldo do vendedor não foi alterado.',
       });
       setQuitarOpen(false);
       setQuitarMotivo('');
@@ -343,7 +343,7 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
             <AlertDialogTitle>Estornar baixa</AlertDialogTitle>
             <AlertDialogDescription>
               O valor de {formatCurrency(Number(estornoTarget?.valor_pedido || 0))} voltará para o saldo
-              do revendedor e o pedido ficará disponível para uma nova baixa.
+              do vendedor e o pedido ficará disponível para uma nova baixa.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-2">
@@ -371,7 +371,7 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
               {selectedPedidos.size} pedido(s) · Total {formatCurrency(totalSelecionado)}.
               Use somente para pedidos antigos que já foram pagos fora do sistema.
               <strong className="block mt-2 text-foreground">
-                O saldo do revendedor não será alterado. O pedido sai da lista de pendentes.
+                O saldo do vendedor não será alterado. O pedido sai da lista de pendentes.
               </strong>
             </AlertDialogDescription>
           </AlertDialogHeader>

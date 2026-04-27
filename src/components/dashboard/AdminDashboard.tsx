@@ -265,7 +265,7 @@ const AdminDashboard = () => {
               <div>
                 <div className="font-bold text-lg">Comprovantes a entrar</div>
                 <div className="text-sm text-muted-foreground">
-                  {comprovantesRevendedor!.count} {comprovantesRevendedor!.count === 1 ? 'comprovante enviado' : 'comprovantes enviados'} pelos revendedores · Total{' '}
+                  {comprovantesRevendedor!.count} {comprovantesRevendedor!.count === 1 ? 'comprovante enviado' : 'comprovantes enviados'} pelos vendedores · Total{' '}
                   <strong className="text-destructive">{formatCurrency(comprovantesRevendedor!.total)}</strong>
                 </div>
               </div>
