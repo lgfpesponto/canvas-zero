@@ -270,6 +270,12 @@ export function orderToDbRow(order: any, userId: string) {
     extra_detalhes: order.extraDetalhes || null,
     numero_pedido_bota: order.numeroPedidoBota || null,
     cliente: order.cliente || '',
+    recorte_cano: order.recorteCano || null,
+    recorte_gaspea: order.recorteGaspea || null,
+    recorte_taloneira: order.recorteTaloneira || null,
+    cor_recorte_cano: order.corRecorteCano || null,
+    cor_recorte_gaspea: order.corRecorteGaspea || null,
+    cor_recorte_taloneira: order.corRecorteTaloneira || null,
   };
 }
 
