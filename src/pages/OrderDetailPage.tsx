@@ -238,7 +238,7 @@ const OrderDetailPage = () => {
   if (order.strassQtd) priceItems.push([`Strass (${order.strassQtd} un.)`, order.strassQtd * STRASS_PRECO]);
   if (order.cruzMetalQtd) priceItems.push([`Cruz metal (${order.cruzMetalQtd} un.)`, order.cruzMetalQtd * CRUZ_METAL_PRECO]);
   if (order.bridaoMetalQtd) priceItems.push([`Bridão metal (${order.bridaoMetalQtd} un.)`, order.bridaoMetalQtd * BRIDAO_METAL_PRECO]);
-  const detP: any = order.extraDetalhes || {};
+  // detP already declared above for detailsGrouped
   if (detP.cavaloMetal && detP.cavaloMetalQtd) priceItems.push([`Cavalo metal (${detP.cavaloMetalQtd} un.)`, detP.cavaloMetalQtd * CAVALO_METAL_PRECO]);
   if (order.trisce === 'Sim') priceItems.push(['Tricê', TRICE_PRECO]);
   if (order.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
