@@ -558,38 +558,22 @@ const OrderDetailPage = () => {
                   ))}
                 </div>
               ) : (
-                extraGrouped.map(grupo => (
-                  <div key={grupo.categoria}>
-                    <div className="bg-primary text-primary-foreground text-center text-sm lowercase font-medium py-1.5 rounded-sm mb-2">
-                      {grupo.categoria}
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+                  {extraDetails.map(([label, value]) => (
+                    <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
-                      {grupo.itens.map(([label, value]) => (
-                        <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-                          <span className="text-sm text-muted-foreground">{label}</span>
-                          <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           ) : (
-            <div className="mb-6 space-y-4">
-              {detailsGrouped.map(grupo => (
-                <div key={grupo.categoria}>
-                  <div className="bg-primary text-primary-foreground text-center text-sm lowercase font-medium py-1.5 rounded-sm mb-2">
-                    {grupo.categoria}
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
-                    {grupo.itens.map(([label, value]) => (
-                      <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-                        <span className="text-sm text-muted-foreground">{label}</span>
-                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
-                      </div>
-                    ))}
-                  </div>
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
+              {details.map(([label, value]) => (
+                <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                  <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
                 </div>
               ))}
             </div>
