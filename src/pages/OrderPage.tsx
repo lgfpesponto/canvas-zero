@@ -44,7 +44,7 @@ const cls = {
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="space-y-3">
-    <h3 className="text-base font-display font-bold border-b border-border pb-1">{title}</h3>
+    <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-lg uppercase tracking-wide py-2 rounded-sm">{title}</h3>
     {children}
   </div>
 );
