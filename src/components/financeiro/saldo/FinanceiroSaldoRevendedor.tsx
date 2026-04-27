@@ -31,7 +31,7 @@ const FinanceiroSaldoRevendedor = () => {
   const [saldos, setSaldos] = useState<RevendedorSaldo[] | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [movimentos, setMovimentos] = useState<RevendedorMovimento[]>([]);
-  const [vendedoresUsuarios, setVendedoresUsuarios] = useState<string[]>([]);
+  const [vendedoresLista, setVendedoresLista] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
 
