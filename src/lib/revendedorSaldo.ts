@@ -209,6 +209,27 @@ export async function marcarComprovanteUtilizado(comprovanteId: string, motivo: 
   return data as { ok: boolean; saldo_anterior: number; saldo_posterior: number };
 }
 
+/** Lista o nome_completo de todos os usuários cadastrados como vendedores
+ *  (roles 'vendedor' ou 'vendedor_comissao'), ordenado A→Z. */
+export async function fetchVendedoresUsuarios(): Promise<string[]> {
+  const { data: roles, error: rolesErr } = await supabase
+    .from('user_roles')
+    .select('user_id, role')
+    .in('role', ['vendedor', 'vendedor_comissao'] as any);
+  if (rolesErr) throw rolesErr;
+  const ids = [...new Set((roles || []).map((r: any) => r.user_id))];
+  if (ids.length === 0) return [];
+  const { data: profs, error: profErr } = await supabase
+    .from('profiles')
+    .select('id, nome_completo')
+    .in('id', ids);
+  if (profErr) throw profErr;
+  return (profs || [])
+    .map((p: any) => (p.nome_completo || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
 export async function fetchVisibilidade(): Promise<{ vendedor: string; ativo: boolean }[]> {
   const { data, error } = await supabase
     .from('revendedor_saldo_visibilidade' as any)
