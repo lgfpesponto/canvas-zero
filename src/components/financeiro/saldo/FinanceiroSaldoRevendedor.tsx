@@ -13,6 +13,7 @@ import {
 } from '@/lib/revendedorSaldo';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
+import { ComprovantesPorRevendedor } from './ComprovantesPorRevendedor';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 
 const FinanceiroSaldoRevendedor = () => {
@@ -143,6 +144,8 @@ const FinanceiroSaldoRevendedor = () => {
           )}
         </CardContent>
       </Card>
+
+      <ComprovantesPorRevendedor saldos={saldos} onChanged={load} />
 
       <DetalhesRevendedorDrawer
         open={!!detalheVendedor}
