@@ -606,11 +606,19 @@ const ReportsPage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Produtos</p>
-            <p className="text-2xl font-bold">{totalProdutos}</p>
+            <p className="text-2xl font-bold">
+              <LoadingValue loading={ordersLoading} hasData={serverOrders.length > 0 || !ordersLoading} size={20}>
+                {totalProdutos}
+              </LoadingValue>
+            </p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(totalValue)}</p>
+            <p className="text-2xl font-bold text-primary">
+              <LoadingValue loading={ordersLoading} hasData={serverOrders.length > 0 || !ordersLoading} size={20}>
+                {formatCurrency(totalValue)}
+              </LoadingValue>
+            </p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
             <div className="relative">
