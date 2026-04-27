@@ -642,13 +642,11 @@ const ReportsPage = () => {
               )}
             </div>
           </div>
-          {isAdmin && (
-            <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-              <button onClick={handleGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
-                <Printer size={16} /> IMPRIMIR FICHAS
-              </button>
-            </div>
-          )}
+          <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
+            <button onClick={handleGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <Printer size={16} /> IMPRIMIR FICHAS
+            </button>
+          </div>
         </div>
 
         {/* Specialized Reports inline */}
@@ -664,16 +662,14 @@ const ReportsPage = () => {
           </div>
         )}
 
-        {/* Select All - admin only */}
-        {isAdmin && (
-          <div className="flex items-center gap-3 mb-3">
-            <button onClick={toggleSelectAll} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedIds.size === visibleOrders.length && visibleOrders.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
-              {selectedIds.size === visibleOrders.length && visibleOrders.length > 0 && <CheckCircle size={14} className="text-primary-foreground" />}
-            </button>
-            <span className="text-sm font-semibold">Selecionar todos</span>
-            {selectedIds.size > 0 && <span className="text-xs text-muted-foreground">({selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''})</span>}
-          </div>
-        )}
+        {/* Select All */}
+        <div className="flex items-center gap-3 mb-3">
+          <button onClick={toggleSelectAll} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedIds.size === visibleOrders.length && visibleOrders.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
+            {selectedIds.size === visibleOrders.length && visibleOrders.length > 0 && <CheckCircle size={14} className="text-primary-foreground" />}
+          </button>
+          <span className="text-sm font-semibold">Selecionar todos</span>
+          {selectedIds.size > 0 && <span className="text-xs text-muted-foreground">({selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''})</span>}
+        </div>
 
         {/* Orders list */}
         <div className="space-y-3">
