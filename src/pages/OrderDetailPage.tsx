@@ -88,58 +88,145 @@ const OrderDetailPage = () => {
   const totalBizDays = order.tipoExtra === 'cinto' ? 5 : order.tipoExtra ? 1 : 15;
   const daysLeft = businessDaysRemaining(createdDate, totalBizDays);
 
-  // Build details list (only filled fields)
+  // Build details list grouped by category (only filled fields)
   const showCliente = !isAdmin || order.vendedor === 'Rancho Chique';
-  const details: [string, string][] = [
-    ['Modelo', order.modelo],
-    ...(showCliente && order.cliente ? [['Cliente', order.cliente] as [string, string]] : []),
-    ['Tamanho', order.tamanho ? `${order.tamanho}${order.genero ? ' — ' + order.genero : ''}` : ''],
-    ['Sob Medida', order.sobMedida ? `Sim${order.sobMedidaDesc ? ' — ' + order.sobMedidaDesc : ''}` : ''],
-    ['Acessórios', order.acessorios],
-    ['Tipo Couro Cano', order.couroCano],
-    ['Cor Couro Cano', order.corCouroCano || ''],
-    ['Tipo Couro Gáspea', order.couroGaspea],
-    ['Cor Couro Gáspea', order.corCouroGaspea || ''],
-    ['Tipo Couro Taloneira', order.couroTaloneira],
-    ['Cor Couro Taloneira', order.corCouroTaloneira || ''],
-    ['Desenvolvimento', order.desenvolvimento],
-    ['Bordado Cano', order.bordadoCano],
-    ['Cor Bordado Cano', order.corBordadoCano || ''],
-    ['Bordado Gáspea', order.bordadoGaspea],
-    ['Cor Bordado Gáspea', order.corBordadoGaspea || ''],
-    ['Bordado Taloneira', order.bordadoTaloneira],
-    ['Cor Bordado Taloneira', order.corBordadoTaloneira || ''],
-    ['Nome Bordado', order.nomeBordadoDesc || order.personalizacaoNome || ''],
-    ['Laser Cano', order.laserCano || ''],
-    ['Cor Glitter/Tecido Cano', order.corGlitterCano || ''],
-    ['Laser Gáspea', order.laserGaspea || ''],
-    ['Cor Glitter/Tecido Gáspea', order.corGlitterGaspea || ''],
-    ['Laser Taloneira', order.laserTaloneira || ''],
-    ['Cor Glitter/Tecido Taloneira', order.corGlitterTaloneira || ''],
-    ['Pintura', order.pintura === 'Sim' ? (order.pinturaDesc || 'Sim') : ''],
-    ['Estampa', order.estampa === 'Sim' ? (order.estampaDesc ? `Sim — ${order.estampaDesc}` : 'Sim') : ''],
-    ['Cor da Linha', order.corLinha],
-    ['Cor Borrachinha', order.corBorrachinha],
-    ['Cor do Vivo', order.corVivo || ''],
-    ['Área Metal', order.metais],
-    ['Tipo Metal', order.tipoMetal || ''],
-    ['Cor Metal', order.corMetal || ''],
-    ['Strass', order.strassQtd ? `${order.strassQtd} un.` : ''],
-    ['Cruz (metal)', order.cruzMetalQtd ? `${order.cruzMetalQtd} un.` : ''],
-    ['Bridão (metal)', order.bridaoMetalQtd ? `${order.bridaoMetalQtd} un.` : ''],
-    ['Cavalo (metal)', (order.extraDetalhes as any)?.cavaloMetal ? `${(order.extraDetalhes as any).cavaloMetalQtd || 0} un.` : ''],
-    ['Tricê', order.trisce === 'Sim' ? (order.triceDesc || 'Sim') : ''],
-    ['Tiras', order.tiras === 'Sim' ? (order.tirasDesc || 'Sim') : ''],
-    ['Franja', (order.extraDetalhes as any)?.franja ? [(order.extraDetalhes as any).franjaCouro, (order.extraDetalhes as any).franjaCor].filter(Boolean).join(' — ') || 'Sim' : ''],
-    ['Corrente', (order.extraDetalhes as any)?.corrente ? ((order.extraDetalhes as any).correnteCor || 'Sim') : ''],
-    ['Solado', order.solado],
-    ['Formato do Bico', order.formatoBico || ''],
-    ['Cor da Sola', order.corSola || ''],
-    ['Cor da Vira', (order.corVira && !VIRA_HIDDEN.includes(order.corVira)) ? order.corVira : ''],
-    ['Costura Atrás', order.costuraAtras === 'Sim' ? 'Sim' : ''],
-    ['Carimbo a Fogo', order.carimbo ? `${order.carimbo}${order.carimboDesc ? ' — ' + order.carimboDesc : ''}` : ''],
-    ['Adicional', order.adicionalDesc ? `${order.adicionalDesc}${order.adicionalValor ? ` — ${formatCurrency(order.adicionalValor)}` : ''}` : ''],
-  ].filter(([, v]) => v) as [string, string][];
+  const detP: any = order.extraDetalhes || {};
+  const detailsGrouped: { categoria: string; itens: [string, string][] }[] = [
+    {
+      categoria: 'identificação',
+      itens: [
+        ['Modelo', order.modelo],
+        ...(showCliente && order.cliente ? [['Cliente', order.cliente] as [string, string]] : []),
+        ['Tamanho', order.tamanho ? `${order.tamanho}${order.genero ? ' — ' + order.genero : ''}` : ''],
+        ['Sob Medida', order.sobMedida ? `Sim${order.sobMedidaDesc ? ' — ' + order.sobMedidaDesc : ''}` : ''],
+        ['Acessórios', order.acessorios],
+      ],
+    },
+    {
+      categoria: 'couro',
+      itens: [
+        ['Tipo Couro Cano', order.couroCano],
+        ['Cor Couro Cano', order.corCouroCano || ''],
+        ['Tipo Couro Gáspea', order.couroGaspea],
+        ['Cor Couro Gáspea', order.corCouroGaspea || ''],
+        ['Tipo Couro Taloneira', order.couroTaloneira],
+        ['Cor Couro Taloneira', order.corCouroTaloneira || ''],
+        ['Desenvolvimento', order.desenvolvimento],
+      ],
+    },
+    {
+      categoria: 'bordado',
+      itens: [
+        ['Bordado Cano', order.bordadoCano],
+        ['Cor Bordado Cano', order.corBordadoCano || ''],
+        ['Bordado Gáspea', order.bordadoGaspea],
+        ['Cor Bordado Gáspea', order.corBordadoGaspea || ''],
+        ['Bordado Taloneira', order.bordadoTaloneira],
+        ['Cor Bordado Taloneira', order.corBordadoTaloneira || ''],
+        ['Nome Bordado', order.nomeBordadoDesc || order.personalizacaoNome || ''],
+      ],
+    },
+    {
+      categoria: 'laser',
+      itens: [
+        ['Laser Cano', order.laserCano || ''],
+        ['Cor Glitter/Tecido Cano', order.corGlitterCano || ''],
+        ['Laser Gáspea', order.laserGaspea || ''],
+        ['Cor Glitter/Tecido Gáspea', order.corGlitterGaspea || ''],
+        ['Laser Taloneira', order.laserTaloneira || ''],
+        ['Cor Glitter/Tecido Taloneira', order.corGlitterTaloneira || ''],
+      ],
+    },
+    {
+      categoria: 'acabamento',
+      itens: [
+        ['Pintura', order.pintura === 'Sim' ? (order.pinturaDesc || 'Sim') : ''],
+        ['Estampa', order.estampa === 'Sim' ? (order.estampaDesc ? `Sim — ${order.estampaDesc}` : 'Sim') : ''],
+        ['Cor da Linha', order.corLinha],
+        ['Cor Borrachinha', order.corBorrachinha],
+        ['Cor do Vivo', order.corVivo || ''],
+      ],
+    },
+    {
+      categoria: 'metais',
+      itens: [
+        ['Área Metal', order.metais],
+        ['Tipo Metal', order.tipoMetal || ''],
+        ['Cor Metal', order.corMetal || ''],
+        ['Strass', order.strassQtd ? `${order.strassQtd} un.` : ''],
+        ['Bola Grande', detP.bolaGrandeQtd ? `${detP.bolaGrandeQtd} un.` : ''],
+        ['Cruz (metal)', order.cruzMetalQtd ? `${order.cruzMetalQtd} un.` : ''],
+        ['Bridão (metal)', order.bridaoMetalQtd ? `${order.bridaoMetalQtd} un.` : ''],
+        ['Cavalo (metal)', detP.cavaloMetal ? `${detP.cavaloMetalQtd || 0} un.` : ''],
+      ],
+    },
+    {
+      categoria: 'complementos',
+      itens: [
+        ['Tricê', order.trisce === 'Sim' ? (order.triceDesc || 'Sim') : ''],
+        ['Tiras', order.tiras === 'Sim' ? (order.tirasDesc || 'Sim') : ''],
+        ['Franja', detP.franja ? [detP.franjaCouro, detP.franjaCor].filter(Boolean).join(' — ') || 'Sim' : ''],
+        ['Corrente', detP.corrente ? (detP.correnteCor || 'Sim') : ''],
+      ],
+    },
+    {
+      categoria: 'solado',
+      itens: [
+        ['Solado', order.solado],
+        ['Formato do Bico', order.formatoBico || ''],
+        ['Cor da Sola', order.corSola || ''],
+        ['Cor da Vira', (order.corVira && !VIRA_HIDDEN.includes(order.corVira)) ? order.corVira : ''],
+        ['Costura Atrás', order.costuraAtras === 'Sim' ? 'Sim' : ''],
+      ],
+    },
+    {
+      categoria: 'finalização',
+      itens: [
+        ['Carimbo a Fogo', order.carimbo ? `${order.carimbo}${order.carimboDesc ? ' — ' + order.carimboDesc : ''}` : ''],
+        ['Adicional', order.adicionalDesc ? `${order.adicionalDesc}${order.adicionalValor ? ` — ${formatCurrency(order.adicionalValor)}` : ''}` : ''],
+      ],
+    },
+  ]
+    .map(g => ({ ...g, itens: g.itens.filter(([, v]) => v) as [string, string][] }))
+    .filter(g => g.itens.length > 0);
+
+  // Build grouped details for extras (cinto and others) — buckets non-cinto extras into a single "detalhes" group
+  const buildExtraGrouped = (): { categoria: string; itens: [string, string][] }[] => {
+    if (!order.tipoExtra || !order.extraDetalhes) return [];
+    const det: any = order.extraDetalhes;
+    const labelOf = (k: string) => EXTRA_DETAIL_LABELS[k] || k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+    const valOf = (v: any) => Array.isArray(v) ? v.join(', ') : String(v);
+
+    if (order.tipoExtra === 'cinto') {
+      const groups: { categoria: string; keys: string[] }[] = [
+        { categoria: 'identificação', keys: ['tamanhoCinto'] },
+        { categoria: 'couro', keys: ['tipoCouro', 'corCouro'] },
+        { categoria: 'fivela', keys: ['fivela', 'fivelaOutroDesc'] },
+        { categoria: 'bordado', keys: ['bordadoP', 'bordadoPDesc', 'bordadoPCor', 'nomeBordado', 'nomeBordadoDesc', 'nomeBordadoCor', 'nomeBordadoFonte'] },
+        { categoria: 'finalização', keys: ['carimbo', 'carimboDesc', 'carimboOnde'] },
+      ];
+      const handled = new Set<string>(groups.flatMap(g => g.keys));
+      const result = groups.map(g => ({
+        categoria: g.categoria,
+        itens: g.keys
+          .filter(k => !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(det[k]))
+          .map(k => [labelOf(k), valOf(det[k])] as [string, string]),
+      }));
+      // Catch any unmapped fields (future-proof) into "outros"
+      const outros = Object.entries(det)
+        .filter(([k, v]) => !handled.has(k) && !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(v) && k !== 'botas')
+        .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
+      if (outros.length > 0) result.push({ categoria: 'outros', itens: outros });
+      return result.filter(g => g.itens.length > 0);
+    }
+
+    // Non-cinto extras: single bucket (kit faca, tiras, revitalizador, etc.)
+    const itens = Object.entries(det)
+      .filter(([k, v]) => !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(v) && k !== 'botas')
+      .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
+    return itens.length > 0 ? [{ categoria: 'detalhes', itens }] : [];
+  };
+  const extraGrouped = buildExtraGrouped();
 
   // Build price breakdown list
   const priceItems: [string, number][] = [];
@@ -189,7 +276,7 @@ const OrderDetailPage = () => {
   if (order.strassQtd) priceItems.push([`Strass (${order.strassQtd} un.)`, order.strassQtd * STRASS_PRECO]);
   if (order.cruzMetalQtd) priceItems.push([`Cruz metal (${order.cruzMetalQtd} un.)`, order.cruzMetalQtd * CRUZ_METAL_PRECO]);
   if (order.bridaoMetalQtd) priceItems.push([`Bridão metal (${order.bridaoMetalQtd} un.)`, order.bridaoMetalQtd * BRIDAO_METAL_PRECO]);
-  const detP: any = order.extraDetalhes || {};
+  // detP already declared above for detailsGrouped
   if (detP.cavaloMetal && detP.cavaloMetalQtd) priceItems.push([`Cavalo metal (${detP.cavaloMetalQtd} un.)`, detP.cavaloMetalQtd * CAVALO_METAL_PRECO]);
   if (order.trisce === 'Sim') priceItems.push(['Tricê', TRICE_PRECO]);
   if (order.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
@@ -491,17 +578,19 @@ const OrderDetailPage = () => {
             {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
           </h2>
           {order.tipoExtra && order.extraDetalhes ? (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
+            <div className="mb-6 space-y-4">
               {order.numeroPedidoBota && (
-                <div className="flex justify-between py-1.5 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">Nº do Pedido</span>
-                  <span className="text-sm font-semibold text-right">{order.numeroPedidoBota}</span>
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+                  <div className="flex justify-between py-1.5 border-b border-border/50">
+                    <span className="text-sm text-muted-foreground">Nº do Pedido</span>
+                    <span className="text-sm font-semibold text-right">{order.numeroPedidoBota}</span>
+                  </div>
                 </div>
               )}
               {/* Multi-bota list */}
               {order.tipoExtra === 'bota_pronta_entrega' && Array.isArray((order.extraDetalhes as any)?.botas) ? (
-                <>
-                   {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+                  {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
                     <div key={idx} className="col-span-full border border-border rounded-lg p-3 space-y-1">
                       <p className="text-sm font-semibold">Bota {idx + 1}</p>
                       <div className="flex justify-between">
@@ -541,28 +630,40 @@ const OrderDetailPage = () => {
                       )}
                     </div>
                   ))}
-                </>
+                </div>
               ) : (
-                Object.entries(order.extraDetalhes)
-                  .filter(([key, val]) => !EXTRA_INTERNAL_KEYS.has(key) && !isExtraValueEmpty(val) && key !== 'botas')
-                  .map(([key, val]) => {
-                    const label = EXTRA_DETAIL_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-                    const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
-                    return (
-                      <div key={key} className="flex justify-between py-1.5 border-b border-border/50">
-                        <span className="text-sm text-muted-foreground">{label}</span>
-                        <span className="text-sm font-semibold text-right max-w-[60%]">{displayVal}</span>
-                      </div>
-                    );
-                  })
+                extraGrouped.map(grupo => (
+                  <div key={grupo.categoria}>
+                    <div className="bg-primary text-primary-foreground text-center text-sm lowercase font-medium py-1.5 rounded-sm mb-2">
+                      {grupo.categoria}
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+                      {grupo.itens.map(([label, value]) => (
+                        <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                          <span className="text-sm text-muted-foreground">{label}</span>
+                          <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
-              {details.map(([label, value]) => (
-                <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">{label}</span>
-                  <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            <div className="mb-6 space-y-4">
+              {detailsGrouped.map(grupo => (
+                <div key={grupo.categoria}>
+                  <div className="bg-primary text-primary-foreground text-center text-sm lowercase font-medium py-1.5 rounded-sm mb-2">
+                    {grupo.categoria}
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+                    {grupo.itens.map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
