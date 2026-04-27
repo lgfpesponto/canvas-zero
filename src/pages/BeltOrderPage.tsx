@@ -380,7 +380,6 @@ const BeltOrderPage = () => {
               )}
             </div>
           </Section>
-          </div>
 
           {/* Couro */}
           <Section title="Couro">
