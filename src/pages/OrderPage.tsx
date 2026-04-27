@@ -434,6 +434,12 @@ const OrderPage = () => {
     setAdicionalDesc(fd.adicionalDesc || '');
     setAdicionalValor(Number(fd.adicionalValor) || 0);
     setObservacao(fd.observacao || '');
+    setRecorteCano(fd.recorteCano || '');
+    setCorRecorteCano(fd.corRecorteCano || '');
+    setRecorteGaspea(fd.recorteGaspea || '');
+    setCorRecorteGaspea(fd.corRecorteGaspea || '');
+    setRecorteTaloneira(fd.recorteTaloneira || '');
+    setCorRecorteTaloneira(fd.corRecorteTaloneira || '');
   }, []);
 
   // Template handlers using hook
