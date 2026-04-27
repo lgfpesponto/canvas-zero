@@ -500,19 +500,7 @@ const BeltOrderPage = () => {
             <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
           </div>
 
-          {/* Link da Foto */}
-          <div>
-            <label className={cls.label}>Link da Foto de Referência (Google Drive)</label>
-            <div className="flex items-center gap-2">
-              <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-              <input type="url" value={fotoUrl} onChange={e => setFotoUrl(e.target.value)} placeholder="Cole o link do Google Drive aqui..." className={cls.input} />
-              {fotoUrl && (
-                <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          </div>
+          {/* Link da foto agora vive na seção Identificação no topo */}
 
           {/* Quantidade */}
           <div className="flex items-center gap-3">
