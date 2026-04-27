@@ -86,27 +86,31 @@ export function useTemplateManagement() {
   }, []);
 
   const sendTemplateToUsers = useCallback(async (
-    template: TemplateRecord,
+    templatesToSend: TemplateRecord | TemplateRecord[],
     recipientIds: string[],
     senderId: string,
     senderName: string,
   ) => {
     if (recipientIds.length === 0) return false;
-    const rows = recipientIds.map(uid => ({
+    const list = Array.isArray(templatesToSend) ? templatesToSend : [templatesToSend];
+    if (list.length === 0) return false;
+    const rows = list.flatMap(template => recipientIds.map(uid => ({
       user_id: uid,
       nome: template.nome,
       form_data: template.form_data,
       sent_by: senderId,
       sent_by_name: senderName || 'Usuário',
       seen: false,
-    }));
+    })));
     const { error } = await supabase.from('order_templates').insert(rows as any);
     if (error) {
       toast.error('Erro ao enviar modelo');
       console.error(error);
       return false;
     }
-    toast.success(`Modelo enviado para ${recipientIds.length} usuário${recipientIds.length > 1 ? 's' : ''}!`);
+    const ms = list.length;
+    const us = recipientIds.length;
+    toast.success(`${ms} modelo${ms > 1 ? 's' : ''} enviado${ms > 1 ? 's' : ''} para ${us} usuário${us > 1 ? 's' : ''}!`);
     return true;
   }, []);
 
