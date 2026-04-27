@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Eye, X } from 'lucide-react';
+import { Loader2, Eye, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -12,33 +12,45 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  fetchSaldosTodos, fetchComprovantesPendentes, fetchVendedoresUsuarios,
-  type RevendedorSaldo,
+  fetchSaldosTodos, fetchVendedoresUsuarios,
+  fetchComprovantesTodos, fetchMovimentosTodos,
+  type RevendedorSaldo, type RevendedorComprovante, type RevendedorMovimento,
+  type ComprovanteStatus,
 } from '@/lib/revendedorSaldo';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
 import { ComprovantesPorRevendedor } from './ComprovantesPorRevendedor';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 
+type PeriodoOption = 'mes' | '30d' | 'todos';
+type TipoOption = 'todos' | ComprovanteStatus;
+
 const FinanceiroSaldoRevendedor = () => {
   const { toast } = useToast();
   const [saldos, setSaldos] = useState<RevendedorSaldo[] | null>(null);
-  const [pendentesCount, setPendentesCount] = useState<number | null>(null);
+  const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
+  const [movimentos, setMovimentos] = useState<RevendedorMovimento[]>([]);
   const [vendedoresUsuarios, setVendedoresUsuarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
-  const [filtroVendedor, setFiltroVendedor] = useState<string>('');
+
+  // Filtros padronizados
+  const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
+  const [filterVendedor, setFilterVendedor] = useState<string>('todos');
+  const [filterTipo, setFilterTipo] = useState<TipoOption>('todos');
 
   const load = async () => {
     setLoading(true);
     try {
-      const [s, p, vs] = await Promise.all([
+      const [s, c, m, vs] = await Promise.all([
         fetchSaldosTodos(),
-        fetchComprovantesPendentes(),
+        fetchComprovantesTodos(),
+        fetchMovimentosTodos(),
         fetchVendedoresUsuarios(),
       ]);
       setSaldos(s);
-      setPendentesCount(p.length);
+      setComprovantes(c);
+      setMovimentos(m);
       setVendedoresUsuarios(vs);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
@@ -49,81 +61,133 @@ const FinanceiroSaldoRevendedor = () => {
 
   useEffect(() => { load(); }, []);
 
-  /** Lista de vendedores no select: usuários cadastrados como vendedor +
-   *  qualquer vendedor que já tenha saldo (caso o usuário não exista mais). */
+  /** Início do intervalo do período (null = sem corte). */
+  const periodoStart = useMemo<Date | null>(() => {
+    const now = new Date();
+    if (filterPeriodo === 'mes') return new Date(now.getFullYear(), now.getMonth(), 1);
+    if (filterPeriodo === '30d') {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    return null;
+  }, [filterPeriodo]);
+
+  const dentroDoPeriodo = (iso: string) => {
+    if (!periodoStart) return true;
+    return new Date(iso) >= periodoStart;
+  };
+
+  /** Vendedores no select: usuários com role 'vendedor' + qualquer um com saldo histórico. */
   const vendedoresOptions = useMemo(() => {
     const set = new Set<string>(vendedoresUsuarios);
     (saldos || []).forEach(s => { if (s.vendedor) set.add(s.vendedor); });
     return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [vendedoresUsuarios, saldos]);
 
+  /** Comprovantes que passam pelos filtros (período + vendedor + tipo). */
+  const comprovantesFiltrados = useMemo(() => {
+    return comprovantes.filter(c => {
+      if (!dentroDoPeriodo(c.created_at)) return false;
+      if (filterVendedor !== 'todos' && c.vendedor !== filterVendedor) return false;
+      if (filterTipo !== 'todos' && c.status !== filterTipo) return false;
+      return true;
+    });
+  }, [comprovantes, periodoStart, filterVendedor, filterTipo]);
+
+  /** Movimentos que passam pelos filtros de período + vendedor (Tipo só afeta comprovantes). */
+  const movimentosFiltrados = useMemo(() => {
+    return movimentos.filter(m => {
+      if (!dentroDoPeriodo(m.created_at)) return false;
+      if (filterVendedor !== 'todos' && m.vendedor !== filterVendedor) return false;
+      return true;
+    });
+  }, [movimentos, periodoStart, filterVendedor]);
+
+  /** Cards: Recebido / Utilizado vêm dos movimentos do período;
+   *  Saldo disponível é sempre o snapshot atual (cumulativo). */
+  const totals = useMemo(() => {
+    const recebido = movimentosFiltrados
+      .filter(m => m.tipo === 'entrada_comprovante')
+      .reduce((s, m) => s + Number(m.valor || 0), 0);
+    const utilizado = movimentosFiltrados
+      .filter(m => m.tipo === 'baixa_pedido')
+      .reduce((s, m) => s + Number(m.valor || 0), 0);
+    const saldoSnapshot = (saldos || [])
+      .filter(s => filterVendedor === 'todos' || s.vendedor === filterVendedor)
+      .reduce((acc, s) => acc + Number(s.saldo_disponivel || 0), 0);
+    const pendentes = comprovantesFiltrados.filter(c => c.status === 'pendente').length;
+    return { recebido, utilizado, saldoSnapshot, pendentes };
+  }, [movimentosFiltrados, comprovantesFiltrados, saldos, filterVendedor]);
+
   const saldoFiltrado = useMemo(
-    () => (saldos || []).find(s => s.vendedor === filtroVendedor) || null,
-    [saldos, filtroVendedor]
+    () => (saldos || []).find(s => s.vendedor === filterVendedor) || null,
+    [saldos, filterVendedor]
   );
 
-  /** Totais dos cards: do filtrado (se houver) ou da soma geral. */
-  const totals = useMemo(() => {
-    if (filtroVendedor) {
-      return {
-        recebido: Number(saldoFiltrado?.total_recebido || 0),
-        utilizado: Number(saldoFiltrado?.total_utilizado || 0),
-        saldoTotal: Number(saldoFiltrado?.saldo_disponivel || 0),
-      };
-    }
-    const list = saldos || [];
-    return {
-      recebido: list.reduce((s, r) => s + Number(r.total_recebido || 0), 0),
-      utilizado: list.reduce((s, r) => s + Number(r.total_utilizado || 0), 0),
-      saldoTotal: list.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0),
-    };
-  }, [saldos, filtroVendedor, saldoFiltrado]);
-
+  /** Tabela "Saldo por vendedor" — só inclui quem tem movimento no período. */
   const saldosTabela = useMemo(() => {
     const list = saldos || [];
-    return filtroVendedor
-      ? list.filter(s => s.vendedor === filtroVendedor)
-      : list;
-  }, [saldos, filtroVendedor]);
+    const filtrados = filterVendedor === 'todos'
+      ? list
+      : list.filter(s => s.vendedor === filterVendedor);
+    if (!periodoStart) return filtrados;
+    const vendedoresComMovimentoNoPeriodo = new Set(movimentosFiltrados.map(m => m.vendedor));
+    return filtrados.filter(s => vendedoresComMovimentoNoPeriodo.has(s.vendedor));
+  }, [saldos, filterVendedor, movimentosFiltrados, periodoStart]);
+
+  const periodoLabel = filterPeriodo === 'mes'
+    ? 'mês atual'
+    : filterPeriodo === '30d' ? 'últimos 30 dias' : 'todos os períodos';
 
   return (
     <div className="space-y-6">
-      {/* Filtro único de vendedor — controla cards, tabela e lista de comprovantes */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[260px]">
-              <Label>Filtrar por vendedor</Label>
-              <Select value={filtroVendedor || '__all__'} onValueChange={(v) => setFiltroVendedor(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Todos os vendedores" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="__all__">Todos os vendedores</SelectItem>
-                  {vendedoresOptions.map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {filtroVendedor && (
-              <Button variant="outline" size="sm" onClick={() => setFiltroVendedor('')}>
-                <X size={14} className="mr-1" /> Limpar filtro
-              </Button>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {filtroVendedor
-                ? `Mostrando dados de ${filtroVendedor}.`
-                : 'Selecione um vendedor para ver seus comprovantes e dar baixa manual.'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Toolbar de filtros (padrão A Receber) */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-center gap-2"><Filter size={16} className="text-muted-foreground" /></div>
+        <div>
+          <Label className="text-xs">Período</Label>
+          <Select value={filterPeriodo} onValueChange={(v: any) => setFilterPeriodo(v)}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mes">Mês atual</SelectItem>
+              <SelectItem value="30d">Últimos 30 dias</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Vendedor</Label>
+          <Select value={filterVendedor} onValueChange={setFilterVendedor}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="todos">Todos</SelectItem>
+              {vendedoresOptions.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Tipo</Label>
+          <Select value={filterTipo} onValueChange={(v: any) => setFilterTipo(v)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="reprovado">Reprovado</SelectItem>
+              <SelectItem value="utilizado">Utilizado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      {/* Cards de resumo (atualizam conforme filtro) */}
+      {/* Cards de resumo (atualizam conforme filtros) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Recebido ({periodoLabel})</CardTitle>
+          </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">
               <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
@@ -133,7 +197,9 @@ const FinanceiroSaldoRevendedor = () => {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total utilizado</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Utilizado ({periodoLabel})</CardTitle>
+          </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
               <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
@@ -145,50 +211,55 @@ const FinanceiroSaldoRevendedor = () => {
         <Card className="border-primary border-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-primary">
-              {filtroVendedor ? 'Saldo disponível' : 'Saldo disponível total'}
+              {filterVendedor === 'todos' ? 'Saldo disponível total' : 'Saldo disponível'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">
               <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
-                {formatCurrency(totals.saldoTotal)}
+                {formatCurrency(totals.saldoSnapshot)}
               </LoadingValue>
             </p>
+            <p className="text-[10px] text-muted-foreground mt-1">saldo atual (cumulativo)</p>
           </CardContent>
         </Card>
-        <Card className={(pendentesCount ?? 0) > 0 ? 'border-destructive' : ''}>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Comprovantes pendentes</CardTitle></CardHeader>
+        <Card className={totals.pendentes > 0 ? 'border-destructive' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Comprovantes pendentes</CardTitle>
+          </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-destructive">
-              <LoadingValue loading={loading} hasData={pendentesCount !== null} size={20}>
-                {pendentesCount ?? 0}
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {totals.pendentes}
               </LoadingValue>
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Comprovantes pendentes (geral) */}
+      {/* Comprovantes pendentes (geral, não filtrado) */}
       <ComprovantesRevendedorPendentes
         onChanged={load}
         title="Comprovantes aguardando aprovação"
         showAdminUpload
       />
 
-      {/* Lista de comprovantes do vendedor filtrado (só aparece quando filtra) */}
-      {filtroVendedor && (
+      {/* Lista de comprovantes (só com vendedor específico) */}
+      {filterVendedor !== 'todos' && (
         <ComprovantesPorRevendedor
-          vendedor={filtroVendedor}
+          vendedor={filterVendedor}
           saldoVendedor={saldoFiltrado}
+          comprovantes={comprovantesFiltrados}
+          loading={loading}
           onChanged={load}
         />
       )}
 
-      {/* Saldo por vendedor (filtra junto) */}
+      {/* Saldo por vendedor */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {filtroVendedor ? `Saldo de ${filtroVendedor}` : 'Saldo por vendedor'}
+            {filterVendedor !== 'todos' ? `Saldo de ${filterVendedor}` : 'Saldo por vendedor'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -196,9 +267,7 @@ const FinanceiroSaldoRevendedor = () => {
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : saldosTabela.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">
-              {filtroVendedor
-                ? 'Esse vendedor ainda não tem movimentos de saldo.'
-                : 'Nenhum movimento registrado ainda.'}
+              Nenhum movimento no período selecionado.
             </p>
           ) : (
             <Table>

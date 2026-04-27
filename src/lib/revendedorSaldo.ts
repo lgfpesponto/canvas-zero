@@ -116,6 +116,26 @@ export async function fetchComprovantesPendentes(): Promise<RevendedorComprovant
   return (data as any) || [];
 }
 
+/** Todos os comprovantes (admin only). */
+export async function fetchComprovantesTodos(): Promise<RevendedorComprovante[]> {
+  const { data, error } = await supabase
+    .from('revendedor_comprovantes' as any)
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as any) || [];
+}
+
+/** Todos os movimentos de saldo (admin only). */
+export async function fetchMovimentosTodos(): Promise<RevendedorMovimento[]> {
+  const { data, error } = await supabase
+    .from('revendedor_saldo_movimentos' as any)
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as any) || [];
+}
+
 export async function fetchMovimentos(vendedor: string): Promise<RevendedorMovimento[]> {
   const { data, error } = await supabase
     .from('revendedor_saldo_movimentos' as any)
