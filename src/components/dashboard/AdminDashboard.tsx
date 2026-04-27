@@ -20,6 +20,8 @@ import {
   formatCurrency,
 } from '@/lib/order-logic';
 import { useOrdersQuery } from '@/hooks/useOrdersQuery';
+import { LoadingValue } from '@/components/ui/LoadingValue';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Order } from '@/contexts/AuthContext';
 
 const fadeIn = {
@@ -51,11 +53,15 @@ const AdminDashboard = () => {
   const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
 
   // ── Server-side data via RPCs ──
-  const [pendingValue, setPendingValue] = useState(0);
-  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
-  const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
+  const [pendingValue, setPendingValue] = useState<number | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number } | null>(null);
+  const [productionLoading, setProductionLoading] = useState(true);
+  const [chartData, setChartData] = useState<{ name: string; vendas: number }[] | null>(null);
+  const [chartLoading, setChartLoading] = useState(true);
   const [vendedores, setVendedores] = useState<string[]>([]);
-  const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+  const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number } | null>(null);
+  const [comprovantesLoading, setComprovantesLoading] = useState(true);
 
   // Fetch vendedores list
   useEffect(() => {
@@ -73,53 +79,75 @@ const AdminDashboard = () => {
 
   // Fetch pending value via RPC
   useEffect(() => {
+    setPendingLoading(true);
     (async () => {
-      const vendor = receberVendedor === 'todos' ? null : receberVendedor;
-      const { data } = await supabase.rpc('get_pending_value', { vendor });
-      if (data !== null && data !== undefined) setPendingValue(Number(data));
+      try {
+        const vendor = receberVendedor === 'todos' ? null : receberVendedor;
+        const { data } = await supabase.rpc('get_pending_value', { vendor });
+        setPendingValue(data !== null && data !== undefined ? Number(data) : 0);
+      } finally {
+        setPendingLoading(false);
+      }
     })();
   }, [receberVendedor]);
 
   // Fetch production counts via RPC
   useEffect(() => {
+    setProductionLoading(true);
     (async () => {
-      const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
-      const vendors = prodVendedorFilter.size > 0 ? [...prodVendedorFilter] : null;
-      const { data } = await supabase.rpc('get_production_counts', {
-        product_types: productTypes,
-        vendors: vendors,
-      });
-      if (data && data.length > 0) {
-        setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+      try {
+        const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
+        const vendors = prodVendedorFilter.size > 0 ? [...prodVendedorFilter] : null;
+        const { data } = await supabase.rpc('get_production_counts', {
+          product_types: productTypes,
+          vendors: vendors,
+        });
+        if (data && data.length > 0) {
+          setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+        } else {
+          setProductionCounts({ in_production: 0, total: 0 });
+        }
+      } finally {
+        setProductionLoading(false);
       }
     })();
   }, [prodProductFilter, prodVendedorFilter]);
 
   // Fetch chart data via RPC
   useEffect(() => {
+    setChartLoading(true);
     (async () => {
-      const vendor = chartVendedorFilter === 'todos' ? null : chartVendedorFilter;
-      const { data } = await supabase.rpc('get_sales_chart', {
-        period: chartPeriod,
-        product_filter: chartProductFilter,
-        vendor_filter: vendor,
-      });
-      if (data) {
-        setChartData(data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })));
+      try {
+        const vendor = chartVendedorFilter === 'todos' ? null : chartVendedorFilter;
+        const { data } = await supabase.rpc('get_sales_chart', {
+          period: chartPeriod,
+          product_filter: chartProductFilter,
+          vendor_filter: vendor,
+        });
+        setChartData(data ? data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })) : []);
+      } finally {
+        setChartLoading(false);
       }
     })();
   }, [chartPeriod, chartProductFilter, chartVendedorFilter]);
 
   // Fetch comprovantes pendentes do revendedor (apenas admin_master)
   const fetchComprovantesPendentes = useCallback(async () => {
-    if (!isAdminMaster) return;
-    const { data } = await supabase
-      .from('revendedor_comprovantes' as any)
-      .select('valor')
-      .eq('status', 'pendente');
-    if (data) {
-      const total = (data as any[]).reduce((s, c) => s + Number(c.valor || 0), 0);
-      setComprovantesRevendedor({ count: data.length, total });
+    if (!isAdminMaster) { setComprovantesLoading(false); return; }
+    setComprovantesLoading(true);
+    try {
+      const { data } = await supabase
+        .from('revendedor_comprovantes' as any)
+        .select('valor')
+        .eq('status', 'pendente');
+      if (data) {
+        const total = (data as any[]).reduce((s, c) => s + Number(c.valor || 0), 0);
+        setComprovantesRevendedor({ count: data.length, total });
+      } else {
+        setComprovantesRevendedor({ count: 0, total: 0 });
+      }
+    } finally {
+      setComprovantesLoading(false);
     }
   }, [isAdminMaster]);
 
