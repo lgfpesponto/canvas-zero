@@ -24,7 +24,7 @@ import {
   GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO, GLITTER_TALONEIRA_PRECO,
   COR_GLITTER, COR_LINHA, COR_BORRACHINHA,
   COR_VIVO, DESENVOLVIMENTO, AREA_METAL, TIPO_METAL, COR_METAL,
-  STRASS_PRECO, CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO,
+  STRASS_PRECO, BOLA_GRANDE_PRECO, CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO,
   FRANJA_PRECO, CORRENTE_PRECO, SOLADO, COR_SOLA, COR_VIRA,
   CARIMBO, SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO,
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, FORMATO_BICO,
@@ -217,10 +217,16 @@ const OrderPage = () => {
 
   // metais
   const [areaMetal, setAreaMetal] = useState(df.areaMetal || '');
-  const [tipoMetal, setTipoMetal] = useState<string[]>(df.tipoMetal ? df.tipoMetal.split('||') : []);
+  const [tipoMetal, setTipoMetal] = useState<string[]>(df.tipoMetal ? df.tipoMetal.split('||').filter((x: string) => !x.startsWith('Bola Grande')) : []);
   const [corMetal, setCorMetal] = useState(df.corMetal || '');
   const [strass, setStrass] = useState(df.strass === 'true');
   const [strassQtd, setStrassQtd] = useState(Number(df.strassQtd) || 0);
+  const [bolaGrande, setBolaGrande] = useState(df.bolaGrande === 'true' || (df.tipoMetal || '').includes('Bola Grande'));
+  const [bolaGrandeQtd, setBolaGrandeQtd] = useState(() => {
+    if (df.bolaGrandeQtd) return Number(df.bolaGrandeQtd) || 0;
+    const m = (df.tipoMetal || '').match(/Bola Grande:(\d+)/);
+    return m ? Number(m[1]) : 0;
+  });
   const [cruzMetal, setCruzMetal] = useState(df.cruzMetal === 'true');
   const [cruzMetalQtd, setCruzMetalQtd] = useState(Number(df.cruzMetalQtd) || 0);
   const [bridaoMetal, setBridaoMetal] = useState(df.bridaoMetal === 'true');
@@ -323,6 +329,7 @@ const OrderPage = () => {
     corLinha, corBorrachinha, corVivo,
     areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
     strass: String(strass), strassQtd: String(strassQtd),
+    bolaGrande: String(bolaGrande), bolaGrandeQtd: String(bolaGrandeQtd),
     cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
     bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
     cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
@@ -335,7 +342,7 @@ const OrderPage = () => {
     carimbo, carimboDesc,
     adicionalDesc, adicionalValor: String(adicionalValor),
     observacao, sobMedida: String(sobMedida),
-  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida]);
+  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, bolaGrande, bolaGrandeQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida]);
 
   // Populate all form fields from template data
   const populateFormFromTemplate = useCallback((fd: Record<string, string>) => {
@@ -381,10 +388,13 @@ const OrderPage = () => {
     setCorBorrachinha(fd.corBorrachinha || '');
     setCorVivo(fd.corVivo || '');
     setAreaMetal(fd.areaMetal || '');
-    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||') : []);
+    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||').filter((x: string) => !x.startsWith('Bola Grande')) : []);
     setCorMetal(fd.corMetal || '');
     setStrass(fd.strass === 'true');
     setStrassQtd(Number(fd.strassQtd) || 0);
+    setBolaGrande(fd.bolaGrande === 'true' || (fd.tipoMetal || '').includes('Bola Grande'));
+    const bgMatch = (fd.tipoMetal || '').match(/Bola Grande:(\d+)/);
+    setBolaGrandeQtd(fd.bolaGrandeQtd ? Number(fd.bolaGrandeQtd) || 0 : (bgMatch ? Number(bgMatch[1]) : 0));
     setCruzMetal(fd.cruzMetal === 'true');
     setCruzMetalQtd(Number(fd.cruzMetalQtd) || 0);
     setBridaoMetal(fd.bridaoMetal === 'true');
@@ -696,6 +706,7 @@ const OrderPage = () => {
   const desenvPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
   const areaMetalPreco = AREA_METAL.find(a => a.label === areaMetal)?.preco || 0;
   const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
+  const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * BOLA_GRANDE_PRECO : 0;
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * CRUZ_METAL_PRECO : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * BRIDAO_METAL_PRECO : 0;
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * CAVALO_METAL_PRECO : 0;
@@ -714,7 +725,7 @@ const OrderPage = () => {
     + totalLaserPreco
     + (pintura ? PINTURA_PRECO : 0)
     + (estampa ? ESTAMPA_PRECO : 0)
-    + desenvPreco + areaMetalPreco + strassPreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
+    + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
     + (trice ? TRICE_PRECO : 0)
     + (tiras ? TIRAS_PRECO : 0)
     + (franja ? FRANJA_PRECO : 0)
@@ -816,7 +827,7 @@ const OrderPage = () => {
     corLinha, corBorrachinha,
     trisce: trice ? 'Sim' : 'Não', triceDesc,
     tiras: tiras ? 'Sim' : 'Não', tirasDesc,
-    metais: areaMetal, tipoMetal: tipoMetal.join(', '), corMetal,
+    metais: areaMetal, tipoMetal: [...tipoMetal, ...(bolaGrande ? [`Bola Grande:${bolaGrandeQtd}`] : [])].join(', '), corMetal,
     strassQtd: strass ? strassQtd : 0,
     cruzMetalQtd: cruzMetal ? cruzMetalQtd : 0,
     bridaoMetalQtd: bridaoMetal ? bridaoMetalQtd : 0,
@@ -864,6 +875,7 @@ const OrderPage = () => {
     setCorLinha(''); setCorBorrachinha(''); setCorVivo('');
     setAreaMetal(''); setTipoMetal([]); setCorMetal('');
     setStrass(false); setStrassQtd(0);
+    setBolaGrande(false); setBolaGrandeQtd(0);
     setCruzMetal(false); setCruzMetalQtd(0);
     setBridaoMetal(false); setBridaoMetalQtd(0);
     setCavaloMetal(false); setCavaloMetalQtd(0);
@@ -946,8 +958,9 @@ const OrderPage = () => {
       pintura: String(pintura), pinturaDesc,
       estampa: String(estampa), estampaDesc,
       corLinha, corBorrachinha, corVivo,
-      areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
+      areaMetal, tipoMetal: [...tipoMetal, ...(bolaGrande ? [`Bola Grande:${bolaGrandeQtd}`] : [])].join('||'), corMetal,
       strass: String(strass), strassQtd: String(strassQtd),
+      bolaGrande: String(bolaGrande), bolaGrandeQtd: String(bolaGrandeQtd),
       cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
       bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
       cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
@@ -1010,7 +1023,7 @@ const OrderPage = () => {
       ['Cor do Vivo', corVivo] as [string, string],
     ] : []),
     ['Área Metal', areaMetal],
-    ['Tipo Metal', tipoMetal.join(', ')],
+    ['Tipo Metal', [...tipoMetal, ...(bolaGrande ? [`Bola Grande (${bolaGrandeQtd} un.)`] : [])].join(', ')],
     ['Cor Metal', corMetal],
     ['Strass', strass ? `${strassQtd} un.` : ''],
     ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
@@ -1253,6 +1266,10 @@ const OrderPage = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Strass (R$0,60/un)" value={strass} onChange={setStrass} />
                 {strass && <input type="number" min={0} value={strassQtd} onChange={e => setStrassQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <ToggleField label="Bola Grande (R$0,60/un)" value={bolaGrande} onChange={setBolaGrande} />
+                {bolaGrande && <input type="number" min={0} value={bolaGrandeQtd} onChange={e => setBolaGrandeQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Cruz (R$6/un)" value={cruzMetal} onChange={setCruzMetal} />

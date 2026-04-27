@@ -255,9 +255,10 @@ export const AREA_METAL: { label: string; preco: number }[] = [
   { label: 'Inteira', preco: 30 },
   { label: 'Metade da Bota', preco: 15 },
 ];
-export const TIPO_METAL = ['Rebite', 'Bola Grande'];
+export const TIPO_METAL = ['Rebite'];
 export const COR_METAL = ['Níquel', 'Ouro Velho', 'Dourado'];
 export const STRASS_PRECO = 0.60;
+export const BOLA_GRANDE_PRECO = 0.60;
 export const CRUZ_METAL_PRECO = 6;
 export const BRIDAO_METAL_PRECO = 3;
 export const CAVALO_METAL_PRECO = 5;
