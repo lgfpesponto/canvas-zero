@@ -190,6 +190,44 @@ const OrderDetailPage = () => {
     .map(g => ({ ...g, itens: g.itens.filter(([, v]) => v) as [string, string][] }))
     .filter(g => g.itens.length > 0);
 
+  // Build grouped details for extras (cinto and others) — buckets non-cinto extras into a single "detalhes" group
+  const buildExtraGrouped = (): { categoria: string; itens: [string, string][] }[] => {
+    if (!order.tipoExtra || !order.extraDetalhes) return [];
+    const det: any = order.extraDetalhes;
+    const labelOf = (k: string) => EXTRA_DETAIL_LABELS[k] || k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+    const valOf = (v: any) => Array.isArray(v) ? v.join(', ') : String(v);
+
+    if (order.tipoExtra === 'cinto') {
+      const groups: { categoria: string; keys: string[] }[] = [
+        { categoria: 'identificação', keys: ['tamanhoCinto'] },
+        { categoria: 'couro', keys: ['tipoCouro', 'corCouro'] },
+        { categoria: 'fivela', keys: ['fivela', 'fivelaOutroDesc'] },
+        { categoria: 'bordado', keys: ['bordadoP', 'bordadoPDesc', 'bordadoPCor', 'nomeBordado', 'nomeBordadoDesc', 'nomeBordadoCor', 'nomeBordadoFonte'] },
+        { categoria: 'finalização', keys: ['carimbo', 'carimboDesc', 'carimboOnde'] },
+      ];
+      const handled = new Set<string>(groups.flatMap(g => g.keys));
+      const result = groups.map(g => ({
+        categoria: g.categoria,
+        itens: g.keys
+          .filter(k => !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(det[k]))
+          .map(k => [labelOf(k), valOf(det[k])] as [string, string]),
+      }));
+      // Catch any unmapped fields (future-proof) into "outros"
+      const outros = Object.entries(det)
+        .filter(([k, v]) => !handled.has(k) && !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(v) && k !== 'botas')
+        .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
+      if (outros.length > 0) result.push({ categoria: 'outros', itens: outros });
+      return result.filter(g => g.itens.length > 0);
+    }
+
+    // Non-cinto extras: single bucket (kit faca, tiras, revitalizador, etc.)
+    const itens = Object.entries(det)
+      .filter(([k, v]) => !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(v) && k !== 'botas')
+      .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
+    return itens.length > 0 ? [{ categoria: 'detalhes', itens }] : [];
+  };
+  const extraGrouped = buildExtraGrouped();
+
   // Build price breakdown list
   const priceItems: [string, number][] = [];
   const modeloP = MODELOS.find(m => m.label === order.modelo)?.preco;
