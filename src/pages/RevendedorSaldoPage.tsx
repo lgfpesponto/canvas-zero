@@ -18,6 +18,7 @@ import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from '@/components/financeiro/saldo/EnviarComprovanteDialog';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 import { supabase } from '@/integrations/supabase/client';
+import { LoadingValue } from '@/components/ui/LoadingValue';
 
 const RevendedorSaldoPage = () => {
   const { loading: accessLoading, isAdminMaster, canSeeRevendedorView, vendedorName } = useFinanceiroSaldoAccess();
@@ -113,7 +114,11 @@ const RevendedorSaldoPage = () => {
             <CardTitle className="text-sm text-muted-foreground">Total enviado</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(saldo?.total_recebido || 0)}</p>
+            <p className="text-2xl font-bold text-primary">
+              <LoadingValue loading={loading} hasData={saldo !== null} size={20}>
+                {formatCurrency(saldo?.total_recebido || 0)}
+              </LoadingValue>
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -121,7 +126,11 @@ const RevendedorSaldoPage = () => {
             <CardTitle className="text-sm text-muted-foreground">Já utilizado</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(saldo?.total_utilizado || 0)}</p>
+            <p className="text-2xl font-bold">
+              <LoadingValue loading={loading} hasData={saldo !== null} size={20}>
+                {formatCurrency(saldo?.total_utilizado || 0)}
+              </LoadingValue>
+            </p>
           </CardContent>
         </Card>
         <Card className="border-primary border-2">
@@ -131,7 +140,11 @@ const RevendedorSaldoPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-primary">{formatCurrency(saldo?.saldo_disponivel || 0)}</p>
+            <p className="text-3xl font-bold text-primary">
+              <LoadingValue loading={loading} hasData={saldo !== null} size={26}>
+                {formatCurrency(saldo?.saldo_disponivel || 0)}
+              </LoadingValue>
+            </p>
           </CardContent>
         </Card>
         <Card className={totalPendente > 0 ? 'border-destructive' : ''}>
@@ -139,7 +152,11 @@ const RevendedorSaldoPage = () => {
             <CardTitle className="text-sm text-muted-foreground">A pagar (pedidos cobrados)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalPendente)}</p>
+            <p className="text-2xl font-bold text-destructive">
+              <LoadingValue loading={loading} hasData={saldo !== null} size={20}>
+                {formatCurrency(totalPendente)}
+              </LoadingValue>
+            </p>
           </CardContent>
         </Card>
       </div>

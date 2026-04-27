@@ -14,6 +14,8 @@ import {
   PROD_PRODUCT_OPTIONS,
   formatCurrency,
 } from '@/lib/order-logic';
+import { LoadingValue } from '@/components/ui/LoadingValue';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Order } from '@/contexts/AuthContext';
 
 const fadeIn = {
@@ -30,47 +32,65 @@ const VendedorDashboard = () => {
   const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
 
   // Server-side data
-  const [pendingValue, setPendingValue] = useState(0);
-  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
-  const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
+  const [pendingValue, setPendingValue] = useState<number | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number } | null>(null);
+  const [productionLoading, setProductionLoading] = useState(true);
+  const [chartData, setChartData] = useState<{ name: string; vendas: number }[] | null>(null);
+  const [chartLoading, setChartLoading] = useState(true);
   const [commissionOrders, setCommissionOrders] = useState<Order[]>([]);
 
   // Fetch pending value (vendedor's own orders - handled by RLS)
   useEffect(() => {
-    if (isSiteUser) return; // vendedor_comissao doesn't see pending
+    if (isSiteUser) { setPendingLoading(false); return; }
+    setPendingLoading(true);
     (async () => {
-      const vendor = user?.nomeCompleto || null;
-      const { data } = await supabase.rpc('get_pending_value', { vendor });
-      if (data !== null && data !== undefined) setPendingValue(Number(data));
+      try {
+        const vendor = user?.nomeCompleto || null;
+        const { data } = await supabase.rpc('get_pending_value', { vendor });
+        setPendingValue(data !== null && data !== undefined ? Number(data) : 0);
+      } finally {
+        setPendingLoading(false);
+      }
     })();
   }, [user?.nomeCompleto, isSiteUser]);
 
   // Fetch production counts
   useEffect(() => {
+    setProductionLoading(true);
     (async () => {
-      const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
-      const vendor = user?.nomeCompleto;
-      const { data } = await supabase.rpc('get_production_counts', {
-        product_types: productTypes,
-        vendors: vendor ? [vendor] : null,
-      });
-      if (data && data.length > 0) {
-        setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+      try {
+        const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
+        const vendor = user?.nomeCompleto;
+        const { data } = await supabase.rpc('get_production_counts', {
+          product_types: productTypes,
+          vendors: vendor ? [vendor] : null,
+        });
+        if (data && data.length > 0) {
+          setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+        } else {
+          setProductionCounts({ in_production: 0, total: 0 });
+        }
+      } finally {
+        setProductionLoading(false);
       }
     })();
   }, [prodProductFilter, user?.nomeCompleto]);
 
   // Fetch chart data
   useEffect(() => {
+    setChartLoading(true);
     (async () => {
-      const vendor = user?.nomeCompleto || null;
-      const { data } = await supabase.rpc('get_sales_chart', {
-        period: chartPeriod,
-        product_filter: chartProductFilter,
-        vendor_filter: vendor,
-      });
-      if (data) {
-        setChartData(data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })));
+      try {
+        const vendor = user?.nomeCompleto || null;
+        const { data } = await supabase.rpc('get_sales_chart', {
+          period: chartPeriod,
+          product_filter: chartProductFilter,
+          vendor_filter: vendor,
+        });
+        setChartData(data ? data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })) : []);
+      } finally {
+        setChartLoading(false);
       }
     })();
   }, [chartPeriod, chartProductFilter, user?.nomeCompleto]);
@@ -98,7 +118,11 @@ const VendedorDashboard = () => {
             </h2>
             <div className="bg-muted rounded-lg p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Valor Pendente</p>
-              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(pendingValue)}</p>
+              <p className="text-3xl font-bold text-primary mt-1">
+                <LoadingValue loading={pendingLoading} hasData={pendingValue !== null} size={24}>
+                  {formatCurrency(pendingValue ?? 0)}
+                </LoadingValue>
+              </p>
             </div>
           </motion.div>
           )}
@@ -129,10 +153,18 @@ const VendedorDashboard = () => {
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{productionCounts.in_production} {productionCounts.in_production === 1 ? 'produto' : 'produtos'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">
+                <LoadingValue loading={productionLoading} hasData={productionCounts !== null} size={24}>
+                  {productionCounts?.in_production ?? 0} {(productionCounts?.in_production ?? 0) === 1 ? 'produto' : 'produtos'}
+                </LoadingValue>
+              </p>
             </div>
-            <Progress value={productionCounts.in_production > 0 ? Math.min(productionCounts.in_production / Math.max(productionCounts.total, 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{productionCounts.in_production} de {productionCounts.total} produtos totais estão em produção</p>
+            <Progress value={productionCounts && productionCounts.in_production > 0 ? Math.min(productionCounts.in_production / Math.max(productionCounts.total, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">
+              <LoadingValue loading={productionLoading} hasData={productionCounts !== null} size={14}>
+                {productionCounts?.in_production ?? 0} de {productionCounts?.total ?? 0} produtos totais estão em produção
+              </LoadingValue>
+            </p>
           </motion.div>
 
           {/* Commission panel — only for vendedor_comissao */}
@@ -171,15 +203,19 @@ const VendedorDashboard = () => {
               </Select>
             </div>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 20% 80%)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
-                  <YAxis tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
-                  <Tooltip formatter={(v: number) => [v, 'Vendas']} />
-                  <Line type="monotone" dataKey="vendas" stroke="hsl(25 85% 48%)" strokeWidth={3} dot={{ fill: 'hsl(25 85% 48%)', r: 5 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              {chartLoading && !chartData ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 20% 80%)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
+                    <Tooltip formatter={(v: number) => [v, 'Vendas']} />
+                    <Line type="monotone" dataKey="vendas" stroke="hsl(25 85% 48%)" strokeWidth={3} dot={{ fill: 'hsl(25 85% 48%)', r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </motion.div>
         </div>

@@ -1,68 +1,52 @@
-## Ajustes na Ficha de Produção da Bota (`src/pages/OrderPage.tsx`)
+## Problema identificado
 
-### 1. Vendedor obrigatório (confirmação + reforço)
-**Estado atual**: Existe validação só para `admin_producao` (linha 783). `admin_master` consegue submeter sem escolher vendedor explicitamente (usa default do select).
+Vários pontos do portal exibem **valores zerados** (`R$ 0,00`, `0`, listas vazias) durante o fetch inicial dos dados, dando a impressão errada de que não há informação. Isso acontece porque os `useState` iniciam com `0` / `[]` e o componente renderiza esses valores antes do primeiro `await` retornar.
 
-**Mudança**: Adicionar `Vendedor` ao array `required` para qualquer admin:
-```ts
-...(isAdmin ? [[vendedorSelecionado, 'Vendedor'] as [string, string]] : []),
-```
-Assim qualquer admin que tente submeter sem vendedor selecionado recebe o toast padrão "Preencha: Vendedor". Para vendedores comuns o campo já é preenchido automaticamente com `user.nomeCompleto` (readonly).
+### Exemplos confirmados
 
-### 2. Reorganização da seção IDENTIFICAÇÃO
+- **AdminDashboard**: `pendingValue`, `productionCounts`, `chartData`, `comprovantesRevendedor`, `storageInfo` — todos exibem 0 antes do RPC retornar.
+- **VendedorDashboard / FernandaDashboard**: `pendingValue`, `chartData`, `commissionOrders` — idem.
+- **TrackOrderPage**: enquanto `loading=true`, exibe "Carregando..." mas o "Nenhum pedido encontrado" pisca para alguns hooks de filtro.
+- **ReportsPage**: já tem `ordersLoading`, mas os contadores no topo (`totalValue`, `totalProdutos`) renderizam zero antes da resposta.
+- **FinanceiroSaldoRevendedor**: cards de Total recebido/utilizado/saldo aparecem em 0 antes do `fetchSaldosTodos`.
+- **RevendedorSaldoPage**: parte já tem spinner (movimentos), mas o card de saldo aparece zerado primeiro.
 
-**Estado atual** (linhas 1177-1227):
-- Linha 1 (2 colunas): Vendedor | Número do Pedido | Cliente (vira 3º na 2ª linha)
-- Linha 2 (3 colunas): Tamanho | Gênero | Modelo
+## Solução
 
-**Mudança**:
-- **Linha 1 (3 colunas)**: Vendedor | Número do Pedido | Cliente
-- **Linha 2 (3 colunas)**: **Tamanho** (ao lado do Cliente conceitualmente, mas posicionado primeiro nesta linha) | Gênero | Modelo
+Criar um padrão consistente: **enquanto `loading === true` (e ainda não houve nenhum dado), exibir spinner ou skeleton em vez do valor**. Não substituir dados antigos por skeleton em refetches (para não "piscar"), apenas no primeiro carregamento.
 
-Como o usuário pediu "tamanho do lado do cliente" e "ajustar o tamanho dos campos genero e modelo para ficarem com layout organizado igual os de cima":
-- Mudar a primeira grid de `sm:grid-cols-2` para `sm:grid-cols-3` (Vendedor, Nº Pedido, Cliente já alinhados em 3 colunas iguais).
-- A segunda grid permanece `sm:grid-cols-3` (Tamanho, Gênero, Modelo) — todos com a mesma largura/altura dos campos da linha de cima.
-- O campo Foto continua acima como primeiro item da seção (já está assim).
+### Mudanças
 
-Isso garante uniformidade visual: todas as linhas em 3 colunas iguais, mesma altura de inputs/selects.
+**1. Componente reutilizável `LoadingValue`** (novo: `src/components/ui/LoadingValue.tsx`)
+- Recebe `loading`, `value`, opcional `className`. 
+- Quando `loading && value não definido`: renderiza `<Loader2 className="animate-spin" />` ou um Skeleton fino.
+- Caso contrário: renderiza o valor.
 
-### 3. Reorganização da seção METAIS (linhas 1344-1385)
+**2. AdminDashboard (`src/components/dashboard/AdminDashboard.tsx`)**
+- Adicionar flags `pendingLoading`, `productionLoading`, `chartLoading`, `comprovantesLoading`, `storageLoading` (já existe), inicializadas como `true`, marcadas como `false` no `finally` de cada `useEffect`.
+- Trocar exibições de `formatCurrency(pendingValue)`, `productionCounts.in_production`, `comprovantesRevendedor.count/total`, `storageInfo` para usar `LoadingValue` (ou bloco com Skeleton para o gráfico).
+- Para o `LineChart`: se `chartLoading && chartData.length === 0` → exibir um `<Skeleton className="h-64 w-full" />` no lugar.
 
-**Estado atual**:
-- Linha 1: Área do Metal | Tipo do Metal (lista de checkboxes) | Cor do Metal
-- Linha 2: 5 toggles soltos (Strass, Bola Grande, Cruz, Bridão, Cavalo) cada um com input de qtd inline ao lado.
+**3. VendedorDashboard e FernandaDashboard**
+- Mesma abordagem: adicionar flags de loading por consulta e usar `LoadingValue` / Skeleton onde hoje aparecem 0 / listas vazias.
 
-**Mudanças**:
-1. **Separador horizontal fino** entre o bloco "Área/Tipo/Cor do Metal" e os metais quantificáveis:
-   ```tsx
-   <div className="border-t border-border/60 my-2" />
-   ```
-   (linha sutil, sem peso visual exagerado).
+**4. ReportsPage**
+- Os contadores `totalValue` e `totalProdutos` no resumo do topo precisam respeitar `ordersLoading` quando ainda não houve resposta (mostrar spinner em vez de R$ 0,00 / 0 itens). Manter valor antigo durante refetch para evitar piscar.
 
-2. **Padronização dos metais "tem/não tem"** (Strass, Bola Grande, Cruz, Bridão, Cavalo):
-   - Substituir o layout atual (toggle horizontal + qtd ao lado) por **cards verticais uniformes**:
-     - Nome do metal + preço em cima (label).
-     - Toggle (Sim/Não) embaixo do nome.
-     - Quando ativo, input de quantidade aparece logo abaixo.
-   - Grid `sm:grid-cols-3 lg:grid-cols-5 gap-3` para distribuir os 5 metais de forma equilibrada (cabem todos lado a lado em telas grandes; em médias quebra 3+2).
-   - Cada item dentro de um wrapper `flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30` para aspecto padronizado.
+**5. FinanceiroSaldoRevendedor (`src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx`)**
+- Os 4 cards de resumo no topo já têm `loading` para a tabela; aplicar o mesmo `loading` aos 4 valores (Total recebido, utilizado, saldo, comprovantes pendentes) — usar `LoadingValue`.
 
-   Estrutura por item:
-   ```tsx
-   <div className="flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30">
-     <span className="text-xs font-semibold">Strass (R$0,60/un)</span>
-     <ToggleField label="" value={strass} onChange={setStrass} compact />
-     {strass && (
-       <input type="number" min={0} value={strassQtd} ... className={cls.inputSmall} placeholder="Qtd" />
-     )}
-   </div>
-   ```
-   *Observação*: o `ToggleField` atual aceita `label` — passamos string vazia para evitar duplicidade já que o nome está acima. Se isso renderizar layout estranho, fazemos uma versão inline simples com `<Switch>` direto. Avaliarei na implementação.
+**6. RevendedorSaldoPage (`src/pages/RevendedorSaldoPage.tsx`)**
+- Card de saldo no topo: quando `loading=true` e ainda sem dados, exibir spinner em vez de `R$ 0,00`.
 
-### Arquivos a editar
-- `src/pages/OrderPage.tsx` (único arquivo afetado).
+**7. FinanceiroAReceber e FinanceiroAPagar** (verificação adicional durante implementação)
+- Aplicar mesmo padrão a totalizadores e tabelas que exibam zero/vazio antes do fetch terminar.
 
-### Sem mudanças
-- Validação de vendedores comuns (já preenchido automaticamente).
-- Lógica de cálculo de preço dos metais.
-- Estrutura do PDF / ficha impressa (layout só do formulário).
+### Princípios
+
+- **Primeiro fetch**: mostra loading.
+- **Refetches** (filtro mudou, etc.): mantém valor anterior visível para não piscar — só mostra loading se não houver dado prévio.
+- **Listas vazias reais** (após carregamento): mantêm a mensagem atual ("Nenhum pedido encontrado", etc.).
+- **Sem mudança visual** nos campos que já tinham loading correto (TrackOrderPage, UsersManagementPage, PiecesReportPage etc.).
+
+Nenhuma lógica de cálculo, filtro ou estrutura de dados é alterada — apenas a renderização condicional dos valores enquanto `loading === true` no primeiro carregamento.

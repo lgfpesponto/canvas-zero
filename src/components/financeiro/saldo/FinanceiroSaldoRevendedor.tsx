@@ -13,11 +13,12 @@ import {
 } from '@/lib/revendedorSaldo';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
+import { LoadingValue } from '@/components/ui/LoadingValue';
 
 const FinanceiroSaldoRevendedor = () => {
   const { toast } = useToast();
-  const [saldos, setSaldos] = useState<RevendedorSaldo[]>([]);
-  const [pendentesCount, setPendentesCount] = useState(0);
+  const [saldos, setSaldos] = useState<RevendedorSaldo[] | null>(null);
+  const [pendentesCount, setPendentesCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
 
@@ -37,9 +38,10 @@ const FinanceiroSaldoRevendedor = () => {
   useEffect(() => { load(); }, []);
 
   const totals = useMemo(() => {
-    const recebido = saldos.reduce((s, r) => s + Number(r.total_recebido || 0), 0);
-    const utilizado = saldos.reduce((s, r) => s + Number(r.total_utilizado || 0), 0);
-    const saldoTotal = saldos.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0);
+    const list = saldos || [];
+    const recebido = list.reduce((s, r) => s + Number(r.total_recebido || 0), 0);
+    const utilizado = list.reduce((s, r) => s + Number(r.total_utilizado || 0), 0);
+    const saldoTotal = list.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0);
     return { recebido, utilizado, saldoTotal };
   }, [saldos]);
 
@@ -49,19 +51,43 @@ const FinanceiroSaldoRevendedor = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-primary">{formatCurrency(totals.recebido)}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-primary">
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {formatCurrency(totals.recebido)}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total utilizado</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{formatCurrency(totals.utilizado)}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {formatCurrency(totals.utilizado)}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
         <Card className="border-primary border-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-primary">Saldo disponível total</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-primary">{formatCurrency(totals.saldoTotal)}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-primary">
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {formatCurrency(totals.saldoTotal)}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
-        <Card className={pendentesCount > 0 ? 'border-destructive' : ''}>
+        <Card className={(pendentesCount ?? 0) > 0 ? 'border-destructive' : ''}>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Comprovantes pendentes</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-destructive">{pendentesCount}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">
+              <LoadingValue loading={loading} hasData={pendentesCount !== null} size={20}>
+                {pendentesCount ?? 0}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
       </div>
 
@@ -78,9 +104,9 @@ const FinanceiroSaldoRevendedor = () => {
           <CardTitle className="text-lg">Saldo por revendedor</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading && saldos === null ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
-          ) : saldos.length === 0 ? (
+          ) : !saldos || saldos.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Nenhum movimento registrado ainda.</p>
           ) : (
             <Table>
