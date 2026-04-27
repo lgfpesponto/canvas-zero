@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Eye } from 'lucide-react';
+import { Loader2, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  fetchSaldosTodos, fetchComprovantesPendentes,
+  fetchSaldosTodos, fetchComprovantesPendentes, fetchVendedoresUsuarios,
   type RevendedorSaldo,
 } from '@/lib/revendedorSaldo';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
@@ -20,15 +24,22 @@ const FinanceiroSaldoRevendedor = () => {
   const { toast } = useToast();
   const [saldos, setSaldos] = useState<RevendedorSaldo[] | null>(null);
   const [pendentesCount, setPendentesCount] = useState<number | null>(null);
+  const [vendedoresUsuarios, setVendedoresUsuarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
+  const [filtroVendedor, setFiltroVendedor] = useState<string>('');
 
   const load = async () => {
     setLoading(true);
     try {
-      const [s, p] = await Promise.all([fetchSaldosTodos(), fetchComprovantesPendentes()]);
+      const [s, p, vs] = await Promise.all([
+        fetchSaldosTodos(),
+        fetchComprovantesPendentes(),
+        fetchVendedoresUsuarios(),
+      ]);
       setSaldos(s);
       setPendentesCount(p.length);
+      setVendedoresUsuarios(vs);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -38,17 +49,78 @@ const FinanceiroSaldoRevendedor = () => {
 
   useEffect(() => { load(); }, []);
 
+  /** Lista de vendedores no select: usuários cadastrados como vendedor +
+   *  qualquer vendedor que já tenha saldo (caso o usuário não exista mais). */
+  const vendedoresOptions = useMemo(() => {
+    const set = new Set<string>(vendedoresUsuarios);
+    (saldos || []).forEach(s => { if (s.vendedor) set.add(s.vendedor); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [vendedoresUsuarios, saldos]);
+
+  const saldoFiltrado = useMemo(
+    () => (saldos || []).find(s => s.vendedor === filtroVendedor) || null,
+    [saldos, filtroVendedor]
+  );
+
+  /** Totais dos cards: do filtrado (se houver) ou da soma geral. */
   const totals = useMemo(() => {
+    if (filtroVendedor) {
+      return {
+        recebido: Number(saldoFiltrado?.total_recebido || 0),
+        utilizado: Number(saldoFiltrado?.total_utilizado || 0),
+        saldoTotal: Number(saldoFiltrado?.saldo_disponivel || 0),
+      };
+    }
     const list = saldos || [];
-    const recebido = list.reduce((s, r) => s + Number(r.total_recebido || 0), 0);
-    const utilizado = list.reduce((s, r) => s + Number(r.total_utilizado || 0), 0);
-    const saldoTotal = list.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0);
-    return { recebido, utilizado, saldoTotal };
-  }, [saldos]);
+    return {
+      recebido: list.reduce((s, r) => s + Number(r.total_recebido || 0), 0),
+      utilizado: list.reduce((s, r) => s + Number(r.total_utilizado || 0), 0),
+      saldoTotal: list.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0),
+    };
+  }, [saldos, filtroVendedor, saldoFiltrado]);
+
+  const saldosTabela = useMemo(() => {
+    const list = saldos || [];
+    return filtroVendedor
+      ? list.filter(s => s.vendedor === filtroVendedor)
+      : list;
+  }, [saldos, filtroVendedor]);
 
   return (
     <div className="space-y-6">
-      {/* Resumo */}
+      {/* Filtro único de vendedor — controla cards, tabela e lista de comprovantes */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[260px]">
+              <Label>Filtrar por vendedor</Label>
+              <Select value={filtroVendedor || '__all__'} onValueChange={(v) => setFiltroVendedor(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Todos os vendedores" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="__all__">Todos os vendedores</SelectItem>
+                  {vendedoresOptions.map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {filtroVendedor && (
+              <Button variant="outline" size="sm" onClick={() => setFiltroVendedor('')}>
+                <X size={14} className="mr-1" /> Limpar filtro
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {filtroVendedor
+                ? `Mostrando dados de ${filtroVendedor}.`
+                : 'Selecione um vendedor para ver seus comprovantes e dar baixa manual.'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cards de resumo (atualizam conforme filtro) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle></CardHeader>
@@ -71,7 +143,11 @@ const FinanceiroSaldoRevendedor = () => {
           </CardContent>
         </Card>
         <Card className="border-primary border-2">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-primary">Saldo disponível total</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-primary">
+              {filtroVendedor ? 'Saldo disponível' : 'Saldo disponível total'}
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">
               <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
@@ -92,23 +168,38 @@ const FinanceiroSaldoRevendedor = () => {
         </Card>
       </div>
 
-      {/* Comprovantes pendentes (componente compartilhado com a aba A Receber) */}
+      {/* Comprovantes pendentes (geral) */}
       <ComprovantesRevendedorPendentes
         onChanged={load}
         title="Comprovantes aguardando aprovação"
         showAdminUpload
       />
 
-      {/* Saldo por vendedor */}
+      {/* Lista de comprovantes do vendedor filtrado (só aparece quando filtra) */}
+      {filtroVendedor && (
+        <ComprovantesPorRevendedor
+          vendedor={filtroVendedor}
+          saldoVendedor={saldoFiltrado}
+          onChanged={load}
+        />
+      )}
+
+      {/* Saldo por vendedor (filtra junto) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Saldo por vendedor</CardTitle>
+          <CardTitle className="text-lg">
+            {filtroVendedor ? `Saldo de ${filtroVendedor}` : 'Saldo por vendedor'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading && saldos === null ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
-          ) : !saldos || saldos.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Nenhum movimento registrado ainda.</p>
+          ) : saldosTabela.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">
+              {filtroVendedor
+                ? 'Esse vendedor ainda não tem movimentos de saldo.'
+                : 'Nenhum movimento registrado ainda.'}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -121,7 +212,7 @@ const FinanceiroSaldoRevendedor = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {saldos
+                {saldosTabela
                   .slice()
                   .sort((a, b) => Number(b.saldo_disponivel) - Number(a.saldo_disponivel))
                   .map(s => (
@@ -144,8 +235,6 @@ const FinanceiroSaldoRevendedor = () => {
           )}
         </CardContent>
       </Card>
-
-      <ComprovantesPorRevendedor saldos={saldos} onChanged={load} />
 
       <DetalhesRevendedorDrawer
         open={!!detalheVendedor}

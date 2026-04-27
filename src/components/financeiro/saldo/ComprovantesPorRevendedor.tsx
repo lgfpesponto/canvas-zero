@@ -6,9 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
@@ -25,8 +22,10 @@ import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 
 interface Props {
-  /** Lista de revendedores disponíveis (vinda dos saldos do admin). */
-  saldos: RevendedorSaldo[] | null;
+  /** Vendedor selecionado no filtro do topo. */
+  vendedor: string;
+  /** Saldo do vendedor selecionado (vindo do pai), pra calcular pré-baixa. */
+  saldoVendedor: RevendedorSaldo | null;
   /** Disparado quando uma baixa manual é feita, pra recarregar saldos no pai. */
   onChanged?: () => void;
 }
@@ -38,27 +37,14 @@ const StatusBadge = ({ status }: { status: RevendedorComprovante['status'] }) =>
   return <Badge variant="secondary" className="gap-1"><Archive size={12} /> Utilizado</Badge>;
 };
 
-export const ComprovantesPorRevendedor = ({ saldos, onChanged }: Props) => {
+export const ComprovantesPorRevendedor = ({ vendedor, saldoVendedor, onChanged }: Props) => {
   const { toast } = useToast();
-  const [vendedor, setVendedor] = useState<string>('');
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
   const [baixaTarget, setBaixaTarget] = useState<RevendedorComprovante | null>(null);
   const [baixaMotivo, setBaixaMotivo] = useState('');
   const [baixaSaving, setBaixaSaving] = useState(false);
-
-  const vendedoresOptions = useMemo(() => {
-    return (saldos || [])
-      .map(s => s.vendedor)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [saldos]);
-
-  const saldoSelecionado = useMemo(
-    () => (saldos || []).find(s => s.vendedor === vendedor) || null,
-    [saldos, vendedor]
-  );
 
   const loadComprovantes = async (v: string) => {
     if (!v) { setComprovantes([]); return; }
@@ -112,50 +98,31 @@ export const ComprovantesPorRevendedor = ({ saldos, onChanged }: Props) => {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Comprovantes por vendedor</CardTitle>
+          <CardTitle className="text-lg">Comprovantes de {vendedor}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Filtre por vendedor para ver todos os comprovantes e dar baixa manual em comprovantes aprovados
-            (use quando o pagamento já foi usado fora do sistema, ex.: sistema antigo).
+            Lista todos os comprovantes deste vendedor. Use "Dar baixa" em comprovantes
+            aprovados quando o pagamento já foi utilizado fora do sistema (ex.: sistema antigo).
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[260px]">
-              <Label>Vendedor</Label>
-              <Select value={vendedor} onValueChange={setVendedor}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione o vendedor" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {vendedoresOptions.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">Nenhum vendedor disponível</div>
-                  ) : vendedoresOptions.map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {saldoSelecionado && (
-              <div className="flex flex-wrap gap-3 text-sm">
-                <div className="rounded-md border bg-muted/40 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Saldo disponível</div>
-                  <div className="font-bold text-primary">{formatCurrency(Number(saldoSelecionado.saldo_disponivel))}</div>
-                </div>
-                <div className="rounded-md border bg-muted/40 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Aprovado (lista)</div>
-                  <div className="font-bold">{formatCurrency(totalAprovado)}</div>
-                </div>
-                <div className="rounded-md border bg-muted/40 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Já utilizado (lista)</div>
-                  <div className="font-bold">{formatCurrency(totalUtilizado)}</div>
-                </div>
+          <div className="flex flex-wrap gap-3 text-sm">
+            {saldoVendedor && (
+              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                <div className="text-xs text-muted-foreground">Saldo disponível</div>
+                <div className="font-bold text-primary">{formatCurrency(Number(saldoVendedor.saldo_disponivel))}</div>
               </div>
             )}
+            <div className="rounded-md border bg-muted/40 px-3 py-2">
+              <div className="text-xs text-muted-foreground">Aprovado (lista)</div>
+              <div className="font-bold">{formatCurrency(totalAprovado)}</div>
+            </div>
+            <div className="rounded-md border bg-muted/40 px-3 py-2">
+              <div className="text-xs text-muted-foreground">Já utilizado (lista)</div>
+              <div className="font-bold">{formatCurrency(totalUtilizado)}</div>
+            </div>
           </div>
 
-          {!vendedor ? (
-            <p className="text-sm text-muted-foreground py-4">Escolha um vendedor para ver os comprovantes.</p>
-          ) : loading ? (
+          {loading ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : comprovantes.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Esse vendedor ainda não tem comprovantes.</p>
@@ -238,11 +205,11 @@ export const ComprovantesPorRevendedor = ({ saldos, onChanged }: Props) => {
                   Esta ação vai <strong>debitar {formatCurrency(Number(baixaTarget.valor))}</strong> do saldo
                   de <strong>{baixaTarget.vendedor}</strong> e marcar o comprovante como
                   <strong> utilizado</strong>. Use quando o pagamento já foi usado fora do sistema.
-                  {saldoSelecionado && (
+                  {saldoVendedor && (
                     <span className="block mt-2 text-xs">
-                      Saldo atual: {formatCurrency(Number(saldoSelecionado.saldo_disponivel))}
+                      Saldo atual: {formatCurrency(Number(saldoVendedor.saldo_disponivel))}
                       {' → '}saldo após baixa:
-                      {' '}{formatCurrency(Number(saldoSelecionado.saldo_disponivel) - Number(baixaTarget.valor))}
+                      {' '}{formatCurrency(Number(saldoVendedor.saldo_disponivel) - Number(baixaTarget.valor))}
                     </span>
                   )}
                 </>
