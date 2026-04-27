@@ -217,12 +217,16 @@ const OrderPage = () => {
 
   // metais
   const [areaMetal, setAreaMetal] = useState(df.areaMetal || '');
-  const [tipoMetal, setTipoMetal] = useState<string[]>(df.tipoMetal ? df.tipoMetal.split('||').filter((x: string) => x !== 'Bola Grande') : []);
+  const [tipoMetal, setTipoMetal] = useState<string[]>(df.tipoMetal ? df.tipoMetal.split('||').filter((x: string) => !x.startsWith('Bola Grande')) : []);
   const [corMetal, setCorMetal] = useState(df.corMetal || '');
   const [strass, setStrass] = useState(df.strass === 'true');
   const [strassQtd, setStrassQtd] = useState(Number(df.strassQtd) || 0);
   const [bolaGrande, setBolaGrande] = useState(df.bolaGrande === 'true' || (df.tipoMetal || '').includes('Bola Grande'));
-  const [bolaGrandeQtd, setBolaGrandeQtd] = useState(Number(df.bolaGrandeQtd) || 0);
+  const [bolaGrandeQtd, setBolaGrandeQtd] = useState(() => {
+    if (df.bolaGrandeQtd) return Number(df.bolaGrandeQtd) || 0;
+    const m = (df.tipoMetal || '').match(/Bola Grande:(\d+)/);
+    return m ? Number(m[1]) : 0;
+  });
   const [cruzMetal, setCruzMetal] = useState(df.cruzMetal === 'true');
   const [cruzMetalQtd, setCruzMetalQtd] = useState(Number(df.cruzMetalQtd) || 0);
   const [bridaoMetal, setBridaoMetal] = useState(df.bridaoMetal === 'true');
@@ -384,12 +388,13 @@ const OrderPage = () => {
     setCorBorrachinha(fd.corBorrachinha || '');
     setCorVivo(fd.corVivo || '');
     setAreaMetal(fd.areaMetal || '');
-    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||').filter((x: string) => x !== 'Bola Grande') : []);
+    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||').filter((x: string) => !x.startsWith('Bola Grande')) : []);
     setCorMetal(fd.corMetal || '');
     setStrass(fd.strass === 'true');
     setStrassQtd(Number(fd.strassQtd) || 0);
     setBolaGrande(fd.bolaGrande === 'true' || (fd.tipoMetal || '').includes('Bola Grande'));
-    setBolaGrandeQtd(Number(fd.bolaGrandeQtd) || 0);
+    const bgMatch = (fd.tipoMetal || '').match(/Bola Grande:(\d+)/);
+    setBolaGrandeQtd(fd.bolaGrandeQtd ? Number(fd.bolaGrandeQtd) || 0 : (bgMatch ? Number(bgMatch[1]) : 0));
     setCruzMetal(fd.cruzMetal === 'true');
     setCruzMetalQtd(Number(fd.cruzMetalQtd) || 0);
     setBridaoMetal(fd.bridaoMetal === 'true');
