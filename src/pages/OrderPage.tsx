@@ -1448,10 +1448,15 @@ const OrderPage = () => {
             const filtered = tmpl.templates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
             if (tmpl.templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
             if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
+            const bulkTemplates = tmpl.templates.filter(t => bulkSelectedTemplateIds.includes(t.id));
             return (
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {filtered.map(t => (
+            <>
+            <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+              {filtered.map(t => {
+                const isChecked = bulkSelectedTemplateIds.includes(t.id);
+                return (
                 <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
+                  <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm truncate">{t.nome}</span>
@@ -1464,14 +1469,27 @@ const OrderPage = () => {
                     )}
                   </div>
                   <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => openSendDialog(t)} title="Enviar para outro usuário"><Send size={14} /></Button>
+                    <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
                     <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
+            {bulkSelectedTemplateIds.length > 0 && (
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+                <span className="text-sm font-semibold">{bulkSelectedTemplateIds.length} modelo{bulkSelectedTemplateIds.length > 1 ? 's' : ''} selecionado{bulkSelectedTemplateIds.length > 1 ? 's' : ''}</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setBulkSelectedTemplateIds([])}>Limpar</Button>
+                  <Button size="sm" onClick={() => openSendDialog(bulkTemplates)}>
+                    <Send size={14} /> Enviar selecionados
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
             );
           })()}
         </DialogContent>
@@ -1481,11 +1499,15 @@ const OrderPage = () => {
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Enviar modelo</DialogTitle>
+            <DialogTitle>Enviar modelo{sendingTemplates.length > 1 ? 's' : ''}</DialogTitle>
           </DialogHeader>
-          {sendingTemplate && (
+          {sendingTemplates.length > 0 && (
             <p className="text-sm text-muted-foreground -mt-2">
-              Enviando: <span className="font-semibold text-foreground">{sendingTemplate.nome}</span>
+              {sendingTemplates.length === 1 ? (
+                <>Enviando: <span className="font-semibold text-foreground">{sendingTemplates[0].nome}</span></>
+              ) : (
+                <>Enviando <span className="font-semibold text-foreground">{sendingTemplates.length} modelos</span>: {sendingTemplates.slice(0, 3).map(t => t.nome).join(', ')}{sendingTemplates.length > 3 ? '…' : ''}</>
+              )}
             </p>
           )}
           <Input
