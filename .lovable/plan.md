@@ -1,29 +1,68 @@
-# Finalizar os 2 itens pendentes
+## Ajustes na Ficha de Produção da Bota (`src/pages/OrderPage.tsx`)
 
-## Estado atual (já implementado)
-- ✅ `markTemplatesAsSeen` é chamado ao abrir o diálogo "Modelos" tanto em `OrderPage.tsx` (linha 1115) quanto em `BeltOrderPage.tsx` (linha 459) — o badge zera após a primeira visualização.
-- ✅ Toast detalhado por remetente (`"Você recebeu 3 novos modelos transferidos: 2 de Maria, 1 de João"`) já existe em `OrderPage.tsx` (linhas 623-648), só que **conta TODOS os modelos** (botas + cintos).
+### 1. Vendedor obrigatório (confirmação + reforço)
+**Estado atual**: Existe validação só para `admin_producao` (linha 783). `admin_master` consegue submeter sem escolher vendedor explicitamente (usa default do select).
 
-## Falta apenas
+**Mudança**: Adicionar `Vendedor` ao array `required` para qualquer admin:
+```ts
+...(isAdmin ? [[vendedorSelecionado, 'Vendedor'] as [string, string]] : []),
+```
+Assim qualquer admin que tente submeter sem vendedor selecionado recebe o toast padrão "Preencha: Vendedor". Para vendedores comuns o campo já é preenchido automaticamente com `user.nomeCompleto` (readonly).
 
-### 1. Toast de modelos de **cinto** recebidos no `BeltOrderPage.tsx`
-Atualmente o effect (linhas 153-159) só carrega templates, sem mostrar toast de transferidos.
+### 2. Reorganização da seção IDENTIFICAÇÃO
 
-**Alteração** — substituir o effect por uma versão que:
-- Chama `tmpl.loadTemplates(user.id)`.
-- Faz consulta direta a `order_templates` filtrando `user_id = user.id`, `seen = false` e `form_data->>__tipo = 'cinto'` para contar apenas modelos de cinto.
-- Agrupa por `sent_by_name` e exibe `toast.success("Você recebeu N novo(s) modelo(s) de cinto transferido(s): X de Maria, Y de João", { duration: 8000 })`.
+**Estado atual** (linhas 1177-1227):
+- Linha 1 (2 colunas): Vendedor | Número do Pedido | Cliente (vira 3º na 2ª linha)
+- Linha 2 (3 colunas): Tamanho | Gênero | Modelo
 
-### 2. Filtrar o toast existente do `OrderPage.tsx` para contar **apenas modelos de bota**
-Hoje a query (linhas 631-635) traz tudo e contabiliza cintos junto. Adicionar filtro para excluir os de cinto:
-- Trazer também `form_data` no `select`.
-- No `.filter`, manter apenas `(form_data?.__tipo) !== 'cinto'`.
-- Ajustar a mensagem para `"...modelo(s) de bota transferido(s)..."` para deixar explícito.
+**Mudança**:
+- **Linha 1 (3 colunas)**: Vendedor | Número do Pedido | Cliente
+- **Linha 2 (3 colunas)**: **Tamanho** (ao lado do Cliente conceitualmente, mas posicionado primeiro nesta linha) | Gênero | Modelo
 
-Isso garante que cada página (bota / cinto) só notifica o vendedor sobre modelos do **seu próprio tipo**, sem dupla contagem nem mensagens enganosas.
+Como o usuário pediu "tamanho do lado do cliente" e "ajustar o tamanho dos campos genero e modelo para ficarem com layout organizado igual os de cima":
+- Mudar a primeira grid de `sm:grid-cols-2` para `sm:grid-cols-3` (Vendedor, Nº Pedido, Cliente já alinhados em 3 colunas iguais).
+- A segunda grid permanece `sm:grid-cols-3` (Tamanho, Gênero, Modelo) — todos com a mesma largura/altura dos campos da linha de cima.
+- O campo Foto continua acima como primeiro item da seção (já está assim).
 
-## Arquivos a editar
-- `src/pages/BeltOrderPage.tsx` — novo effect com toast detalhado para cintos
-- `src/pages/OrderPage.tsx` — filtrar query existente por `__tipo !== 'cinto'` e ajustar texto
+Isso garante uniformidade visual: todas as linhas em 3 colunas iguais, mesma altura de inputs/selects.
 
-## Sem alterações de banco, sem novas migrations.
+### 3. Reorganização da seção METAIS (linhas 1344-1385)
+
+**Estado atual**:
+- Linha 1: Área do Metal | Tipo do Metal (lista de checkboxes) | Cor do Metal
+- Linha 2: 5 toggles soltos (Strass, Bola Grande, Cruz, Bridão, Cavalo) cada um com input de qtd inline ao lado.
+
+**Mudanças**:
+1. **Separador horizontal fino** entre o bloco "Área/Tipo/Cor do Metal" e os metais quantificáveis:
+   ```tsx
+   <div className="border-t border-border/60 my-2" />
+   ```
+   (linha sutil, sem peso visual exagerado).
+
+2. **Padronização dos metais "tem/não tem"** (Strass, Bola Grande, Cruz, Bridão, Cavalo):
+   - Substituir o layout atual (toggle horizontal + qtd ao lado) por **cards verticais uniformes**:
+     - Nome do metal + preço em cima (label).
+     - Toggle (Sim/Não) embaixo do nome.
+     - Quando ativo, input de quantidade aparece logo abaixo.
+   - Grid `sm:grid-cols-3 lg:grid-cols-5 gap-3` para distribuir os 5 metais de forma equilibrada (cabem todos lado a lado em telas grandes; em médias quebra 3+2).
+   - Cada item dentro de um wrapper `flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30` para aspecto padronizado.
+
+   Estrutura por item:
+   ```tsx
+   <div className="flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30">
+     <span className="text-xs font-semibold">Strass (R$0,60/un)</span>
+     <ToggleField label="" value={strass} onChange={setStrass} compact />
+     {strass && (
+       <input type="number" min={0} value={strassQtd} ... className={cls.inputSmall} placeholder="Qtd" />
+     )}
+   </div>
+   ```
+   *Observação*: o `ToggleField` atual aceita `label` — passamos string vazia para evitar duplicidade já que o nome está acima. Se isso renderizar layout estranho, fazemos uma versão inline simples com `<Switch>` direto. Avaliarei na implementação.
+
+### Arquivos a editar
+- `src/pages/OrderPage.tsx` (único arquivo afetado).
+
+### Sem mudanças
+- Validação de vendedores comuns (já preenchido automaticamente).
+- Lógica de cálculo de preço dos metais.
+- Estrutura do PDF / ficha impressa (layout só do formulário).
