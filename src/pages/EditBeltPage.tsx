@@ -7,7 +7,7 @@ import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Link2, X, Save, ArrowLeft } from 'lucide-react';
+import { Link2, X, Save, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 import SearchableSelect from '@/components/SearchableSelect';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
@@ -24,7 +24,7 @@ const cls = {
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="space-y-3">
-    <h3 className="text-base font-display font-bold border-b border-border pb-1">{title}</h3>
+    <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-lg uppercase tracking-wide py-2 rounded-sm">{title}</h3>
     {children}
   </div>
 );
@@ -211,35 +211,37 @@ const EditBeltPage = () => {
           <h1 className="text-3xl font-display font-bold mb-6">Editar Cinto — {order.numero}</h1>
 
           <form onSubmit={handleSave} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <Section title="Identificação">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={cls.label}>Vendedor</label>
+                  <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
+                    <option value="">Selecione...</option>
+                    {allProfiles.map(p => <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>)}
+                    <option value="Estoque">Estoque</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
+                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                  {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                </div>
+                <div>
+                  <label className={cls.label}>Cliente</label>
+                  <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+                </div>
+              </div>
+
               <div>
-                <label className={cls.label}>Vendedor</label>
-                <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
+                <label className={cls.label}>Tamanho<span className="text-destructive ml-0.5">*</span></label>
+                <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
                   <option value="">Selecione...</option>
-                  {allProfiles.map(p => <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>)}
-                  <option value="Estoque">Estoque</option>
+                  {BELT_SIZES.map(s => (
+                    <option key={s.label} value={s.label}>{s.label} (R${s.preco})</option>
+                  ))}
                 </select>
               </div>
-              <div>
-                <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
-                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
-                {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-              </div>
-              <div>
-                <label className={cls.label}>Cliente</label>
-                <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
-              </div>
-            </div>
-
-            <div>
-              <label className={cls.label}>Tamanho<span className="text-destructive ml-0.5">*</span></label>
-              <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
-                <option value="">Selecione...</option>
-                {BELT_SIZES.map(s => (
-                  <option key={s.label} value={s.label}>{s.label} (R${s.preco})</option>
-                ))}
-              </select>
-            </div>
+            </Section>
 
             <Section title="Couro">
               <div className="grid sm:grid-cols-2 gap-4">

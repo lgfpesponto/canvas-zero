@@ -1112,11 +1112,14 @@ const OrderPage = () => {
               </Button>
               <Button type="button" variant="outline" size="sm" className="relative" onClick={async () => { if (user) { await tmpl.loadTemplates(user.id); } tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); if (user) { await tmpl.markTemplatesAsSeen(user.id); } }}>
                 <List size={16} /> Modelos
-                {tmpl.unseenCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                    {tmpl.unseenCount}
-                  </span>
-                )}
+                {(() => {
+                  const bootUnseen = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto' && t.seen === false).length;
+                  return bootUnseen > 0 ? (
+                    <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {bootUnseen}
+                    </span>
+                  ) : null;
+                })()}
               </Button>
             </>
           )}
@@ -1490,10 +1493,11 @@ const OrderPage = () => {
             className="mb-2"
           />
           {(() => {
-            const filtered = tmpl.templates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
-            if (tmpl.templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
+            const bootTemplates = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto');
+            const filtered = bootTemplates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
+            if (bootTemplates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
             if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
-            const bulkTemplates = tmpl.templates.filter(t => bulkSelectedTemplateIds.includes(t.id));
+            const bulkTemplates = bootTemplates.filter(t => bulkSelectedTemplateIds.includes(t.id));
             return (
             <>
             <div className="space-y-2 max-h-[55vh] overflow-y-auto">
