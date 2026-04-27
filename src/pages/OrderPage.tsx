@@ -1424,6 +1424,10 @@ const OrderPage = () => {
           )}
         </form>
       </motion.div>
+        {showFotoPanel && (
+          <FotoPedidoSidePanel url={fotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+        )}
+      </div>
 
       {/* ───── Templates Dialog ───── */}
       <Dialog open={tmpl.showTemplates} onOpenChange={tmpl.setShowTemplates}>
