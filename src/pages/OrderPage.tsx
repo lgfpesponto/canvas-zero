@@ -929,6 +929,9 @@ const OrderPage = () => {
     setAdicionalDesc(''); setAdicionalValor(0);
     setObservacao('');
     setFotoUrl('');
+    setRecorteCano(''); setCorRecorteCano('');
+    setRecorteGaspea(''); setCorRecorteGaspea('');
+    setRecorteTaloneira(''); setCorRecorteTaloneira('');
     setGradeItems([]);
     setShowMirror(false);
     setDraftId('');
