@@ -1,45 +1,87 @@
-# Corrigir edição de cinto para refletir a ficha de cinto (não a de bota)
+# Adicionar faixas de categoria na página de detalhes do pedido
 
-## Diagnóstico
+## Objetivo
+Inserir faixas horizontais laranja terracota com o nome da categoria centralizado em branco minúsculo (igual à imagem de referência) entre os blocos de campos da ficha — para que a leitura visual fique organizada por seção em vez de uma lista plana de pares "label / valor".
 
-Encontrei o bug exato. Existem **dois pontos** no app que abrem a tela de edição de um pedido:
+## Onde
+**Arquivo único:** `src/pages/OrderDetailPage.tsx`
 
-| Local | Roteamento atual | Status |
-|---|---|---|
-| `src/components/OrderCard.tsx` (lista de pedidos) | cinto → `/editar-cinto` ✅ | Correto |
-| `src/pages/OrderDetailPage.tsx` linha 380 (botão lápis na página de detalhes) | cinto → `/editar` ❌ | **Bug** |
+Atualmente os campos são renderizados em um grid de 2 colunas como uma única lista plana (`details.map(...)` na linha 562). Vou agrupar esses pares em **categorias lógicas** e renderizar uma faixa de cabeçalho antes de cada grupo que tenha pelo menos 1 campo preenchido.
 
-No `OrderDetailPage.tsx` a condição está invertida:
+## Categorias propostas (ficha de Bota)
 
-```ts
-const base = order.tipoExtra && order.tipoExtra !== 'cinto'
-  ? `/pedido/${order.id}/editar-extra`
-  : `/pedido/${order.id}/editar';   // ← cinto cai aqui e abre EditOrderPage (ficha de BOTA)
-```
+| Faixa | Campos incluídos |
+|---|---|
+| **identificação** | Modelo, Cliente, Tamanho, Sob Medida, Acessórios |
+| **couro** | Tipo Couro Cano/Gáspea/Taloneira, Cor Couro Cano/Gáspea/Taloneira, Desenvolvimento |
+| **bordado** | Bordado Cano/Gáspea/Taloneira, Cor Bordado, Nome Bordado |
+| **laser** | Laser Cano/Gáspea/Taloneira, Cor Glitter/Tecido |
+| **acabamento** | Pintura, Estampa, Cor da Linha, Cor Borrachinha, Cor do Vivo |
+| **metais** | Área Metal, Tipo Metal, Cor Metal, Strass, Cruz, Bridão, Cavalo, Bola Grande |
+| **complementos** | Tricê, Tiras, Franja, Corrente |
+| **solado** | Solado, Formato do Bico, Cor da Sola, Cor da Vira, Costura Atrás |
+| **finalização** | Carimbo a Fogo, Adicional |
 
-Resultado: quando o admin abre o pedido de cinto e clica no lápis, é levado para a **ficha de bota** (`EditOrderPage`), com campos de modelo/solado/cano/gáspea/taloneira — em vez da `EditBeltPage` que tem os descritivos reais (Tamanho, Tipo de Couro, Cor, Fivela, Bordado P, Nome Bordado, Carimbo).
+## Categorias propostas (ficha de Cinto e demais Extras)
+Os pedidos com `tipoExtra` usam um caminho de render diferente (linhas 545-558). Para o cinto, agruparemos os campos do `EXTRA_DETAIL_LABELS` em:
 
-A `BeltOrderPage` (criação) e a `EditBeltPage` (edição) já estão **espelhadas e idênticas** em campos. O problema é só de roteamento.
+| Faixa | Campos |
+|---|---|
+| **identificação** | Tamanho, Cliente |
+| **couro** | Tipo de Couro, Cor do Couro |
+| **fivela** | Fivela |
+| **bordado** | Bordado P, Nome Bordado |
+| **finalização** | Carimbo a Fogo, Adicional |
 
-## Mudança proposta
+Para os demais extras (Kit Faca, Tiras Laterais, Revitalizador, Bota Pronta Entrega múltipla) mantemos o comportamento atual sem faixas, pois são listas curtas — exceto se quiser estender depois.
 
-**Arquivo único:** `src/pages/OrderDetailPage.tsx` (linha 380)
+## Mudança técnica
 
-Substituir a lógica binária por uma cascata de 3 vias, igual à do `OrderCard.tsx`:
+1. Substituir o array plano `details: [string, string][]` por uma estrutura agrupada:
+   ```ts
+   const detailsGrouped: { categoria: string; itens: [string, string][] }[] = [
+     { categoria: 'identificação', itens: [['Modelo', order.modelo], ...] },
+     { categoria: 'couro', itens: [['Tipo Couro Cano', order.couroCano], ...] },
+     // ...
+   ].map(g => ({ ...g, itens: g.itens.filter(([, v]) => v) }))
+    .filter(g => g.itens.length > 0);
+   ```
 
-```ts
-const base = order.tipoExtra === 'cinto'
-  ? `/pedido/${order.id}/editar-cinto`
-  : order.tipoExtra
-    ? `/pedido/${order.id}/editar-extra`
-    : `/pedido/${order.id}/editar`;
-```
+2. No render (linha 561), substituir o `.map` plano por:
+   ```tsx
+   <div className="mb-6 space-y-4">
+     {detailsGrouped.map(grupo => (
+       <div key={grupo.categoria}>
+         <div className="bg-[#C95A11] text-white text-center text-sm lowercase py-1.5 rounded-sm mb-2">
+           {grupo.categoria}
+         </div>
+         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+           {grupo.itens.map(([label, value]) => (
+             <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+               <span className="text-sm text-muted-foreground">{label}</span>
+               <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+             </div>
+           ))}
+         </div>
+       </div>
+     ))}
+   </div>
+   ```
 
-## Resultado esperado
+3. Aplicar a mesma estrutura agrupada para o ramo do cinto (linhas 545-558), construindo `cintoGrouped` a partir de `order.extraDetalhes`.
 
-Ao clicar no lápis de edição na página de detalhes de um pedido de cinto, o admin será levado para `EditBeltPage`, que mostra exatamente os mesmos campos do formulário de criação de cinto (Tamanho, Couro, Fivela, Bordado P, Nome Bordado, Carimbo a Fogo, Adicional, Observação) — refletindo os descritivos reais da ficha de cinto.
+## Detalhes visuais da faixa
+- Cor de fundo: `#C95A11` (laranja terracota da imagem)
+- Texto: branco, minúsculo, centralizado, fonte normal (não bold)
+- Padding vertical: `py-1.5`
+- Cantos levemente arredondados: `rounded-sm`
+- Largura total do bloco (atravessa as 2 colunas do grid)
 
 ## Fora de escopo
+- **Não** vou alterar os PDFs de relatório (Forro, Corte, Bordados, etc.) — você pediu só a tela de detalhes.
+- **Não** vou alterar o formulário de criação/edição (OrderPage / BeltOrderPage).
+- **Não** vou alterar o cálculo de preço, ordenação de campos nem a lógica de quais campos aparecem.
+- Nenhuma mudança no banco de dados.
 
-- **Não** vou criar um campo "Modelo" novo para cinto (entendi que você quis dizer "modelo da ficha" = layout do formulário, não um novo campo). Se você quiser um campo "Modelo" cadastrável via admin (como em bota), me avisa que faço como tarefa separada.
-- Nenhuma alteração de banco de dados, regras de preço, ou de outras telas.
+## Resultado esperado
+Ao abrir um pedido (bota ou cinto) na página de detalhes, em vez de uma lista corrida de 30+ linhas, o admin/vendedor verá blocos visualmente separados por faixas laranja com os nomes "couro", "bordado", "metais", etc. — exatamente como a imagem de referência mostra para "couro".
