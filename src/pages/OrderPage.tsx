@@ -271,6 +271,14 @@ const OrderPage = () => {
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
 
+  // recortes (na seção Laser e Recortes — preço configurável via admin)
+  const [recorteCano, setRecorteCano] = useState(df.recorteCano || '');
+  const [corRecorteCano, setCorRecorteCano] = useState(df.corRecorteCano || '');
+  const [recorteGaspea, setRecorteGaspea] = useState(df.recorteGaspea || '');
+  const [corRecorteGaspea, setCorRecorteGaspea] = useState(df.corRecorteGaspea || '');
+  const [recorteTaloneira, setRecorteTaloneira] = useState(df.recorteTaloneira || '');
+  const [corRecorteTaloneira, setCorRecorteTaloneira] = useState(df.corRecorteTaloneira || '');
+
   
 
   /* ───── cascading field handlers ───── */
@@ -345,7 +353,10 @@ const OrderPage = () => {
     carimbo, carimboDesc,
     adicionalDesc, adicionalValor: String(adicionalValor),
     observacao, sobMedida: String(sobMedida),
-  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, bolaGrande, bolaGrandeQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida]);
+    recorteCano, corRecorteCano,
+    recorteGaspea, corRecorteGaspea,
+    recorteTaloneira, corRecorteTaloneira,
+  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, bolaGrande, bolaGrandeQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida, recorteCano, corRecorteCano, recorteGaspea, corRecorteGaspea, recorteTaloneira, corRecorteTaloneira]);
 
   // Populate all form fields from template data
   const populateFormFromTemplate = useCallback((fd: Record<string, string>) => {
@@ -423,6 +434,12 @@ const OrderPage = () => {
     setAdicionalDesc(fd.adicionalDesc || '');
     setAdicionalValor(Number(fd.adicionalValor) || 0);
     setObservacao(fd.observacao || '');
+    setRecorteCano(fd.recorteCano || '');
+    setCorRecorteCano(fd.corRecorteCano || '');
+    setRecorteGaspea(fd.recorteGaspea || '');
+    setCorRecorteGaspea(fd.corRecorteGaspea || '');
+    setRecorteTaloneira(fd.recorteTaloneira || '');
+    setCorRecorteTaloneira(fd.corRecorteTaloneira || '');
   }, []);
 
   // Template handlers using hook
@@ -451,15 +468,17 @@ const OrderPage = () => {
 
   /* ───── envio de modelos ───── */
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [sendingTemplate, setSendingTemplate] = useState<typeof tmpl.templates[number] | null>(null);
+  const [sendingTemplates, setSendingTemplates] = useState<typeof tmpl.templates>([]);
   const [usersList, setUsersList] = useState<{ id: string; nome_completo: string; nome_usuario: string }[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [sendingInProgress, setSendingInProgress] = useState(false);
+  // Seleção múltipla na lista de modelos salvos
+  const [bulkSelectedTemplateIds, setBulkSelectedTemplateIds] = useState<string[]>([]);
 
-  const openSendDialog = async (template: typeof tmpl.templates[number]) => {
-    if (!user) return;
-    setSendingTemplate(template);
+  const openSendDialog = async (templates: typeof tmpl.templates) => {
+    if (!user || templates.length === 0) return;
+    setSendingTemplates(templates);
     setSelectedRecipients([]);
     setRecipientSearch('');
     setSendDialogOpen(true);
@@ -475,11 +494,15 @@ const OrderPage = () => {
     setSelectedRecipients(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const toggleBulkTemplate = (id: string) => {
+    setBulkSelectedTemplateIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
   const confirmSendTemplate = async () => {
-    if (!user || !sendingTemplate || selectedRecipients.length === 0) return;
+    if (!user || sendingTemplates.length === 0 || selectedRecipients.length === 0) return;
     setSendingInProgress(true);
     const ok = await tmpl.sendTemplateToUsers(
-      sendingTemplate,
+      sendingTemplates,
       selectedRecipients,
       user.id,
       user.nomeCompleto || user.nomeUsuario || 'Usuário',
@@ -487,8 +510,9 @@ const OrderPage = () => {
     setSendingInProgress(false);
     if (ok) {
       setSendDialogOpen(false);
-      setSendingTemplate(null);
+      setSendingTemplates([]);
       setSelectedRecipients([]);
+      setBulkSelectedTemplateIds([]);
     }
   };
 
@@ -719,6 +743,12 @@ const OrderPage = () => {
   const corViraPreco = COR_VIRA.find(c => c.label === corVira)?.preco || 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
 
+  // Recortes (preço configurável via admin; fallback 0)
+  const recortePreco =
+    (recorteCano ? findPrice(recorteCano, 'recorte_cano', []) : 0) +
+    (recorteGaspea ? findPrice(recorteGaspea, 'recorte_gaspea', []) : 0) +
+    (recorteTaloneira ? findPrice(recorteTaloneira, 'recorte_taloneira', []) : 0);
+
   const hasAnyLaser = laserCano.length > 0 || laserGaspea.length > 0 || laserTaloneira.length > 0;
 
   const total = modeloPreco
@@ -726,6 +756,7 @@ const OrderPage = () => {
     + acessoriosPreco + couroPreco + bordadoPreco
     + (nomeBordado ? NOME_BORDADO_PRECO : 0)
     + totalLaserPreco
+    + recortePreco
     + (pintura ? PINTURA_PRECO : 0)
     + (estampa ? ESTAMPA_PRECO : 0)
     + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
@@ -843,6 +874,12 @@ const OrderPage = () => {
     adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
     personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
     personalizacaoBordado: '',
+    recorteCano: recorteCano || null,
+    recorteGaspea: recorteGaspea || null,
+    recorteTaloneira: recorteTaloneira || null,
+    corRecorteCano: recorteCano && corRecorteCano ? corRecorteCano : null,
+    corRecorteGaspea: recorteGaspea && corRecorteGaspea ? corRecorteGaspea : null,
+    corRecorteTaloneira: recorteTaloneira && corRecorteTaloneira ? corRecorteTaloneira : null,
     extraDetalhes: {
       cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
       franja, franjaCouro, franjaCor,
@@ -892,6 +929,9 @@ const OrderPage = () => {
     setAdicionalDesc(''); setAdicionalValor(0);
     setObservacao('');
     setFotoUrl('');
+    setRecorteCano(''); setCorRecorteCano('');
+    setRecorteGaspea(''); setCorRecorteGaspea('');
+    setRecorteTaloneira(''); setCorRecorteTaloneira('');
     setGradeItems([]);
     setShowMirror(false);
     setDraftId('');
@@ -1252,14 +1292,18 @@ const OrderPage = () => {
             <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
           </Section>
 
-          {/* LASER */}
-          <Section title="Laser">
+          {/* LASER E RECORTES */}
+          <Section title="Laser e Recortes">
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={COR_GLITTER} />
             <div><label className={cls.label}>Cor do Bordado (Cano)</label><input type="text" value={corBordadoLaserCano} onChange={e => setCorBordadoLaserCano(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
+            <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
+            {recorteCano && (
+              <div><label className={cls.label}>Cor do Recorte (Cano)</label><input type="text" value={corRecorteCano} onChange={e => setCorRecorteCano(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            )}
 
             <MultiSelect label="Laser da Gáspea" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} />
             {laserGaspea.includes('Outro') && (
@@ -1267,6 +1311,10 @@ const OrderPage = () => {
             )}
             <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
             <div><label className={cls.label}>Cor do Bordado (Gáspea)</label><input type="text" value={corBordadoLaserGaspea} onChange={e => setCorBordadoLaserGaspea(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
+            <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
+            {recorteGaspea && (
+              <div><label className={cls.label}>Cor do Recorte (Gáspea)</label><input type="text" value={corRecorteGaspea} onChange={e => setCorRecorteGaspea(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            )}
 
             <MultiSelect label="Laser da Taloneira" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} />
             {laserTaloneira.includes('Outro') && (
@@ -1274,6 +1322,10 @@ const OrderPage = () => {
             )}
             <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={COR_GLITTER} />
             <div><label className={cls.label}>Cor do Bordado (Taloneira)</label><input type="text" value={corBordadoLaserTaloneira} onChange={e => setCorBordadoLaserTaloneira(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
+            <SelectField label="Recortes da Taloneira" value={recorteTaloneira} onChange={v => { setRecorteTaloneira(v); if (!v) setCorRecorteTaloneira(''); }} options={getDbItems('recorte_taloneira', [])} />
+            {recorteTaloneira && (
+              <div><label className={cls.label}>Cor do Recorte (Taloneira)</label><input type="text" value={corRecorteTaloneira} onChange={e => setCorRecorteTaloneira(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            )}
 
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
           </Section>
@@ -1441,10 +1493,15 @@ const OrderPage = () => {
             const filtered = tmpl.templates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
             if (tmpl.templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
             if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
+            const bulkTemplates = tmpl.templates.filter(t => bulkSelectedTemplateIds.includes(t.id));
             return (
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {filtered.map(t => (
+            <>
+            <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+              {filtered.map(t => {
+                const isChecked = bulkSelectedTemplateIds.includes(t.id);
+                return (
                 <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
+                  <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm truncate">{t.nome}</span>
@@ -1457,14 +1514,27 @@ const OrderPage = () => {
                     )}
                   </div>
                   <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => openSendDialog(t)} title="Enviar para outro usuário"><Send size={14} /></Button>
+                    <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
                     <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
+            {bulkSelectedTemplateIds.length > 0 && (
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+                <span className="text-sm font-semibold">{bulkSelectedTemplateIds.length} modelo{bulkSelectedTemplateIds.length > 1 ? 's' : ''} selecionado{bulkSelectedTemplateIds.length > 1 ? 's' : ''}</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setBulkSelectedTemplateIds([])}>Limpar</Button>
+                  <Button size="sm" onClick={() => openSendDialog(bulkTemplates)}>
+                    <Send size={14} /> Enviar selecionados
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
             );
           })()}
         </DialogContent>
@@ -1474,11 +1544,15 @@ const OrderPage = () => {
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Enviar modelo</DialogTitle>
+            <DialogTitle>Enviar modelo{sendingTemplates.length > 1 ? 's' : ''}</DialogTitle>
           </DialogHeader>
-          {sendingTemplate && (
+          {sendingTemplates.length > 0 && (
             <p className="text-sm text-muted-foreground -mt-2">
-              Enviando: <span className="font-semibold text-foreground">{sendingTemplate.nome}</span>
+              {sendingTemplates.length === 1 ? (
+                <>Enviando: <span className="font-semibold text-foreground">{sendingTemplates[0].nome}</span></>
+              ) : (
+                <>Enviando <span className="font-semibold text-foreground">{sendingTemplates.length} modelos</span>: {sendingTemplates.slice(0, 3).map(t => t.nome).join(', ')}{sendingTemplates.length > 3 ? '…' : ''}</>
+              )}
             </p>
           )}
           <Input

@@ -488,6 +488,9 @@ export type Database = {
           cor_glitter_taloneira: string | null
           cor_linha: string
           cor_metal: string | null
+          cor_recorte_cano: string | null
+          cor_recorte_gaspea: string | null
+          cor_recorte_taloneira: string | null
           cor_sola: string | null
           cor_vira: string
           cor_vivo: string | null
@@ -528,6 +531,9 @@ export type Database = {
           pintura_desc: string | null
           preco: number
           quantidade: number
+          recorte_cano: string | null
+          recorte_gaspea: string | null
+          recorte_taloneira: string | null
           sob_medida: boolean
           sob_medida_desc: string | null
           solado: string
@@ -571,6 +577,9 @@ export type Database = {
           cor_glitter_taloneira?: string | null
           cor_linha?: string
           cor_metal?: string | null
+          cor_recorte_cano?: string | null
+          cor_recorte_gaspea?: string | null
+          cor_recorte_taloneira?: string | null
           cor_sola?: string | null
           cor_vira?: string
           cor_vivo?: string | null
@@ -611,6 +620,9 @@ export type Database = {
           pintura_desc?: string | null
           preco?: number
           quantidade?: number
+          recorte_cano?: string | null
+          recorte_gaspea?: string | null
+          recorte_taloneira?: string | null
           sob_medida?: boolean
           sob_medida_desc?: string | null
           solado?: string
@@ -654,6 +666,9 @@ export type Database = {
           cor_glitter_taloneira?: string | null
           cor_linha?: string
           cor_metal?: string | null
+          cor_recorte_cano?: string | null
+          cor_recorte_gaspea?: string | null
+          cor_recorte_taloneira?: string | null
           cor_sola?: string | null
           cor_vira?: string
           cor_vivo?: string | null
@@ -694,6 +709,9 @@ export type Database = {
           pintura_desc?: string | null
           preco?: number
           quantidade?: number
+          recorte_cano?: string | null
+          recorte_gaspea?: string | null
+          recorte_taloneira?: string | null
           sob_medida?: boolean
           sob_medida_desc?: string | null
           solado?: string
@@ -1039,6 +1057,9 @@ export type Database = {
           cor_glitter_taloneira: string | null
           cor_linha: string
           cor_metal: string | null
+          cor_recorte_cano: string | null
+          cor_recorte_gaspea: string | null
+          cor_recorte_taloneira: string | null
           cor_sola: string | null
           cor_vira: string
           cor_vivo: string | null
@@ -1079,6 +1100,9 @@ export type Database = {
           pintura_desc: string | null
           preco: number
           quantidade: number
+          recorte_cano: string | null
+          recorte_gaspea: string | null
+          recorte_taloneira: string | null
           sob_medida: boolean
           sob_medida_desc: string | null
           solado: string

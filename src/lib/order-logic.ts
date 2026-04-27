@@ -180,6 +180,12 @@ export function dbRowToOrder(row: any): Order {
     extraDetalhes: row.extra_detalhes || undefined,
     numeroPedidoBota: row.numero_pedido_bota || undefined,
     cliente: row.cliente || '',
+    recorteCano: row.recorte_cano || undefined,
+    recorteGaspea: row.recorte_gaspea || undefined,
+    recorteTaloneira: row.recorte_taloneira || undefined,
+    corRecorteCano: row.cor_recorte_cano || undefined,
+    corRecorteGaspea: row.cor_recorte_gaspea || undefined,
+    corRecorteTaloneira: row.cor_recorte_taloneira || undefined,
   };
 }
 
@@ -264,6 +270,12 @@ export function orderToDbRow(order: any, userId: string) {
     extra_detalhes: order.extraDetalhes || null,
     numero_pedido_bota: order.numeroPedidoBota || null,
     cliente: order.cliente || '',
+    recorte_cano: order.recorteCano || null,
+    recorte_gaspea: order.recorteGaspea || null,
+    recorte_taloneira: order.recorteTaloneira || null,
+    cor_recorte_cano: order.corRecorteCano || null,
+    cor_recorte_gaspea: order.corRecorteGaspea || null,
+    cor_recorte_taloneira: order.corRecorteTaloneira || null,
   };
 }
 
@@ -288,6 +300,8 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   corVivo: 'cor_vivo', adicionalDesc: 'adicional_desc', adicionalValor: 'adicional_valor',
   descontoJustificativa: 'desconto_justificativa', tipoExtra: 'tipo_extra',
   extraDetalhes: 'extra_detalhes', numeroPedidoBota: 'numero_pedido_bota',
+  recorteCano: 'recorte_cano', recorteGaspea: 'recorte_gaspea', recorteTaloneira: 'recorte_taloneira',
+  corRecorteCano: 'cor_recorte_cano', corRecorteGaspea: 'cor_recorte_gaspea', corRecorteTaloneira: 'cor_recorte_taloneira',
 };
 
 /** Field labels for change tracking */
