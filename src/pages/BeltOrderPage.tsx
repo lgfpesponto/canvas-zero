@@ -5,7 +5,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
-import { Link2, X, Eye } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon } from 'lucide-react';
+import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
+import { isHttpUrl } from '@/lib/driveUrl';
 import SearchableSelect from '@/components/SearchableSelect';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
@@ -71,6 +73,7 @@ const BeltOrderPage = () => {
 
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
+  const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
@@ -300,50 +303,83 @@ const BeltOrderPage = () => {
     ['Quantidade', '1'],
   ].filter(([, v]) => v) as [string, string][];
 
+  const showFotoPanel = mostrarFotoPainel && isHttpUrl(fotoUrl);
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+      <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <h1 className="text-3xl font-display font-bold mb-6">Ficha de Produção — Cinto</h1>
 
         <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* Vendedor + Número */}
-          <div className="grid sm:grid-cols-2 gap-4">
+          {/* IDENTIFICAÇÃO */}
+          <Section title="Identificação">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className={cls.label}>Vendedor</label>
+                {isAdminUser ? (
+                  <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
+                    {isAdminProducao && !vendedor && <option value="">Selecione um vendedor</option>}
+                    {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
+                      <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
+                    ))}
+                    <option value="Estoque">Estoque</option>
+                  </select>
+                ) : (
+                  <input type="text" value={user?.nomeCompleto || ''} readOnly className={cls.input + ' opacity-70'} />
+                )}
+              </div>
+              <div>
+                <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
+                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+              </div>
+              <div>
+                <label className={cls.label}>Cliente</label>
+                <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+              </div>
+            </div>
+
             <div>
-              <label className={cls.label}>Vendedor</label>
-              {isAdminUser ? (
-                <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
-                  {isAdminProducao && !vendedor && <option value="">Selecione um vendedor</option>}
-                  {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
-                    <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
-                  ))}
-                  <option value="Estoque">Estoque</option>
-                </select>
-              ) : (
-                <input type="text" value={user?.nomeCompleto || ''} readOnly className={cls.input + ' opacity-70'} />
+              <label className={cls.label}>Tamanho<span className="text-destructive ml-0.5">*</span></label>
+              <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
+                <option value="">Selecione...</option>
+                {BELT_SIZES.map(s => (
+                  <option key={s.label} value={s.label}>{s.label} (R${s.preco})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Link da Foto de Referência (Drive) + botão Ver foto */}
+            <div>
+              <label className={cls.label}>Link da Foto de Referência (Google Drive)</label>
+              <div className="flex items-center gap-2">
+                <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                <input
+                  type="url"
+                  value={fotoUrl}
+                  onChange={e => { setFotoUrl(e.target.value); if (isHttpUrl(e.target.value)) setMostrarFotoPainel(true); }}
+                  placeholder="Cole o link do Google Drive aqui..."
+                  className={cls.input}
+                />
+                {fotoUrl && (
+                  <button type="button" onClick={() => { setFotoUrl(''); setMostrarFotoPainel(false); }} className="text-destructive hover:text-destructive/80">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              {fotoUrl && isHttpUrl(fotoUrl) && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarFotoPainel(v => !v)}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                >
+                  <ImageIcon size={14} /> {mostrarFotoPainel ? 'Esconder foto' : 'Ver foto'}
+                </button>
               )}
             </div>
-            <div>
-              <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
-              {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-            </div>
-            <div>
-              <label className={cls.label}>Cliente</label>
-              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
-            </div>
-          </div>
-
-          {/* Tamanho */}
-          <div>
-            <label className={cls.label}>Tamanho<span className="text-destructive ml-0.5">*</span></label>
-            <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
-              <option value="">Selecione...</option>
-              {BELT_SIZES.map(s => (
-                <option key={s.label} value={s.label}>{s.label} (R${s.preco})</option>
-              ))}
-            </select>
-          </div>
+          </Section>
 
           {/* Couro */}
           <Section title="Couro">
@@ -464,19 +500,7 @@ const BeltOrderPage = () => {
             <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
           </div>
 
-          {/* Link da Foto */}
-          <div>
-            <label className={cls.label}>Link da Foto de Referência (Google Drive)</label>
-            <div className="flex items-center gap-2">
-              <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-              <input type="url" value={fotoUrl} onChange={e => setFotoUrl(e.target.value)} placeholder="Cole o link do Google Drive aqui..." className={cls.input} />
-              {fotoUrl && (
-                <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          </div>
+          {/* Link da foto agora vive na seção Identificação no topo */}
 
           {/* Quantidade */}
           <div className="flex items-center gap-3">
@@ -499,6 +523,10 @@ const BeltOrderPage = () => {
           </button>
         </form>
       </motion.div>
+        {showFotoPanel && (
+          <FotoPedidoSidePanel url={fotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+        )}
+      </div>
 
       {/* Mirror */}
       {showMirror && (
