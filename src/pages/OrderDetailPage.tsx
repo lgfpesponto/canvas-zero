@@ -99,7 +99,7 @@ const OrderDetailPage = () => {
       categoria: 'Identificação',
       itens: filterPairs([
         ['Vendedor', order.vendedor],
-        ['Número do Pedido', order.numeroPedido],
+        ['Número do Pedido', order.numero],
         ...(showCliente && order.cliente ? ([['Cliente', order.cliente]] as [string, string][]) : []),
         ['Tamanho', order.tamanho ? `${order.tamanho}${order.genero ? ' — ' + order.genero : ''}` : ''],
         ['Modelo', order.modelo],
