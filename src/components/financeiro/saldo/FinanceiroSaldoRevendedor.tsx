@@ -99,10 +99,10 @@ const FinanceiroSaldoRevendedor = () => {
         showAdminUpload
       />
 
-      {/* Saldo por revendedor */}
+      {/* Saldo por vendedor */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Saldo por revendedor</CardTitle>
+          <CardTitle className="text-lg">Saldo por vendedor</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && saldos === null ? (
@@ -113,7 +113,7 @@ const FinanceiroSaldoRevendedor = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Revendedor</TableHead>
+                  <TableHead>Vendedor</TableHead>
                   <TableHead className="text-right">Recebido</TableHead>
                   <TableHead className="text-right">Utilizado</TableHead>
                   <TableHead className="text-right">Saldo disponível</TableHead>

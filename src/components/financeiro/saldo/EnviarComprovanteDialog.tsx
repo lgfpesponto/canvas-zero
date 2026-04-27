@@ -71,7 +71,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
   const [loadingVendedores, setLoadingVendedores] = useState(false);
   const targetVendedor = vendedor || selectedVendedor;
 
-  // Carrega lista de revendedores quando o dialog abre em modo admin
+  // Carrega lista de vendedores quando o dialog abre em modo admin
   useEffect(() => {
     if (!open || !isAdminMode) return;
     setLoadingVendedores(true);
@@ -89,7 +89,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         ));
         setVendedoresList(nomes);
       } catch (e: any) {
-        toast({ title: 'Erro ao carregar revendedores', description: e.message, variant: 'destructive' });
+        toast({ title: 'Erro ao carregar vendedores', description: e.message, variant: 'destructive' });
       } finally {
         setLoadingVendedores(false);
       }
@@ -182,7 +182,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
   const handleSendAll = async () => {
     if (savingAll) return;
     if (!targetVendedor) {
-      toast({ title: 'Escolha o revendedor antes de enviar', variant: 'destructive' });
+      toast({ title: 'Escolha o vendedor antes de enviar', variant: 'destructive' });
       return;
     }
     const ready = items.filter(i => i.status === 'ready');
@@ -274,20 +274,20 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isAdminMode ? 'Enviar comprovante em nome de revendedor' : 'Enviar comprovante(s) de pagamento'}
+            {isAdminMode ? 'Enviar comprovante em nome de vendedor' : 'Enviar comprovante(s) de pagamento'}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {isAdminMode && (
             <div>
-              <Label>Revendedor</Label>
+              <Label>Vendedor</Label>
               <Select
                 value={selectedVendedor}
                 onValueChange={setSelectedVendedor}
                 disabled={savingAll || loadingVendedores}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={loadingVendedores ? 'Carregando...' : 'Selecione o revendedor'} />
+                  <SelectValue placeholder={loadingVendedores ? 'Carregando...' : 'Selecione o vendedor'} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {vendedoresList.map(v => (
@@ -296,7 +296,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                O comprovante será lançado em nome desse revendedor e ficará pendente para aprovação normal.
+                O comprovante será lançado em nome desse vendedor e ficará pendente para aprovação normal.
               </p>
             </div>
           )}

@@ -36,7 +36,7 @@ interface Props {
 }
 
 export const ComprovantesRevendedorPendentes = ({
-  onChanged, hideWhenEmpty, title = 'Comprovantes a entrar (revendedores)', showAdminUpload,
+  onChanged, hideWhenEmpty, title = 'Comprovantes a entrar (vendedores)', showAdminUpload,
 }: Props) => {
   const { toast } = useToast();
   const [pendentes, setPendentes] = useState<RevendedorComprovante[]>([]);
@@ -194,7 +194,7 @@ export const ComprovantesRevendedorPendentes = ({
           <div className="flex items-center gap-2">
             {showAdminUpload && (
               <Button size="sm" variant="outline" onClick={() => setEnviarOpen(true)}>
-                <Upload size={14} className="mr-1" /> Enviar comprovante de revendedor
+                <Upload size={14} className="mr-1" /> Enviar comprovante de vendedor
               </Button>
             )}
             {pendentes.length > 0 && (
@@ -222,7 +222,7 @@ export const ComprovantesRevendedorPendentes = ({
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : pendentes.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">
-              Nenhum comprovante de revendedor aguardando aprovação.
+              Nenhum comprovante de vendedor aguardando aprovação.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -237,7 +237,7 @@ export const ComprovantesRevendedorPendentes = ({
                       />
                     </TableHead>
                     <TableHead>Enviado</TableHead>
-                    <TableHead>Revendedor</TableHead>
+                    <TableHead>Vendedor</TableHead>
                     <TableHead>Data pgto</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Pago para</TableHead>
@@ -328,7 +328,7 @@ export const ComprovantesRevendedorPendentes = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Reprovar comprovante</AlertDialogTitle>
             <AlertDialogDescription>
-              Informe o motivo da reprovação. Ele será exibido para o revendedor.
+              Informe o motivo da reprovação. Ele será exibido para o vendedor.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea

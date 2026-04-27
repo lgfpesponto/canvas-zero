@@ -24,7 +24,7 @@ const FinanceiroPage = () => {
     }
   }, [role, loading, navigate]);
 
-  // Scroll para a seção de comprovantes do revendedor se houver hash
+  // Scroll para a seção de comprovantes do vendedor se houver hash
   useEffect(() => {
     if (window.location.hash === '#comprovantes-revendedor') {
       setTimeout(() => {
@@ -52,7 +52,7 @@ const FinanceiroPage = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="receber">A Receber</TabsTrigger>
           <TabsTrigger value="pagar">A Pagar</TabsTrigger>
-          <TabsTrigger value="saldo">Saldo do Revendedor</TabsTrigger>
+          <TabsTrigger value="saldo">Saldo do Vendedor</TabsTrigger>
         </TabsList>
         <TabsContent value="receber">
           <FinanceiroAReceber />
