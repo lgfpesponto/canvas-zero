@@ -400,126 +400,144 @@ const ReportsPage = () => {
           )}
         </div>
 
-        {/* Barcode scanner for all users */}
-        {showScanner && (
-          <>
-            {isAdmin && selectedIds.size > 0 ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div className="bg-gray-900 text-white p-8 rounded-2xl shadow-2xl border-2 border-green-500 w-full max-w-lg mx-4">
-                  {lastScannedNumero && (
-                    <div className="mb-4 text-center">
-                      <p className="text-sm text-gray-400 uppercase font-semibold mb-1">Último pedido lido</p>
-                      <p className="text-3xl font-bold text-green-400">✅ {lastScannedNumero}</p>
+        {/* Barcode scanner for all users — single persistent input to keep focus across scans */}
+        {showScanner && (() => {
+          const adminMode = isAdmin;
+          const hasSelection = adminMode && selectedIds.size > 0;
+          const stickyBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+            // Only release focus if user explicitly tabbed/clicked into another text-entry field.
+            // Buttons, links, divs, etc. should NOT steal focus from the scanner.
+            const next = e.relatedTarget as HTMLElement | null;
+            const tag = next?.tagName?.toLowerCase();
+            const isTextEntry = tag === 'input' || tag === 'textarea' || tag === 'select';
+            if (isTextEntry && next !== scanInputRef.current) return;
+            // refocus on next frame to survive DOM updates
+            requestAnimationFrame(() => {
+              const el = scanInputRef.current;
+              if (el && document.activeElement !== el) el.focus();
+            });
+          };
+          const inputEl = (
+            <input
+              ref={scanInputRef}
+              type="text"
+              value={scanValue}
+              onChange={e => setScanValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleScan(scanValue);
+                }
+              }}
+              onBlur={stickyBlur}
+              placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
+              className={hasSelection
+                ? 'flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500'
+                : 'w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none'}
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+            />
+          );
+
+          return (
+            <div className={hasSelection
+              ? 'fixed inset-0 z-50 flex items-center justify-center bg-black/60'
+              : 'bg-card rounded-xl p-4 western-shadow mb-4'}>
+              <div className={hasSelection
+                ? 'bg-gray-900 text-white p-8 rounded-2xl shadow-2xl border-2 border-green-500 w-full max-w-lg mx-4'
+                : ''}>
+                {hasSelection && lastScannedNumero && (
+                  <div className="mb-4 text-center">
+                    <p className="text-sm text-gray-400 uppercase font-semibold mb-1">Último pedido lido</p>
+                    <p className="text-3xl font-bold text-green-400">✅ {lastScannedNumero}</p>
+                  </div>
+                )}
+                {hasSelection && (
+                  <>
+                    <div className="text-center mb-6">
+                      <p className="text-2xl font-bold">{selectedIds.size} pedido{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}</p>
                     </div>
-                  )}
-                  <div className="text-center mb-6">
-                    <p className="text-2xl font-bold">{selectedIds.size} pedido{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}</p>
-                  </div>
-                  <div className="text-center mb-4">
-                    <button onClick={() => setShowSelectedList(v => !v)} className="text-sm text-green-300 underline hover:text-green-200 transition-colors">
-                      {showSelectedList ? 'Ocultar pedidos' : 'Visualizar pedidos'}
-                    </button>
-                  </div>
-                  {showSelectedList && (
-                    <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
-                      {selectedScannedList.map(o => (
-                        <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
-                          <span className="font-bold text-green-300">{o.numero}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-400">{o.status}</span>
-                            <button onClick={() => toggleSelect(o.id)} className="text-red-400 hover:text-red-300 ml-2">
-                              <X size={16} />
-                            </button>
+                    <div className="text-center mb-4">
+                      <button
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setShowSelectedList(v => !v); refocusScanInput(); }}
+                        className="text-sm text-green-300 underline hover:text-green-200 transition-colors"
+                      >
+                        {showSelectedList ? 'Ocultar pedidos' : 'Visualizar pedidos'}
+                      </button>
+                    </div>
+                    {showSelectedList && (
+                      <div className="mb-4 max-h-48 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3">
+                        {selectedScannedList.map(o => (
+                          <div key={o.id} className="flex items-center justify-between text-sm py-1 border-b border-gray-700 last:border-0">
+                            <span className="font-bold text-green-300">{o.numero}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400">{o.status}</span>
+                              <button
+                                type="button"
+                                onMouseDown={e => e.preventDefault()}
+                                onClick={() => { toggleSelect(o.id); refocusScanInput(); }}
+                                className="text-red-400 hover:text-red-300 ml-2"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div className={hasSelection ? 'flex items-center gap-3 mb-6' : 'flex items-center gap-3'}>
+                  {scanning
+                    ? <Loader2 size={20} className={hasSelection ? 'text-green-400 flex-shrink-0 animate-spin' : 'text-primary flex-shrink-0 animate-spin'} />
+                    : <ScanBarcode size={20} className={hasSelection ? 'text-green-400 flex-shrink-0' : 'text-primary flex-shrink-0'} />}
+                  {hasSelection ? inputEl : (
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold mb-1">Escaneie ou digite o código de barras do pedido</label>
+                      {inputEl}
                     </div>
                   )}
-                  <div className="flex items-center gap-3 mb-6">
-                    {scanning
-                      ? <Loader2 size={20} className="text-green-400 flex-shrink-0 animate-spin" />
-                      : <ScanBarcode size={20} className="text-green-400 flex-shrink-0" />}
-                    <input
-                      ref={scanInputRef}
-                      type="text"
-                      value={scanValue}
-                      onChange={e => setScanValue(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleScan(scanValue);
-                        }
-                      }}
-                      onBlur={() => {
-                        // Sticky focus: if the user didn't intentionally click another
-                        // text field/button, bring focus back so the next scan is captured.
-                        setTimeout(() => {
-                          const next = document.activeElement as HTMLElement | null;
-                          const tag = next?.tagName?.toLowerCase();
-                          if (tag === 'input' || tag === 'textarea' || tag === 'button' || tag === 'select') return;
-                          scanInputRef.current?.focus();
-                        }, 0);
-                      }}
-                      placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
-                      className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500 disabled:opacity-60"
-                      autoFocus
-                    />
-                    <button onClick={() => handleScan(scanValue)} disabled={scanning} className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
-                      {scanning && <Loader2 size={14} className="animate-spin" />}
-                      {scanning ? 'Buscando...' : 'Buscar'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { handleScan(scanValue); }}
+                    className={hasSelection
+                      ? 'bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-bold text-sm transition-colors flex items-center gap-2'
+                      : 'orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2'}
+                  >
+                    {scanning && <Loader2 size={14} className="animate-spin" />}
+                    Buscar
+                  </button>
+                </div>
+
+                {hasSelection && (
                   <div className="flex gap-3">
-                    <button onClick={() => setShowProgressModal(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity">
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setShowProgressModal(true)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+                    >
                       <RefreshCw size={16} /> Mudar progresso de produção
                     </button>
-                    <button onClick={() => { setSelectedIds(new Set()); setScannedOrdersMap(new Map()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors">
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => { setSelectedIds(new Set()); setScannedOrdersMap(new Map()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors"
+                    >
                       Limpar seleção
                     </button>
                   </div>
-                </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-card rounded-xl p-4 western-shadow mb-4">
-                <div className="flex items-center gap-3">
-                  {scanning
-                    ? <Loader2 size={20} className="text-primary flex-shrink-0 animate-spin" />
-                    : <ScanBarcode size={20} className="text-primary flex-shrink-0" />}
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold mb-1">Escaneie ou digite o código de barras do pedido</label>
-                    <input
-                      ref={scanInputRef}
-                      type="text"
-                      value={scanValue}
-                      onChange={e => setScanValue(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleScan(scanValue);
-                        }
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          const next = document.activeElement as HTMLElement | null;
-                          const tag = next?.tagName?.toLowerCase();
-                          if (tag === 'input' || tag === 'textarea' || tag === 'button' || tag === 'select') return;
-                          scanInputRef.current?.focus();
-                        }, 0);
-                      }}
-                      placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
-                      className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
-                      autoFocus
-                    />
-                  </div>
-                  <button onClick={() => handleScan(scanValue)} disabled={scanning} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
-                    {scanning && <Loader2 size={14} className="animate-spin" />}
-                    {scanning ? 'Buscando...' : 'Buscar'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+            </div>
+          );
+        })()}
 
         {/* Filters */}
         <form onSubmit={(e) => { e.preventDefault(); applyFilters(); }} className="bg-card rounded-xl p-4 western-shadow mb-6">

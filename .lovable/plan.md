@@ -1,44 +1,62 @@
-# Corrigir scanner de código de barras (perda de foco e leitura única)
+# Corrigir scanner que perde a leitura contínua após o primeiro código
 
-## Problema observado
+## Problema confirmado
 
-Na tela **Meus Pedidos → Escanear Código** (admin), depois de bipar o primeiro pedido o usuário precisa clicar de volta no campo para conseguir bipar o próximo. Resultado: na prática só um código é selecionado por vez.
+O problema principal não é só “perda de foco”. Em `src/pages/ReportsPage.tsx`, o scanner do admin troca de layout depois da primeira leitura:
 
-## Causa
+- antes da primeira leitura: renderiza o bloco simples (`selectedIds.size === 0`)
+- depois da primeira leitura: renderiza outro bloco totalmente diferente (`selectedIds.size > 0`), em modal fullscreen
 
-No componente `src/pages/ReportsPage.tsx`, quando o primeiro código é lido:
+Essa troca desmonta o `<input>` original e monta outro no lugar. Para leitor de código de barras isso é crítico: a próxima leitura pode começar no meio dessa troca de DOM, então o foco some e o scanner parece funcionar só uma vez.
 
-1. O re-render mostra a área "Último pedido lido" + contador de selecionados + botão "Visualizar pedidos".
-2. Esses elementos novos entram no DOM e o navegador, em alguns casos (especialmente quando o leitor envia caracteres durante o re-render), perde o foco do `<input>`.
-3. O `autoFocus` só roda na montagem, e o `useEffect` que reaplica o foco depende apenas de `showScanner` — não roda mais depois da primeira abertura.
-4. Se o leitor começa a enviar a próxima leitura enquanto o input está sem foco, os caracteres caem em outro lugar (ex.: `body`) e nada acontece — daí a sensação de "só lê um código".
-
-Outro ponto: o botão "Buscar" tem `disabled={scanning}` e o input não — mas como o foco está perdido, o leitor não consegue digitar de qualquer jeito.
+Além disso, o `onBlur` atual evita refocar se o foco cair em `button`, e justamente após a primeira leitura aparecem novos botões como “Visualizar pedidos”, “Mudar progresso” e “Limpar seleção”, o que favorece a perda de foco persistente.
 
 ## O que será alterado
 
-Arquivo único: `src/pages/ReportsPage.tsx`
+### 1. Manter um único scanner montado o tempo todo
+Arquivo: `src/pages/ReportsPage.tsx`
 
-1. **Foco "grudento" no input do scanner**
-   - Adicionar `onBlur` no `<input ref={scanInputRef}>`: enquanto `showScanner` estiver aberto, se o input perder foco e o novo elemento focado **não** for um botão/dialog dentro do painel do scanner, reaplicar foco via `requestAnimationFrame`.
-   - Capturar também eventos de teclado em nível de `document` enquanto o scanner está aberto: se uma tecla imprimível chegar e o foco não estiver no input, redirecionar o foco antes do próximo caractere se perder.
+- Remover a troca brusca entre “scanner inicial” e “scanner com pedidos selecionados”.
+- Manter o mesmo campo de leitura sempre montado do início ao fim.
+- Mostrar contador, último pedido lido e lista de selecionados sem substituir o componente do input.
 
-2. **Reaplicar foco em todo render relevante do painel**
-   - Trocar o `useEffect([showScanner])` por um efeito que também reage a `lastScannedNumero`, `selectedIds.size` e `scanning`, garantindo que o input volte a receber foco depois de cada leitura processada.
+Resultado: o leitor continua digitando sempre no mesmo elemento, sem reset estrutural entre uma leitura e outra.
 
-3. **Não bloquear leituras simultâneas**
-   - O fluxo atual já tem `scanQueueRef` para enfileirar, mas hoje o input fica visualmente "Buscando..." e o usuário hesita. Manter o input **sempre habilitado** (já está) e ajustar o placeholder para deixar claro que pode bipar o próximo enquanto processa.
+### 2. Endurecer a estratégia de refoco automático
+Arquivo: `src/pages/ReportsPage.tsx`
 
-4. **Evitar perder caracteres durante o reset**
-   - Em `handleScan`, fazer `setScanValue('')` e o refoco juntos antes de qualquer await, para que o input já esteja pronto para o próximo bip imediatamente.
+- Ajustar `refocusScanInput` para reaplicar foco de forma mais agressiva enquanto o scanner estiver aberto.
+- Trocar o `onBlur` por uma lógica que só permita perder foco de verdade ao fechar o scanner ou ao interagir explicitamente com controles que precisem disso.
+- Não considerar a simples presença de botões no painel como motivo para abandonar o foco do scanner.
 
-5. **Não trocar o botão "Visualizar pedidos" para fora durante o scan**
-   - Pequena reordenação visual: o bloco "Último pedido lido" já existe; garantir que sua aparição não desmonte o input (mantê-lo sempre montado, só mostrar/ocultar texto interno).
+### 3. Blindar a transição logo após cada leitura
+Arquivo: `src/pages/ReportsPage.tsx`
 
-Sem mudanças em banco, hooks ou outros arquivos.
+- Em `handleScan`, manter limpeza do campo e refoco antes do processamento assíncrono.
+- Reforçar o refoco também após atualização de seleção, último pedido lido e abertura/fechamento da lista de pedidos.
+- Garantir que leituras enfileiradas continuem indo para o mesmo input sem depender de clique manual.
+
+### 4. Ajustar a UI para não competir com o scanner
+Arquivo: `src/pages/ReportsPage.tsx`
+
+- Deixar o botão “Buscar” como ação opcional manual, mas sem interferir no fluxo contínuo do leitor.
+- Exibir “Buscando... pode escanear o próximo” sem bloquear a captura da próxima leitura.
+- Evitar qualquer renderização condicional que troque o nó do input durante o uso.
 
 ## Resultado esperado
 
-- Bipar vários códigos seguidos sem precisar clicar no campo entre as leituras.
-- Indicador "Buscando..." continua aparecendo, mas não impede a próxima leitura (ela entra na fila e é processada em sequência).
-- Se uma leitura cair fora do input por qualquer motivo, o foco é restaurado automaticamente antes do próximo caractere.
+- Após ler um código, o próximo poderá ser lido imediatamente sem clicar no campo.
+- O scanner continuará funcionando em sequência mesmo com “Último pedido lido” e lista de selecionados visíveis.
+- Leituras rápidas continuarão entrando na fila e sendo processadas em ordem.
+
+## Detalhes técnicos
+
+Arquivo afetado: `src/pages/ReportsPage.tsx`
+
+Abordagem:
+- consolidar os dois blocos de scanner em uma única estrutura
+- manter um único `ref` e um único `<input>` persistente
+- revisar `onBlur`/`useEffect` para foco persistente real
+- preservar a fila (`scanQueueRef`) já existente
+
+Sem mudanças em banco, Supabase ou regras de negócio.
