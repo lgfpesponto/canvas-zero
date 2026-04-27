@@ -361,7 +361,10 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     if (order.laserCano) laserFields.push({ label: 'Cano:', value: `${order.laserCano.toLowerCase()}${order.corGlitterCano ? ' ' + order.corGlitterCano.toLowerCase() : ''}` });
     if (order.laserGaspea) laserFields.push({ label: 'Gáspea:', value: `${order.laserGaspea.toLowerCase()}${order.corGlitterGaspea ? ' ' + order.corGlitterGaspea.toLowerCase() : ''}` });
     if (order.laserTaloneira) laserFields.push({ label: 'Taloneira:', value: `${(order.laserTaloneira || '').toLowerCase()}${order.corGlitterTaloneira ? ' ' + order.corGlitterTaloneira.toLowerCase() : ''}` });
-    if (laserFields.length) categories.push({ title: 'LASER', fields: laserFields });
+    if (order.recorteCano) laserFields.push({ label: 'Recorte cano:', value: `${order.recorteCano.toLowerCase()}${order.corRecorteCano ? ' ' + order.corRecorteCano.toLowerCase() : ''}` });
+    if (order.recorteGaspea) laserFields.push({ label: 'Recorte gáspea:', value: `${order.recorteGaspea.toLowerCase()}${order.corRecorteGaspea ? ' ' + order.corRecorteGaspea.toLowerCase() : ''}` });
+    if (order.recorteTaloneira) laserFields.push({ label: 'Recorte taloneira:', value: `${order.recorteTaloneira.toLowerCase()}${order.corRecorteTaloneira ? ' ' + order.corRecorteTaloneira.toLowerCase() : ''}` });
+    if (laserFields.length) categories.push({ title: 'LASER E RECORTES', fields: laserFields });
 
     const pespontoFields: CatField[] = [];
     if (order.corLinha) pespontoFields.push({ label: 'Linha:', value: order.corLinha.toLowerCase() });
