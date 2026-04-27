@@ -535,6 +535,10 @@ const BeltOrderPage = () => {
           </button>
         </form>
       </motion.div>
+        {showFotoPanel && (
+          <FotoPedidoSidePanel url={fotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+        )}
+      </div>
 
       {/* Mirror */}
       {showMirror && (
