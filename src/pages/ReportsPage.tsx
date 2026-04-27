@@ -264,14 +264,19 @@ const ReportsPage = () => {
     }
   }, [isAdmin, navigate, playBeep, playErrorBeep]);
 
+  const refocusScanInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = scanInputRef.current;
+      if (el && document.activeElement !== el) el.focus();
+    });
+  }, []);
+
   const handleScan = useCallback(async (code: string) => {
     const trimmed = code.trim();
+    // Clear and refocus IMMEDIATELY so the next scan from the gun lands here
     setScanValue('');
-    if (!trimmed) {
-      // Refocus even on empty input so the next scan lands here
-      requestAnimationFrame(() => scanInputRef.current?.focus());
-      return;
-    }
+    refocusScanInput();
+    if (!trimmed) return;
 
     // Queue rapid scans instead of dropping them
     if (scanProcessingRef.current) {
@@ -292,14 +297,35 @@ const ReportsPage = () => {
       scanProcessingRef.current = false;
       setScanning(false);
       // Always return focus to the input so the next scan is captured
-      requestAnimationFrame(() => scanInputRef.current?.focus());
+      refocusScanInput();
     }
-  }, [processScan]);
+  }, [processScan, refocusScanInput]);
 
+  // Keep focus on the scan input whenever the panel is open and state changes
   useEffect(() => {
-    if (showScanner && scanInputRef.current) {
-      scanInputRef.current.focus();
-    }
+    if (!showScanner) return;
+    refocusScanInput();
+  }, [showScanner, scanning, lastScannedNumero, selectedIds.size, showSelectedList, refocusScanInput]);
+
+  // Global keystroke recovery: if the scanner panel is open and a printable key
+  // arrives while focus is somewhere else (no input/textarea/button focused),
+  // redirect focus to the scan input so we don't lose the first character of the
+  // next barcode burst.
+  useEffect(() => {
+    if (!showScanner) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = scanInputRef.current;
+      if (!el) return;
+      if (document.activeElement === el) return;
+      const tag = (document.activeElement as HTMLElement | null)?.tagName?.toLowerCase();
+      // Don't steal focus from other text fields, textareas, selects or open dialogs
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      // Only react to printable single-character keys (ignore modifiers, arrows, etc.)
+      if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+      el.focus();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [showScanner]);
 
   const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
@@ -424,6 +450,16 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
+                      onBlur={() => {
+                        // Sticky focus: if the user didn't intentionally click another
+                        // text field/button, bring focus back so the next scan is captured.
+                        setTimeout(() => {
+                          const next = document.activeElement as HTMLElement | null;
+                          const tag = next?.tagName?.toLowerCase();
+                          if (tag === 'input' || tag === 'textarea' || tag === 'button' || tag === 'select') return;
+                          scanInputRef.current?.focus();
+                        }, 0);
+                      }}
                       placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
                       className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500 disabled:opacity-60"
                       autoFocus
@@ -461,6 +497,14 @@ const ReportsPage = () => {
                           e.preventDefault();
                           handleScan(scanValue);
                         }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          const next = document.activeElement as HTMLElement | null;
+                          const tag = next?.tagName?.toLowerCase();
+                          if (tag === 'input' || tag === 'textarea' || tag === 'button' || tag === 'select') return;
+                          scanInputRef.current?.focus();
+                        }, 0);
                       }}
                       placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
                       className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
