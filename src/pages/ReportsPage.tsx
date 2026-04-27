@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
+import { LoadingValue } from '@/components/ui/LoadingValue';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
