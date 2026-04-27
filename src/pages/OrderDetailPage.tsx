@@ -377,7 +377,11 @@ const OrderDetailPage = () => {
                   <h1 className="text-2xl font-display font-bold">{order.numero}</h1>
                   {isAdmin && (
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                      const base = order.tipoExtra && order.tipoExtra !== 'cinto' ? `/pedido/${order.id}/editar-extra` : `/pedido/${order.id}/editar`;
+                      const base = order.tipoExtra === 'cinto'
+                        ? `/pedido/${order.id}/editar-cinto`
+                        : order.tipoExtra
+                          ? `/pedido/${order.id}/editar-extra`
+                          : `/pedido/${order.id}/editar`;
                       navigate(showFotoPanel ? `${base}?foto=1` : base, { replace: true });
                     }}>
                       <Pencil size={16} />

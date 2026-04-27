@@ -1,46 +1,45 @@
-## Objetivo
-Tornar **"Bola grande"** 100% equivalente a **"Strass"** dentro da categoria **Metais** (Adicionar Metais): mesmo comportamento de quantidade, mesmo preço (R$ 0,60/un) e mesma exibição em relatórios e detalhes.
+# Corrigir edição de cinto para refletir a ficha de cinto (não a de bota)
 
 ## Diagnóstico
-O formulário (`ExtrasPage.tsx` / `EditExtrasPage.tsx`) e o cálculo central (`botaExtraHelpers.ts`, `OrderDetailPage.tsx`) **já tratam Bola grande corretamente** com `0.60 × qtdBolaGrande`. A inconsistência está nos **relatórios PDF** e em **labels**:
 
-1. **`src/components/SpecializedReports.tsx`** (2 ocorrências — linhas ~272 e ~1241):
-   - Hoje: `priceItems.push(['Bola grande', 15])` — preço fixo errado de R$ 15, ignora quantidade.
-   - Strass logo abaixo já faz: `0.60 × qtd`.
+Encontrei o bug exato. Existem **dois pontos** no app que abrem a tela de edição de um pedido:
 
-2. **`src/components/SpecializedReports.tsx`** (extras embutidos em Bota Pronta Entrega — linhas ~286 e ~1258):
-   - Hoje: `parts.push('Bola grande')` — sem mostrar quantidade.
-   - Strass faz: `parts.push(\`Strass x${qtdStrass || 1}\`)`.
+| Local | Roteamento atual | Status |
+|---|---|---|
+| `src/components/OrderCard.tsx` (lista de pedidos) | cinto → `/editar-cinto` ✅ | Correto |
+| `src/pages/OrderDetailPage.tsx` linha 380 (botão lápis na página de detalhes) | cinto → `/editar` ❌ | **Bug** |
 
-3. **`src/lib/extrasConfig.ts`** (`EXTRA_DETAIL_LABELS`):
-   - Falta `qtdBolaGrande: 'Qtd. de Bola Grande'` (Strass tem `qtdStrass: 'Qtd. de Strass'`).
+No `OrderDetailPage.tsx` a condição está invertida:
 
-## Mudanças propostas
-
-### 1. `src/components/SpecializedReports.tsx`
-Substituir nas duas ocorrências do bloco `case 'adicionar_metais'`:
 ```ts
-if (sel.includes('Bola grande')) {
-  const qtd = parseInt(det.qtdBolaGrande) || 1;
-  priceItems.push([`Bola grande (${qtd} un.)`, 0.60 * qtd]);
-}
-```
-E nas duas ocorrências dentro de Bota Pronta Entrega:
-```ts
-if (ex.dados.metaisSelecionados.includes('Bola grande'))
-  parts.push(`Bola grande x${ex.dados.qtdBolaGrande || 1}`);
+const base = order.tipoExtra && order.tipoExtra !== 'cinto'
+  ? `/pedido/${order.id}/editar-extra`
+  : `/pedido/${order.id}/editar';   // ← cinto cai aqui e abre EditOrderPage (ficha de BOTA)
 ```
 
-### 2. `src/lib/extrasConfig.ts`
-Adicionar em `EXTRA_DETAIL_LABELS`:
+Resultado: quando o admin abre o pedido de cinto e clica no lápis, é levado para a **ficha de bota** (`EditOrderPage`), com campos de modelo/solado/cano/gáspea/taloneira — em vez da `EditBeltPage` que tem os descritivos reais (Tamanho, Tipo de Couro, Cor, Fivela, Bordado P, Nome Bordado, Carimbo).
+
+A `BeltOrderPage` (criação) e a `EditBeltPage` (edição) já estão **espelhadas e idênticas** em campos. O problema é só de roteamento.
+
+## Mudança proposta
+
+**Arquivo único:** `src/pages/OrderDetailPage.tsx` (linha 380)
+
+Substituir a lógica binária por uma cascata de 3 vias, igual à do `OrderCard.tsx`:
+
 ```ts
-qtdBolaGrande: 'Qtd. de Bola Grande',
+const base = order.tipoExtra === 'cinto'
+  ? `/pedido/${order.id}/editar-cinto`
+  : order.tipoExtra
+    ? `/pedido/${order.id}/editar-extra`
+    : `/pedido/${order.id}/editar`;
 ```
 
-## O que NÃO muda
-- Formulário (`ExtrasPage.tsx`, `EditExtrasPage.tsx`): já tem o input "Qtd. bola grande" idêntico ao Strass.
-- `botaExtraHelpers.ts`: já calcula `0.60 × qtdBolaGrande` corretamente.
-- `OrderDetailPage.tsx`: já exibe `Bola grande (Nx R$0,60)` corretamente.
+## Resultado esperado
 
-## Resultado
-Após o ajuste, "Bola grande" e "Strass" terão paridade total: mesmo input de quantidade no formulário, mesmo cálculo (R$ 0,60/un) em todos os lugares, e mesma exibição em PDFs de produção e detalhes de pedido.
+Ao clicar no lápis de edição na página de detalhes de um pedido de cinto, o admin será levado para `EditBeltPage`, que mostra exatamente os mesmos campos do formulário de criação de cinto (Tamanho, Couro, Fivela, Bordado P, Nome Bordado, Carimbo a Fogo, Adicional, Observação) — refletindo os descritivos reais da ficha de cinto.
+
+## Fora de escopo
+
+- **Não** vou criar um campo "Modelo" novo para cinto (entendi que você quis dizer "modelo da ficha" = layout do formulário, não um novo campo). Se você quiser um campo "Modelo" cadastrável via admin (como em bota), me avisa que faço como tarefa separada.
+- Nenhuma alteração de banco de dados, regras de preço, ou de outras telas.
