@@ -1,87 +1,67 @@
-# Adicionar faixas de categoria na página de detalhes do pedido
+# Faixas de categoria nos formulários "Faça seu Pedido"
 
-## Objetivo
-Inserir faixas horizontais laranja terracota com o nome da categoria centralizado em branco minúsculo (igual à imagem de referência) entre os blocos de campos da ficha — para que a leitura visual fique organizada por seção em vez de uma lista plana de pares "label / valor".
+## Correção do erro anterior
+Na minha entrega anterior, apliquei as faixas no lugar errado (`OrderDetailPage` — meus pedidos / detalhes) **e** ainda renomeei categorias (ex: virou "acabamento" no lugar de "pesponto"). Agora vou:
 
-## Onde
-**Arquivo único:** `src/pages/OrderDetailPage.tsx`
+1. **Reverter** completamente o `OrderDetailPage.tsx` para a renderização plana original (sem faixas, sem agrupamento, sem renomear nada).
+2. **Aplicar** as faixas nos formulários **Faça seu Pedido — Bota** e **Faça seu Pedido — Cinto**, usando os **nomes reais já existentes** no código (sem trocar nada), em **MAIÚSCULAS** e fonte **maior**.
 
-Atualmente os campos são renderizados em um grid de 2 colunas como uma única lista plana (`details.map(...)` na linha 562). Vou agrupar esses pares em **categorias lógicas** e renderizar uma faixa de cabeçalho antes de cada grupo que tenha pelo menos 1 campo preenchido.
+---
 
-## Categorias propostas (ficha de Bota)
+## Onde aplicar as faixas
 
-| Faixa | Campos incluídos |
-|---|---|
-| **identificação** | Modelo, Cliente, Tamanho, Sob Medida, Acessórios |
-| **couro** | Tipo Couro Cano/Gáspea/Taloneira, Cor Couro Cano/Gáspea/Taloneira, Desenvolvimento |
-| **bordado** | Bordado Cano/Gáspea/Taloneira, Cor Bordado, Nome Bordado |
-| **laser** | Laser Cano/Gáspea/Taloneira, Cor Glitter/Tecido |
-| **acabamento** | Pintura, Estampa, Cor da Linha, Cor Borrachinha, Cor do Vivo |
-| **metais** | Área Metal, Tipo Metal, Cor Metal, Strass, Cruz, Bridão, Cavalo, Bola Grande |
-| **complementos** | Tricê, Tiras, Franja, Corrente |
-| **solado** | Solado, Formato do Bico, Cor da Sola, Cor da Vira, Costura Atrás |
-| **finalização** | Carimbo a Fogo, Adicional |
+### 1. `src/pages/OrderPage.tsx` — Bota
+Atualizar o componente `Section` (linhas 45-50). Hoje renderiza um `<h3>` simples com borda inferior. Vai virar uma faixa laranja terracota cobrindo toda a largura.
 
-## Categorias propostas (ficha de Cinto e demais Extras)
-Os pedidos com `tipoExtra` usam um caminho de render diferente (linhas 545-558). Para o cinto, agruparemos os campos do `EXTRA_DETAIL_LABELS` em:
+Os títulos atuais (que serão **mantidos exatamente**, só exibidos em maiúsculas via CSS):
+- `Couros`
+- `Bordados`
+- `Laser`
+- `Pesponto` ← (estava errado como "acabamento")
+- `Metais`
+- `Extras`
+- `Solados`
+- `Carimbo a Fogo`
+- `Adicional`
 
-| Faixa | Campos |
-|---|---|
-| **identificação** | Tamanho, Cliente |
-| **couro** | Tipo de Couro, Cor do Couro |
-| **fivela** | Fivela |
-| **bordado** | Bordado P, Nome Bordado |
-| **finalização** | Carimbo a Fogo, Adicional |
+### 2. `src/pages/BeltOrderPage.tsx` — Cinto
+Atualizar o componente `Section` correspondente (linha 23-26, mesma assinatura). Títulos mantidos:
+- `Couro`
+- `Fivela`
+- `Bordado P (+R$...)`
+- `Nome Bordado (+R$...)`
+- `Carimbo a Fogo`
+- `Adicional`
 
-Para os demais extras (Kit Faca, Tiras Laterais, Revitalizador, Bota Pronta Entrega múltipla) mantemos o comportamento atual sem faixas, pois são listas curtas — exceto se quiser estender depois.
+### 3. `src/pages/OrderDetailPage.tsx` — Reverter
+Remover toda a lógica de `detailsGrouped` / `extraGrouped` / `buildExtraGrouped` adicionada anteriormente e voltar ao render plano original (uma lista única de pares label/valor em grid de 2 colunas), sem faixas.
 
-## Mudança técnica
+---
 
-1. Substituir o array plano `details: [string, string][]` por uma estrutura agrupada:
-   ```ts
-   const detailsGrouped: { categoria: string; itens: [string, string][] }[] = [
-     { categoria: 'identificação', itens: [['Modelo', order.modelo], ...] },
-     { categoria: 'couro', itens: [['Tipo Couro Cano', order.couroCano], ...] },
-     // ...
-   ].map(g => ({ ...g, itens: g.itens.filter(([, v]) => v) }))
-    .filter(g => g.itens.length > 0);
-   ```
+## Estilo da faixa (igual ao print do "couro")
 
-2. No render (linha 561), substituir o `.map` plano por:
-   ```tsx
-   <div className="mb-6 space-y-4">
-     {detailsGrouped.map(grupo => (
-       <div key={grupo.categoria}>
-         <div className="bg-[#C95A11] text-white text-center text-sm lowercase py-1.5 rounded-sm mb-2">
-           {grupo.categoria}
-         </div>
-         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
-           {grupo.itens.map(([label, value]) => (
-             <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-               <span className="text-sm text-muted-foreground">{label}</span>
-               <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
-             </div>
-           ))}
-         </div>
-       </div>
-     ))}
-   </div>
-   ```
+```tsx
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="space-y-3">
+    <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-lg uppercase tracking-wide py-2 rounded-sm">
+      {title}
+    </h3>
+    {children}
+  </div>
+);
+```
 
-3. Aplicar a mesma estrutura agrupada para o ramo do cinto (linhas 545-558), construindo `cintoGrouped` a partir de `order.extraDetalhes`.
+Detalhes:
+- **Cor**: `bg-primary` (já é o laranja terracota da paleta 7Estrivos — bate com a referência da imagem).
+- **Texto**: branco (`text-primary-foreground`), centralizado, **MAIÚSCULAS** via `uppercase`, fonte `text-lg` (maior que o atual `text-base`), `font-bold`.
+- **Largura**: total do bloco (já é block por padrão).
+- **Não renomeio** nenhuma categoria — uso o `title` exato passado por cada `<Section>`.
 
-## Detalhes visuais da faixa
-- Cor de fundo: `#C95A11` (laranja terracota da imagem)
-- Texto: branco, minúsculo, centralizado, fonte normal (não bold)
-- Padding vertical: `py-1.5`
-- Cantos levemente arredondados: `rounded-sm`
-- Largura total do bloco (atravessa as 2 colunas do grid)
-
-## Fora de escopo
-- **Não** vou alterar os PDFs de relatório (Forro, Corte, Bordados, etc.) — você pediu só a tela de detalhes.
-- **Não** vou alterar o formulário de criação/edição (OrderPage / BeltOrderPage).
-- **Não** vou alterar o cálculo de preço, ordenação de campos nem a lógica de quais campos aparecem.
-- Nenhuma mudança no banco de dados.
+## Fora do escopo
+- Não vou mexer em PDFs, lista "Meus Pedidos" (OrderCard), nem em formulários de Extras (Kit Faca, Tiras, etc.).
+- Não altero cálculo de preços, ordenação de campos nem visibilidade condicional.
+- Nenhuma alteração no banco.
 
 ## Resultado esperado
-Ao abrir um pedido (bota ou cinto) na página de detalhes, em vez de uma lista corrida de 30+ linhas, o admin/vendedor verá blocos visualmente separados por faixas laranja com os nomes "couro", "bordado", "metais", etc. — exatamente como a imagem de referência mostra para "couro".
+- Ao abrir "Faça seu Pedido → Bota" ou "Faça seu Pedido → Cinto", cada bloco aparece com uma faixa laranja com o nome **MAIÚSCULO** da categoria real (COUROS, BORDADOS, LASER, **PESPONTO**, METAIS, EXTRAS, SOLADOS, CARIMBO A FOGO, ADICIONAL).
+- "Meus Pedidos" e a tela de detalhes voltam ao layout original sem faixas e sem nomes errados.
