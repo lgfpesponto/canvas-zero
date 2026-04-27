@@ -544,9 +544,9 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     const bicoText = (order.formatoBico || 'quadrado').toLowerCase().replace(/\bfino\b/gi, 'BF');
     const viraText = (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
     const stubLine2 = `${bicoText}${viraText}`;
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text('MONTAGEM', rightCx, stubTop + 5, { align: 'center' });
+    doc.text(`Nº pedido: ${orderNumClean}`, rightCx, stubTop + 5, { align: 'center', maxWidth: halfW - 4 });
     doc.setFontSize(10);
     doc.text(stubLine1.toUpperCase(), rightCx, stubTop + 14, { align: 'center', maxWidth: halfW - 4 });
     doc.setFontSize(9);
