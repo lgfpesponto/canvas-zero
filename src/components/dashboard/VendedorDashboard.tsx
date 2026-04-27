@@ -14,6 +14,8 @@ import {
   PROD_PRODUCT_OPTIONS,
   formatCurrency,
 } from '@/lib/order-logic';
+import { LoadingValue } from '@/components/ui/LoadingValue';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Order } from '@/contexts/AuthContext';
 
 const fadeIn = {
@@ -30,47 +32,65 @@ const VendedorDashboard = () => {
   const [prodProductFilter, setProdProductFilter] = useState<Set<string>>(new Set());
 
   // Server-side data
-  const [pendingValue, setPendingValue] = useState(0);
-  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number }>({ in_production: 0, total: 0 });
-  const [chartData, setChartData] = useState<{ name: string; vendas: number }[]>([]);
+  const [pendingValue, setPendingValue] = useState<number | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [productionCounts, setProductionCounts] = useState<{ in_production: number; total: number } | null>(null);
+  const [productionLoading, setProductionLoading] = useState(true);
+  const [chartData, setChartData] = useState<{ name: string; vendas: number }[] | null>(null);
+  const [chartLoading, setChartLoading] = useState(true);
   const [commissionOrders, setCommissionOrders] = useState<Order[]>([]);
 
   // Fetch pending value (vendedor's own orders - handled by RLS)
   useEffect(() => {
-    if (isSiteUser) return; // vendedor_comissao doesn't see pending
+    if (isSiteUser) { setPendingLoading(false); return; }
+    setPendingLoading(true);
     (async () => {
-      const vendor = user?.nomeCompleto || null;
-      const { data } = await supabase.rpc('get_pending_value', { vendor });
-      if (data !== null && data !== undefined) setPendingValue(Number(data));
+      try {
+        const vendor = user?.nomeCompleto || null;
+        const { data } = await supabase.rpc('get_pending_value', { vendor });
+        setPendingValue(data !== null && data !== undefined ? Number(data) : 0);
+      } finally {
+        setPendingLoading(false);
+      }
     })();
   }, [user?.nomeCompleto, isSiteUser]);
 
   // Fetch production counts
   useEffect(() => {
+    setProductionLoading(true);
     (async () => {
-      const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
-      const vendor = user?.nomeCompleto;
-      const { data } = await supabase.rpc('get_production_counts', {
-        product_types: productTypes,
-        vendors: vendor ? [vendor] : null,
-      });
-      if (data && data.length > 0) {
-        setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+      try {
+        const productTypes = prodProductFilter.size > 0 ? [...prodProductFilter] : null;
+        const vendor = user?.nomeCompleto;
+        const { data } = await supabase.rpc('get_production_counts', {
+          product_types: productTypes,
+          vendors: vendor ? [vendor] : null,
+        });
+        if (data && data.length > 0) {
+          setProductionCounts({ in_production: Number(data[0].in_production), total: Number(data[0].total) });
+        } else {
+          setProductionCounts({ in_production: 0, total: 0 });
+        }
+      } finally {
+        setProductionLoading(false);
       }
     })();
   }, [prodProductFilter, user?.nomeCompleto]);
 
   // Fetch chart data
   useEffect(() => {
+    setChartLoading(true);
     (async () => {
-      const vendor = user?.nomeCompleto || null;
-      const { data } = await supabase.rpc('get_sales_chart', {
-        period: chartPeriod,
-        product_filter: chartProductFilter,
-        vendor_filter: vendor,
-      });
-      if (data) {
-        setChartData(data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })));
+      try {
+        const vendor = user?.nomeCompleto || null;
+        const { data } = await supabase.rpc('get_sales_chart', {
+          period: chartPeriod,
+          product_filter: chartProductFilter,
+          vendor_filter: vendor,
+        });
+        setChartData(data ? data.map((d: any) => ({ name: d.label, vendas: Number(d.vendas) })) : []);
+      } finally {
+        setChartLoading(false);
       }
     })();
   }, [chartPeriod, chartProductFilter, user?.nomeCompleto]);
