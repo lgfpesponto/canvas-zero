@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Loader2, FileText, CheckCircle2, XCircle, Clock, MinusCircle, Archive } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  fetchComprovantes, marcarComprovanteUtilizado,
+  marcarComprovanteUtilizado,
   type RevendedorComprovante, type RevendedorSaldo,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
@@ -26,6 +26,10 @@ interface Props {
   vendedor: string;
   /** Saldo do vendedor selecionado (vindo do pai), pra calcular pré-baixa. */
   saldoVendedor: RevendedorSaldo | null;
+  /** Comprovantes já filtrados (período + tipo) vindos do pai. */
+  comprovantes: RevendedorComprovante[];
+  /** Indica se o pai ainda está carregando os dados. */
+  loading?: boolean;
   /** Disparado quando uma baixa manual é feita, pra recarregar saldos no pai. */
   onChanged?: () => void;
 }
@@ -37,29 +41,14 @@ const StatusBadge = ({ status }: { status: RevendedorComprovante['status'] }) =>
   return <Badge variant="secondary" className="gap-1"><Archive size={12} /> Utilizado</Badge>;
 };
 
-export const ComprovantesPorRevendedor = ({ vendedor, saldoVendedor, onChanged }: Props) => {
+export const ComprovantesPorRevendedor = ({
+  vendedor, saldoVendedor, comprovantes, loading = false, onChanged,
+}: Props) => {
   const { toast } = useToast();
-  const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
-  const [loading, setLoading] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
   const [baixaTarget, setBaixaTarget] = useState<RevendedorComprovante | null>(null);
   const [baixaMotivo, setBaixaMotivo] = useState('');
   const [baixaSaving, setBaixaSaving] = useState(false);
-
-  const loadComprovantes = async (v: string) => {
-    if (!v) { setComprovantes([]); return; }
-    setLoading(true);
-    try {
-      const list = await fetchComprovantes(v);
-      setComprovantes(list);
-    } catch (e: any) {
-      toast({ title: 'Erro ao carregar comprovantes', description: e.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadComprovantes(vendedor); }, [vendedor]);
 
   const handleBaixaManual = async () => {
     if (!baixaTarget) return;
@@ -76,7 +65,6 @@ export const ComprovantesPorRevendedor = ({ vendedor, saldoVendedor, onChanged }
       });
       setBaixaTarget(null);
       setBaixaMotivo('');
-      await loadComprovantes(vendedor);
       onChanged?.();
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
