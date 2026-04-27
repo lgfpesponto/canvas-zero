@@ -785,6 +785,7 @@ const OrderPage = () => {
       return;
     }
     const required: [string, string][] = [
+      ...(isAdmin ? [[vendedorSelecionado, 'Vendedor'] as [string, string]] : []),
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
@@ -1174,12 +1175,13 @@ const OrderPage = () => {
                 )}
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={cls.label}>Vendedor</label>
+                  <label className={cls.label}>Vendedor<span className="text-destructive ml-0.5">*</span></label>
                   {isAdmin ? (
-                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select}>
+                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select} required>
                       {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
+                      {!isAdminProducao && !vendedorSelecionado && <option value="">Selecione...</option>}
                       {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
                         <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
                       ))}
@@ -1360,27 +1362,42 @@ const OrderPage = () => {
               </div>
               <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={COR_METAL} />
             </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <ToggleField label="Strass (R$0,60/un)" value={strass} onChange={setStrass} />
-                {strass && <input type="number" min={0} value={strassQtd} onChange={e => setStrassQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <ToggleField label="Bola Grande (R$0,60/un)" value={bolaGrande} onChange={setBolaGrande} />
-                {bolaGrande && <input type="number" min={0} value={bolaGrandeQtd} onChange={e => setBolaGrandeQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <ToggleField label="Cruz (R$6/un)" value={cruzMetal} onChange={setCruzMetal} />
-                {cruzMetal && <input type="number" min={0} value={cruzMetalQtd} onChange={e => setCruzMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <ToggleField label="Bridão (R$3/un)" value={bridaoMetal} onChange={setBridaoMetal} />
-                {bridaoMetal && <input type="number" min={0} value={bridaoMetalQtd} onChange={e => setBridaoMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <ToggleField label="Cavalo (R$5/un)" value={cavaloMetal} onChange={setCavaloMetal} />
-                {cavaloMetal && <input type="number" min={0} value={cavaloMetalQtd} onChange={e => setCavaloMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
-              </div>
+
+            {/* Linha fina ilustrativa separando Área/Tipo/Cor dos metais quantificáveis */}
+            <div className="border-t border-border/60 my-2" />
+
+            {/* Metais com toggle Tem/Não tem + qtd: cards padronizados */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { label: 'Strass', preco: '0,60/un', value: strass, setValue: setStrass, qtd: strassQtd, setQtd: setStrassQtd },
+                { label: 'Bola Grande', preco: '0,60/un', value: bolaGrande, setValue: setBolaGrande, qtd: bolaGrandeQtd, setQtd: setBolaGrandeQtd },
+                { label: 'Cruz', preco: '6/un', value: cruzMetal, setValue: setCruzMetal, qtd: cruzMetalQtd, setQtd: setCruzMetalQtd },
+                { label: 'Bridão', preco: '3/un', value: bridaoMetal, setValue: setBridaoMetal, qtd: bridaoMetalQtd, setQtd: setBridaoMetalQtd },
+                { label: 'Cavalo', preco: '5/un', value: cavaloMetal, setValue: setCavaloMetal, qtd: cavaloMetalQtd, setQtd: setCavaloMetalQtd },
+              ].map(item => (
+                <div key={item.label} className="flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30">
+                  <span className="text-xs font-semibold leading-tight">{item.label} <span className="text-muted-foreground font-normal">(R${item.preco})</span></span>
+                  <select
+                    value={item.value ? 'Sim' : 'Não'}
+                    onChange={e => item.setValue(e.target.value === 'Sim')}
+                    className={cls.inputSmall + ' w-full'}
+                  >
+                    <option value="Não">Não tem</option>
+                    <option value="Sim">Tem</option>
+                  </select>
+                  {item.value && (
+                    <input
+                      type="number"
+                      min={0}
+                      value={item.qtd}
+                      onChange={e => item.setQtd(Math.max(0, Number(e.target.value)))}
+                      onWheel={e => (e.target as HTMLInputElement).blur()}
+                      className={cls.inputSmall + ' w-full'}
+                      placeholder="Qtd"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           </Section>
 
