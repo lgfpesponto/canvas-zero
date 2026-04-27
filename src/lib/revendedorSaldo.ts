@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type ComprovanteStatus = 'pendente' | 'aprovado' | 'reprovado';
+export type ComprovanteStatus = 'pendente' | 'aprovado' | 'reprovado' | 'utilizado';
 export type MovimentoTipo = 'entrada_comprovante' | 'baixa_pedido' | 'ajuste_admin' | 'estorno';
 
 export interface RevendedorComprovante {
@@ -200,6 +200,15 @@ export async function descartarComprovantesHistorico(ids: string[], motivo: stri
   return data as { descartados: number };
 }
 
+export async function marcarComprovanteUtilizado(comprovanteId: string, motivo: string) {
+  const { data, error } = await supabase.rpc('marcar_comprovante_utilizado' as any, {
+    _comprovante_id: comprovanteId,
+    _motivo: motivo,
+  });
+  if (error) throw error;
+  return data as { ok: boolean; saldo_anterior: number; saldo_posterior: number };
+}
+
 export async function fetchVisibilidade(): Promise<{ vendedor: string; ativo: boolean }[]> {
   const { data, error } = await supabase
     .from('revendedor_saldo_visibilidade' as any)
@@ -209,7 +218,12 @@ export async function fetchVisibilidade(): Promise<{ vendedor: string; ativo: bo
 }
 
 export function statusLabel(s: ComprovanteStatus): string {
-  return s === 'pendente' ? 'Pendente' : s === 'aprovado' ? 'Aprovado' : 'Reprovado';
+  switch (s) {
+    case 'pendente': return 'Pendente';
+    case 'aprovado': return 'Aprovado';
+    case 'reprovado': return 'Reprovado';
+    case 'utilizado': return 'Utilizado';
+  }
 }
 
 export function tipoMovimentoLabel(t: MovimentoTipo): string {
