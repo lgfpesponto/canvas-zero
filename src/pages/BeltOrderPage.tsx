@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
-import { Link2, X, Eye, Image as ImageIcon } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Pencil, Check, Send, Inbox } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import SearchableSelect from '@/components/SearchableSelect';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
@@ -36,6 +43,8 @@ const BeltOrderPage = () => {
   const draftData = (location.state as any)?.draft;
 
   const isAdminUser = isAdmin;
+  const tmpl = useTemplateManagement();
+  const [mode, setMode] = useState<'order' | 'template'>('order');
 
   // Form state
   const isAdminProducao = user?.role === 'admin_producao';
@@ -108,6 +117,126 @@ const BeltOrderPage = () => {
     }
   }, [draftData]);
 
+  // ── templates: build/populate (form_data com flag __tipo='cinto') ──
+  const buildBeltFormData = useCallback((): Record<string, string> => ({
+    __tipo: 'cinto',
+    tamanho, tipoCouro, corCouro,
+    bordadoP: String(bordadoP), bordadoPDesc, bordadoPCor,
+    nomeBordado: String(nomeBordado), nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte,
+    carimbo, carimboDesc, carimboOnde,
+    fivela, fivelaOutroDesc,
+    adicionalValor, adicionalDesc,
+    observacao,
+  }), [tamanho, tipoCouro, corCouro, bordadoP, bordadoPDesc, bordadoPCor, nomeBordado, nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte, carimbo, carimboDesc, carimboOnde, fivela, fivelaOutroDesc, adicionalValor, adicionalDesc, observacao]);
+
+  const populateFromTemplate = useCallback((fd: Record<string, string>) => {
+    setTamanho(fd.tamanho || '');
+    setTipoCouro(fd.tipoCouro || '');
+    setCorCouro(fd.corCouro || '');
+    setBordadoP(fd.bordadoP === 'true');
+    setBordadoPDesc(fd.bordadoPDesc || '');
+    setBordadoPCor(fd.bordadoPCor || '');
+    setNomeBordado(fd.nomeBordado === 'true');
+    setNomeBordadoDesc(fd.nomeBordadoDesc || '');
+    setNomeBordadoCor(fd.nomeBordadoCor || '');
+    setNomeBordadoFonte(fd.nomeBordadoFonte || '');
+    setCarimbo(fd.carimbo || '');
+    setCarimboDesc(fd.carimboDesc || '');
+    setCarimboOnde(fd.carimboOnde || '');
+    setFivela(fd.fivela || '');
+    setFivelaOutroDesc(fd.fivelaOutroDesc || '');
+    setAdicionalValor(fd.adicionalValor || '');
+    setAdicionalDesc(fd.adicionalDesc || '');
+    setObservacao(fd.observacao || '');
+  }, []);
+
+  // load templates on mount
+  const templatesLoadedRef = useRef(false);
+  useEffect(() => {
+    if (templatesLoadedRef.current || !user) return;
+    templatesLoadedRef.current = true;
+    void tmpl.loadTemplates(user.id);
+  }, [user?.id]);
+
+  // Filter templates that belong to belts only
+  const beltTemplates = tmpl.templates.filter(t => (t.form_data as any)?.__tipo === 'cinto');
+  const beltUnseenCount = beltTemplates.filter(t => t.seen === false).length;
+
+  const handleSaveTemplate = async () => {
+    if (!user) return;
+    const ok = await tmpl.saveTemplate(user.id, buildBeltFormData());
+    if (ok) {
+      setMode('order');
+      resetForm();
+      await tmpl.loadTemplates(user.id);
+    }
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!user) return;
+    const ok = await tmpl.updateTemplate(buildBeltFormData());
+    if (ok) {
+      setMode('order');
+      resetForm();
+      await tmpl.loadTemplates(user.id);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!user) return;
+    await tmpl.deleteTemplate(id, user.id);
+  };
+
+  const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
+    tmpl.startEditing(template);
+    populateFromTemplate(template.form_data);
+    setMode('template');
+  };
+
+  const handleUseTemplate = (formData: Record<string, string>) => {
+    tmpl.setShowTemplates(false);
+    populateFromTemplate(formData);
+  };
+
+  // send dialog
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendingTemplates, setSendingTemplates] = useState<typeof tmpl.templates>([]);
+  const [usersList, setUsersList] = useState<{ id: string; nome_completo: string; nome_usuario: string }[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [sendingInProgress, setSendingInProgress] = useState(false);
+  const [bulkSelectedTemplateIds, setBulkSelectedTemplateIds] = useState<string[]>([]);
+
+  const openSendDialog = async (templates: typeof tmpl.templates) => {
+    if (!user || templates.length === 0) return;
+    setSendingTemplates(templates);
+    setSelectedRecipients([]);
+    setRecipientSearch('');
+    setSendDialogOpen(true);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nome_completo, nome_usuario')
+      .neq('id', user.id)
+      .order('nome_completo', { ascending: true });
+    setUsersList((data as any) || []);
+  };
+
+  const toggleRecipient = (id: string) => setSelectedRecipients(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleBulkTemplate = (id: string) => setBulkSelectedTemplateIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const confirmSendTemplate = async () => {
+    if (!user || sendingTemplates.length === 0 || selectedRecipients.length === 0) return;
+    setSendingInProgress(true);
+    const ok = await tmpl.sendTemplateToUsers(sendingTemplates, selectedRecipients, user.id, user.nomeCompleto || user.nomeUsuario || 'Usuário');
+    setSendingInProgress(false);
+    if (ok) {
+      setSendDialogOpen(false);
+      setSendingTemplates([]);
+      setSelectedRecipients([]);
+      setBulkSelectedTemplateIds([]);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
@@ -139,6 +268,10 @@ const BeltOrderPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'template') {
+      tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate();
+      return;
+    }
     if (isAdminProducao && (!vendedor || vendedor === user?.nomeCompleto)) {
       toast.error('Por favor, selecione um vendedor válido.');
       return;
@@ -303,17 +436,56 @@ const BeltOrderPage = () => {
     ['Quantidade', '1'],
   ].filter(([, v]) => v) as [string, string][];
 
-  const showFotoPanel = mostrarFotoPainel && isHttpUrl(fotoUrl);
+  const showFotoPanel = mode === 'order' && mostrarFotoPainel && isHttpUrl(fotoUrl);
+  const isTemplate = mode === 'template';
 
   return (
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
       <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
-        <h1 className="text-3xl font-display font-bold mb-6">Ficha de Produção — Cinto</h1>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <h1 className="text-3xl font-display font-bold">
+            {tmpl.isEditing ? 'Editar Modelo — Cinto' : isTemplate ? 'Criar Modelo — Cinto' : 'Ficha de Produção — Cinto'}
+          </h1>
+          {!isTemplate && (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={() => setMode('template')}>
+                <Plus size={16} /> Criar Modelo
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="relative" onClick={async () => {
+                if (user) await tmpl.loadTemplates(user.id);
+                tmpl.setShowTemplates(true);
+                tmpl.setTemplateSearch('');
+                if (user) await tmpl.markTemplatesAsSeen(user.id);
+              }}>
+                <List size={16} /> Modelos
+                {beltUnseenCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {beltUnseenCount}
+                  </span>
+                )}
+              </Button>
+            </>
+          )}
+          {isTemplate && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => { setMode('order'); tmpl.cancelEditing(); }}>
+              Voltar para Pedido
+            </Button>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* IDENTIFICAÇÃO */}
+          {/* Template name field */}
+          {isTemplate && (
+            <div>
+              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
+              <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Cinto tradicional" className={cls.input} />
+            </div>
+          )}
+
+          {/* IDENTIFICAÇÃO (apenas em modo pedido) */}
+          {!isTemplate && (
           <Section title="Identificação">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
@@ -380,16 +552,30 @@ const BeltOrderPage = () => {
               )}
             </div>
           </Section>
+          )}
+
+          {/* Em modo template, expor o tamanho como seleção única */}
+          {isTemplate && (
+            <div>
+              <label className={cls.label}>Tamanho</label>
+              <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
+                <option value="">Selecione...</option>
+                {BELT_SIZES.map(s => (
+                  <option key={s.label} value={s.label}>{s.label} (R${s.preco})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Couro */}
           <Section title="Couro">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className={cls.label}>Tipo de Couro<span className="text-destructive ml-0.5">*</span></label>
+                <label className={cls.label}>Tipo de Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
                 <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
               </div>
               <div>
-                <label className={cls.label}>Cor do Couro<span className="text-destructive ml-0.5">*</span></label>
+                <label className={cls.label}>Cor do Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
                 <SearchableSelect options={CORES_COURO} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
@@ -398,7 +584,7 @@ const BeltOrderPage = () => {
           {/* Fivela */}
           <Section title="Fivela">
             <div>
-              <label className={cls.label}>Fivela<span className="text-destructive ml-0.5">*</span></label>
+              <label className={cls.label}>Fivela{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
               <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
             </div>
             {fivela === 'Outro' && (
@@ -420,7 +606,7 @@ const BeltOrderPage = () => {
             {bordadoP && (
               <div className="grid sm:grid-cols-2 gap-4 mt-3">
                 <div>
-                  <label className={cls.label}>Descrição do Bordado<span className="text-destructive ml-0.5">*</span></label>
+                  <label className={cls.label}>Descrição do Bordado{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
                   <input type="text" value={bordadoPDesc} onChange={e => setBordadoPDesc(e.target.value)} placeholder="Descreva o bordado..." className={cls.input} />
                 </div>
                 <div>
@@ -442,7 +628,7 @@ const BeltOrderPage = () => {
             {nomeBordado && (
               <div className="grid sm:grid-cols-3 gap-4 mt-3">
                 <div>
-                  <label className={cls.label}>Descrição<span className="text-destructive ml-0.5">*</span></label>
+                  <label className={cls.label}>Descrição{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
                   <input type="text" value={nomeBordadoDesc} onChange={e => setNomeBordadoDesc(e.target.value)} placeholder="Nome a bordar..." className={cls.input} />
                 </div>
                 <div>
@@ -495,38 +681,166 @@ const BeltOrderPage = () => {
           </Section>
 
           {/* Observação */}
-          <div>
-            <label className={cls.label}>Observação</label>
-            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
-          </div>
+          <Section title="Observação">
+            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
+          </Section>
 
-          {/* Link da foto agora vive na seção Identificação no topo */}
+          {!isTemplate && (
+            <>
+              {/* Quantidade */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold">Quantidade:</label>
+                <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
+              </div>
 
-          {/* Quantidade */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-semibold">Quantidade:</label>
-            <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
-          </div>
+              {/* Valor Total */}
+              <div className="bg-muted rounded-lg p-4">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
+                </div>
+              </div>
 
-          {/* Valor Total */}
-          <div className="bg-muted rounded-lg p-4">
-            <div className="flex justify-between text-lg font-bold">
-              <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
-            </div>
-          </div>
+              <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
+              </button>
+              <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                SALVAR RASCUNHO
+              </button>
+            </>
+          )}
 
-          <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-            <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
-          </button>
-          <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-            SALVAR RASCUNHO
-          </button>
+          {isTemplate && (
+            <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
+              {tmpl.isEditing ? <><Check size={20} /> SALVAR ALTERAÇÕES NO MODELO</> : <><Plus size={20} /> CRIAR MODELO</>}
+            </button>
+          )}
         </form>
       </motion.div>
         {showFotoPanel && (
           <FotoPedidoSidePanel url={fotoUrl} onClose={() => setMostrarFotoPainel(false)} />
         )}
       </div>
+
+      {/* ───── Templates Dialog ───── */}
+      <Dialog open={tmpl.showTemplates} onOpenChange={tmpl.setShowTemplates}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modelos Salvos — Cinto</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Pesquisar modelo..."
+            value={tmpl.templateSearch}
+            onChange={e => tmpl.setTemplateSearch(e.target.value)}
+            className="mb-2"
+          />
+          {(() => {
+            const filtered = beltTemplates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
+            if (beltTemplates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo de cinto salvo ainda.</p>;
+            if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
+            const bulkTemplates = beltTemplates.filter(t => bulkSelectedTemplateIds.includes(t.id));
+            return (
+              <>
+                <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+                  {filtered.map(t => {
+                    const isChecked = bulkSelectedTemplateIds.includes(t.id);
+                    return (
+                      <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
+                        <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm truncate">{t.nome}</span>
+                            {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
+                          </div>
+                          {t.sent_by_name && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Inbox size={11} /> Recebido de {t.sent_by_name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
+                          <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {bulkSelectedTemplateIds.length > 0 && (
+                  <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+                    <span className="text-sm font-semibold">{bulkSelectedTemplateIds.length} modelo{bulkSelectedTemplateIds.length > 1 ? 's' : ''} selecionado{bulkSelectedTemplateIds.length > 1 ? 's' : ''}</span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setBulkSelectedTemplateIds([])}>Limpar</Button>
+                      <Button size="sm" onClick={() => openSendDialog(bulkTemplates)}>
+                        <Send size={14} /> Enviar selecionados
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ───── Send Template Dialog ───── */}
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar modelo{sendingTemplates.length > 1 ? 's' : ''}</DialogTitle>
+          </DialogHeader>
+          {sendingTemplates.length > 0 && (
+            <p className="text-sm text-muted-foreground -mt-2">
+              {sendingTemplates.length === 1 ? (
+                <>Enviando: <span className="font-semibold text-foreground">{sendingTemplates[0].nome}</span></>
+              ) : (
+                <>Enviando <span className="font-semibold text-foreground">{sendingTemplates.length} modelos</span>: {sendingTemplates.slice(0, 3).map(t => t.nome).join(', ')}{sendingTemplates.length > 3 ? '…' : ''}</>
+              )}
+            </p>
+          )}
+          <Input
+            placeholder="Pesquisar usuário..."
+            value={recipientSearch}
+            onChange={e => setRecipientSearch(e.target.value)}
+          />
+          <div className="space-y-1 max-h-[50vh] overflow-y-auto border border-border rounded-lg p-2">
+            {usersList.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Carregando usuários...</p>
+            )}
+            {usersList
+              .filter(u => {
+                const q = recipientSearch.toLowerCase();
+                return !q || u.nome_completo?.toLowerCase().includes(q) || u.nome_usuario?.toLowerCase().includes(q);
+              })
+              .map(u => {
+                const checked = selectedRecipients.includes(u.id);
+                return (
+                  <label key={u.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer">
+                    <Checkbox checked={checked} onCheckedChange={() => toggleRecipient(u.id)} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium truncate">{u.nome_completo || u.nome_usuario}</span>
+                      {u.nome_completo && u.nome_usuario && (
+                        <span className="text-xs text-muted-foreground truncate">@{u.nome_usuario}</span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+          </div>
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {selectedRecipients.length} selecionado{selectedRecipients.length !== 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSendDialogOpen(false)} disabled={sendingInProgress}>Cancelar</Button>
+              <Button onClick={confirmSendTemplate} disabled={selectedRecipients.length === 0 || sendingInProgress}>
+                <Send size={14} /> Enviar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Mirror */}
       {showMirror && (
