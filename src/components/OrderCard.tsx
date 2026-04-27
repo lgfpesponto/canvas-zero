@@ -25,11 +25,9 @@ const OrderCard = React.memo(({
 
   return (
     <div className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
-      {isAdmin && (
-        <button onClick={() => onToggle(order.id)} className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
-          {isSelected && <CheckCircle size={14} className="text-primary-foreground" />}
-        </button>
-      )}
+      <button onClick={() => onToggle(order.id)} className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
+        {isSelected && <CheckCircle size={14} className="text-primary-foreground" />}
+      </button>
 
       <div className="flex-1 cursor-pointer" onClick={() => navigate(`/pedido/${order.id}`)}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
