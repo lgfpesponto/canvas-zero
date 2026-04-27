@@ -619,11 +619,20 @@ const OrderDetailPage = () => {
               )}
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
-              {details.map(([label, value]) => (
-                <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">{label}</span>
-                  <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            <div className="space-y-5 mb-6">
+              {detailsGrouped.map(grupo => (
+                <div key={grupo.categoria}>
+                  <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-base uppercase tracking-wide py-1.5 rounded-sm mb-2">
+                    {grupo.categoria}
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+                    {grupo.itens.map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
