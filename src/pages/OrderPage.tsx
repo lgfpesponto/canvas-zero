@@ -827,7 +827,7 @@ const OrderPage = () => {
     corLinha, corBorrachinha,
     trisce: trice ? 'Sim' : 'Não', triceDesc,
     tiras: tiras ? 'Sim' : 'Não', tirasDesc,
-    metais: areaMetal, tipoMetal: tipoMetal.join(', '), corMetal,
+    metais: areaMetal, tipoMetal: [...tipoMetal, ...(bolaGrande ? [`Bola Grande:${bolaGrandeQtd}`] : [])].join(', '), corMetal,
     strassQtd: strass ? strassQtd : 0,
     cruzMetalQtd: cruzMetal ? cruzMetalQtd : 0,
     bridaoMetalQtd: bridaoMetal ? bridaoMetalQtd : 0,
@@ -875,6 +875,7 @@ const OrderPage = () => {
     setCorLinha(''); setCorBorrachinha(''); setCorVivo('');
     setAreaMetal(''); setTipoMetal([]); setCorMetal('');
     setStrass(false); setStrassQtd(0);
+    setBolaGrande(false); setBolaGrandeQtd(0);
     setCruzMetal(false); setCruzMetalQtd(0);
     setBridaoMetal(false); setBridaoMetalQtd(0);
     setCavaloMetal(false); setCavaloMetalQtd(0);
@@ -957,8 +958,9 @@ const OrderPage = () => {
       pintura: String(pintura), pinturaDesc,
       estampa: String(estampa), estampaDesc,
       corLinha, corBorrachinha, corVivo,
-      areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
+      areaMetal, tipoMetal: [...tipoMetal, ...(bolaGrande ? [`Bola Grande:${bolaGrandeQtd}`] : [])].join('||'), corMetal,
       strass: String(strass), strassQtd: String(strassQtd),
+      bolaGrande: String(bolaGrande), bolaGrandeQtd: String(bolaGrandeQtd),
       cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
       bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
       cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
@@ -1021,7 +1023,7 @@ const OrderPage = () => {
       ['Cor do Vivo', corVivo] as [string, string],
     ] : []),
     ['Área Metal', areaMetal],
-    ['Tipo Metal', tipoMetal.join(', ')],
+    ['Tipo Metal', [...tipoMetal, ...(bolaGrande ? [`Bola Grande (${bolaGrandeQtd} un.)`] : [])].join(', ')],
     ['Cor Metal', corMetal],
     ['Strass', strass ? `${strassQtd} un.` : ''],
     ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
