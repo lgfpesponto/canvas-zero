@@ -271,6 +271,14 @@ const OrderPage = () => {
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
 
+  // recortes (na seção Laser e Recortes — preço configurável via admin)
+  const [recorteCano, setRecorteCano] = useState(df.recorteCano || '');
+  const [corRecorteCano, setCorRecorteCano] = useState(df.corRecorteCano || '');
+  const [recorteGaspea, setRecorteGaspea] = useState(df.recorteGaspea || '');
+  const [corRecorteGaspea, setCorRecorteGaspea] = useState(df.corRecorteGaspea || '');
+  const [recorteTaloneira, setRecorteTaloneira] = useState(df.recorteTaloneira || '');
+  const [corRecorteTaloneira, setCorRecorteTaloneira] = useState(df.corRecorteTaloneira || '');
+
   
 
   /* ───── cascading field handlers ───── */
