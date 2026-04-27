@@ -135,6 +135,8 @@ export async function fetchMovimentosTodos(): Promise<RevendedorMovimento[]> {
   if (error) throw error;
   return (data as any) || [];
 }
+
+export async function fetchMovimentos(vendedor: string): Promise<RevendedorMovimento[]> {
   const { data, error } = await supabase
     .from('revendedor_saldo_movimentos' as any)
     .select('*')
