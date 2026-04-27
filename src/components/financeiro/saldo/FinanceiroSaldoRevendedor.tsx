@@ -47,12 +47,12 @@ const FinanceiroSaldoRevendedor = () => {
         fetchSaldosTodos(),
         fetchComprovantesTodos(),
         fetchMovimentosTodos(),
-        fetchVendedoresUsuarios(),
+        fetchVendedoresList(),
       ]);
       setSaldos(s);
       setComprovantes(c);
       setMovimentos(m);
-      setVendedoresUsuarios(vs);
+      setVendedoresLista(vs);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
