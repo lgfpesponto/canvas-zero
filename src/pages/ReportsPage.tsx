@@ -450,6 +450,16 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
+                      onBlur={() => {
+                        // Sticky focus: if the user didn't intentionally click another
+                        // text field/button, bring focus back so the next scan is captured.
+                        setTimeout(() => {
+                          const next = document.activeElement as HTMLElement | null;
+                          const tag = next?.tagName?.toLowerCase();
+                          if (tag === 'input' || tag === 'textarea' || tag === 'button' || tag === 'select') return;
+                          scanInputRef.current?.focus();
+                        }, 0);
+                      }}
                       placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
                       className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 text-base border border-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-gray-500 disabled:opacity-60"
                       autoFocus
