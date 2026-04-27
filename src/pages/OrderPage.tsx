@@ -874,6 +874,12 @@ const OrderPage = () => {
     adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
     personalizacaoNome: nomeBordado ? nomeBordadoDesc : '',
     personalizacaoBordado: '',
+    recorteCano: recorteCano || null,
+    recorteGaspea: recorteGaspea || null,
+    recorteTaloneira: recorteTaloneira || null,
+    corRecorteCano: recorteCano && corRecorteCano ? corRecorteCano : null,
+    corRecorteGaspea: recorteGaspea && corRecorteGaspea ? corRecorteGaspea : null,
+    corRecorteTaloneira: recorteTaloneira && corRecorteTaloneira ? corRecorteTaloneira : null,
     extraDetalhes: {
       cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
       franja, franjaCouro, franjaCor,
