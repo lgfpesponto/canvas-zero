@@ -1268,6 +1268,10 @@ const OrderPage = () => {
                 {strass && <input type="number" min={0} value={strassQtd} onChange={e => setStrassQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                <ToggleField label="Bola Grande (R$0,60/un)" value={bolaGrande} onChange={setBolaGrande} />
+                {bolaGrande && <input type="number" min={0} value={bolaGrandeQtd} onChange={e => setBolaGrandeQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <ToggleField label="Cruz (R$6/un)" value={cruzMetal} onChange={setCruzMetal} />
                 {cruzMetal && <input type="number" min={0} value={cruzMetalQtd} onChange={e => setCruzMetalQtd(Math.max(0, Number(e.target.value)))} onWheel={e => (e.target as HTMLInputElement).blur()} className={cls.inputSmall + ' w-20'} placeholder="Qtd" />}
               </div>
