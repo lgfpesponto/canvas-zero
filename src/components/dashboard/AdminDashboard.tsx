@@ -317,15 +317,21 @@ const AdminDashboard = () => {
               </Select>
             </div>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 20% 80%)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
-                  <YAxis tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
-                  <Tooltip formatter={(v: number) => [v, 'Vendas']} />
-                  <Line type="monotone" dataKey="vendas" stroke="hsl(25 85% 48%)" strokeWidth={3} dot={{ fill: 'hsl(25 85% 48%)', r: 5 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              {chartLoading && !chartData ? (
+                <div className="h-full w-full flex items-center justify-center">
+                  <Skeleton className="h-full w-full" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 20% 80%)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(20 10% 40%)' }} />
+                    <Tooltip formatter={(v: number) => [v, 'Vendas']} />
+                    <Line type="monotone" dataKey="vendas" stroke="hsl(25 85% 48%)" strokeWidth={3} dot={{ fill: 'hsl(25 85% 48%)', r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </motion.div>
         </div>
