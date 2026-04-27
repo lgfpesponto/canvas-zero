@@ -217,10 +217,12 @@ const OrderPage = () => {
 
   // metais
   const [areaMetal, setAreaMetal] = useState(df.areaMetal || '');
-  const [tipoMetal, setTipoMetal] = useState<string[]>(df.tipoMetal ? df.tipoMetal.split('||') : []);
+  const [tipoMetal, setTipoMetal] = useState<string[]>(df.tipoMetal ? df.tipoMetal.split('||').filter((x: string) => x !== 'Bola Grande') : []);
   const [corMetal, setCorMetal] = useState(df.corMetal || '');
   const [strass, setStrass] = useState(df.strass === 'true');
   const [strassQtd, setStrassQtd] = useState(Number(df.strassQtd) || 0);
+  const [bolaGrande, setBolaGrande] = useState(df.bolaGrande === 'true' || (df.tipoMetal || '').includes('Bola Grande'));
+  const [bolaGrandeQtd, setBolaGrandeQtd] = useState(Number(df.bolaGrandeQtd) || 0);
   const [cruzMetal, setCruzMetal] = useState(df.cruzMetal === 'true');
   const [cruzMetalQtd, setCruzMetalQtd] = useState(Number(df.cruzMetalQtd) || 0);
   const [bridaoMetal, setBridaoMetal] = useState(df.bridaoMetal === 'true');
