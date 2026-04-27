@@ -1153,8 +1153,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   // ── Cobrança: tabular A4 layout ──
   const generateCobrancaPDF = () => {
+    const COBRANCA_STATUSES = ['entregue', 'cobrado', 'pago'];
     const filtered = sourceOrders.filter(o =>
-      o.status.toLowerCase() === 'entregue' &&
+      COBRANCA_STATUSES.includes((o.status || '').trim().toLowerCase()) &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
     ).sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
 
