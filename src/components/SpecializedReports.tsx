@@ -269,7 +269,7 @@ function buildCompositionItems(o: Order): [string, number][] {
       case 'kit_revitalizador': { const qty = parseInt(det.quantidade) || 1; priceItems.push([`Kit 2 Revitalizador (${qty} un.)`, 26 * qty]); break; }
       case 'adicionar_metais': {
         const sel = det.metaisSelecionados || [];
-        if (sel.includes('Bola grande')) priceItems.push(['Bola grande', 15]);
+        if (sel.includes('Bola grande')) { const qtd = parseInt(det.qtdBolaGrande) || 1; priceItems.push([`Bola grande (${qtd} un.)`, 0.60 * qtd]); }
         if (sel.includes('Strass')) { const qtd = parseInt(det.qtdStrass) || 1; priceItems.push([`Strass (${qtd} un.)`, 0.60 * qtd]); }
         break;
       }
@@ -283,7 +283,7 @@ function buildCompositionItems(o: Order): [string, number][] {
                 let detail = '';
                 if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
                   const parts: string[] = [];
-                  if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push('Bola grande');
+                  if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push(`Bola grande x${ex.dados.qtdBolaGrande || 1}`);
                   if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
                   detail = parts.length ? ` (${parts.join(', ')})` : '';
                 } else if (ex.tipo === 'carimbo_fogo') {
@@ -1238,7 +1238,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
           }
           case 'adicionar_metais': {
             const sel = det.metaisSelecionados || [];
-            if (sel.includes('Bola grande')) priceItems.push(['Bola grande', 15]);
+            if (sel.includes('Bola grande')) {
+              const qtd = parseInt(det.qtdBolaGrande) || 1;
+              priceItems.push([`Bola grande (${qtd} un.)`, 0.60 * qtd]);
+            }
             if (sel.includes('Strass')) {
               const qtd = parseInt(det.qtdStrass) || 1;
               priceItems.push([`Strass (${qtd} un.)`, 0.60 * qtd]);
@@ -1255,7 +1258,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
                     let detail = '';
                     if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
                       const parts: string[] = [];
-                      if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push('Bola grande');
+                      if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push(`Bola grande x${ex.dados.qtdBolaGrande || 1}`);
                       if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
                       detail = parts.length ? ` (${parts.join(', ')})` : '';
                     } else if (ex.tipo === 'carimbo_fogo') {

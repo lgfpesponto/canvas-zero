@@ -49,6 +49,7 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   corBridao: 'Cor do Bridão',
   metaisSelecionados: 'Metais Selecionados',
   qtdStrass: 'Qtd. de Strass',
+  qtdBolaGrande: 'Qtd. de Bola Grande',
   corRegata: 'Cor',
   corBrilho: 'Cor do Brilho',
   descBordadoRegata: 'Descrição do Bordado',
