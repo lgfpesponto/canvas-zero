@@ -334,12 +334,36 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     type Category = { title: string; fields: CatField[] };
     const categories: Category[] = [];
 
+    // IDENTIFICAÇÃO (campos do topo do faça seu pedido que não cabem no header)
+    const identFields: CatField[] = [];
+    if (order.sobMedida && order.sobMedidaDesc) identFields.push({ label: 'Sob medida:', value: order.sobMedidaDesc.toLowerCase() });
+    if (order.desenvolvimento) identFields.push({ label: 'Desenv.:', value: order.desenvolvimento.toLowerCase() });
+    if (order.cliente) identFields.push({ label: 'Cliente:', value: order.cliente.toLowerCase() });
+    if (identFields.length) categories.push({ title: 'IDENTIFICAÇÃO', fields: identFields });
+
+    // COUROS
     const courosFields: CatField[] = [];
     if (order.couroCano) courosFields.push({ label: 'Cano:', value: `${order.couroCano.toLowerCase()}${order.corCouroCano ? ' ' + order.corCouroCano.toLowerCase() : ''}` });
     if (order.couroGaspea) courosFields.push({ label: 'Gáspea:', value: `${order.couroGaspea.toLowerCase()}${order.corCouroGaspea ? ' ' + order.corCouroGaspea.toLowerCase() : ''}` });
     if (order.couroTaloneira) courosFields.push({ label: 'Taloneira:', value: `${order.couroTaloneira.toLowerCase()}${order.corCouroTaloneira ? ' ' + order.corCouroTaloneira.toLowerCase() : ''}` });
     if (courosFields.length) categories.push({ title: 'COUROS', fields: courosFields });
 
+    // PESPONTO
+    const pespontoFields: CatField[] = [];
+    if (order.corLinha) pespontoFields.push({ label: 'Linha:', value: order.corLinha.toLowerCase() });
+    if (order.corBorrachinha) pespontoFields.push({ label: 'Borrachinha:', value: order.corBorrachinha.toLowerCase() });
+    if (order.corVivo) pespontoFields.push({ label: 'Vivo:', value: order.corVivo.toLowerCase() });
+    if (pespontoFields.length) categories.push({ title: 'PESPONTO', fields: pespontoFields });
+
+    // SOLADOS
+    const soladoFields: CatField[] = [];
+    const solaType = `${order.solado || 'Borracha'} ${order.formatoBico || 'quadrada'}`.toLowerCase();
+    soladoFields.push({ label: 'Tipo:', value: solaType });
+    if (order.corSola) soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
+    if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
+    categories.push({ title: 'SOLADOS', fields: soladoFields });
+
+    // BORDADOS
     const bordadoFields: CatField[] = [];
     const replaceBordadoVariado = (text: string, desc?: string) => {
       if (!text) return text;
@@ -357,6 +381,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     if (order.nomeBordadoDesc || order.personalizacaoNome) bordadoFields.push({ label: 'Nome:', value: (order.nomeBordadoDesc || order.personalizacaoNome || '').toLowerCase() });
     if (bordadoFields.length) categories.push({ title: 'BORDADOS', fields: bordadoFields });
 
+    // LASER E RECORTES
     const laserFields: CatField[] = [];
     if (order.laserCano) laserFields.push({ label: 'Cano:', value: `${order.laserCano.toLowerCase()}${order.corGlitterCano ? ' ' + order.corGlitterCano.toLowerCase() : ''}` });
     if (order.laserGaspea) laserFields.push({ label: 'Gáspea:', value: `${order.laserGaspea.toLowerCase()}${order.corGlitterGaspea ? ' ' + order.corGlitterGaspea.toLowerCase() : ''}` });
@@ -364,21 +389,15 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     if (order.recorteCano) laserFields.push({ label: 'Recorte cano:', value: `${order.recorteCano.toLowerCase()}${order.corRecorteCano ? ' ' + order.corRecorteCano.toLowerCase() : ''}` });
     if (order.recorteGaspea) laserFields.push({ label: 'Recorte gáspea:', value: `${order.recorteGaspea.toLowerCase()}${order.corRecorteGaspea ? ' ' + order.corRecorteGaspea.toLowerCase() : ''}` });
     if (order.recorteTaloneira) laserFields.push({ label: 'Recorte taloneira:', value: `${order.recorteTaloneira.toLowerCase()}${order.corRecorteTaloneira ? ' ' + order.corRecorteTaloneira.toLowerCase() : ''}` });
+    if (order.pintura === 'Sim') laserFields.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });
     if (laserFields.length) categories.push({ title: 'LASER E RECORTES', fields: laserFields });
 
-    const pespontoFields: CatField[] = [];
-    if (order.corLinha) pespontoFields.push({ label: 'Linha:', value: order.corLinha.toLowerCase() });
-    if (order.corBorrachinha) pespontoFields.push({ label: 'Borrachinha:', value: order.corBorrachinha.toLowerCase() });
-    if (order.corVivo) pespontoFields.push({ label: 'Vivo:', value: order.corVivo.toLowerCase() });
-    if (pespontoFields.length) categories.push({ title: 'PESPONTO', fields: pespontoFields });
+    // ESTAMPA (bloco próprio)
+    if (order.estampa === 'Sim') {
+      categories.push({ title: 'ESTAMPA', fields: [{ label: '', value: order.estampaDesc || 'sim' }] });
+    }
 
-    const soladoFields: CatField[] = [];
-    const solaType = `${order.solado || 'Borracha'} ${order.formatoBico || 'quadrada'}`.toLowerCase();
-    soladoFields.push({ label: 'Tipo:', value: solaType });
-    if (order.corSola) soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
-    if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
-    categories.push({ title: 'SOLADOS', fields: soladoFields });
-
+    // METAIS
     const metaisFields: CatField[] = [];
     const det: any = order.extraDetalhes || {};
     const cavaloMetalQtd = det.cavaloMetal ? (Number(det.cavaloMetalQtd) || 0) : 0;
@@ -400,26 +419,23 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
       categories.push({ title: 'METAIS', fields: metaisFields });
     }
 
-    const acessorioFields: CatField[] = [];
-    if (order.acessorios) acessorioFields.push({ label: '', value: order.acessorios });
-    if (acessorioFields.length) categories.push({ title: 'ACESSÓRIOS', fields: acessorioFields });
-
+    // EXTRAS (acessórios + tricê + tiras + franja + corrente + costura atrás + carimbo)
     const extrasFields: CatField[] = [];
+    if (order.acessorios) extrasFields.push({ label: 'Acessórios:', value: order.acessorios });
     if (order.trisce === 'Sim' && order.triceDesc) extrasFields.push({ label: 'Tricê:', value: order.triceDesc.toLowerCase() });
     if (order.tiras === 'Sim' && order.tirasDesc) extrasFields.push({ label: 'Tiras:', value: order.tirasDesc.toLowerCase() });
     if (det.franja) extrasFields.push({ label: 'Franja:', value: [det.franjaCouro, det.franjaCor].filter(Boolean).join(' — ').toLowerCase() || 'sim' });
     if (det.corrente) extrasFields.push({ label: 'Corrente:', value: det.correnteCor?.toLowerCase() || 'sim' });
     if (order.costuraAtras === 'Sim') extrasFields.push({ label: 'Costura atrás:', value: 'sim' });
-    if (order.estampa === 'Sim') extrasFields.push({ label: 'Estampa:', value: order.estampaDesc || 'sim' });
-    if (order.pintura === 'Sim') extrasFields.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });
     if (order.carimbo) extrasFields.push({ label: 'Carimbo:', value: `${order.carimbo}${order.carimboDesc ? ' - ' + order.carimboDesc : ''}` });
-    if (order.adicionalDesc) extrasFields.push({ label: 'Adicional:', value: `${order.adicionalDesc} R$${order.adicionalValor || 0}` });
     if (extrasFields.length) categories.push({ title: 'EXTRAS', fields: extrasFields });
 
-    if (order.desenvolvimento) {
-      categories.push({ title: 'DESENVOLVIMENTO', fields: [{ label: '', value: order.desenvolvimento }] });
+    // ADICIONAL (bloco próprio)
+    if (order.adicionalDesc || order.adicionalValor) {
+      categories.push({ title: 'ADICIONAL', fields: [{ label: '', value: `${order.adicionalDesc || ''}${order.adicionalValor ? ' R$' + order.adicionalValor : ''}`.trim() }] });
     }
 
+    // OBS
     if (order.observacao) {
       categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
     }

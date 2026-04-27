@@ -1,89 +1,75 @@
-# Continuação — finalizar os 3 itens restantes
+# Plano de implementação
 
-Já está pronto:
-- ✅ Migration (recortes + categorias + colunas)
-- ✅ OrderPage com seção "LASER E RECORTES" + recortes condicionais
-- ✅ Total da bota inclui preços de recorte (via `findFichaPrice`)
-- ✅ PDF: stub agora mostra "Nº pedido: …" no lugar de "MONTAGEM"
-- ✅ Envio múltiplo de modelos (checkboxes na lista + botão "Enviar selecionados")
+## 1. Link da Foto como 1º campo de Identificação (Bota + Cinto)
 
-Falta entregar:
+**Bota — `src/pages/OrderPage.tsx` (linhas 1145-1230)**
+- Mover o bloco "Link da Foto de Referência" (atualmente o último item da seção `Identificação`, linhas 1202-1229) para **logo após o `<Section title="Identificação">`**, antes de Vendedor/Nº Pedido/Cliente.
+- Manter intacta toda lógica de `fotoUrl`, `setMostrarFotoPainel` e botão "Ver foto".
 
----
+**Cinto — `src/pages/BeltOrderPage.tsx` (linhas 489-554)**
+- Mover o bloco "Link da Foto de Referência" (linhas 526-553) para o topo da seção `Identificação`, antes de Vendedor/Nº Pedido/Cliente/Tamanho.
+- Mesma lógica: ao colar URL válido, abre painel lateral "Ver foto".
 
-## 1) Detalhe (`OrderDetailPage.tsx`) — exibir recortes
-- Renomear o grupo `'Laser'` para **`'Laser e Recortes'`**.
-- Inserir 6 novas linhas no array `itens` desse grupo, entre laser e pintura, na ordem **Cano → Gáspea → Taloneira**:
-  - `Recorte Cano` / `Cor Recorte Cano`
-  - `Recorte Gáspea` / `Cor Recorte Gáspea`
-  - `Recorte Taloneira` / `Cor Recorte Taloneira`
-- O helper `filterPairs` já oculta linhas vazias — pedidos antigos (sem recorte) não exibem nada novo.
+**Páginas de edição (espelhamento)**
+- `src/pages/EditOrderPage.tsx`: garantir que o link da foto também seja o 1º campo dentro de Identificação (atualmente está fora, perto do final, linhas 609-631 — mover para dentro/topo da Section Identificação).
+- `src/pages/EditBeltPage.tsx`: mover bloco de foto (linhas 357-368) para topo da Section "Identificação" (linha 214).
 
-## 2) PDF da ficha de produção (`pdfGenerators.ts`)
-- Renomear o título do bloco `LASER` → **`LASER E RECORTES`** no PDF da bota (`generateProductionSheetPDF`).
-- Adicionar 3 linhas no array `laserFields` (uma por parte) **somente quando o recorte estiver preenchido**:
-  ```ts
-  if (order.recorteCano) laserFields.push({ label: 'Recorte cano:', value: `${order.recorteCano.toLowerCase()}${order.corRecorteCano ? ' ' + order.corRecorteCano.toLowerCase() : ''}` });
-  if (order.recorteGaspea) laserFields.push({ label: 'Recorte gáspea:', value: `${order.recorteGaspea.toLowerCase()}${order.corRecorteGaspea ? ' ' + order.corRecorteGaspea.toLowerCase() : ''}` });
-  if (order.recorteTaloneira) laserFields.push({ label: 'Recorte taloneira:', value: `${order.recorteTaloneira.toLowerCase()}${order.corRecorteTaloneira ? ' ' + order.corRecorteTaloneira.toLowerCase() : ''}` });
-  ```
+## 2. Admin Configurações → Bota: espelhar campos de Recortes com preço editável
 
-## 3) Sistema de modelos no Cinto (`BeltOrderPage.tsx`)
-Replicar o padrão da bota, isolando por flag `__tipo: 'cinto'` no `form_data`.
+**Banco já tem** (verificado via SQL):
+- Categoria visual `laser-visual` ("Laser e Recortes") com 6 campos novos: `recorte_cano`, `recorte_gaspea`, `recorte_taloneira`, `cor_recorte_cano`, `cor_recorte_gaspea`, `cor_recorte_taloneira`.
+- Categorias-fonte de variação: `recorte_cano`, `recorte_gaspea`, `recorte_taloneira` (cada uma com Anjo, Borda, Touro Brinco, Touro Recortado a R$ 0).
 
-**Estado / hook:**
-- Importar `useTemplateManagement` e instanciar `const tmpl = useTemplateManagement()`.
-- Adicionar `mode: 'order' | 'template'`.
-- Carregar templates no mount (`tmpl.loadTemplates(user.id)`) **filtrando** apenas os com `form_data.__tipo === 'cinto'` (na função render que monta a lista visível, pode-se aplicar `tmpl.templates.filter(t => (t.form_data as any).__tipo === 'cinto')`).
-- Quando salvar template (cinto), incluir `__tipo: 'cinto'` no `buildFormData()`.
-- Em `OrderPage` (bota), o filtro existente continua valendo: bota mostra apenas templates **sem** `__tipo` ou com `__tipo === 'bota'`. → atualizar a lista visível em OrderPage também filtrando: `tmpl.templates.filter(t => (t.form_data as any).__tipo !== 'cinto')`.
+**Falta no admin (`src/pages/AdminConfigFichaPage.tsx`)**:
 
-**Funções:**
-- `buildBeltFormData()` serializando: `tamanho, tipoCouro, corCouro, fivela, fivelaOutroDesc, bordadoP/Desc/Cor, nomeBordado/Desc/Cor/Fonte, carimbo/Desc/Onde, adicionalValor, adicionalDesc, observacao, __tipo: 'cinto'`.
-- `populateBeltFormFromTemplate(fd)` repondo todos os estados.
-- `handleSaveTemplate()` / `handleUpdateTemplate()` / `handleDeleteTemplate()` / `handleEditTemplate()` / `handleUseTemplate()` análogos.
-- `openSendDialog(templates[])` + diálogo de envio, igual ao da bota (com checkbox de seleção múltipla na lista de modelos para envio em lote).
+a) **Render visual da seção "Laser e Recortes"** (linhas 967-986) — atualmente só renderiza laser+glitter por parte e Pintura. Estender para incluir, abaixo de cada par laser/glitter (ou em bloco próprio), o par `recorte_<parte>` + `cor_recorte_<parte>`, na ordem: Cano → Gáspea → Taloneira, mantendo Pintura no fim.
 
-**UI:**
-- Botões "Criar Modelo" e "Modelos (badge unseen)" no header ao lado de "Ficha de Produção — Cinto".
-- Diálogo "Modelos Salvos" com pesquisa, **Editar / Preencher / Enviar / Apagar** por linha + checkbox de seleção em lote + botão "Enviar selecionados".
-- Diálogo "Enviar modelo(s)" reutilizando o componente padrão (lista de usuários + checkbox).
-- Botão de submit muda para "CRIAR MODELO" / "SALVAR ALTERAÇÕES NO MODELO" quando `mode === 'template'`.
-- Em modo template, ocultar campos de envio (foto, validações de cliente, número, etc.) e exigir só o nome do modelo.
+b) **Adicionar entradas em `BOOT_FALLBACK_MAP`** (linhas 1968-1994):
+```ts
+'recorte_cano':      [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
+'recorte_gaspea':    [...mesmas...],
+'recorte_taloneira': [...mesmas...],
+```
+Isso permite ao admin editar/criar variações com preço usando o mesmo painel `AdminEditableOptions` já existente — cada variação vira linha editável (nome + preço R$) e botão "+ adicionar variação".
 
-**Dica:** o hook `useTemplateManagement` já é genérico (form_data é jsonb), então tudo funciona sem alteração.
+c) **Resolução de categoria-fonte**: o `LEGACY_SLUG_MAP` (linhas 889-893) precisa que o slug do campo (`recorte_cano`) bata com slug de categoria (`recorte_cano`) — já bate; nada a alterar.
 
-## 4) Layout novo nas páginas de Edição
+d) **Cálculo de preço no `OrderPage`** (linha 748): `findPrice(recorteCano, 'recorte_cano', [])` já está correto e vai pegar o preço configurado pelo admin via `priceCache`/`ficha_variacoes`. Apenas preencher os fallbacks vazios `[]` com o array fallback (opcional).
 
-### a) `EditOrderPage.tsx` (Bota)
-- Trocar o componente `Section` para o **mesmo estilo da OrderPage**:
-  ```tsx
-  <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-lg uppercase tracking-wide py-2 rounded-sm">
-  ```
-- Reordenar exatamente como na ficha nova:
-  **IDENTIFICAÇÃO → COUROS → PESPONTO → SOLADO → BORDADO → LASER E RECORTES → ESTAMPA → METAIS → EXTRAS → ADICIONAL → OBSERVAÇÃO**
-- IDENTIFICAÇÃO englobando: Vendedor, Nº Pedido, Tamanho/Gênero/Modelo, Sob Medida, Desenvolvimento, Link da Foto + botão "Ver foto" (com painel `FotoPedidoSidePanel` aberto via state `mostrarFotoPainel` — espelhar OrderPage).
-- EXTRAS englobando: Acessórios, Tricê, Tiras, **Carimbo a Fogo** (mover para cá).
-- ESTAMPA própria seção.
-- LASER E RECORTES: adicionar os 3 selects de recorte + 3 campos de cor condicionais (mesmo JSX da OrderPage).
-- Adicionar 6 novos states: `recorteCano, corRecorteCano, recorteGaspea, corRecorteGaspea, recorteTaloneira, corRecorteTaloneira`. Inicializar a partir de `order.recorteCano` etc. (já estão no tipo Order). Incluir no `updateOrder` payload e somar ao `total` via `findFichaPrice`.
+## 3. Ficha impressa: garantir que tudo do "faça seu pedido" apareça
 
-### b) `EditBeltPage.tsx` (Cinto)
-- Mesmo `Section` terracota.
-- Adicionar `Section` **IDENTIFICAÇÃO** com Vendedor, Nº Pedido, Cliente, Tamanho, Link da Foto + botão "Ver foto" + painel `FotoPedidoSidePanel` (substituindo o atual painel via `?foto=1`).
-- Manter Couro, Fivela, Bordado P, Nome Bordado, Carimbo, Adicional, Observação como `Section`s estilizadas.
+**`src/lib/pdfGenerators.ts`** — auditoria das categorias renderizadas (linhas 333-425):
 
-> Nenhuma mudança em estados, handlers, total, ou payload do `updateOrder` — só JSX/ordem (exceto a adição dos recortes em EditOrderPage).
+Já presentes: COUROS, BORDADOS, LASER E RECORTES (com recortes — linhas 360-367 ✅), PESPONTO, SOLADOS, METAIS, ACESSÓRIOS, EXTRAS, DESENVOLVIMENTO, OBS.
 
----
+**Faltam**:
+- **IDENTIFICAÇÃO**: cliente, sob medida (já no header `tam/gen/modelo`, mas falta `Cliente`, `Sob Medida`). Adicionar bloco no header ou nova categoria "IDENTIFICAÇÃO" com Vendedor, Nº Pedido, Cliente, Sob Medida (descrição), Desenvolvimento.
+- **ESTAMPA**: hoje aparece dentro de EXTRAS (linha 413). Mover para categoria própria "ESTAMPA" só com `estampaDesc` quando `estampa==='Sim'`.
+- **Ordem das categorias**: reorganizar o `categories.push(...)` para a sequência aprovada anteriormente: IDENTIFICAÇÃO → COUROS → PESPONTO → SOLADOS → BORDADOS → LASER E RECORTES → ESTAMPA → METAIS → EXTRAS (Acessórios + Tricê + Tiras + Franja + Corrente + Carimbo + Costura) → ADICIONAL → OBS.
+- **ADICIONAL**: hoje vai junto com EXTRAS (linha 416). Separar em categoria "ADICIONAL" com `adicionalDesc + R$ adicionalValor`.
 
-## Ordem de implementação
-1. Detalhe + PDF (mais isolado)
-2. EditOrderPage (mais código, mas já temos referência da OrderPage)
-3. EditBeltPage
-4. Templates do Cinto (novo, mas reaproveita 100% do hook)
+Manter intacta toda a estrutura de 3 colunas, fonte adaptativa, header, canhotos e código de barras.
 
-## Garantias
-- Pedidos antigos sem recorte: nada novo aparece (filterPairs/condicionais).
-- Modelos antigos sem `__tipo`: continuam aparecendo na bota; cinto só vê os com `__tipo === 'cinto'`.
-- Cálculos de total da bota intactos; recorte usa `findFichaPrice` (R$ 0 se admin não definir).
+## 4. Notificação melhorada de modelos transferidos
+
+**`src/pages/OrderPage.tsx` (linhas 623-646)** — toast atual já mostra "X novos modelos de Y". Trocar `toast.info` por `toast.success` persistente e detalhar por remetente quando >1: `"Você recebeu 3 novos modelos: 2 de Maria, 1 de João"`. Aplicar a mesma lógica em `BeltOrderPage.tsx` (criar effect equivalente que faz `select sent_by_name where seen=false and __tipo='cinto'`).
+
+**Marcar como lidas**: `useTemplateManagement.markTemplatesAsSeen(userId)` já existe (linha 117). Chamá-lo automaticamente quando o usuário **abre o diálogo "Modelos"** (`tmpl.setShowTemplates(true)`) tanto em `OrderPage` quanto `BeltOrderPage`. Isso zera o contador no botão e o badge "Novo" deixa de aparecer nas próximas aberturas, **mas** mantém-se na sessão atual (estado local não é re-fetchado até reload), satisfazendo "manter o número que aparece na primeira vez e depois apaga".
+
+## 5. Lista de modelos: priorizar o nome, esconder "Recebido de…"
+
+**`src/pages/OrderPage.tsx` (linhas 1507-1518) e `src/pages/BeltOrderPage.tsx` (linhas 750-758)**:
+- Remover o bloco `{t.sent_by_name && (<span>... Recebido de {t.sent_by_name}</span>)}`.
+- Garantir que o `<span className="font-semibold text-sm truncate">{t.nome}</span>` não trunque — trocar `truncate` por `break-words` (ou remover `truncate` e dar `min-w-0 flex-1` ao container) para o nome aparecer inteiro mesmo em modelos transferidos.
+- O badge "Novo" (linha 1512 / 752) permanece para sinalizar quais modelos chegaram nesta sessão.
+
+## Arquivos editados
+- `src/pages/OrderPage.tsx` — reordem identificação, link foto no topo, lista de modelos limpa, toast melhorado, marcar como lidas no abrir
+- `src/pages/BeltOrderPage.tsx` — idem para cinto + novo effect de toast de transferidos
+- `src/pages/EditOrderPage.tsx` — link foto no topo da identificação
+- `src/pages/EditBeltPage.tsx` — link foto no topo da identificação
+- `src/pages/AdminConfigFichaPage.tsx` — render dos recortes na seção Laser e Recortes + 3 entradas em `BOOT_FALLBACK_MAP`
+- `src/lib/pdfGenerators.ts` — adicionar IDENTIFICAÇÃO, separar ESTAMPA e ADICIONAL, reordenar categorias
+
+## Sem alterações de banco
+Os 3 categorias-fonte e os 6 campos visuais já existem (verificado via consulta SQL). O admin poderá editar preços das 4 variações iniciais (Anjo, Borda, Touro Brinco, Touro Recortado) e criar novas direto pelo painel `AdminEditableOptions` assim que a categoria visual aparecer no editor.

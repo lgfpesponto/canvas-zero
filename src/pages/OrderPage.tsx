@@ -635,11 +635,13 @@ const OrderPage = () => {
         .eq('seen', false);
       const recebidos = (data as any[]) || [];
       if (recebidos.length > 0) {
-        const remetentes = Array.from(new Set(recebidos.map(t => t.sent_by_name).filter(Boolean)));
-        const desc = remetentes.length === 1
-          ? `de ${remetentes[0]}`
-          : `de ${remetentes.length} usuários`;
-        toast.info(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} ${desc}`, { duration: 6000 });
+        const counts = new Map<string, number>();
+        recebidos.forEach(t => {
+          const nome = t.sent_by_name || 'Usuário';
+          counts.set(nome, (counts.get(nome) || 0) + 1);
+        });
+        const breakdown = Array.from(counts.entries()).map(([n, c]) => `${c} de ${n}`).join(', ');
+        toast.success(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} transferido${recebidos.length > 1 ? 's' : ''}: ${breakdown}`, { duration: 8000 });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1143,6 +1145,35 @@ const OrderPage = () => {
           {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (
             <Section title="Identificação">
+              {/* Link da Foto de Referência (Drive) — primeiro campo */}
+              <div>
+                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+                <div className="flex items-center gap-2">
+                  <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                  <input
+                    type="url"
+                    value={fotoUrl}
+                    onChange={e => { setFotoUrl(e.target.value); if (isHttpUrl(e.target.value)) setMostrarFotoPainel(true); }}
+                    placeholder="Cole o link do Google Drive aqui..."
+                    className={cls.input}
+                  />
+                  {fotoUrl && (
+                    <button type="button" onClick={() => { setFotoUrl(''); setMostrarFotoPainel(false); }} className="text-destructive hover:text-destructive/80">
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+                {fotoUrl && isHttpUrl(fotoUrl) && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarFotoPainel(v => !v)}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <ImageIcon size={14} /> {mostrarFotoPainel ? 'Esconder foto' : 'Ver foto'}
+                  </button>
+                )}
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={cls.label}>Vendedor</label>
@@ -1198,35 +1229,6 @@ const OrderPage = () => {
               <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
 
               <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
-
-              {/* Link da Foto de Referência (Drive) + botão Ver foto */}
-              <div>
-                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
-                <div className="flex items-center gap-2">
-                  <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-                  <input
-                    type="url"
-                    value={fotoUrl}
-                    onChange={e => { setFotoUrl(e.target.value); if (isHttpUrl(e.target.value)) setMostrarFotoPainel(true); }}
-                    placeholder="Cole o link do Google Drive aqui..."
-                    className={cls.input}
-                  />
-                  {fotoUrl && (
-                    <button type="button" onClick={() => { setFotoUrl(''); setMostrarFotoPainel(false); }} className="text-destructive hover:text-destructive/80">
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-                {fotoUrl && isHttpUrl(fotoUrl) && (
-                  <button
-                    type="button"
-                    onClick={() => setMostrarFotoPainel(v => !v)}
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                  >
-                    <ImageIcon size={14} /> {mostrarFotoPainel ? 'Esconder foto' : 'Ver foto'}
-                  </button>
-                )}
-              </div>
             </Section>
           ) : (
             <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={MODELOS} />
@@ -1507,15 +1509,10 @@ const OrderPage = () => {
                 <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
                   <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
                   <div className="flex flex-col min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm truncate">{t.nome}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm break-words">{t.nome}</span>
                       {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
                     </div>
-                    {t.sent_by_name && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Inbox size={11} /> Recebido de {t.sent_by_name}
-                      </span>
-                    )}
                   </div>
                   <div className="flex gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>

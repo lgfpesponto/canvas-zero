@@ -431,31 +431,59 @@ const EditOrderPage = () => {
         <h1 className="text-3xl font-display font-bold mb-6">Editar Pedido — {order.numero}</h1>
 
         <form onSubmit={handleSave} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
-          <div className="grid sm:grid-cols-2 gap-4">
+          <Section title="Identificação">
             <div>
-              <label className={cls.label}>Vendedor</label>
-              {isAdmin ? (
-                <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
-                  <option value="">Selecione...</option>
-                  {allProfiles.map(p => <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>)}
-                  <option value="Estoque">Estoque</option>
-                </select>
-              ) : (
-                <input type="text" value={order.vendedor} readOnly className={cls.input + ' opacity-70'} />
+              <label className={cls.label}>Link da Foto de Referência (Google Drive)</label>
+              <div className="flex items-center gap-2">
+                <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                <input
+                  type="url"
+                  value={fotoUrl}
+                  onChange={e => setFotoUrl(e.target.value)}
+                  placeholder="Cole o link do Google Drive aqui..."
+                  className={cls.input}
+                />
+                {fotoUrl && (
+                  <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              {fotoUrl && (
+                <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
+                  Abrir link ↗
+                </a>
               )}
             </div>
-            <div>
-              <label className={cls.label}>Número do Pedido</label>
-              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
-              {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-            </div>
-          </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
-            <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} />
-            <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} />
-            <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} />
-          </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className={cls.label}>Vendedor</label>
+                {isAdmin ? (
+                  <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
+                    <option value="">Selecione...</option>
+                    {allProfiles.map(p => <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>)}
+                    <option value="Estoque">Estoque</option>
+                  </select>
+                ) : (
+                  <input type="text" value={order.vendedor} readOnly className={cls.input + ' opacity-70'} />
+                )}
+              </div>
+              <div>
+                <label className={cls.label}>Número do Pedido</label>
+                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} />
+              <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} />
+              <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} />
+            </div>
+
+            <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
+          </Section>
 
           <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
           <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
@@ -606,29 +634,6 @@ const EditOrderPage = () => {
             <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
           </div>
 
-          <div>
-            <label className={cls.label}>Link da Foto de Referência (Google Drive)</label>
-            <div className="flex items-center gap-2">
-              <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-              <input
-                type="url"
-                value={fotoUrl}
-                onChange={e => setFotoUrl(e.target.value)}
-                placeholder="Cole o link do Google Drive aqui..."
-                className={cls.input}
-              />
-              {fotoUrl && (
-                <button type="button" onClick={() => setFotoUrl('')} className="text-destructive hover:text-destructive/80">
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-            {fotoUrl && (
-              <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
-                Abrir link ↗
-              </a>
-            )}
-          </div>
 
           <div className="flex items-center gap-3">
             <label className="text-sm font-semibold">Quantidade:</label>

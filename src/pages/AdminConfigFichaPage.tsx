@@ -964,7 +964,7 @@ function BootFormLayout({
       );
     }
 
-    // Laser: group MultiSelect + Cor Glitter by part, then Pintura at end
+    // Laser e Recortes: por parte (laser+glitter+recorte+cor recorte), depois Pintura
     if (cat.slug === 'laser-visual') {
       const parts = ['cano', 'gaspea', 'taloneira'];
       const pintura = catCampos.find(c => c.slug === 'pintura');
@@ -973,10 +973,14 @@ function BootFormLayout({
           {parts.map(part => {
             const laser = catCampos.find(c => c.slug === `laser_${part}`);
             const glitter = catCampos.find(c => c.slug === `cor_glitter_${part}`);
+            const recorte = catCampos.find(c => c.slug === `recorte_${part}`);
+            const corRecorte = catCampos.find(c => c.slug === `cor_recorte_${part}`);
             return (
               <React.Fragment key={part}>
                 {laser && renderField(laser, catCampos.indexOf(laser))}
                 {glitter && renderField(glitter, catCampos.indexOf(glitter))}
+                {recorte && renderField(recorte, catCampos.indexOf(recorte))}
+                {corRecorte && renderField(corRecorte, catCampos.indexOf(corRecorte))}
               </React.Fragment>
             );
           })}
@@ -1991,6 +1995,9 @@ export default function AdminConfigFichaPage() {
     'cor-sola': COR_SOLA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
     'cor-vira': COR_VIRA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
     'carimbo': CARIMBO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'recorte_cano':      [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
+    'recorte_gaspea':    [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
+    'recorte_taloneira': [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
   } : {};
 
   // Count total unsaved fallback items
