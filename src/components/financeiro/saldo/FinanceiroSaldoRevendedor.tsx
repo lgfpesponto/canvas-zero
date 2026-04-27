@@ -104,9 +104,9 @@ const FinanceiroSaldoRevendedor = () => {
           <CardTitle className="text-lg">Saldo por revendedor</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading && saldos === null ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
-          ) : saldos.length === 0 ? (
+          ) : !saldos || saldos.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Nenhum movimento registrado ainda.</p>
           ) : (
             <Table>
