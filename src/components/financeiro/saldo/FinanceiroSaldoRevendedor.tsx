@@ -80,12 +80,12 @@ const FinanceiroSaldoRevendedor = () => {
     return new Date(iso) >= periodoStart;
   };
 
-  /** Vendedores no select: usuários com role 'vendedor' + qualquer um com saldo histórico. */
+  /** Vendedores no select: lista vinda de orders + qualquer um com saldo histórico. */
   const vendedoresOptions = useMemo(() => {
-    const set = new Set<string>(vendedoresUsuarios);
+    const set = new Set<string>(vendedoresLista);
     (saldos || []).forEach(s => { if (s.vendedor) set.add(s.vendedor); });
     return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [vendedoresUsuarios, saldos]);
+  }, [vendedoresLista, saldos]);
 
   /** Comprovantes que passam pelos filtros (período + vendedor + tipo). */
   const comprovantesFiltrados = useMemo(() => {
