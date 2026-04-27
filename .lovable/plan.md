@@ -1,23 +1,20 @@
 ## Problema
 
-Na ficha "Faça seu Pedido" da bota, os 3 selects "Recortes do Cano", "Recortes da Gáspea" e "Recortes da Taloneira" aparecem vazios porque:
+Hoje o modelo "Bota Montaria (40)" só aparece no select de Modelo da ficha de produção quando o tamanho selecionado está entre **34 e 40**. Em qualquer outro tamanho ela some, por isso parece que "não está mostrando".
 
-1. A tabela `ficha_variacoes` não possui nenhuma variação cadastrada para os campos `recorte_cano`, `recorte_gaspea`, `recorte_taloneira` (os campos existem em `ficha_campos`, mas sem opções).
-2. O hook `useFichaVariacoesLookup` (que alimenta o select do formulário) tem um `CATEGORY_MAP` que ainda não inclui as três categorias de recorte — então mesmo se as variações existissem, elas não chegariam ao formulário.
+## Solução
 
-## O que vai ser feito
+Liberar "Bota Montaria (40)" para aparecer em **todos os tamanhos** (24 a 45), mantendo a lógica de filtro dos demais modelos intacta.
 
-1. **Cadastrar as 4 variações** (Anjo, Borda, Touro Brinco, Touro Recortado) em cada um dos 3 campos de recorte na tabela `ficha_variacoes`, com `preco_adicional = 0` (preço pode ser ajustado depois pelo admin) e `ativo = true`. Total: 12 inserts (4 variações × 3 campos).
+## Mudança técnica
 
-2. **Atualizar `src/hooks/useFichaVariacoesLookup.ts`** adicionando ao `CATEGORY_MAP` as três entradas:
-   - `recorte_cano` → `recorte_cano`
-   - `recorte_gaspea` → `recorte_gaspea`
-   - `recorte_taloneira` → `recorte_taloneira`
+Arquivo: `src/lib/orderFieldsConfig.ts`, função `getModelosForTamanho`.
 
-   Assim os selects do formulário passam a listar as variações vindas do banco.
+- Hoje: `Bota Montaria (40)` é adicionada à lista `allowed` apenas dentro do bloco `t >= 34 && t <= 40`.
+- Depois: adicionar `Bota Montaria (40)` à lista `allowed` em qualquer faixa válida (infantil 24–33 e adulto 34–45), de forma que sempre apareça quando houver tamanho selecionado.
 
-## Resultado esperado
+Nenhuma outra regra (preços, blocos de vinculação, dependências de couro/bordado) é alterada. Não há mudança no banco de dados.
 
-Ao abrir a ficha de produção da bota, os campos "Recortes do Cano", "Recortes da Gáspea" e "Recortes da Taloneira" passam a oferecer as 4 opções: Anjo, Borda, Touro Brinco, Touro Recortado. Como já estão integrados ao `getDbItems` + `findPrice`, qualquer ajuste futuro de preço feito no painel admin (Variações) reflete automaticamente no cálculo do total.
+## Observação sobre o nome
 
-Nada na lógica de cálculo, persistência, edição ou PDF muda — os campos já estavam preparados, só faltava popular as opções e habilitar o mapeamento.
+O modelo continua exibido como "Bota Montaria (40)" na lista. Se você quiser renomear para "Cano Montaria", me avise depois que esta mudança estiver aplicada que faço o ajuste do rótulo.

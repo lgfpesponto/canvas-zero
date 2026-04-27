@@ -343,9 +343,11 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
       'Cano Médio', 'Botina', 'Urbano',
       'Bota Bico Fino Perfilado', 'Tradicional Bico Fino',
     );
-    // Montaria só até 40
-    if (t <= 40) allowed.push('Bota Montaria (40)');
     allowed.push('Cano Inteiro');
+  }
+  // Bota Montaria (40): liberada para todos os tamanhos
+  if (t >= 24 && t <= 45) {
+    allowed.push('Bota Montaria (40)');
   }
   // 33-40: bico fino feminino + capota bico fino
   if (t >= 33 && t <= 40) {
