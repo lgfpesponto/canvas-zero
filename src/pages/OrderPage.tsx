@@ -1143,6 +1143,35 @@ const OrderPage = () => {
           {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (
             <Section title="Identificação">
+              {/* Link da Foto de Referência (Drive) — primeiro campo */}
+              <div>
+                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+                <div className="flex items-center gap-2">
+                  <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                  <input
+                    type="url"
+                    value={fotoUrl}
+                    onChange={e => { setFotoUrl(e.target.value); if (isHttpUrl(e.target.value)) setMostrarFotoPainel(true); }}
+                    placeholder="Cole o link do Google Drive aqui..."
+                    className={cls.input}
+                  />
+                  {fotoUrl && (
+                    <button type="button" onClick={() => { setFotoUrl(''); setMostrarFotoPainel(false); }} className="text-destructive hover:text-destructive/80">
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+                {fotoUrl && isHttpUrl(fotoUrl) && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarFotoPainel(v => !v)}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <ImageIcon size={14} /> {mostrarFotoPainel ? 'Esconder foto' : 'Ver foto'}
+                  </button>
+                )}
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={cls.label}>Vendedor</label>
@@ -1198,35 +1227,6 @@ const OrderPage = () => {
               <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
 
               <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
-
-              {/* Link da Foto de Referência (Drive) + botão Ver foto */}
-              <div>
-                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
-                <div className="flex items-center gap-2">
-                  <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-                  <input
-                    type="url"
-                    value={fotoUrl}
-                    onChange={e => { setFotoUrl(e.target.value); if (isHttpUrl(e.target.value)) setMostrarFotoPainel(true); }}
-                    placeholder="Cole o link do Google Drive aqui..."
-                    className={cls.input}
-                  />
-                  {fotoUrl && (
-                    <button type="button" onClick={() => { setFotoUrl(''); setMostrarFotoPainel(false); }} className="text-destructive hover:text-destructive/80">
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-                {fotoUrl && isHttpUrl(fotoUrl) && (
-                  <button
-                    type="button"
-                    onClick={() => setMostrarFotoPainel(v => !v)}
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                  >
-                    <ImageIcon size={14} /> {mostrarFotoPainel ? 'Esconder foto' : 'Ver foto'}
-                  </button>
-                )}
-              </div>
             </Section>
           ) : (
             <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={MODELOS} />
