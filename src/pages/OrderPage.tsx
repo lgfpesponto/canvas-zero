@@ -1097,71 +1097,97 @@ const OrderPage = () => {
             </div>
           )}
 
-          {/* 1-2 Vendedor + Número (hidden in template mode) */}
-          {mode === 'order' && (
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className={cls.label}>Vendedor</label>
-              {isAdmin ? (
-                <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select}>
-                  {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
-                  {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
-                    <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
-                  ))}
-                  <option value="Estoque">Estoque</option>
-                </select>
-              ) : (
-                <input type="text" value={user?.nomeCompleto || ''} readOnly className={cls.input + ' opacity-70'} />
-              )}
-            </div>
-            <div>
-              <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
-              {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-            </div>
-            <div>
-              <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
-              <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
-            </div>
-          </div>
-          )}
-
-          {/* 3-4 Tamanho + Gênero + Modelo */}
+          {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (
-            <div className="grid sm:grid-cols-3 gap-4">
-              {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
+            <Section title="Identificação">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={cls.label}>Tamanho / Grade</label>
-                  {gradeItems.length > 0 ? (
-                    <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border hover:border-primary text-left flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2">
-                        <Grid3X3 size={14} className="text-primary" />
-                        <span className="font-semibold">{gradeItems.length} tam.</span>
-                        <span className="text-muted-foreground">({gradeItems.reduce((s, i) => s + i.quantidade, 0)} pedidos)</span>
-                      </span>
-                      <span className="text-xs text-primary font-medium">Editar</span>
-                    </button>
+                  <label className={cls.label}>Vendedor</label>
+                  {isAdmin ? (
+                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select}>
+                      {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
+                      {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
+                        <option key={p.id} value={p.nomeCompleto}>{p.nomeCompleto}</option>
+                      ))}
+                      <option value="Estoque">Estoque</option>
+                    </select>
                   ) : (
-                    <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-dashed border-primary/50 hover:border-primary text-primary font-semibold flex items-center justify-center gap-2 transition-colors">
-                      <Grid3X3 size={16} /> Gerar Grade
+                    <input type="text" value={user?.nomeCompleto || ''} readOnly className={cls.input + ' opacity-70'} />
+                  )}
+                </div>
+                <div>
+                  <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
+                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                  {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                </div>
+                <div>
+                  <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+                  <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4">
+                {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
+                  <div>
+                    <label className={cls.label}>Tamanho / Grade</label>
+                    {gradeItems.length > 0 ? (
+                      <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border hover:border-primary text-left flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                          <Grid3X3 size={14} className="text-primary" />
+                          <span className="font-semibold">{gradeItems.length} tam.</span>
+                          <span className="text-muted-foreground">({gradeItems.reduce((s, i) => s + i.quantidade, 0)} pedidos)</span>
+                        </span>
+                        <span className="text-xs text-primary font-medium">Editar</span>
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-dashed border-primary/50 hover:border-primary text-primary font-semibold flex items-center justify-center gap-2 transition-colors">
+                        <Grid3X3 size={16} /> Gerar Grade
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
+                )}
+                <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
+                <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
+              </div>
+
+              <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
+
+              <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
+
+              {/* Link da Foto de Referência (Drive) + botão Ver foto */}
+              <div>
+                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+                <div className="flex items-center gap-2">
+                  <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
+                  <input
+                    type="url"
+                    value={fotoUrl}
+                    onChange={e => { setFotoUrl(e.target.value); if (isHttpUrl(e.target.value)) setMostrarFotoPainel(true); }}
+                    placeholder="Cole o link do Google Drive aqui..."
+                    className={cls.input}
+                  />
+                  {fotoUrl && (
+                    <button type="button" onClick={() => { setFotoUrl(''); setMostrarFotoPainel(false); }} className="text-destructive hover:text-destructive/80">
+                      <X size={16} />
                     </button>
                   )}
                 </div>
-              ) : (
-                <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
-              )}
-              <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
-              <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
-            </div>
+                {fotoUrl && isHttpUrl(fotoUrl) && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarFotoPainel(v => !v)}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <ImageIcon size={14} /> {mostrarFotoPainel ? 'Esconder foto' : 'Ver foto'}
+                  </button>
+                )}
+              </div>
+            </Section>
           ) : (
             <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={MODELOS} />
           )}
-
-          {/* 5 Sob Medida */}
-          <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
-
-          {/* 6 Acessórios */}
-          <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
 
           {/* 7 Couros */}
           <Section title="Couros">
