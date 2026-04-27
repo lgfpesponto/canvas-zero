@@ -462,8 +462,7 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
-                      disabled={scanning}
-                      placeholder={scanning ? 'Buscando pedido...' : 'Escaneie o código de barras aqui...'}
+                      placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
                       className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
                       autoFocus
                     />
