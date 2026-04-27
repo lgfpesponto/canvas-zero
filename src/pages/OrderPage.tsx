@@ -451,15 +451,17 @@ const OrderPage = () => {
 
   /* ───── envio de modelos ───── */
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [sendingTemplate, setSendingTemplate] = useState<typeof tmpl.templates[number] | null>(null);
+  const [sendingTemplates, setSendingTemplates] = useState<typeof tmpl.templates>([]);
   const [usersList, setUsersList] = useState<{ id: string; nome_completo: string; nome_usuario: string }[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [sendingInProgress, setSendingInProgress] = useState(false);
+  // Seleção múltipla na lista de modelos salvos
+  const [bulkSelectedTemplateIds, setBulkSelectedTemplateIds] = useState<string[]>([]);
 
-  const openSendDialog = async (template: typeof tmpl.templates[number]) => {
-    if (!user) return;
-    setSendingTemplate(template);
+  const openSendDialog = async (templates: typeof tmpl.templates) => {
+    if (!user || templates.length === 0) return;
+    setSendingTemplates(templates);
     setSelectedRecipients([]);
     setRecipientSearch('');
     setSendDialogOpen(true);
@@ -475,11 +477,15 @@ const OrderPage = () => {
     setSelectedRecipients(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const toggleBulkTemplate = (id: string) => {
+    setBulkSelectedTemplateIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
   const confirmSendTemplate = async () => {
-    if (!user || !sendingTemplate || selectedRecipients.length === 0) return;
+    if (!user || sendingTemplates.length === 0 || selectedRecipients.length === 0) return;
     setSendingInProgress(true);
     const ok = await tmpl.sendTemplateToUsers(
-      sendingTemplate,
+      sendingTemplates,
       selectedRecipients,
       user.id,
       user.nomeCompleto || user.nomeUsuario || 'Usuário',
@@ -487,8 +493,9 @@ const OrderPage = () => {
     setSendingInProgress(false);
     if (ok) {
       setSendDialogOpen(false);
-      setSendingTemplate(null);
+      setSendingTemplates([]);
       setSelectedRecipients([]);
+      setBulkSelectedTemplateIds([]);
     }
   };
 
