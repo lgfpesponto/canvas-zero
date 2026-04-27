@@ -498,6 +498,14 @@ const ReportsPage = () => {
                           handleScan(scanValue);
                         }
                       }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          const next = document.activeElement as HTMLElement | null;
+                          const tag = next?.tagName?.toLowerCase();
+                          if (tag === 'input' || tag === 'textarea' || tag === 'button' || tag === 'select') return;
+                          scanInputRef.current?.focus();
+                        }, 0);
+                      }}
                       placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie o código de barras aqui...'}
                       className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-60"
                       autoFocus
