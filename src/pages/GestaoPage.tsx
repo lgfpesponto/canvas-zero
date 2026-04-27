@@ -57,7 +57,7 @@ function durationSince(iso: string): string {
 export default function GestaoPage() {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<PresenceUser[]>([]);
+  const presence = usePresenceState();
   const [tick, setTick] = useState(0);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('todos');
@@ -69,41 +69,10 @@ export default function GestaoPage() {
     }
   }, [loading, role, navigate]);
 
-  // Subscribe ao canal de presença (instância separada para o observador)
-  useEffect(() => {
-    if (role !== 'admin_master') return;
-
-    const channel = supabase.channel(PRESENCE_CHANNEL + '-observer-' + Math.random().toString(36).slice(2), {
-      config: { presence: { key: PRESENCE_CHANNEL } },
-    });
-
-    const refresh = () => {
-      const state = channel.presenceState() as Record<string, PresenceUser[]>;
-      const flat: PresenceUser[] = [];
-      Object.values(state).forEach(arr => arr.forEach(u => flat.push(u)));
-      // Dedupe por user_id (mantém o mais recente)
-      const map = new Map<string, PresenceUser>();
-      flat.forEach(u => {
-        const prev = map.get(u.user_id);
-        if (!prev || new Date(u.last_seen).getTime() > new Date(prev.last_seen).getTime()) {
-          map.set(u.user_id, u);
-        }
-      });
-      setUsers(Array.from(map.values()).sort((a, b) =>
-        a.nome_completo.localeCompare(b.nome_completo)
-      ));
-    };
-
-    channel
-      .on('presence', { event: 'sync' }, refresh)
-      .on('presence', { event: 'join' }, refresh)
-      .on('presence', { event: 'leave' }, refresh)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [role, user?.id]);
+  const users = useMemo<PresenceUser[]>(
+    () => [...presence].sort((a, b) => a.nome_completo.localeCompare(b.nome_completo)),
+    [presence]
+  );
 
   // Tick a cada 5s pra atualizar "há Xs"
   useEffect(() => {
