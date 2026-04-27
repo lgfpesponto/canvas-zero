@@ -217,35 +217,39 @@ const ReportsPage = () => {
     refetchOrders();
   };
 
-  // Barcode scan handler — direct DB query
-  const handleScan = useCallback(async (code: string) => {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    if (scanning) return;
-    setScanning(true);
+  // Barcode scan handler — direct DB query (continuous, queued)
+  const scanQueueRef = useRef<string[]>([]);
+  const scanProcessingRef = useRef(false);
+
+  const processScan = useCallback(async (trimmed: string) => {
     try {
       const match = await fetchOrderByScan(trimmed);
       if (match) {
         if (isAdmin) {
+          let alreadySelected = false;
           setSelectedIds(prev => {
             if (prev.has(match.id)) {
-              playErrorBeep();
-              toast.warning('Esse pedido já está selecionado');
+              alreadySelected = true;
               return prev;
             }
             const next = new Set(prev);
             next.add(match.id);
-            setLastScannedNumero(match.numero);
-            playBeep();
             return next;
           });
+          if (alreadySelected) {
+            playErrorBeep();
+            toast.warning(`Pedido ${match.numero} já está selecionado`);
+          } else {
+            setLastScannedNumero(match.numero);
+            playBeep();
+          }
           // Accumulate scanned order data so "Visualizar pedidos" always has it
           setScannedOrdersMap(prev => {
+            if (prev.has(match.id)) return prev;
             const next = new Map(prev);
             next.set(match.id, match);
             return next;
           });
-          setScanFilterId(match.id);
         } else {
           navigate(`/pedido/${match.id}`);
           toast.success(`Pedido ${match.numero} encontrado.`);
@@ -254,11 +258,43 @@ const ReportsPage = () => {
         playErrorBeep();
         toast.error(`Pedido não encontrado para código: ${trimmed}`);
       }
-      setScanValue('');
-    } finally {
-      setScanning(false);
+    } catch (err) {
+      console.error('Scan error:', err);
+      playErrorBeep();
     }
-  }, [isAdmin, navigate, playBeep, playErrorBeep, scanning]);
+  }, [isAdmin, navigate, playBeep, playErrorBeep]);
+
+  const handleScan = useCallback(async (code: string) => {
+    const trimmed = code.trim();
+    setScanValue('');
+    if (!trimmed) {
+      // Refocus even on empty input so the next scan lands here
+      requestAnimationFrame(() => scanInputRef.current?.focus());
+      return;
+    }
+
+    // Queue rapid scans instead of dropping them
+    if (scanProcessingRef.current) {
+      scanQueueRef.current.push(trimmed);
+      return;
+    }
+
+    scanProcessingRef.current = true;
+    setScanning(true);
+    try {
+      await processScan(trimmed);
+      // Drain any scans that arrived while we were busy
+      while (scanQueueRef.current.length > 0) {
+        const next = scanQueueRef.current.shift()!;
+        await processScan(next);
+      }
+    } finally {
+      scanProcessingRef.current = false;
+      setScanning(false);
+      // Always return focus to the input so the next scan is captured
+      requestAnimationFrame(() => scanInputRef.current?.focus());
+    }
+  }, [processScan]);
 
   useEffect(() => {
     if (showScanner && scanInputRef.current) {
