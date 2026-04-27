@@ -12,11 +12,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  fetchSaldosTodos, fetchVendedoresUsuarios,
+  fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
   type RevendedorSaldo, type RevendedorComprovante, type RevendedorMovimento,
   type ComprovanteStatus,
 } from '@/lib/revendedorSaldo';
+import { fetchVendedoresList } from '@/components/financeiro/financeiroHelpers';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
 import { ComprovantesPorRevendedor } from './ComprovantesPorRevendedor';
