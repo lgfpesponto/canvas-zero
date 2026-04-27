@@ -12,11 +12,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
-  fetchSaldosTodos, fetchVendedoresUsuarios,
+  fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
   type RevendedorSaldo, type RevendedorComprovante, type RevendedorMovimento,
   type ComprovanteStatus,
 } from '@/lib/revendedorSaldo';
+import { fetchVendedoresList } from '@/components/financeiro/financeiroHelpers';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
 import { ComprovantesPorRevendedor } from './ComprovantesPorRevendedor';
@@ -30,7 +31,7 @@ const FinanceiroSaldoRevendedor = () => {
   const [saldos, setSaldos] = useState<RevendedorSaldo[] | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [movimentos, setMovimentos] = useState<RevendedorMovimento[]>([]);
-  const [vendedoresUsuarios, setVendedoresUsuarios] = useState<string[]>([]);
+  const [vendedoresLista, setVendedoresLista] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
 
@@ -46,12 +47,12 @@ const FinanceiroSaldoRevendedor = () => {
         fetchSaldosTodos(),
         fetchComprovantesTodos(),
         fetchMovimentosTodos(),
-        fetchVendedoresUsuarios(),
+        fetchVendedoresList(),
       ]);
       setSaldos(s);
       setComprovantes(c);
       setMovimentos(m);
-      setVendedoresUsuarios(vs);
+      setVendedoresLista(vs);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -79,12 +80,12 @@ const FinanceiroSaldoRevendedor = () => {
     return new Date(iso) >= periodoStart;
   };
 
-  /** Vendedores no select: usuários com role 'vendedor' + qualquer um com saldo histórico. */
+  /** Vendedores no select: lista vinda de orders + qualquer um com saldo histórico. */
   const vendedoresOptions = useMemo(() => {
-    const set = new Set<string>(vendedoresUsuarios);
+    const set = new Set<string>(vendedoresLista);
     (saldos || []).forEach(s => { if (s.vendedor) set.add(s.vendedor); });
     return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [vendedoresUsuarios, saldos]);
+  }, [vendedoresLista, saldos]);
 
   /** Comprovantes que passam pelos filtros (período + vendedor + tipo). */
   const comprovantesFiltrados = useMemo(() => {
