@@ -356,7 +356,11 @@ const AdminDashboard = () => {
             </div>
             <div className="bg-muted rounded-lg p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Valor a Receber</p>
-              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(pendingValue)}</p>
+              <p className="text-3xl font-bold text-primary mt-1">
+                <LoadingValue loading={pendingLoading} hasData={pendingValue !== null} size={24}>
+                  {formatCurrency(pendingValue ?? 0)}
+                </LoadingValue>
+              </p>
             </div>
           </motion.div>
 
@@ -403,10 +407,18 @@ const AdminDashboard = () => {
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total em produção</p>
-              <p className="text-3xl font-bold text-primary mt-1">{productionCounts.in_production} {productionCounts.in_production === 1 ? 'produto' : 'produtos'}</p>
+              <p className="text-3xl font-bold text-primary mt-1">
+                <LoadingValue loading={productionLoading} hasData={productionCounts !== null} size={24}>
+                  {productionCounts?.in_production ?? 0} {(productionCounts?.in_production ?? 0) === 1 ? 'produto' : 'produtos'}
+                </LoadingValue>
+              </p>
             </div>
-            <Progress value={productionCounts.in_production > 0 ? Math.min(productionCounts.in_production / Math.max(productionCounts.total, 1) * 100, 100) : 0} className="h-3" />
-            <p className="text-xs text-muted-foreground mt-2">{productionCounts.in_production} de {productionCounts.total} produtos totais estão em produção</p>
+            <Progress value={productionCounts && productionCounts.in_production > 0 ? Math.min(productionCounts.in_production / Math.max(productionCounts.total, 1) * 100, 100) : 0} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-2">
+              <LoadingValue loading={productionLoading} hasData={productionCounts !== null} size={14}>
+                {productionCounts?.in_production ?? 0} de {productionCounts?.total ?? 0} produtos totais estão em produção
+              </LoadingValue>
+            </p>
           </motion.div>
         </div>
       </div>
