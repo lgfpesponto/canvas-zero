@@ -5,7 +5,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
-import { Link2, X, Eye } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon } from 'lucide-react';
+import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
+import { isHttpUrl } from '@/lib/driveUrl';
 import SearchableSelect from '@/components/SearchableSelect';
 import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
 import {
@@ -71,6 +73,7 @@ const BeltOrderPage = () => {
 
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
+  const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
