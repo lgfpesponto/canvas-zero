@@ -1490,10 +1490,11 @@ const OrderPage = () => {
             className="mb-2"
           />
           {(() => {
-            const filtered = tmpl.templates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
-            if (tmpl.templates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
+            const bootTemplates = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto');
+            const filtered = bootTemplates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
+            if (bootTemplates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
             if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
-            const bulkTemplates = tmpl.templates.filter(t => bulkSelectedTemplateIds.includes(t.id));
+            const bulkTemplates = bootTemplates.filter(t => bulkSelectedTemplateIds.includes(t.id));
             return (
             <>
             <div className="space-y-2 max-h-[55vh] overflow-y-auto">
