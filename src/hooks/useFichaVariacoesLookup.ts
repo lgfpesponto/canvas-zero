@@ -23,6 +23,9 @@ const CATEGORY_MAP: Record<string, string> = {
   'couro_cano': 'couro_cano',
   'couro_gaspea': 'couro_gaspea',
   'couro_taloneira': 'couro_taloneira',
+  'recorte_cano': 'recorte_cano',
+  'recorte_gaspea': 'recorte_gaspea',
+  'recorte_taloneira': 'recorte_taloneira',
 };
 
 export function useFichaVariacoesLookup() {
