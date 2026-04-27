@@ -264,6 +264,7 @@ const OrderPage = () => {
 
   const [observacao, setObservacao] = useState(df.observacao || '');
   const [fotoUrl, setFotoUrl] = useState(draftState?.fotos?.[0] || '');
+  const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
