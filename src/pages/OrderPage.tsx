@@ -630,10 +630,10 @@ const OrderPage = () => {
       // Consulta direta para contar e descrever recebidos (não depende do state)
       const { data } = await supabase
         .from('order_templates')
-        .select('sent_by_name')
+        .select('sent_by_name, form_data')
         .eq('user_id', user.id)
         .eq('seen', false);
-      const recebidos = (data as any[]) || [];
+      const recebidos = ((data as any[]) || []).filter(t => (t.form_data as any)?.__tipo !== 'cinto');
       if (recebidos.length > 0) {
         const counts = new Map<string, number>();
         recebidos.forEach(t => {
@@ -641,7 +641,7 @@ const OrderPage = () => {
           counts.set(nome, (counts.get(nome) || 0) + 1);
         });
         const breakdown = Array.from(counts.entries()).map(([n, c]) => `${c} de ${n}`).join(', ');
-        toast.success(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} transferido${recebidos.length > 1 ? 's' : ''}: ${breakdown}`, { duration: 8000 });
+        toast.success(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} de bota transferido${recebidos.length > 1 ? 's' : ''}: ${breakdown}`, { duration: 8000 });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
