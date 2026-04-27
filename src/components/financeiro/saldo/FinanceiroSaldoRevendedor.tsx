@@ -13,11 +13,12 @@ import {
 } from '@/lib/revendedorSaldo';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
+import { LoadingValue } from '@/components/ui/LoadingValue';
 
 const FinanceiroSaldoRevendedor = () => {
   const { toast } = useToast();
-  const [saldos, setSaldos] = useState<RevendedorSaldo[]>([]);
-  const [pendentesCount, setPendentesCount] = useState(0);
+  const [saldos, setSaldos] = useState<RevendedorSaldo[] | null>(null);
+  const [pendentesCount, setPendentesCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
 
@@ -37,9 +38,10 @@ const FinanceiroSaldoRevendedor = () => {
   useEffect(() => { load(); }, []);
 
   const totals = useMemo(() => {
-    const recebido = saldos.reduce((s, r) => s + Number(r.total_recebido || 0), 0);
-    const utilizado = saldos.reduce((s, r) => s + Number(r.total_utilizado || 0), 0);
-    const saldoTotal = saldos.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0);
+    const list = saldos || [];
+    const recebido = list.reduce((s, r) => s + Number(r.total_recebido || 0), 0);
+    const utilizado = list.reduce((s, r) => s + Number(r.total_utilizado || 0), 0);
+    const saldoTotal = list.reduce((s, r) => s + Number(r.saldo_disponivel || 0), 0);
     return { recebido, utilizado, saldoTotal };
   }, [saldos]);
 
