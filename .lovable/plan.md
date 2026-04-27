@@ -1,20 +1,39 @@
-## Problema
+## Objetivo
 
-Hoje o modelo "Bota Montaria (40)" só aparece no select de Modelo da ficha de produção quando o tamanho selecionado está entre **34 e 40**. Em qualquer outro tamanho ela some, por isso parece que "não está mostrando".
+Permitir que vendedores imprimam fichas de produção dos próprios pedidos, na página de Relatórios (`/relatorios`), usando o mesmo gerador de PDF que o admin já usa hoje.
 
-## Solução
+## O que muda
 
-Liberar "Bota Montaria (40)" para aparecer em **todos os tamanhos** (24 a 45), mantendo a lógica de filtro dos demais modelos intacta.
+Atualmente o botão **"IMPRIMIR FICHAS"** na página de Relatórios é exibido apenas para administradores. Vamos liberá-lo também para vendedores, mantendo todas as outras restrições (vendedor continua vendo apenas seus próprios pedidos via RLS).
+
+### Comportamento
+
+- O botão aparece para qualquer usuário logado.
+- Sem seleção: imprime as fichas de todos os pedidos visíveis (já filtrados na tela).
+- Com seleção: imprime apenas os pedidos selecionados.
+- Sem restrição por status — vendedor pode imprimir ficha de qualquer pedido próprio.
+
+### Seleção múltipla para vendedores
+
+Hoje a barra "Selecionar todos" e o checkbox no `OrderCard` aparecem só para admin. Para que o vendedor consiga escolher quais fichas imprimir:
+
+- Habilitar a barra "Selecionar todos" para vendedores.
+- Habilitar o checkbox de seleção em cada `OrderCard` para vendedores (sem expor ações administrativas como exclusão/alteração de status — essas continuam restritas).
 
 ## Mudança técnica
 
-Arquivo: `src/lib/orderFieldsConfig.ts`, função `getModelosForTamanho`.
+Arquivo: `src/pages/ReportsPage.tsx`
 
-- Hoje: `Bota Montaria (40)` é adicionada à lista `allowed` apenas dentro do bloco `t >= 34 && t <= 40`.
-- Depois: adicionar `Bota Montaria (40)` à lista `allowed` em qualquer faixa válida (infantil 24–33 e adulto 34–45), de forma que sempre apareça quando houver tamanho selecionado.
+1. Remover o wrapper `{isAdmin && (...)}` ao redor do botão "IMPRIMIR FICHAS" (linhas ~645–651), deixando o botão sempre visível.
+2. Remover o wrapper `{isAdmin && (...)}` ao redor da barra "Selecionar todos" (linhas ~668–676).
+3. No `<OrderCard>` (linha ~681), passar `isSelected`, `onToggle` mesmo quando não é admin (já passamos), mas garantir que o card mostre o checkbox para vendedor também.
 
-Nenhuma outra regra (preços, blocos de vinculação, dependências de couro/bordado) é alterada. Não há mudança no banco de dados.
+Arquivo: `src/components/OrderCard.tsx`
 
-## Observação sobre o nome
+- Ajustar a renderização do checkbox para aparecer sempre que `onToggle` estiver definido (não só quando `isAdmin`). Ações destrutivas (botão lixeira/`canDelete`) permanecem condicionadas a `isAdmin` + `canDelete`.
 
-O modelo continua exibido como "Bota Montaria (40)" na lista. Se você quiser renomear para "Cano Montaria", me avise depois que esta mudança estiver aplicada que faço o ajuste do rótulo.
+## Sem mudanças
+
+- Nenhuma alteração no banco ou em RLS.
+- Nenhuma alteração no gerador `generateProductionSheetPDF`.
+- Histórico de impressão (`recordPrintHistory`) continua sendo gravado normalmente, agora também com nome do vendedor.
