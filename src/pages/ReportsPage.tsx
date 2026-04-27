@@ -267,7 +267,16 @@ const ReportsPage = () => {
   }, [showScanner]);
 
   const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
-  const handleGenerateProductionSheetPDF = useCallback(() => generateProductionSheetPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
+  const handleGenerateProductionSheetPDF = useCallback(async () => {
+    await generateProductionSheetPDF(ordersToExport, { userName: user?.nomeCompleto || '' });
+    if (isFernanda) {
+      const toPromote = ordersToExport.filter(o => o.status === 'Em aberto');
+      if (toPromote.length > 0) {
+        await Promise.all(toPromote.map(o => updateOrderStatus(o.id, 'Impresso')));
+        toast.success(`${toPromote.length} ${toPromote.length === 1 ? 'pedido movido' : 'pedidos movidos'} para "Impresso"`);
+      }
+    }
+  }, [ordersToExport, user, isFernanda, updateOrderStatus]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
