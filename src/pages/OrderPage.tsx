@@ -743,6 +743,12 @@ const OrderPage = () => {
   const corViraPreco = COR_VIRA.find(c => c.label === corVira)?.preco || 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
 
+  // Recortes (preço configurável via admin; fallback 0)
+  const recortePreco =
+    (recorteCano ? findPrice(recorteCano, 'recorte_cano', []) : 0) +
+    (recorteGaspea ? findPrice(recorteGaspea, 'recorte_gaspea', []) : 0) +
+    (recorteTaloneira ? findPrice(recorteTaloneira, 'recorte_taloneira', []) : 0);
+
   const hasAnyLaser = laserCano.length > 0 || laserGaspea.length > 0 || laserTaloneira.length > 0;
 
   const total = modeloPreco
@@ -750,6 +756,7 @@ const OrderPage = () => {
     + acessoriosPreco + couroPreco + bordadoPreco
     + (nomeBordado ? NOME_BORDADO_PRECO : 0)
     + totalLaserPreco
+    + recortePreco
     + (pintura ? PINTURA_PRECO : 0)
     + (estampa ? ESTAMPA_PRECO : 0)
     + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
