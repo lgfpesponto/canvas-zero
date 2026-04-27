@@ -118,6 +118,12 @@ export interface Order {
   extraDetalhes?: Record<string, any>;
   numeroPedidoBota?: string;
   cliente?: string;
+  recorteCano?: string;
+  recorteGaspea?: string;
+  recorteTaloneira?: string;
+  corRecorteCano?: string;
+  corRecorteGaspea?: string;
+  corRecorteTaloneira?: string;
 }
 
 // Re-export statuses from centralized module for backward compatibility
