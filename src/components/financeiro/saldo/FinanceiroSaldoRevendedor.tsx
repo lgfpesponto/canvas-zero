@@ -51,19 +51,43 @@ const FinanceiroSaldoRevendedor = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total recebido</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-primary">{formatCurrency(totals.recebido)}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-primary">
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {formatCurrency(totals.recebido)}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total utilizado</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{formatCurrency(totals.utilizado)}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {formatCurrency(totals.utilizado)}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
         <Card className="border-primary border-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-primary">Saldo disponível total</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-primary">{formatCurrency(totals.saldoTotal)}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-primary">
+              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
+                {formatCurrency(totals.saldoTotal)}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
-        <Card className={pendentesCount > 0 ? 'border-destructive' : ''}>
+        <Card className={(pendentesCount ?? 0) > 0 ? 'border-destructive' : ''}>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Comprovantes pendentes</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-destructive">{pendentesCount}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">
+              <LoadingValue loading={loading} hasData={pendentesCount !== null} size={20}>
+                {pendentesCount ?? 0}
+              </LoadingValue>
+            </p>
+          </CardContent>
         </Card>
       </div>
 
