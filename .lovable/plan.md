@@ -1,52 +1,23 @@
-## Problema identificado
+## Problema
 
-Vários pontos do portal exibem **valores zerados** (`R$ 0,00`, `0`, listas vazias) durante o fetch inicial dos dados, dando a impressão errada de que não há informação. Isso acontece porque os `useState` iniciam com `0` / `[]` e o componente renderiza esses valores antes do primeiro `await` retornar.
+Na ficha "Faça seu Pedido" da bota, os 3 selects "Recortes do Cano", "Recortes da Gáspea" e "Recortes da Taloneira" aparecem vazios porque:
 
-### Exemplos confirmados
+1. A tabela `ficha_variacoes` não possui nenhuma variação cadastrada para os campos `recorte_cano`, `recorte_gaspea`, `recorte_taloneira` (os campos existem em `ficha_campos`, mas sem opções).
+2. O hook `useFichaVariacoesLookup` (que alimenta o select do formulário) tem um `CATEGORY_MAP` que ainda não inclui as três categorias de recorte — então mesmo se as variações existissem, elas não chegariam ao formulário.
 
-- **AdminDashboard**: `pendingValue`, `productionCounts`, `chartData`, `comprovantesRevendedor`, `storageInfo` — todos exibem 0 antes do RPC retornar.
-- **VendedorDashboard / FernandaDashboard**: `pendingValue`, `chartData`, `commissionOrders` — idem.
-- **TrackOrderPage**: enquanto `loading=true`, exibe "Carregando..." mas o "Nenhum pedido encontrado" pisca para alguns hooks de filtro.
-- **ReportsPage**: já tem `ordersLoading`, mas os contadores no topo (`totalValue`, `totalProdutos`) renderizam zero antes da resposta.
-- **FinanceiroSaldoRevendedor**: cards de Total recebido/utilizado/saldo aparecem em 0 antes do `fetchSaldosTodos`.
-- **RevendedorSaldoPage**: parte já tem spinner (movimentos), mas o card de saldo aparece zerado primeiro.
+## O que vai ser feito
 
-## Solução
+1. **Cadastrar as 4 variações** (Anjo, Borda, Touro Brinco, Touro Recortado) em cada um dos 3 campos de recorte na tabela `ficha_variacoes`, com `preco_adicional = 0` (preço pode ser ajustado depois pelo admin) e `ativo = true`. Total: 12 inserts (4 variações × 3 campos).
 
-Criar um padrão consistente: **enquanto `loading === true` (e ainda não houve nenhum dado), exibir spinner ou skeleton em vez do valor**. Não substituir dados antigos por skeleton em refetches (para não "piscar"), apenas no primeiro carregamento.
+2. **Atualizar `src/hooks/useFichaVariacoesLookup.ts`** adicionando ao `CATEGORY_MAP` as três entradas:
+   - `recorte_cano` → `recorte_cano`
+   - `recorte_gaspea` → `recorte_gaspea`
+   - `recorte_taloneira` → `recorte_taloneira`
 
-### Mudanças
+   Assim os selects do formulário passam a listar as variações vindas do banco.
 
-**1. Componente reutilizável `LoadingValue`** (novo: `src/components/ui/LoadingValue.tsx`)
-- Recebe `loading`, `value`, opcional `className`. 
-- Quando `loading && value não definido`: renderiza `<Loader2 className="animate-spin" />` ou um Skeleton fino.
-- Caso contrário: renderiza o valor.
+## Resultado esperado
 
-**2. AdminDashboard (`src/components/dashboard/AdminDashboard.tsx`)**
-- Adicionar flags `pendingLoading`, `productionLoading`, `chartLoading`, `comprovantesLoading`, `storageLoading` (já existe), inicializadas como `true`, marcadas como `false` no `finally` de cada `useEffect`.
-- Trocar exibições de `formatCurrency(pendingValue)`, `productionCounts.in_production`, `comprovantesRevendedor.count/total`, `storageInfo` para usar `LoadingValue` (ou bloco com Skeleton para o gráfico).
-- Para o `LineChart`: se `chartLoading && chartData.length === 0` → exibir um `<Skeleton className="h-64 w-full" />` no lugar.
+Ao abrir a ficha de produção da bota, os campos "Recortes do Cano", "Recortes da Gáspea" e "Recortes da Taloneira" passam a oferecer as 4 opções: Anjo, Borda, Touro Brinco, Touro Recortado. Como já estão integrados ao `getDbItems` + `findPrice`, qualquer ajuste futuro de preço feito no painel admin (Variações) reflete automaticamente no cálculo do total.
 
-**3. VendedorDashboard e FernandaDashboard**
-- Mesma abordagem: adicionar flags de loading por consulta e usar `LoadingValue` / Skeleton onde hoje aparecem 0 / listas vazias.
-
-**4. ReportsPage**
-- Os contadores `totalValue` e `totalProdutos` no resumo do topo precisam respeitar `ordersLoading` quando ainda não houve resposta (mostrar spinner em vez de R$ 0,00 / 0 itens). Manter valor antigo durante refetch para evitar piscar.
-
-**5. FinanceiroSaldoRevendedor (`src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx`)**
-- Os 4 cards de resumo no topo já têm `loading` para a tabela; aplicar o mesmo `loading` aos 4 valores (Total recebido, utilizado, saldo, comprovantes pendentes) — usar `LoadingValue`.
-
-**6. RevendedorSaldoPage (`src/pages/RevendedorSaldoPage.tsx`)**
-- Card de saldo no topo: quando `loading=true` e ainda sem dados, exibir spinner em vez de `R$ 0,00`.
-
-**7. FinanceiroAReceber e FinanceiroAPagar** (verificação adicional durante implementação)
-- Aplicar mesmo padrão a totalizadores e tabelas que exibam zero/vazio antes do fetch terminar.
-
-### Princípios
-
-- **Primeiro fetch**: mostra loading.
-- **Refetches** (filtro mudou, etc.): mantém valor anterior visível para não piscar — só mostra loading se não houver dado prévio.
-- **Listas vazias reais** (após carregamento): mantêm a mensagem atual ("Nenhum pedido encontrado", etc.).
-- **Sem mudança visual** nos campos que já tinham loading correto (TrackOrderPage, UsersManagementPage, PiecesReportPage etc.).
-
-Nenhuma lógica de cálculo, filtro ou estrutura de dados é alterada — apenas a renderização condicional dos valores enquanto `loading === true` no primeiro carregamento.
+Nada na lógica de cálculo, persistência, edição ou PDF muda — os campos já estavam preparados, só faltava popular as opções e habilitar o mapeamento.
