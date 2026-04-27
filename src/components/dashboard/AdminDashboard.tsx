@@ -254,7 +254,7 @@ const AdminDashboard = () => {
 
   return (
     <section className="container mx-auto px-4 py-8">
-      {isAdminMaster && comprovantesRevendedor.count > 0 && (
+      {isAdminMaster && !comprovantesLoading && comprovantesRevendedor && comprovantesRevendedor.count > 0 && (
         <Link
           to="/financeiro?tab=receber#comprovantes-revendedor"
           className="block mb-6 rounded-xl border-2 border-destructive bg-destructive/5 p-5 hover:bg-destructive/10 transition-colors"
@@ -265,8 +265,8 @@ const AdminDashboard = () => {
               <div>
                 <div className="font-bold text-lg">Comprovantes a entrar</div>
                 <div className="text-sm text-muted-foreground">
-                  {comprovantesRevendedor.count} {comprovantesRevendedor.count === 1 ? 'comprovante enviado' : 'comprovantes enviados'} pelos revendedores · Total{' '}
-                  <strong className="text-destructive">{formatCurrency(comprovantesRevendedor.total)}</strong>
+                  {comprovantesRevendedor!.count} {comprovantesRevendedor!.count === 1 ? 'comprovante enviado' : 'comprovantes enviados'} pelos revendedores · Total{' '}
+                  <strong className="text-destructive">{formatCurrency(comprovantesRevendedor!.total)}</strong>
                 </div>
               </div>
             </div>
