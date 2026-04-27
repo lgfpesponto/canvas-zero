@@ -635,11 +635,13 @@ const OrderPage = () => {
         .eq('seen', false);
       const recebidos = (data as any[]) || [];
       if (recebidos.length > 0) {
-        const remetentes = Array.from(new Set(recebidos.map(t => t.sent_by_name).filter(Boolean)));
-        const desc = remetentes.length === 1
-          ? `de ${remetentes[0]}`
-          : `de ${remetentes.length} usuários`;
-        toast.info(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} ${desc}`, { duration: 6000 });
+        const counts = new Map<string, number>();
+        recebidos.forEach(t => {
+          const nome = t.sent_by_name || 'Usuário';
+          counts.set(nome, (counts.get(nome) || 0) + 1);
+        });
+        const breakdown = Array.from(counts.entries()).map(([n, c]) => `${c} de ${n}`).join(', ');
+        toast.success(`Você recebeu ${recebidos.length} novo${recebidos.length > 1 ? 's' : ''} modelo${recebidos.length > 1 ? 's' : ''} transferido${recebidos.length > 1 ? 's' : ''}: ${breakdown}`, { duration: 8000 });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
