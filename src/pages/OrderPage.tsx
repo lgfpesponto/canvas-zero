@@ -1154,7 +1154,7 @@ const OrderPage = () => {
 
               <ToggleField label="Sob Medida (+R$50)" value={sobMedida} onChange={setSobMedida} textValue={sobMedidaDesc} onTextChange={setSobMedidaDesc} textPlaceholder="Descreva a medida..." />
 
-              <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
+              <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
 
               {/* Link da Foto de Referência (Drive) + botão Ver foto */}
               <div>
@@ -1189,7 +1189,7 @@ const OrderPage = () => {
             <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={MODELOS} />
           )}
 
-          {/* 7 Couros */}
+          {/* COUROS */}
           <Section title="Couros">
             <div className="grid sm:grid-cols-2 gap-4">
               <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getDynCoresCouro(v, 'couro_cano', 'cor_couro_cano').includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} required />
@@ -1201,11 +1201,36 @@ const OrderPage = () => {
             </div>
           </Section>
 
-          {/* Desenvolvimento (moved before Bordados) */}
-          <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
+          {/* PESPONTO */}
+          <Section title="Pesponto">
+            <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
+              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} required />
+              {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
+                <>
+                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} required />
+                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} required />
+                </>
+              )}
+            </div>
+          </Section>
 
-          {/* 8-13 Bordados */}
-          <Section title="Bordados">
+          {/* SOLADO */}
+          <Section title="Solado">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} required />
+              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado)} required />
+              {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
+                <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} required />
+              )}
+              {getCorViraOptions(modelo, solado).length > 1 && (
+                <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={getCorViraOptions(modelo, solado)} />
+              )}
+            </div>
+            <ToggleField label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} value={costuraAtras} onChange={setCosturaAtras} />
+          </Section>
+
+          {/* BORDADO */}
+          <Section title="Bordado">
             <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
@@ -1223,12 +1248,11 @@ const OrderPage = () => {
               <div><label className={cls.label}>Descrever bordado (Taloneira)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescTaloneira} onChange={e => setBordadoVariadoDescTaloneira(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
             <div><label className={cls.label}>Cor do Bordado da Taloneira</label><input type="text" value={corBordadoTaloneira} onChange={e => setCorBordadoTaloneira(e.target.value)} className={cls.input} /></div>
+
+            <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
           </Section>
 
-          {/* 14 Nome Bordado */}
-          <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
-
-          {/* 15 Laser (split by cano/gáspea/taloneira + pintura) */}
+          {/* LASER */}
           <Section title="Laser">
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
@@ -1251,30 +1275,15 @@ const OrderPage = () => {
             <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={COR_GLITTER} />
             <div><label className={cls.label}>Cor do Bordado (Taloneira)</label><input type="text" value={corBordadoLaserTaloneira} onChange={e => setCorBordadoLaserTaloneira(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
 
-            {/* Pintura inside Laser section */}
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
           </Section>
 
-          {/* Divider after Pintura/Laser, before Estampa */}
-          <hr className="border-border" />
-
-          {/* Estampa */}
-          <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
-
-          {/* Pesponto */}
-          <Section title="Pesponto">
-            <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
-              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} required />
-              {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
-                <>
-                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} required />
-                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} required />
-                </>
-              )}
-            </div>
+          {/* ESTAMPA */}
+          <Section title="Estampa">
+            <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
           </Section>
 
-          {/* Metais */}
+          {/* METAIS */}
           <Section title="Metais">
             <div className="grid sm:grid-cols-3 gap-4">
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={AREA_METAL} />
@@ -1318,8 +1327,9 @@ const OrderPage = () => {
             </div>
           </Section>
 
-          {/* Extras (Tiras + Tricê) */}
+          {/* EXTRAS (Acessórios + Tricê + Tiras + Franja + Corrente + Carimbo a Fogo) */}
           <Section title="Extras">
+            <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
             <div className="space-y-2">
@@ -1340,35 +1350,20 @@ const OrderPage = () => {
                 </div>
               )}
             </div>
-          </Section>
-
-          {/* Solados */}
-          <Section title="Solados">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} required />
-              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado)} required />
-              {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
-                <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} required />
-              )}
-              {getCorViraOptions(modelo, solado).length > 1 && (
-                <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={getCorViraOptions(modelo, solado)} />
-              )}
-            </div>
-            <ToggleField label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} value={costuraAtras} onChange={setCosturaAtras} />
-          </Section>
-
-          {/* Carimbo a Fogo */}
-          <Section title="Carimbo a Fogo">
-            <div className="flex flex-wrap items-center gap-3">
-              <select value={carimbo} onChange={e => setCarimbo(e.target.value)} className={cls.inputSmall + ' w-44'}>
-                <option value="">Sem carimbo</option>
-                {CARIMBO.map(c => <option key={c.label} value={c.label}>{c.label} (R${c.preco})</option>)}
-              </select>
-              <input type="text" value={carimboDesc} onChange={e => setCarimboDesc(e.target.value)} placeholder="Quais carimbos e onde..." className={cls.inputSmall + ' flex-1 min-w-[180px]'} />
+            {/* Carimbo a Fogo (movido pra dentro de Extras) */}
+            <div>
+              <label className={cls.label}>Carimbo a Fogo</label>
+              <div className="flex flex-wrap items-center gap-3">
+                <select value={carimbo} onChange={e => setCarimbo(e.target.value)} className={cls.inputSmall + ' w-44'}>
+                  <option value="">Sem carimbo</option>
+                  {CARIMBO.map(c => <option key={c.label} value={c.label}>{c.label} (R${c.preco})</option>)}
+                </select>
+                <input type="text" value={carimboDesc} onChange={e => setCarimboDesc(e.target.value)} placeholder="Quais carimbos e onde..." className={cls.inputSmall + ' flex-1 min-w-[180px]'} />
+              </div>
             </div>
           </Section>
 
-          {/* Adicional */}
+          {/* ADICIONAL */}
           <Section title="Adicional">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
@@ -1382,11 +1377,10 @@ const OrderPage = () => {
             </div>
           </Section>
 
-          {/* Observação */}
-          <div>
-            <label className={cls.label}>Observação</label>
-            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} />
-          </div>
+          {/* OBSERVAÇÃO */}
+          <Section title="Observação">
+            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
+          </Section>
 
           {/* Link da foto agora vive na seção Identificação no topo */}
 
