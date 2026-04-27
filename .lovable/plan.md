@@ -1,34 +1,33 @@
-## Adicionar status "Impresso" na produção
+## Problema
 
-Novo status entre **Em aberto** e **Aguardando**, conta como em produção, e é aplicado **automaticamente** quando a admin de produção (Fernanda / `admin_producao`) clica em **IMPRIMIR FICHAS** na página de Relatórios.
+Hoje, ao escanear códigos de barras na página de Relatórios, o usuário precisa clicar no campo de input entre cada leitura, quebrando o fluxo de seleções múltiplas.
 
-### O que muda para o usuário
+Causas identificadas em `src/pages/ReportsPage.tsx`:
 
-- Aparece um novo status **"Impresso"** na esteira de produção, logo após "Em aberto" e antes de "Aguardando".
-- Pedidos com status "Impresso" passam a contar no card **"Produtos na produção"** do dashboard.
-- Quando a Fernanda (admin_producao) imprimir as fichas pelo botão **IMPRIMIR FICHAS**, todos os pedidos selecionados que estiverem em **"Em aberto"** serão promovidos automaticamente para **"Impresso"**.
-  - Pedidos em qualquer outro status (Aguardando, Corte, etc.) **não** sofrem alteração.
-  - Outros usuários (admin_master / vendedores) imprimem normalmente, **sem** mudar status.
+1. O input do scanner usa `disabled={scanning}`. Enquanto a busca acontece (mesmo que rápida), o input fica desabilitado e **perde o foco**. Leitores de código de barras digitam muito rápido — o segundo scan chega antes do foco voltar.
+2. Após cada scan bem-sucedido, `setScanFilterId(match.id)` filtra a lista para mostrar só o último pedido escaneado. Isso muda a tela e dá a sensação de que cada scan é uma ação isolada.
+3. Não há `refocus` automático no input após `setScanning(false)`.
 
-### Mudanças técnicas
+## Solução
 
-**1. Banco de dados (migration)**
-- Inserir nova linha em `status_etapas`: `nome="Impresso"`, `slug="impresso"`, `ordem=2`; reordenar os demais (somar +1 a partir de "Aguardando").
-- Atualizar a função `get_production_counts` para incluir `'Impresso'` no array de status considerados em produção.
+Tornar o scanner um campo "sempre pronto" para receber a próxima leitura, sem interrupções:
 
-**2. `src/lib/order-logic.ts`**
-- Inserir `"Impresso"` em:
-  - `PRODUCTION_STATUSES`
-  - `PRODUCTION_STATUSES_USER`
-  - `PRODUCTION_STATUSES_IN_PROD`
-- Posição: imediatamente após `"Em aberto"`.
+### Mudanças em `src/pages/ReportsPage.tsx`
 
-**3. `src/pages/ReportsPage.tsx`**
-- No `handleGenerateProductionSheetPDF`:
-  - Gerar o PDF normalmente.
-  - Se o usuário atual tiver role `admin_producao`, percorrer `ordersToExport` e, para cada pedido com `status === 'Em aberto'`, chamar `updateOrder(id, { status: 'Impresso' })` (ou update direto via supabase) registrando a alteração no histórico (mesmo padrão usado em outras mudanças de status).
-  - Toast informando quantos pedidos foram movidos para "Impresso".
+1. **Remover `disabled={scanning}`** do input do scanner (manter apenas no botão "Buscar"). O input continua ativo e mantém o foco mesmo durante a busca.
+   - Mostrar o estado "buscando" apenas via ícone (`Loader2`) e placeholder, sem desabilitar.
+   
+2. **Reaplicar foco automaticamente** após cada scan (sucesso ou erro), usando `scanInputRef.current?.focus()` ao final do `handleScan` (no `finally`).
 
-### Pontos fora do escopo
-- Cor/badge específico do novo status segue o estilo padrão dos demais (sem CSS dedicado).
-- Página de Detalhes do Pedido e tela de progresso já listam status dinamicamente a partir das constantes acima — não requer mudança extra.
+3. **Não filtrar a lista por scan** — remover `setScanFilterId(match.id)` do fluxo de scan do admin. O `scanFilterId` e a lógica relacionada (linhas 145, 248, 405, 725) podem ser descontinuados, já que o admin acompanha os escaneados pelo painel "Visualizar pedidos selecionados" que já existe.
+
+4. **Fila simples para scans muito rápidos**: se um scan chegar enquanto `scanning=true`, em vez de descartar (`if (scanning) return`), enfileirar a próxima leitura para processar logo em seguida. Implementação leve com `useRef<string[]>` de pendentes processada após cada conclusão.
+
+5. **Beep e toast continuam** como feedback de sucesso/erro/duplicado, sem mudar a tela.
+
+## Resultado
+
+- Escanear N códigos em sequência sem tocar no mouse ou teclado.
+- Cada leitura adiciona à seleção, toca o beep e mantém o foco no campo.
+- A lista de pedidos não é filtrada a cada scan — o usuário vê todos os selecionados pelo painel "Visualizar pedidos selecionados".
+- Códigos duplicados continuam avisando (beep de erro + toast).
