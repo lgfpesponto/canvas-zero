@@ -578,17 +578,19 @@ const OrderDetailPage = () => {
             {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
           </h2>
           {order.tipoExtra && order.extraDetalhes ? (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
+            <div className="mb-6 space-y-4">
               {order.numeroPedidoBota && (
-                <div className="flex justify-between py-1.5 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">Nº do Pedido</span>
-                  <span className="text-sm font-semibold text-right">{order.numeroPedidoBota}</span>
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+                  <div className="flex justify-between py-1.5 border-b border-border/50">
+                    <span className="text-sm text-muted-foreground">Nº do Pedido</span>
+                    <span className="text-sm font-semibold text-right">{order.numeroPedidoBota}</span>
+                  </div>
                 </div>
               )}
               {/* Multi-bota list */}
               {order.tipoExtra === 'bota_pronta_entrega' && Array.isArray((order.extraDetalhes as any)?.botas) ? (
-                <>
-                   {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+                  {((order.extraDetalhes as any).botas as any[]).map((b: any, idx: number) => (
                     <div key={idx} className="col-span-full border border-border rounded-lg p-3 space-y-1">
                       <p className="text-sm font-semibold">Bota {idx + 1}</p>
                       <div className="flex justify-between">
@@ -628,28 +630,40 @@ const OrderDetailPage = () => {
                       )}
                     </div>
                   ))}
-                </>
+                </div>
               ) : (
-                Object.entries(order.extraDetalhes)
-                  .filter(([key, val]) => !EXTRA_INTERNAL_KEYS.has(key) && !isExtraValueEmpty(val) && key !== 'botas')
-                  .map(([key, val]) => {
-                    const label = EXTRA_DETAIL_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-                    const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
-                    return (
-                      <div key={key} className="flex justify-between py-1.5 border-b border-border/50">
-                        <span className="text-sm text-muted-foreground">{label}</span>
-                        <span className="text-sm font-semibold text-right max-w-[60%]">{displayVal}</span>
-                      </div>
-                    );
-                  })
+                extraGrouped.map(grupo => (
+                  <div key={grupo.categoria}>
+                    <div className="bg-primary text-primary-foreground text-center text-sm lowercase font-medium py-1.5 rounded-sm mb-2">
+                      {grupo.categoria}
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+                      {grupo.itens.map(([label, value]) => (
+                        <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                          <span className="text-sm text-muted-foreground">{label}</span>
+                          <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
-              {details.map(([label, value]) => (
-                <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">{label}</span>
-                  <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            <div className="mb-6 space-y-4">
+              {detailsGrouped.map(grupo => (
+                <div key={grupo.categoria}>
+                  <div className="bg-primary text-primary-foreground text-center text-sm lowercase font-medium py-1.5 rounded-sm mb-2">
+                    {grupo.categoria}
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+                    {grupo.itens.map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
