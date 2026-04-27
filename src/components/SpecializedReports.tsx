@@ -1004,6 +1004,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         if (o.couroCano || o.corCouroCano) parts.push(`Cano: ${o.couroCano || ''} ${o.corCouroCano || ''}`);
         if (o.couroGaspea || o.corCouroGaspea) parts.push(`Gáspea: ${o.couroGaspea || ''} ${o.corCouroGaspea || ''}`);
         if (o.couroTaloneira || o.corCouroTaloneira) parts.push(`Talon.: ${o.couroTaloneira || ''} ${o.corCouroTaloneira || ''}`);
+        // Recortes (cano / gáspea / taloneira) com suas cores
+        if (o.recorteCano || o.corRecorteCano) parts.push(`Recorte Cano: ${o.recorteCano || ''}${o.corRecorteCano ? ' - ' + o.corRecorteCano : ''}`.trim());
+        if (o.recorteGaspea || o.corRecorteGaspea) parts.push(`Recorte Gáspea: ${o.recorteGaspea || ''}${o.corRecorteGaspea ? ' - ' + o.corRecorteGaspea : ''}`.trim());
+        if (o.recorteTaloneira || o.corRecorteTaloneira) parts.push(`Recorte Talon.: ${o.recorteTaloneira || ''}${o.corRecorteTaloneira ? ' - ' + o.corRecorteTaloneira : ''}`.trim());
         const modeloLine = [o.modelo, o.tamanho, o.genero].filter(Boolean).join(' – ');
         if (modeloLine) parts.push(modeloLine);
         if (o.acessorios) parts.push(`Acessórios: ${o.acessorios}`);

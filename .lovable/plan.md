@@ -1,33 +1,29 @@
-## Problema
+## Objetivo
 
-Hoje, ao escanear códigos de barras na página de Relatórios, o usuário precisa clicar no campo de input entre cada leitura, quebrando o fluxo de seleções múltiplas.
+Incluir todos os campos de **recorte** (Cano, Gáspea e Taloneira), junto com suas cores, na descrição de cada pedido no **Relatório de Corte**.
 
-Causas identificadas em `src/pages/ReportsPage.tsx`:
+## Situação atual
 
-1. O input do scanner usa `disabled={scanning}`. Enquanto a busca acontece (mesmo que rápida), o input fica desabilitado e **perde o foco**. Leitores de código de barras digitam muito rápido — o segundo scan chega antes do foco voltar.
-2. Após cada scan bem-sucedido, `setScanFilterId(match.id)` filtra a lista para mostrar só o último pedido escaneado. Isso muda a tela e dá a sensação de que cada scan é uma ação isolada.
-3. Não há `refocus` automático no input após `setScanning(false)`.
+Em `src/components/SpecializedReports.tsx`, a função `generateCortePDF` monta a coluna "Descrição do Corte" com:
 
-## Solução
+- Couro do Cano / Gáspea / Taloneira (com cor)
+- Modelo / tamanho / gênero
+- Acessórios, estampa, extras, observação
 
-Tornar o scanner um campo "sempre pronto" para receber a próxima leitura, sem interrupções:
+Ela **não imprime** os campos `recorteCano`, `recorteGaspea`, `recorteTaloneira` nem suas cores (`corRecorteCano`, `corRecorteGaspea`, `corRecorteTaloneira`), embora esses dados já existam no pedido (banco e modelo `Order`).
 
-### Mudanças em `src/pages/ReportsPage.tsx`
+## Mudança proposta
 
-1. **Remover `disabled={scanning}`** do input do scanner (manter apenas no botão "Buscar"). O input continua ativo e mantém o foco mesmo durante a busca.
-   - Mostrar o estado "buscando" apenas via ícone (`Loader2`) e placeholder, sem desabilitar.
-   
-2. **Reaplicar foco automaticamente** após cada scan (sucesso ou erro), usando `scanInputRef.current?.focus()` ao final do `handleScan` (no `finally`).
+Em `src/components/SpecializedReports.tsx`, dentro do laço `for (const o of filtered)` da `generateCortePDF` (somente para botas — não cintos), adicionar três linhas logo após os três `Talon.:`:
 
-3. **Não filtrar a lista por scan** — remover `setScanFilterId(match.id)` do fluxo de scan do admin. O `scanFilterId` e a lógica relacionada (linhas 145, 248, 405, 725) podem ser descontinuados, já que o admin acompanha os escaneados pelo painel "Visualizar pedidos selecionados" que já existe.
+```
+Recorte Cano: <recorteCano> - <corRecorteCano>
+Recorte Gáspea: <recorteGaspea> - <corRecorteGaspea>
+Recorte Talon.: <recorteTaloneira> - <corRecorteTaloneira>
+```
 
-4. **Fila simples para scans muito rápidos**: se um scan chegar enquanto `scanning=true`, em vez de descartar (`if (scanning) return`), enfileirar a próxima leitura para processar logo em seguida. Implementação leve com `useRef<string[]>` de pendentes processada após cada conclusão.
-
-5. **Beep e toast continuam** como feedback de sucesso/erro/duplicado, sem mudar a tela.
+Cada linha aparece somente se o campo de recorte ou sua cor estiver preenchido. O hífen com a cor só aparece quando a cor existir.
 
 ## Resultado
 
-- Escanear N códigos em sequência sem tocar no mouse ou teclado.
-- Cada leitura adiciona à seleção, toca o beep e mantém o foco no campo.
-- A lista de pedidos não é filtrada a cada scan — o usuário vê todos os selecionados pelo painel "Visualizar pedidos selecionados".
-- Códigos duplicados continuam avisando (beep de erro + toast).
+No PDF do Relatório de Corte, cada pedido de bota mostrará, junto da descrição do couro, todos os recortes selecionados na ficha com suas respectivas cores. Cintos seguem inalterados.
