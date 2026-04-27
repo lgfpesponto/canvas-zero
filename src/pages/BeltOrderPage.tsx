@@ -747,15 +747,10 @@ const BeltOrderPage = () => {
                       <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
                         <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
                         <div className="flex flex-col min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm truncate">{t.nome}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm break-words">{t.nome}</span>
                             {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
                           </div>
-                          {t.sent_by_name && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Inbox size={11} /> Recebido de {t.sent_by_name}
-                            </span>
-                          )}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
