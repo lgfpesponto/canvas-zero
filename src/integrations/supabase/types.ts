@@ -1153,6 +1153,10 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      marcar_comprovante_utilizado: {
+        Args: { _comprovante_id: string; _motivo: string }
+        Returns: Json
+      }
       marcar_notificacao_lida: { Args: { _id: string }; Returns: undefined }
       marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
       quitar_pedidos_historico: {
