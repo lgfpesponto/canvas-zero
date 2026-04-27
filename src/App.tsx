@@ -28,6 +28,8 @@ import AdminConfigFichaPage from "./pages/AdminConfigFichaPage";
 import AdminConfigVariacoesPage from "./pages/AdminConfigVariacoesPage";
 import FinanceiroPage from "./pages/FinanceiroPage";
 import RevendedorSaldoPage from "./pages/RevendedorSaldoPage";
+import GestaoPage from "./pages/GestaoPage";
+import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -40,6 +42,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <SelectedOrdersProvider>
+          <PresenceTracker />
           <Header />
           <Routes>
             <Route path="/" element={<Index />} />
@@ -66,6 +69,7 @@ const App = () => (
             <Route path="/pedido-dinamico/:slug" element={<DynamicOrderPage />} />
             <Route path="/financeiro" element={<FinanceiroPage />} />
             <Route path="/financeiro/saldo" element={<RevendedorSaldoPage />} />
+            <Route path="/admin/gestao" element={<GestaoPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SelectedOrdersProvider>
