@@ -1995,6 +1995,9 @@ export default function AdminConfigFichaPage() {
     'cor-sola': COR_SOLA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
     'cor-vira': COR_VIRA.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
     'carimbo': CARIMBO.map(t => typeof t === 'string' ? { label: t, preco: 0 } : t),
+    'recorte_cano':      [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
+    'recorte_gaspea':    [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
+    'recorte_taloneira': [{label:'Anjo',preco:0},{label:'Borda',preco:0},{label:'Touro Brinco',preco:0},{label:'Touro Recortado',preco:0}],
   } : {};
 
   // Count total unsaved fallback items
