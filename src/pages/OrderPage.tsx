@@ -24,7 +24,7 @@ import {
   GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO, GLITTER_TALONEIRA_PRECO,
   COR_GLITTER, COR_LINHA, COR_BORRACHINHA,
   COR_VIVO, DESENVOLVIMENTO, AREA_METAL, TIPO_METAL, COR_METAL,
-  STRASS_PRECO, CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO,
+  STRASS_PRECO, BOLA_GRANDE_PRECO, CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO,
   FRANJA_PRECO, CORRENTE_PRECO, SOLADO, COR_SOLA, COR_VIRA,
   CARIMBO, SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO,
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, FORMATO_BICO,
@@ -325,6 +325,7 @@ const OrderPage = () => {
     corLinha, corBorrachinha, corVivo,
     areaMetal, tipoMetal: tipoMetal.join('||'), corMetal,
     strass: String(strass), strassQtd: String(strassQtd),
+    bolaGrande: String(bolaGrande), bolaGrandeQtd: String(bolaGrandeQtd),
     cruzMetal: String(cruzMetal), cruzMetalQtd: String(cruzMetalQtd),
     bridaoMetal: String(bridaoMetal), bridaoMetalQtd: String(bridaoMetalQtd),
     cavaloMetal: String(cavaloMetal), cavaloMetalQtd: String(cavaloMetalQtd),
@@ -337,7 +338,7 @@ const OrderPage = () => {
     carimbo, carimboDesc,
     adicionalDesc, adicionalValor: String(adicionalValor),
     observacao, sobMedida: String(sobMedida),
-  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida]);
+  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, bolaGrande, bolaGrandeQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida]);
 
   // Populate all form fields from template data
   const populateFormFromTemplate = useCallback((fd: Record<string, string>) => {
@@ -383,10 +384,12 @@ const OrderPage = () => {
     setCorBorrachinha(fd.corBorrachinha || '');
     setCorVivo(fd.corVivo || '');
     setAreaMetal(fd.areaMetal || '');
-    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||') : []);
+    setTipoMetal(fd.tipoMetal ? fd.tipoMetal.split('||').filter((x: string) => x !== 'Bola Grande') : []);
     setCorMetal(fd.corMetal || '');
     setStrass(fd.strass === 'true');
     setStrassQtd(Number(fd.strassQtd) || 0);
+    setBolaGrande(fd.bolaGrande === 'true' || (fd.tipoMetal || '').includes('Bola Grande'));
+    setBolaGrandeQtd(Number(fd.bolaGrandeQtd) || 0);
     setCruzMetal(fd.cruzMetal === 'true');
     setCruzMetalQtd(Number(fd.cruzMetalQtd) || 0);
     setBridaoMetal(fd.bridaoMetal === 'true');
@@ -698,6 +701,7 @@ const OrderPage = () => {
   const desenvPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
   const areaMetalPreco = AREA_METAL.find(a => a.label === areaMetal)?.preco || 0;
   const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
+  const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * BOLA_GRANDE_PRECO : 0;
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * CRUZ_METAL_PRECO : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * BRIDAO_METAL_PRECO : 0;
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * CAVALO_METAL_PRECO : 0;
@@ -716,7 +720,7 @@ const OrderPage = () => {
     + totalLaserPreco
     + (pintura ? PINTURA_PRECO : 0)
     + (estampa ? ESTAMPA_PRECO : 0)
-    + desenvPreco + areaMetalPreco + strassPreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
+    + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
     + (trice ? TRICE_PRECO : 0)
     + (tiras ? TIRAS_PRECO : 0)
     + (franja ? FRANJA_PRECO : 0)
