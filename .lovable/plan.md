@@ -1,41 +1,59 @@
-# Plano
+# Chat Interno com IA para admin_master
 
-## O que vou ajustar
+Assistente de IA exclusivo para admin_master, sempre acessível via painel lateral, sem nunca ocupar a tela inteira.
 
-1. Corrigir a tela de Relatórios para que, com o filtro `Apenas atrasados` ativo, todos os números e listas exibidos venham da mesma fonte de dados filtrada, sem manter valores herdados da consulta paginada normal.
-2. Remover o bloco `Pedidos apagados` do dashboard do `admin_master`.
-3. Transformar `Pedidos em Alerta` em um painel minimizado por padrão, no mesmo padrão visual/comportamental dos quadros de solas.
+## Comportamento da interface
 
-## Como será feito
+- **Botão flutuante (FAB)** discreto no canto inferior direito, visível em **todas as páginas** do portal (exceto login), apenas para `admin_master`.
+- Ao clicar, abre um **painel lateral à direita** (drawer) ocupando ~400px de largura no desktop. O resto do portal continua visível e **totalmente clicável/navegável** atrás.
+- No mobile, o painel ocupa ~85% da largura mas ainda permite fechar e voltar à navegação.
+- O painel **persiste entre páginas**: você pode trocar de rota (ir pra Relatórios, abrir um pedido, ir pro Financeiro) e a conversa continua aberta no mesmo lugar, sem perder o histórico.
+- Botões no topo do painel: minimizar (volta ao FAB), nova conversa, abrir histórico de conversas anteriores.
+- **Sem rota `/admin/assistente` em tela cheia** — o assistente vive 100% como overlay lateral.
 
-### 1) Unificar o modo `Apenas atrasados` em `ReportsPage`
-- Criar uma camada única de dados exibidos no modo atrasados, derivada de `overdueOrders`, para evitar que alguns números continuem usando `serverOrders`/`serverCount`/RPC normal.
-- Ajustar os resumos exibidos para sempre refletirem exatamente a lista visível quando `Apenas atrasados` estiver ativo.
-- Revisar também contagens auxiliares e estados de loading da tela para garantir que a UI não mostre valores antigos enquanto a busca dos atrasados ainda está recarregando.
-- Preservar a lógica atual de filtros combinados, incluindo produto, vendedor, clientes virtuais da Juliana, busca textual e filtro por status alterado.
+## Funcionalidades
 
-### 2) Remover `Pedidos apagados` do dashboard
-- Excluir a renderização do card `Pedidos apagados` do `AdminDashboard`.
-- Remover estados, efeitos, imports e handlers que existem apenas para esse bloco, para não deixar código morto.
-- Manter intacta a lógica de armazenamento/limpeza geral que ainda for usada em outras áreas.
+- Chat com streaming token a token, render em markdown.
+- IA com conhecimento do sistema 7Estrivos via system prompt rico (regras de negócio, estrutura de banco, roles, fluxo de produção, regras de saldo/comissão).
+- **Tools de consulta ao banco** (somente leitura): consultar pedido, listar pedidos, consultar vendedor, consultar saldo de revendedor, consultar estatísticas, consultar notificações de alerta, consultar logs recentes de edge functions.
+- **Botão "Reportar problema desta página"** dentro do painel: pré-preenche a mensagem com a rota atual + últimos erros do console, pra você só completar com o que viu.
+- Histórico de conversas persistido por usuário.
 
-### 3) Deixar `Pedidos em Alerta` recolhível igual aos quadros de solas
-- Aplicar ao painel de alertas o mesmo padrão dos `SoladoBoard`:
-  - inicializar minimizado;
-  - exibir cabeçalho com contador;
-  - botão de expandir/minimizar;
-  - conteúdo listado só quando expandido.
-- Manter a regra atual de alertas: mostrar apenas pedidos atrasados e fora de etapa final no status atual.
-- Preservar o botão `Conferido` e o armazenamento local dos itens já marcados.
+## Restrições importantes
 
-## Resultado esperado
-- Ao ativar `Apenas atrasados`, a tela passa a atualizar corretamente os números exibidos junto com a lista filtrada.
-- O dashboard do `admin_master` fica mais limpo, sem `Pedidos apagados`.
-- `Pedidos em Alerta` passa a abrir recolhido, no mesmo estilo dos quadros de solas.
+- A IA **só consulta e sugere** — nunca apaga, edita ou modifica dados. Toda ação continua manual.
+- Acesso liberado por **role `admin_master`** (qualquer admin_master, hoje só Juliana). Cada admin_master vê só as próprias conversas (RLS).
+- Modelo padrão: `google/gemini-3-flash-preview` (rápido, dentro do $1 grátis mensal de AI). Seletor opcional pra `gpt-5` em casos complexos.
+
+## Custos
+
+- Zero créditos Lovable (chat não consome créditos de build).
+- Centavos do saldo grátis de AI por mês de uso normal.
+
+---
 
 ## Detalhes técnicos
-- Arquivos principais:
-  - `src/pages/ReportsPage.tsx`
-  - `src/components/dashboard/AdminDashboard.tsx`
-- Não pretendo alterar regra de negócio de prazo; só alinhar a camada de exibição e o comportamento visual.
-- Se necessário, extraio pequenos cálculos locais (`displayCount`, `displayLoading`, `displayOrders`) para evitar novas divergências entre modo normal e modo atrasados.
+
+**Backend (Supabase):**
+- Migração: tabelas `admin_chat_conversations` (id, user_id, titulo, created_at, updated_at) e `admin_chat_messages` (id, conversation_id, role, content, created_at) com RLS exigindo `has_role(auth.uid(), 'admin_master')`.
+- Edge function `admin-assistant`:
+  - Valida JWT com `getClaims()` e checa `admin_master` via `has_role`.
+  - Recebe histórico da conversa, faz streaming SSE para Lovable AI Gateway (`https://ai.gateway.lovable.dev/v1/chat/completions`).
+  - Suporte a tool calling com as tools listadas acima (cada uma traduz pra query parametrizada via service role).
+  - Trata 429 (rate limit) e 402 (sem saldo) retornando erro amigável.
+
+**Frontend:**
+- `src/components/admin/AdminAssistantFab.tsx` — botão flutuante + drawer lateral, montado no `App.tsx` (dentro do `AuthProvider`, fora do `Routes`) pra persistir entre rotas.
+- `src/components/admin/AdminAssistantPanel.tsx` — UI do chat (lista de mensagens, input, streaming).
+- `src/components/admin/AssistantMessage.tsx` — render markdown via `react-markdown`.
+- `src/hooks/useAdminAssistant.ts` — gerencia estado da conversa, streaming SSE, persistência no banco.
+- Captura de erros do console: pequeno listener global em `main.tsx` que guarda os últimos N erros em memória pro botão "Reportar problema".
+
+**Dependência nova:** `react-markdown`.
+
+---
+
+## O que NÃO será criado
+
+- ~~Página `/admin/assistente` em tela cheia~~ (removido por sua preferência)
+- ~~Link "ASSISTENTE" no Header~~ (substituído pelo FAB global)
