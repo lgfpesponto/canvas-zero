@@ -1,67 +1,54 @@
+## Proteção contra retrocesso de status (com justificativa)
 
-# Multi-seleção em "Mudou para o status" e "Progresso de Produção"
+Sempre que o admin tentar mover um pedido para um status **anterior** ao atual na ordem canônica de produção, exigir confirmação com **justificativa obrigatória**. A justificativa fica gravada no `historico` do pedido (campo `observacao`), aparecendo automaticamente na timeline do pedido.
 
-## Objetivo
-Os dois filtros abaixo hoje só aceitam **um** status. Vão passar a aceitar **vários**, com a mesma UX do filtro "Progresso da Produção" já existente em Meus Pedidos (Popover + Checkboxes + atalhos "Todos / Nenhum"):
+### Ordem canônica considerada
 
-1. **Meus Pedidos** → bloco "Mudou para o status" (atualmente um `<select>` único).
-2. **Relatórios Especializados** → "Progresso de Produção" (atualmente um `<Select>` shadcn único).
+Sequência de `src/lib/order-logic.ts`:
 
-## Mudanças
-
-### 1. Backend — RPC `find_orders_by_status_change`
-Hoje recebe `_status text`. Vai passar a receber `_status text[]` para casar `historico[].local = ANY(_status)`.
-
-```sql
-create or replace function public.find_orders_by_status_change(
-  _status text[],
-  _de date,
-  _ate date
-) returns setof uuid
-language sql stable security definer
-set search_path = public
-as $$
-  select o.id
-  from public.orders o
-  where exists (
-    select 1
-    from jsonb_array_elements(coalesce(o.historico, '[]'::jsonb)) h
-    where h->>'local' = any(_status)
-      and (h->>'data')::date between _de and _ate
-  );
-$$;
+```
+Em aberto → Impresso → Aguardando → Corte → Baixa Corte → Sem bordado →
+Bordados (Dinei/Sandro/7E) → Pesponto 01..05 / Pespontando → Montagem →
+Revisão → Expedição → Entregue → Cobrado → Pago
 ```
 
-A versão antiga (assinatura `text`) será removida com `drop function ... (text, date, date)` para não conflitar.
+(`Cancelado` não dispara confirmação — segue o fluxo atual de motivo de cancelamento.)
 
-### 2. Hook `src/hooks/useOrders.ts`
-- `OrderFilters.mudouParaStatus`: `string` → `Set<string>`.
-- `fetchIdsMudouParaStatus`: chama a RPC com array (`[...filters.mudouParaStatus]`) só quando o set tem ≥1 item.
-- Sem mais mudanças (resto continua usando `idsMudou` como hoje).
+### Quando dispara
 
-### 3. `src/pages/ReportsPage.tsx` (Meus Pedidos)
-- Estado `mudouStatus: string` → `mudouStatus: Set<string>` (init a partir de `searchParams.get('mudou_status')` separando por vírgula).
-- URL: `mudou_status=Entregue,Cobrado` (CSV); limpa a chave quando vazio.
-- UI: trocar o `<select>` por um Popover idêntico ao "Progresso da Produção" (botão "X selecionados", checkboxes da lista `allStatuses`, botões "Todos / Nenhum").
-- Inputs De/Até ficam habilitados quando o set tem ≥1 item.
-- Botão "Limpar filtros" zera o set.
-- Propaga `Set<string>` para `appliedFilters.mudouParaStatus`.
+Comparar índice do status atual com o do novo. Se `novo < atual` → retrocesso. Cobre:
+- Pago/Cobrado/Entregue → qualquer etapa anterior
+- Expedição → qualquer produção anterior
+- Qualquer retrocesso entre etapas (ex.: Montagem → Corte)
 
-### 4. `src/components/SpecializedReports.tsx` (Relatórios Especializados)
-- `filterProgresso: string` → `filterProgresso: Set<string>`. Vazio = "Todos".
-- Substituir o `<Select>` por Popover + Checkboxes (mesma UI do Meus Pedidos).
-- Toda comparação atual `(filterProgresso === 'todos' || o.status === filterProgresso)` vira `(filterProgresso.size === 0 || filterProgresso.has(o.status))`. São ~14 ocorrências (linhas 404, 449, 467, 526, 571, 616, 706, 775, 938, 1418 + onde aplicável).
-- Label/título dos PDFs (`progressoLabel`) e nomes de arquivo: 
-  - vazio → "Todos"
-  - 1 selecionado → o próprio nome
-  - 2+ → "<N> status" no nome do arquivo (para evitar nomes gigantes) e lista completa separada por " / " no cabeçalho do PDF.
-- `setFilterProgresso('todos')` no reset vira `setFilterProgresso(new Set())`.
+Avançar nunca dispara.
 
-## Resumo de arquivos
-- **Migration SQL** (recriar `find_orders_by_status_change` recebendo `text[]`).
-- `src/hooks/useOrders.ts` — tipo + chamada da RPC.
-- `src/pages/ReportsPage.tsx` — estado, URL, UI Popover, "Limpar".
-- `src/components/SpecializedReports.tsx` — estado, UI Popover, todas as comparações de status, labels e nomes de arquivo nos PDFs.
+### UX (`ReportsPage` — "Atualizar progresso em massa")
 
-## Resultado para o usuário
-Em ambos os filtros, ele clica no campo, marca quantos status quiser ("Corte" + "Pesponto" + "Entregue" etc.), e a lista/relatório passa a considerar todos eles juntos. Marcar nada = "Todos" (comportamento atual quando nada está selecionado).
+1. No `handleBulkProgressUpdate`, separar selecionados em `regressoes` e `normais`.
+2. Se houver regressões, abrir modal "Confirmar retrocesso de status" com a lista (`#numero — Atual → Novo`) e `textarea` obrigatório (mín. 5 caracteres, validado com zod).
+3. Ao confirmar:
+   - Regressões → `updateOrderStatus(id, novoStatus, "[RETROCESSO] " + motivo)` (concatena observação opcional original se houver).
+   - Normais → seguem com a observação original.
+4. Sem regressões, fluxo igual ao de hoje.
+
+### Helper
+
+`src/lib/statusRegression.ts`:
+- `STATUS_ORDER` (derivado de `order-logic.ts`)
+- `isStatusRegression(current, next)` — true se índice novo < atual (ignora desconhecidos e `Cancelado`)
+
+### Validação
+
+```ts
+z.string().trim().min(5, 'Justifique com pelo menos 5 caracteres').max(500)
+```
+
+### Arquivos
+
+- **Novo**: `src/lib/statusRegression.ts`
+- **Editado**: `src/pages/ReportsPage.tsx`
+
+### Memória
+
+Salvar `mem://features/orders/status-regression-guard` e referenciar no índice.

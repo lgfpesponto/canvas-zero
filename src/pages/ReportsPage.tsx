@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
+import { isStatusRegression } from '@/lib/statusRegression';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -64,6 +65,12 @@ const ReportsPage = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
+
+  // Regression confirmation modal (status sendo movido para etapa anterior)
+  const [showRegressionModal, setShowRegressionModal] = useState(false);
+  const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string }[]>([]);
+  const [normalIds, setNormalIds] = useState<string[]>([]);
+  const [regressionReason, setRegressionReason] = useState('');
 
   // Barcode scanner
   const [showScanner, setShowScanner] = useState(false);
@@ -235,25 +242,74 @@ const ReportsPage = () => {
     [scannedOrdersMap, selectedIds]
   );
 
-  const handleBulkProgressUpdate = async () => {
-    if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
-    if (selectedProgress === 'Cancelado' && !progressObservacao.trim()) {
-      toast.error('Informe o motivo do cancelamento.');
-      return;
-    }
-    for (const id of selectedIds) {
-      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
-    }
-    toast.success(`${selectedIds.size} pedido(s) atualizado(s) para "${selectedProgress}".`);
+  const finalizeBulkUpdate = (count: number) => {
+    toast.success(`${count} pedido(s) atualizado(s) para "${selectedProgress}".`);
     setShowProgressModal(false);
+    setShowRegressionModal(false);
     setSelectedProgress('');
     setProgressObservacao('');
+    setRegressionItems([]);
+    setNormalIds([]);
+    setRegressionReason('');
     setSelectedIds(new Set());
     setScannedOrdersMap(new Map());
     setLastScannedNumero(null);
     setShowSelectedList(false);
     refetchOrders();
   };
+
+  const handleBulkProgressUpdate = async () => {
+    if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
+    if (selectedProgress === 'Cancelado' && !progressObservacao.trim()) {
+      toast.error('Informe o motivo do cancelamento.');
+      return;
+    }
+
+    // Detecta retrocessos
+    const regressions: { id: string; numero: string; current: string; next: string }[] = [];
+    const normals: string[] = [];
+    selectedIds.forEach(id => {
+      const ord = mergedOrdersMap.get(id);
+      if (!ord) { normals.push(id); return; }
+      if (isStatusRegression(ord.status, selectedProgress)) {
+        regressions.push({ id, numero: ord.numero, current: ord.status, next: selectedProgress });
+      } else {
+        normals.push(id);
+      }
+    });
+
+    if (regressions.length > 0) {
+      setRegressionItems(regressions);
+      setNormalIds(normals);
+      setRegressionReason('');
+      setShowRegressionModal(true);
+      return;
+    }
+
+    for (const id of selectedIds) {
+      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
+    }
+    finalizeBulkUpdate(selectedIds.size);
+  };
+
+  const handleConfirmRegression = async () => {
+    const motivo = regressionReason.trim();
+    if (motivo.length < 5) {
+      toast.error('Justifique o retrocesso com pelo menos 5 caracteres.');
+      return;
+    }
+    const baseObs = progressObservacao.trim();
+    const obsRetrocesso = `[RETROCESSO] ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
+
+    for (const item of regressionItems) {
+      await updateOrderStatus(item.id, selectedProgress, obsRetrocesso);
+    }
+    for (const id of normalIds) {
+      await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+    }
+    finalizeBulkUpdate(regressionItems.length + normalIds.length);
+  };
+
 
   // Barcode scan handler — direct DB query (continuous, queued)
   const scanQueueRef = useRef<string[]>([]);
@@ -981,6 +1037,62 @@ const ReportsPage = () => {
               className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               OK
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Regression confirmation — exige justificativa ao voltar etapa */}
+      <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open) setShowRegressionModal(false); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar retrocesso de status</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {regressionItems.length} pedido(s) estão sendo movidos para uma etapa <strong>anterior</strong> à atual.
+            Justifique o motivo — a justificativa ficará registrada no histórico de produção.
+          </p>
+          <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 text-xs space-y-1">
+            {regressionItems.map(item => (
+              <div key={item.id} className="flex items-center justify-between gap-2">
+                <span className="font-mono">#{item.numero}</span>
+                <span className="text-muted-foreground">
+                  {item.current} <span className="text-destructive font-bold">→</span> {item.next}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3">
+            <label className="block text-xs font-semibold mb-1">Justificativa do retrocesso *</label>
+            <textarea
+              value={regressionReason}
+              onChange={e => setRegressionReason(e.target.value)}
+              placeholder="Ex: pedido devolvido pelo cliente, erro na separação, refazer revisão..."
+              maxLength={500}
+              className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none min-h-[80px]"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Mínimo 5 caracteres • {regressionReason.trim().length}/500
+            </p>
+          </div>
+          {normalIds.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              + {normalIds.length} pedido(s) avançam normalmente (sem retrocesso) e serão atualizados junto.
+            </p>
+          )}
+          <DialogFooter className="mt-4">
+            <button
+              onClick={() => setShowRegressionModal(false)}
+              className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmRegression}
+              disabled={regressionReason.trim().length < 5}
+              className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Confirmar retrocesso
             </button>
           </DialogFooter>
         </DialogContent>
