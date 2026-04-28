@@ -717,6 +717,52 @@ const ReportsPage = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            {/* Filtro: mudou para status em uma data */}
+            <div className="basis-full border-t border-border pt-3 mt-1 flex flex-col sm:flex-row gap-3 flex-wrap items-end">
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mudou para o status</label>
+                <select
+                  value={mudouStatus}
+                  onChange={e => setMudouStatus(e.target.value)}
+                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px]"
+                >
+                  <option value="">— (desligado)</option>
+                  {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mudou em (de)</label>
+                <input
+                  type="date"
+                  value={mudouDe}
+                  onChange={e => setMudouDe(e.target.value)}
+                  disabled={!mudouStatus}
+                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mudou em (até)</label>
+                <input
+                  type="date"
+                  value={mudouAte}
+                  onChange={e => setMudouAte(e.target.value)}
+                  disabled={!mudouStatus}
+                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none disabled:opacity-50"
+                />
+              </div>
+              {mudouStatus && (
+                <button
+                  type="button"
+                  onClick={() => { setMudouStatus(''); setMudouDe(''); setMudouAte(''); }}
+                  className="text-xs font-semibold text-muted-foreground hover:text-primary underline pb-2"
+                >
+                  Limpar
+                </button>
+              )}
+              <p className="text-[11px] text-muted-foreground basis-full">
+                Mostra pedidos que entraram no status selecionado dentro do intervalo (ex.: "Entregue" entre 27/04 e 27/04).
+              </p>
+            </div>
             <div className="flex items-end gap-2">
               <button onClick={applyFilters} className="orange-gradient text-primary-foreground px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Filter size={14} /> FILTRAR
