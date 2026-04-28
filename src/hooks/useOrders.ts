@@ -190,8 +190,13 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
   let offset = 0;
   let hasMore = true;
 
+  // Pré-resolve filtro "mudou para status" (mesmo conjunto de IDs entre batches)
+  const idsMudou = await fetchIdsMudouParaStatus(filters);
+  if (idsMudou !== null && idsMudou.length === 0) return [];
+
   while (hasMore) {
     let query = supabase.from('orders').select('*');
+    if (idsMudou !== null) query = query.in('id', idsMudou);
 
     if (filters.searchQuery) {
       query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
