@@ -560,11 +560,22 @@ const OrderDetailPage = () => {
               {alteracoes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhuma alteração registrada.</p>
               ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {alteracoes.map((a, i) => (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {alteracoesAgrupadas.map((g, i) => (
                     <div key={i} className="border-b border-border/30 pb-2">
-                      <p className="text-xs text-muted-foreground">{formatDateBR(a.data)} às {a.hora} — por {a.usuario || '—'}</p>
-                      <p className="text-sm">{a.descricao}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateBR(g.data)} às {g.hora} — por {g.usuario || '—'}
+                        {g.descricoes.length > 1 && (
+                          <span className="ml-1 text-muted-foreground/70">({g.descricoes.length} alterações)</span>
+                        )}
+                      </p>
+                      {g.descricoes.length === 1 ? (
+                        <p className="text-sm">{g.descricoes[0]}</p>
+                      ) : (
+                        <ul className="text-sm list-disc pl-5 mt-0.5 space-y-0.5">
+                          {g.descricoes.map((d, j) => <li key={j}>{d}</li>)}
+                        </ul>
+                      )}
                     </div>
                   ))}
                 </div>
