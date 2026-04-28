@@ -1127,7 +1127,7 @@ export type Database = {
         }
       }
       find_orders_by_status_change: {
-        Args: { _ate: string; _de: string; _status: string }
+        Args: { _ate: string; _de: string; _status: string[] }
         Returns: string[]
       }
       get_pending_value: { Args: { vendor?: string }; Returns: number }
