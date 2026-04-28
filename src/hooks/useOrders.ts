@@ -126,6 +126,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
 
       // Fetch total value AND total produtos separately (same filters, no pagination)
       let valueQuery = supabase.from('orders').select('preco, quantidade, tipo_extra, extra_detalhes');
+      if (idsMudou !== null) valueQuery = valueQuery.in('id', idsMudou);
       if (filters.searchQuery) {
         valueQuery = valueQuery.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
       }
