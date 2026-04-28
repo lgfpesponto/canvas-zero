@@ -246,6 +246,7 @@ const ReportsPage = () => {
   const finalizeBulkUpdate = (count: number) => {
     toast.success(`${count} pedido(s) atualizado(s) para "${selectedProgress}".`);
     setShowProgressModal(false);
+    setShowRegressionConfirmModal(false);
     setShowRegressionModal(false);
     setSelectedProgress('');
     setProgressObservacao('');
@@ -267,13 +268,25 @@ const ReportsPage = () => {
     }
 
     // Detecta retrocessos
-    const regressions: { id: string; numero: string; current: string; next: string }[] = [];
+    const regressions: { id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string }[] = [];
     const normals: string[] = [];
     selectedIds.forEach(id => {
       const ord = mergedOrdersMap.get(id);
       if (!ord) { normals.push(id); return; }
       if (isStatusRegression(ord.status, selectedProgress)) {
-        regressions.push({ id, numero: ord.numero, current: ord.status, next: selectedProgress });
+        // Procura no histórico a última entrada na etapa atual
+        let desdeData = ord.dataCriacao || '';
+        let desdeHora = ord.horaCriacao || '';
+        const hist = Array.isArray(ord.historico) ? ord.historico : [];
+        for (let i = hist.length - 1; i >= 0; i--) {
+          const h: any = hist[i];
+          if (h && h.local === ord.status) {
+            desdeData = h.data || desdeData;
+            desdeHora = h.hora || desdeHora;
+            break;
+          }
+        }
+        regressions.push({ id, numero: ord.numero, current: ord.status, next: selectedProgress, desdeData, desdeHora });
       } else {
         normals.push(id);
       }
@@ -283,7 +296,7 @@ const ReportsPage = () => {
       setRegressionItems(regressions);
       setNormalIds(normals);
       setRegressionReason('');
-      setShowRegressionModal(true);
+      setShowRegressionConfirmModal(true);
       return;
     }
 
