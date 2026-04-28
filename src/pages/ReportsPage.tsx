@@ -15,7 +15,7 @@ import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { LoadingValue } from '@/components/ui/LoadingValue';
-import { getOrderDeadlineInfo, FINAL_STAGES } from '@/lib/orderDeadline';
+import { getOrderDeadlineInfo, FINAL_STAGES, isAlertOrder } from '@/lib/orderDeadline';
 import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -204,56 +204,72 @@ const ReportsPage = () => {
     let cancelled = false;
     (async () => {
       setOverdueLoading(true);
-      let q = supabase.from('orders').select('*')
-        .not('status', 'in', `(${FINAL_STAGES.join(',')})`)
-        .order('data_criacao', { ascending: true })
-        .order('hora_criacao', { ascending: true })
-        .range(0, 999);
       const f = appliedFilters as any;
-      if (f.filterDate) q = q.gte('data_criacao', f.filterDate);
-      if (f.filterDateEnd) q = q.lte('data_criacao', f.filterDateEnd);
+
+      // Status: se vier filtro de status mas todos forem etapas finais, não há atrasados.
+      let statusList: string[] | null = null;
       if (f.filterStatus && f.filterStatus.size > 0) {
-        const statuses = [...f.filterStatus].filter((s: string) => !FINAL_STAGES.includes(s));
-        if (statuses.length > 0) q = q.in('status', statuses);
-        else { setOverdueOrders([]); setOverdueLoading(false); return; }
-      }
-
-      // Vendedor: replica lógica de useOrders.ts (aceita também clientes virtuais da Juliana)
-      if (f.filterVendedor && f.filterVendedor.size > 0) {
-        const vendedores = [...f.filterVendedor] as string[];
-        const orClauses = vendedores.map(v => `vendedor.eq.${v}`);
-        vendedores.forEach(v => {
-          orClauses.push(`and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${v})`);
-        });
-        q = q.or(orClauses.join(','));
-      }
-
-      // Produto: empurra para o banco (bota = tipo_extra IS NULL, extras = tipo_extra IN ...)
-      if (f.filterProduto && f.filterProduto.size > 0) {
-        const produtos = [...f.filterProduto] as string[];
-        const hasBota = produtos.includes('bota');
-        const outros = produtos.filter(p => p !== 'bota');
-        if (hasBota && outros.length > 0) {
-          q = q.or(`tipo_extra.is.null,tipo_extra.in.(${outros.join(',')})`);
-        } else if (hasBota) {
-          q = q.is('tipo_extra', null);
-        } else if (outros.length > 0) {
-          q = q.in('tipo_extra', outros);
+        statusList = [...f.filterStatus].filter((s: string) => !FINAL_STAGES.includes(s));
+        if (statusList.length === 0) {
+          if (!cancelled) { setOverdueOrders([]); setOverdueLoading(false); }
+          return;
         }
       }
 
-      if (f.searchQuery) {
-        const s = String(f.searchQuery).replace(/%/g, '\\%');
-        q = q.or(`numero.ilike.%${s}%,cliente.ilike.%${s}%`);
+      // Busca em lotes para não perder pedidos antigos (atrasados costumam ser os mais antigos).
+      const BATCH = 1000;
+      let offset = 0;
+      const all: Order[] = [];
+      while (true) {
+        let q = supabase.from('orders').select('*')
+          .not('status', 'in', `(${FINAL_STAGES.join(',')})`)
+          .order('data_criacao', { ascending: true })
+          .order('hora_criacao', { ascending: true })
+          .range(offset, offset + BATCH - 1);
+
+        if (f.filterDate) q = q.gte('data_criacao', f.filterDate);
+        if (f.filterDateEnd) q = q.lte('data_criacao', f.filterDateEnd);
+        if (statusList && statusList.length > 0) q = q.in('status', statusList);
+
+        if (f.filterVendedor && f.filterVendedor.size > 0) {
+          const vendedores = [...f.filterVendedor] as string[];
+          const orClauses = vendedores.map(v => `vendedor.eq.${v}`);
+          vendedores.forEach(v => {
+            orClauses.push(`and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${v})`);
+          });
+          q = q.or(orClauses.join(','));
+        }
+
+        if (f.filterProduto && f.filterProduto.size > 0) {
+          const produtos = [...f.filterProduto] as string[];
+          const hasBota = produtos.includes('bota');
+          const outros = produtos.filter(p => p !== 'bota');
+          if (hasBota && outros.length > 0) {
+            q = q.or(`tipo_extra.is.null,tipo_extra.in.(${outros.join(',')})`);
+          } else if (hasBota) {
+            q = q.is('tipo_extra', null);
+          } else if (outros.length > 0) {
+            q = q.in('tipo_extra', outros);
+          }
+        }
+
+        if (f.searchQuery) {
+          const s = String(f.searchQuery).replace(/%/g, '\\%');
+          q = q.or(`numero.ilike.%${s}%,cliente.ilike.%${s}%`);
+        }
+
+        const { data, error } = await q;
+        if (cancelled) return;
+        if (error) { console.error('overdue fetch error:', error); break; }
+        const rows = data || [];
+        all.push(...rows.map(dbRowToOrder) as Order[]);
+        if (rows.length < BATCH) break;
+        offset += BATCH;
       }
-      const { data, error } = await q;
+
       if (cancelled) return;
-      if (error) { console.error('overdue fetch error:', error); setOverdueOrders([]); }
-      else {
-        const mapped = (data || []).map(dbRowToOrder) as Order[];
-        // getOrderDeadlineInfo já trata vendedor "Estoque" como sem prazo (isOverdue=false).
-        setOverdueOrders(mapped.filter(o => getOrderDeadlineInfo(o as any).isOverdue));
-      }
+      // Filtra atrasados de verdade (exclui Estoque automaticamente via getOrderDeadlineInfo).
+      setOverdueOrders(all.filter(o => getOrderDeadlineInfo(o as any).isOverdue));
       setOverdueLoading(false);
     })();
     return () => { cancelled = true; };
