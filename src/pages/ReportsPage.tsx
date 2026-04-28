@@ -100,13 +100,16 @@ const ReportsPage = () => {
   }, []);
 
   // Initialize appliedFilters from URL params too
-  const [appliedFilters, setAppliedFilters] = useState(() => ({
+  const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => ({
     searchQuery: searchParams.get('q') || '',
     filterDate: searchParams.get('de') || '',
     filterDateEnd: searchParams.get('ate') || '',
     filterStatus: new Set(filterStatus),
     filterVendedor: new Set(filterVendedor),
     filterProduto: new Set(searchParams.get('produtos')?.split(',') ?? [...defaultProduto]),
+    mudouParaStatus: searchParams.get('mudou_status') || undefined,
+    mudouParaStatusDe: searchParams.get('mudou_de') || undefined,
+    mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
   }));
 
   const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string> }) => {
