@@ -50,6 +50,9 @@ const ReportsPage = () => {
     const v = searchParams.get('produtos');
     return v ? new Set(v.split(',')) : new Set(defaultProduto);
   });
+  const [mudouStatus, setMudouStatus] = useState<string>(() => searchParams.get('mudou_status') || '');
+  const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
+  const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
