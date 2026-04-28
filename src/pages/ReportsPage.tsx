@@ -1012,16 +1012,16 @@ const ReportsPage = () => {
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Produtos</p>
             <p className="text-2xl font-bold">
-              <LoadingValue loading={ordersLoading} hasData={serverOrders.length > 0 || !ordersLoading} size={20}>
-                {totalProdutos}
+              <LoadingValue loading={onlyOverdue ? overdueLoading : ordersLoading} hasData={visibleOrders.length > 0 || !(onlyOverdue ? overdueLoading : ordersLoading)} size={20}>
+                {displayTotalProdutos}
               </LoadingValue>
             </p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
             <p className="text-2xl font-bold text-primary">
-              <LoadingValue loading={ordersLoading} hasData={serverOrders.length > 0 || !ordersLoading} size={20}>
-                {formatCurrency(totalValue)}
+              <LoadingValue loading={onlyOverdue ? overdueLoading : ordersLoading} hasData={visibleOrders.length > 0 || !(onlyOverdue ? overdueLoading : ordersLoading)} size={20}>
+                {formatCurrency(displayTotalValue)}
               </LoadingValue>
             </p>
           </div>
