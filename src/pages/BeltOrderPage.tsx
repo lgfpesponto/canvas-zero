@@ -231,11 +231,7 @@ const BeltOrderPage = () => {
     setSelectedRecipients([]);
     setRecipientSearch('');
     setSendDialogOpen(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, nome_completo, nome_usuario')
-      .neq('id', user.id)
-      .order('nome_completo', { ascending: true });
+    const { data } = await supabase.rpc('list_profiles_minimal');
     setUsersList((data as any) || []);
   };
 
