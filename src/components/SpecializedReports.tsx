@@ -1631,6 +1631,41 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             </div>
           )}
 
+          {activeReport === 'corte' && (
+            <div>
+              <label className="block text-xs font-semibold mb-1">Período de criação (opcional)</label>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">De</label>
+                  <input
+                    type="date"
+                    value={filterDataDe}
+                    onChange={(e) => setFilterDataDe(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Até</label>
+                  <input
+                    type="date"
+                    value={filterDataAte}
+                    onChange={(e) => setFilterDataAte(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                {(filterDataDe || filterDataAte) && (
+                  <button
+                    type="button"
+                    onClick={() => { setFilterDataDe(''); setFilterDataAte(''); }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline pb-2"
+                  >
+                    Limpar datas
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {needsVendedorFilter && (
             <div>
               <label className="block text-xs font-semibold mb-1">Vendedor</label>
