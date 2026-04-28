@@ -1,45 +1,44 @@
-# Tornar "Aguardando" e "Cancelado" status que sempre exigem justificativa
+# Prazo dinâmico nos cards: dias restantes ou dias de atraso
 
 ## Comportamento atual
-- Hoje só pede confirmação + justificativa quando `next` está numa posição **anterior** a `current` na ordem canônica.
-- "Aguardando" e "Cancelado" não são etapas de fluxo — são estados fora de linha.
-- "Cancelado" já tem uma checagem isolada que exige `progressObservacao` preenchido, mas não passa pelos modais de 2 passos nem grava prefixo no histórico.
+- Cards de pedido (lista, Solado boards) mostram `15d úteis` (ou `5d`/`1d`) — esse número é o **prazo total** salvo em `dias_restantes` no banco, não decrementa.
+- Quando o pedido vira "Pago"/"Entregue" etc. ou quando alguém zerou o campo, mostra `✓`.
+- "Pedidos em Alerta" do dashboard rotula como "Prazo atingido" usando `diasRestantes === 0` (que quase nunca acontece de verdade).
 
 ## Comportamento desejado
-Sempre que um pedido for movido **para** "Aguardando" **ou** "Cancelado" (a partir de qualquer etapa diferente), o sistema deve abrir o mesmo fluxo de 2 passos já existente:
-
-1. **Modal de confirmação** mostrando desde quando o pedido está na etapa atual.
-2. **Modal de justificativa obrigatória** (mín. 5 caracteres), gravada no histórico com prefixo apropriado:
-   - `[PAUSA]` quando o destino for "Aguardando".
-   - `[CANCELAMENTO]` quando o destino for "Cancelado".
-   - `[RETROCESSO]` quando for regressão comum na ordem canônica.
+- Mostrar **dias úteis restantes** calculados em tempo real a partir da data de criação do pedido (`15` para bota, `5` para cinto, `1` para extras).
+- Quando o prazo passar **e** o pedido ainda não estiver em `Expedição`, `Entregue`, `Cobrado` ou `Pago`, mostrar `+Nd atrasado` em vermelho.
+- Quando o pedido já estiver em uma dessas etapas finais (ou `Cancelado`), mostrar `✓` (não conta atraso depois de pronto).
+- O painel "Pedidos em Alerta" usa o mesmo cálculo: entram pedidos atrasados (não-finais com prazo vencido) ou regredidos. O rótulo "Prazo atingido" vira `+Nd atrasado`.
 
 ## Mudanças técnicas
 
-### `src/lib/statusRegression.ts`
-- Adicionar `PAUSE_STATUSES = ['Aguardando']` e `CANCEL_STATUSES = ['Cancelado']`.
-- Nova função `requiresJustification(current, next)` retornando:
-  - `'cancel'` quando `next ∈ CANCEL_STATUSES` e `current !== next`
-  - `'pause'` quando `next ∈ PAUSE_STATUSES` e `current !== next`
-  - `'regression'` quando `isStatusRegression(current, next)` é verdadeiro
-  - `null` caso contrário
-- Manter `isStatusRegression` como está (ela ignora "Cancelado" — comportamento mantido para não duplicar com a regra nova).
+### `src/contexts/AuthContext.tsx`
+- Adicionar `businessDaysOverdue(startDate, totalBusinessDays)` ao lado de `businessDaysRemaining`. Conta dias úteis decorridos **além** do deadline; retorna 0 se ainda não venceu.
 
-### `src/pages/ReportsPage.tsx`
-- Em `handleBulkProgressUpdate`:
-  - Remover o early-return atual que exige `progressObservacao` para "Cancelado" (passa a ser tratado pelo modal).
-  - Trocar `isStatusRegression(...)` por `requiresJustification(...)` e guardar o `kind` (`'pause' | 'cancel' | 'regression'`) em cada item.
-- Modais (`showRegressionConfirmModal` / `showRegressionModal`) passam a renderizar título e textos conforme o `kind`:
-  - **Pausa**: "Pausar pedido?" / "Pedido #XXXX está em [Etapa] desde [data/hora]. Confirma pausa em 'Aguardando'?"
-  - **Cancelamento**: "Cancelar pedido?" / "Pedido #XXXX está em [Etapa] desde [data/hora]. Confirma cancelamento?"
-  - **Regressão**: textos atuais ("Voltar etapa?").
-  - Se a seleção misturar tipos, listar cada item com seu rótulo.
-- `handleConfirmRegression` → renomear para `handleConfirmJustification`. Por item, escolher o prefixo (`[PAUSA]`, `[CANCELAMENTO]`, `[RETROCESSO]`) ao montar a observação.
+### `src/lib/orderDeadline.ts` (novo)
+- `FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago', 'Cancelado']`
+- `getTotalBizDays(order)` → 15 / 5 / 1 conforme `tipoExtra` (centraliza a lógica que hoje está duplicada).
+- `getOrderDeadlineInfo(order)` → `{ daysLeft, daysOverdue, isFinal, isOverdue, label, tone }`
+  - `isFinal`: status ∈ FINAL_STAGES
+  - `daysLeft`: `businessDaysRemaining(dataCriacao, total)`
+  - `daysOverdue`: `businessDaysOverdue(dataCriacao, total)`
+  - `isOverdue`: `!isFinal && daysOverdue > 0`
+  - `label`: `'✓'` se final, `'+Nd atrasado'` se overdue, senão `'Nd úteis'` (ou `'Nd'` na variante compacta)
+  - `tone`: `'success' | 'danger' | 'normal'` para o consumidor escolher cor
+
+### Componentes
+- `src/components/OrderCard.tsx` (linha 60): substituir o ternário atual pelo `label` do helper, com classe condicional vermelha quando `tone === 'danger'`.
+- `src/components/SoladoBoard.tsx` (linha 255): mesma troca, formato compacto (`5d` / `+3d` / `✓`).
+- `src/components/dashboard/AdminDashboard.tsx`:
+  - filtro `alertOrders` (linha 185): trocar `o.diasRestantes === 0` por `info.isOverdue` (continua somando os regredidos via histórico).
+  - linha 444: substituir "Prazo atingido" por `+Nd atrasado` quando `info.isOverdue`.
+- `src/pages/OrderDetailPage.tsx` (linhas 481–484): manter consistente — mostrar `+Nd atrasado` quando aplicável em vez de só "Prazo atingido ✓".
 
 ### Memória
-- Atualizar `mem://features/orders/status-regression-guard.md` documentando que "Aguardando" e "Cancelado" sempre disparam o fluxo de 2 passos, com prefixos `[PAUSA]` e `[CANCELAMENTO]`.
-- Cruzar com `mem://features/orders/cancellation-status.md` para manter as regras coerentes (motivo obrigatório continua valendo, agora capturado pelo modal).
+- Atualizar `mem://features/production/lead-times` para refletir que o display agora é dinâmico (cálculo a partir de `dataCriacao`), e que `dias_restantes` no banco vira apenas valor inicial de referência.
 
 ## Fora de escopo
-- Listas separadas para cintos/extras (fica para depois).
-- Movimentos laterais entre Pespontos/Bordados continuam sem aviso.
+- **Sem migração de banco.** O campo `dias_restantes` continua existindo e armazenando o valor inicial (15/5/1); todo o display passa a ser derivado.
+- Sem mudança em PDFs/relatórios — só interfaces de cards e o painel de alerta.
+- Sem feriados: continua usando segunda–sexta como dias úteis (mesma regra de `addBusinessDays` atual).
