@@ -31,6 +31,7 @@ import RevendedorSaldoPage from "./pages/RevendedorSaldoPage";
 import GestaoPage from "./pages/GestaoPage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
+import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
         <AuthProvider>
           <SelectedOrdersProvider>
           <PresenceTracker />
+          <DeployNoticeBanner />
           <Header />
           <AdminAssistantFab />
           <Routes>
