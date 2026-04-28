@@ -1,55 +1,32 @@
-## Aviso de Nova Versão (Deploy)
+## Notificar vendedor em TODA alteração do pedido
 
-Permitir que a Juliana (admin_master), na aba **Gestão**, configure um aviso informando o **horário em que será publicada uma nova versão do sistema**. Esse aviso aparece como um **banner amarelo no topo de todas as páginas** para todos os usuários logados, pedindo que salvem o trabalho antes do horário.
+Hoje o sino só notifica o vendedor quando o pedido já está em **Entregue**, **Cobrado** ou **Pago**. A pedido, vamos passar a notificar **qualquer alteração**, em qualquer status (exceto criação inicial e mudanças feitas pelo próprio vendedor).
 
----
+### O que muda
 
-## Como vai funcionar
+**1. Backend (RPC `registrar_alteracoes_pos_entrega`)**
+- Remover o filtro que bloqueia status diferentes de Entregue/Cobrado/Pago.
+- Manter as outras proteções:
+  - Pedido precisa ter vendedor válido (não vazio, não "Estoque").
+  - Não notifica o próprio autor da alteração: se `auth.uid()` for o user_id do vendedor do pedido, não insere (evita o vendedor receber notificação das próprias edições).
+- Renomear conceitualmente (mantendo o nome da função pra não quebrar chamadas) — ela passa a ser "registrar alterações do pedido" de forma geral.
+- O campo `status_no_momento` continua gravando o status atual do pedido na hora da alteração — útil pro vendedor entender o contexto.
 
-### Para o admin_master (em `/admin/gestao`)
-Novo card **"Aviso de Nova Versão"** com:
-- Campo data + hora do deploy (ex: 28/04/2026 18:30)
-- Mensagem opcional editável (com texto padrão pré-preenchido)
-- Botões: **Publicar aviso** / **Atualizar** / **Remover aviso**
-- Mostra status atual: ativo, agendado, ou nenhum
+**2. Frontend (`AuthContext.tsx`, função `updateOrder`)**
+- Remover a condição `['Entregue', 'Cobrado', 'Pago'].includes(current.status)` — passa a chamar a RPC para qualquer status quando houver `changes.length > 0`.
 
-### Para todos os usuários logados
-Banner amarelo fixo no topo (acima do Header, mesmo padrão do alerta de armazenamento atual):
+**3. Sino (`NotificacoesBell.tsx`)**
+- Sem mudanças visuais. O sino já lista qualquer notificação que chegar via Realtime; vai automaticamente exibir as novas.
+- A linha "Status: X" no item já mostra o status do momento da alteração — fica claro pro vendedor.
 
-> ⚠️ **Atenção:** Uma nova versão do sistema será publicada hoje às **18:30**. Salve seu trabalho até lá — pedidos não salvos podem ser perdidos. *(faltam 2h 15min)*
+**4. Memória do projeto**
+- Atualizar `mem://features/notificacoes/sino-vendedor` removendo a restrição de "entregue/cobrado/pago" — agora notifica qualquer alteração.
 
-- Contagem regressiva atualiza sozinha
-- Quando faltarem ≤ 15min, o banner fica **vermelho** e pulsa
-- Após o horário passar (+30min de tolerância), o aviso **somem automaticamente** para não ficar poluindo
-- Usuário pode **dispensar** o banner (fica oculto naquela aba via sessionStorage), mas reaparece se a Juliana atualizar o aviso
+### O que NÃO muda
+- Admins continuam sem receber sino (regra atual mantida).
+- Vendedor "Estoque" continua sem notificações.
+- Notificações de pedidos sem vendedor continuam sendo ignoradas.
+- Criação do pedido NÃO gera notificação (só `updateOrder` chama a RPC; o insert inicial não passa por lá).
 
----
-
-## Mudanças técnicas
-
-### 1. Banco (migration)
-Nova tabela `system_announcements`:
-```
-id, tipo ('deploy'), scheduled_at timestamptz, mensagem text,
-ativo boolean, created_at, created_by, updated_at
-```
-- RLS: SELECT liberado para todos autenticados; INSERT/UPDATE/DELETE só `admin_master`
-- Realtime habilitado para o banner atualizar instantaneamente em todas as abas abertas
-
-### 2. Frontend
-- **`src/pages/GestaoPage.tsx`** — adicionar card de configuração no topo (data/hora, mensagem, botões)
-- **Novo `src/components/DeployNoticeBanner.tsx`** — busca o aviso ativo, escuta Realtime, renderiza banner com contagem regressiva, botão dispensar
-- **`src/App.tsx`** — montar `<DeployNoticeBanner />` antes do `<Header />` para todos os usuários logados
-
-### 3. Lógica
-- Hook que faz query inicial + subscribe Realtime na tabela
-- Banner só aparece se: `ativo = true` AND `scheduled_at` está entre **agora** e **agora + 24h** (ou até 30min depois do horário)
-- Aviso antigo (passou +30min) fica no banco para histórico mas não exibe
-
----
-
-## Resultado
-
-A Juliana abre a aba Gestão, escolhe "hoje 18:30", clica Publicar. Imediatamente todos os usuários logados (incluindo os que já estão com o portal aberto) veem o banner no topo com o horário e contagem regressiva, sabendo que precisam salvar o trabalho.
-
-Posso aplicar?
+### Observação
+Pedidos com muitas micro-edições vão gerar mais notificações que antes. Se quiser, depois posso adicionar um agrupamento (ex: "3 alterações no pedido X") — mas por enquanto fica 1 notificação por alteração, igual ao comportamento atual pós-entrega.
