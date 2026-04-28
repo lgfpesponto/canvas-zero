@@ -206,7 +206,6 @@ const ReportsPage = () => {
       setOverdueLoading(true);
       let q = supabase.from('orders').select('*')
         .not('status', 'in', `(${FINAL_STAGES.join(',')})`)
-        .neq('vendedor', 'Estoque')
         .order('data_criacao', { ascending: true })
         .order('hora_criacao', { ascending: true })
         .range(0, 999);
@@ -218,7 +217,31 @@ const ReportsPage = () => {
         if (statuses.length > 0) q = q.in('status', statuses);
         else { setOverdueOrders([]); setOverdueLoading(false); return; }
       }
-      if (f.filterVendedor && f.filterVendedor.size > 0) q = q.in('vendedor', [...f.filterVendedor]);
+
+      // Vendedor: replica lógica de useOrders.ts (aceita também clientes virtuais da Juliana)
+      if (f.filterVendedor && f.filterVendedor.size > 0) {
+        const vendedores = [...f.filterVendedor] as string[];
+        const orClauses = vendedores.map(v => `vendedor.eq.${v}`);
+        vendedores.forEach(v => {
+          orClauses.push(`and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${v})`);
+        });
+        q = q.or(orClauses.join(','));
+      }
+
+      // Produto: empurra para o banco (bota = tipo_extra IS NULL, extras = tipo_extra IN ...)
+      if (f.filterProduto && f.filterProduto.size > 0) {
+        const produtos = [...f.filterProduto] as string[];
+        const hasBota = produtos.includes('bota');
+        const outros = produtos.filter(p => p !== 'bota');
+        if (hasBota && outros.length > 0) {
+          q = q.or(`tipo_extra.is.null,tipo_extra.in.(${outros.join(',')})`);
+        } else if (hasBota) {
+          q = q.is('tipo_extra', null);
+        } else if (outros.length > 0) {
+          q = q.in('tipo_extra', outros);
+        }
+      }
+
       if (f.searchQuery) {
         const s = String(f.searchQuery).replace(/%/g, '\\%');
         q = q.or(`numero.ilike.%${s}%,cliente.ilike.%${s}%`);
@@ -228,11 +251,8 @@ const ReportsPage = () => {
       if (error) { console.error('overdue fetch error:', error); setOverdueOrders([]); }
       else {
         const mapped = (data || []).map(dbRowToOrder) as Order[];
-        const prodSet: Set<string> | undefined = f.filterProduto && f.filterProduto.size > 0 ? f.filterProduto : undefined;
-        const byProduct = prodSet
-          ? mapped.filter(o => (!o.tipoExtra && prodSet.has('bota')) || (o.tipoExtra && prodSet.has(o.tipoExtra)))
-          : mapped;
-        setOverdueOrders(byProduct.filter(o => getOrderDeadlineInfo(o as any).isOverdue));
+        // getOrderDeadlineInfo já trata vendedor "Estoque" como sem prazo (isOverdue=false).
+        setOverdueOrders(mapped.filter(o => getOrderDeadlineInfo(o as any).isOverdue));
       }
       setOverdueLoading(false);
     })();
