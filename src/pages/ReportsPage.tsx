@@ -194,9 +194,12 @@ const ReportsPage = () => {
   const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, totalProdutos, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
 
   const visibleOrders = useMemo(() => {
-    if (scanFilterId) return serverOrders.filter(o => o.id === scanFilterId);
-    return serverOrders;
-  }, [serverOrders, scanFilterId]);
+    let list = scanFilterId ? serverOrders.filter(o => o.id === scanFilterId) : serverOrders;
+    if (onlyOverdue) {
+      list = list.filter(o => getOrderDeadlineInfo(o as any).isOverdue);
+    }
+    return list;
+  }, [serverOrders, scanFilterId, onlyOverdue]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
