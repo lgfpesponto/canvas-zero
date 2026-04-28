@@ -4,6 +4,7 @@ import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES
 import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { FileText, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import jsPDF from 'jspdf';
 import JsBarcode from 'jsbarcode';
