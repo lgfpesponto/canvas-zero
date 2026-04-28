@@ -1,54 +1,24 @@
-## Proteção contra retrocesso de status (com justificativa)
+## Corrigir totais agregados em Meus Pedidos
 
-Sempre que o admin tentar mover um pedido para um status **anterior** ao atual na ordem canônica de produção, exigir confirmação com **justificativa obrigatória**. A justificativa fica gravada no `historico` do pedido (campo `observacao`), aparecendo automaticamente na timeline do pedido.
+### Problema
+O hook `useOrders` calcula valor total e total de produtos baixando linhas com `.select(...)` sem `.range()`, o que esbarra no limite implícito de 1000 linhas do PostgREST. Resultado: portal mostra ~1.025 produtos e R$ 301.839,57 quando o real é **2.664 produtos / R$ 823.551,17** (com 2.603 pedidos).
 
-### Ordem canônica considerada
+### Solução
 
-Sequência de `src/lib/order-logic.ts`:
+**1. Migration — criar RPC `get_orders_totals`**
 
-```
-Em aberto → Impresso → Aguardando → Corte → Baixa Corte → Sem bordado →
-Bordados (Dinei/Sandro/7E) → Pesponto 01..05 / Pespontando → Montagem →
-Revisão → Expedição → Entregue → Cobrado → Pago
-```
+Função SECURITY DEFINER que aceita os mesmos filtros do hook (search, datas, status, produtos, vendedores, ids do filtro "mudou para status") e devolve `(total_pedidos bigint, total_produtos bigint, valor_total numeric)`.
 
-(`Cancelado` não dispara confirmação — segue o fluxo atual de motivo de cancelamento.)
+Lógica de `total_produtos` espelha 1:1 a do frontend:
+- `bota_pronta_entrega` com `extra_detalhes->'botas'` populado → usa `jsonb_array_length(botas)`
+- Caso contrário → usa `quantidade` (cobre revitalizador, kit_2_revitalizador, cintos, etc.)
 
-### Quando dispara
+Filtro de vendedor inclui a regra dos vendedores virtuais (clientes da Juliana Cristina Ribeiro).
 
-Comparar índice do status atual com o do novo. Se `novo < atual` → retrocesso. Cobre:
-- Pago/Cobrado/Entregue → qualquer etapa anterior
-- Expedição → qualquer produção anterior
-- Qualquer retrocesso entre etapas (ex.: Montagem → Corte)
+**2. `src/hooks/useOrders.ts`**
 
-Avançar nunca dispara.
+Substituir o bloco `valueQuery` (linhas 128–173) por uma chamada `supabase.rpc('get_orders_totals', { ... })`. Mantém `setTotalValue` e `setTotalProdutos` com os valores devolvidos pela RPC. A query principal paginada (linhas 61–125) continua igual.
 
-### UX (`ReportsPage` — "Atualizar progresso em massa")
+### Resultado esperado
 
-1. No `handleBulkProgressUpdate`, separar selecionados em `regressoes` e `normais`.
-2. Se houver regressões, abrir modal "Confirmar retrocesso de status" com a lista (`#numero — Atual → Novo`) e `textarea` obrigatório (mín. 5 caracteres, validado com zod).
-3. Ao confirmar:
-   - Regressões → `updateOrderStatus(id, novoStatus, "[RETROCESSO] " + motivo)` (concatena observação opcional original se houver).
-   - Normais → seguem com a observação original.
-4. Sem regressões, fluxo igual ao de hoje.
-
-### Helper
-
-`src/lib/statusRegression.ts`:
-- `STATUS_ORDER` (derivado de `order-logic.ts`)
-- `isStatusRegression(current, next)` — true se índice novo < atual (ignora desconhecidos e `Cancelado`)
-
-### Validação
-
-```ts
-z.string().trim().min(5, 'Justifique com pelo menos 5 caracteres').max(500)
-```
-
-### Arquivos
-
-- **Novo**: `src/lib/statusRegression.ts`
-- **Editado**: `src/pages/ReportsPage.tsx`
-
-### Memória
-
-Salvar `mem://features/orders/status-regression-guard` e referenciar no índice.
+Sem filtros: **2.603 pedidos · 2.664 produtos · R$ 823.551,17**. Com filtros: os 3 totais refletem corretamente o subconjunto, sem teto de 1000.
