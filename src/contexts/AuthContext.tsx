@@ -129,14 +129,15 @@ export interface Order {
 // Re-export statuses from centralized module for backward compatibility
 export { PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES } from '@/lib/order-logic';
 
-/* ───── Business days helpers (unchanged) ───── */
+/* ───── Business days helpers (descontam fim de semana + feriados nacionais) ───── */
+import { isBusinessDay } from '@/lib/holidays';
+
 function addBusinessDays(startDate: Date, days: number): Date {
   const result = new Date(startDate);
   let added = 0;
   while (added < days) {
     result.setDate(result.getDate() + 1);
-    const dow = result.getDay();
-    if (dow !== 0 && dow !== 6) added++;
+    if (isBusinessDay(result)) added++;
   }
   return result;
 }
@@ -149,8 +150,7 @@ export function businessDaysRemaining(startDate: Date, totalBusinessDays: number
   const d = new Date(now);
   while (d < deadline) {
     d.setDate(d.getDate() + 1);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) count++;
+    if (isBusinessDay(d)) count++;
   }
   return count;
 }
@@ -164,8 +164,7 @@ export function businessDaysOverdue(startDate: Date, totalBusinessDays: number):
   const d = new Date(deadline);
   while (d < now) {
     d.setDate(d.getDate() + 1);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) count++;
+    if (isBusinessDay(d)) count++;
   }
   return count;
 }
