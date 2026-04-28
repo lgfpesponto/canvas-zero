@@ -67,8 +67,9 @@ const ReportsPage = () => {
   const [progressObservacao, setProgressObservacao] = useState('');
 
   // Regression confirmation modal (status sendo movido para etapa anterior)
+  const [showRegressionConfirmModal, setShowRegressionConfirmModal] = useState(false);
   const [showRegressionModal, setShowRegressionModal] = useState(false);
-  const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string }[]>([]);
+  const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string }[]>([]);
   const [normalIds, setNormalIds] = useState<string[]>([]);
   const [regressionReason, setRegressionReason] = useState('');
 
