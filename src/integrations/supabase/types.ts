@@ -1130,6 +1130,22 @@ export type Database = {
         Args: { _ate: string; _de: string; _status: string[] }
         Returns: string[]
       }
+      get_orders_totals: {
+        Args: {
+          _date_from?: string
+          _date_to?: string
+          _ids_mudou?: string[]
+          _produtos?: string[]
+          _search?: string
+          _status?: string[]
+          _vendedores?: string[]
+        }
+        Returns: {
+          total_pedidos: number
+          total_produtos: number
+          valor_total: number
+        }[]
+      }
       get_pending_value: { Args: { vendor?: string }; Returns: number }
       get_production_counts: {
         Args: { product_types?: string[]; vendors?: string[] }

@@ -124,52 +124,26 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
       setOrders((data || []).map(dbRowToOrder));
       setCount(totalCount || 0);
 
-      // Fetch total value AND total produtos separately (same filters, no pagination)
-      let valueQuery = supabase.from('orders').select('preco, quantidade, tipo_extra, extra_detalhes');
-      if (idsMudou !== null) valueQuery = valueQuery.in('id', idsMudou);
-      if (filters.searchQuery) {
-        valueQuery = valueQuery.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
-      }
-      if (filters.filterDate) valueQuery = valueQuery.gte('data_criacao', filters.filterDate);
-      if (filters.filterDateEnd) valueQuery = valueQuery.lte('data_criacao', filters.filterDateEnd);
-      if (filters.filterStatus && filters.filterStatus.size > 0) {
-        valueQuery = valueQuery.in('status', [...filters.filterStatus]);
-      }
-      if (filters.filterProduto && filters.filterProduto.size > 0) {
-        const produtos = [...filters.filterProduto];
-        const hasBota = produtos.includes('bota');
-        const outros = produtos.filter(p => p !== 'bota');
-        if (hasBota && outros.length > 0) {
-          valueQuery = valueQuery.or(`tipo_extra.is.null,tipo_extra.in.(${outros.join(',')})`);
-        } else if (hasBota && outros.length === 0) {
-          valueQuery = valueQuery.is('tipo_extra', null);
-        } else if (outros.length > 0) {
-          valueQuery = valueQuery.in('tipo_extra', outros);
-        }
-      }
-      if (filters.filterVendedor && filters.filterVendedor.size > 0) {
-        const vendedores = [...filters.filterVendedor];
-        const orClauses = vendedores.map(v => `vendedor.eq.${v}`);
-        vendedores.forEach(v => {
-          orClauses.push(`and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${v})`);
-        });
-        valueQuery = valueQuery.or(orClauses.join(','));
-      }
-
-      const { data: valueData } = await valueQuery;
-      if (valueData) {
-        setTotalValue(valueData.reduce((s, o: any) => s + Number(o.preco) * o.quantidade, 0));
-        // Total de Produtos: soma quantidades reais por tipo
-        // - Bota Pronta Entrega: usa botas[].length de extra_detalhes (quando existir)
-        // - Demais: usa o.quantidade
-        setTotalProdutos(valueData.reduce((s, o: any) => {
-          if (o.tipo_extra === 'bota_pronta_entrega') {
-            const botas = o.extra_detalhes?.botas;
-            const len = Array.isArray(botas) ? botas.length : 0;
-            return s + (len > 0 ? len : (o.quantidade || 1));
-          }
-          return s + (o.quantidade || 1);
-        }, 0));
+      // Totais agregados via RPC server-side (sem limite de 1000 linhas)
+      const { data: totals, error: totalsErr } = await supabase.rpc('get_orders_totals', {
+        _search: filters.searchQuery || null,
+        _date_from: filters.filterDate || null,
+        _date_to: filters.filterDateEnd || null,
+        _status: filters.filterStatus && filters.filterStatus.size > 0 ? [...filters.filterStatus] : null,
+        _produtos: filters.filterProduto && filters.filterProduto.size > 0 ? [...filters.filterProduto] : null,
+        _vendedores: filters.filterVendedor && filters.filterVendedor.size > 0 ? [...filters.filterVendedor] : null,
+        _ids_mudou: idsMudou,
+      });
+      if (totalsErr) {
+        console.error('Erro get_orders_totals:', totalsErr);
+        setTotalValue(0);
+        setTotalProdutos(0);
+      } else if (totals && totals.length > 0) {
+        const row: any = totals[0];
+        setTotalValue(Number(row.valor_total) || 0);
+        setTotalProdutos(Number(row.total_produtos) || 0);
+        // Reforça count com o número exato vindo da RPC (mesma lógica de filtros)
+        setCount(Number(row.total_pedidos) || (totalCount || 0));
       }
     } finally {
       setLoading(false);
