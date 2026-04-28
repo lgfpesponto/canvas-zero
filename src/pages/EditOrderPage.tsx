@@ -113,9 +113,10 @@ const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles } = useAuth();
   const { order, loading: orderLoading } = useOrderById(id);
-  const { getByCategoria } = useCustomOptions();
-  const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
+  const { getByCategoria, loading: customOptsLoading } = useCustomOptions();
+  const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
+  const catalogReady = !customOptsLoading && !fichaLoading;
 
   const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
     const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
