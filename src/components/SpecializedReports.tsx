@@ -968,6 +968,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateCortePDF = async () => {
     const filtered = sourceOrders.filter(o =>
       progressoMatches(o.status) &&
+      dataMatches(o.dataCriacao) &&
       (!o.tipoExtra || o.tipoExtra === 'cinto')
     );
 
