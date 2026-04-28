@@ -112,7 +112,7 @@ const ReportsPage = () => {
     mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
   }));
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string> }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: string; mudouDe?: string; mudouAte?: string }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
@@ -124,15 +124,40 @@ const ReportsPage = () => {
     if (!isDefaultProduto && filters.filterProduto.size > 0) {
       params.set('produtos', [...filters.filterProduto].join(','));
     }
+    if (filters.mudouStatus) params.set('mudou_status', filters.mudouStatus);
+    if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
+    if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
   const applyFilters = () => {
     setScanFilterId(null);
     setPage(1);
-    const newFilters = { searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) };
+    // valida intervalo "mudou para status": precisa pelo menos de uma data se status preenchido
+    let mDe = mudouDe;
+    let mAte = mudouAte;
+    if (mudouStatus) {
+      if (!mDe && !mAte) {
+        toast.error('Informe a data em que o pedido mudou para o status selecionado.');
+        return;
+      }
+      if (!mDe) mDe = mAte;
+      if (!mAte) mAte = mDe;
+    }
+    const newFilters: OrderFilters & { mudouStatus: string; mudouDe: string; mudouAte: string } = {
+      searchQuery,
+      filterDate,
+      filterDateEnd,
+      filterStatus: new Set(filterStatus),
+      filterVendedor: new Set(filterVendedor),
+      filterProduto: new Set(filterProduto),
+      mudouParaStatus: mudouStatus || undefined,
+      mudouParaStatusDe: mudouStatus ? mDe : undefined,
+      mudouParaStatusAte: mudouStatus ? mAte : undefined,
+      mudouStatus, mudouDe: mDe, mudouAte: mAte,
+    };
     setAppliedFilters(newFilters);
-    syncSearchParams(newFilters);
+    syncSearchParams(newFilters as any);
   };
 
   const toggleProdutoFilter = (val: string) => {
