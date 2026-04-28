@@ -1,31 +1,49 @@
-# Melhorar paginação em "Meus Pedidos"
+# Mostrar quem fez cada alteração no Histórico de Produção e no Histórico de Alterações
 
 ## O que muda
 
-Hoje, na parte inferior da lista de "Meus Pedidos" (`/relatorios`), só existem dois botões: **Anterior** e **Próxima**, com o texto "Página X de Y" no meio. Quando há muitas páginas, é cansativo clicar várias vezes.
+Hoje, no detalhe de um pedido (`/pedido/:id`), o **Histórico de Impressão** mostra `data, hora, tipo — usuário`. Já o **Histórico de Produção** (mudanças de status) e o **Histórico de Alterações** (edições de campos) só mostram `data, hora, descrição` — não dizem quem fez. Vamos passar a registrar e exibir o **nome do usuário** que fez cada movimentação, igual ao histórico de impressão.
 
-A nova paginação vai ter, na seguinte ordem:
+### Como vai aparecer
 
-```text
-[ « Primeira ]  [ ‹ Anterior ]   Página [ 11 ] de 15   [ Ir ]   [ Próxima › ]  [ Última » ]
+**Histórico de Produção** (cada item):
+```
+✔ Bordado Dinei
+  28/04/2026 às 14:32 — Pedido movido para Bordado Dinei
+  por Juliana Cristina Ribeiro
+  Observação: ... (se houver)
 ```
 
-- **Primeira**: vai direto para a página 1.
-- **Anterior**: igual ao atual (página -1).
-- **Campo de número**: input editável onde o usuário digita o número da página desejada (ex.: 11). Aceita Enter para confirmar.
-- **Botão "Ir"**: confirma o salto para a página digitada (alternativa ao Enter).
-- **de 15**: mostra o total de páginas (igual hoje).
-- **Próxima**: igual ao atual (página +1).
-- **Última**: vai direto para a última página (`totalPages`).
-
-Validações:
-- Se o usuário digitar um número inválido (menor que 1, maior que o total, ou texto), o salto é ignorado e o campo volta para a página atual.
-- Os botões "Primeira" e "Anterior" ficam desabilitados na página 1.
-- Os botões "Próxima" e "Última" ficam desabilitados na última página.
-- Mantém o mesmo estilo visual atual (botões com borda laranja).
+**Histórico de Alterações** (cada item):
+```
+28/04/2026 às 14:35 — por Fernanda
+Alterado Cor da linha de "Branco" para "Preto"
+```
 
 ## Onde mexer
 
-- `src/pages/ReportsPage.tsx` — substituir o bloco de paginação (linhas ~1143-1163) pelo novo layout com input e os 4 botões. Aproveitar o `handlePageChange` que já existe (faz scroll para o topo).
+### 1. Banco de dados
+Os campos `historico` e `alteracoes` da tabela `orders` são `jsonb`, então **não precisa migração** — apenas passamos a gravar uma chave nova `usuario` em cada item novo. Itens antigos (sem `usuario`) continuam funcionando: a tela mostra "—" quando o campo não existir.
 
-Nenhuma alteração de banco, nenhuma outra página afetada.
+### 2. Tipos (`src/contexts/AuthContext.tsx`)
+- `Order.historico`: adicionar campo opcional `usuario?: string`.
+- `OrderAlteracao`: adicionar campo opcional `usuario?: string`.
+
+### 3. Gravação do usuário
+Em todo lugar que insere item em `historico` ou `alteracoes`, gravar `usuario: <nome do usuário logado>` (usar `user.nomeCompleto` do `useAuth()`):
+
+- `AuthContext.updateOrderStatus` (mudança de status normal) — adicionar `usuario` no `newHistEntry`.
+- `AuthContext.updateOrder` (edições de campos) — adicionar `usuario` em cada `OrderAlteracao` criado em `changes`.
+- `AuthContext.addOrder` e `addOrderBatch` — gravar usuário no item inicial "Pedido criado".
+- `OrderDetailPage.tsx` linha ~399 (mudança de status em lote pelo botão "Mudar progresso") — adicionar `usuario` no `newHist`.
+- `OrderDetailPage.tsx` linha ~890 (alteração que cria entrada em `alteracoes`) — adicionar `usuario`.
+
+Para isso, o `AuthContext` já tem o `user` em escopo; basta ler `user?.nomeCompleto` no momento da escrita. Nas chamadas em componentes (que não passam pelo context), passamos o nome explicitamente.
+
+### 4. Exibição (`src/pages/OrderDetailPage.tsx`)
+- Bloco "Histórico de Produção" (linhas 511-529): adicionar uma linha `por {h.usuario || '—'}` abaixo da descrição.
+- Bloco "Histórico de Alterações" (linhas 531-548): adicionar `por {a.usuario || '—'}` ao lado da data/hora.
+
+## Observação importante sobre dados antigos
+
+Itens já existentes no banco não têm o campo `usuario`. A tela vai mostrar "—" para esses casos. **Não vamos** tentar preencher retroativamente, pois não há como saber quem fez aquelas alterações no passado.
