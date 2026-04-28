@@ -1,5 +1,5 @@
 import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue, matchOrderBarcode, type Order } from '@/contexts/AuthContext';
-import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchOrdersByIds, type OrderFilters } from '@/hooks/useOrders';
+import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchAllFilteredOrderIds, fetchOrdersByIds, type OrderFilters } from '@/hooks/useOrders';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
@@ -327,11 +327,19 @@ const ReportsPage = () => {
     });
   }, []);
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === visibleOrders.length) {
+  const [selectAllLoading, setSelectAllLoading] = useState(false);
+  const toggleSelectAll = async () => {
+    // Se já temos tudo do filtro selecionado, limpa.
+    if (serverCount > 0 && selectedIds.size >= serverCount) {
       setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(visibleOrders.map(o => o.id)));
+      return;
+    }
+    setSelectAllLoading(true);
+    try {
+      const ids = await fetchAllFilteredOrderIds(appliedFilters);
+      setSelectedIds(new Set(ids));
+    } finally {
+      setSelectAllLoading(false);
     }
   };
 
@@ -1101,11 +1109,23 @@ const ReportsPage = () => {
 
         {/* Select All */}
         <div className="flex items-center gap-3 mb-3">
-          <button onClick={toggleSelectAll} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedIds.size === visibleOrders.length && visibleOrders.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
-            {selectedIds.size === visibleOrders.length && visibleOrders.length > 0 && <CheckCircle size={14} className="text-primary-foreground" />}
+          <button
+            onClick={toggleSelectAll}
+            disabled={selectAllLoading || serverCount === 0}
+            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${serverCount > 0 && selectedIds.size >= serverCount ? 'bg-primary border-primary' : 'border-border hover:border-primary'} ${selectAllLoading ? 'opacity-50 cursor-wait' : ''}`}
+          >
+            {serverCount > 0 && selectedIds.size >= serverCount && <CheckCircle size={14} className="text-primary-foreground" />}
           </button>
-          <span className="text-sm font-semibold">Selecionar todos</span>
-          {selectedIds.size > 0 && <span className="text-xs text-muted-foreground">({selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''})</span>}
+          <span className="text-sm font-semibold">
+            {serverCount > 0 && selectedIds.size >= serverCount ? 'Desmarcar todos' : 'Selecionar todos'}
+            {serverCount > 0 && ` (${serverCount})`}
+          </span>
+          {selectAllLoading && <span className="text-xs text-muted-foreground">carregando...</span>}
+          {selectedIds.size > 0 && !selectAllLoading && (
+            <span className="text-xs text-muted-foreground">
+              ({selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''})
+            </span>
+          )}
         </div>
 
         {/* Orders list */}

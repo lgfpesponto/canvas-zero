@@ -1262,6 +1262,14 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      list_profiles_minimal: {
+        Args: never
+        Returns: {
+          id: string
+          nome_completo: string
+          nome_usuario: string
+        }[]
+      }
       marcar_comprovante_utilizado: {
         Args: { _comprovante_id: string; _motivo: string }
         Returns: Json
