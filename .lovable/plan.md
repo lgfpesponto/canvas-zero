@@ -1,47 +1,45 @@
-## Objetivo
+# Tornar "Aguardando" e "Cancelado" status que sempre exigem justificativa
 
-Hoje, ao mover um pedido para uma etapa anterior na lista de Meus Pedidos, o sistema **já abre direto o campo de justificativa**. Você quer um passo intermediário de **confirmação humana** que mostre quando o pedido entrou na etapa atual, antes de exigir a justificativa.
+## Comportamento atual
+- Hoje só pede confirmação + justificativa quando `next` está numa posição **anterior** a `current` na ordem canônica.
+- "Aguardando" e "Cancelado" não são etapas de fluxo — são estados fora de linha.
+- "Cancelado" já tem uma checagem isolada que exige `progressObservacao` preenchido, mas não passa pelos modais de 2 passos nem grava prefixo no histórico.
 
-## Fluxo novo (2 passos)
+## Comportamento desejado
+Sempre que um pedido for movido **para** "Aguardando" **ou** "Cancelado" (a partir de qualquer etapa diferente), o sistema deve abrir o mesmo fluxo de 2 passos já existente:
 
-1. **Confirmação** — modal "Tem certeza?":
-   > Pedido **#7E-XXXX0001** está em **Pesponto 02** desde **12/04/2026 às 14:30**.
-   > Você quer voltá-lo para **Corte**?
-   > [Cancelar] [Sim, voltar etapa]
+1. **Modal de confirmação** mostrando desde quando o pedido está na etapa atual.
+2. **Modal de justificativa obrigatória** (mín. 5 caracteres), gravada no histórico com prefixo apropriado:
+   - `[PAUSA]` quando o destino for "Aguardando".
+   - `[CANCELAMENTO]` quando o destino for "Cancelado".
+   - `[RETROCESSO]` quando for regressão comum na ordem canônica.
 
-2. **Se Sim** → segue o modal atual de justificativa (mínimo 5 caracteres, registrada como `[RETROCESSO]` no histórico). Nada muda no resto.
+## Mudanças técnicas
 
-Se houver vários pedidos selecionados em retrocesso, a confirmação lista todos com a respectiva data/hora da última entrada na etapa atual.
+### `src/lib/statusRegression.ts`
+- Adicionar `PAUSE_STATUSES = ['Aguardando']` e `CANCEL_STATUSES = ['Cancelado']`.
+- Nova função `requiresJustification(current, next)` retornando:
+  - `'cancel'` quando `next ∈ CANCEL_STATUSES` e `current !== next`
+  - `'pause'` quando `next ∈ PAUSE_STATUSES` e `current !== next`
+  - `'regression'` quando `isStatusRegression(current, next)` é verdadeiro
+  - `null` caso contrário
+- Manter `isStatusRegression` como está (ela ignora "Cancelado" — comportamento mantido para não duplicar com a regra nova).
 
-## Detalhes técnicos
+### `src/pages/ReportsPage.tsx`
+- Em `handleBulkProgressUpdate`:
+  - Remover o early-return atual que exige `progressObservacao` para "Cancelado" (passa a ser tratado pelo modal).
+  - Trocar `isStatusRegression(...)` por `requiresJustification(...)` e guardar o `kind` (`'pause' | 'cancel' | 'regression'`) em cada item.
+- Modais (`showRegressionConfirmModal` / `showRegressionModal`) passam a renderizar título e textos conforme o `kind`:
+  - **Pausa**: "Pausar pedido?" / "Pedido #XXXX está em [Etapa] desde [data/hora]. Confirma pausa em 'Aguardando'?"
+  - **Cancelamento**: "Cancelar pedido?" / "Pedido #XXXX está em [Etapa] desde [data/hora]. Confirma cancelamento?"
+  - **Regressão**: textos atuais ("Voltar etapa?").
+  - Se a seleção misturar tipos, listar cada item com seu rótulo.
+- `handleConfirmRegression` → renomear para `handleConfirmJustification`. Por item, escolher o prefixo (`[PAUSA]`, `[CANCELAMENTO]`, `[RETROCESSO]`) ao montar a observação.
 
-**Arquivo único alterado:** `src/pages/ReportsPage.tsx`
+### Memória
+- Atualizar `mem://features/orders/status-regression-guard.md` documentando que "Aguardando" e "Cancelado" sempre disparam o fluxo de 2 passos, com prefixos `[PAUSA]` e `[CANCELAMENTO]`.
+- Cruzar com `mem://features/orders/cancellation-status.md` para manter as regras coerentes (motivo obrigatório continua valendo, agora capturado pelo modal).
 
-1. Em `handleBulkProgressUpdate`, quando detectar regressões:
-   - Para cada pedido em retrocesso, ler `historico` (jsonb já existente) e achar a **última** entrada cujo `local === ord.status` (a etapa atual).
-   - Pegar `data` + `hora` desse evento. Fallback: `data_criacao` + `hora_criacao` se não houver registro.
-   - Em vez de abrir direto o modal de justificativa, abrir um novo modal `showRegressionConfirmModal`.
-
-2. Novo estado:
-   ```ts
-   const [showRegressionConfirmModal, setShowRegressionConfirmModal] = useState(false);
-   // regressionItems já existe — estender o tipo para incluir { desdeData, desdeHora }
-   ```
-
-3. Novo modal (Dialog) com:
-   - Lista compacta: `#numero — Pesponto 02 → Corte (desde 12/04 14:30)`
-   - Botões: **Cancelar** / **Sim, voltar etapa** (laranja)
-   - Ao confirmar → fecha esse modal e abre o `showRegressionModal` atual (justificativa).
-
-4. Não mexer em: `statusRegression.ts`, RPCs, RLS, histórico, ou qualquer outro fluxo. A justificativa continua obrigatória (mínimo 5 caracteres) e gravada como `[RETROCESSO]`.
-
-## Defaults assumidos
-
-- **Data exibida**: última entrada na etapa atual + hora (mais preciso quando há idas e voltas).
-- **Escopo**: vale para qualquer regressão de etapa (mesmo critério já usado pela função `isStatusRegression`).
-
-## Fora do escopo
-
-- Mudança individual de status na página de detalhes (não existe hoje — tudo passa pelo seletor em massa de Meus Pedidos).
-- Alterar a função `isStatusRegression` ou a ordem canônica de status.
-- Alterar o registro no histórico (continua igual).
+## Fora de escopo
+- Listas separadas para cintos/extras (fica para depois).
+- Movimentos laterais entre Pespontos/Bordados continuam sem aviso.
