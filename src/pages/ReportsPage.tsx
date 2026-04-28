@@ -50,6 +50,9 @@ const ReportsPage = () => {
     const v = searchParams.get('produtos');
     return v ? new Set(v.split(',')) : new Set(defaultProduto);
   });
+  const [mudouStatus, setMudouStatus] = useState<string>(() => searchParams.get('mudou_status') || '');
+  const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
+  const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
@@ -97,16 +100,19 @@ const ReportsPage = () => {
   }, []);
 
   // Initialize appliedFilters from URL params too
-  const [appliedFilters, setAppliedFilters] = useState(() => ({
+  const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => ({
     searchQuery: searchParams.get('q') || '',
     filterDate: searchParams.get('de') || '',
     filterDateEnd: searchParams.get('ate') || '',
     filterStatus: new Set(filterStatus),
     filterVendedor: new Set(filterVendedor),
     filterProduto: new Set(searchParams.get('produtos')?.split(',') ?? [...defaultProduto]),
+    mudouParaStatus: searchParams.get('mudou_status') || undefined,
+    mudouParaStatusDe: searchParams.get('mudou_de') || undefined,
+    mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
   }));
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string> }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: string; mudouDe?: string; mudouAte?: string }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
@@ -118,15 +124,40 @@ const ReportsPage = () => {
     if (!isDefaultProduto && filters.filterProduto.size > 0) {
       params.set('produtos', [...filters.filterProduto].join(','));
     }
+    if (filters.mudouStatus) params.set('mudou_status', filters.mudouStatus);
+    if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
+    if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
   const applyFilters = () => {
     setScanFilterId(null);
     setPage(1);
-    const newFilters = { searchQuery, filterDate, filterDateEnd, filterStatus: new Set(filterStatus), filterVendedor: new Set(filterVendedor), filterProduto: new Set(filterProduto) };
+    // valida intervalo "mudou para status": precisa pelo menos de uma data se status preenchido
+    let mDe = mudouDe;
+    let mAte = mudouAte;
+    if (mudouStatus) {
+      if (!mDe && !mAte) {
+        toast.error('Informe a data em que o pedido mudou para o status selecionado.');
+        return;
+      }
+      if (!mDe) mDe = mAte;
+      if (!mAte) mAte = mDe;
+    }
+    const newFilters: OrderFilters & { mudouStatus: string; mudouDe: string; mudouAte: string } = {
+      searchQuery,
+      filterDate,
+      filterDateEnd,
+      filterStatus: new Set(filterStatus),
+      filterVendedor: new Set(filterVendedor),
+      filterProduto: new Set(filterProduto),
+      mudouParaStatus: mudouStatus || undefined,
+      mudouParaStatusDe: mudouStatus ? mDe : undefined,
+      mudouParaStatusAte: mudouStatus ? mAte : undefined,
+      mudouStatus, mudouDe: mDe, mudouAte: mAte,
+    };
     setAppliedFilters(newFilters);
-    syncSearchParams(newFilters);
+    syncSearchParams(newFilters as any);
   };
 
   const toggleProdutoFilter = (val: string) => {
@@ -686,6 +717,52 @@ const ReportsPage = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            {/* Filtro: mudou para status em uma data */}
+            <div className="basis-full border-t border-border pt-3 mt-1 flex flex-col sm:flex-row gap-3 flex-wrap items-end">
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mudou para o status</label>
+                <select
+                  value={mudouStatus}
+                  onChange={e => setMudouStatus(e.target.value)}
+                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px]"
+                >
+                  <option value="">— (desligado)</option>
+                  {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mudou em (de)</label>
+                <input
+                  type="date"
+                  value={mudouDe}
+                  onChange={e => setMudouDe(e.target.value)}
+                  disabled={!mudouStatus}
+                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1">Mudou em (até)</label>
+                <input
+                  type="date"
+                  value={mudouAte}
+                  onChange={e => setMudouAte(e.target.value)}
+                  disabled={!mudouStatus}
+                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none disabled:opacity-50"
+                />
+              </div>
+              {mudouStatus && (
+                <button
+                  type="button"
+                  onClick={() => { setMudouStatus(''); setMudouDe(''); setMudouAte(''); }}
+                  className="text-xs font-semibold text-muted-foreground hover:text-primary underline pb-2"
+                >
+                  Limpar
+                </button>
+              )}
+              <p className="text-[11px] text-muted-foreground basis-full">
+                Mostra pedidos que entraram no status selecionado dentro do intervalo (ex.: "Entregue" entre 27/04 e 27/04).
+              </p>
+            </div>
             <div className="flex items-end gap-2">
               <button onClick={applyFilters} className="orange-gradient text-primary-foreground px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Filter size={14} /> FILTRAR
@@ -697,6 +774,9 @@ const ReportsPage = () => {
                 setFilterStatus(new Set());
                 setFilterVendedor(new Set());
                 setFilterProduto(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
+                setMudouStatus('');
+                setMudouDe('');
+                setMudouAte('');
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });

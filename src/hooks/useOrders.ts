@@ -11,6 +11,29 @@ export interface OrderFilters {
   filterStatus?: Set<string>;
   filterVendedor?: Set<string>;
   filterProduto?: Set<string>;
+  /** Filtra pedidos cujo histórico contém a transição para este status... */
+  mudouParaStatus?: string;
+  /** ...dentro do intervalo [mudouParaStatusDe, mudouParaStatusAte] (YYYY-MM-DD) */
+  mudouParaStatusDe?: string;
+  mudouParaStatusAte?: string;
+}
+
+/** Busca IDs via RPC quando há filtro "mudou para status". Retorna null se filtro inativo. */
+async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] | null> {
+  if (!filters.mudouParaStatus) return null;
+  const de = filters.mudouParaStatusDe || filters.mudouParaStatusAte;
+  const ate = filters.mudouParaStatusAte || filters.mudouParaStatusDe;
+  if (!de || !ate) return null;
+  const { data, error } = await supabase.rpc('find_orders_by_status_change', {
+    _status: filters.mudouParaStatus,
+    _de: de,
+    _ate: ate,
+  });
+  if (error) {
+    console.error('Erro find_orders_by_status_change:', error);
+    return [];
+  }
+  return (data as any[] | null)?.map((r: any) => (typeof r === 'string' ? r : r.id)) ?? [];
 }
 
 const PAGE_SIZE = 50;
@@ -27,8 +50,16 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
     setLoading(true);
 
     try {
+      // Filtro "mudou para status" (RPC) — restringe a um conjunto de IDs
+      const idsMudou = await fetchIdsMudouParaStatus(filters);
+      if (idsMudou !== null && idsMudou.length === 0) {
+        setOrders([]); setCount(0); setTotalValue(0); setTotalProdutos(0);
+        return;
+      }
+
       // Build main query
       let query = supabase.from('orders').select('*', { count: 'exact' });
+      if (idsMudou !== null) query = query.in('id', idsMudou);
 
       // Search filter
       if (filters.searchQuery) {
@@ -95,6 +126,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
 
       // Fetch total value AND total produtos separately (same filters, no pagination)
       let valueQuery = supabase.from('orders').select('preco, quantidade, tipo_extra, extra_detalhes');
+      if (idsMudou !== null) valueQuery = valueQuery.in('id', idsMudou);
       if (filters.searchQuery) {
         valueQuery = valueQuery.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
       }
@@ -158,8 +190,13 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
   let offset = 0;
   let hasMore = true;
 
+  // Pré-resolve filtro "mudou para status" (mesmo conjunto de IDs entre batches)
+  const idsMudou = await fetchIdsMudouParaStatus(filters);
+  if (idsMudou !== null && idsMudou.length === 0) return [];
+
   while (hasMore) {
     let query = supabase.from('orders').select('*');
+    if (idsMudou !== null) query = query.in('id', idsMudou);
 
     if (filters.searchQuery) {
       query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
