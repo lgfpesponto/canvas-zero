@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
-import { isStatusRegression } from '@/lib/statusRegression';
+import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -66,10 +66,10 @@ const ReportsPage = () => {
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
 
-  // Regression confirmation modal (status sendo movido para etapa anterior)
+  // Justification confirmation modal (regressão / pausa / cancelamento)
   const [showRegressionConfirmModal, setShowRegressionConfirmModal] = useState(false);
   const [showRegressionModal, setShowRegressionModal] = useState(false);
-  const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string }[]>([]);
+  const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string; kind: JustificationKind }[]>([]);
   const [normalIds, setNormalIds] = useState<string[]>([]);
   const [regressionReason, setRegressionReason] = useState('');
 
@@ -262,18 +262,15 @@ const ReportsPage = () => {
 
   const handleBulkProgressUpdate = async () => {
     if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
-    if (selectedProgress === 'Cancelado' && !progressObservacao.trim()) {
-      toast.error('Informe o motivo do cancelamento.');
-      return;
-    }
 
-    // Detecta retrocessos
-    const regressions: { id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string }[] = [];
+    // Detecta transições que exigem justificativa (regressão / pausa / cancelamento)
+    const regressions: { id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string; kind: JustificationKind }[] = [];
     const normals: string[] = [];
     selectedIds.forEach(id => {
       const ord = mergedOrdersMap.get(id);
       if (!ord) { normals.push(id); return; }
-      if (isStatusRegression(ord.status, selectedProgress)) {
+      const kind = requiresJustification(ord.status, selectedProgress);
+      if (kind) {
         // Procura no histórico a última entrada na etapa atual
         let desdeData = ord.dataCriacao || '';
         let desdeHora = ord.horaCriacao || '';
@@ -286,7 +283,7 @@ const ReportsPage = () => {
             break;
           }
         }
-        regressions.push({ id, numero: ord.numero, current: ord.status, next: selectedProgress, desdeData, desdeHora });
+        regressions.push({ id, numero: ord.numero, current: ord.status, next: selectedProgress, desdeData, desdeHora, kind });
       } else {
         normals.push(id);
       }
@@ -309,14 +306,16 @@ const ReportsPage = () => {
   const handleConfirmRegression = async () => {
     const motivo = regressionReason.trim();
     if (motivo.length < 5) {
-      toast.error('Justifique o retrocesso com pelo menos 5 caracteres.');
+      toast.error('Justifique com pelo menos 5 caracteres.');
       return;
     }
     const baseObs = progressObservacao.trim();
-    const obsRetrocesso = `[RETROCESSO] ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
+    const prefixOf = (k: JustificationKind) =>
+      k === 'cancel' ? '[CANCELAMENTO]' : k === 'pause' ? '[PAUSA]' : '[RETROCESSO]';
 
     for (const item of regressionItems) {
-      await updateOrderStatus(item.id, selectedProgress, obsRetrocesso);
+      const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
+      await updateOrderStatus(item.id, selectedProgress, obs);
     }
     for (const id of normalIds) {
       await updateOrderStatus(id, selectedProgress, baseObs || undefined);
