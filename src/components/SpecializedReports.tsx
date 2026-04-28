@@ -454,7 +454,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Escalação', userName);
-    doc.save(`Escalação - ${progressoLabel} - ${dateFile}.pdf`);
+    doc.save(`Escalação - ${progressoFile} - ${dateFile}.pdf`);
   };
 
   // ── Forro: compact block layout ──
@@ -532,7 +532,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Forro', userName);
-    doc.save(`Forro - ${progressoLabel} - ${dateFile}.pdf`);
+    doc.save(`Forro - ${progressoFile} - ${dateFile}.pdf`);
   };
 
   // ── Palmilha: same layout as Forro ──
@@ -578,7 +578,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Palmilha', userName);
-    doc.save(`Palmilha - ${progressoLabel} - ${dateFile}.pdf`);
+    doc.save(`Palmilha - ${progressoFile} - ${dateFile}.pdf`);
   };
 
   // ── Forma: same as Palmilha ──
@@ -624,7 +624,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Forma', userName);
-    doc.save(`Forma - ${progressoLabel} - ${dateFile}.pdf`);
+    doc.save(`Forma - ${progressoFile} - ${dateFile}.pdf`);
   };
 
   // ── Pesponto: tabular report for costura sector ──
@@ -715,7 +715,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Pesponto', userName);
-    doc.save(`Pesponto - ${progressoLabel} - ${dateFile}.pdf`);
+    doc.save(`Pesponto - ${progressoFile} - ${dateFile}.pdf`);
   };
 
 
