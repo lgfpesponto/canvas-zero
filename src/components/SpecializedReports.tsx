@@ -1173,7 +1173,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   // ── Cobrança: tabular A4 layout ──
   const generateCobrancaPDF = () => {
-    const COBRANCA_STATUSES = ['entregue', 'cobrado'];
+    const COBRANCA_STATUSES = ['entregue'];
     const filtered = sourceOrders.filter(o =>
       COBRANCA_STATUSES.includes((o.status || '').trim().toLowerCase()) &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
