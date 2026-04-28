@@ -13,6 +13,9 @@ import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { LoadingValue } from '@/components/ui/LoadingValue';
+import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -57,6 +60,7 @@ const ReportsPage = () => {
   });
   const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
   const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
+  const [onlyOverdue, setOnlyOverdue] = useState<boolean>(() => searchParams.get('atrasados') === '1');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
