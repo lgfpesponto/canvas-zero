@@ -28,6 +28,47 @@ import {
 
 const PAGE_SIZE = 50;
 
+function PaginationBar({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  const [input, setInput] = useState(String(page));
+  useEffect(() => { setInput(String(page)); }, [page]);
+
+  const go = () => {
+    const n = parseInt(input, 10);
+    if (!isNaN(n) && n >= 1 && n <= totalPages && n !== page) {
+      onChange(n);
+    } else {
+      setInput(String(page));
+    }
+  };
+
+  const btn = "px-3 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+      <button onClick={() => onChange(1)} disabled={page <= 1} className={btn} title="Primeira página">« Primeira</button>
+      <button onClick={() => onChange(page - 1)} disabled={page <= 1} className={btn}>‹ Anterior</button>
+      <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+        Página
+        <input
+          type="number"
+          min={1}
+          max={totalPages}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }}
+          onBlur={go}
+          className="w-16 px-2 py-1 rounded-md border-2 border-primary/50 text-center font-bold text-foreground bg-background focus:outline-none focus:border-primary"
+        />
+        de {totalPages}
+      </span>
+      <button onClick={go} className={btn}>Ir</button>
+      <button onClick={() => onChange(page + 1)} disabled={page >= totalPages} className={btn}>Próxima ›</button>
+      <button onClick={() => onChange(totalPages)} disabled={page >= totalPages} className={btn} title="Última página">Última »</button>
+    </div>
+  );
+}
+
+
 const formatDateBR = (date: string, time?: string) => {
   const [y, m, d] = date.split('-');
   return `${d}/${m}/${y}${time ? ` — ${time}` : ''}`;
