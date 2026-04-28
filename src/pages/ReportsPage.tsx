@@ -1056,11 +1056,54 @@ const ReportsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Regression confirmation — exige justificativa ao voltar etapa */}
+      {/* Step 1 — Confirmação humana antes da justificativa */}
+      <Dialog open={showRegressionConfirmModal} onOpenChange={(open) => { if (!open) setShowRegressionConfirmModal(false); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Tem certeza que quer voltar a etapa?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {regressionItems.length === 1
+              ? 'O pedido abaixo está sendo movido para uma etapa anterior. Confira a data em que ele entrou na etapa atual:'
+              : `${regressionItems.length} pedidos estão sendo movidos para uma etapa anterior. Confira quando cada um entrou na etapa atual:`}
+          </p>
+          <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 text-xs space-y-2">
+            {regressionItems.map(item => (
+              <div key={item.id} className="flex flex-col gap-0.5 pb-2 border-b border-border/40 last:border-0 last:pb-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono font-bold">#{item.numero}</span>
+                  <span className="text-muted-foreground">
+                    {item.current} <span className="text-destructive font-bold">→</span> {item.next}
+                  </span>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  Em <strong>{item.current}</strong> desde {item.desdeData ? formatDateBR(item.desdeData, item.desdeHora) : 'data não registrada'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="mt-4">
+            <button
+              onClick={() => { setShowRegressionConfirmModal(false); setRegressionItems([]); setNormalIds([]); }}
+              className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => { setShowRegressionConfirmModal(false); setShowRegressionModal(true); }}
+              className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90"
+            >
+              Sim, voltar etapa
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 2 — Justificativa obrigatória */}
       <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open) setShowRegressionModal(false); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Confirmar retrocesso de status</DialogTitle>
+            <DialogTitle>Justifique o retrocesso</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {regressionItems.length} pedido(s) estão sendo movidos para uma etapa <strong>anterior</strong> à atual.
