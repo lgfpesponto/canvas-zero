@@ -396,7 +396,7 @@ const OrderDetailPage = () => {
                     const descricao = bulkStatus === 'Cancelado'
                       ? `Cancelado: ${bulkCancelReason.trim()}`
                       : `Movido para ${bulkStatus}`;
-                    const newHist: any = { local: bulkStatus, data: dataHoje, hora: horaAgora, descricao };
+                    const newHist: any = { local: bulkStatus, data: dataHoje, hora: horaAgora, descricao, usuario: user?.nomeCompleto };
                     if (observacao) newHist.observacao = observacao;
                     await updateOrder(oid, {
                       status: bulkStatus,
@@ -521,6 +521,7 @@ const OrderDetailPage = () => {
                     <div className="pb-3">
                       <p className="text-sm font-semibold">{h.local}</p>
                       <p className="text-xs text-muted-foreground">{formatDateBR(h.data)} às {h.hora || '—'} — {h.descricao}</p>
+                      <p className="text-xs text-muted-foreground">por {h.usuario || '—'}</p>
                       {h.observacao && <p className="text-xs text-primary italic mt-0.5">Observação: {h.observacao}</p>}
                     </div>
                   </div>
@@ -539,7 +540,7 @@ const OrderDetailPage = () => {
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {alteracoes.map((a, i) => (
                     <div key={i} className="border-b border-border/30 pb-2">
-                      <p className="text-xs text-muted-foreground">{formatDateBR(a.data)} às {a.hora}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateBR(a.data)} às {a.hora} — por {a.usuario || '—'}</p>
                       <p className="text-sm">{a.descricao}</p>
                     </div>
                   ))}
@@ -883,6 +884,7 @@ const OrderDetailPage = () => {
                       data: dataHoje,
                       hora: horaAgora,
                       descricao: `Desconto aplicado: ${formatCurrency(val)} | Justificativa: ${justificativaInput.trim()} | Por: Juliana ADM`,
+                      usuario: user?.nomeCompleto,
                     };
                     updateOrder(order.id, {
                       desconto: (order.desconto || 0) + val,
