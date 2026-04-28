@@ -728,14 +728,38 @@ const ReportsPage = () => {
             <div className="basis-full border-t border-border pt-3 mt-1 flex flex-col sm:flex-row gap-3 flex-wrap items-end">
               <div>
                 <label className="block text-xs font-semibold mb-1">Mudou para o status</label>
-                <select
-                  value={mudouStatus}
-                  onChange={e => setMudouStatus(e.target.value)}
-                  className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px]"
-                >
-                  <option value="">— (desligado)</option>
-                  {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none min-w-[180px] text-left">
+                      {mudouStatus.size === 0
+                        ? '— (desligado)'
+                        : `${mudouStatus.size} selecionado${mudouStatus.size > 1 ? 's' : ''}`}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                    <div className="flex gap-2 mb-3">
+                      <button type="button" onClick={() => setMudouStatus(new Set(allStatuses))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                      <button type="button" onClick={() => setMudouStatus(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                    </div>
+                    <div className="space-y-2">
+                      {allStatuses.map(s => (
+                        <label key={s} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={mudouStatus.has(s)}
+                            onCheckedChange={() => {
+                              setMudouStatus(prev => {
+                                const next = new Set(prev);
+                                next.has(s) ? next.delete(s) : next.add(s);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span className="text-sm">{s}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1">Mudou em (de)</label>
@@ -743,7 +767,7 @@ const ReportsPage = () => {
                   type="date"
                   value={mudouDe}
                   onChange={e => setMudouDe(e.target.value)}
-                  disabled={!mudouStatus}
+                  disabled={mudouStatus.size === 0}
                   className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none disabled:opacity-50"
                 />
               </div>
@@ -753,21 +777,21 @@ const ReportsPage = () => {
                   type="date"
                   value={mudouAte}
                   onChange={e => setMudouAte(e.target.value)}
-                  disabled={!mudouStatus}
+                  disabled={mudouStatus.size === 0}
                   className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none disabled:opacity-50"
                 />
               </div>
-              {mudouStatus && (
+              {mudouStatus.size > 0 && (
                 <button
                   type="button"
-                  onClick={() => { setMudouStatus(''); setMudouDe(''); setMudouAte(''); }}
+                  onClick={() => { setMudouStatus(new Set()); setMudouDe(''); setMudouAte(''); }}
                   className="text-xs font-semibold text-muted-foreground hover:text-primary underline pb-2"
                 >
                   Limpar
                 </button>
               )}
               <p className="text-[11px] text-muted-foreground basis-full">
-                Mostra pedidos que entraram no status selecionado dentro do intervalo (ex.: "Entregue" entre 27/04 e 27/04).
+                Mostra pedidos que entraram em qualquer um dos status selecionados dentro do intervalo (ex.: "Entregue" entre 27/04 e 27/04).
               </p>
             </div>
             <div className="flex items-end gap-2">
