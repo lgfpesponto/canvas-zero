@@ -1,72 +1,71 @@
 ## Problema
 
-Pedidos como 43328, 43301 e 43330 mantêm bordados antigos ("Ramos", "Cruz Bordada") na composição mesmo após edição que aparentemente os "desmarcou". 
-
-**Causa raiz** (confirmada no DB e no código de `EditOrderPage.tsx`):
-
-1. Ao abrir o pedido, o estado é inicializado com `bordadoCano = ['Ramos']` (vindo do registro antigo).
-2. "Ramos" foi removido do catálogo (`mergedBordadoCano` não contém mais esse item).
-3. Como o `MultiSelect` só renderiza checkboxes para itens que **estão no catálogo atual**, o item "Ramos" fica invisível na UI — o usuário acha que está desmarcado, mas continua no array de estado.
-4. Ao adicionar "Ramos Lara" e salvar, o array vira `['Ramos', 'Ramos Lara']` → DB grava `"Ramos, Ramos Lara"` e a soma da composição inclui ambos.
-
-Histórico do 43330 confirma exatamente isso: `Alterado Bordado Cano de "Cruz Bordada" para "Cruz Bordada, Cruz Bridão"`.
+No "Histórico de Alterações" do detalhe do pedido, cada campo alterado vira uma linha separada — mesmo quando todas as mudanças foram salvas no mesmo clique em Salvar. O exemplo mostra 4 linhas separadas no mesmo timestamp 17:46/17:47.
 
 ## Solução
 
-Aplicar **filtragem ao abrir o pedido para edição**: qualquer item selecionado que não exista mais no catálogo atual é automaticamente desmarcado, e um toast avisa o usuário.
+Agrupar as alterações pelo "evento de salvamento" usando a chave **(data + hora + usuário)** — que é exatamente como o `updateOrder` em `AuthContext.tsx` já registra (todas as mudanças de um único `handleSave` recebem o mesmo `dataHoje`/`horaAgora`/`usuarioAtual`). Sem necessidade de migração de dados.
 
-### Mudanças em `src/pages/EditOrderPage.tsx`
+### Mudanças em `src/pages/OrderDetailPage.tsx`
 
-1. **No `useEffect` de inicialização (linhas 203-260)**, após carregar os arrays de bordados/lasers/acessórios, filtrar contra o catálogo atual:
+**1. Após `const alteracoes = order.alteracoes || [];` (linha 333)**, adicionar:
 
 ```ts
-// Helpers para validar contra catálogo atual
-const validLabels = (cat: string, fallback: {label:string;preco:number}[]) =>
-  new Set(getDbItems(cat, fallback).map(i => i.label));
-const validLaserLabels = (cat: string) =>
-  new Set(getLaserItems(cat).map(i => i.label));
-
-const removidos: string[] = [];
-const filterAndTrack = (arr: string[], valid: Set<string>, campo: string) => {
-  const kept: string[] = [];
-  arr.forEach(v => {
-    if (valid.has(v)) kept.push(v);
-    else removidos.push(`${campo}: "${v}"`);
-  });
-  return kept;
-};
-
-const bc = filterAndTrack(
-  order.bordadoCano?.split(', ').filter(Boolean) ?? [],
-  validLabels('bordado_cano', BORDADOS_CANO),
-  'Bordado Cano'
-);
-// ... mesmo para bordadoGaspea, bordadoTaloneira, laserCano, laserGaspea, laserTaloneira, acessorios
-setBordadoCano(bc);
-
-if (removidos.length > 0) {
-  toast.warning(
-    `${removidos.length} item(ns) foram desmarcados pois não existem mais no catálogo: ${removidos.join('; ')}. Revise a composição antes de salvar.`,
-    { duration: 8000 }
-  );
-}
+const alteracoesAgrupadas = (() => {
+  const groups: { data: string; hora: string; usuario?: string; descricoes: string[] }[] = [];
+  for (const a of alteracoes) {
+    const last = groups[groups.length - 1];
+    if (last && last.data === a.data && last.hora === a.hora && (last.usuario || '') === (a.usuario || '')) {
+      last.descricoes.push(a.descricao);
+    } else {
+      groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, descricoes: [a.descricao] });
+    }
+  }
+  return groups;
+})();
 ```
 
-2. **Categorias afetadas** (todas que usam `MultiSelect` contra catálogo dinâmico):
-   - `bordadoCano` / `bordadoGaspea` / `bordadoTaloneira`
-   - `laserCano` / `laserGaspea` / `laserTaloneira`
-   - `acessorios` (validar contra `ACESSORIOS` hardcoded — só remove se o item nem está no fallback)
+**2. Substituir o `.map` do bloco de Histórico de Alterações (linhas 549-556)** para renderizar grupos:
 
-3. **Ordenação do `useEffect`**: as funções `getDbItems` / `getLaserItems` dependem do contexto `useCustomOptions` / `useFichaVariacoes`. Garantir que o `useEffect` só filtre quando esses dados já carregaram (adicionar dependências `customOptions`, `fichaVariacoes` ou esperar o primeiro render com dados).
+```tsx
+<div className="space-y-3 max-h-80 overflow-y-auto">
+  {alteracoesAgrupadas.map((g, i) => (
+    <div key={i} className="border-b border-border/30 pb-2">
+      <p className="text-xs text-muted-foreground">
+        {formatDateBR(g.data)} às {g.hora} — por {g.usuario || '—'}
+        {g.descricoes.length > 1 && (
+          <span className="ml-1 text-muted-foreground/70">({g.descricoes.length} alterações)</span>
+        )}
+      </p>
+      {g.descricoes.length === 1 ? (
+        <p className="text-sm">{g.descricoes[0]}</p>
+      ) : (
+        <ul className="text-sm list-disc pl-5 mt-0.5 space-y-0.5">
+          {g.descricoes.map((d, j) => <li key={j}>{d}</li>)}
+        </ul>
+      )}
+    </div>
+  ))}
+</div>
+```
 
-4. **Sem mudanças** em `handleSave`, `updateOrder` ou no schema — o problema já se resolve antes do salvar, e o histórico de alterações vai registrar corretamente "Removido Bordado Cano" para os itens órfãos.
+### Resultado
 
-### Não afeta
+O exemplo da imagem (4 linhas em 17:46/17:47) passará a aparecer como **2 grupos**:
 
-- Pedidos que não têm itens órfãos: comportamento idêntico.
-- Pedidos já salvos no DB com itens órfãos: ao próxima edição, serão limpos (e o usuário pode salvar para consolidar). O total **da listagem** continua mostrando o valor salvo até a próxima edição — isso é o comportamento esperado (não mexer em dados sem ação humana).
+```
+28/04/2026 às 17:46 — por stefany ribeiro feliciano  (3 alterações)
+  • Alterado Bordado Cano de "Ramos" para "Ramos, Ramos Lara"
+  • Alterado Bordado Gáspea de "..." para "..."
+  • Alterado Valor total de "360" para "410"
 
-## Resultado esperado
+28/04/2026 às 17:47 — por stefany ribeiro feliciano  (2 alterações)
+  • Alterado Valor total de "410" para "395"
+  • Alterado Bordado Gáspea de "..." para "Ramos Lara"
+```
 
-- Ao abrir 43328 / 43301 / 43330 hoje: toast avisa "Ramos" / "Cruz Bordada" foram desmarcados; usuário confirma a composição correta e salva; DB passa a refletir só o que está selecionado.
-- Pedidos futuros: impossível salvar item que não existe no catálogo.
+### Notas
+
+- Funciona com dados existentes sem migração — a chave de agrupamento usa o que já está salvo no JSONB.
+- Alterações isoladas (1 só campo no clique) continuam aparecendo como antes (sem bullets, sem contador).
+- Nenhuma mudança em `AuthContext.updateOrder` ou no banco.

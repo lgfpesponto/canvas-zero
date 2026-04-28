@@ -332,6 +332,20 @@ const OrderDetailPage = () => {
 
   const alteracoes = order.alteracoes || [];
 
+  // Agrupa alterações salvas em um mesmo "salvar" (mesma data + hora + usuário)
+  const alteracoesAgrupadas = (() => {
+    const groups: { data: string; hora: string; usuario?: string; descricoes: string[] }[] = [];
+    for (const a of alteracoes) {
+      const last = groups[groups.length - 1];
+      if (last && last.data === a.data && last.hora === a.hora && (last.usuario || '') === (a.usuario || '')) {
+        last.descricoes.push(a.descricao);
+      } else {
+        groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, descricoes: [a.descricao] });
+      }
+    }
+    return groups;
+  })();
+
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? null;
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
 
