@@ -50,7 +50,10 @@ const ReportsPage = () => {
     const v = searchParams.get('produtos');
     return v ? new Set(v.split(',')) : new Set(defaultProduto);
   });
-  const [mudouStatus, setMudouStatus] = useState<string>(() => searchParams.get('mudou_status') || '');
+  const [mudouStatus, setMudouStatus] = useState<Set<string>>(() => {
+    const v = searchParams.get('mudou_status');
+    return v ? new Set(v.split(',').filter(Boolean)) : new Set<string>();
+  });
   const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
   const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
