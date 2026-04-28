@@ -373,6 +373,17 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [filterVendedor, setFilterVendedor] = useState('todos');
   const [filterProgresso, setFilterProgresso] = useState<Set<string>>(new Set());
+  // Filtro de período por data de criação — usado apenas no relatório de Corte
+  const [filterDataDe, setFilterDataDe] = useState('');
+  const [filterDataAte, setFilterDataAte] = useState('');
+
+  // Compara strings YYYY-MM-DD lexicograficamente (válido por ser ISO).
+  const dataMatches = (dataCriacao: string) => {
+    if (!filterDataDe && !filterDataAte) return true;
+    if (filterDataDe && dataCriacao < filterDataDe) return false;
+    if (filterDataAte && dataCriacao > filterDataAte) return false;
+    return true;
+  };
 
   // Helpers para o filtro multi-seleção de "Progresso de Produção".
   // Vazio = "Todos" (mantém o comportamento histórico).
@@ -398,6 +409,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     setFilterProgresso(new Set());
     setFilterTipoProduto('');
     setFilterCampos(new Set());
+    setFilterDataDe('');
+    setFilterDataAte('');
   };
 
   const availableFields = useMemo(() => {
@@ -955,6 +968,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateCortePDF = async () => {
     const filtered = sourceOrders.filter(o =>
       progressoMatches(o.status) &&
+      dataMatches(o.dataCriacao) &&
       (!o.tipoExtra || o.tipoExtra === 'cinto')
     );
 
@@ -990,7 +1004,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text('Relatório de Corte — 7ESTRIVOS', mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Filtro: ${progressoLabel} | Total: ${filtered.length} pedidos | ${dataBR}`, mx, 25);
+    const periodoLabel = (filterDataDe || filterDataAte)
+      ? ` | Período: ${filterDataDe ? formatDateBR(filterDataDe) : '...'} a ${filterDataAte ? formatDateBR(filterDataAte) : '...'}`
+      : '';
+    doc.text(`Filtro: ${progressoLabel}${periodoLabel} | Total: ${filtered.length} pedidos | ${dataBR}`, mx, 25);
 
     const cols = [42, 110, 18, 12];
     const cx = [
@@ -1611,6 +1628,41 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
                   </div>
                 </PopoverContent>
               </Popover>
+            </div>
+          )}
+
+          {activeReport === 'corte' && (
+            <div>
+              <label className="block text-xs font-semibold mb-1">Período de criação (opcional)</label>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">De</label>
+                  <input
+                    type="date"
+                    value={filterDataDe}
+                    onChange={(e) => setFilterDataDe(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Até</label>
+                  <input
+                    type="date"
+                    value={filterDataAte}
+                    onChange={(e) => setFilterDataAte(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                {(filterDataDe || filterDataAte) && (
+                  <button
+                    type="button"
+                    onClick={() => { setFilterDataDe(''); setFilterDataAte(''); }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline pb-2"
+                  >
+                    Limpar datas
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
