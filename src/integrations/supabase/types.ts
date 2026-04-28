@@ -1003,6 +1003,39 @@ export type Database = {
         }
         Relationships: []
       }
+      system_announcements: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          mensagem: string | null
+          scheduled_at: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mensagem?: string | null
+          scheduled_at: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mensagem?: string | null
+          scheduled_at?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
