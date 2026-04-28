@@ -14,6 +14,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import DeployAnnouncementCard from '@/components/gestao/DeployAnnouncementCard';
 
 interface PresenceUser extends PresencePayload {
   presence_ref?: string;
@@ -117,6 +118,9 @@ export default function GestaoPage() {
             ao vivo
           </Badge>
         </div>
+
+        {/* Aviso de nova versão (deploy) */}
+        <DeployAnnouncementCard />
 
         {/* Cards de resumo */}
         <div className="mb-4 grid gap-3 sm:grid-cols-2">
