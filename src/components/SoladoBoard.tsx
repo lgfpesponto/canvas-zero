@@ -9,6 +9,7 @@ import type { Order } from '@/contexts/AuthContext';
 import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
+import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 
 interface SoladoBoardProps {
   title: string;
@@ -252,7 +253,11 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
         <div className="border-t border-border mt-2 flex text-xs">
           <div className="flex-1 py-1.5 pr-2 border-r border-border">
             <span className="text-muted-foreground">Prazo: </span>
-            <span className="font-semibold">{o.diasRestantes > 0 ? `${o.diasRestantes}d` : '✓'}</span>
+            {(() => {
+              const d = getOrderDeadlineInfo(o);
+              const cls = d.tone === 'danger' ? 'text-destructive font-bold' : 'font-semibold';
+              return <span className={cls}>{d.shortLabel}</span>;
+            })()}
           </div>
           <div className="flex-1 py-1.5 px-2 border-r border-border">
             <span className="text-muted-foreground">Status: </span>
