@@ -1,47 +1,32 @@
-## Plano
+## Problema
 
-1. Ajustar a regra central de atraso/regressão em `src/lib/orderDeadline.ts`
-   - Criar helpers para distinguir:
-     - pedido em etapa final atualmente;
-     - pedido que já passou por etapa final no histórico;
-     - pedido que regrediu após uma etapa final (histórico contém etapa final, status atual não é final);
-     - pedido que deve aparecer em alertas de atraso.
-   - Manter a exceção do vendedor `Estoque` como “sem prazo”.
-   - Garantir que “regrediu” só conte para alerta quando o pedido também estiver atrasado, conforme sua regra.
+Ao ativar o filtro **"Apenas atrasados"**, a lista de pedidos exibida muda corretamente (passa a mostrar apenas os atrasados), mas os cards **"Total de Produtos"** e **"Valor Total"** continuam exibindo os números do servidor — ou seja, o total de TODOS os pedidos da página atual (filtrados sem a regra de atraso).
 
-2. Corrigir o filtro `Apenas atrasados` na página de relatórios (`src/pages/ReportsPage.tsx`)
-   - Substituir a busca única limitada a `.range(0, 999)` por busca em lotes, para não perder pedidos extras antigos quando houver muitos registros.
-   - Reaplicar todos os filtros juntos em cada lote: data, status, vendedor, clientes virtuais da Juliana, produto e busca textual.
-   - Filtrar o resultado final com a regra centralizada de atraso, para que extras como `gravata_country` apareçam corretamente quando estiverem atrasados.
+## Causa
 
-3. Corrigir `Pedidos de Alerta` no dashboard (`src/components/dashboard/AdminDashboard.tsx`)
-   - Remover a lógica atual `overdue || regressed` e trocar por uma regra única:
-     - mostrar somente pedidos atrasados;
-     - incluir tanto os que nunca chegaram em etapa final quanto os que chegaram e depois regrediram.
-   - Substituir a busca limitada a `.range(0, 499)` por carregamento em lotes, evitando sumiço de alertas antigos.
-   - Continuar excluindo pedidos do vendedor `Estoque`.
+Em `src/pages/ReportsPage.tsx`:
 
-4. Validar consistência entre relatório e dashboard
-   - Fazer os dois pontos reutilizarem a mesma lógica central para evitar divergência futura.
-   - Conferir os cenários:
-     - extra atrasado sem etapa final;
-     - extra que chegou em etapa final e regrediu, estando atrasado;
-     - pedido regredido mas ainda dentro do prazo (não deve aparecer no dashboard);
-     - pedido em etapa final sem regressão (não deve aparecer);
-     - pedido do vendedor `Estoque` (não deve aparecer).
+- `totalProdutos` e `totalValue` vêm direto do hook `useOrders(...)` (linha 196), que faz a query paginada padrão e não conhece a lógica de atraso.
+- Quando `onlyOverdue` está ligado, a lista visível (`visibleOrders`) é trocada para `overdueOrders` (calculado em outro `useEffect`, linha 272), mas os cards de resumo continuam lendo `totalProdutos` / `totalValue` do hook original.
 
-## Detalhes técnicos
+Resultado: a contagem/valor dos cards reflete o conjunto SEM o filtro de atraso aplicado.
 
-Arquivos previstos:
-- `src/lib/orderDeadline.ts`
-- `src/pages/ReportsPage.tsx`
-- `src/components/dashboard/AdminDashboard.tsx`
+## Solução
 
-Regras a aplicar:
-- Etapas finais: `Baixa Site (Despachado)`, `Expedição`, `Entregue`, `Cobrado`, `Pago`, `Cancelado`.
-- `Estoque` continua sem prazo de produção.
-- Dashboard: `alerta = atrasado && (nunca_finalizou || regrediu_de_final)`.
-- Relatórios: `Apenas atrasados = todos os pedidos atrasados`, inclusive extras, respeitando os demais filtros simultaneamente.
+Calcular `totalProdutos` e `totalValue` a partir de `visibleOrders` quando `onlyOverdue` estiver ativo, replicando a mesma fórmula usada pelo hook `useOrders` (somar `quantidade` e `preco * quantidade − desconto + adicional_valor`, respeitando regras já existentes de pedidos extras e descontos).
 
-Observação importante:
-- Hoje há limites fixos de 1000/500 registros nas buscas de atrasados/alertas. Isso é um forte candidato a esconder extras atrasados mais antigos, então a correção precisa eliminar essa limitação com paginação em lotes.
+### Mudanças técnicas
+
+1. **`src/pages/ReportsPage.tsx`**:
+   - Inspecionar a fórmula exata em `src/hooks/useOrders.ts` para `totalProdutos` e `totalValue` (garantir paridade — botas vs extras, descontos, adicionais, exclusões TROCA/ERRO etc.).
+   - Criar `useMemo` que, quando `onlyOverdue === true`, computa os totais a partir de `overdueOrders` usando a mesma fórmula.
+   - Substituir os valores exibidos nos cards por esses derivados (`displayTotalProdutos`, `displayTotalValue`).
+   - Ajustar `LoadingValue` para usar `overdueLoading` quando `onlyOverdue` estiver ativo.
+
+2. Nenhuma mudança de banco, RLS ou backend.
+
+### Critério de aceite
+
+- Com "Apenas atrasados" ligado, "Total de Produtos" e "Valor Total" refletem exatamente os pedidos visíveis na lista.
+- Combinações de filtros (vendedor, produto, status, busca) continuam funcionando junto com o filtro de atrasados.
+- Sem o filtro ligado, os totais permanecem idênticos ao comportamento atual.
