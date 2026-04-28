@@ -1038,7 +1038,7 @@ const ReportsPage = () => {
           ))}
         </div>
 
-        {totalPages > 1 && (
+        {!onlyOverdue && totalPages > 1 && (
           <div className="flex items-center justify-center gap-3 mt-4">
             <button
               onClick={() => handlePageChange(page - 1)}
