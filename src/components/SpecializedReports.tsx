@@ -373,6 +373,17 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [filterVendedor, setFilterVendedor] = useState('todos');
   const [filterProgresso, setFilterProgresso] = useState<Set<string>>(new Set());
+  // Filtro de período por data de criação — usado apenas no relatório de Corte
+  const [filterDataDe, setFilterDataDe] = useState('');
+  const [filterDataAte, setFilterDataAte] = useState('');
+
+  // Compara strings YYYY-MM-DD lexicograficamente (válido por ser ISO).
+  const dataMatches = (dataCriacao: string) => {
+    if (!filterDataDe && !filterDataAte) return true;
+    if (filterDataDe && dataCriacao < filterDataDe) return false;
+    if (filterDataAte && dataCriacao > filterDataAte) return false;
+    return true;
+  };
 
   // Helpers para o filtro multi-seleção de "Progresso de Produção".
   // Vazio = "Todos" (mantém o comportamento histórico).

@@ -1,30 +1,47 @@
-# Mostrar spinner enquanto o pedido está sendo carregado
+# Filtro de Data no Relatório de Corte
 
-## Problema
+## Objetivo
+Adicionar um filtro opcional de **intervalo de datas (de / até)** no relatório de **Corte**, baseado na **data de criação** do pedido (`dataCriacao`). Por padrão fica vazio (todos os pedidos), mantendo o comportamento atual.
 
-Quando você abre o detalhe de um pedido (ex.: bota), os dados precisam ser buscados no banco. Hoje, enquanto a busca acontece, a tela mostra a mensagem **"Pedido não encontrado"** — porque o código verifica só `if (!order)` e não considera que o carregamento ainda está em andamento. Só depois de uns segundos o pedido aparece.
+## Mudanças
 
-Isso dá a sensação de que está demorando muito, e em alguns casos a pessoa pensa que o pedido nem existe.
+Arquivo único: `src/components/SpecializedReports.tsx`
 
-## Correção
+1. **Novos estados** (junto com os filtros existentes, ~linha 375):
+   - `filterDataDe: string` (formato `YYYY-MM-DD`)
+   - `filterDataAte: string` (formato `YYYY-MM-DD`)
 
-Em `src/pages/OrderDetailPage.tsx`, antes do bloco que mostra "Pedido não encontrado", adicionar uma verificação de carregamento:
+2. **Reset** — incluir os dois campos em `resetFilters()` (~linha 396).
 
-- Se `orderLoading === true` → mostrar um spinner centralizado com o texto "Carregando pedido..."
-- Se `orderLoading === false` E `order === null` → aí sim mostrar "Pedido não encontrado"
-- Se o pedido carregou → renderiza a tela normalmente
+3. **Helper de filtro de data** — função `dataMatches(dataCriacao: string)` que:
+   - Retorna `true` se ambos os campos estão vazios.
+   - Compara `dataCriacao` (já em `YYYY-MM-DD`) com `filterDataDe` / `filterDataAte` usando comparação lexicográfica (funciona pois ISO).
 
-O hook `useOrderById` já expõe o estado `loading` (linha 37 já desestrutura como `orderLoading`), então é só usar.
+4. **Aplicar no `generateCortePDF`** (~linha 956):
+   - Adicionar `&& dataMatches(o.dataCriacao)` ao `.filter(...)`.
+   - Atualizar a linha do cabeçalho do PDF (~linha 993) para incluir o intervalo quando preenchido:  
+     `Filtro: {progressoLabel} | Período: {de} a {até} | Total: ... | {dataBR}`  
+     Quando vazio, omite o trecho "Período".
 
-### Visual
+5. **UI dos filtros** (~linha 1576, dentro do bloco `activeReport && ...`):
+   - Adicionar um novo bloco mostrado **somente quando `activeReport === 'corte'`**, abaixo do filtro de Progresso.
+   - Layout: dois inputs `<input type="date">` lado a lado com labels "De" e "Até", + botão "Limpar datas" pequeno.
+   - Mesmo padrão visual dos demais filtros (`bg-background border border-input rounded-md px-3 py-2 text-sm`).
 
+## Detalhes Técnicos
+
+- `Order.dataCriacao` já é string `YYYY-MM-DD` (vide `formatDateBR` na linha 25 que faz split por `-`), portanto comparação direta de strings é válida e evita problemas de timezone.
+- Filtro é **inclusivo** nas duas pontas (`>=` De e `<=` Até).
+- Se só "De" estiver preenchido → filtra dessa data em diante. Se só "Até" → até essa data. Os dois vazios → todos.
+- Não altera o comportamento de outros relatórios (escalação, forro, palmilha, etc.) — fica restrito ao Corte conforme solicitado.
+
+## Esboço de UI
+
+```text
+[ Progresso de Produção: Todos ▾ ]
+
+Período de criação (opcional)
+De: [ 2026-04-01 ]   Até: [ 2026-04-28 ]   Limpar datas
+
+[ GERAR PDF ]
 ```
-        ⟳  (spinner girando, cor primária)
-   Carregando pedido...
-```
-
-Usa o ícone `Loader2` do lucide-react que já está importado.
-
-## Arquivos afetados
-
-- `src/pages/OrderDetailPage.tsx` — substituir o bloco `if (!order)` (linhas ~72-78) por dois blocos: um de loading e um de "não encontrado".
