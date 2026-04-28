@@ -408,39 +408,57 @@ const AdminDashboard = () => {
       {/* Pedidos de Alerta — only admin_master */}
       {isAdminMaster && filteredAlertOrders.length > 0 && (
         <div className="mt-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-6 western-shadow">
-            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
-            </h2>
-            <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {filteredAlertOrders.map(o => (
-                <div key={o.id} className="flex items-center gap-2">
-                  <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
-                    <div>
-                      <span className="font-bold text-sm">{o.numero}</span>
-                      <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
-                      {(() => {
-                        const d = getOrderDeadlineInfo(o);
-                        return d.isOverdue
-                          ? <span className="text-xs text-destructive font-bold ml-2">+{d.daysOverdue}d atrasado</span>
-                          : null;
-                      })()}
-                    </div>
-                  </Link>
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
-                    className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                    title="Marcar como conferido"
-                  >
-                    <Check size={14} /> Conferido
-                  </button>
-                </div>
-              ))}
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-4 western-shadow">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-display font-bold flex items-center gap-2">
+                  <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
+                </h2>
+                <span className="inline-flex items-center rounded-full bg-destructive/10 text-destructive px-2.5 py-0.5 text-xs font-bold">
+                  {filteredAlertOrders.length} pedido{filteredAlertOrders.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <button
+                onClick={() => setAlertCollapsed(c => !c)}
+                className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1"
+              >
+                {alertCollapsed ? <><ChevronDown size={14} /> Expandir</> : <><ChevronUp size={14} /> Minimizar</>}
+              </button>
             </div>
+
+            {!alertCollapsed && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
+                <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {filteredAlertOrders.map(o => (
+                    <div key={o.id} className="flex items-center gap-2">
+                      <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
+                        <div>
+                          <span className="font-bold text-sm">{o.numero}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
+                          {(() => {
+                            const d = getOrderDeadlineInfo(o);
+                            return d.isOverdue
+                              ? <span className="text-xs text-destructive font-bold ml-2">+{d.daysOverdue}d atrasado</span>
+                              : null;
+                          })()}
+                        </div>
+                      </Link>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
+                        className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                        title="Marcar como conferido"
+                      >
+                        <Check size={14} /> Conferido
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       )}
