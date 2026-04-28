@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Eye, Check, ChevronDown, RotateCcw, Trash2, HardDrive, Loader2, Wallet } from 'lucide-react';
+import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Check, ChevronDown, ChevronUp, Trash2, HardDrive, Loader2, Wallet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -9,7 +9,6 @@ import SpecializedReports from '@/components/SpecializedReports';
 import SoladoBoard from '@/components/SoladoBoard';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,11 +46,10 @@ const AdminDashboard = () => {
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch { return new Set(); }
   });
-  const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
   const [storageInfo, setStorageInfo] = useState<{ db_size_mb: number; order_count: number; deleted_order_count: number; limit_mb: number } | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
+  const [alertCollapsed, setAlertCollapsed] = useState(true);
 
   // ── Server-side data via RPCs ──
   const [pendingValue, setPendingValue] = useState<number | null>(null);
@@ -215,39 +213,14 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchStorageInfo(); }, [fetchStorageInfo]);
 
-  const fetchDeletedOrders = useCallback(async () => {
-    if (!isAdminMaster) return;
-    const { data } = await supabase.from('deleted_orders').select('*').eq('dismissed', false).order('deleted_at', { ascending: false });
-    if (data) setDeletedOrders(data);
-  }, [isAdminMaster]);
-
-  useEffect(() => { fetchDeletedOrders(); }, [fetchDeletedOrders]);
-
   const handleCleanup = async () => {
     setCleanupLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('cleanup-old-orders');
       if (error) { toast.error('Erro ao limpar dados: ' + error.message); }
-      else { toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`); fetchStorageInfo(); fetchDeletedOrders(); }
+      else { toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`); fetchStorageInfo(); }
     } catch { toast.error('Erro ao limpar dados'); }
     finally { setCleanupLoading(false); }
-  };
-
-  const handleRestoreOrder = async (deletedRecord: any) => {
-    try {
-      const orderData = deletedRecord.order_data;
-      const { error } = await supabase.from('orders').insert(orderData);
-      if (error) { toast.error('Erro ao restaurar pedido: ' + error.message); return; }
-      await supabase.from('deleted_orders').delete().eq('id', deletedRecord.id);
-      setDeletedOrders(prev => prev.filter(d => d.id !== deletedRecord.id));
-      toast.success('Pedido restaurado com sucesso!');
-      window.location.reload();
-    } catch { toast.error('Erro ao restaurar pedido'); }
-  };
-
-  const handleDismissDeleted = async (deletedId: string) => {
-    await supabase.from('deleted_orders').update({ dismissed: true } as any).eq('id', deletedId);
-    setDeletedOrders(prev => prev.filter(d => d.id !== deletedId));
   };
 
   const handleChecked = (orderId: string) => {
@@ -435,100 +408,60 @@ const AdminDashboard = () => {
       {/* Pedidos de Alerta — only admin_master */}
       {isAdminMaster && filteredAlertOrders.length > 0 && (
         <div className="mt-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-6 western-shadow">
-            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
-            </h2>
-            <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {filteredAlertOrders.map(o => (
-                <div key={o.id} className="flex items-center gap-2">
-                  <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
-                    <div>
-                      <span className="font-bold text-sm">{o.numero}</span>
-                      <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
-                      {(() => {
-                        const d = getOrderDeadlineInfo(o);
-                        return d.isOverdue
-                          ? <span className="text-xs text-destructive font-bold ml-2">+{d.daysOverdue}d atrasado</span>
-                          : null;
-                      })()}
-                    </div>
-                  </Link>
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
-                    className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                    title="Marcar como conferido"
-                  >
-                    <Check size={14} /> Conferido
-                  </button>
-                </div>
-              ))}
+          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-4 western-shadow">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-display font-bold flex items-center gap-2">
+                  <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
+                </h2>
+                <span className="inline-flex items-center rounded-full bg-destructive/10 text-destructive px-2.5 py-0.5 text-xs font-bold">
+                  {filteredAlertOrders.length} pedido{filteredAlertOrders.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <button
+                onClick={() => setAlertCollapsed(c => !c)}
+                className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1"
+              >
+                {alertCollapsed ? <><ChevronDown size={14} /> Expandir</> : <><ChevronUp size={14} /> Minimizar</>}
+              </button>
             </div>
-          </motion.div>
-        </div>
-      )}
 
-      {/* Pedidos Apagados — only admin_master */}
-      {isAdminMaster && deletedOrders.length > 0 && (
-        <div className="mt-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={3} className="bg-card rounded-xl p-6 western-shadow">
-            <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-              <Trash2 className="text-destructive" size={22} /> Pedidos Apagados
-            </h2>
-            <p className="text-sm text-muted-foreground mb-3">Pedidos removidos por usuários</p>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {deletedOrders.map(d => {
-                const od = d.order_data || {};
-                return (
-                  <div key={d.id} className="flex items-center gap-2">
-                    <div className="flex-1 p-3 bg-destructive/10 rounded-lg">
-                      <div className="flex items-center justify-between">
+            {!alertCollapsed && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
+                <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {filteredAlertOrders.map(o => (
+                    <div key={o.id} className="flex items-center gap-2">
+                      <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
                         <div>
-                          <span className="font-bold text-sm">{od.numero || 'S/N'}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{'—'} {od.vendedor || 'N/A'}</span>
+                          <span className="font-bold text-sm">{o.numero}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
                         </div>
-                        <span className="text-xs text-destructive font-semibold">Removido</span>
-                      </div>
+                        <div className="text-right">
+                          <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
+                          {(() => {
+                            const d = getOrderDeadlineInfo(o);
+                            return d.isOverdue
+                              ? <span className="text-xs text-destructive font-bold ml-2">+{d.daysOverdue}d atrasado</span>
+                              : null;
+                          })()}
+                        </div>
+                      </Link>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
+                        className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                        title="Marcar como conferido"
+                      >
+                        <Check size={14} /> Conferido
+                      </button>
                     </div>
-                    <button onClick={() => setViewingDeletedOrder(d)} className="shrink-0 px-2 py-2 bg-muted hover:bg-muted/80 rounded-lg text-xs transition-colors" title="Visualizar">
-                      <Eye size={16} />
-                    </button>
-                    <button onClick={() => handleRestoreOrder(d)} className="shrink-0 px-2 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors" title="Restaurar pedido">
-                      <RotateCcw size={14} />
-                    </button>
-                    <button onClick={() => handleDismissDeleted(d.id)} className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors" title="Marcar como conferido">
-                      <Check size={14} /> Conferido
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       )}
-
-      {/* Dialog para visualizar pedido apagado */}
-      <Dialog open={!!viewingDeletedOrder} onOpenChange={open => !open && setViewingDeletedOrder(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Pedido Apagado {'—'} {viewingDeletedOrder?.order_data?.numero || 'S/N'}</DialogTitle>
-          </DialogHeader>
-          {viewingDeletedOrder && (
-            <div className="space-y-2 text-sm">
-              {Object.entries(viewingDeletedOrder.order_data || {}).filter(([k]) => !['id', 'created_at', 'historico', 'alteracoes', 'fotos', 'user_id'].includes(k)).map(([key, val]) => (
-                <div key={key} className="flex justify-between border-b border-border pb-1">
-                  <span className="text-muted-foreground font-medium">{key}</span>
-                  <span className="text-right max-w-[60%] break-words">{typeof val === 'object' ? JSON.stringify(val) : String(val ?? '')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Specialized reports */}
       <div className="mt-8">

@@ -978,7 +978,39 @@ const ReportsPage = () => {
             </div>
             <div className="flex items-end gap-2 flex-wrap">
               <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card cursor-pointer select-none">
-                <Switch checked={onlyOverdue} onCheckedChange={setOnlyOverdue} />
+                <Switch
+                  checked={onlyOverdue}
+                  onCheckedChange={(checked) => {
+                    setOnlyOverdue(checked);
+                    // Aplica os filtros atuais imediatamente para que a tela
+                    // (lista, totais e contagens) reflita o novo modo sem exigir
+                    // um clique extra em FILTRAR.
+                    setScanFilterId(null);
+                    setPage(1);
+                    const mudouAtivo = mudouStatus.size > 0;
+                    let mDe = mudouDe;
+                    let mAte = mudouAte;
+                    if (mudouAtivo) {
+                      if (!mDe && !mAte) { /* mantém estado, validação só ao clicar FILTRAR */ }
+                      else { if (!mDe) mDe = mAte; if (!mAte) mAte = mDe; }
+                    }
+                    const newFilters: any = {
+                      searchQuery,
+                      filterDate,
+                      filterDateEnd,
+                      filterStatus: new Set(filterStatus),
+                      filterVendedor: new Set(filterVendedor),
+                      filterProduto: new Set(filterProduto),
+                      mudouParaStatus: mudouAtivo ? new Set(mudouStatus) : undefined,
+                      mudouParaStatusDe: mudouAtivo ? mDe : undefined,
+                      mudouParaStatusAte: mudouAtivo ? mAte : undefined,
+                      mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
+                      onlyOverdue: checked,
+                    };
+                    setAppliedFilters(newFilters);
+                    syncSearchParams(newFilters);
+                  }}
+                />
                 <span className={`text-xs font-bold uppercase ${onlyOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
                   Apenas atrasados
                 </span>
