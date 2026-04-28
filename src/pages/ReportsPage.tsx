@@ -728,6 +728,9 @@ const ReportsPage = () => {
                 setFilterStatus(new Set());
                 setFilterVendedor(new Set());
                 setFilterProduto(new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]));
+                setMudouStatus('');
+                setMudouDe('');
+                setMudouAte('');
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
