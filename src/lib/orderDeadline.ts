@@ -90,3 +90,37 @@ export function getOrderDeadlineInfo(order: {
 
   return { daysLeft, daysOverdue, isFinal, isOverdue, isNoDeadline: false, tone, label, shortLabel };
 }
+
+/** Pedido já passou por alguma etapa final em algum momento? */
+export function hasReachedFinalStage(order: { status?: string; historico?: any[] }): boolean {
+  if (FINAL_STAGES.includes(order.status || '')) return true;
+  const hist = Array.isArray(order.historico) ? order.historico : [];
+  return hist.some((h: any) => h && FINAL_STAGES.includes(h.local));
+}
+
+/** Pedido regrediu de uma etapa final (esteve em final no histórico mas hoje está fora). */
+export function hasRegressedFromFinal(order: { status?: string; historico?: any[] }): boolean {
+  const isFinalNow = FINAL_STAGES.includes(order.status || '');
+  if (isFinalNow) return false;
+  const hist = Array.isArray(order.historico) ? order.historico : [];
+  return hist.some((h: any) => h && FINAL_STAGES.includes(h.local));
+}
+
+/**
+ * Regra do painel "Pedidos em Alerta":
+ * pedidos atrasados que ainda não estão em etapa final.
+ * Inclui tanto os que nunca finalizaram quanto os que regrediram de uma etapa final.
+ */
+export function isAlertOrder(order: {
+  status?: string;
+  tipoExtra?: string | null;
+  dataCriacao?: string;
+  horaCriacao?: string;
+  vendedor?: string;
+  historico?: any[];
+}): boolean {
+  const info = getOrderDeadlineInfo(order);
+  if (info.isNoDeadline) return false;
+  if (info.isFinal) return false; // está em etapa final hoje → sem alerta
+  return info.isOverdue; // atrasado e fora de etapa final (regredido ou nunca finalizou)
+}

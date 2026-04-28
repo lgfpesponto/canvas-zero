@@ -1,36 +1,47 @@
-## Problema
+## Plano
 
-O filtro **"Apenas atrasados"** não puxa pedidos atrasados de **Gravata Country** (e outros extras de revendedores) quando combinado com filtros de produto e vendedor. Investiguei a URL atual (`atrasados=1`, `produtos=gravata_country`, lista de vendedores) e identifiquei dois bugs no `useEffect` overdue de `src/pages/ReportsPage.tsx` (linhas 202–240):
+1. Ajustar a regra central de atraso/regressão em `src/lib/orderDeadline.ts`
+   - Criar helpers para distinguir:
+     - pedido em etapa final atualmente;
+     - pedido que já passou por etapa final no histórico;
+     - pedido que regrediu após uma etapa final (histórico contém etapa final, status atual não é final);
+     - pedido que deve aparecer em alertas de atraso.
+   - Manter a exceção do vendedor `Estoque` como “sem prazo”.
+   - Garantir que “regrediu” só conte para alerta quando o pedido também estiver atrasado, conforme sua regra.
 
-### Bug 1 — Filtro de vendedor ignora "clientes virtuais da Juliana"
+2. Corrigir o filtro `Apenas atrasados` na página de relatórios (`src/pages/ReportsPage.tsx`)
+   - Substituir a busca única limitada a `.range(0, 999)` por busca em lotes, para não perder pedidos extras antigos quando houver muitos registros.
+   - Reaplicar todos os filtros juntos em cada lote: data, status, vendedor, clientes virtuais da Juliana, produto e busca textual.
+   - Filtrar o resultado final com a regra centralizada de atraso, para que extras como `gravata_country` apareçam corretamente quando estiverem atrasados.
 
-A query usa `.in('vendedor', [...filterVendedor])`, mas em `useOrders.ts` (lógica padrão da lista) o filtro de vendedor é montado com OR para também aceitar pedidos onde `vendedor='Juliana Cristina Ribeiro' AND cliente=<nome do vendedor>`. Confirmei via banco que existem clientes vinculados à Juliana com mesmos nomes de revendedores (`Rejane`, `Simeia`, `Rayne` aparecem como `cliente` da Juliana). O overdue ignora esse caso.
+3. Corrigir `Pedidos de Alerta` no dashboard (`src/components/dashboard/AdminDashboard.tsx`)
+   - Remover a lógica atual `overdue || regressed` e trocar por uma regra única:
+     - mostrar somente pedidos atrasados;
+     - incluir tanto os que nunca chegaram em etapa final quanto os que chegaram e depois regrediram.
+   - Substituir a busca limitada a `.range(0, 499)` por carregamento em lotes, evitando sumiço de alertas antigos.
+   - Continuar excluindo pedidos do vendedor `Estoque`.
 
-### Bug 2 — `.neq('vendedor', 'Estoque')` conflita com seleção do usuário
+4. Validar consistência entre relatório e dashboard
+   - Fazer os dois pontos reutilizarem a mesma lógica central para evitar divergência futura.
+   - Conferir os cenários:
+     - extra atrasado sem etapa final;
+     - extra que chegou em etapa final e regrediu, estando atrasado;
+     - pedido regredido mas ainda dentro do prazo (não deve aparecer no dashboard);
+     - pedido em etapa final sem regressão (não deve aparecer);
+     - pedido do vendedor `Estoque` (não deve aparecer).
 
-Quando "Estoque" está no filtro selecionado, o `.neq('vendedor','Estoque')` o exclui de qualquer modo. Como pedidos do "Estoque" são internos e não têm prazo (`isNoDeadline=true`), na prática isso não tira nenhum atrasado; mas é redundante e pode confundir. O correto é deixar a própria função `getOrderDeadlineInfo` decidir (ela já retorna `isOverdue=false` para `vendedor=Estoque`).
+## Detalhes técnicos
 
-### Bug 3 — Combinação `produto + vendedor` no banco é AND restritivo
+Arquivos previstos:
+- `src/lib/orderDeadline.ts`
+- `src/pages/ReportsPage.tsx`
+- `src/components/dashboard/AdminDashboard.tsx`
 
-Hoje a query aplica `vendedor IN (...)` e depois filtra produto em memória. Tudo bem, mas com filtros de produto cujos pedidos vêm de muitas fontes diferentes (ex.: `gravata_country` espalhada por Maria Gabriela, Rafael, Samuel, Fabiana), o limite de 1.000 pode cortar antes de pegar tudo. Para o caso atual cabe folgado, mas vou empurrar o filtro de produto para o banco também (`tipo_extra IN (...)` ou `tipo_extra IS NULL` para botas) para reduzir tráfego e garantir consistência.
+Regras a aplicar:
+- Etapas finais: `Baixa Site (Despachado)`, `Expedição`, `Entregue`, `Cobrado`, `Pago`, `Cancelado`.
+- `Estoque` continua sem prazo de produção.
+- Dashboard: `alerta = atrasado && (nunca_finalizou || regrediu_de_final)`.
+- Relatórios: `Apenas atrasados = todos os pedidos atrasados`, inclusive extras, respeitando os demais filtros simultaneamente.
 
-## Arquivo a editar
-
-**`src/pages/ReportsPage.tsx`** — `useEffect` overdue (linhas 202–240):
-
-1. **Filtro de vendedor**: replicar a mesma lógica de `useOrders.ts` (cláusula `or` aceitando `vendedor.eq.<nome>` OU `and(vendedor.eq.Juliana Cristina Ribeiro, cliente.eq.<nome>)`).
-
-2. **Remover `.neq('vendedor','Estoque')`**: deixar `getOrderDeadlineInfo` filtrar via `isOverdue=false` para Estoque (já garante).
-
-3. **Empurrar filtro de produto para o banco**:
-   - `bota` → `tipo_extra IS NULL`
-   - extras → `tipo_extra IN (...)`
-   - combinação → `or(tipo_extra.is.null, tipo_extra.in.(...))`
-
-4. Manter o `.range(0, 999)` e o filtro final em memória por `isOverdue` (que considera prazo dinâmico por tipo).
-
-## Resultado esperado
-
-- Marcar "Apenas atrasados" + produto Gravata Country + vendedores selecionados → mostra os pedidos `Em aberto`/`Produzindo` de gravata_country desses vendedores que passaram do prazo de 1 dia útil (ex.: pedido `8033` da Fabiana de 17/04, `GRAVATAxx` da Maria Gabriela de 23/04, etc.).
-- Funciona para qualquer combinação de produto + vendedor + status + data + busca + atrasados.
-- Pedidos do vendedor "Estoque" continuam fora (sem prazo).
+Observação importante:
+- Hoje há limites fixos de 1000/500 registros nas buscas de atrasados/alertas. Isso é um forte candidato a esconder extras atrasados mais antigos, então a correção precisa eliminar essa limitação com paginação em lotes.
