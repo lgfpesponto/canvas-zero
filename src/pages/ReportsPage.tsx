@@ -292,8 +292,8 @@ const ReportsPage = () => {
     let val = 0;
     for (const o of visibleOrders as any[]) {
       const qtd = Number(o.quantidade) || 1;
-      const botas = o?.extra_detalhes?.botas;
-      if (o?.tipo_extra === 'bota_pronta_entrega' && Array.isArray(botas) && botas.length > 0) {
+      const botas = o?.extraDetalhes?.botas;
+      if (o?.tipoExtra === 'bota_pronta_entrega' && Array.isArray(botas) && botas.length > 0) {
         prod += botas.length;
       } else {
         prod += qtd;
