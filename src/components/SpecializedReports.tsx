@@ -371,7 +371,20 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [filterVendedor, setFilterVendedor] = useState('todos');
-  const [filterProgresso, setFilterProgresso] = useState('todos');
+  const [filterProgresso, setFilterProgresso] = useState<Set<string>>(new Set());
+
+  // Helpers para o filtro multi-seleção de "Progresso de Produção".
+  // Vazio = "Todos" (mantém o comportamento histórico).
+  const progressoMatches = (status: string) => filterProgresso.size === 0 || filterProgresso.has(status);
+  const progressoLabelText = () => {
+    if (filterProgresso.size === 0) return 'Todos';
+    return [...filterProgresso].join(' / ');
+  };
+  const progressoFileLabel = () => {
+    if (filterProgresso.size === 0) return 'Todos';
+    if (filterProgresso.size === 1) return [...filterProgresso][0];
+    return `${filterProgresso.size} status`;
+  };
 
   // Extras/Cintos report state
   const [filterTipoProduto, setFilterTipoProduto] = useState('');
@@ -381,7 +394,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   const resetFilters = () => {
     setFilterVendedor('todos');
-    setFilterProgresso('todos');
+    setFilterProgresso(new Set());
     setFilterTipoProduto('');
     setFilterCampos(new Set());
   };
