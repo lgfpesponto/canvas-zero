@@ -30,6 +30,7 @@ import FinanceiroPage from "./pages/FinanceiroPage";
 import RevendedorSaldoPage from "./pages/RevendedorSaldoPage";
 import GestaoPage from "./pages/GestaoPage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
+import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
           <SelectedOrdersProvider>
           <PresenceTracker />
           <Header />
+          <AdminAssistantFab />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
