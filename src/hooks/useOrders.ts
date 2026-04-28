@@ -50,8 +50,16 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
     setLoading(true);
 
     try {
+      // Filtro "mudou para status" (RPC) — restringe a um conjunto de IDs
+      const idsMudou = await fetchIdsMudouParaStatus(filters);
+      if (idsMudou !== null && idsMudou.length === 0) {
+        setOrders([]); setCount(0); setTotalValue(0); setTotalProdutos(0);
+        return;
+      }
+
       // Build main query
       let query = supabase.from('orders').select('*', { count: 'exact' });
+      if (idsMudou !== null) query = query.in('id', idsMudou);
 
       // Search filter
       if (filters.searchQuery) {
