@@ -242,25 +242,74 @@ const ReportsPage = () => {
     [scannedOrdersMap, selectedIds]
   );
 
-  const handleBulkProgressUpdate = async () => {
-    if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
-    if (selectedProgress === 'Cancelado' && !progressObservacao.trim()) {
-      toast.error('Informe o motivo do cancelamento.');
-      return;
-    }
-    for (const id of selectedIds) {
-      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
-    }
-    toast.success(`${selectedIds.size} pedido(s) atualizado(s) para "${selectedProgress}".`);
+  const finalizeBulkUpdate = (count: number) => {
+    toast.success(`${count} pedido(s) atualizado(s) para "${selectedProgress}".`);
     setShowProgressModal(false);
+    setShowRegressionModal(false);
     setSelectedProgress('');
     setProgressObservacao('');
+    setRegressionItems([]);
+    setNormalIds([]);
+    setRegressionReason('');
     setSelectedIds(new Set());
     setScannedOrdersMap(new Map());
     setLastScannedNumero(null);
     setShowSelectedList(false);
     refetchOrders();
   };
+
+  const handleBulkProgressUpdate = async () => {
+    if (!selectedProgress) { toast.error('Selecione uma etapa de produção.'); return; }
+    if (selectedProgress === 'Cancelado' && !progressObservacao.trim()) {
+      toast.error('Informe o motivo do cancelamento.');
+      return;
+    }
+
+    // Detecta retrocessos
+    const regressions: { id: string; numero: string; current: string; next: string }[] = [];
+    const normals: string[] = [];
+    selectedIds.forEach(id => {
+      const ord = mergedOrdersMap.get(id);
+      if (!ord) { normals.push(id); return; }
+      if (isStatusRegression(ord.status, selectedProgress)) {
+        regressions.push({ id, numero: ord.numero, current: ord.status, next: selectedProgress });
+      } else {
+        normals.push(id);
+      }
+    });
+
+    if (regressions.length > 0) {
+      setRegressionItems(regressions);
+      setNormalIds(normals);
+      setRegressionReason('');
+      setShowRegressionModal(true);
+      return;
+    }
+
+    for (const id of selectedIds) {
+      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
+    }
+    finalizeBulkUpdate(selectedIds.size);
+  };
+
+  const handleConfirmRegression = async () => {
+    const motivo = regressionReason.trim();
+    if (motivo.length < 5) {
+      toast.error('Justifique o retrocesso com pelo menos 5 caracteres.');
+      return;
+    }
+    const baseObs = progressObservacao.trim();
+    const obsRetrocesso = `[RETROCESSO] ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
+
+    for (const item of regressionItems) {
+      await updateOrderStatus(item.id, selectedProgress, obsRetrocesso);
+    }
+    for (const id of normalIds) {
+      await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+    }
+    finalizeBulkUpdate(regressionItems.length + normalIds.length);
+  };
+
 
   // Barcode scan handler — direct DB query (continuous, queued)
   const scanQueueRef = useRef<string[]>([]);
