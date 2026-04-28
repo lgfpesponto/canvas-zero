@@ -195,13 +195,56 @@ const ReportsPage = () => {
   const [page, setPage] = useState(1);
   const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, totalProdutos, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
 
+  // Quando "Apenas atrasados" está ativo, busca todos os pedidos não-finais
+  // (atrasados são tipicamente os mais antigos e não cabem na página atual de 50).
+  const [overdueOrders, setOverdueOrders] = useState<Order[]>([]);
+  const [overdueLoading, setOverdueLoading] = useState(false);
+  useEffect(() => {
+    if (!onlyOverdue) { setOverdueOrders([]); return; }
+    let cancelled = false;
+    (async () => {
+      setOverdueLoading(true);
+      const FINAL = ['Expedição', 'Entregue', 'Cobrado', 'Pago', 'Cancelado'];
+      let q = supabase.from('orders').select('*')
+        .not('status', 'in', `(${FINAL.join(',')})`)
+        .order('data_criacao', { ascending: true })
+        .order('hora_criacao', { ascending: true })
+        .range(0, 999);
+      const f = appliedFilters as any;
+      if (f.filterDate) q = q.gte('data_criacao', f.filterDate);
+      if (f.filterDateEnd) q = q.lte('data_criacao', f.filterDateEnd);
+      if (f.filterStatus && f.filterStatus.size > 0) {
+        const statuses = [...f.filterStatus].filter((s: string) => !FINAL.includes(s));
+        if (statuses.length > 0) q = q.in('status', statuses);
+        else { setOverdueOrders([]); setOverdueLoading(false); return; }
+      }
+      if (f.filterVendedor && f.filterVendedor.size > 0) q = q.in('vendedor', [...f.filterVendedor]);
+      if (f.searchQuery) {
+        const s = String(f.searchQuery).replace(/%/g, '\\%');
+        q = q.or(`numero.ilike.%${s}%,cliente.ilike.%${s}%`);
+      }
+      const { data, error } = await q;
+      if (cancelled) return;
+      if (error) { console.error('overdue fetch error:', error); setOverdueOrders([]); }
+      else {
+        const mapped = (data || []).map(dbRowToOrder) as Order[];
+        const prodSet: Set<string> | undefined = f.filterProduto && f.filterProduto.size > 0 ? f.filterProduto : undefined;
+        const byProduct = prodSet
+          ? mapped.filter(o => (!o.tipoExtra && prodSet.has('bota')) || (o.tipoExtra && prodSet.has(o.tipoExtra)))
+          : mapped;
+        setOverdueOrders(byProduct.filter(o => getOrderDeadlineInfo(o as any).isOverdue));
+      }
+      setOverdueLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [onlyOverdue, appliedFilters]);
+
   const visibleOrders = useMemo(() => {
-    let list = scanFilterId ? serverOrders.filter(o => o.id === scanFilterId) : serverOrders;
     if (onlyOverdue) {
-      list = list.filter(o => getOrderDeadlineInfo(o as any).isOverdue);
+      return scanFilterId ? overdueOrders.filter(o => o.id === scanFilterId) : overdueOrders;
     }
-    return list;
-  }, [serverOrders, scanFilterId, onlyOverdue]);
+    return scanFilterId ? serverOrders.filter(o => o.id === scanFilterId) : serverOrders;
+  }, [serverOrders, scanFilterId, onlyOverdue, overdueOrders]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
