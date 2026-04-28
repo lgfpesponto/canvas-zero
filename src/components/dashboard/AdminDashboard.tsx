@@ -23,7 +23,7 @@ import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order } from '@/contexts/AuthContext';
-import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import { getOrderDeadlineInfo, FINAL_STAGES } from '@/lib/orderDeadline';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -175,17 +175,18 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!isAdminMaster) return;
     (async () => {
-      const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago'];
-      // Fetch non-final orders + orders with dias_restantes=0
+      const FINAL = FINAL_STAGES;
+      // Fetch non-final orders + orders with dias_restantes=0 (exclui vendedor Estoque)
       const { data } = await supabase.from('orders').select('*')
-        .not('status', 'in', `(${FINAL_STAGES.join(',')})`)
+        .not('status', 'in', `(${FINAL.join(',')})`)
+        .neq('vendedor', 'Estoque')
         .order('created_at', { ascending: false })
         .range(0, 499);
       if (!data) return;
       const orders = data.map(dbRowToOrder);
       const alerts = orders.filter(o => {
         const overdue = getOrderDeadlineInfo(o).isOverdue;
-        const regressed = o.historico.some((h: any) => FINAL_STAGES.includes(h.local));
+        const regressed = o.historico.some((h: any) => FINAL.includes(h.local));
         return overdue || regressed;
       });
       setAlertOrders(alerts);

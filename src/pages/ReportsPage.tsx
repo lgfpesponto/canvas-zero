@@ -15,7 +15,7 @@ import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { LoadingValue } from '@/components/ui/LoadingValue';
-import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import { getOrderDeadlineInfo, FINAL_STAGES } from '@/lib/orderDeadline';
 import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -204,9 +204,9 @@ const ReportsPage = () => {
     let cancelled = false;
     (async () => {
       setOverdueLoading(true);
-      const FINAL = ['Expedição', 'Entregue', 'Cobrado', 'Pago', 'Cancelado'];
       let q = supabase.from('orders').select('*')
-        .not('status', 'in', `(${FINAL.join(',')})`)
+        .not('status', 'in', `(${FINAL_STAGES.join(',')})`)
+        .neq('vendedor', 'Estoque')
         .order('data_criacao', { ascending: true })
         .order('hora_criacao', { ascending: true })
         .range(0, 999);
@@ -214,7 +214,7 @@ const ReportsPage = () => {
       if (f.filterDate) q = q.gte('data_criacao', f.filterDate);
       if (f.filterDateEnd) q = q.lte('data_criacao', f.filterDateEnd);
       if (f.filterStatus && f.filterStatus.size > 0) {
-        const statuses = [...f.filterStatus].filter((s: string) => !FINAL.includes(s));
+        const statuses = [...f.filterStatus].filter((s: string) => !FINAL_STAGES.includes(s));
         if (statuses.length > 0) q = q.in('status', statuses);
         else { setOverdueOrders([]); setOverdueLoading(false); return; }
       }

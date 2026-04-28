@@ -2,11 +2,12 @@
  * Cálculo dinâmico do prazo de produção dos pedidos.
  * - Dias úteis restantes até o deadline (15/5/1 conforme tipo).
  * - Dias úteis em atraso quando o pedido passou do prazo e ainda não chegou
- *   em uma etapa final (Expedição, Entregue, Cobrado, Pago, Cancelado).
+ *   em uma etapa final (Baixa Site (Despachado), Expedição, Entregue, Cobrado, Pago, Cancelado).
+ * - Pedidos do vendedor "Estoque" (estoque interno) não têm prazo de produção.
  */
 import { businessDaysRemaining, businessDaysOverdue } from '@/contexts/AuthContext';
 
-export const FINAL_STAGES = ['Expedição', 'Entregue', 'Cobrado', 'Pago', 'Cancelado'];
+export const FINAL_STAGES = ['Baixa Site (Despachado)', 'Expedição', 'Entregue', 'Cobrado', 'Pago', 'Cancelado'];
 
 /** Lead time padrão por tipo de produto (dias úteis). */
 export function getTotalBizDays(order: { tipoExtra?: string | null }): number {
@@ -15,17 +16,19 @@ export function getTotalBizDays(order: { tipoExtra?: string | null }): number {
   return 15;
 }
 
-export type DeadlineTone = 'success' | 'danger' | 'normal';
+export type DeadlineTone = 'success' | 'danger' | 'normal' | 'muted';
 
 export interface DeadlineInfo {
   daysLeft: number;
   daysOverdue: number;
   isFinal: boolean;
   isOverdue: boolean;
+  /** Pedido sem prazo aplicável (ex.: vendedor "Estoque"). */
+  isNoDeadline: boolean;
   tone: DeadlineTone;
-  /** Texto longo: "5d úteis", "+3d atrasado", "✓". */
+  /** Texto longo: "5d úteis", "+3d atrasado", "✓", "—". */
   label: string;
-  /** Texto compacto: "5d", "+3d", "✓". */
+  /** Texto compacto: "5d", "+3d", "✓", "—". */
   shortLabel: string;
 }
 
@@ -44,7 +47,22 @@ export function getOrderDeadlineInfo(order: {
   tipoExtra?: string | null;
   dataCriacao?: string;
   horaCriacao?: string;
+  vendedor?: string;
 }): DeadlineInfo {
+  const isNoDeadline = (order.vendedor || '').trim().toLowerCase() === 'estoque';
+  if (isNoDeadline) {
+    return {
+      daysLeft: 0,
+      daysOverdue: 0,
+      isFinal: false,
+      isOverdue: false,
+      isNoDeadline: true,
+      tone: 'muted',
+      label: '—',
+      shortLabel: '—',
+    };
+  }
+
   const isFinal = FINAL_STAGES.includes(order.status || '');
   const total = getTotalBizDays(order);
   const start = parseCreatedDate(order);
@@ -70,5 +88,5 @@ export function getOrderDeadlineInfo(order: {
     tone = 'normal';
   }
 
-  return { daysLeft, daysOverdue, isFinal, isOverdue, tone, label, shortLabel };
+  return { daysLeft, daysOverdue, isFinal, isOverdue, isNoDeadline: false, tone, label, shortLabel };
 }

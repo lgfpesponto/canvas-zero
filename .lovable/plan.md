@@ -1,18 +1,34 @@
-## Causa do bug
+## Mudanças
 
-O filtro **"Apenas atrasados"** está aplicando o filtro client-side **somente sobre a página atual de 50 pedidos** retornada por `useOrders` (ordenada por data DESC, ou seja, os mais recentes). Pedidos atrasados são justamente os **mais antigos**, então eles não estão na primeira página → aparece "nenhum pedido encontrado".
+**1. `Baixa Site (Despachado)` passa a contar como etapa final**
 
-O painel "Pedidos em Alerta" do dashboard funciona porque busca até 500 pedidos não-finais diretamente via Supabase, ignorando a paginação.
+Atualizar `FINAL_STAGES` em `src/lib/orderDeadline.ts` para incluir `'Baixa Site (Despachado)'`. Pedidos nesse status mostrarão "✓" (prazo atingido) e não acumulam atraso.
 
-## Correção
+Atualizar também os outros pontos que duplicam a lista de status finais para manter consistência:
+- `src/pages/ReportsPage.tsx` (constante `FINAL` no fetch de "Apenas atrasados") — usar a constante exportada `FINAL_STAGES` em vez de duplicar a lista.
+- `src/components/dashboard/AdminDashboard.tsx` (constante `FINAL_STAGES` local no fetch de "Pedidos em Alerta") — idem, importar de `orderDeadline.ts`.
 
-Quando `onlyOverdue` estiver ativo em `src/pages/ReportsPage.tsx`, fazer um **fetch dedicado** (não-paginado) parecido com o do dashboard:
+**2. Pedidos com vendedor "Estoque" não têm prazo**
 
-- Query: `orders` com `status NOT IN (Expedição, Entregue, Cobrado, Pago, Cancelado)`, ordenado por `data_criacao ASC` (mais antigos primeiro = mais relevantes), `range(0, 999)`.
-- Aplica os mesmos filtros já escolhidos pelo usuário: data, status (interseção com não-finais), vendedor, busca por número/cliente, produto (bota/cinto/extras).
-- Filtra client-side por `getOrderDeadlineInfo(o).isOverdue === true`.
-- Substitui o `serverOrders` em `visibleOrders` enquanto o toggle estiver ligado.
-- Esconde a paginação (`totalPages > 1`) quando `onlyOverdue` está ativo, pois o resultado já vem completo.
-- Adiciona um indicador de loading próprio para esse fetch.
+Em `getOrderDeadlineInfo` (`src/lib/orderDeadline.ts`):
+- Adicionar parâmetro opcional `vendedor` na assinatura.
+- Detectar `isNoDeadline = vendedor.toLowerCase() === 'estoque'`.
+- Quando verdadeiro: retornar `daysLeft: 0`, `daysOverdue: 0`, `isOverdue: false`, `tone: 'muted'`, `label: '—'`, `shortLabel: '—'`.
+- Acrescentar `isNoDeadline: boolean` na interface `DeadlineInfo`.
 
-Sem mudanças no banco/RPC. Único arquivo editado: `src/pages/ReportsPage.tsx` (novos imports `supabase`, `dbRowToOrder`, `Order`, novo `useEffect` que dispara quando `onlyOverdue` muda).
+Excluir Estoque também dos fetchs:
+- "Apenas atrasados" (ReportsPage): adicionar `.neq('vendedor', 'Estoque')` na query.
+- "Pedidos em Alerta" (AdminDashboard): mesmo filtro.
+
+**3. UI tone "muted"**
+
+Onde o `tone` é mapeado para classes (provavelmente `OrderCard.tsx` e `SoladoBoard.tsx` / `OrderDetailPage.tsx`), mapear `'muted'` para uma cor neutra (ex.: `text-muted-foreground`). Verificar e ajustar os call-sites.
+
+## Arquivos editados
+
+- `src/lib/orderDeadline.ts` (lógica central + nova constante e tone)
+- `src/pages/ReportsPage.tsx` (usar `FINAL_STAGES`, excluir Estoque)
+- `src/components/dashboard/AdminDashboard.tsx` (usar `FINAL_STAGES`, excluir Estoque)
+- Componentes que usam `tone` para estilizar (ajuste do `'muted'`)
+
+Sem mudanças no banco.
