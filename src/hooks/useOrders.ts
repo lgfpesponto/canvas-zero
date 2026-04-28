@@ -216,6 +216,64 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
   return allOrders;
 }
 
+/** Fetch only IDs of all orders matching filters in batches (lightweight, for "select all across pages") */
+export async function fetchAllFilteredOrderIds(filters: OrderFilters): Promise<string[]> {
+  const BATCH = 1000;
+  let allIds: string[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  const idsMudou = await fetchIdsMudouParaStatus(filters);
+  if (idsMudou !== null && idsMudou.length === 0) return [];
+
+  while (hasMore) {
+    let query = supabase.from('orders').select('id');
+    if (idsMudou !== null) query = query.in('id', idsMudou);
+
+    if (filters.searchQuery) {
+      query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
+    }
+    if (filters.filterDate) query = query.gte('data_criacao', filters.filterDate);
+    if (filters.filterDateEnd) query = query.lte('data_criacao', filters.filterDateEnd);
+    if (filters.filterStatus && filters.filterStatus.size > 0) {
+      query = query.in('status', [...filters.filterStatus]);
+    }
+    if (filters.filterProduto && filters.filterProduto.size > 0) {
+      const produtos = [...filters.filterProduto];
+      const hasBota = produtos.includes('bota');
+      const outros = produtos.filter(p => p !== 'bota');
+      if (hasBota && outros.length > 0) {
+        query = query.or(`tipo_extra.is.null,tipo_extra.in.(${outros.join(',')})`);
+      } else if (hasBota && outros.length === 0) {
+        query = query.is('tipo_extra', null);
+      } else if (outros.length > 0) {
+        query = query.in('tipo_extra', outros);
+      }
+    }
+    if (filters.filterVendedor && filters.filterVendedor.size > 0) {
+      const vendedores = [...filters.filterVendedor];
+      const orClauses = vendedores.map(v => `vendedor.eq.${v}`);
+      vendedores.forEach(v => {
+        orClauses.push(`and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${v})`);
+      });
+      query = query.or(orClauses.join(','));
+    }
+
+    query = query
+      .order('data_criacao', { ascending: false })
+      .order('hora_criacao', { ascending: false })
+      .range(offset, offset + BATCH - 1);
+
+    const { data } = await query;
+    if (!data || data.length === 0) { hasMore = false; break; }
+    allIds = allIds.concat(data.map((r: any) => r.id));
+    if (data.length < BATCH) hasMore = false;
+    offset += BATCH;
+  }
+
+  return allIds;
+}
+
 /** Fetch orders by IDs (for selected export) */
 export async function fetchOrdersByIds(ids: string[]): Promise<Order[]> {
   if (ids.length === 0) return [];
