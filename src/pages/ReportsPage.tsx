@@ -282,6 +282,27 @@ const ReportsPage = () => {
     return scanFilterId ? serverOrders.filter(o => o.id === scanFilterId) : serverOrders;
   }, [serverOrders, scanFilterId, onlyOverdue, overdueOrders]);
 
+  // Quando "Apenas atrasados" está ativo, recalcula totais a partir da lista visível
+  // (mesma fórmula da RPC get_orders_totals).
+  const { displayTotalProdutos, displayTotalValue } = useMemo(() => {
+    if (!onlyOverdue) {
+      return { displayTotalProdutos: totalProdutos, displayTotalValue: totalValue };
+    }
+    let prod = 0;
+    let val = 0;
+    for (const o of visibleOrders as any[]) {
+      const qtd = Number(o.quantidade) || 1;
+      const botas = o?.extra_detalhes?.botas;
+      if (o?.tipo_extra === 'bota_pronta_entrega' && Array.isArray(botas) && botas.length > 0) {
+        prod += botas.length;
+      } else {
+        prod += qtd;
+      }
+      val += (Number(o.preco) || 0) * qtd;
+    }
+    return { displayTotalProdutos: prod, displayTotalValue: val };
+  }, [onlyOverdue, visibleOrders, totalProdutos, totalValue]);
+
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
