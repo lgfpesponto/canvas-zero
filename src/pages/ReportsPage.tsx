@@ -130,7 +130,7 @@ const ReportsPage = () => {
     };
   });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
@@ -145,6 +145,7 @@ const ReportsPage = () => {
     if (filters.mudouStatus && filters.mudouStatus.size > 0) params.set('mudou_status', [...filters.mudouStatus].join(','));
     if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
     if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
+    if (filters.onlyOverdue) params.set('atrasados', '1');
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
@@ -163,7 +164,7 @@ const ReportsPage = () => {
       if (!mDe) mDe = mAte;
       if (!mAte) mAte = mDe;
     }
-    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string } = {
+    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean } = {
       searchQuery,
       filterDate,
       filterDateEnd,
@@ -174,6 +175,7 @@ const ReportsPage = () => {
       mudouParaStatusDe: mudouAtivo ? mDe : undefined,
       mudouParaStatusAte: mudouAtivo ? mAte : undefined,
       mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
+      onlyOverdue,
     };
     setAppliedFilters(newFilters);
     syncSearchParams(newFilters as any);
