@@ -66,6 +66,12 @@ const ReportsPage = () => {
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
 
+  // Regression confirmation modal (status sendo movido para etapa anterior)
+  const [showRegressionModal, setShowRegressionModal] = useState(false);
+  const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string }[]>([]);
+  const [normalIds, setNormalIds] = useState<string[]>([]);
+  const [regressionReason, setRegressionReason] = useState('');
+
   // Barcode scanner
   const [showScanner, setShowScanner] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
