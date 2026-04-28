@@ -1056,103 +1056,150 @@ const ReportsPage = () => {
       </Dialog>
 
       {/* Step 1 — Confirmação humana antes da justificativa */}
-      <Dialog open={showRegressionConfirmModal} onOpenChange={(open) => { if (!open) setShowRegressionConfirmModal(false); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Tem certeza que quer voltar a etapa?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {regressionItems.length === 1
-              ? 'O pedido abaixo está sendo movido para uma etapa anterior. Confira a data em que ele entrou na etapa atual:'
-              : `${regressionItems.length} pedidos estão sendo movidos para uma etapa anterior. Confira quando cada um entrou na etapa atual:`}
-          </p>
-          <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 text-xs space-y-2">
-            {regressionItems.map(item => (
-              <div key={item.id} className="flex flex-col gap-0.5 pb-2 border-b border-border/40 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono font-bold">#{item.numero}</span>
-                  <span className="text-muted-foreground">
-                    {item.current} <span className="text-destructive font-bold">→</span> {item.next}
-                  </span>
+      {(() => {
+        const kinds = new Set(regressionItems.map(i => i.kind));
+        const allCancel = kinds.size === 1 && kinds.has('cancel');
+        const allPause = kinds.size === 1 && kinds.has('pause');
+        const allRegression = kinds.size === 1 && kinds.has('regression');
+        const confirmTitle = allCancel
+          ? 'Tem certeza que quer cancelar?'
+          : allPause
+            ? 'Tem certeza que quer pausar?'
+            : allRegression
+              ? 'Tem certeza que quer voltar a etapa?'
+              : 'Confirma a alteração?';
+        const confirmBtn = allCancel
+          ? 'Sim, cancelar'
+          : allPause
+            ? 'Sim, pausar'
+            : allRegression
+              ? 'Sim, voltar etapa'
+              : 'Sim, continuar';
+        const confirmIntro = regressionItems.length === 1
+          ? 'Confira a data em que o pedido entrou na etapa atual:'
+          : `${regressionItems.length} pedidos selecionados. Confira quando cada um entrou na etapa atual:`;
+        const labelOf = (k: JustificationKind) =>
+          k === 'cancel' ? 'cancelamento' : k === 'pause' ? 'pausa' : 'retrocesso';
+        return (
+          <>
+            <Dialog open={showRegressionConfirmModal} onOpenChange={(open) => { if (!open) setShowRegressionConfirmModal(false); }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{confirmTitle}</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">{confirmIntro}</p>
+                <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 text-xs space-y-2">
+                  {regressionItems.map(item => (
+                    <div key={item.id} className="flex flex-col gap-0.5 pb-2 border-b border-border/40 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-bold">#{item.numero}</span>
+                        <span className="text-muted-foreground">
+                          {item.current} <span className="text-destructive font-bold">→</span> {item.next}
+                          <span className="ml-2 text-[10px] uppercase tracking-wide text-destructive font-bold">
+                            ({labelOf(item.kind)})
+                          </span>
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">
+                        Em <strong>{item.current}</strong> desde {item.desdeData ? formatDateBR(item.desdeData, item.desdeHora) : 'data não registrada'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-[11px] text-muted-foreground">
-                  Em <strong>{item.current}</strong> desde {item.desdeData ? formatDateBR(item.desdeData, item.desdeHora) : 'data não registrada'}
-                </span>
-              </div>
-            ))}
-          </div>
-          <DialogFooter className="mt-4">
-            <button
-              onClick={() => { setShowRegressionConfirmModal(false); setRegressionItems([]); setNormalIds([]); }}
-              className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => { setShowRegressionConfirmModal(false); setShowRegressionModal(true); }}
-              className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90"
-            >
-              Sim, voltar etapa
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <DialogFooter className="mt-4">
+                  <button
+                    onClick={() => { setShowRegressionConfirmModal(false); setRegressionItems([]); setNormalIds([]); }}
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => { setShowRegressionConfirmModal(false); setShowRegressionModal(true); }}
+                    className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90"
+                  >
+                    {confirmBtn}
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-      {/* Step 2 — Justificativa obrigatória */}
-      <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open) setShowRegressionModal(false); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Justifique o retrocesso</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {regressionItems.length} pedido(s) estão sendo movidos para uma etapa <strong>anterior</strong> à atual.
-            Justifique o motivo — a justificativa ficará registrada no histórico de produção.
-          </p>
-          <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 text-xs space-y-1">
-            {regressionItems.map(item => (
-              <div key={item.id} className="flex items-center justify-between gap-2">
-                <span className="font-mono">#{item.numero}</span>
-                <span className="text-muted-foreground">
-                  {item.current} <span className="text-destructive font-bold">→</span> {item.next}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3">
-            <label className="block text-xs font-semibold mb-1">Justificativa do retrocesso *</label>
-            <textarea
-              value={regressionReason}
-              onChange={e => setRegressionReason(e.target.value)}
-              placeholder="Ex: pedido devolvido pelo cliente, erro na separação, refazer revisão..."
-              maxLength={500}
-              className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none min-h-[80px]"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Mínimo 5 caracteres • {regressionReason.trim().length}/500
-            </p>
-          </div>
-          {normalIds.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              + {normalIds.length} pedido(s) avançam normalmente (sem retrocesso) e serão atualizados junto.
-            </p>
-          )}
-          <DialogFooter className="mt-4">
-            <button
-              onClick={() => setShowRegressionModal(false)}
-              className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmRegression}
-              disabled={regressionReason.trim().length < 5}
-              className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Confirmar retrocesso
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {/* Step 2 — Justificativa obrigatória */}
+            <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open) setShowRegressionModal(false); }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>
+                    {allCancel ? 'Justifique o cancelamento'
+                      : allPause ? 'Justifique a pausa'
+                      : allRegression ? 'Justifique o retrocesso'
+                      : 'Justifique a alteração'}
+                  </DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  {regressionItems.length} pedido(s) {allCancel ? 'estão sendo cancelados'
+                    : allPause ? 'estão sendo pausados em "Aguardando"'
+                    : allRegression ? 'estão sendo movidos para uma etapa anterior'
+                    : 'exigem justificativa'}.
+                  A justificativa ficará registrada no histórico de produção.
+                </p>
+                <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-border bg-muted/40 p-2 text-xs space-y-1">
+                  {regressionItems.map(item => (
+                    <div key={item.id} className="flex items-center justify-between gap-2">
+                      <span className="font-mono">#{item.numero}</span>
+                      <span className="text-muted-foreground">
+                        {item.current} <span className="text-destructive font-bold">→</span> {item.next}
+                        <span className="ml-2 text-[10px] uppercase tracking-wide text-destructive font-bold">
+                          ({labelOf(item.kind)})
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold mb-1">
+                    {allCancel ? 'Motivo do cancelamento *'
+                      : allPause ? 'Motivo da pausa *'
+                      : 'Justificativa *'}
+                  </label>
+                  <textarea
+                    value={regressionReason}
+                    onChange={e => setRegressionReason(e.target.value)}
+                    placeholder={
+                      allCancel ? 'Ex: cliente desistiu, pedido duplicado...'
+                      : allPause ? 'Ex: aguardando material, aguardando confirmação do cliente...'
+                      : 'Ex: pedido devolvido pelo cliente, erro na separação, refazer revisão...'
+                    }
+                    maxLength={500}
+                    className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none min-h-[80px]"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Mínimo 5 caracteres • {regressionReason.trim().length}/500
+                  </p>
+                </div>
+                {normalIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    + {normalIds.length} pedido(s) avançam normalmente e serão atualizados junto.
+                  </p>
+                )}
+                <DialogFooter className="mt-4">
+                  <button
+                    onClick={() => setShowRegressionModal(false)}
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirmRegression}
+                    disabled={regressionReason.trim().length < 5}
+                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Confirmar
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
+        );
+      })()}
 
       {/* Bulk delete confirmation */}
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
