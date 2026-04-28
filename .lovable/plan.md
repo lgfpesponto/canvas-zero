@@ -1,47 +1,72 @@
-# Filtro de Data no Relatório de Corte
+## Problema
 
-## Objetivo
-Adicionar um filtro opcional de **intervalo de datas (de / até)** no relatório de **Corte**, baseado na **data de criação** do pedido (`dataCriacao`). Por padrão fica vazio (todos os pedidos), mantendo o comportamento atual.
+Pedidos como 43328, 43301 e 43330 mantêm bordados antigos ("Ramos", "Cruz Bordada") na composição mesmo após edição que aparentemente os "desmarcou". 
 
-## Mudanças
+**Causa raiz** (confirmada no DB e no código de `EditOrderPage.tsx`):
 
-Arquivo único: `src/components/SpecializedReports.tsx`
+1. Ao abrir o pedido, o estado é inicializado com `bordadoCano = ['Ramos']` (vindo do registro antigo).
+2. "Ramos" foi removido do catálogo (`mergedBordadoCano` não contém mais esse item).
+3. Como o `MultiSelect` só renderiza checkboxes para itens que **estão no catálogo atual**, o item "Ramos" fica invisível na UI — o usuário acha que está desmarcado, mas continua no array de estado.
+4. Ao adicionar "Ramos Lara" e salvar, o array vira `['Ramos', 'Ramos Lara']` → DB grava `"Ramos, Ramos Lara"` e a soma da composição inclui ambos.
 
-1. **Novos estados** (junto com os filtros existentes, ~linha 375):
-   - `filterDataDe: string` (formato `YYYY-MM-DD`)
-   - `filterDataAte: string` (formato `YYYY-MM-DD`)
+Histórico do 43330 confirma exatamente isso: `Alterado Bordado Cano de "Cruz Bordada" para "Cruz Bordada, Cruz Bridão"`.
 
-2. **Reset** — incluir os dois campos em `resetFilters()` (~linha 396).
+## Solução
 
-3. **Helper de filtro de data** — função `dataMatches(dataCriacao: string)` que:
-   - Retorna `true` se ambos os campos estão vazios.
-   - Compara `dataCriacao` (já em `YYYY-MM-DD`) com `filterDataDe` / `filterDataAte` usando comparação lexicográfica (funciona pois ISO).
+Aplicar **filtragem ao abrir o pedido para edição**: qualquer item selecionado que não exista mais no catálogo atual é automaticamente desmarcado, e um toast avisa o usuário.
 
-4. **Aplicar no `generateCortePDF`** (~linha 956):
-   - Adicionar `&& dataMatches(o.dataCriacao)` ao `.filter(...)`.
-   - Atualizar a linha do cabeçalho do PDF (~linha 993) para incluir o intervalo quando preenchido:  
-     `Filtro: {progressoLabel} | Período: {de} a {até} | Total: ... | {dataBR}`  
-     Quando vazio, omite o trecho "Período".
+### Mudanças em `src/pages/EditOrderPage.tsx`
 
-5. **UI dos filtros** (~linha 1576, dentro do bloco `activeReport && ...`):
-   - Adicionar um novo bloco mostrado **somente quando `activeReport === 'corte'`**, abaixo do filtro de Progresso.
-   - Layout: dois inputs `<input type="date">` lado a lado com labels "De" e "Até", + botão "Limpar datas" pequeno.
-   - Mesmo padrão visual dos demais filtros (`bg-background border border-input rounded-md px-3 py-2 text-sm`).
+1. **No `useEffect` de inicialização (linhas 203-260)**, após carregar os arrays de bordados/lasers/acessórios, filtrar contra o catálogo atual:
 
-## Detalhes Técnicos
+```ts
+// Helpers para validar contra catálogo atual
+const validLabels = (cat: string, fallback: {label:string;preco:number}[]) =>
+  new Set(getDbItems(cat, fallback).map(i => i.label));
+const validLaserLabels = (cat: string) =>
+  new Set(getLaserItems(cat).map(i => i.label));
 
-- `Order.dataCriacao` já é string `YYYY-MM-DD` (vide `formatDateBR` na linha 25 que faz split por `-`), portanto comparação direta de strings é válida e evita problemas de timezone.
-- Filtro é **inclusivo** nas duas pontas (`>=` De e `<=` Até).
-- Se só "De" estiver preenchido → filtra dessa data em diante. Se só "Até" → até essa data. Os dois vazios → todos.
-- Não altera o comportamento de outros relatórios (escalação, forro, palmilha, etc.) — fica restrito ao Corte conforme solicitado.
+const removidos: string[] = [];
+const filterAndTrack = (arr: string[], valid: Set<string>, campo: string) => {
+  const kept: string[] = [];
+  arr.forEach(v => {
+    if (valid.has(v)) kept.push(v);
+    else removidos.push(`${campo}: "${v}"`);
+  });
+  return kept;
+};
 
-## Esboço de UI
+const bc = filterAndTrack(
+  order.bordadoCano?.split(', ').filter(Boolean) ?? [],
+  validLabels('bordado_cano', BORDADOS_CANO),
+  'Bordado Cano'
+);
+// ... mesmo para bordadoGaspea, bordadoTaloneira, laserCano, laserGaspea, laserTaloneira, acessorios
+setBordadoCano(bc);
 
-```text
-[ Progresso de Produção: Todos ▾ ]
-
-Período de criação (opcional)
-De: [ 2026-04-01 ]   Até: [ 2026-04-28 ]   Limpar datas
-
-[ GERAR PDF ]
+if (removidos.length > 0) {
+  toast.warning(
+    `${removidos.length} item(ns) foram desmarcados pois não existem mais no catálogo: ${removidos.join('; ')}. Revise a composição antes de salvar.`,
+    { duration: 8000 }
+  );
+}
 ```
+
+2. **Categorias afetadas** (todas que usam `MultiSelect` contra catálogo dinâmico):
+   - `bordadoCano` / `bordadoGaspea` / `bordadoTaloneira`
+   - `laserCano` / `laserGaspea` / `laserTaloneira`
+   - `acessorios` (validar contra `ACESSORIOS` hardcoded — só remove se o item nem está no fallback)
+
+3. **Ordenação do `useEffect`**: as funções `getDbItems` / `getLaserItems` dependem do contexto `useCustomOptions` / `useFichaVariacoes`. Garantir que o `useEffect` só filtre quando esses dados já carregaram (adicionar dependências `customOptions`, `fichaVariacoes` ou esperar o primeiro render com dados).
+
+4. **Sem mudanças** em `handleSave`, `updateOrder` ou no schema — o problema já se resolve antes do salvar, e o histórico de alterações vai registrar corretamente "Removido Bordado Cano" para os itens órfãos.
+
+### Não afeta
+
+- Pedidos que não têm itens órfãos: comportamento idêntico.
+- Pedidos já salvos no DB com itens órfãos: ao próxima edição, serão limpos (e o usuário pode salvar para consolidar). O total **da listagem** continua mostrando o valor salvo até a próxima edição — isso é o comportamento esperado (não mexer em dados sem ação humana).
+
+## Resultado esperado
+
+- Ao abrir 43328 / 43301 / 43330 hoje: toast avisa "Ramos" / "Cruz Bordada" foram desmarcados; usuário confirma a composição correta e salva; DB passa a refletir só o que está selecionado.
+- Pedidos futuros: impossível salvar item que não existe no catálogo.

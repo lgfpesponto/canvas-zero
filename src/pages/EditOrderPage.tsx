@@ -113,9 +113,10 @@ const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles } = useAuth();
   const { order, loading: orderLoading } = useOrderById(id);
-  const { getByCategoria } = useCustomOptions();
-  const { findFichaPrice, getByCustomCategory } = useFichaVariacoesLookup();
+  const { getByCategoria, loading: customOptsLoading } = useCustomOptions();
+  const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
+  const catalogReady = !customOptsLoading && !fichaLoading;
 
   const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
     const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
@@ -202,6 +203,49 @@ const EditOrderPage = () => {
 
   useEffect(() => {
     if (!order) return;
+    if (!catalogReady) return;
+
+    // Helpers para validar seleções contra o catálogo atual
+    const sortAlphaInit = (arr: { label: string; preco: number }[]) => {
+      const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
+      const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
+      normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+      variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+      return [...normal, ...variado];
+    };
+    const validBordadoLabels = (cat: string, fallback: { label: string; preco: number }[]) => {
+      const ficha = getByCustomCategory(cat);
+      if (ficha.length > 0) return new Set(sortAlphaInit(ficha).map(i => i.label));
+      const db = getByCategoria(cat);
+      if (db.length > 0) return new Set(db.map(o => o.label));
+      return new Set(fallback.map(i => i.label));
+    };
+    const validLaserLabels = (cat: string) => {
+      const db = getByCategoria(cat);
+      if (db.length === 0) return new Set(LASER_OPTIONS);
+      return new Set(db.map(o => o.label));
+    };
+    const validAcessoriosLabels = new Set(ACESSORIOS.map(a => a.label));
+
+    const removidos: string[] = [];
+    const filterArr = (raw: string | undefined, valid: Set<string>, campo: string): string[] => {
+      const arr = raw ? raw.split(', ').filter(Boolean) : [];
+      const kept: string[] = [];
+      arr.forEach(v => {
+        if (valid.has(v)) kept.push(v);
+        else removidos.push(`${campo}: "${v}"`);
+      });
+      return kept;
+    };
+
+    const bcKept = filterArr(order.bordadoCano, validBordadoLabels('bordado_cano', BORDADOS_CANO), 'Bordado Cano');
+    const bgKept = filterArr(order.bordadoGaspea, validBordadoLabels('bordado_gaspea', BORDADOS_GASPEA), 'Bordado Gáspea');
+    const btKept = filterArr(order.bordadoTaloneira, validBordadoLabels('bordado_taloneira', BORDADOS_TALONEIRA), 'Bordado Taloneira');
+    const lcKept = filterArr(order.laserCano, validLaserLabels('laser_cano'), 'Laser Cano');
+    const lgKept = filterArr(order.laserGaspea, validLaserLabels('laser_gaspea'), 'Laser Gáspea');
+    const ltKept = filterArr(order.laserTaloneira, validLaserLabels('laser_taloneira'), 'Laser Taloneira');
+    const acKept = filterArr(order.acessorios, validAcessoriosLabels, 'Acessório');
+
     setNumeroPedido(order.numero);
     setVendedor(order.vendedor || '');
     setTamanho(order.tamanho);
@@ -209,7 +253,7 @@ const EditOrderPage = () => {
     setModelo(order.modelo);
     setSobMedida(order.sobMedida);
     setSobMedidaDesc(order.sobMedidaDesc || '');
-    setAcessorios(order.acessorios ? order.acessorios.split(', ').filter(Boolean) : []);
+    setAcessorios(acKept);
     setTipoCouroCano(order.couroCano || '');
     setCorCouroCano(order.corCouroCano || '');
     setTipoCouroGaspea(order.couroGaspea || '');
@@ -217,22 +261,22 @@ const EditOrderPage = () => {
     setTipoCouroTaloneira(order.couroTaloneira || '');
     setCorCouroTaloneira(order.corCouroTaloneira || '');
     setDesenvolvimento(order.desenvolvimento || '');
-    setBordadoCano(order.bordadoCano ? order.bordadoCano.split(', ').filter(Boolean) : []);
+    setBordadoCano(bcKept);
     setCorBordadoCano(order.corBordadoCano || '');
-    setBordadoGaspea(order.bordadoGaspea ? order.bordadoGaspea.split(', ').filter(Boolean) : []);
+    setBordadoGaspea(bgKept);
     setCorBordadoGaspea(order.corBordadoGaspea || '');
-    setBordadoTaloneira(order.bordadoTaloneira ? order.bordadoTaloneira.split(', ').filter(Boolean) : []);
+    setBordadoTaloneira(btKept);
     setCorBordadoTaloneira(order.corBordadoTaloneira || '');
     setBordadoVariadoDescCano(order.bordadoVariadoDescCano || '');
     setBordadoVariadoDescGaspea(order.bordadoVariadoDescGaspea || '');
     setBordadoVariadoDescTaloneira(order.bordadoVariadoDescTaloneira || '');
     setNomeBordado(!!(order.nomeBordadoDesc || order.personalizacaoNome));
     setNomeBordadoDesc(order.nomeBordadoDesc || order.personalizacaoNome || '');
-    setLaserCano(order.laserCano ? order.laserCano.split(', ').filter(Boolean) : []);
+    setLaserCano(lcKept);
     setCorGlitterCano(order.corGlitterCano || '');
-    setLaserGaspea(order.laserGaspea ? order.laserGaspea.split(', ').filter(Boolean) : []);
+    setLaserGaspea(lgKept);
     setCorGlitterGaspea(order.corGlitterGaspea || '');
-    setLaserTaloneira(order.laserTaloneira ? order.laserTaloneira.split(', ').filter(Boolean) : []);
+    setLaserTaloneira(ltKept);
     setCorGlitterTaloneira(order.corGlitterTaloneira || '');
     setPintura(order.pintura === 'Sim');
     setPinturaDesc(order.pinturaDesc || '');
@@ -265,7 +309,15 @@ const EditOrderPage = () => {
     setAdicionalValor(order.adicionalValor || 0);
     setObservacao(order.observacao || '');
     setFotoUrl(order.fotos?.[0] || '');
-  }, [order]);
+
+    if (removidos.length > 0) {
+      toast.warning(
+        `${removidos.length} item(ns) foram desmarcados pois não existem mais no catálogo: ${removidos.join('; ')}. Confira a composição e clique em Salvar para atualizar o pedido.`,
+        { duration: 10000 }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, catalogReady]);
 
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
