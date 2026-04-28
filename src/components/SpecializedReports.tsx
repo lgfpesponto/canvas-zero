@@ -414,7 +414,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Escalação: compact block layout ──
   const generateEscalacaoPDF = () => {
     const filtered = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-'
     );
     // Group by solado+formatoBico+corSola+corVira
@@ -432,7 +432,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+    const progressoLabel = progressoLabelText();
+    const progressoFile = progressoFileLabel();
 
     const doc = new jsPDF();
     const mx = 14;
@@ -459,7 +460,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Forro: compact block layout ──
   const generateForroPDF = () => {
     const filtered = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
     );
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
@@ -477,7 +478,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     // Cintos section
     const cintoOrders = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       o.tipoExtra === 'cinto'
     );
     const cintoSizes: Record<string, number> = {};
@@ -502,7 +503,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0)
       + (cintoBlock ? cintoBlock.sizes.reduce((s, sz) => s + sz.quantidade, 0) : 0);
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+    const progressoLabel = progressoLabelText();
+    const progressoFile = progressoFileLabel();
 
     const doc = new jsPDF();
     const mx = 14;
@@ -536,7 +538,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Palmilha: same layout as Forro ──
   const generatePalmilhaPDF = () => {
     const filtered = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
     );
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
@@ -554,7 +556,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+    const progressoLabel = progressoLabelText();
+    const progressoFile = progressoFileLabel();
 
     const doc = new jsPDF();
     const mx = 14;
@@ -581,7 +584,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Forma: same as Palmilha ──
   const generateFormaPDF = () => {
     const filtered = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
     );
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
@@ -599,7 +602,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     const totalPares = blocks.reduce((s, b) => s + b.sizes.reduce((ss, sz) => ss + sz.quantidade, 0), 0);
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+    const progressoLabel = progressoLabelText();
+    const progressoFile = progressoFileLabel();
 
     const doc = new jsPDF();
     const mx = 14;
@@ -626,7 +630,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Pesponto: tabular report for costura sector ──
   const generateNewPespontoPDF = () => {
     const filtered = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       !o.tipoExtra
     );
 
@@ -634,7 +638,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const mx = 14;
     const cw = 182;
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+    const progressoLabel = progressoLabelText();
+    const progressoFile = progressoFileLabel();
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -716,7 +721,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   const generateMetaisPDF = async () => {
     const filtered = sourceOrders.filter(o => {
-      if (filterProgresso !== 'todos' && o.status !== filterProgresso) return false;
+      if (!progressoMatches(o.status)) return false;
       // Only include orders that have metal fields filled
       const hasMetals = (o.metais && o.metais !== '' && o.metais !== 'Não' && o.metais !== '-') || (o.tipoMetal && o.tipoMetal !== '' && o.tipoMetal !== '-') || (o.corMetal && o.corMetal !== '' && o.corMetal !== '-') || (o.strassQtd && o.strassQtd > 0) || (o.cruzMetalQtd && o.cruzMetalQtd > 0) || (o.bridaoMetalQtd && o.bridaoMetalQtd > 0);
       return !!hasMetals;
@@ -731,7 +736,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
-    doc.text(`Filtro: ${filterProgresso === 'todos' ? 'Todos' : filterProgresso} | Total: ${filtered.length} pedidos`, mx, 32);
+    doc.text(`Filtro: ${progressoLabelText()} | Total: ${filtered.length} pedidos`, mx, 32);
 
     const cols = [25, 120, 37];
     const cx = [mx, mx + cols[0], mx + cols[0] + cols[1]];
@@ -785,7 +790,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Bordados: new layout with QR + Receita ──
   const generateBordadosPDF = async () => {
     const filtered = sourceOrders.filter(o => {
-      if (filterProgresso !== 'todos' && o.status !== filterProgresso) return false;
+      if (!progressoMatches(o.status)) return false;
       if (o.tipoExtra === 'cinto') {
         const det = (o.extraDetalhes as any) || {};
         return det.bordadoP === 'Tem' || det.bordadoP === 'Sim' || det.nomeBordado === 'Tem' || det.nomeBordado === 'Sim';
@@ -809,7 +814,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, mx, 27);
-    doc.text(`Filtro: ${filterProgresso === 'todos' ? 'Todos' : filterProgresso} | Total: ${filtered.length} pedidos`, mx, 32);
+    doc.text(`Filtro: ${progressoLabelText()} | Total: ${filtered.length} pedidos`, mx, 32);
 
     const cols = [42, 110, 18, 12];
     const cx = [
@@ -948,7 +953,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   // ── Corte: tabular layout sorted by couro+cor ──
   const generateCortePDF = async () => {
     const filtered = sourceOrders.filter(o =>
-      (filterProgresso === 'todos' || o.status === filterProgresso) &&
+      progressoMatches(o.status) &&
       (!o.tipoExtra || o.tipoExtra === 'cinto')
     );
 
@@ -976,7 +981,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const mx = 14;
     const cw = pw - mx * 2;
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const progressoLabel = filterProgresso === 'todos' ? 'Todos' : filterProgresso;
+    const progressoLabel = progressoLabelText();
+    const progressoFile = progressoFileLabel();
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -1428,7 +1434,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     if (selectedFields.length === 0) return;
 
     // Filter orders by tipoExtra
-    const filtered = sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes && (filterProgresso === 'todos' || o.status === filterProgresso));
+    const filtered = sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes && progressoMatches(o.status));
     if (filtered.length === 0) {
       toast.error('Nenhum pedido encontrado para os filtros selecionados');
       return;
@@ -1457,7 +1463,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const cw = 182;
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    const progressLabel = filterProgresso !== 'todos' ? ` (${filterProgresso})` : '';
+    const progressLabel = filterProgresso.size > 0 ? ` (${progressoLabelText()})` : '';
     doc.text(`Relatório: ${productLabel}${progressLabel} — 7ESTRIVOS`, mx, 20);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
