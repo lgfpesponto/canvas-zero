@@ -282,6 +282,27 @@ const ReportsPage = () => {
     return scanFilterId ? serverOrders.filter(o => o.id === scanFilterId) : serverOrders;
   }, [serverOrders, scanFilterId, onlyOverdue, overdueOrders]);
 
+  // Quando "Apenas atrasados" está ativo, recalcula totais a partir da lista visível
+  // (mesma fórmula da RPC get_orders_totals).
+  const { displayTotalProdutos, displayTotalValue } = useMemo(() => {
+    if (!onlyOverdue) {
+      return { displayTotalProdutos: totalProdutos, displayTotalValue: totalValue };
+    }
+    let prod = 0;
+    let val = 0;
+    for (const o of visibleOrders as any[]) {
+      const qtd = Number(o.quantidade) || 1;
+      const botas = o?.extraDetalhes?.botas;
+      if (o?.tipoExtra === 'bota_pronta_entrega' && Array.isArray(botas) && botas.length > 0) {
+        prod += botas.length;
+      } else {
+        prod += qtd;
+      }
+      val += (Number(o.preco) || 0) * qtd;
+    }
+    return { displayTotalProdutos: prod, displayTotalValue: val };
+  }, [onlyOverdue, visibleOrders, totalProdutos, totalValue]);
+
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -991,16 +1012,16 @@ const ReportsPage = () => {
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Total de Produtos</p>
             <p className="text-2xl font-bold">
-              <LoadingValue loading={ordersLoading} hasData={serverOrders.length > 0 || !ordersLoading} size={20}>
-                {totalProdutos}
+              <LoadingValue loading={onlyOverdue ? overdueLoading : ordersLoading} hasData={visibleOrders.length > 0 || !(onlyOverdue ? overdueLoading : ordersLoading)} size={20}>
+                {displayTotalProdutos}
               </LoadingValue>
             </p>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
             <p className="text-2xl font-bold text-primary">
-              <LoadingValue loading={ordersLoading} hasData={serverOrders.length > 0 || !ordersLoading} size={20}>
-                {formatCurrency(totalValue)}
+              <LoadingValue loading={onlyOverdue ? overdueLoading : ordersLoading} hasData={visibleOrders.length > 0 || !(onlyOverdue ? overdueLoading : ordersLoading)} size={20}>
+                {formatCurrency(displayTotalValue)}
               </LoadingValue>
             </p>
           </div>
