@@ -872,7 +872,13 @@ const ReportsPage = () => {
                 Mostra pedidos que entraram em qualquer um dos status selecionados dentro do intervalo (ex.: "Entregue" entre 27/04 e 27/04).
               </p>
             </div>
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2 flex-wrap">
+              <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card cursor-pointer select-none">
+                <Switch checked={onlyOverdue} onCheckedChange={setOnlyOverdue} />
+                <span className={`text-xs font-bold uppercase ${onlyOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  Apenas atrasados
+                </span>
+              </label>
               <button onClick={applyFilters} className="orange-gradient text-primary-foreground px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Filter size={14} /> FILTRAR
               </button>
@@ -886,6 +892,7 @@ const ReportsPage = () => {
                 setMudouStatus(new Set());
                 setMudouDe('');
                 setMudouAte('');
+                setOnlyOverdue(false);
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
