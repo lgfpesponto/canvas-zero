@@ -409,6 +409,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     setFilterProgresso(new Set());
     setFilterTipoProduto('');
     setFilterCampos(new Set());
+    setFilterDataDe('');
+    setFilterDataAte('');
   };
 
   const availableFields = useMemo(() => {
