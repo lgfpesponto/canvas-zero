@@ -1004,7 +1004,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text('Relatório de Corte — 7ESTRIVOS', mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Filtro: ${progressoLabel} | Total: ${filtered.length} pedidos | ${dataBR}`, mx, 25);
+    const periodoLabel = (filterDataDe || filterDataAte)
+      ? ` | Período: ${filterDataDe ? formatDateBR(filterDataDe) : '...'} a ${filterDataAte ? formatDateBR(filterDataAte) : '...'}`
+      : '';
+    doc.text(`Filtro: ${progressoLabel}${periodoLabel} | Total: ${filtered.length} pedidos | ${dataBR}`, mx, 25);
 
     const cols = [42, 110, 18, 12];
     const cx = [
