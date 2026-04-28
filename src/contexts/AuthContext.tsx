@@ -36,6 +36,7 @@ export interface OrderAlteracao {
   data: string;
   hora: string;
   descricao: string;
+  usuario?: string;
 }
 
 export interface Order {
@@ -91,7 +92,7 @@ export interface Order {
   diasRestantes: number;
   temLaser: boolean;
   fotos: string[];
-  historico: { data: string; hora: string; local: string; descricao: string; observacao?: string }[];
+  historico: { data: string; hora: string; local: string; descricao: string; observacao?: string; usuario?: string }[];
   alteracoes: OrderAlteracao[];
   impressoes?: { tipo: string; data: string; hora: string; usuario: string; total_pedidos: number }[];
   laserCano?: string;
@@ -500,7 +501,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         horaCriacao: horaAgora,
         diasRestantes: totalBizDays,
         status: 'Em aberto',
-        historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado' }],
+        historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado', usuario: user.nomeCompleto }],
         alteracoes: [],
         numero,
       };
@@ -567,7 +568,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           horaCriacao: horaAgora,
           diasRestantes: 15,
           status: 'Em aberto',
-          historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado (grade)' }],
+          historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado (grade)', usuario: user.nomeCompleto }],
           alteracoes: [],
           numero,
         };
@@ -623,6 +624,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateOrder = useCallback(async (id: string, data: Partial<Order>) => {
     const dataHoje = formatBrasiliaDate();
     const horaAgora = formatBrasiliaTime();
+    const usuarioAtual = user?.nomeCompleto;
 
     const { data: currentRow } = await supabase.from('orders').select('*').eq('id', id).single();
     if (!currentRow) return;
@@ -636,17 +638,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (oldVal !== newVal) {
         const label = FIELD_LABELS[key] || key;
         if (oldVal && newVal) {
-          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Alterado ${label} de "${oldVal}" para "${newVal}"` });
+          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Alterado ${label} de "${oldVal}" para "${newVal}"`, usuario: usuarioAtual });
         } else if (newVal) {
-          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Adicionado ${label}: "${newVal}"` });
+          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Adicionado ${label}: "${newVal}"`, usuario: usuarioAtual });
         } else {
-          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Removido ${label}` });
+          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Removido ${label}`, usuario: usuarioAtual });
         }
       }
     }
 
     if (data.fotos && JSON.stringify(data.fotos) !== JSON.stringify(current.fotos)) {
-      changes.push({ data: dataHoje, hora: horaAgora, descricao: 'Foto de referência alterada' });
+      changes.push({ data: dataHoje, hora: horaAgora, descricao: 'Foto de referência alterada', usuario: usuarioAtual });
     }
 
     const updatedAlteracoes = [...(current.alteracoes || []), ...changes];
@@ -689,7 +691,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('Erro ao registrar notificações de alteração:', e);
       }
     }
-  }, []);
+  }, [user]);
 
   /* ───── Update Order Status ───── */
   const updateOrderStatus = useCallback(async (id: string, newStatus: string, observacao?: string) => {
@@ -700,7 +702,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!currentRow) return;
 
     const currentHistorico = (currentRow.historico as any[]) || [];
-    const newHistEntry = { data: dataHoje, hora: horaAgora, local: newStatus, descricao: `Pedido movido para ${newStatus}`, observacao: observacao || undefined };
+    const newHistEntry = { data: dataHoje, hora: horaAgora, local: newStatus, descricao: `Pedido movido para ${newStatus}`, observacao: observacao || undefined, usuario: user?.nomeCompleto };
     const updatedHistorico = [...currentHistorico, newHistEntry];
 
     const { error } = await supabase.from('orders').update({
@@ -709,7 +711,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }).eq('id', id);
 
     if (error) { console.error('Error updating status:', error); }
-  }, []);
+  }, [user]);
 
   /* ───── Load all profiles for ADM vendor selection ───── */
   const loadAllProfiles = useCallback(async () => {
