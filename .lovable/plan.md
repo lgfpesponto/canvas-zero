@@ -1,32 +1,41 @@
-## Problema
+# Plano
 
-Ao ativar o filtro **"Apenas atrasados"**, a lista de pedidos exibida muda corretamente (passa a mostrar apenas os atrasados), mas os cards **"Total de Produtos"** e **"Valor Total"** continuam exibindo os números do servidor — ou seja, o total de TODOS os pedidos da página atual (filtrados sem a regra de atraso).
+## O que vou ajustar
 
-## Causa
+1. Corrigir a tela de Relatórios para que, com o filtro `Apenas atrasados` ativo, todos os números e listas exibidos venham da mesma fonte de dados filtrada, sem manter valores herdados da consulta paginada normal.
+2. Remover o bloco `Pedidos apagados` do dashboard do `admin_master`.
+3. Transformar `Pedidos em Alerta` em um painel minimizado por padrão, no mesmo padrão visual/comportamental dos quadros de solas.
 
-Em `src/pages/ReportsPage.tsx`:
+## Como será feito
 
-- `totalProdutos` e `totalValue` vêm direto do hook `useOrders(...)` (linha 196), que faz a query paginada padrão e não conhece a lógica de atraso.
-- Quando `onlyOverdue` está ligado, a lista visível (`visibleOrders`) é trocada para `overdueOrders` (calculado em outro `useEffect`, linha 272), mas os cards de resumo continuam lendo `totalProdutos` / `totalValue` do hook original.
+### 1) Unificar o modo `Apenas atrasados` em `ReportsPage`
+- Criar uma camada única de dados exibidos no modo atrasados, derivada de `overdueOrders`, para evitar que alguns números continuem usando `serverOrders`/`serverCount`/RPC normal.
+- Ajustar os resumos exibidos para sempre refletirem exatamente a lista visível quando `Apenas atrasados` estiver ativo.
+- Revisar também contagens auxiliares e estados de loading da tela para garantir que a UI não mostre valores antigos enquanto a busca dos atrasados ainda está recarregando.
+- Preservar a lógica atual de filtros combinados, incluindo produto, vendedor, clientes virtuais da Juliana, busca textual e filtro por status alterado.
 
-Resultado: a contagem/valor dos cards reflete o conjunto SEM o filtro de atraso aplicado.
+### 2) Remover `Pedidos apagados` do dashboard
+- Excluir a renderização do card `Pedidos apagados` do `AdminDashboard`.
+- Remover estados, efeitos, imports e handlers que existem apenas para esse bloco, para não deixar código morto.
+- Manter intacta a lógica de armazenamento/limpeza geral que ainda for usada em outras áreas.
 
-## Solução
+### 3) Deixar `Pedidos em Alerta` recolhível igual aos quadros de solas
+- Aplicar ao painel de alertas o mesmo padrão dos `SoladoBoard`:
+  - inicializar minimizado;
+  - exibir cabeçalho com contador;
+  - botão de expandir/minimizar;
+  - conteúdo listado só quando expandido.
+- Manter a regra atual de alertas: mostrar apenas pedidos atrasados e fora de etapa final no status atual.
+- Preservar o botão `Conferido` e o armazenamento local dos itens já marcados.
 
-Calcular `totalProdutos` e `totalValue` a partir de `visibleOrders` quando `onlyOverdue` estiver ativo, replicando a mesma fórmula usada pelo hook `useOrders` (somar `quantidade` e `preco * quantidade − desconto + adicional_valor`, respeitando regras já existentes de pedidos extras e descontos).
+## Resultado esperado
+- Ao ativar `Apenas atrasados`, a tela passa a atualizar corretamente os números exibidos junto com a lista filtrada.
+- O dashboard do `admin_master` fica mais limpo, sem `Pedidos apagados`.
+- `Pedidos em Alerta` passa a abrir recolhido, no mesmo estilo dos quadros de solas.
 
-### Mudanças técnicas
-
-1. **`src/pages/ReportsPage.tsx`**:
-   - Inspecionar a fórmula exata em `src/hooks/useOrders.ts` para `totalProdutos` e `totalValue` (garantir paridade — botas vs extras, descontos, adicionais, exclusões TROCA/ERRO etc.).
-   - Criar `useMemo` que, quando `onlyOverdue === true`, computa os totais a partir de `overdueOrders` usando a mesma fórmula.
-   - Substituir os valores exibidos nos cards por esses derivados (`displayTotalProdutos`, `displayTotalValue`).
-   - Ajustar `LoadingValue` para usar `overdueLoading` quando `onlyOverdue` estiver ativo.
-
-2. Nenhuma mudança de banco, RLS ou backend.
-
-### Critério de aceite
-
-- Com "Apenas atrasados" ligado, "Total de Produtos" e "Valor Total" refletem exatamente os pedidos visíveis na lista.
-- Combinações de filtros (vendedor, produto, status, busca) continuam funcionando junto com o filtro de atrasados.
-- Sem o filtro ligado, os totais permanecem idênticos ao comportamento atual.
+## Detalhes técnicos
+- Arquivos principais:
+  - `src/pages/ReportsPage.tsx`
+  - `src/components/dashboard/AdminDashboard.tsx`
+- Não pretendo alterar regra de negócio de prazo; só alinhar a camada de exibição e o comportamento visual.
+- Se necessário, extraio pequenos cálculos locais (`displayCount`, `displayLoading`, `displayOrders`) para evitar novas divergências entre modo normal e modo atrasados.
