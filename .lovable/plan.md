@@ -1,45 +1,80 @@
-## Aba "Gestão" — Usuários ao vivo no portal
 
-Criar uma nova aba **Gestão** acessível somente para `admin_master` (Juliana / login `7estrivos`), exibindo em tempo real quem está com o portal aberto. Útil pra publicar/atualizar o sistema sem atrapalhar usuários ativos.
+# Filtro por "Data de mudança para status X" em Meus Pedidos
 
-### Como vai funcionar
+## Objetivo
+Permitir filtrar a lista da página **Meus Pedidos** por:
+- **Status alvo** (ex.: "Entregue", "Cobrado", "Pago", "Corte"...)
+- **Data inicial** e **Data final** em que o pedido foi movido para aquele status
 
-1. **Rastreamento de presença (heartbeat ao vivo)**
-   - Usar **Supabase Realtime Presence** (não cria tabela, é em memória do servidor Realtime).
-   - Um hook global `usePresenceTracker` é montado dentro do `AuthProvider` quando o usuário está logado.
-   - Ele entra num canal único `portal-presence` e faz `track({ user_id, nome_completo, role, page, joined_at, last_seen })`.
-   - Atualiza `page` e `last_seen` sempre que a rota muda (via `useLocation`) e a cada 30s (heartbeat).
-   - Ao deslogar / fechar a aba, o Presence remove automaticamente o usuário (untrack + disconnect).
+Exemplo: ver todos os pedidos que foram para "Entregue" no dia 27/04/2026.
 
-2. **Nova página `/admin/gestao`**
-   - Acesso restrito: só renderiza pra `admin_master`; outros são redirecionados pra `/`.
-   - Um segundo subscribe no mesmo canal `portal-presence` lê o estado completo via `channel.presenceState()` e escuta `sync`, `join`, `leave`.
-   - Mostra:
-     - **Contador grande**: "X usuários online agora".
-     - **Tabela** com: Nome, Login, Função (badge colorido por role), Página atual (ex.: `/relatorios`), Há quanto tempo está conectado, Último heartbeat ("há 12s").
-     - **Filtro** por role e busca por nome.
-     - **Aviso amarelo** no topo se houver mais de 1 usuário ativo, com texto: "Evite publicar agora — há N pessoas usando o portal".
-   - Botão **Atualizar** (refaz `presenceState`) e auto-refresh visual a cada 5s.
+## Como funciona hoje
+Cada pedido guarda um array JSONB `historico` na tabela `orders`, com entradas:
+```json
+{ "data": "2026-04-27", "hora": "14:32", "local": "Entregue", "descricao": "Pedido movido para Entregue" }
+```
+Toda mudança de status feita por `updateOrderStatus` adiciona uma entrada nesse array. Logo, já temos o dado — só falta consultar e expor na UI.
 
-3. **Item de menu no Header**
-   - Adicionar `{ label: 'GESTÃO', path: '/admin/gestao' }` ao `navItems` somente quando `role === 'admin_master'`.
-   - Posicionado logo após "CONFIGURAÇÕES".
+O filtro de data atual (`filterDate` / `filterDateEnd`) filtra por `data_criacao` (criação do pedido), não por mudança de status. Vamos manter esse filtro como está e **adicionar um novo bloco de filtro** ao lado.
 
-### Arquivos a criar / alterar
+## UI — página Meus Pedidos (ReportsPage)
+Adicionar, ao lado dos filtros de Período / Status / Vendedor / Produto, um novo bloco:
 
-- **Criar** `src/hooks/usePresenceTracker.ts` — hook que faz `track`/`untrack` no canal `portal-presence`, atualiza ao mudar de rota, heartbeat de 30s.
-- **Criar** `src/pages/GestaoPage.tsx` — página com a tabela ao vivo, filtros, contador e aviso de publicação.
-- **Editar** `src/contexts/AuthContext.tsx` — chamar `usePresenceTracker()` quando `isLoggedIn` for true (ou mover pro `App.tsx` dentro do `AuthProvider`).
-- **Editar** `src/App.tsx` — registrar a rota `<Route path="/admin/gestao" element={<GestaoPage />} />`.
-- **Editar** `src/components/Header.tsx` — adicionar item "GESTÃO" no menu (desktop e mobile) só pra `admin_master`.
+```text
+[ Mudou para status ▼ ]   [ De: __/__/____ ]   [ Até: __/__/____ ]
+```
 
-### Pontos técnicos
+- **Mudou para status**: Select com a mesma lista de status existente (`allStatuses`), com opção "—" (vazio = filtro desligado).
+- **De / Até**: dois inputs `type="date"`. Se "Até" ficar vazio, usa o mesmo dia do "De".
+- Quando o usuário escolhe um status, o filtro fica ativo. Mostrar um chip "Limpar" para resetar.
+- Estado persiste na URL via os mesmos `searchParams` já usados (chaves novas: `mudou_status`, `mudou_de`, `mudou_ate`).
+- Botão "Limpar filtros" também zera esses três.
 
-- **Sem mudanças no banco**: Supabase Realtime Presence é stateless e não precisa de tabela nem migration. Não afeta storage (500MB).
-- **Privacidade**: o canal só publica `nome_completo`, `role` e `page` — sem dados sensíveis. Como qualquer autenticado pode entrar no canal, a leitura da lista fica restrita pela UI da página `/admin/gestao` (gate por role no front). Se quiser bloquear leitura no servidor, dá pra evoluir depois com um canal privado + edge function — começamos com a versão simples.
-- **Heartbeat**: 30s + dedupe automático do Presence (chave única por `user_id`); se a aba fechar sem aviso, o Realtime remove em ~30-60s.
-- **Visual**: segue o padrão Apple-like minimal já usado em `AdminConfigPage` (Cards, Badges, lowercase no título).
+## Backend — nova função RPC
+JSONB array com dois campos não permite consulta eficiente direto via PostgREST. Criar função SQL `SECURITY DEFINER`:
 
-### Resultado
+```sql
+create or replace function public.find_orders_by_status_change(
+  _status text,
+  _de date,
+  _ate date
+) returns setof uuid
+language sql stable security definer
+set search_path = public
+as $$
+  select o.id
+  from public.orders o
+  where exists (
+    select 1
+    from jsonb_array_elements(coalesce(o.historico, '[]'::jsonb)) h
+    where h->>'local' = _status
+      and (h->>'data')::date between _de and _ate
+  );
+$$;
+```
 
-Juliana abre **GESTÃO** no menu e vê em tempo real quem está logado, em qual tela, há quanto tempo — podendo decidir com segurança o melhor momento pra publicar uma atualização.
+Retorna apenas IDs — barato e seguro (RLS continua valendo nos `select` posteriores).
+
+## Integração no `useOrders`
+Estender `OrderFilters` com:
+```ts
+mudouParaStatus?: string;
+mudouParaStatusDe?: string;   // YYYY-MM-DD
+mudouParaStatusAte?: string;  // YYYY-MM-DD
+```
+
+Fluxo no `fetchOrders`:
+1. Se `mudouParaStatus` estiver definido, chamar `supabase.rpc('find_orders_by_status_change', {...})` primeiro.
+2. Se vier `[]` → setar resultados vazios (curto-circuito, evita query principal).
+3. Caso contrário, aplicar `.in('id', [...ids])` na query principal **e** na query de totais (`valueQuery`).
+4. Os outros filtros (vendedor, produto, status atual, busca, data de criação) continuam combinando normalmente.
+
+Mesma extensão em `fetchAllFilteredOrders` (usado na exportação de PDF), para que os PDFs respeitem o novo filtro.
+
+## Resumo de arquivos
+- **Migration SQL**: criar a função `find_orders_by_status_change`.
+- **`src/hooks/useOrders.ts`**: estender `OrderFilters`, integrar RPC em `fetchOrders` e `fetchAllFilteredOrders`.
+- **`src/pages/ReportsPage.tsx`**: novos estados + UI (select de status + 2 inputs de data), persistência na URL, propagação para `appliedFilters`, integração no botão "Limpar filtros".
+
+## Resultado para o usuário
+Na página Meus Pedidos, escolhendo "Mudou para status: Entregue" + "De: 27/04/2026" + "Até: 27/04/2026" a lista (e os PDFs gerados a partir dela) mostram apenas os pedidos cuja transição para "Entregue" aconteceu nesse dia.
