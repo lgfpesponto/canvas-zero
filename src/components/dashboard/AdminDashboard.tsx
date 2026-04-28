@@ -23,6 +23,7 @@ import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order } from '@/contexts/AuthContext';
+import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -183,7 +184,7 @@ const AdminDashboard = () => {
       if (!data) return;
       const orders = data.map(dbRowToOrder);
       const alerts = orders.filter(o => {
-        const overdue = o.diasRestantes === 0;
+        const overdue = getOrderDeadlineInfo(o).isOverdue;
         const regressed = o.historico.some((h: any) => FINAL_STAGES.includes(h.local));
         return overdue || regressed;
       });
@@ -441,7 +442,12 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
-                      {o.diasRestantes === 0 && <span className="text-xs text-destructive ml-2">Prazo atingido</span>}
+                      {(() => {
+                        const d = getOrderDeadlineInfo(o);
+                        return d.isOverdue
+                          ? <span className="text-xs text-destructive font-bold ml-2">+{d.daysOverdue}d atrasado</span>
+                          : null;
+                      })()}
                     </div>
                   </Link>
                   <button

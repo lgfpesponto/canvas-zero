@@ -155,6 +155,21 @@ export function businessDaysRemaining(startDate: Date, totalBusinessDays: number
   return count;
 }
 
+/** Dias úteis decorridos além do prazo. 0 quando ainda não venceu. */
+export function businessDaysOverdue(startDate: Date, totalBusinessDays: number): number {
+  const deadline = addBusinessDays(startDate, totalBusinessDays);
+  const now = nowBrasilia();
+  if (now <= deadline) return 0;
+  let count = 0;
+  const d = new Date(deadline);
+  while (d < now) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
 /** Legacy barcode from numero (kept for scanning old printed labels) */
 export function orderBarcodeValueLegacy(numero: string): string {
   const digits = numero.replace(/\D/g, '');

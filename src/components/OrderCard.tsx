@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Pencil, Trash2 } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
+import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 
 interface OrderCardProps {
   order: any;
@@ -51,13 +52,19 @@ const OrderCard = React.memo(({
                 : isRevit
                   ? order.preco * (order.quantidade || 1)
                   : order.preco;
+              const deadline = getOrderDeadlineInfo(order);
+              const deadlineClass = deadline.tone === 'danger'
+                ? 'text-destructive font-bold'
+                : deadline.tone === 'success'
+                  ? 'text-primary font-bold'
+                  : 'text-muted-foreground';
               return (
                 <>
                   <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
                   <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
                   <span className="font-bold text-primary">{formatCurrency(valor)}</span>
                   <span className="text-xs text-muted-foreground">Qtd: {qtd}</span>
-                  <span className="text-xs text-muted-foreground">{order.diasRestantes > 0 ? `${order.diasRestantes}d úteis` : '✓'}</span>
+                  <span className={`text-xs ${deadlineClass}`}>{deadline.label}</span>
                 </>
               );
             })()}

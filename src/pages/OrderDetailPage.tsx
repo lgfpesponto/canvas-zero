@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
+import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
@@ -477,9 +478,16 @@ const OrderDetailPage = () => {
           </p>
           <div className="flex items-center gap-2 mb-4">
             <Clock size={14} className="text-primary" />
-            <span className="text-sm font-semibold">
-              {daysLeft > 0 ? `${daysLeft} dias úteis restantes` : 'Prazo atingido ✓'}
-            </span>
+            {(() => {
+              const d = getOrderDeadlineInfo(order);
+              const text = d.isFinal
+                ? 'Concluído ✓'
+                : d.isOverdue
+                  ? `+${d.daysOverdue} dias úteis em atraso`
+                  : `${d.daysLeft} dias úteis restantes`;
+              const cls = d.isOverdue ? 'text-destructive' : 'text-foreground';
+              return <span className={`text-sm font-semibold ${cls}`}>{text}</span>;
+            })()}
             <span className="text-xs text-muted-foreground">
               (prazo: {totalBizDays} dias úteis)
             </span>
