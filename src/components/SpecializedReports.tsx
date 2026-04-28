@@ -1579,15 +1579,38 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
           {needsProgressFilter && (
             <div>
               <label className="block text-xs font-semibold mb-1">Progresso de Produção</label>
-              <Select value={filterProgresso} onValueChange={setFilterProgresso}>
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {progressOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="bg-background border border-input rounded-md px-3 py-2 text-sm w-64 text-left">
+                    {filterProgresso.size === 0
+                      ? 'Todos'
+                      : `${filterProgresso.size} selecionado${filterProgresso.size > 1 ? 's' : ''}`}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setFilterProgresso(new Set(progressOptions))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                    <button type="button" onClick={() => setFilterProgresso(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                  </div>
+                  <div className="space-y-2">
+                    {progressOptions.map(s => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={filterProgresso.has(s)}
+                          onCheckedChange={() => {
+                            setFilterProgresso(prev => {
+                              const next = new Set(prev);
+                              next.has(s) ? next.delete(s) : next.add(s);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
