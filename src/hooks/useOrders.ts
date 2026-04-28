@@ -11,8 +11,8 @@ export interface OrderFilters {
   filterStatus?: Set<string>;
   filterVendedor?: Set<string>;
   filterProduto?: Set<string>;
-  /** Filtra pedidos cujo histórico contém a transição para este status... */
-  mudouParaStatus?: string;
+  /** Filtra pedidos cujo histórico contém a transição para qualquer destes status... */
+  mudouParaStatus?: Set<string>;
   /** ...dentro do intervalo [mudouParaStatusDe, mudouParaStatusAte] (YYYY-MM-DD) */
   mudouParaStatusDe?: string;
   mudouParaStatusAte?: string;
@@ -20,12 +20,12 @@ export interface OrderFilters {
 
 /** Busca IDs via RPC quando há filtro "mudou para status". Retorna null se filtro inativo. */
 async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] | null> {
-  if (!filters.mudouParaStatus) return null;
+  if (!filters.mudouParaStatus || filters.mudouParaStatus.size === 0) return null;
   const de = filters.mudouParaStatusDe || filters.mudouParaStatusAte;
   const ate = filters.mudouParaStatusAte || filters.mudouParaStatusDe;
   if (!de || !ate) return null;
   const { data, error } = await supabase.rpc('find_orders_by_status_change', {
-    _status: filters.mudouParaStatus,
+    _status: [...filters.mudouParaStatus],
     _de: de,
     _ate: ate,
   });
