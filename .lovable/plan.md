@@ -1,49 +1,30 @@
-# Mostrar quem fez cada alteração no Histórico de Produção e no Histórico de Alterações
+# Mostrar spinner enquanto o pedido está sendo carregado
 
-## O que muda
+## Problema
 
-Hoje, no detalhe de um pedido (`/pedido/:id`), o **Histórico de Impressão** mostra `data, hora, tipo — usuário`. Já o **Histórico de Produção** (mudanças de status) e o **Histórico de Alterações** (edições de campos) só mostram `data, hora, descrição` — não dizem quem fez. Vamos passar a registrar e exibir o **nome do usuário** que fez cada movimentação, igual ao histórico de impressão.
+Quando você abre o detalhe de um pedido (ex.: bota), os dados precisam ser buscados no banco. Hoje, enquanto a busca acontece, a tela mostra a mensagem **"Pedido não encontrado"** — porque o código verifica só `if (!order)` e não considera que o carregamento ainda está em andamento. Só depois de uns segundos o pedido aparece.
 
-### Como vai aparecer
+Isso dá a sensação de que está demorando muito, e em alguns casos a pessoa pensa que o pedido nem existe.
 
-**Histórico de Produção** (cada item):
+## Correção
+
+Em `src/pages/OrderDetailPage.tsx`, antes do bloco que mostra "Pedido não encontrado", adicionar uma verificação de carregamento:
+
+- Se `orderLoading === true` → mostrar um spinner centralizado com o texto "Carregando pedido..."
+- Se `orderLoading === false` E `order === null` → aí sim mostrar "Pedido não encontrado"
+- Se o pedido carregou → renderiza a tela normalmente
+
+O hook `useOrderById` já expõe o estado `loading` (linha 37 já desestrutura como `orderLoading`), então é só usar.
+
+### Visual
+
 ```
-✔ Bordado Dinei
-  28/04/2026 às 14:32 — Pedido movido para Bordado Dinei
-  por Juliana Cristina Ribeiro
-  Observação: ... (se houver)
+        ⟳  (spinner girando, cor primária)
+   Carregando pedido...
 ```
 
-**Histórico de Alterações** (cada item):
-```
-28/04/2026 às 14:35 — por Fernanda
-Alterado Cor da linha de "Branco" para "Preto"
-```
+Usa o ícone `Loader2` do lucide-react que já está importado.
 
-## Onde mexer
+## Arquivos afetados
 
-### 1. Banco de dados
-Os campos `historico` e `alteracoes` da tabela `orders` são `jsonb`, então **não precisa migração** — apenas passamos a gravar uma chave nova `usuario` em cada item novo. Itens antigos (sem `usuario`) continuam funcionando: a tela mostra "—" quando o campo não existir.
-
-### 2. Tipos (`src/contexts/AuthContext.tsx`)
-- `Order.historico`: adicionar campo opcional `usuario?: string`.
-- `OrderAlteracao`: adicionar campo opcional `usuario?: string`.
-
-### 3. Gravação do usuário
-Em todo lugar que insere item em `historico` ou `alteracoes`, gravar `usuario: <nome do usuário logado>` (usar `user.nomeCompleto` do `useAuth()`):
-
-- `AuthContext.updateOrderStatus` (mudança de status normal) — adicionar `usuario` no `newHistEntry`.
-- `AuthContext.updateOrder` (edições de campos) — adicionar `usuario` em cada `OrderAlteracao` criado em `changes`.
-- `AuthContext.addOrder` e `addOrderBatch` — gravar usuário no item inicial "Pedido criado".
-- `OrderDetailPage.tsx` linha ~399 (mudança de status em lote pelo botão "Mudar progresso") — adicionar `usuario` no `newHist`.
-- `OrderDetailPage.tsx` linha ~890 (alteração que cria entrada em `alteracoes`) — adicionar `usuario`.
-
-Para isso, o `AuthContext` já tem o `user` em escopo; basta ler `user?.nomeCompleto` no momento da escrita. Nas chamadas em componentes (que não passam pelo context), passamos o nome explicitamente.
-
-### 4. Exibição (`src/pages/OrderDetailPage.tsx`)
-- Bloco "Histórico de Produção" (linhas 511-529): adicionar uma linha `por {h.usuario || '—'}` abaixo da descrição.
-- Bloco "Histórico de Alterações" (linhas 531-548): adicionar `por {a.usuario || '—'}` ao lado da data/hora.
-
-## Observação importante sobre dados antigos
-
-Itens já existentes no banco não têm o campo `usuario`. A tela vai mostrar "—" para esses casos. **Não vamos** tentar preencher retroativamente, pois não há como saber quem fez aquelas alterações no passado.
+- `src/pages/OrderDetailPage.tsx` — substituir o bloco `if (!order)` (linhas ~72-78) por dois blocos: um de loading e um de "não encontrado".

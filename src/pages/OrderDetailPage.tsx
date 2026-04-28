@@ -69,6 +69,15 @@ const OrderDetailPage = () => {
     }
   }, [scanValue, navigate, order, isSelected, toggle, scanning]);
 
+  if (orderLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 size={32} className="animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando pedido...</p>
+      </div>
+    );
+  }
+
   if (!order) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
