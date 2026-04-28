@@ -46,11 +46,10 @@ const AdminDashboard = () => {
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch { return new Set(); }
   });
-  const [deletedOrders, setDeletedOrders] = useState<any[]>([]);
   const [storageInfo, setStorageInfo] = useState<{ db_size_mb: number; order_count: number; deleted_order_count: number; limit_mb: number } | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [viewingDeletedOrder, setViewingDeletedOrder] = useState<any | null>(null);
+  const [alertCollapsed, setAlertCollapsed] = useState(true);
 
   // ── Server-side data via RPCs ──
   const [pendingValue, setPendingValue] = useState<number | null>(null);
@@ -214,39 +213,14 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchStorageInfo(); }, [fetchStorageInfo]);
 
-  const fetchDeletedOrders = useCallback(async () => {
-    if (!isAdminMaster) return;
-    const { data } = await supabase.from('deleted_orders').select('*').eq('dismissed', false).order('deleted_at', { ascending: false });
-    if (data) setDeletedOrders(data);
-  }, [isAdminMaster]);
-
-  useEffect(() => { fetchDeletedOrders(); }, [fetchDeletedOrders]);
-
   const handleCleanup = async () => {
     setCleanupLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('cleanup-old-orders');
       if (error) { toast.error('Erro ao limpar dados: ' + error.message); }
-      else { toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`); fetchStorageInfo(); fetchDeletedOrders(); }
+      else { toast.success(`Limpeza concluída! ${data.orders_cleaned} pedidos podados, ${data.deleted_orders_removed} registros removidos.`); fetchStorageInfo(); }
     } catch { toast.error('Erro ao limpar dados'); }
     finally { setCleanupLoading(false); }
-  };
-
-  const handleRestoreOrder = async (deletedRecord: any) => {
-    try {
-      const orderData = deletedRecord.order_data;
-      const { error } = await supabase.from('orders').insert(orderData);
-      if (error) { toast.error('Erro ao restaurar pedido: ' + error.message); return; }
-      await supabase.from('deleted_orders').delete().eq('id', deletedRecord.id);
-      setDeletedOrders(prev => prev.filter(d => d.id !== deletedRecord.id));
-      toast.success('Pedido restaurado com sucesso!');
-      window.location.reload();
-    } catch { toast.error('Erro ao restaurar pedido'); }
-  };
-
-  const handleDismissDeleted = async (deletedId: string) => {
-    await supabase.from('deleted_orders').update({ dismissed: true } as any).eq('id', deletedId);
-    setDeletedOrders(prev => prev.filter(d => d.id !== deletedId));
   };
 
   const handleChecked = (orderId: string) => {
