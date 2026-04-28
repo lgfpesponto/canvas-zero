@@ -23,7 +23,7 @@ import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order } from '@/contexts/AuthContext';
-import { getOrderDeadlineInfo, FINAL_STAGES } from '@/lib/orderDeadline';
+import { getOrderDeadlineInfo, FINAL_STAGES, isAlertOrder } from '@/lib/orderDeadline';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -170,27 +170,34 @@ const AdminDashboard = () => {
     corViraValues: ['rosa', 'preta'],
   });
 
-  // Alert orders: overdue or regressed (need all non-final orders)
+  // Alert orders: pedidos atrasados (incl. regredidos de etapa final), exclui Estoque.
   const [alertOrders, setAlertOrders] = useState<Order[]>([]);
   useEffect(() => {
     if (!isAdminMaster) return;
+    let cancelled = false;
     (async () => {
       const FINAL = FINAL_STAGES;
-      // Fetch non-final orders + orders with dias_restantes=0 (exclui vendedor Estoque)
-      const { data } = await supabase.from('orders').select('*')
-        .not('status', 'in', `(${FINAL.join(',')})`)
-        .neq('vendedor', 'Estoque')
-        .order('created_at', { ascending: false })
-        .range(0, 499);
-      if (!data) return;
-      const orders = data.map(dbRowToOrder);
-      const alerts = orders.filter(o => {
-        const overdue = getOrderDeadlineInfo(o).isOverdue;
-        const regressed = o.historico.some((h: any) => FINAL.includes(h.local));
-        return overdue || regressed;
-      });
-      setAlertOrders(alerts);
+      const BATCH = 1000;
+      let offset = 0;
+      const all: Order[] = [];
+      while (true) {
+        const { data, error } = await supabase.from('orders').select('*')
+          .not('status', 'in', `(${FINAL.join(',')})`)
+          .neq('vendedor', 'Estoque')
+          .order('data_criacao', { ascending: true })
+          .order('hora_criacao', { ascending: true })
+          .range(offset, offset + BATCH - 1);
+        if (cancelled) return;
+        if (error) { console.error('alert orders fetch error:', error); break; }
+        const rows = data || [];
+        all.push(...rows.map(dbRowToOrder));
+        if (rows.length < BATCH) break;
+        offset += BATCH;
+      }
+      if (cancelled) return;
+      setAlertOrders(all.filter(o => isAlertOrder(o as any)));
     })();
+    return () => { cancelled = true; };
   }, [isAdminMaster]);
 
   // Side effects
