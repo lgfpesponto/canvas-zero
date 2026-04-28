@@ -516,6 +516,8 @@ const ReportsPage = () => {
           )}
         </div>
 
+        <HolidayNoticeBanner />
+
         {/* Barcode scanner for all users — single persistent input to keep focus across scans */}
         {showScanner && (() => {
           const adminMode = isAdmin;
