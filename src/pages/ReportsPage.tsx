@@ -1141,25 +1141,7 @@ const ReportsPage = () => {
         </div>
 
         {!onlyOverdue && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-4">
-            <button
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page <= 1}
-              className="px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Anterior
-            </button>
-            <span className="text-sm font-medium text-muted-foreground">
-              Página {page} de {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page >= totalPages}
-              className="px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Próxima
-            </button>
-          </div>
+          <PaginationBar page={page} totalPages={totalPages} onChange={handlePageChange} />
         )}
 
         {visibleOrders.length === 0 && (
