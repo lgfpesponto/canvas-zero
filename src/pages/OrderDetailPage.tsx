@@ -480,17 +480,29 @@ const OrderDetailPage = () => {
             <Clock size={14} className="text-primary" />
             {(() => {
               const d = getOrderDeadlineInfo(order);
+              if (d.isNoDeadline) {
+                return (
+                  <>
+                    <span className="text-sm font-semibold text-muted-foreground">Sem prazo de produção</span>
+                    <span className="text-xs text-muted-foreground">(estoque interno)</span>
+                  </>
+                );
+              }
               const text = d.isFinal
                 ? 'Concluído ✓'
                 : d.isOverdue
                   ? `+${d.daysOverdue} dias úteis em atraso`
                   : `${d.daysLeft} dias úteis restantes`;
               const cls = d.isOverdue ? 'text-destructive' : 'text-foreground';
-              return <span className={`text-sm font-semibold ${cls}`}>{text}</span>;
+              return (
+                <>
+                  <span className={`text-sm font-semibold ${cls}`}>{text}</span>
+                  <span className="text-xs text-muted-foreground">
+                    (prazo: {totalBizDays} dias úteis)
+                  </span>
+                </>
+              );
             })()}
-            <span className="text-xs text-muted-foreground">
-              (prazo: {totalBizDays} dias úteis)
-            </span>
           </div>
 
 
