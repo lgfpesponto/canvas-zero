@@ -103,19 +103,22 @@ const ReportsPage = () => {
   }, []);
 
   // Initialize appliedFilters from URL params too
-  const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => ({
-    searchQuery: searchParams.get('q') || '',
-    filterDate: searchParams.get('de') || '',
-    filterDateEnd: searchParams.get('ate') || '',
-    filterStatus: new Set(filterStatus),
-    filterVendedor: new Set(filterVendedor),
-    filterProduto: new Set(searchParams.get('produtos')?.split(',') ?? [...defaultProduto]),
-    mudouParaStatus: searchParams.get('mudou_status') || undefined,
-    mudouParaStatusDe: searchParams.get('mudou_de') || undefined,
-    mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
-  }));
+  const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
+    const ms = searchParams.get('mudou_status');
+    return {
+      searchQuery: searchParams.get('q') || '',
+      filterDate: searchParams.get('de') || '',
+      filterDateEnd: searchParams.get('ate') || '',
+      filterStatus: new Set(filterStatus),
+      filterVendedor: new Set(filterVendedor),
+      filterProduto: new Set(searchParams.get('produtos')?.split(',') ?? [...defaultProduto]),
+      mudouParaStatus: ms ? new Set(ms.split(',').filter(Boolean)) : undefined,
+      mudouParaStatusDe: searchParams.get('mudou_de') || undefined,
+      mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
+    };
+  });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: string; mudouDe?: string; mudouAte?: string }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
@@ -127,7 +130,7 @@ const ReportsPage = () => {
     if (!isDefaultProduto && filters.filterProduto.size > 0) {
       params.set('produtos', [...filters.filterProduto].join(','));
     }
-    if (filters.mudouStatus) params.set('mudou_status', filters.mudouStatus);
+    if (filters.mudouStatus && filters.mudouStatus.size > 0) params.set('mudou_status', [...filters.mudouStatus].join(','));
     if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
     if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
     setSearchParams(params, { replace: true });
@@ -136,28 +139,29 @@ const ReportsPage = () => {
   const applyFilters = () => {
     setScanFilterId(null);
     setPage(1);
-    // valida intervalo "mudou para status": precisa pelo menos de uma data se status preenchido
+    // valida intervalo "mudou para status": precisa pelo menos de uma data se ao menos um status selecionado
     let mDe = mudouDe;
     let mAte = mudouAte;
-    if (mudouStatus) {
+    const mudouAtivo = mudouStatus.size > 0;
+    if (mudouAtivo) {
       if (!mDe && !mAte) {
-        toast.error('Informe a data em que o pedido mudou para o status selecionado.');
+        toast.error('Informe a data em que o pedido mudou para o(s) status selecionado(s).');
         return;
       }
       if (!mDe) mDe = mAte;
       if (!mAte) mAte = mDe;
     }
-    const newFilters: OrderFilters & { mudouStatus: string; mudouDe: string; mudouAte: string } = {
+    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string } = {
       searchQuery,
       filterDate,
       filterDateEnd,
       filterStatus: new Set(filterStatus),
       filterVendedor: new Set(filterVendedor),
       filterProduto: new Set(filterProduto),
-      mudouParaStatus: mudouStatus || undefined,
-      mudouParaStatusDe: mudouStatus ? mDe : undefined,
-      mudouParaStatusAte: mudouStatus ? mAte : undefined,
-      mudouStatus, mudouDe: mDe, mudouAte: mAte,
+      mudouParaStatus: mudouAtivo ? new Set(mudouStatus) : undefined,
+      mudouParaStatusDe: mudouAtivo ? mDe : undefined,
+      mudouParaStatusAte: mudouAtivo ? mAte : undefined,
+      mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
     };
     setAppliedFilters(newFilters);
     syncSearchParams(newFilters as any);
