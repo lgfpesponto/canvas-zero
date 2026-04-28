@@ -13,6 +13,9 @@ import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { LoadingValue } from '@/components/ui/LoadingValue';
+import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -57,6 +60,7 @@ const ReportsPage = () => {
   });
   const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
   const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
+  const [onlyOverdue, setOnlyOverdue] = useState<boolean>(() => searchParams.get('atrasados') === '1');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
@@ -126,7 +130,7 @@ const ReportsPage = () => {
     };
   });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
@@ -141,6 +145,7 @@ const ReportsPage = () => {
     if (filters.mudouStatus && filters.mudouStatus.size > 0) params.set('mudou_status', [...filters.mudouStatus].join(','));
     if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
     if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
+    if (filters.onlyOverdue) params.set('atrasados', '1');
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
@@ -159,7 +164,7 @@ const ReportsPage = () => {
       if (!mDe) mDe = mAte;
       if (!mAte) mAte = mDe;
     }
-    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string } = {
+    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean } = {
       searchQuery,
       filterDate,
       filterDateEnd,
@@ -170,6 +175,7 @@ const ReportsPage = () => {
       mudouParaStatusDe: mudouAtivo ? mDe : undefined,
       mudouParaStatusAte: mudouAtivo ? mAte : undefined,
       mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
+      onlyOverdue,
     };
     setAppliedFilters(newFilters);
     syncSearchParams(newFilters as any);
@@ -188,9 +194,12 @@ const ReportsPage = () => {
   const { orders: serverOrders, count: serverCount, totalPages, loading: ordersLoading, totalValue, totalProdutos, refetch: refetchOrders, pageSize: PAGE_SIZE_ACTUAL } = useOrders(appliedFilters, page, isLoggedIn);
 
   const visibleOrders = useMemo(() => {
-    if (scanFilterId) return serverOrders.filter(o => o.id === scanFilterId);
-    return serverOrders;
-  }, [serverOrders, scanFilterId]);
+    let list = scanFilterId ? serverOrders.filter(o => o.id === scanFilterId) : serverOrders;
+    if (onlyOverdue) {
+      list = list.filter(o => getOrderDeadlineInfo(o as any).isOverdue);
+    }
+    return list;
+  }, [serverOrders, scanFilterId, onlyOverdue]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
@@ -506,6 +515,8 @@ const ReportsPage = () => {
             </>
           )}
         </div>
+
+        <HolidayNoticeBanner />
 
         {/* Barcode scanner for all users — single persistent input to keep focus across scans */}
         {showScanner && (() => {
@@ -863,7 +874,13 @@ const ReportsPage = () => {
                 Mostra pedidos que entraram em qualquer um dos status selecionados dentro do intervalo (ex.: "Entregue" entre 27/04 e 27/04).
               </p>
             </div>
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2 flex-wrap">
+              <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card cursor-pointer select-none">
+                <Switch checked={onlyOverdue} onCheckedChange={setOnlyOverdue} />
+                <span className={`text-xs font-bold uppercase ${onlyOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  Apenas atrasados
+                </span>
+              </label>
               <button onClick={applyFilters} className="orange-gradient text-primary-foreground px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Filter size={14} /> FILTRAR
               </button>
@@ -877,6 +894,7 @@ const ReportsPage = () => {
                 setMudouStatus(new Set());
                 setMudouDe('');
                 setMudouAte('');
+                setOnlyOverdue(false);
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
