@@ -1025,66 +1025,111 @@ const OrderPage = () => {
 
 
 
-  /* ───── mirror data (only filled fields, NO value) ───── */
-  const mirrorRows: [string, string][] = [
-    ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
-    ['Número do Pedido', numeroPedido],
-    ['Cliente', cliente],
-    ['Tamanho', tamanho ? `${tamanho}${genero ? ' — ' + genero : ''}` : ''],
-    ['Modelo', modelo],
-    ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
-    ['Acessórios', acessorios.join(', ')],
-    ['Tipo Couro Cano', tipoCouroCano],
-    ['Cor Couro Cano', corCouroCano],
-    ['Tipo Couro Gáspea', tipoCouroGaspea],
-    ['Cor Couro Gáspea', corCouroGaspea],
-    ['Tipo Couro Taloneira', tipoCouroTaloneira],
-    ['Cor Couro Taloneira', corCouroTaloneira],
-    ['Desenvolvimento', desenvolvimento],
-    ['Bordado Cano', bordadoCano.join(', ')],
-    ['Cor Bordado Cano', corBordadoCano],
-    ['Bordado Gáspea', bordadoGaspea.join(', ')],
-    ['Cor Bordado Gáspea', corBordadoGaspea],
-    ['Bordado Taloneira', bordadoTaloneira.join(', ')],
-    ['Cor Bordado Taloneira', corBordadoTaloneira],
-    ['Nome Bordado', nomeBordado ? nomeBordadoDesc || 'Sim' : ''],
-    ['Laser Cano', laserCano.join(', ')],
-    ['Cor Glitter/Tecido Cano', corGlitterCano],
-    ['Laser Gáspea', laserGaspea.join(', ')],
-    ['Cor Glitter/Tecido Gáspea', corGlitterGaspea],
-    ['Laser Taloneira', laserTaloneira.join(', ')],
-    ['Cor Glitter/Tecido Taloneira', corGlitterTaloneira],
-    ['Cor Bordado Laser Cano', corBordadoLaserCano],
-    ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
-    ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],
-    ['Pintura', pintura ? pinturaDesc || 'Sim' : ''],
-    ['Estampa', estampa ? (estampaDesc ? `Sim — ${estampaDesc}` : 'Sim') : ''],
-    ['Cor da Linha', corLinha],
-    ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
-      ['Cor Borrachinha', corBorrachinha] as [string, string],
-      ['Cor do Vivo', corVivo] as [string, string],
-    ] : []),
-    ['Área Metal', areaMetal],
-    ['Tipo Metal', [...tipoMetal, ...(bolaGrande ? [`Bola Grande (${bolaGrandeQtd} un.)`] : [])].join(', ')],
-    ['Cor Metal', corMetal],
-    ['Strass', strass ? `${strassQtd} un.` : ''],
-    ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
-    ['Bridão (metal)', bridaoMetal ? `${bridaoMetalQtd} un.` : ''],
-    ['Cavalo (metal)', cavaloMetal ? `${cavaloMetalQtd} un.` : ''],
-    ['Tricê', trice ? triceDesc || 'Sim' : ''],
-    ['Tiras', tiras ? tirasDesc || 'Sim' : ''],
-    ['Franja', franja ? `Sim${franjaCouro ? ' — ' + franjaCouro : ''}${franjaCor ? ' / ' + franjaCor : ''}` : ''],
-    ['Corrente', corrente ? `Sim${correnteCor ? ' — ' + correnteCor : ''}` : ''],
-    ['Solado', solado],
-    ['Formato do Bico', formatoBico],
-    ['Cor da Sola', corSola],
-    ['Cor da Vira', corVira],
-    ['Costura Atrás', costuraAtras ? 'Sim' : ''],
-    ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}` : ''],
-    ['Adicional', adicionalDesc ? `${adicionalDesc}${adicionalValor > 0 ? ` — ${formatCurrency(adicionalValor)}` : ''}` : ''],
-    ['Observação', observacao],
-    ['Quantidade', '1'],
-  ].filter(([, v]) => v) as [string, string][];
+  /* ───── mirror data agrupado por categoria (espelho da ficha) ───── */
+  const filterRows = (arr: [string, string][]): [string, string][] => arr.filter(([, v]) => v && String(v).trim() !== '');
+  const mirrorGrouped: { categoria: string; itens: [string, string][] }[] = [
+    {
+      categoria: 'Identificação',
+      itens: filterRows([
+        ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
+        ['Número do Pedido', numeroPedido],
+        ['Cliente', cliente],
+        ['Tamanho', tamanho ? `${tamanho}${genero ? ' — ' + genero : ''}` : ''],
+        ['Modelo', modelo],
+        ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
+        ['Desenvolvimento', desenvolvimento],
+        ['Acessórios', acessorios.join(', ')],
+      ]),
+    },
+    {
+      categoria: 'Couros',
+      itens: filterRows([
+        ['Tipo Couro Cano', tipoCouroCano],
+        ['Cor Couro Cano', corCouroCano],
+        ['Tipo Couro Gáspea', tipoCouroGaspea],
+        ['Cor Couro Gáspea', corCouroGaspea],
+        ['Tipo Couro Taloneira', tipoCouroTaloneira],
+        ['Cor Couro Taloneira', corCouroTaloneira],
+      ]),
+    },
+    {
+      categoria: 'Bordados',
+      itens: filterRows([
+        ['Bordado Cano', bordadoCano.join(', ')],
+        ['Cor Bordado Cano', corBordadoCano],
+        ['Bordado Gáspea', bordadoGaspea.join(', ')],
+        ['Cor Bordado Gáspea', corBordadoGaspea],
+        ['Bordado Taloneira', bordadoTaloneira.join(', ')],
+        ['Cor Bordado Taloneira', corBordadoTaloneira],
+        ['Nome Bordado', nomeBordado ? nomeBordadoDesc || 'Sim' : ''],
+      ]),
+    },
+    {
+      categoria: 'Laser e Recortes',
+      itens: filterRows([
+        ['Laser Cano', laserCano.join(', ')],
+        ['Cor Glitter/Tecido Cano', corGlitterCano],
+        ['Laser Gáspea', laserGaspea.join(', ')],
+        ['Cor Glitter/Tecido Gáspea', corGlitterGaspea],
+        ['Laser Taloneira', laserTaloneira.join(', ')],
+        ['Cor Glitter/Tecido Taloneira', corGlitterTaloneira],
+        ['Cor Bordado Laser Cano', corBordadoLaserCano],
+        ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
+        ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],
+        ['Pintura', pintura ? pinturaDesc || 'Sim' : ''],
+        ['Estampa', estampa ? (estampaDesc ? `Sim — ${estampaDesc}` : 'Sim') : ''],
+      ]),
+    },
+    {
+      categoria: 'Pesponto',
+      itens: filterRows([
+        ['Cor da Linha', corLinha],
+        ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
+          ['Cor Borrachinha', corBorrachinha] as [string, string],
+          ['Cor do Vivo', corVivo] as [string, string],
+        ] : []),
+      ]),
+    },
+    {
+      categoria: 'Metais',
+      itens: filterRows([
+        ['Área Metal', areaMetal],
+        ['Tipo Metal', [...tipoMetal, ...(bolaGrande ? [`Bola Grande (${bolaGrandeQtd} un.)`] : [])].join(', ')],
+        ['Cor Metal', corMetal],
+        ['Strass', strass ? `${strassQtd} un.` : ''],
+        ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
+        ['Bridão (metal)', bridaoMetal ? `${bridaoMetalQtd} un.` : ''],
+        ['Cavalo (metal)', cavaloMetal ? `${cavaloMetalQtd} un.` : ''],
+      ]),
+    },
+    {
+      categoria: 'Extras',
+      itens: filterRows([
+        ['Tricê', trice ? triceDesc || 'Sim' : ''],
+        ['Tiras', tiras ? tirasDesc || 'Sim' : ''],
+        ['Franja', franja ? `Sim${franjaCouro ? ' — ' + franjaCouro : ''}${franjaCor ? ' / ' + franjaCor : ''}` : ''],
+        ['Corrente', corrente ? `Sim${correnteCor ? ' — ' + correnteCor : ''}` : ''],
+      ]),
+    },
+    {
+      categoria: 'Solados',
+      itens: filterRows([
+        ['Solado', solado],
+        ['Formato do Bico', formatoBico],
+        ['Cor da Sola', corSola],
+        ['Cor da Vira', corVira],
+        ['Costura Atrás', costuraAtras ? 'Sim' : ''],
+      ]),
+    },
+    {
+      categoria: 'Finalização',
+      itens: filterRows([
+        ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}` : ''],
+        ['Adicional', adicionalDesc ? `${adicionalDesc}${adicionalValor > 0 ? ` — ${formatCurrency(adicionalValor)}` : ''}` : ''],
+        ['Quantidade', '1'],
+      ]),
+    },
+  ].filter(g => g.itens.length > 0);
 
   /* ───── select helper ───── */
   const SelectField = ({ label, value, onChange, options, required: req }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean }) => (
