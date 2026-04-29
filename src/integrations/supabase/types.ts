@@ -532,6 +532,9 @@ export type Database = {
           carimbo: string | null
           carimbo_desc: string | null
           cliente: string
+          conferido: boolean
+          conferido_em: string | null
+          conferido_por: string | null
           cor_bordado_cano: string | null
           cor_bordado_gaspea: string | null
           cor_bordado_taloneira: string | null
@@ -621,6 +624,9 @@ export type Database = {
           carimbo?: string | null
           carimbo_desc?: string | null
           cliente?: string
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
           cor_bordado_cano?: string | null
           cor_bordado_gaspea?: string | null
           cor_bordado_taloneira?: string | null
@@ -710,6 +716,9 @@ export type Database = {
           carimbo?: string | null
           carimbo_desc?: string | null
           cliente?: string
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
           cor_bordado_cano?: string | null
           cor_bordado_gaspea?: string | null
           cor_bordado_taloneira?: string | null
@@ -1134,6 +1143,9 @@ export type Database = {
           carimbo: string | null
           carimbo_desc: string | null
           cliente: string
+          conferido: boolean
+          conferido_em: string | null
+          conferido_por: string | null
           cor_bordado_cano: string | null
           cor_bordado_gaspea: string | null
           cor_bordado_taloneira: string | null
