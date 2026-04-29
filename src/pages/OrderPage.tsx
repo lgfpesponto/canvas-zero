@@ -1677,19 +1677,32 @@ const OrderPage = () => {
             <h2 className="text-2xl font-display font-bold mb-1 text-center">ESPELHO DA FICHA DE PRODUÇÃO</h2>
             <p className="text-sm text-muted-foreground text-center mb-6">Confira todas as informações antes de finalizar</p>
 
-            <div className="border border-border rounded-lg p-4 mb-4">
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                {mirrorRows.map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1 border-b border-border/30">
-                    <span className="text-sm text-muted-foreground">{label}:</span>
-                    <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            <div className="space-y-5 mb-4">
+              {mirrorGrouped.map(grupo => (
+                <div key={grupo.categoria}>
+                  <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-sm uppercase tracking-wide py-1.5 rounded-sm mb-2">
+                    {grupo.categoria}
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 px-1">
+                    {grupo.itens.map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-1 border-b border-border/30">
+                        <span className="text-sm text-muted-foreground">{label}:</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+              {observacao && (
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-sm font-semibold mb-1">Observação:</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{observacao}</p>
+                </div>
+              )}
               {fotoUrl && (
-                <div className="mt-3">
+                <div>
                   <span className="text-xs font-semibold">Foto de Referência:</span>
-                  <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-2">
+                  <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-2 break-all">
                     {fotoUrl.length > 60 ? fotoUrl.slice(0, 60) + '...' : fotoUrl} ↗
                   </a>
                 </div>
