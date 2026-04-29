@@ -529,6 +529,40 @@ const OrderDetailPage = () => {
             })()}
           </div>
 
+          {role === 'admin_master' && (
+            <div className="mb-4 flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border/40 w-fit">
+              <Checkbox
+                id="conferido-checkbox"
+                checked={!!order.conferido}
+                onCheckedChange={async (v) => {
+                  const novo = !!v;
+                  const { error } = await supabase
+                    .from('orders')
+                    .update({
+                      conferido: novo,
+                      conferido_em: novo ? new Date().toISOString() : null,
+                      conferido_por: novo ? user?.id : null,
+                    })
+                    .eq('id', order.id);
+                  if (error) {
+                    toast.error('Erro ao salvar: ' + error.message);
+                    return;
+                  }
+                  await refetchOrder();
+                  toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
+                }}
+              />
+              <label htmlFor="conferido-checkbox" className="text-sm font-bold cursor-pointer select-none flex items-center gap-2">
+                <CheckCircle2 size={16} className={order.conferido ? 'text-primary' : 'text-muted-foreground'} />
+                Conferido
+                {order.conferido && order.conferidoEm && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    em {formatBrasiliaDate(order.conferidoEm)} {formatBrasiliaTime(order.conferidoEm)}
+                  </span>
+                )}
+              </label>
+            </div>
+          )}
 
           {/* Production History + Change History side by side */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
