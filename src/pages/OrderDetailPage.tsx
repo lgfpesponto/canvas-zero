@@ -557,7 +557,7 @@ const OrderDetailPage = () => {
                 Conferido
                 {order.conferido && order.conferidoEm && (
                   <span className="text-xs font-normal text-muted-foreground">
-                    em {formatBrasiliaDate(order.conferidoEm)} {formatBrasiliaTime(order.conferidoEm)}
+                    em {new Date(order.conferidoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}
                   </span>
                 )}
               </label>
