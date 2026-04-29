@@ -1,71 +1,92 @@
-## Problema
+## Objetivo
 
-No "Histórico de Alterações" do detalhe do pedido, cada campo alterado vira uma linha separada — mesmo quando todas as mudanças foram salvas no mesmo clique em Salvar. O exemplo mostra 4 linhas separadas no mesmo timestamp 17:46/17:47.
+Adicionar um checkbox **"Conferido"** dentro da página de detalhe do pedido, visível e operável **apenas para `admin_master`**. Quando marcado, o pedido passa a exibir uma **tag "Conferido"** nas listagens — tag também só visível para `admin_master`.
 
-## Solução
+## Mudanças
 
-Agrupar as alterações pelo "evento de salvamento" usando a chave **(data + hora + usuário)** — que é exatamente como o `updateOrder` em `AuthContext.tsx` já registra (todas as mudanças de um único `handleSave` recebem o mesmo `dataHoje`/`horaAgora`/`usuarioAtual`). Sem necessidade de migração de dados.
+### 1. Banco — nova coluna em `orders` (migração)
 
-### Mudanças em `src/pages/OrderDetailPage.tsx`
+Adicionar:
+- `conferido boolean NOT NULL DEFAULT false`
+- `conferido_em timestamptz NULL`
+- `conferido_por uuid NULL` (id do admin que conferiu, para auditoria)
 
-**1. Após `const alteracoes = order.alteracoes || [];` (linha 333)**, adicionar:
+As policies atuais já permitem `admin_master` atualizar (`Admins can update all orders`), então não precisa nova RLS.
 
-```ts
-const alteracoesAgrupadas = (() => {
-  const groups: { data: string; hora: string; usuario?: string; descricoes: string[] }[] = [];
-  for (const a of alteracoes) {
-    const last = groups[groups.length - 1];
-    if (last && last.data === a.data && last.hora === a.hora && (last.usuario || '') === (a.usuario || '')) {
-      last.descricoes.push(a.descricao);
-    } else {
-      groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, descricoes: [a.descricao] });
-    }
-  }
-  return groups;
-})();
-```
+### 2. Tipos / mapeamento
 
-**2. Substituir o `.map` do bloco de Histórico de Alterações (linhas 549-556)** para renderizar grupos:
+**`src/contexts/AuthContext.tsx`** — adicionar `conferido?: boolean`, `conferidoEm?: string`, `conferidoPor?: string` no tipo `Order`.
+
+**`src/lib/order-logic.ts`** — em `dbRowToOrder` mapear `conferido`, `conferido_em`, `conferido_por` para os campos camelCase.
+
+### 3. Detalhe do pedido — checkbox
+
+**`src/pages/OrderDetailPage.tsx`**
+
+Renderizar, **somente quando `role === 'admin_master'`**, um bloco no topo do card de informações com:
 
 ```tsx
-<div className="space-y-3 max-h-80 overflow-y-auto">
-  {alteracoesAgrupadas.map((g, i) => (
-    <div key={i} className="border-b border-border/30 pb-2">
-      <p className="text-xs text-muted-foreground">
-        {formatDateBR(g.data)} às {g.hora} — por {g.usuario || '—'}
-        {g.descricoes.length > 1 && (
-          <span className="ml-1 text-muted-foreground/70">({g.descricoes.length} alterações)</span>
-        )}
-      </p>
-      {g.descricoes.length === 1 ? (
-        <p className="text-sm">{g.descricoes[0]}</p>
-      ) : (
-        <ul className="text-sm list-disc pl-5 mt-0.5 space-y-0.5">
-          {g.descricoes.map((d, j) => <li key={j}>{d}</li>)}
-        </ul>
+{role === 'admin_master' && (
+  <label className="flex items-center gap-2 cursor-pointer select-none">
+    <Checkbox
+      checked={!!order.conferido}
+      onCheckedChange={async (v) => {
+        const novo = !!v;
+        await supabase.from('orders').update({
+          conferido: novo,
+          conferido_em: novo ? new Date().toISOString() : null,
+          conferido_por: novo ? user?.id : null,
+        }).eq('id', order.id);
+        await refetchOrder();
+        toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
+      }}
+    />
+    <span className="text-sm font-bold">
+      Conferido
+      {order.conferido && order.conferidoEm && (
+        <span className="ml-2 text-xs font-normal text-muted-foreground">
+          em {formatBrasiliaDate(order.conferidoEm)} {formatBrasiliaTime(order.conferidoEm)}
+        </span>
       )}
-    </div>
-  ))}
-</div>
+    </span>
+  </label>
+)}
 ```
 
-### Resultado
+A escrita vai direto na tabela `orders` (não passa por `updateOrder`/`alteracoes`) — o objetivo é não poluir o histórico de alterações com cliques de conferência.
 
-O exemplo da imagem (4 linhas em 17:46/17:47) passará a aparecer como **2 grupos**:
+### 4. Tag "Conferido" nas listagens — só admin_master
 
+**`src/components/OrderCard.tsx`** (usado em `ReportsPage` — listagem principal)
+
+- Aceitar nova prop opcional `showConferidoTag?: boolean`.
+- Quando `showConferidoTag && order.conferido`, renderizar um badge ao lado do número do pedido:
+
+```tsx
+{showConferidoTag && order.conferido && (
+  <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold inline-flex items-center gap-1">
+    <CheckCircle2 size={10} /> CONFERIDO
+  </span>
+)}
 ```
-28/04/2026 às 17:46 — por stefany ribeiro feliciano  (3 alterações)
-  • Alterado Bordado Cano de "Ramos" para "Ramos, Ramos Lara"
-  • Alterado Bordado Gáspea de "..." para "..."
-  • Alterado Valor total de "360" para "410"
 
-28/04/2026 às 17:47 — por stefany ribeiro feliciano  (2 alterações)
-  • Alterado Valor total de "410" para "395"
-  • Alterado Bordado Gáspea de "..." para "Ramos Lara"
-```
+**`src/pages/ReportsPage.tsx`** — passar `showConferidoTag={role === 'admin_master'}` ao renderizar `<OrderCard>`.
 
-### Notas
+**`src/pages/TrackOrderPage.tsx`** — listagem "Acompanhe seus Pedidos" também recebe a tag, condicional a `role === 'admin_master'` (vendedores normais nem veem).
 
-- Funciona com dados existentes sem migração — a chave de agrupamento usa o que já está salvo no JSONB.
-- Alterações isoladas (1 só campo no clique) continuam aparecendo como antes (sem bullets, sem contador).
-- Nenhuma mudança em `AuthContext.updateOrder` ou no banco.
+### 5. (Opcional, mas recomendado) Permitir filtrar/ordenar por conferido
+
+Não está no pedido — fica de fora. Se quiser depois, dá pra adicionar um filtro "Não conferidos" no `ReportsPage`.
+
+## Resumo do comportamento
+
+| Papel | Vê checkbox no detalhe | Pode marcar | Vê tag na listagem |
+|---|---|---|---|
+| admin_master | ✅ | ✅ | ✅ |
+| admin_producao / vendedor / vendedor_comissao | ❌ | ❌ | ❌ |
+
+## Notas
+
+- A marcação **não gera entrada no histórico de alterações** (decisão para evitar ruído — confirme se prefere registrar).
+- Coluna `conferido_por` fica para auditoria futura, sem UI agora.
+- Sem migração de dados — todos pedidos antigos começam com `conferido = false`.
