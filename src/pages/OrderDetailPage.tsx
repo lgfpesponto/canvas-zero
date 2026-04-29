@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   MODELOS, ACESSORIOS, BORDADOS, BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA,
   COURO_PRECOS, SOLADO, COR_SOLA, COR_VIRA,
