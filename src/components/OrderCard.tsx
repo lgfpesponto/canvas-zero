@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, Pencil, Trash2 } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
@@ -24,6 +24,7 @@ const OrderCard = React.memo(({
   formatCurrency, formatDateBR, showConferidoTag = false,
 }: OrderCardProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <div className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
@@ -31,7 +32,7 @@ const OrderCard = React.memo(({
         {isSelected && <CheckCircle size={14} className="text-primary-foreground" />}
       </button>
 
-      <div className="flex-1 cursor-pointer" onClick={() => navigate(`/pedido/${order.id}`)}>
+      <div className="flex-1 cursor-pointer" onClick={() => navigate(`/pedido/${order.id}${location.search}`)}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="font-display font-bold">{order.numero}</span>
