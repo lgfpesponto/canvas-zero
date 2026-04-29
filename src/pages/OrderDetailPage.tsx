@@ -8,7 +8,8 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
+import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,20 @@ const OrderDetailPage = () => {
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
+  const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
+
+  // Atalhos de teclado: setas ← / → navegam entre pedidos.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.key === 'ArrowLeft' && prevId) { e.preventDefault(); navigate('/pedido/' + prevId); }
+      else if (e.key === 'ArrowRight' && nextId) { e.preventDefault(); navigate('/pedido/' + nextId); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [prevId, nextId, navigate]);
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');
