@@ -1,45 +1,30 @@
 ## Objetivo
 
-Permitir navegar entre pedidos diretamente da tela de detalhe (`/pedido/:id`) usando setas "Anterior" e "Próximo", sem precisar voltar à listagem.
+Quando o usuário estiver dentro de um pedido (`/pedido/:id`) e clicar em "Voltar", deve sempre ir para a página **Meus Pedidos** (`/relatorios`), em vez de usar o histórico do navegador (`navigate(-1)`).
 
-## Como vai funcionar
+## Problema atual
 
-- No cabeçalho de `OrderDetailPage`, ao lado do botão "Voltar", aparecem dois botões com setas: `←` Anterior e Próximo `→`.
-- A ordem usada é a mesma da listagem padrão de "Meus Pedidos / Acompanhar": ordenada por `created_at DESC` (igual ao `useOrdersQuery` já existente), respeitando o que o usuário enxerga:
-  - `vendedor` / `vendedor_comissao`: somente os próprios pedidos.
-  - `admin_master` / `admin_producao`: todos os pedidos.
-- A navegação é cíclica desativada: nas extremidades os botões ficam desabilitados (sem voltar do primeiro para o último).
-- Mostra texto auxiliar pequeno: "3 / 128" indicando posição na lista.
-- Atalhos de teclado: setas `←` / `→` navegam (ignorado quando o foco está em input/textarea).
+Em `src/pages/OrderDetailPage.tsx` (linha 374), o botão "Voltar" usa `navigate(-1)`, que volta para a página anterior do histórico. Isso causa comportamento inconsistente:
 
-## Como obter a lista
+- Se o usuário entrou no pedido via link direto / refresh / navegou pelas setas Anterior/Próximo várias vezes, o `-1` pode levar para qualquer lugar (até para fora do app).
+- O usuário espera sempre cair em "Meus Pedidos".
 
-Criar um hook leve `useOrderNeighbors(currentId)` que:
+## Mudança
 
-1. Busca apenas as colunas `id` e `created_at` de `orders` (payload mínimo).
-2. Aplica o filtro de visibilidade do papel do usuário:
-   - vendedores: `.eq('vendedor_id', user.id)` (mesmo critério já usado em outras telas).
-   - admins: sem filtro.
-3. Ordena por `created_at DESC, id DESC` (desempate estável).
-4. Retorna `{ prevId, nextId, index, total }` com base na posição do `currentId`.
+Trocar `navigate(-1)` por `navigate('/relatorios')` no botão "Voltar" do header do `OrderDetailPage`.
 
-A lista é cacheada via `useQuery` (chave inclui o role/userId) para evitar refetch a cada navegação. Ao trocar para um pedido vizinho, o `useOrderById` já recarrega os dados completos.
-
-## Arquivos afetados
-
-- `src/hooks/useOrderNeighbors.ts` — novo hook.
-- `src/pages/OrderDetailPage.tsx` — adicionar os botões `ChevronLeft` / `ChevronRight` no header (linhas ~357-375), contador "x / y" e listener de teclado.
-
-## UI (rascunho)
-
-```
-[← Voltar]            [← Anterior]  3 / 128  [Próximo →]   [Selecionar] [Buscar Pedido]
+```tsx
+<button onClick={() => navigate('/relatorios')} ...>
+  <ArrowLeft size={16} /> Voltar
+</button>
 ```
 
-Botões usam `Button variant="outline" size="sm"` para combinar com o "Buscar Pedido" existente. Em telas estreitas (mobile) o contador esconde e mantém só as setas.
+## Arquivo afetado
+
+- `src/pages/OrderDetailPage.tsx` — linha 374 (apenas o `onClick` do botão "Voltar").
 
 ## Fora do escopo
 
-- Não muda comportamento da listagem nem ordenação dela.
-- Não altera o botão "Voltar" atual.
-- Não persiste filtros aplicados na listagem (sempre usa a lista global do usuário). Se quiser respeitar filtros específicos da `ReportsPage` no futuro, seria uma extensão separada.
+- Não altera as setas Anterior/Próximo.
+- Não altera o checkbox "Conferido" nem outras funcionalidades.
+- Não altera o "Voltar" de outras páginas (edição, extras, cinto) — se quiser o mesmo comportamento lá, é uma extensão separada.
