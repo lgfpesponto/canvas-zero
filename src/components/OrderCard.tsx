@@ -19,7 +19,6 @@ interface OrderCardProps {
 }
 
 const OrderCard = React.memo(({
-const OrderCard = React.memo(({
   order, isAdmin, canDelete = false, isSelected, onToggle,
   confirmDeleteId, onConfirmDelete, onDelete,
   formatCurrency, formatDateBR, showConferidoTag = false,
