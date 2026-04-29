@@ -1,92 +1,45 @@
 ## Objetivo
 
-Adicionar um checkbox **"Conferido"** dentro da página de detalhe do pedido, visível e operável **apenas para `admin_master`**. Quando marcado, o pedido passa a exibir uma **tag "Conferido"** nas listagens — tag também só visível para `admin_master`.
+Permitir navegar entre pedidos diretamente da tela de detalhe (`/pedido/:id`) usando setas "Anterior" e "Próximo", sem precisar voltar à listagem.
 
-## Mudanças
+## Como vai funcionar
 
-### 1. Banco — nova coluna em `orders` (migração)
+- No cabeçalho de `OrderDetailPage`, ao lado do botão "Voltar", aparecem dois botões com setas: `←` Anterior e Próximo `→`.
+- A ordem usada é a mesma da listagem padrão de "Meus Pedidos / Acompanhar": ordenada por `created_at DESC` (igual ao `useOrdersQuery` já existente), respeitando o que o usuário enxerga:
+  - `vendedor` / `vendedor_comissao`: somente os próprios pedidos.
+  - `admin_master` / `admin_producao`: todos os pedidos.
+- A navegação é cíclica desativada: nas extremidades os botões ficam desabilitados (sem voltar do primeiro para o último).
+- Mostra texto auxiliar pequeno: "3 / 128" indicando posição na lista.
+- Atalhos de teclado: setas `←` / `→` navegam (ignorado quando o foco está em input/textarea).
 
-Adicionar:
-- `conferido boolean NOT NULL DEFAULT false`
-- `conferido_em timestamptz NULL`
-- `conferido_por uuid NULL` (id do admin que conferiu, para auditoria)
+## Como obter a lista
 
-As policies atuais já permitem `admin_master` atualizar (`Admins can update all orders`), então não precisa nova RLS.
+Criar um hook leve `useOrderNeighbors(currentId)` que:
 
-### 2. Tipos / mapeamento
+1. Busca apenas as colunas `id` e `created_at` de `orders` (payload mínimo).
+2. Aplica o filtro de visibilidade do papel do usuário:
+   - vendedores: `.eq('vendedor_id', user.id)` (mesmo critério já usado em outras telas).
+   - admins: sem filtro.
+3. Ordena por `created_at DESC, id DESC` (desempate estável).
+4. Retorna `{ prevId, nextId, index, total }` com base na posição do `currentId`.
 
-**`src/contexts/AuthContext.tsx`** — adicionar `conferido?: boolean`, `conferidoEm?: string`, `conferidoPor?: string` no tipo `Order`.
+A lista é cacheada via `useQuery` (chave inclui o role/userId) para evitar refetch a cada navegação. Ao trocar para um pedido vizinho, o `useOrderById` já recarrega os dados completos.
 
-**`src/lib/order-logic.ts`** — em `dbRowToOrder` mapear `conferido`, `conferido_em`, `conferido_por` para os campos camelCase.
+## Arquivos afetados
 
-### 3. Detalhe do pedido — checkbox
+- `src/hooks/useOrderNeighbors.ts` — novo hook.
+- `src/pages/OrderDetailPage.tsx` — adicionar os botões `ChevronLeft` / `ChevronRight` no header (linhas ~357-375), contador "x / y" e listener de teclado.
 
-**`src/pages/OrderDetailPage.tsx`**
+## UI (rascunho)
 
-Renderizar, **somente quando `role === 'admin_master'`**, um bloco no topo do card de informações com:
-
-```tsx
-{role === 'admin_master' && (
-  <label className="flex items-center gap-2 cursor-pointer select-none">
-    <Checkbox
-      checked={!!order.conferido}
-      onCheckedChange={async (v) => {
-        const novo = !!v;
-        await supabase.from('orders').update({
-          conferido: novo,
-          conferido_em: novo ? new Date().toISOString() : null,
-          conferido_por: novo ? user?.id : null,
-        }).eq('id', order.id);
-        await refetchOrder();
-        toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
-      }}
-    />
-    <span className="text-sm font-bold">
-      Conferido
-      {order.conferido && order.conferidoEm && (
-        <span className="ml-2 text-xs font-normal text-muted-foreground">
-          em {formatBrasiliaDate(order.conferidoEm)} {formatBrasiliaTime(order.conferidoEm)}
-        </span>
-      )}
-    </span>
-  </label>
-)}
+```
+[← Voltar]            [← Anterior]  3 / 128  [Próximo →]   [Selecionar] [Buscar Pedido]
 ```
 
-A escrita vai direto na tabela `orders` (não passa por `updateOrder`/`alteracoes`) — o objetivo é não poluir o histórico de alterações com cliques de conferência.
+Botões usam `Button variant="outline" size="sm"` para combinar com o "Buscar Pedido" existente. Em telas estreitas (mobile) o contador esconde e mantém só as setas.
 
-### 4. Tag "Conferido" nas listagens — só admin_master
+## Fora do escopo
 
-**`src/components/OrderCard.tsx`** (usado em `ReportsPage` — listagem principal)
-
-- Aceitar nova prop opcional `showConferidoTag?: boolean`.
-- Quando `showConferidoTag && order.conferido`, renderizar um badge ao lado do número do pedido:
-
-```tsx
-{showConferidoTag && order.conferido && (
-  <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold inline-flex items-center gap-1">
-    <CheckCircle2 size={10} /> CONFERIDO
-  </span>
-)}
-```
-
-**`src/pages/ReportsPage.tsx`** — passar `showConferidoTag={role === 'admin_master'}` ao renderizar `<OrderCard>`.
-
-**`src/pages/TrackOrderPage.tsx`** — listagem "Acompanhe seus Pedidos" também recebe a tag, condicional a `role === 'admin_master'` (vendedores normais nem veem).
-
-### 5. (Opcional, mas recomendado) Permitir filtrar/ordenar por conferido
-
-Não está no pedido — fica de fora. Se quiser depois, dá pra adicionar um filtro "Não conferidos" no `ReportsPage`.
-
-## Resumo do comportamento
-
-| Papel | Vê checkbox no detalhe | Pode marcar | Vê tag na listagem |
-|---|---|---|---|
-| admin_master | ✅ | ✅ | ✅ |
-| admin_producao / vendedor / vendedor_comissao | ❌ | ❌ | ❌ |
-
-## Notas
-
-- A marcação **não gera entrada no histórico de alterações** (decisão para evitar ruído — confirme se prefere registrar).
-- Coluna `conferido_por` fica para auditoria futura, sem UI agora.
-- Sem migração de dados — todos pedidos antigos começam com `conferido = false`.
+- Não muda comportamento da listagem nem ordenação dela.
+- Não altera o botão "Voltar" atual.
+- Não persiste filtros aplicados na listagem (sempre usa a lista global do usuário). Se quiser respeitar filtros específicos da `ReportsPage` no futuro, seria uma extensão separada.
