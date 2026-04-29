@@ -12,9 +12,10 @@ const statusColors: Record<string, string> = {
 };
 
 const TrackOrderPage = () => {
-  const { isLoggedIn, loading: authLoading } = useAuth();
+  const { isLoggedIn, loading: authLoading, role } = useAuth();
   const { orders, loading } = useOrdersQuery({ enabled: isLoggedIn });
   const navigate = useNavigate();
+  const isAdminMaster = role === 'admin_master';
 
   if (authLoading) {
     return (
@@ -58,11 +59,16 @@ const TrackOrderPage = () => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
+                    <div className="flex items-center gap-3 mb-1 flex-wrap">
                       <span className="font-display font-bold text-lg">{order.numero}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-muted text-muted-foreground'}`}>
                         {order.status}
                       </span>
+                      {isAdminMaster && (order as any).conferido && (
+                        <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                          ✓ CONFERIDO
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">{order.modelo} — Tam. {order.tamanho}</p>
                   </div>
