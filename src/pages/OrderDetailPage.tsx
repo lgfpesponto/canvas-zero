@@ -36,6 +36,7 @@ const OrderDetailPage = () => {
   const { isAdmin, user, updateOrder, isFernanda, role } = useAuth();
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
+  const location = useLocation();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
@@ -47,8 +48,8 @@ const OrderDetailPage = () => {
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      if (e.key === 'ArrowLeft' && prevId) { e.preventDefault(); navigate('/pedido/' + prevId); }
-      else if (e.key === 'ArrowRight' && nextId) { e.preventDefault(); navigate('/pedido/' + nextId); }
+      if (e.key === 'ArrowLeft' && prevId) { e.preventDefault(); navigate('/pedido/' + prevId + location.search); }
+      else if (e.key === 'ArrowRight' && nextId) { e.preventDefault(); navigate('/pedido/' + nextId + location.search); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);

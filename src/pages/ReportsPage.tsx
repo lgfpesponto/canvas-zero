@@ -77,6 +77,7 @@ const formatDateBR = (date: string, time?: string) => {
 const ReportsPage = () => {
   const { isLoggedIn, isAdmin, isFernanda, user, deleteOrder, deleteOrderBatch, updateOrderStatus, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const defaultProduto = new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]);
@@ -518,7 +519,7 @@ const ReportsPage = () => {
             return next;
           });
         } else {
-          navigate(`/pedido/${match.id}`);
+          navigate(`/pedido/${match.id}${location.search}`);
           toast.success(`Pedido ${match.numero} encontrado.`);
         }
       } else {
