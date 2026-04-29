@@ -53,7 +53,7 @@ const OrderDetailPage = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [prevId, nextId, navigate]);
+  }, [prevId, nextId, navigate, location.search]);
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');
@@ -372,7 +372,7 @@ const OrderDetailPage = () => {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => navigate('/relatorios')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => navigate(`/relatorios${location.search}`)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft size={16} /> Voltar
             </button>
             <div className="flex items-center gap-1 ml-2">
@@ -380,7 +380,7 @@ const OrderDetailPage = () => {
                 variant="outline"
                 size="sm"
                 disabled={!prevId}
-                onClick={() => prevId && navigate('/pedido/' + prevId)}
+                onClick={() => prevId && navigate('/pedido/' + prevId + location.search)}
                 title="Pedido anterior (←)"
                 aria-label="Pedido anterior"
               >
@@ -395,7 +395,7 @@ const OrderDetailPage = () => {
                 variant="outline"
                 size="sm"
                 disabled={!nextId}
-                onClick={() => nextId && navigate('/pedido/' + nextId)}
+                onClick={() => nextId && navigate('/pedido/' + nextId + location.search)}
                 title="Próximo pedido (→)"
                 aria-label="Próximo pedido"
               >
