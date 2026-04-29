@@ -15,6 +15,13 @@ interface OrderCardProps {
   onDelete: (id: string) => void;
   formatCurrency: (v: number) => string;
   formatDateBR: (date: string, time?: string) => string;
+  showConferidoTag?: boolean;
+}
+
+const OrderCard = React.memo(({
+  order, isAdmin, canDelete = false, isSelected, onToggle,
+  confirmDeleteId, onConfirmDelete, onDelete,
+  formatCurrency, formatDateBR, showConferidoTag = false,
 }
 
 const OrderCard = React.memo(({
@@ -34,6 +41,11 @@ const OrderCard = React.memo(({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="font-display font-bold">{order.numero}</span>
+            {showConferidoTag && order.conferido && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold inline-flex items-center gap-1 align-middle">
+                <CheckCircle size={10} /> CONFERIDO
+              </span>
+            )}
             {order.tipoExtra && <span className="text-xs font-semibold text-primary ml-2">— {EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}</span>}
             {isAdmin && <span className="text-sm text-muted-foreground ml-2">— {order.vendedor}</span>}
           </div>
