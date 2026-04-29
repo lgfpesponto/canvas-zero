@@ -370,9 +370,38 @@ const OrderDetailPage = () => {
       <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={16} /> Voltar
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft size={16} /> Voltar
+            </button>
+            <div className="flex items-center gap-1 ml-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!prevId}
+                onClick={() => prevId && navigate('/pedido/' + prevId)}
+                title="Pedido anterior (←)"
+                aria-label="Pedido anterior"
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              {neighborTotal > 0 && neighborIndex >= 0 && (
+                <span className="hidden sm:inline text-xs text-muted-foreground px-1 tabular-nums">
+                  {neighborIndex + 1} / {neighborTotal}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!nextId}
+                onClick={() => nextId && navigate('/pedido/' + nextId)}
+                title="Próximo pedido (→)"
+                aria-label="Próximo pedido"
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {isAdmin && order && (
               <label className="flex items-center gap-2 text-sm cursor-pointer border border-border rounded-md px-3 py-1.5">
@@ -388,6 +417,7 @@ const OrderDetailPage = () => {
             </Button>
           </div>
         </div>
+
 
         {/* Bulk selection bar */}
         {isAdmin && count > 0 && (
