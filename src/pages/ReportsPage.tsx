@@ -111,6 +111,8 @@ const ReportsPage = () => {
   // Bulk progress modal
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showBulkConferidoDialog, setShowBulkConferidoDialog] = useState(false);
+  const [bulkConferidoLoading, setBulkConferidoLoading] = useState(false);
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
 
@@ -652,6 +654,11 @@ const ReportsPage = () => {
               <button onClick={() => setShowProgressModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity ml-auto">
                 <RefreshCw size={16} /> Mudar progresso de produção
               </button>
+              {user?.role === 'admin_master' && (
+                <button onClick={() => setShowBulkConferidoDialog(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors">
+                  <CheckCircle size={16} /> Conferir selecionados ({selectedIds.size})
+                </button>
+              )}
               {user?.role === 'admin_master' && selectedIds.size > 1 && (
                 <button onClick={() => setShowBulkDeleteDialog(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 transition-opacity">
                   <Trash2 size={16} /> Excluir selecionados ({selectedIds.size})
@@ -1412,6 +1419,70 @@ const ReportsPage = () => {
             >
               Excluir
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk conferido (mark / unmark) */}
+      <AlertDialog open={showBulkConferidoDialog} onOpenChange={(o) => { if (!bulkConferidoLoading) setShowBulkConferidoDialog(o); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferir {selectedIds.size} pedido(s)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Escolha uma ação para os pedidos selecionados. A marcação ficará registrada com seu usuário e horário atuais.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel disabled={bulkConferidoLoading}>Cancelar</AlertDialogCancel>
+            <button
+              type="button"
+              disabled={bulkConferidoLoading}
+              onClick={async () => {
+                const ids = [...selectedIds];
+                if (ids.length === 0) return;
+                setBulkConferidoLoading(true);
+                const { error } = await supabase
+                  .from('orders')
+                  .update({ conferido: false, conferido_em: null, conferido_por: null })
+                  .in('id', ids);
+                setBulkConferidoLoading(false);
+                if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+                toast.success(`Marcação removida em ${ids.length} pedido(s)`);
+                setSelectedIds(new Set());
+                setShowBulkConferidoDialog(false);
+                refetchOrders();
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md border-2 border-border text-foreground font-bold text-sm hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              Remover marcação
+            </button>
+            <button
+              type="button"
+              disabled={bulkConferidoLoading}
+              onClick={async () => {
+                const ids = [...selectedIds];
+                if (ids.length === 0) return;
+                setBulkConferidoLoading(true);
+                const { error } = await supabase
+                  .from('orders')
+                  .update({
+                    conferido: true,
+                    conferido_em: new Date().toISOString(),
+                    conferido_por: user?.id ?? null,
+                  })
+                  .in('id', ids);
+                setBulkConferidoLoading(false);
+                if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+                toast.success(`${ids.length} pedido(s) marcado(s) como conferido`);
+                setSelectedIds(new Set());
+                setShowBulkConferidoDialog(false);
+                refetchOrders();
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {bulkConferidoLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+              Marcar como conferido
+            </button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
