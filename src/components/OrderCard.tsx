@@ -19,15 +19,10 @@ interface OrderCardProps {
 }
 
 const OrderCard = React.memo(({
-  order, isAdmin, canDelete = false, isSelected, onToggle,
-  confirmDeleteId, onConfirmDelete, onDelete,
-  formatCurrency, formatDateBR, showConferidoTag = false,
-}
-
 const OrderCard = React.memo(({
   order, isAdmin, canDelete = false, isSelected, onToggle,
   confirmDeleteId, onConfirmDelete, onDelete,
-  formatCurrency, formatDateBR,
+  formatCurrency, formatDateBR, showConferidoTag = false,
 }: OrderCardProps) => {
   const navigate = useNavigate();
 
