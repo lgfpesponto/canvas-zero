@@ -1177,6 +1177,7 @@ const ReportsPage = () => {
               onDelete={handleDelete}
               formatCurrency={formatCurrency}
               formatDateBR={formatDateBR}
+              showConferidoTag={user?.role === 'admin_master'}
             />
           ))}
         </div>
