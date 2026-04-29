@@ -434,21 +434,51 @@ const BeltOrderPage = () => {
     toast.success('Rascunho salvo!');
   };
 
-  const mirrorRows: [string, string][] = [
-    ['Vendedor', isAdminUser ? vendedor : (user?.nomeCompleto || '')],
-    ['Número do Pedido', numeroPedido],
-    ['Cliente', cliente],
-    ['Tamanho', tamanho ? `${tamanho} (${formatCurrency(tamanhoPreco)})` : ''],
-    ['Tipo de Couro', tipoCouro],
-    ['Cor do Couro', corCouro],
-    ['Bordado P', bordadoP ? `Tem — ${bordadoPDesc}${bordadoPCor ? ' | Cor: ' + bordadoPCor : ''}` : ''],
-    ['Nome Bordado', nomeBordado ? `Tem — ${nomeBordadoDesc}${nomeBordadoCor ? ' | Cor: ' + nomeBordadoCor : ''}${nomeBordadoFonte ? ' | Fonte: ' + nomeBordadoFonte : ''}` : ''],
-    ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}${carimboOnde ? ' | Local: ' + carimboOnde : ''}` : ''],
-    ['Fivela', fivela ? (fivela === 'Outro' && fivelaOutroDesc ? `Outro — ${fivelaOutroDesc}` : fivela) : ''],
-    ['Adicional', adicionalPreco ? `${formatCurrency(adicionalPreco)}${adicionalDesc ? ' — ' + adicionalDesc : ''}` : ''],
-    ['Observação', observacao],
-    ['Quantidade', '1'],
-  ].filter(([, v]) => v) as [string, string][];
+  const filterRows = (arr: [string, string][]): [string, string][] => arr.filter(([, v]) => v && String(v).trim() !== '');
+  const mirrorGrouped: { categoria: string; itens: [string, string][] }[] = [
+    {
+      categoria: 'Identificação',
+      itens: filterRows([
+        ['Vendedor', isAdminUser ? vendedor : (user?.nomeCompleto || '')],
+        ['Número do Pedido', numeroPedido],
+        ['Cliente', cliente],
+        ['Tamanho', tamanho ? `${tamanho} (${formatCurrency(tamanhoPreco)})` : ''],
+      ]),
+    },
+    {
+      categoria: 'Couro',
+      itens: filterRows([
+        ['Tipo de Couro', tipoCouro],
+        ['Cor do Couro', corCouro],
+      ]),
+    },
+    {
+      categoria: 'Bordados',
+      itens: filterRows([
+        ['Bordado P', bordadoP ? `Tem — ${bordadoPDesc}${bordadoPCor ? ' | Cor: ' + bordadoPCor : ''}` : ''],
+        ['Nome Bordado', nomeBordado ? `Tem — ${nomeBordadoDesc}${nomeBordadoCor ? ' | Cor: ' + nomeBordadoCor : ''}${nomeBordadoFonte ? ' | Fonte: ' + nomeBordadoFonte : ''}` : ''],
+      ]),
+    },
+    {
+      categoria: 'Carimbo',
+      itens: filterRows([
+        ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}${carimboOnde ? ' | Local: ' + carimboOnde : ''}` : ''],
+      ]),
+    },
+    {
+      categoria: 'Fivela',
+      itens: filterRows([
+        ['Fivela', fivela ? (fivela === 'Outro' && fivelaOutroDesc ? `Outro — ${fivelaOutroDesc}` : fivela) : ''],
+      ]),
+    },
+    {
+      categoria: 'Finalização',
+      itens: filterRows([
+        ['Adicional', adicionalPreco ? `${formatCurrency(adicionalPreco)}${adicionalDesc ? ' — ' + adicionalDesc : ''}` : ''],
+        ['Quantidade', '1'],
+      ]),
+    },
+  ].filter(g => g.itens.length > 0);
 
   const showFotoPanel = mode === 'order' && mostrarFotoPainel && isHttpUrl(fotoUrl);
   const isTemplate = mode === 'template';
