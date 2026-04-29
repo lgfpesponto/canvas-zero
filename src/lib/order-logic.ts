@@ -187,6 +187,9 @@ export function dbRowToOrder(row: any): Order {
     corRecorteCano: row.cor_recorte_cano || undefined,
     corRecorteGaspea: row.cor_recorte_gaspea || undefined,
     corRecorteTaloneira: row.cor_recorte_taloneira || undefined,
+    conferido: row.conferido ?? false,
+    conferidoEm: row.conferido_em || undefined,
+    conferidoPor: row.conferido_por || undefined,
   };
 }
 

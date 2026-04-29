@@ -95,6 +95,9 @@ export interface Order {
   historico: { data: string; hora: string; local: string; descricao: string; observacao?: string; usuario?: string }[];
   alteracoes: OrderAlteracao[];
   impressoes?: { tipo: string; data: string; hora: string; usuario: string; total_pedidos: number }[];
+  conferido?: boolean;
+  conferidoEm?: string;
+  conferidoPor?: string;
   laserCano?: string;
   corGlitterCano?: string;
   laserGaspea?: string;
