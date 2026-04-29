@@ -1,30 +1,54 @@
 ## Objetivo
 
-Quando o usuário estiver dentro de um pedido (`/pedido/:id`) e clicar em "Voltar", deve sempre ir para a página **Meus Pedidos** (`/relatorios`), em vez de usar o histórico do navegador (`navigate(-1)`).
+Fazer as setas Anterior/Próximo dentro do detalhe do pedido (`/pedido/:id`) navegarem **respeitando os filtros** atualmente aplicados em "Meus Pedidos", em vez de varrer todos os pedidos do usuário/admin.
 
 ## Problema atual
 
-Em `src/pages/OrderDetailPage.tsx` (linha 374), o botão "Voltar" usa `navigate(-1)`, que volta para a página anterior do histórico. Isso causa comportamento inconsistente:
+`useOrderNeighbors` busca **todos** os pedidos visíveis ao usuário (admin = todos; vendedor = próprios), ordenados por `created_at desc`. Se o usuário filtrou por status "Em produção" e clicou no 3º pedido da lista, as setas saltam para pedidos fora do filtro — perdendo o contexto da listagem.
 
-- Se o usuário entrou no pedido via link direto / refresh / navegou pelas setas Anterior/Próximo várias vezes, o `-1` pode levar para qualquer lugar (até para fora do app).
-- O usuário espera sempre cair em "Meus Pedidos".
+Os filtros já estão **persistidos na URL** de `/relatorios` (`?q=`, `?de=`, `?ate=`, `?status=`, `?vendedor=`, `?produtos=`, `?mudou_status=`, `?mudou_de=`, `?mudou_ate=`).
 
-## Mudança
+## Solução
 
-Trocar `navigate(-1)` por `navigate('/relatorios')` no botão "Voltar" do header do `OrderDetailPage`.
+Propagar os filtros da URL de `/relatorios` para `/pedido/:id` via querystring e usá-los em `useOrderNeighbors` para construir a sequência correta de IDs.
+
+### 1. Ao abrir um pedido a partir da listagem, anexar os filtros
+
+`src/components/OrderCard.tsx` (linha 34) — em vez de `navigate(\`/pedido/${order.id}\`)`, anexar `location.search` atual:
 
 ```tsx
-<button onClick={() => navigate('/relatorios')} ...>
-  <ArrowLeft size={16} /> Voltar
-</button>
+const location = useLocation();
+// ...
+onClick={() => navigate(`/pedido/${order.id}${location.search}`)}
 ```
 
-## Arquivo afetado
+Mesma coisa para o clique direto via `ReportsPage.tsx:521` (scan de código de barras) — usar `location.search` quando existir.
 
-- `src/pages/OrderDetailPage.tsx` — linha 374 (apenas o `onClick` do botão "Voltar").
+### 2. `useOrderNeighbors` lê filtros da URL
+
+Adicionar um parâmetro opcional `filters?: OrderFilters` (ou ler direto via `useSearchParams`). Preferência: ler com `useSearchParams` dentro do hook, usando exatamente as mesmas chaves que `ReportsPage` (`q`, `de`, `ate`, `status`, `vendedor`, `produtos`, `mudou_status`, `mudou_de`, `mudou_ate`).
+
+Construir um `OrderFilters` a partir desses params e:
+
+- Se a URL tiver **qualquer** filtro relevante, reaproveitar `fetchAllFilteredOrderIds(filters)` de `src/hooks/useOrders.ts` (já existe, faz exatamente isso em batches, com a mesma lógica de Juliana, `mudou_status` via RPC, etc.) e respeitar a mesma ordenação `data_criacao desc, hora_criacao desc`.
+- Se **não** houver filtros na URL, manter o comportamento atual (varre tudo, com escopo admin/vendedor).
+
+Manter o cálculo de `prevId`/`nextId`/`index`/`total` igual.
+
+### 3. Botão "Voltar" preserva filtros
+
+`src/pages/OrderDetailPage.tsx` — `navigate('/relatorios')` passa a ser `navigate(\`/relatorios${location.search}\`)` para que o usuário volte exatamente para a mesma página filtrada.
+
+## Arquivos afetados
+
+- `src/hooks/useOrderNeighbors.ts` — ler filtros via `useSearchParams`; quando houver, usar `fetchAllFilteredOrderIds` em vez da varredura genérica.
+- `src/components/OrderCard.tsx` — incluir `location.search` na navegação ao abrir pedido.
+- `src/pages/ReportsPage.tsx` — incluir `location.search` no `navigate` de scan (linha ~521).
+- `src/pages/OrderDetailPage.tsx` — botão "Voltar" preserva `location.search`.
 
 ## Fora do escopo
 
-- Não altera as setas Anterior/Próximo.
-- Não altera o checkbox "Conferido" nem outras funcionalidades.
-- Não altera o "Voltar" de outras páginas (edição, extras, cinto) — se quiser o mesmo comportamento lá, é uma extensão separada.
+- Não muda como os filtros são aplicados na listagem.
+- Não muda paginação da listagem (`?page=` continua opcional, mas as setas atravessam todas as páginas do filtro — comportamento esperado).
+- Não muda o "Conferido" nem a navegação por teclado (continua funcionando, só a sequência muda).
+- Atalhos de busca direta por URL (`/pedido/:id` sem querystring) continuam funcionando com a sequência completa, como hoje.
