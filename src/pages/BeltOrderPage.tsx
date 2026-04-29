@@ -434,21 +434,51 @@ const BeltOrderPage = () => {
     toast.success('Rascunho salvo!');
   };
 
-  const mirrorRows: [string, string][] = [
-    ['Vendedor', isAdminUser ? vendedor : (user?.nomeCompleto || '')],
-    ['Número do Pedido', numeroPedido],
-    ['Cliente', cliente],
-    ['Tamanho', tamanho ? `${tamanho} (${formatCurrency(tamanhoPreco)})` : ''],
-    ['Tipo de Couro', tipoCouro],
-    ['Cor do Couro', corCouro],
-    ['Bordado P', bordadoP ? `Tem — ${bordadoPDesc}${bordadoPCor ? ' | Cor: ' + bordadoPCor : ''}` : ''],
-    ['Nome Bordado', nomeBordado ? `Tem — ${nomeBordadoDesc}${nomeBordadoCor ? ' | Cor: ' + nomeBordadoCor : ''}${nomeBordadoFonte ? ' | Fonte: ' + nomeBordadoFonte : ''}` : ''],
-    ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}${carimboOnde ? ' | Local: ' + carimboOnde : ''}` : ''],
-    ['Fivela', fivela ? (fivela === 'Outro' && fivelaOutroDesc ? `Outro — ${fivelaOutroDesc}` : fivela) : ''],
-    ['Adicional', adicionalPreco ? `${formatCurrency(adicionalPreco)}${adicionalDesc ? ' — ' + adicionalDesc : ''}` : ''],
-    ['Observação', observacao],
-    ['Quantidade', '1'],
-  ].filter(([, v]) => v) as [string, string][];
+  const filterRows = (arr: [string, string][]): [string, string][] => arr.filter(([, v]) => v && String(v).trim() !== '');
+  const mirrorGrouped: { categoria: string; itens: [string, string][] }[] = [
+    {
+      categoria: 'Identificação',
+      itens: filterRows([
+        ['Vendedor', isAdminUser ? vendedor : (user?.nomeCompleto || '')],
+        ['Número do Pedido', numeroPedido],
+        ['Cliente', cliente],
+        ['Tamanho', tamanho ? `${tamanho} (${formatCurrency(tamanhoPreco)})` : ''],
+      ]),
+    },
+    {
+      categoria: 'Couro',
+      itens: filterRows([
+        ['Tipo de Couro', tipoCouro],
+        ['Cor do Couro', corCouro],
+      ]),
+    },
+    {
+      categoria: 'Bordados',
+      itens: filterRows([
+        ['Bordado P', bordadoP ? `Tem — ${bordadoPDesc}${bordadoPCor ? ' | Cor: ' + bordadoPCor : ''}` : ''],
+        ['Nome Bordado', nomeBordado ? `Tem — ${nomeBordadoDesc}${nomeBordadoCor ? ' | Cor: ' + nomeBordadoCor : ''}${nomeBordadoFonte ? ' | Fonte: ' + nomeBordadoFonte : ''}` : ''],
+      ]),
+    },
+    {
+      categoria: 'Carimbo',
+      itens: filterRows([
+        ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}${carimboOnde ? ' | Local: ' + carimboOnde : ''}` : ''],
+      ]),
+    },
+    {
+      categoria: 'Fivela',
+      itens: filterRows([
+        ['Fivela', fivela ? (fivela === 'Outro' && fivelaOutroDesc ? `Outro — ${fivelaOutroDesc}` : fivela) : ''],
+      ]),
+    },
+    {
+      categoria: 'Finalização',
+      itens: filterRows([
+        ['Adicional', adicionalPreco ? `${formatCurrency(adicionalPreco)}${adicionalDesc ? ' — ' + adicionalDesc : ''}` : ''],
+        ['Quantidade', '1'],
+      ]),
+    },
+  ].filter(g => g.itens.length > 0);
 
   const showFotoPanel = mode === 'order' && mostrarFotoPainel && isHttpUrl(fotoUrl);
   const isTemplate = mode === 'template';
@@ -858,19 +888,32 @@ const BeltOrderPage = () => {
             <h2 className="text-2xl font-display font-bold mb-1 text-center">ESPELHO — CINTO</h2>
             <p className="text-sm text-muted-foreground text-center mb-6">Confira todas as informações antes de finalizar</p>
 
-            <div className="border border-border rounded-lg p-4 mb-4">
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                {mirrorRows.map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1 border-b border-border/30">
-                    <span className="text-sm text-muted-foreground">{label}:</span>
-                    <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            <div className="space-y-5 mb-4">
+              {mirrorGrouped.map(grupo => (
+                <div key={grupo.categoria}>
+                  <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-sm uppercase tracking-wide py-1.5 rounded-sm mb-2">
+                    {grupo.categoria}
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 px-1">
+                    {grupo.itens.map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-1 border-b border-border/30">
+                        <span className="text-sm text-muted-foreground">{label}:</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+              {observacao && (
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-sm font-semibold mb-1">Observação:</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{observacao}</p>
+                </div>
+              )}
               {fotoUrl && (
-                <div className="mt-3">
+                <div>
                   <span className="text-xs font-semibold">Foto de Referência:</span>
-                  <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-2">
+                  <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-2 break-all">
                     {fotoUrl.length > 60 ? fotoUrl.slice(0, 60) + '...' : fotoUrl} ↗
                   </a>
                 </div>

@@ -1025,66 +1025,111 @@ const OrderPage = () => {
 
 
 
-  /* ───── mirror data (only filled fields, NO value) ───── */
-  const mirrorRows: [string, string][] = [
-    ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
-    ['Número do Pedido', numeroPedido],
-    ['Cliente', cliente],
-    ['Tamanho', tamanho ? `${tamanho}${genero ? ' — ' + genero : ''}` : ''],
-    ['Modelo', modelo],
-    ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
-    ['Acessórios', acessorios.join(', ')],
-    ['Tipo Couro Cano', tipoCouroCano],
-    ['Cor Couro Cano', corCouroCano],
-    ['Tipo Couro Gáspea', tipoCouroGaspea],
-    ['Cor Couro Gáspea', corCouroGaspea],
-    ['Tipo Couro Taloneira', tipoCouroTaloneira],
-    ['Cor Couro Taloneira', corCouroTaloneira],
-    ['Desenvolvimento', desenvolvimento],
-    ['Bordado Cano', bordadoCano.join(', ')],
-    ['Cor Bordado Cano', corBordadoCano],
-    ['Bordado Gáspea', bordadoGaspea.join(', ')],
-    ['Cor Bordado Gáspea', corBordadoGaspea],
-    ['Bordado Taloneira', bordadoTaloneira.join(', ')],
-    ['Cor Bordado Taloneira', corBordadoTaloneira],
-    ['Nome Bordado', nomeBordado ? nomeBordadoDesc || 'Sim' : ''],
-    ['Laser Cano', laserCano.join(', ')],
-    ['Cor Glitter/Tecido Cano', corGlitterCano],
-    ['Laser Gáspea', laserGaspea.join(', ')],
-    ['Cor Glitter/Tecido Gáspea', corGlitterGaspea],
-    ['Laser Taloneira', laserTaloneira.join(', ')],
-    ['Cor Glitter/Tecido Taloneira', corGlitterTaloneira],
-    ['Cor Bordado Laser Cano', corBordadoLaserCano],
-    ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
-    ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],
-    ['Pintura', pintura ? pinturaDesc || 'Sim' : ''],
-    ['Estampa', estampa ? (estampaDesc ? `Sim — ${estampaDesc}` : 'Sim') : ''],
-    ['Cor da Linha', corLinha],
-    ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
-      ['Cor Borrachinha', corBorrachinha] as [string, string],
-      ['Cor do Vivo', corVivo] as [string, string],
-    ] : []),
-    ['Área Metal', areaMetal],
-    ['Tipo Metal', [...tipoMetal, ...(bolaGrande ? [`Bola Grande (${bolaGrandeQtd} un.)`] : [])].join(', ')],
-    ['Cor Metal', corMetal],
-    ['Strass', strass ? `${strassQtd} un.` : ''],
-    ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
-    ['Bridão (metal)', bridaoMetal ? `${bridaoMetalQtd} un.` : ''],
-    ['Cavalo (metal)', cavaloMetal ? `${cavaloMetalQtd} un.` : ''],
-    ['Tricê', trice ? triceDesc || 'Sim' : ''],
-    ['Tiras', tiras ? tirasDesc || 'Sim' : ''],
-    ['Franja', franja ? `Sim${franjaCouro ? ' — ' + franjaCouro : ''}${franjaCor ? ' / ' + franjaCor : ''}` : ''],
-    ['Corrente', corrente ? `Sim${correnteCor ? ' — ' + correnteCor : ''}` : ''],
-    ['Solado', solado],
-    ['Formato do Bico', formatoBico],
-    ['Cor da Sola', corSola],
-    ['Cor da Vira', corVira],
-    ['Costura Atrás', costuraAtras ? 'Sim' : ''],
-    ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}` : ''],
-    ['Adicional', adicionalDesc ? `${adicionalDesc}${adicionalValor > 0 ? ` — ${formatCurrency(adicionalValor)}` : ''}` : ''],
-    ['Observação', observacao],
-    ['Quantidade', '1'],
-  ].filter(([, v]) => v) as [string, string][];
+  /* ───── mirror data agrupado por categoria (espelho da ficha) ───── */
+  const filterRows = (arr: [string, string][]): [string, string][] => arr.filter(([, v]) => v && String(v).trim() !== '');
+  const mirrorGrouped: { categoria: string; itens: [string, string][] }[] = [
+    {
+      categoria: 'Identificação',
+      itens: filterRows([
+        ['Vendedor', isAdmin ? vendedorSelecionado : (user?.nomeCompleto || '')],
+        ['Número do Pedido', numeroPedido],
+        ['Cliente', cliente],
+        ['Tamanho', tamanho ? `${tamanho}${genero ? ' — ' + genero : ''}` : ''],
+        ['Modelo', modelo],
+        ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
+        ['Desenvolvimento', desenvolvimento],
+        ['Acessórios', acessorios.join(', ')],
+      ]),
+    },
+    {
+      categoria: 'Couros',
+      itens: filterRows([
+        ['Tipo Couro Cano', tipoCouroCano],
+        ['Cor Couro Cano', corCouroCano],
+        ['Tipo Couro Gáspea', tipoCouroGaspea],
+        ['Cor Couro Gáspea', corCouroGaspea],
+        ['Tipo Couro Taloneira', tipoCouroTaloneira],
+        ['Cor Couro Taloneira', corCouroTaloneira],
+      ]),
+    },
+    {
+      categoria: 'Bordados',
+      itens: filterRows([
+        ['Bordado Cano', bordadoCano.join(', ')],
+        ['Cor Bordado Cano', corBordadoCano],
+        ['Bordado Gáspea', bordadoGaspea.join(', ')],
+        ['Cor Bordado Gáspea', corBordadoGaspea],
+        ['Bordado Taloneira', bordadoTaloneira.join(', ')],
+        ['Cor Bordado Taloneira', corBordadoTaloneira],
+        ['Nome Bordado', nomeBordado ? nomeBordadoDesc || 'Sim' : ''],
+      ]),
+    },
+    {
+      categoria: 'Laser e Recortes',
+      itens: filterRows([
+        ['Laser Cano', laserCano.join(', ')],
+        ['Cor Glitter/Tecido Cano', corGlitterCano],
+        ['Laser Gáspea', laserGaspea.join(', ')],
+        ['Cor Glitter/Tecido Gáspea', corGlitterGaspea],
+        ['Laser Taloneira', laserTaloneira.join(', ')],
+        ['Cor Glitter/Tecido Taloneira', corGlitterTaloneira],
+        ['Cor Bordado Laser Cano', corBordadoLaserCano],
+        ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
+        ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],
+        ['Pintura', pintura ? pinturaDesc || 'Sim' : ''],
+        ['Estampa', estampa ? (estampaDesc ? `Sim — ${estampaDesc}` : 'Sim') : ''],
+      ]),
+    },
+    {
+      categoria: 'Pesponto',
+      itens: filterRows([
+        ['Cor da Linha', corLinha],
+        ...(!HIDE_PESPONTO_EXTRAS.includes(modelo) ? [
+          ['Cor Borrachinha', corBorrachinha] as [string, string],
+          ['Cor do Vivo', corVivo] as [string, string],
+        ] : []),
+      ]),
+    },
+    {
+      categoria: 'Metais',
+      itens: filterRows([
+        ['Área Metal', areaMetal],
+        ['Tipo Metal', [...tipoMetal, ...(bolaGrande ? [`Bola Grande (${bolaGrandeQtd} un.)`] : [])].join(', ')],
+        ['Cor Metal', corMetal],
+        ['Strass', strass ? `${strassQtd} un.` : ''],
+        ['Cruz (metal)', cruzMetal ? `${cruzMetalQtd} un.` : ''],
+        ['Bridão (metal)', bridaoMetal ? `${bridaoMetalQtd} un.` : ''],
+        ['Cavalo (metal)', cavaloMetal ? `${cavaloMetalQtd} un.` : ''],
+      ]),
+    },
+    {
+      categoria: 'Extras',
+      itens: filterRows([
+        ['Tricê', trice ? triceDesc || 'Sim' : ''],
+        ['Tiras', tiras ? tirasDesc || 'Sim' : ''],
+        ['Franja', franja ? `Sim${franjaCouro ? ' — ' + franjaCouro : ''}${franjaCor ? ' / ' + franjaCor : ''}` : ''],
+        ['Corrente', corrente ? `Sim${correnteCor ? ' — ' + correnteCor : ''}` : ''],
+      ]),
+    },
+    {
+      categoria: 'Solados',
+      itens: filterRows([
+        ['Solado', solado],
+        ['Formato do Bico', formatoBico],
+        ['Cor da Sola', corSola],
+        ['Cor da Vira', corVira],
+        ['Costura Atrás', costuraAtras ? 'Sim' : ''],
+      ]),
+    },
+    {
+      categoria: 'Finalização',
+      itens: filterRows([
+        ['Carimbo a Fogo', carimbo ? `${carimbo}${carimboDesc ? ' — ' + carimboDesc : ''}` : ''],
+        ['Adicional', adicionalDesc ? `${adicionalDesc}${adicionalValor > 0 ? ` — ${formatCurrency(adicionalValor)}` : ''}` : ''],
+        ['Quantidade', '1'],
+      ]),
+    },
+  ].filter(g => g.itens.length > 0);
 
   /* ───── select helper ───── */
   const SelectField = ({ label, value, onChange, options, required: req }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean }) => (
@@ -1632,19 +1677,32 @@ const OrderPage = () => {
             <h2 className="text-2xl font-display font-bold mb-1 text-center">ESPELHO DA FICHA DE PRODUÇÃO</h2>
             <p className="text-sm text-muted-foreground text-center mb-6">Confira todas as informações antes de finalizar</p>
 
-            <div className="border border-border rounded-lg p-4 mb-4">
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                {mirrorRows.map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1 border-b border-border/30">
-                    <span className="text-sm text-muted-foreground">{label}:</span>
-                    <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            <div className="space-y-5 mb-4">
+              {mirrorGrouped.map(grupo => (
+                <div key={grupo.categoria}>
+                  <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-sm uppercase tracking-wide py-1.5 rounded-sm mb-2">
+                    {grupo.categoria}
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 px-1">
+                    {grupo.itens.map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-1 border-b border-border/30">
+                        <span className="text-sm text-muted-foreground">{label}:</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+              {observacao && (
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-sm font-semibold mb-1">Observação:</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{observacao}</p>
+                </div>
+              )}
               {fotoUrl && (
-                <div className="mt-3">
+                <div>
                   <span className="text-xs font-semibold">Foto de Referência:</span>
-                  <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-2">
+                  <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-2 break-all">
                     {fotoUrl.length > 60 ? fotoUrl.slice(0, 60) + '...' : fotoUrl} ↗
                   </a>
                 </div>

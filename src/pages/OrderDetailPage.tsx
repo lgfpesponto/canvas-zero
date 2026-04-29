@@ -237,6 +237,61 @@ const OrderDetailPage = () => {
       .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
   })();
 
+  // Categorized extras for cinto (mirror "ficha" layout)
+  const extraDetailsGroupedCinto: { categoria: string; itens: [string, string][] }[] = (() => {
+    if (order.tipoExtra !== 'cinto' || !order.extraDetalhes) return [];
+    const det: any = order.extraDetalhes;
+    const pair = (label: string, val: any): [string, string] | null => {
+      if (isExtraValueEmpty(val)) return null;
+      const v = Array.isArray(val) ? val.join(', ') : String(val);
+      return v.trim() === '' ? null : [label, v];
+    };
+    const filt = (arr: ([string, string] | null)[]): [string, string][] => arr.filter(Boolean) as [string, string][];
+    return [
+      {
+        categoria: 'Identificação',
+        itens: filt([
+          pair('Tamanho', det.tamanhoCinto),
+          pair('Nº Pedido da Bota', det.numeroPedidoBotaVinculo),
+        ]),
+      },
+      {
+        categoria: 'Couro',
+        itens: filt([
+          pair('Tipo de Couro', det.tipoCouro),
+          pair('Cor do Couro', det.corCouro),
+        ]),
+      },
+      {
+        categoria: 'Bordados',
+        itens: filt([
+          pair('Bordado P', det.bordadoP),
+          pair('Descrição Bordado P', det.bordadoPDesc),
+          pair('Cor Bordado P', det.bordadoPCor),
+          pair('Nome Bordado', det.nomeBordado),
+          pair('Descrição Nome Bordado', det.nomeBordadoDesc),
+          pair('Cor Nome Bordado', det.nomeBordadoCor),
+          pair('Fonte Nome Bordado', det.nomeBordadoFonte),
+        ]),
+      },
+      {
+        categoria: 'Carimbo',
+        itens: filt([
+          pair('Carimbo a Fogo', det.carimbo),
+          pair('Descrição Carimbos', det.carimboDesc),
+          pair('Onde Aplicado (Carimbo)', det.carimboOnde),
+        ]),
+      },
+      {
+        categoria: 'Fivela',
+        itens: filt([
+          pair('Fivela', det.fivela),
+          pair('Descrição da Fivela', det.fivelaOutroDesc),
+        ]),
+      },
+    ].filter(g => g.itens.length > 0);
+  })();
+
   // Build price breakdown list
   const priceItems: [string, number][] = [];
   const modeloP = MODELOS.find(m => m.label === order.modelo)?.preco;
@@ -746,6 +801,24 @@ const OrderDetailPage = () => {
                           })}
                         </div>
                       )}
+                    </div>
+                  ))}
+                </div>
+              ) : order.tipoExtra === 'cinto' && extraDetailsGroupedCinto.length > 0 ? (
+                <div className="space-y-5">
+                  {extraDetailsGroupedCinto.map(grupo => (
+                    <div key={grupo.categoria}>
+                      <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-base uppercase tracking-wide py-1.5 rounded-sm mb-2">
+                        {grupo.categoria}
+                      </h3>
+                      <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
+                        {grupo.itens.map(([label, value]) => (
+                          <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
+                            <span className="text-sm text-muted-foreground">{label}</span>
+                            <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
