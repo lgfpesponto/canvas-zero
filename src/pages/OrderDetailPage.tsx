@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
@@ -8,7 +8,8 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
+import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,20 @@ const OrderDetailPage = () => {
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
+  const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
+
+  // Atalhos de teclado: setas ← / → navegam entre pedidos.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.key === 'ArrowLeft' && prevId) { e.preventDefault(); navigate('/pedido/' + prevId); }
+      else if (e.key === 'ArrowRight' && nextId) { e.preventDefault(); navigate('/pedido/' + nextId); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [prevId, nextId, navigate]);
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');
@@ -355,9 +370,38 @@ const OrderDetailPage = () => {
       <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={16} /> Voltar
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft size={16} /> Voltar
+            </button>
+            <div className="flex items-center gap-1 ml-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!prevId}
+                onClick={() => prevId && navigate('/pedido/' + prevId)}
+                title="Pedido anterior (←)"
+                aria-label="Pedido anterior"
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              {neighborTotal > 0 && neighborIndex >= 0 && (
+                <span className="hidden sm:inline text-xs text-muted-foreground px-1 tabular-nums">
+                  {neighborIndex + 1} / {neighborTotal}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!nextId}
+                onClick={() => nextId && navigate('/pedido/' + nextId)}
+                title="Próximo pedido (→)"
+                aria-label="Próximo pedido"
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {isAdmin && order && (
               <label className="flex items-center gap-2 text-sm cursor-pointer border border-border rounded-md px-3 py-1.5">
@@ -373,6 +417,7 @@ const OrderDetailPage = () => {
             </Button>
           </div>
         </div>
+
 
         {/* Bulk selection bar */}
         {isAdmin && count > 0 && (
