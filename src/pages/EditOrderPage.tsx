@@ -315,6 +315,12 @@ const EditOrderPage = () => {
     setAdicionalValor(order.adicionalValor || 0);
     setObservacao(order.observacao || '');
     setFotoUrl(order.fotos?.[0] || '');
+    setRecorteCano(order.recorteCano || '');
+    setCorRecorteCano(order.corRecorteCano || '');
+    setRecorteGaspea(order.recorteGaspea || '');
+    setCorRecorteGaspea(order.corRecorteGaspea || '');
+    setRecorteTaloneira(order.recorteTaloneira || '');
+    setCorRecorteTaloneira(order.corRecorteTaloneira || '');
 
     if (removidos.length > 0) {
       toast.warning(
