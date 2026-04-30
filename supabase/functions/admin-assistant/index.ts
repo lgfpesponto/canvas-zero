@@ -34,7 +34,7 @@ Ajudar a admin a:
 ## Pedidos (tabela \`orders\`)
 - Numeração: padrão \`7E-AAAA0001\` (ano + sequencial).
 - Tipos: bota (default, sem \`tipo_extra\`) ou extras (\`tipo_extra\` = 'cinto', 'kit_faca', 'tiras_laterais', 'revitalizador', 'bota_pronta_entrega', 'gravata_pronta_entrega', etc).
-- Status do fluxo: Em aberto → Impresso → Aguardando → Corte → Baixa Corte → Sem bordado / Bordado (Dinei/Sandro/7Estrivos) → Pesponto 01-05 → Montagem → Revisão → Expedição → Entregue → Cobrado → Pago.
+- Status do fluxo: Em aberto → Impresso → Aguardando → Aguardando Couro → Corte → Baixa Corte → Sem bordado / Bordado (Dinei/Sandro/7Estrivos) → Pesponto 01-05 / Pesponto Ailton → Montagem → Revisão → Expedição → Entregue → Cobrado → Pago.
 - Status especiais: **Cancelado** (excluído de vendas/comissão, exige motivo).
 - Prefixos excluídos de métricas de venda: TROCA, REFAZENDO, ERRO, INFLUENCER.
 - Vendedor "Estoque" = pedidos internos (não conta como venda real).
