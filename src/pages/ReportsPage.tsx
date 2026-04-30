@@ -105,6 +105,10 @@ const ReportsPage = () => {
   const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
   const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
   const [onlyOverdue, setOnlyOverdue] = useState<boolean>(() => searchParams.get('atrasados') === '1');
+  const [filterConferido, setFilterConferido] = useState<'todos' | 'sim' | 'nao'>(() => {
+    const v = searchParams.get('conferido');
+    return v === 'sim' || v === 'nao' ? v : 'todos';
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
