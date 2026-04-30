@@ -207,6 +207,8 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
       });
       query = query.or(orClauses.join(','));
     }
+    if (filters.filterConferido === 'sim') query = query.eq('conferido', true);
+    else if (filters.filterConferido === 'nao') query = query.eq('conferido', false);
 
     query = query
       .order('data_criacao', { ascending: false })
