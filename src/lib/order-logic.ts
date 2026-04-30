@@ -6,18 +6,18 @@ import type { Order, OrderAlteracao } from '@/contexts/AuthContext';
 /* ───── Production statuses ───── */
 
 export const PRODUCTION_STATUSES = [
-  "Em aberto", "Impresso", "Aguardando", "Emprestado", "Corte", "Baixa Corte", "Sem bordado",
+  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Emprestado", "Corte", "Baixa Corte", "Sem bordado",
   "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
-  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
+  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05", "Pesponto Ailton",
   "Pespontando", "Montagem", "Revisão", "Expedição",
   "Baixa Estoque", "Baixa Site (Despachado)",
   "Entregue", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const PRODUCTION_STATUSES_USER = [
-  "Em aberto", "Impresso", "Aguardando", "Emprestado", "Corte", "Baixa Corte", "Sem bordado",
+  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Emprestado", "Corte", "Baixa Corte", "Sem bordado",
   "Bordado Dinei", "Bordado Sandro", "Bordado 7Estrivos",
-  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
+  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05", "Pesponto Ailton",
   "Pespontando", "Montagem", "Revisão", "Expedição",
   "Entregue", "Cobrado", "Pago", "Cancelado"
 ];
