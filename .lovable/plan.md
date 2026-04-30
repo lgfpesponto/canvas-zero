@@ -1,74 +1,38 @@
 ## Objetivo
 
-Três adições pequenas e independentes:
+Reordenar as seções da página de detalhe do pedido (`src/pages/OrderDetailPage.tsx`) para que a **Composição do Pedido** (com o bloco de Aplicar Desconto do admin_master) apareça **antes** dos históricos (Produção, Alterações e Impressão).
 
-1. Nova etapa **Pesponto Ailton** no progresso de produção (logo após Pesponto 05).
-2. Nova etapa **Aguardando Couro** no progresso de produção (logo após Aguardando).
-3. Filtro **Conferido / Não conferido** na lista de pedidos (Meus Pedidos / Relatórios), exclusivo para `admin_master`.
+## Ordem atual
 
----
+1. Cabeçalho / Conferido
+2. Histórico de Produção + Histórico de Alterações (grid 2 colunas)
+3. Histórico de Impressão
+4. Detalhes da Bota / Extra
+5. Observação
+6. Fotos
+7. **Composição do Pedido** + Aplicar Desconto
 
-## Parte 1 — Pesponto Ailton
+## Ordem desejada
 
-Posição no fluxo: `... → Pesponto 05 → Pesponto Ailton → Pespontando → ...`
+1. Cabeçalho / Conferido
+2. Detalhes da Bota / Extra
+3. Observação
+4. Fotos
+5. **Composição do Pedido** + Aplicar Desconto
+6. Histórico de Produção + Histórico de Alterações
+7. Histórico de Impressão
 
-- **Migration**:
-  - `UPDATE status_etapas SET ordem = ordem + 1 WHERE ordem >= 14;`
-  - `INSERT INTO status_etapas (nome, slug, ordem) VALUES ('Pesponto Ailton', 'pesponto-ailton', 14);`
-  - Recriar `get_production_counts` incluindo `'Pesponto Ailton'` na lista de status "em produção".
-- **`src/lib/order-logic.ts`**: adicionar `"Pesponto Ailton"` em `PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER` e `PRODUCTION_STATUSES_IN_PROD`, sempre depois de `"Pesponto 05"`.
-- **`src/components/SpecializedReports.tsx`**: adicionar `'Pesponto Ailton'` em `PESPONTO_STATUSES` para entrar no PDF/relatório de Pesponto.
-- **`supabase/functions/admin-assistant/index.ts`**: atualizar a string do prompt com `Pesponto 01-05 / Pesponto Ailton`.
-- **`docs/BUSINESS_RULES.md`**: incluir `Pesponto Ailton` na sequência de status de bota.
+## Mudança técnica
 
----
+Em `src/pages/OrderDetailPage.tsx`:
 
-## Parte 2 — Aguardando Couro
+- Recortar o bloco das **linhas ~668–747** (grid de Histórico de Produção + Alterações + Histórico de Impressão).
+- Colar esse bloco **logo após** o fechamento do bloco "Composição do Pedido + Aplicar Desconto" (após a linha ~1093, antes do `</div>` que fecha o card principal na linha 1094).
 
-Posição no fluxo: `... → Aguardando → Aguardando Couro → Corte → ...`
-
-- **Migration**:
-  - `UPDATE status_etapas SET ordem = ordem + 1 WHERE ordem >= 4;` (após "Aguardando", que está em ordem=3).
-  - `INSERT INTO status_etapas (nome, slug, ordem) VALUES ('Aguardando Couro', 'aguardando-couro', 4);`
-  - Recriar `get_production_counts` incluindo `'Aguardando Couro'` em "em produção".
-- **`src/lib/order-logic.ts`**: adicionar `"Aguardando Couro"` em `PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER` e `PRODUCTION_STATUSES_IN_PROD`, depois de `"Aguardando"`.
-- **`supabase/functions/admin-assistant/index.ts`** e **`docs/BUSINESS_RULES.md`**: refletir a nova etapa na sequência descrita.
-
-> A migration de Pesponto Ailton e a de Aguardando Couro serão feitas em ordem coerente para não colidir nos `ordem`. Faremos primeiro Pesponto Ailton (deslocando a partir de 14) e depois Aguardando Couro (deslocando a partir de 4) — o resultado final é consistente.
-
----
-
-## Parte 3 — Filtro Conferido / Não conferido (admin_master)
-
-Local: `src/pages/ReportsPage.tsx` (Meus Pedidos / Relatórios). Apenas visível quando `user?.role === 'admin_master'`.
-
-### UI
-- Novo controle no painel de filtros (junto a Status / Vendedor / Produto): um seletor com 3 opções:
-  - **Todos** (padrão)
-  - **Conferidos**
-  - **Não conferidos**
-- Persistido na URL como `conferido=sim` / `conferido=nao` (omitido quando "Todos").
-- Botão **Limpar filtros** já existente também limpa este.
-
-### Estado e persistência
-- Novo estado `filterConferido: 'todos' | 'sim' | 'nao'` inicializado a partir de `searchParams.get('conferido')`.
-- Incluir no `appliedFilters` e em `syncSearchParams`.
-
-### Filtragem (server-side)
-- Estender `OrderFilters` em `src/hooks/useOrders.ts` com o campo opcional `filterConferido?: 'sim' | 'nao'`.
-- No `useOrders` (e em `fetchAllFilteredOrders` / `fetchAllFilteredOrderIds`), quando definido:
-  - `'sim'` → `query.eq('conferido', true)`
-  - `'nao'` → `query.eq('conferido', false)`
-- Estender a RPC `get_orders_totals` com novo parâmetro `_conferido text DEFAULT NULL` (`'sim' | 'nao' | null`) e aplicar no `WHERE`. Atualizar a chamada do hook para passar o valor.
-
-### Notas
-- Apenas `admin_master` enxerga o controle e a tag "CONFERIDO" — coerente com a memória `pedido conferido (admin_master only)`. Outros papéis ignoram o parâmetro de URL silenciosamente.
-- Sem mudanças de RLS (campo `conferido` já é selecionável pelos admins).
-
----
+Nenhuma lógica, props, hook ou estilo é alterado — apenas a ordem JSX. Não há impacto em PDFs, relatórios ou em outras páginas (Edit/Belt/Extras).
 
 ## Fora do escopo
 
-- Sem mudanças em status de cintos ou extras (BELT_STATUSES / EXTRAS_STATUSES).
-- Não migra pedidos antigos para os novos status — admins moverão manualmente quando aplicável.
-- Não cria filtro de "Conferido" para vendedores (a tag continua oculta para eles).
+- Não alterar layout interno de cada seção.
+- Não alterar a página de impressão / PDF.
+- Não alterar o detalhe de pedidos extras/cintos em outros locais.
