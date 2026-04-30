@@ -107,6 +107,10 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
         query = query.or(orClauses.join(','));
       }
 
+      // Conferido filter (admin_master only)
+      if (filters.filterConferido === 'sim') query = query.eq('conferido', true);
+      else if (filters.filterConferido === 'nao') query = query.eq('conferido', false);
+
       // Pagination
       const start = (page - 1) * PAGE_SIZE;
       query = query
