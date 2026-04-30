@@ -480,6 +480,9 @@ const EditOrderPage = () => {
       costuraAtras: costuraAtras ? 'Sim' : '', carimbo, carimboDesc,
       adicionalDesc, adicionalValor: adicionalValor > 0 ? adicionalValor : 0,
       personalizacaoNome: nomeBordado ? nomeBordadoDesc : '', personalizacaoBordado: '',
+      recorteCano, corRecorteCano: recorteCano ? corRecorteCano : '',
+      recorteGaspea, corRecorteGaspea: recorteGaspea ? corRecorteGaspea : '',
+      recorteTaloneira, corRecorteTaloneira: recorteTaloneira ? corRecorteTaloneira : '',
     });
     toast.success('Pedido atualizado com sucesso!');
     navigate(`/pedido/${id}${fotoParam ? '?foto=1' : ''}`, { replace: true });
