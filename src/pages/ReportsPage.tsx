@@ -1109,6 +1109,7 @@ const ReportsPage = () => {
                 setMudouDe('');
                 setMudouAte('');
                 setOnlyOverdue(false);
+                setFilterConferido('todos');
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
