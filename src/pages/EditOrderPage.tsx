@@ -586,22 +586,37 @@ const EditOrderPage = () => {
 
           <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
 
-          <Section title="Laser">
+          <Section title="Laser e Recortes">
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={COR_GLITTER} />
+            <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
+            {recorteCano && (
+              <div><label className={cls.label}>Cor do Recorte (Cano)</label><input type="text" value={corRecorteCano} onChange={e => setCorRecorteCano(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            )}
+
             <MultiSelect label="Laser da Gáspea" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} />
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
+            <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
+            {recorteGaspea && (
+              <div><label className={cls.label}>Cor do Recorte (Gáspea)</label><input type="text" value={corRecorteGaspea} onChange={e => setCorRecorteGaspea(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            )}
+
             <MultiSelect label="Laser da Taloneira" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
             <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={COR_GLITTER} />
+            <SelectField label="Recortes da Taloneira" value={recorteTaloneira} onChange={v => { setRecorteTaloneira(v); if (!v) setCorRecorteTaloneira(''); }} options={getDbItems('recorte_taloneira', [])} />
+            {recorteTaloneira && (
+              <div><label className={cls.label}>Cor do Recorte (Taloneira)</label><input type="text" value={corRecorteTaloneira} onChange={e => setCorRecorteTaloneira(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            )}
+
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
           </Section>
 
