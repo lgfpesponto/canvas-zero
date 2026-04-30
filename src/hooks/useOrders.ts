@@ -139,6 +139,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
         _produtos: filters.filterProduto && filters.filterProduto.size > 0 ? [...filters.filterProduto] : null,
         _vendedores: filters.filterVendedor && filters.filterVendedor.size > 0 ? [...filters.filterVendedor] : null,
         _ids_mudou: idsMudou,
+        _conferido: filters.filterConferido ?? null,
       });
       if (totalsErr) {
         console.error('Erro get_orders_totals:', totalsErr);
