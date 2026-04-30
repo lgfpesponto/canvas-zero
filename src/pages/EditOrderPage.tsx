@@ -200,6 +200,12 @@ const EditOrderPage = () => {
   const [laserOutroCanoText, setLaserOutroCanoText] = useState('');
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState('');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState('');
+  const [recorteCano, setRecorteCano] = useState('');
+  const [corRecorteCano, setCorRecorteCano] = useState('');
+  const [recorteGaspea, setRecorteGaspea] = useState('');
+  const [corRecorteGaspea, setCorRecorteGaspea] = useState('');
+  const [recorteTaloneira, setRecorteTaloneira] = useState('');
+  const [corRecorteTaloneira, setCorRecorteTaloneira] = useState('');
 
   useEffect(() => {
     if (!order) return;
