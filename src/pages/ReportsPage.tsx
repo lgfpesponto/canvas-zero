@@ -217,7 +217,7 @@ const ReportsPage = () => {
       if (!mDe) mDe = mAte;
       if (!mAte) mAte = mDe;
     }
-    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean } = {
+    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean; conferido: 'todos' | 'sim' | 'nao' } = {
       searchQuery,
       filterDate,
       filterDateEnd,
@@ -227,8 +227,10 @@ const ReportsPage = () => {
       mudouParaStatus: mudouAtivo ? new Set(mudouStatus) : undefined,
       mudouParaStatusDe: mudouAtivo ? mDe : undefined,
       mudouParaStatusAte: mudouAtivo ? mAte : undefined,
+      filterConferido: filterConferido === 'todos' ? undefined : filterConferido,
       mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
       onlyOverdue,
+      conferido: filterConferido,
     };
     setAppliedFilters(newFilters);
     syncSearchParams(newFilters as any);
