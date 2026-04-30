@@ -1,55 +1,69 @@
-## Objetivo
-
-Replicar na **EditOrderPage** os campos selecionáveis presentes na **OrderPage** (ficha de produção) que estão atualmente ausentes — em especial os **Recortes** (Cano / Gáspea / Taloneira) e suas cores. Hoje, quando o admin edita o pedido, esses campos somem da tela mesmo quando preenchidos, e não há como alterar/persistir alterações.
-
 ## Diagnóstico
 
-Comparando `src/pages/OrderPage.tsx` × `src/pages/EditOrderPage.tsx`:
+Achei o motivo. O problema está em **`src/components/SpecializedReports.tsx`**, função `generateCobrancaPDF` (linhas 1192–1446).
 
-Faltam em EditOrderPage (existem em OrderPage e são persistidos no DB via `order-logic.ts`):
+### Como o preço aparece em cada lugar
 
-- `recorteCano` + `corRecorteCano`
-- `recorteGaspea` + `corRecorteGaspea`
-- `recorteTaloneira` + `corRecorteTaloneira`
+**Tela de detalhes do pedido / listagens / dashboard:**
+Usam `o.preco * o.quantidade` direto do banco. Por isso, depois que você editou o pedido 60636, o valor "novo" aparece corretamente em todo lugar.
 
-Esses campos:
-- Já existem no tipo `Order` (`src/contexts/AuthContext.tsx`).
-- Já são lidos/escritos por `dbRowToOrder` / `orderToDbRow` em `src/lib/order-logic.ts`.
-- São renderizados no `OrderPage` dentro da seção **"Laser e Recortes"** usando `getDbItems('recorte_cano' | 'recorte_gaspea' | 'recorte_taloneira', [])` — exatamente o mesmo padrão dos bordados.
+**Relatório de Cobrança (PDF):**
+Para botas (não-extras), ele **ignora `o.preco`** e recalcula o total somando os preços de cada peça (modelo, bordados, couros, solado, etc.) a partir do banco de preços (`priceWithFallback`) com fallback nas constantes hardcoded:
 
-Resultado: ao abrir um pedido para editar, o admin não vê os recortes selecionados nem consegue mudá-los.
+```ts
+// linha 1381–1383
+const orderTotal = isBotaPE_cob
+  ? priceItems.reduce((s, [, v]) => s + v, 0)
+  : (o.tipoExtra ? o.preco : priceItems.reduce((s, [, v]) => s + v, 0));
+//                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//                                bota: SOMA DAS PEÇAS, ignora o.preco
+```
 
-## Mudança técnica em `src/pages/EditOrderPage.tsx`
+### Por que dá divergência
 
-1. **Estado**: adicionar 6 novos `useState`:
-   ```
-   recorteCano, corRecorteCano,
-   recorteGaspea, corRecorteGaspea,
-   recorteTaloneira, corRecorteTaloneira
-   ```
+Qualquer uma destas situações causa o "valor antigo" no PDF:
 
-2. **Hidratação** (no `useEffect` que faz `setX(order.X)`): popular os 6 estados a partir do `order`.
+1. **Você mudou o preço de um componente no admin** (ex: aumentou o preço do modelo no `ficha_variacoes`). O pedido salvo continua com o `preco` antigo (que é o que aparece em todo lugar), mas o relatório recalcula com o preço novo — ou vice-versa.
+2. **Desconto/adicional aplicado**: o relatório não considera `o.desconto` nem o `adicionalValor` corretamente em todos os caminhos.
+3. **Edição que mexeu em peças**: se a soma das peças no momento de gerar o PDF não bate com o `preco` salvo (porque o cache de preços do banco ou o fallback hardcoded está diferente do que estava quando o pedido foi criado/editado), aparece valor diferente.
+4. **Bordado Variado / itens com nome customizado** que não casam com nenhuma chave do `priceWithFallback` viram R$ 0 no PDF, mas estão somados em `o.preco`.
 
-3. **UI**: dentro da seção `<Section title="Laser">` (renomear para **"Laser e Recortes"** para casar com OrderPage), adicionar, logo após cada bloco de Laser por região, o respectivo `SelectField` de Recorte + input condicional de Cor do Recorte — espelhando OrderPage linhas 1351-1376:
-   ```
-   <SelectField label="Recortes do Cano"
-     value={recorteCano}
-     onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }}
-     options={getDbItems('recorte_cano', [])} />
-   {recorteCano && <input ... cor do recorte ... />}
-   ```
-   (idem para Gáspea e Taloneira)
+A intenção original do relatório era "mostrar o breakdown bonitinho com cada peça e seu preço". O bug é que ele usa essa soma como **TOTAL** da linha e do rodapé, em vez de usar o preço real do pedido.
 
-4. **Persistência**: incluir os 6 campos no objeto passado para `updateOrder(order.id, { ... })`.
+## Correção proposta
 
-Nada muda em backend, RLS, tipos ou outras telas.
+Em **`src/components/SpecializedReports.tsx`**, alterar `generateCobrancaPDF`:
 
-## Fora do escopo
+**1. Total da linha e do rodapé devem vir de `o.preco` (com `quantidade` quando aplicável):**
 
-- Não migrar `corBordadoLaser*` da OrderPage — esse trio só existe como rascunho em OrderPage (não está no tipo `Order` nem no DB), portanto não é editável pós-criação por design.
-- Não mexer em EditExtrasPage / EditBeltPage.
-- Não alterar a lógica de preços (recorte já entra via `getByCategoria` quando configurado em `custom_options` / `ficha_variacoes`).
+```ts
+// Substituir o bloco atual:
+const isBotaPE_cob = o.tipoExtra === 'bota_pronta_entrega';
+const orderTotal = isBotaPE_cob
+  ? (o.preco) // já é o total para bota PE
+  : (o.preco * (o.quantidade || 1)); // bota normal e demais extras
+```
+
+Regra (igual à usada em `OrderCard.tsx`):
+- **Bota normal** (sem `tipoExtra`): `preco * quantidade`
+- **Bota Pronta Entrega**: `preco` (já é total)
+- **Revitalizador / kit_revitalizador**: `preco * quantidade`
+- **Demais extras**: `preco`
+
+**2. Se houver desconto, abater do total da linha** (e exibir como item no breakdown):
+```ts
+if (o.desconto && o.desconto > 0) {
+  priceItems.push([`Desconto${o.descontoJustificativa ? ` (${o.descontoJustificativa})` : ''}`, -o.desconto]);
+  orderTotal -= o.desconto;
+}
+```
+
+**3. O breakdown (`priceItems`) continua sendo exibido na coluna "Composição"** apenas como detalhamento informativo — mas o número grande à direita e o `TOTAL` no rodapé passam a refletir exatamente o que está salvo no pedido (e o que aparece na tela de detalhes).
+
+## Arquivos editados
+
+- `src/components/SpecializedReports.tsx` — ajuste em `generateCobrancaPDF` para o cálculo de `orderTotal` e tratamento de desconto.
 
 ## Resultado esperado
 
-Ao editar um pedido com recortes, o admin vê os campos preenchidos (com as opções vindas do banco — mesmo merge `ficha_variacoes` → `custom_options` → fallback usado na ficha de produção) e pode alterá-los; as mudanças são salvas no DB.
+Depois do fix, o pedido 60636 (e qualquer outro que tenha sido editado) vai mostrar no PDF de Cobrança **exatamente o mesmo valor** que aparece na tela de detalhes do pedido e nas listagens.

@@ -1378,9 +1378,20 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       }
 
       const isBotaPE_cob = o.tipoExtra === 'bota_pronta_entrega';
-      const orderTotal = isBotaPE_cob
-        ? priceItems.reduce((s, [, v]) => s + v, 0)
-        : (o.tipoExtra ? o.preco : priceItems.reduce((s, [, v]) => s + v, 0));
+      const isRevit_cob = o.tipoExtra === 'revitalizador' || o.tipoExtra === 'kit_revitalizador';
+      // Total SEMPRE vem do preco salvo no banco (mesma regra da tela de detalhes / OrderCard)
+      // O breakdown em priceItems é apenas informativo na coluna "Composição".
+      let orderTotal = isBotaPE_cob
+        ? o.preco // já é o total
+        : (!o.tipoExtra
+            ? o.preco * (o.quantidade || 1) // bota normal: preço x qtd
+            : isRevit_cob
+              ? o.preco * (o.quantidade || 1) // revitalizadores: preço x qtd
+              : o.preco); // demais extras: preço unitário
+      if (o.desconto && o.desconto > 0) {
+        priceItems.push([`Desconto${o.descontoJustificativa ? ` (${o.descontoJustificativa})` : ''}`, -o.desconto]);
+        orderTotal -= o.desconto;
+      }
       const compText = priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`).join('\n');
 
       doc.setFontSize(6);
