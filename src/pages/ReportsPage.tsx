@@ -198,6 +198,7 @@ const ReportsPage = () => {
     if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
     if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
     if (filters.onlyOverdue) params.set('atrasados', '1');
+    if (filters.conferido && filters.conferido !== 'todos') params.set('conferido', filters.conferido);
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
