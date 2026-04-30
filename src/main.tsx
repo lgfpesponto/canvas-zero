@@ -5,5 +5,5 @@ import { installConsoleErrorCapture } from "./lib/consoleErrorCapture";
 
 installConsoleErrorCapture();
 
-// v3 force rebuild
+// v4 force rebuild after auth context updates
 createRoot(document.getElementById("root")!).render(<App />);
