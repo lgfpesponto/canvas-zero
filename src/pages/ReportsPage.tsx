@@ -1065,6 +1065,8 @@ const ReportsPage = () => {
                       mudouParaStatusAte: mudouAtivo ? mAte : undefined,
                       mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
                       onlyOverdue: checked,
+                      filterConferido: filterConferido === 'todos' ? undefined : filterConferido,
+                      conferido: filterConferido,
                     };
                     setAppliedFilters(newFilters);
                     syncSearchParams(newFilters);
@@ -1074,6 +1076,25 @@ const ReportsPage = () => {
                   Apenas atrasados
                 </span>
               </label>
+              {user?.role === 'admin_master' && (
+                <div className="flex items-center gap-1 px-3 py-2 rounded-lg border border-border bg-card">
+                  <span className="text-xs font-bold uppercase text-muted-foreground mr-1">Conferido:</span>
+                  {(['todos','sim','nao'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setFilterConferido(opt)}
+                      className={`text-xs font-semibold px-2 py-1 rounded transition-colors ${
+                        filterConferido === opt
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {opt === 'todos' ? 'Todos' : opt === 'sim' ? 'Sim' : 'Não'}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button onClick={applyFilters} className="orange-gradient text-primary-foreground px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Filter size={14} /> FILTRAR
               </button>
