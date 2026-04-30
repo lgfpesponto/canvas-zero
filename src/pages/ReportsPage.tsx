@@ -167,6 +167,7 @@ const ReportsPage = () => {
   // Initialize appliedFilters from URL params too
   const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
     const ms = searchParams.get('mudou_status');
+    const cf = searchParams.get('conferido');
     return {
       searchQuery: searchParams.get('q') || '',
       filterDate: searchParams.get('de') || '',
@@ -177,10 +178,11 @@ const ReportsPage = () => {
       mudouParaStatus: ms ? new Set(ms.split(',').filter(Boolean)) : undefined,
       mudouParaStatusDe: searchParams.get('mudou_de') || undefined,
       mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
+      filterConferido: cf === 'sim' || cf === 'nao' ? cf : undefined,
     };
   });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean; conferido?: 'todos' | 'sim' | 'nao' }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
