@@ -1,36 +1,74 @@
 ## Objetivo
 
-Permitir que o **admin_master** marque (ou desmarque) a tag **Conferido** em vários pedidos de uma só vez na tela de Relatórios, sem precisar abrir cada pedido.
+Três adições pequenas e independentes:
 
-## Como vai funcionar
+1. Nova etapa **Pesponto Ailton** no progresso de produção (logo após Pesponto 05).
+2. Nova etapa **Aguardando Couro** no progresso de produção (logo após Aguardando).
+3. Filtro **Conferido / Não conferido** na lista de pedidos (Meus Pedidos / Relatórios), exclusivo para `admin_master`.
 
-1. Na tela `Relatórios`, seleciona-se os pedidos pelos checkbox/scanner (já existe).
-2. Aparece um novo botão **"Marcar como conferido (N)"** ao lado dos botões de "Mudar progresso" / "Excluir selecionados", **visível apenas para admin_master** quando há ≥1 pedido selecionado.
-3. Ao clicar, abre um pequeno diálogo de confirmação com duas opções:
-   - **Marcar como conferido**
-   - **Remover marcação**
-4. Executa update em lote no Supabase, atualiza o cache, mostra toast com o total processado, limpa a seleção e recarrega a lista. Pedidos que já estavam no estado escolhido são ignorados (sem efeito colateral).
+---
 
-## Detalhes técnicos
+## Parte 1 — Pesponto Ailton
 
-**Arquivo: `src/pages/ReportsPage.tsx`**
-- Adicionar botão na barra de ações em massa (próximo a `linhas 650-661`), gated por `user?.role === 'admin_master'` e `selectedIds.size > 0`.
-- Novo estado `showConferidoDialog` + handler `handleBulkConferido(novo: boolean)` que:
-  ```ts
-  await supabase.from('orders').update({
-    conferido: novo,
-    conferido_em: novo ? new Date().toISOString() : null,
-    conferido_por: novo ? user?.id : null,
-  }).in('id', [...selectedIds]);
-  ```
-- Após sucesso: `toast.success`, `clearSelection()`, `refetch()`.
-- Reusar o padrão de `AlertDialog` já presente para exclusão em massa.
+Posição no fluxo: `... → Pesponto 05 → Pesponto Ailton → Pespontando → ...`
 
-**RLS / Banco:** nenhuma mudança necessária. A política `Admins can update all orders` já permite o update em lote, e o admin_master é admin.
+- **Migration**:
+  - `UPDATE status_etapas SET ordem = ordem + 1 WHERE ordem >= 14;`
+  - `INSERT INTO status_etapas (nome, slug, ordem) VALUES ('Pesponto Ailton', 'pesponto-ailton', 14);`
+  - Recriar `get_production_counts` incluindo `'Pesponto Ailton'` na lista de status "em produção".
+- **`src/lib/order-logic.ts`**: adicionar `"Pesponto Ailton"` em `PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER` e `PRODUCTION_STATUSES_IN_PROD`, sempre depois de `"Pesponto 05"`.
+- **`src/components/SpecializedReports.tsx`**: adicionar `'Pesponto Ailton'` em `PESPONTO_STATUSES` para entrar no PDF/relatório de Pesponto.
+- **`supabase/functions/admin-assistant/index.ts`**: atualizar a string do prompt com `Pesponto 01-05 / Pesponto Ailton`.
+- **`docs/BUSINESS_RULES.md`**: incluir `Pesponto Ailton` na sequência de status de bota.
 
-**Sem alteração** em `OrderCard`, `OrderDetailPage` ou outros arquivos — o checkbox individual continua funcionando normalmente e a tag "CONFERIDO" já é exibida no card pelo `showConferidoTag`.
+---
+
+## Parte 2 — Aguardando Couro
+
+Posição no fluxo: `... → Aguardando → Aguardando Couro → Corte → ...`
+
+- **Migration**:
+  - `UPDATE status_etapas SET ordem = ordem + 1 WHERE ordem >= 4;` (após "Aguardando", que está em ordem=3).
+  - `INSERT INTO status_etapas (nome, slug, ordem) VALUES ('Aguardando Couro', 'aguardando-couro', 4);`
+  - Recriar `get_production_counts` incluindo `'Aguardando Couro'` em "em produção".
+- **`src/lib/order-logic.ts`**: adicionar `"Aguardando Couro"` em `PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER` e `PRODUCTION_STATUSES_IN_PROD`, depois de `"Aguardando"`.
+- **`supabase/functions/admin-assistant/index.ts`** e **`docs/BUSINESS_RULES.md`**: refletir a nova etapa na sequência descrita.
+
+> A migration de Pesponto Ailton e a de Aguardando Couro serão feitas em ordem coerente para não colidir nos `ordem`. Faremos primeiro Pesponto Ailton (deslocando a partir de 14) e depois Aguardando Couro (deslocando a partir de 4) — o resultado final é consistente.
+
+---
+
+## Parte 3 — Filtro Conferido / Não conferido (admin_master)
+
+Local: `src/pages/ReportsPage.tsx` (Meus Pedidos / Relatórios). Apenas visível quando `user?.role === 'admin_master'`.
+
+### UI
+- Novo controle no painel de filtros (junto a Status / Vendedor / Produto): um seletor com 3 opções:
+  - **Todos** (padrão)
+  - **Conferidos**
+  - **Não conferidos**
+- Persistido na URL como `conferido=sim` / `conferido=nao` (omitido quando "Todos").
+- Botão **Limpar filtros** já existente também limpa este.
+
+### Estado e persistência
+- Novo estado `filterConferido: 'todos' | 'sim' | 'nao'` inicializado a partir de `searchParams.get('conferido')`.
+- Incluir no `appliedFilters` e em `syncSearchParams`.
+
+### Filtragem (server-side)
+- Estender `OrderFilters` em `src/hooks/useOrders.ts` com o campo opcional `filterConferido?: 'sim' | 'nao'`.
+- No `useOrders` (e em `fetchAllFilteredOrders` / `fetchAllFilteredOrderIds`), quando definido:
+  - `'sim'` → `query.eq('conferido', true)`
+  - `'nao'` → `query.eq('conferido', false)`
+- Estender a RPC `get_orders_totals` com novo parâmetro `_conferido text DEFAULT NULL` (`'sim' | 'nao' | null`) e aplicar no `WHERE`. Atualizar a chamada do hook para passar o valor.
+
+### Notas
+- Apenas `admin_master` enxerga o controle e a tag "CONFERIDO" — coerente com a memória `pedido conferido (admin_master only)`. Outros papéis ignoram o parâmetro de URL silenciosamente.
+- Sem mudanças de RLS (campo `conferido` já é selecionável pelos admins).
+
+---
 
 ## Fora do escopo
 
-- Não cria histórico/log da marcação em massa (mantém o comportamento atual da marcação individual, que também não registra em `historico`).
-- Não muda visibilidade da tag para outros papéis.
+- Sem mudanças em status de cintos ou extras (BELT_STATUSES / EXTRAS_STATUSES).
+- Não migra pedidos antigos para os novos status — admins moverão manualmente quando aplicável.
+- Não cria filtro de "Conferido" para vendedores (a tag continua oculta para eles).
