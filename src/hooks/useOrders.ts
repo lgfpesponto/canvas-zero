@@ -16,6 +16,8 @@ export interface OrderFilters {
   /** ...dentro do intervalo [mudouParaStatusDe, mudouParaStatusAte] (YYYY-MM-DD) */
   mudouParaStatusDe?: string;
   mudouParaStatusAte?: string;
+  /** Filtro admin_master: 'sim' = só conferidos, 'nao' = só não conferidos */
+  filterConferido?: 'sim' | 'nao';
 }
 
 /** Busca IDs via RPC quando há filtro "mudou para status". Retorna null se filtro inativo. */
