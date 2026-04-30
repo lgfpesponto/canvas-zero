@@ -16,6 +16,8 @@ export interface OrderFilters {
   /** ...dentro do intervalo [mudouParaStatusDe, mudouParaStatusAte] (YYYY-MM-DD) */
   mudouParaStatusDe?: string;
   mudouParaStatusAte?: string;
+  /** Filtro admin_master: 'sim' = só conferidos, 'nao' = só não conferidos */
+  filterConferido?: 'sim' | 'nao';
 }
 
 /** Busca IDs via RPC quando há filtro "mudou para status". Retorna null se filtro inativo. */
@@ -105,6 +107,10 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
         query = query.or(orClauses.join(','));
       }
 
+      // Conferido filter (admin_master only)
+      if (filters.filterConferido === 'sim') query = query.eq('conferido', true);
+      else if (filters.filterConferido === 'nao') query = query.eq('conferido', false);
+
       // Pagination
       const start = (page - 1) * PAGE_SIZE;
       query = query
@@ -133,6 +139,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
         _produtos: filters.filterProduto && filters.filterProduto.size > 0 ? [...filters.filterProduto] : null,
         _vendedores: filters.filterVendedor && filters.filterVendedor.size > 0 ? [...filters.filterVendedor] : null,
         _ids_mudou: idsMudou,
+        _conferido: filters.filterConferido ?? null,
       });
       if (totalsErr) {
         console.error('Erro get_orders_totals:', totalsErr);
@@ -200,6 +207,8 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
       });
       query = query.or(orClauses.join(','));
     }
+    if (filters.filterConferido === 'sim') query = query.eq('conferido', true);
+    else if (filters.filterConferido === 'nao') query = query.eq('conferido', false);
 
     query = query
       .order('data_criacao', { ascending: false })
@@ -258,6 +267,8 @@ export async function fetchAllFilteredOrderIds(filters: OrderFilters): Promise<s
       });
       query = query.or(orClauses.join(','));
     }
+    if (filters.filterConferido === 'sim') query = query.eq('conferido', true);
+    else if (filters.filterConferido === 'nao') query = query.eq('conferido', false);
 
     query = query
       .order('data_criacao', { ascending: false })

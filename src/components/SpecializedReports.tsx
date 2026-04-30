@@ -58,7 +58,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   extras_cintos: 'Extras / Cintos',
 };
 
-const PESPONTO_STATUSES = ['Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pespontando'];
+const PESPONTO_STATUSES = ['Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton', 'Pespontando'];
 const BORDADO_STATUSES = ['Bordado Dinei', 'Bordado Sandro', 'Bordado 7Estrivos'];
 
 /** Products available for the extras_cintos grouping report */

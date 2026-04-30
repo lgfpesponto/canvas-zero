@@ -105,6 +105,10 @@ const ReportsPage = () => {
   const [mudouDe, setMudouDe] = useState<string>(() => searchParams.get('mudou_de') || '');
   const [mudouAte, setMudouAte] = useState<string>(() => searchParams.get('mudou_ate') || '');
   const [onlyOverdue, setOnlyOverdue] = useState<boolean>(() => searchParams.get('atrasados') === '1');
+  const [filterConferido, setFilterConferido] = useState<'todos' | 'sim' | 'nao'>(() => {
+    const v = searchParams.get('conferido');
+    return v === 'sim' || v === 'nao' ? v : 'todos';
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scannedOrdersMap, setScannedOrdersMap] = useState<Map<string, import('@/contexts/AuthContext').Order>>(new Map());
 
@@ -163,6 +167,7 @@ const ReportsPage = () => {
   // Initialize appliedFilters from URL params too
   const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
     const ms = searchParams.get('mudou_status');
+    const cf = searchParams.get('conferido');
     return {
       searchQuery: searchParams.get('q') || '',
       filterDate: searchParams.get('de') || '',
@@ -173,10 +178,11 @@ const ReportsPage = () => {
       mudouParaStatus: ms ? new Set(ms.split(',').filter(Boolean)) : undefined,
       mudouParaStatusDe: searchParams.get('mudou_de') || undefined,
       mudouParaStatusAte: searchParams.get('mudou_ate') || searchParams.get('mudou_de') || undefined,
+      filterConferido: cf === 'sim' || cf === 'nao' ? cf : undefined,
     };
   });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean; conferido?: 'todos' | 'sim' | 'nao' }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
     if (filters.filterDate) params.set('de', filters.filterDate);
@@ -192,6 +198,7 @@ const ReportsPage = () => {
     if (filters.mudouDe) params.set('mudou_de', filters.mudouDe);
     if (filters.mudouAte) params.set('mudou_ate', filters.mudouAte);
     if (filters.onlyOverdue) params.set('atrasados', '1');
+    if (filters.conferido && filters.conferido !== 'todos') params.set('conferido', filters.conferido);
     setSearchParams(params, { replace: true });
   }, [setSearchParams]);
 
@@ -210,7 +217,7 @@ const ReportsPage = () => {
       if (!mDe) mDe = mAte;
       if (!mAte) mAte = mDe;
     }
-    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean } = {
+    const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean; conferido: 'todos' | 'sim' | 'nao' } = {
       searchQuery,
       filterDate,
       filterDateEnd,
@@ -220,8 +227,10 @@ const ReportsPage = () => {
       mudouParaStatus: mudouAtivo ? new Set(mudouStatus) : undefined,
       mudouParaStatusDe: mudouAtivo ? mDe : undefined,
       mudouParaStatusAte: mudouAtivo ? mAte : undefined,
+      filterConferido: filterConferido === 'todos' ? undefined : filterConferido,
       mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
       onlyOverdue,
+      conferido: filterConferido,
     };
     setAppliedFilters(newFilters);
     syncSearchParams(newFilters as any);
@@ -1056,6 +1065,8 @@ const ReportsPage = () => {
                       mudouParaStatusAte: mudouAtivo ? mAte : undefined,
                       mudouStatus: new Set(mudouStatus), mudouDe: mDe, mudouAte: mAte,
                       onlyOverdue: checked,
+                      filterConferido: filterConferido === 'todos' ? undefined : filterConferido,
+                      conferido: filterConferido,
                     };
                     setAppliedFilters(newFilters);
                     syncSearchParams(newFilters);
@@ -1065,6 +1076,25 @@ const ReportsPage = () => {
                   Apenas atrasados
                 </span>
               </label>
+              {user?.role === 'admin_master' && (
+                <div className="flex items-center gap-1 px-3 py-2 rounded-lg border border-border bg-card">
+                  <span className="text-xs font-bold uppercase text-muted-foreground mr-1">Conferido:</span>
+                  {(['todos','sim','nao'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setFilterConferido(opt)}
+                      className={`text-xs font-semibold px-2 py-1 rounded transition-colors ${
+                        filterConferido === opt
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {opt === 'todos' ? 'Todos' : opt === 'sim' ? 'Sim' : 'Não'}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button onClick={applyFilters} className="orange-gradient text-primary-foreground px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Filter size={14} /> FILTRAR
               </button>
@@ -1079,6 +1109,7 @@ const ReportsPage = () => {
                 setMudouDe('');
                 setMudouAte('');
                 setOnlyOverdue(false);
+                setFilterConferido('todos');
                 setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
