@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import { getOrderFinalValue } from '@/lib/order-logic';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
@@ -400,7 +401,10 @@ const OrderDetailPage = () => {
     return t;
   };
   const extraTotalCalc = computeExtraTotal();
-  const displayTotal = order.tipoExtra ? (extraTotalCalc || order.preco * order.quantidade) : (totalCalc || order.preco * order.quantidade);
+  // Total bruto (antes do desconto) e total final (com desconto aplicado)
+  const displayTotalBruto = order.tipoExtra ? (extraTotalCalc || order.preco * order.quantidade) : (totalCalc || order.preco * order.quantidade);
+  const desconto = order.desconto && order.desconto > 0 ? Number(order.desconto) : 0;
+  const displayTotal = Math.max(0, displayTotalBruto - desconto);
 
   const alteracoes = order.alteracoes || [];
 

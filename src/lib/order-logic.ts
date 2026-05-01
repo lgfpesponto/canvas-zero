@@ -3,6 +3,32 @@ import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
 import type { AppRole } from '@/contexts/AuthContext';
 import type { Order, OrderAlteracao } from '@/contexts/AuthContext';
 
+/* ───── Order value helpers (preço final c/ desconto) ─────
+ * Centraliza o cálculo do valor exibido em listagens, detalhe e PDFs.
+ * Regras (espelham OrderCard / OrderDetailPage):
+ *  - Bota normal (sem tipoExtra): preco × quantidade
+ *  - Bota Pronta Entrega: preco já é o total
+ *  - Revitalizador / kit_revitalizador: preco × quantidade
+ *  - Demais extras: preco unitário (quantidade geralmente 1)
+ *  - Desconto sempre subtrai do total final (não pode ficar negativo)
+ */
+export function getOrderBaseValue(order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra'>): number {
+  const preco = Number(order.preco) || 0;
+  const qtd = Number(order.quantidade) || 1;
+  const isBotaPE = order.tipoExtra === 'bota_pronta_entrega';
+  const isRevit = order.tipoExtra === 'revitalizador' || order.tipoExtra === 'kit_revitalizador';
+  if (!order.tipoExtra) return preco * qtd;
+  if (isBotaPE) return preco;
+  if (isRevit) return preco * qtd;
+  return preco;
+}
+
+export function getOrderFinalValue(order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra' | 'desconto'>): number {
+  const base = getOrderBaseValue(order);
+  const desc = order.desconto && order.desconto > 0 ? Number(order.desconto) : 0;
+  return Math.max(0, base - desc);
+}
+
 /* ───── Production statuses ───── */
 
 export const PRODUCTION_STATUSES = [

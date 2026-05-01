@@ -3,6 +3,7 @@ import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, Clock } from 'lucide-react';
+import { getOrderFinalValue } from '@/lib/order-logic';
 
 const statusColors: Record<string, string> = {
   'Em aberto': 'bg-yellow-100 text-yellow-800',
@@ -74,7 +75,7 @@ const TrackOrderPage = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-bold text-primary">{formatCurrency(order.tipoExtra ? order.preco : order.preco * order.quantidade)}</p>
+                      <p className="font-bold text-primary">{formatCurrency(getOrderFinalValue(order))}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock size={12} /> {order.diasRestantes > 0 ? `${order.diasRestantes} dias restantes` : 'Concluído'}
                       </p>
