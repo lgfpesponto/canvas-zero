@@ -48,18 +48,12 @@ const OrderCard = React.memo(({
           <div className="flex items-center gap-4 text-sm flex-wrap">
             {(() => {
               const isBotaPE = order.tipoExtra === 'bota_pronta_entrega';
-              const isRevit = order.tipoExtra === 'revitalizador' || order.tipoExtra === 'kit_revitalizador';
               const qtd = isBotaPE
                 ? (order.extraDetalhes?.botas?.length || order.quantidade || 1)
                 : (order.quantidade || 1);
-              // Bota normal e revitalizadores multiplicam preço x quantidade.
-              // Bota Pronta Entrega já guarda o total em order.preco.
-              // Demais extras: preço unitário (geralmente quantidade = 1).
-              const valor = !order.tipoExtra
-                ? order.preco * order.quantidade
-                : isRevit
-                  ? order.preco * (order.quantidade || 1)
-                  : order.preco;
+              // Valor final já considera desconto (se houver) — centralizado em getOrderFinalValue.
+              const valor = getOrderFinalValue(order);
+              const temDesconto = order.desconto && order.desconto > 0;
               const deadline = getOrderDeadlineInfo(order);
               const deadlineClass = deadline.tone === 'danger'
                 ? 'text-destructive font-bold'
@@ -70,7 +64,14 @@ const OrderCard = React.memo(({
                 <>
                   <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
                   <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
-                  <span className="font-bold text-primary">{formatCurrency(valor)}</span>
+                  <span className="font-bold text-primary inline-flex items-center gap-1">
+                    {formatCurrency(valor)}
+                    {temDesconto && (
+                      <span className="px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[9px] font-bold">
+                        DESC
+                      </span>
+                    )}
+                  </span>
                   <span className="text-xs text-muted-foreground">Qtd: {qtd}</span>
                   <span className={`text-xs ${deadlineClass}`}>{deadline.label}</span>
                 </>
