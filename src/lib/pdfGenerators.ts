@@ -78,7 +78,8 @@ export function generateReportPDF(ordersToExport: any[], meta?: { userName: stri
     doc.text(`${i + 1}. ${o.numero}`, 14, y);
     doc.setFont('helvetica', 'normal');
     doc.text(`Vendedor: ${o.vendedor} | Data: ${formatDateBR(o.dataCriacao, o.horaCriacao)} | Status: ${o.status}`, 14, y + 5);
-    doc.text(`Valor: ${formatCurrency(o.preco * o.quantidade)} | Qtd: ${o.quantidade}`, 14, y + 10);
+    // Valor exibido = valor final do pedido (já com desconto, se houver).
+    doc.text(`Valor: ${formatCurrency(getOrderFinalValue(o))} | Qtd: ${o.quantidade}`, 14, y + 10);
     y += 18;
   });
 
@@ -86,7 +87,7 @@ export function generateReportPDF(ordersToExport: any[], meta?: { userName: stri
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text(`Total de Pedidos: ${list.length}`, 14, y + 5);
-  doc.text(`Valor Total: ${formatCurrency(list.reduce((s, o) => s + o.preco * o.quantidade, 0))}`, 14, y + 12);
+  doc.text(`Valor Total: ${formatCurrency(list.reduce((s, o) => s + getOrderFinalValue(o), 0))}`, 14, y + 12);
   stampPageNumbers(doc);
   void recordPrintHistory(list.map(o => o.id), 'Relatório de Pedidos', meta?.userName || '');
   doc.save('relatorio-pedidos.pdf');
