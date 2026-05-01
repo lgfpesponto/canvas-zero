@@ -1160,9 +1160,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const isBotaPE_exp = o.tipoExtra === 'bota_pronta_entrega';
       const detExp = (o.extraDetalhes || {}) as any;
       const realQtdExp = isBotaPE_exp && Array.isArray(detExp.botas) ? detExp.botas.length : o.quantidade;
-      const orderTotal = isBotaPE_exp
-        ? compItems.reduce((s, [, v]) => s + v, 0)
-        : (o.tipoExtra ? o.preco : compItems.reduce((s, [, v]) => s + v, 0));
+      // Valor exibido = valor final do pedido (já com desconto, se houver).
+      // Centralizado em getOrderFinalValue para bater com lista, detalhe e demais PDFs.
+      const orderTotal = getOrderFinalValue(o);
       doc.text(String(realQtdExp), cx[3] + 1, y + 5);
       doc.text(formatCurrency(orderTotal), cx[4] + 1, y + 5);
       doc.setLineWidth(0.3);
