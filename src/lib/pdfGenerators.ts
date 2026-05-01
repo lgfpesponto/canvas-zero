@@ -3,6 +3,7 @@ import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import { orderBarcodeValue } from '@/contexts/AuthContext';
 import { recordPrintHistory } from '@/lib/printHistory';
+import { getOrderFinalValue } from '@/lib/order-logic';
 
 /**
  * Stamps "Página X-Y" in the top-right corner of every page.
