@@ -75,7 +75,7 @@ const TrackOrderPage = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-bold text-primary">{formatCurrency(order.tipoExtra ? order.preco : order.preco * order.quantidade)}</p>
+                      <p className="font-bold text-primary">{formatCurrency(getOrderFinalValue(order))}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock size={12} /> {order.diasRestantes > 0 ? `${order.diasRestantes} dias restantes` : 'Concluído'}
                       </p>
