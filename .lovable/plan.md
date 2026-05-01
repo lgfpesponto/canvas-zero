@@ -1,69 +1,87 @@
 ## Diagnóstico
 
-Achei o motivo. O problema está em **`src/components/SpecializedReports.tsx`**, função `generateCobrancaPDF` (linhas 1192–1446).
+Hoje o desconto é salvo no banco (`orders.desconto`), mas **só o relatório de Cobrança** o aplica. Em todo o resto, o "valor do pedido" exibido é calculado **ignorando o desconto**:
 
-### Como o preço aparece em cada lugar
+| Local | Mostra desconto hoje? | Como calcula |
+|---|---|---|
+| Detalhe do pedido — total no topo (`displayTotal`) | ❌ Não | `preco × quantidade` |
+| Detalhe — bloco de Composição "Total" | ❌ Não | `preco × quantidade` |
+| Detalhe — linha "Total com desconto" | ✅ Sim | só aparece se houver desconto, mas é uma linha extra abaixo |
+| Lista "Meus Pedidos" (`OrderCard`) | ❌ Não | `preco × quantidade` (ou `preco` para extras) |
+| `TrackOrderPage` | ❌ Não | `preco × quantidade` |
+| PDF Cobrança | ✅ Sim (corrigido recentemente) | desconta de `orderTotal` |
+| PDF Acompanhamento, Produção, demais | ❌ Não | usam `preco × quantidade` |
 
-**Tela de detalhes do pedido / listagens / dashboard:**
-Usam `o.preco * o.quantidade` direto do banco. Por isso, depois que você editou o pedido 60636, o valor "novo" aparece corretamente em todo lugar.
+Resultado: você aplica R$ 50 de desconto, o "Total com desconto" aparece como linha separada no detalhe, mas o valor grande no topo, na lista e nos demais PDFs continua mostrando o valor cheio.
 
-**Relatório de Cobrança (PDF):**
-Para botas (não-extras), ele **ignora `o.preco`** e recalcula o total somando os preços de cada peça (modelo, bordados, couros, solado, etc.) a partir do banco de preços (`priceWithFallback`) com fallback nas constantes hardcoded:
+## Solução proposta
 
-```ts
-// linha 1381–1383
-const orderTotal = isBotaPE_cob
-  ? priceItems.reduce((s, [, v]) => s + v, 0)
-  : (o.tipoExtra ? o.preco : priceItems.reduce((s, [, v]) => s + v, 0));
-//                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//                                bota: SOMA DAS PEÇAS, ignora o.preco
-```
+Centralizar o cálculo do valor final do pedido (já com desconto) em **uma função única** e usar ela em todos os lugares de exibição.
 
-### Por que dá divergência
+### 1. Criar helper único
 
-Qualquer uma destas situações causa o "valor antigo" no PDF:
-
-1. **Você mudou o preço de um componente no admin** (ex: aumentou o preço do modelo no `ficha_variacoes`). O pedido salvo continua com o `preco` antigo (que é o que aparece em todo lugar), mas o relatório recalcula com o preço novo — ou vice-versa.
-2. **Desconto/adicional aplicado**: o relatório não considera `o.desconto` nem o `adicionalValor` corretamente em todos os caminhos.
-3. **Edição que mexeu em peças**: se a soma das peças no momento de gerar o PDF não bate com o `preco` salvo (porque o cache de preços do banco ou o fallback hardcoded está diferente do que estava quando o pedido foi criado/editado), aparece valor diferente.
-4. **Bordado Variado / itens com nome customizado** que não casam com nenhuma chave do `priceWithFallback` viram R$ 0 no PDF, mas estão somados em `o.preco`.
-
-A intenção original do relatório era "mostrar o breakdown bonitinho com cada peça e seu preço". O bug é que ele usa essa soma como **TOTAL** da linha e do rodapé, em vez de usar o preço real do pedido.
-
-## Correção proposta
-
-Em **`src/components/SpecializedReports.tsx`**, alterar `generateCobrancaPDF`:
-
-**1. Total da linha e do rodapé devem vir de `o.preco` (com `quantidade` quando aplicável):**
+Em `src/lib/order-logic.ts`, adicionar:
 
 ```ts
-// Substituir o bloco atual:
-const isBotaPE_cob = o.tipoExtra === 'bota_pronta_entrega';
-const orderTotal = isBotaPE_cob
-  ? (o.preco) // já é o total para bota PE
-  : (o.preco * (o.quantidade || 1)); // bota normal e demais extras
-```
-
-Regra (igual à usada em `OrderCard.tsx`):
-- **Bota normal** (sem `tipoExtra`): `preco * quantidade`
-- **Bota Pronta Entrega**: `preco` (já é total)
-- **Revitalizador / kit_revitalizador**: `preco * quantidade`
-- **Demais extras**: `preco`
-
-**2. Se houver desconto, abater do total da linha** (e exibir como item no breakdown):
-```ts
-if (o.desconto && o.desconto > 0) {
-  priceItems.push([`Desconto${o.descontoJustificativa ? ` (${o.descontoJustificativa})` : ''}`, -o.desconto]);
-  orderTotal -= o.desconto;
+export function getOrderFinalValue(order: Order): number {
+  const isBotaPE = order.tipoExtra === 'bota_pronta_entrega';
+  const isRevit = order.tipoExtra === 'revitalizador' || order.tipoExtra === 'kit_revitalizador';
+  const base = !order.tipoExtra
+    ? order.preco * (order.quantidade || 1)        // bota normal
+    : isBotaPE
+      ? order.preco                                 // bota PE: total já no preco
+      : isRevit
+        ? order.preco * (order.quantidade || 1)    // revitalizadores
+        : order.preco;                              // demais extras
+  const desconto = order.desconto && order.desconto > 0 ? order.desconto : 0;
+  return Math.max(0, base - desconto);
 }
+
+export function getOrderBaseValue(order: Order): number { /* mesma lógica sem desconto */ }
 ```
 
-**3. O breakdown (`priceItems`) continua sendo exibido na coluna "Composição"** apenas como detalhamento informativo — mas o número grande à direita e o `TOTAL` no rodapé passam a refletir exatamente o que está salvo no pedido (e o que aparece na tela de detalhes).
+### 2. Substituir cálculos espalhados pela função única
+
+**Telas/componentes:**
+- `src/components/OrderCard.tsx` (linhas 48-77) → usar `getOrderFinalValue(order)`.
+- `src/pages/OrderDetailPage.tsx`:
+  - linha 403 (`displayTotal`) → aplicar desconto.
+  - linhas 919 e 935 (Total da composição de extras e de bota) → mostrar valor com desconto.
+  - linhas 940-952 (bloco do desconto) → manter o detalhamento "Subtotal / − Desconto / Total com desconto" como **breakdown explicativo**, mas o "Total" do topo já vem descontado, então ajustamos os rótulos pra não duplicar.
+- `src/pages/TrackOrderPage.tsx` (linha 77) → usar `getOrderFinalValue(order)`.
+
+**PDFs (`src/components/SpecializedReports.tsx`):**
+
+Os PDFs que mostram valor por pedido vão passar a aplicar o desconto. Lista das funções relevantes:
+
+- `generateCobrancaPDF` — **já aplica** (manter).
+- `generateAcompanhamentoPDF` — passar a usar `getOrderFinalValue` no total da linha e no rodapé.
+- `generateProducaoPDF` e demais que exibem coluna "Valor" — idem.
+- Onde o PDF mostra a **composição/breakdown de peças**, adicionar a linha "Desconto (justificativa)" igual à do Cobrança quando `o.desconto > 0`, e o TOTAL do rodapé já vir descontado.
+
+Vou varrer todas as funções `generate*PDF` em `SpecializedReports.tsx`, `pdfGenerators.ts` e qualquer outro local que faça `preco * quantidade` para padronizar.
+
+### 3. Onde NÃO mexer
+
+- **Tabelas internas de produção/corte/bordado** que não exibem valor monetário — ficam intactas.
+- **Cálculo de comissão**: confirmar com você antes (hoje a comissão usa `preco × quantidade` cheio; se descontar, comissão diminui automaticamente). Vou tratar comissão na pergunta abaixo, sem alterar nada por padrão.
+- **Métricas de vendas do dashboard**: idem — confirmar se "vendas do mês" deve refletir desconto ou valor bruto.
+
+## Decisões pra você confirmar antes de eu implementar
+
+1. **Comissão do vendedor**: o desconto deve reduzir a comissão proporcionalmente, ou comissão continua sobre o valor cheio?
+2. **Métricas do dashboard** ("Vendas do mês", gráficos de faturamento): mostram valor já com desconto ou bruto?
+3. **Visual no detalhe**: prefere manter o bloco atual "Subtotal / Desconto / Total com desconto" como detalhamento abaixo, **ou** simplificar pra mostrar só o total final no topo + uma tag pequena tipo "(R$ 50 desc.)"?
 
 ## Arquivos editados
 
-- `src/components/SpecializedReports.tsx` — ajuste em `generateCobrancaPDF` para o cálculo de `orderTotal` e tratamento de desconto.
+- `src/lib/order-logic.ts` — nova função `getOrderFinalValue`.
+- `src/components/OrderCard.tsx` — usar helper.
+- `src/pages/OrderDetailPage.tsx` — usar helper, ajustar bloco de desconto.
+- `src/pages/TrackOrderPage.tsx` — usar helper.
+- `src/components/SpecializedReports.tsx` — aplicar desconto em todos os PDFs que mostram valor.
+- `src/lib/pdfGenerators.ts` (se houver função com valor lá) — idem.
 
 ## Resultado esperado
 
-Depois do fix, o pedido 60636 (e qualquer outro que tenha sido editado) vai mostrar no PDF de Cobrança **exatamente o mesmo valor** que aparece na tela de detalhes do pedido e nas listagens.
+Aplicou desconto → o valor novo aparece **imediatamente e em todo lugar**: card da lista, topo do detalhe, qualquer PDF impresso. A justificativa fica registrada e visível como hoje.
