@@ -3,6 +3,7 @@ import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, Clock } from 'lucide-react';
+import { getOrderFinalValue } from '@/lib/order-logic';
 
 const statusColors: Record<string, string> = {
   'Em aberto': 'bg-yellow-100 text-yellow-800',
