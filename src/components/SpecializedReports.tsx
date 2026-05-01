@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import jsPDF from 'jspdf';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
+import { getOrderFinalValue, getOrderBaseValue } from '@/lib/order-logic';
 import {
   MODELOS, ACESSORIOS, BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, COURO_PRECOS, SOLADO, COR_SOLA, COR_VIRA,
   CARIMBO, AREA_METAL, DESENVOLVIMENTO,
