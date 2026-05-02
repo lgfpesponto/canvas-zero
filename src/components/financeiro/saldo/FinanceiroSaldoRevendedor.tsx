@@ -237,6 +237,7 @@ const FinanceiroSaldoRevendedor = () => {
             </p>
           </CardContent>
         </Card>
+        <PedidosAbatidosCard vendedoresOptions={vendedoresOptions} />
       </div>
 
       {/* Comprovantes pendentes (geral, não filtrado) */}
