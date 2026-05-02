@@ -13,6 +13,7 @@ import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pen
 import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
+import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
