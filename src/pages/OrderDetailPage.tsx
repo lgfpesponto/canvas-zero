@@ -1132,10 +1132,12 @@ const OrderDetailPage = () => {
               </div>
             );
 
+            const verMaisBtnClass = "bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold";
+
             return (
-              <div className="space-y-6">
+              <div className="grid md:grid-cols-3 gap-0 md:divide-x divide-y md:divide-y-0 divide-border">
                 {/* 1. Histórico de Produção */}
-                <div>
+                <div className="md:pr-5 pb-5 md:pb-0">
                   <h2 className="text-lg font-display font-bold mb-3">Histórico de Produção</h2>
                   {historicoDesc.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhuma etapa registrada.</p>
@@ -1146,10 +1148,9 @@ const OrderDetailPage = () => {
                       )}
                       {historicoDesc.length > 1 && (
                         <Button
-                          variant="ghost"
                           size="sm"
                           onClick={() => setExpProducao(v => !v)}
-                          className="text-xs"
+                          className={verMaisBtnClass}
                         >
                           {expProducao ? 'Ver menos' : `Ver mais (${historicoDesc.length - 1} anteriores)`}
                         </Button>
@@ -1159,7 +1160,7 @@ const OrderDetailPage = () => {
                 </div>
 
                 {/* 2. Histórico de Alterações */}
-                <div>
+                <div className="md:px-5 py-5 md:py-0">
                   <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
                     <History size={18} /> Histórico de Alterações
                   </h2>
@@ -1172,10 +1173,9 @@ const OrderDetailPage = () => {
                       )}
                       {alteracoesDesc.length > 1 && (
                         <Button
-                          variant="ghost"
                           size="sm"
                           onClick={() => setExpAlteracoes(v => !v)}
-                          className="text-xs"
+                          className={verMaisBtnClass}
                         >
                           {expAlteracoes ? 'Ver menos' : `Ver mais (${alteracoesDesc.length - 1} anteriores)`}
                         </Button>
@@ -1185,7 +1185,7 @@ const OrderDetailPage = () => {
                 </div>
 
                 {/* 3. Histórico de Impressão */}
-                <div>
+                <div className="md:pl-5 pt-5 md:pt-0">
                   <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
                     <Printer size={18} /> Histórico de Impressão
                   </h2>
@@ -1198,10 +1198,9 @@ const OrderDetailPage = () => {
                       )}
                       {impressoesDesc.length > 1 && (
                         <Button
-                          variant="ghost"
                           size="sm"
                           onClick={() => setExpImpressao(v => !v)}
-                          className="text-xs"
+                          className={verMaisBtnClass}
                         >
                           {expImpressao ? 'Ver menos' : `Ver mais (${impressoesDesc.length - 1} anteriores)`}
                         </Button>
