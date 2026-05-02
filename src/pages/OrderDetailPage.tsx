@@ -92,6 +92,35 @@ const OrderDetailPage = () => {
     }
   }, [scanValue, navigate, order, isSelected, toggle, scanning, location.search]);
 
+  // Ref que carrega o último subtotal real recalculado nesta renderização.
+  // Usado pelo efeito de auto-correção logo abaixo, sem precisar duplicar a lógica
+  // de breakdown de preço (que depende de hooks como findFichaPrice/getByCategoria
+  // e só pode ser chamado após order existir).
+  const subtotalRealRef = useRef<number>(0);
+
+  // ─── Auto-correção de order.preco ───
+  // Quando o subtotal recalculado a partir dos itens da composição diverge do valor
+  // salvo em order.preco (bug histórico, ex.: PVC Marrom + R$ 20), atualiza silenciosamente
+  // o banco — assim listagens, dashboards, expedição/cobrança (que leem via
+  // getOrderFinalValue sobre order.preco) refletem o Total correto.
+  useEffect(() => {
+    if (!order || orderLoading) return;
+    const subtotalReal = subtotalRealRef.current;
+    if (!subtotalReal || subtotalReal <= 0) return;
+    const precoAlvo = order.tipoExtra
+      ? subtotalReal
+      : subtotalReal / Math.max(1, order.quantidade || 1);
+    const precoAtual = Number(order.preco) || 0;
+    if (Math.abs(precoAtual - precoAlvo) > 0.01) {
+      supabase
+        .from('orders')
+        .update({ preco: precoAlvo })
+        .eq('id', order.id)
+        .then(() => { /* silencioso — UI já mostra valor correto */ });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, order?.preco]);
+
   if (orderLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
@@ -406,10 +435,17 @@ const OrderDetailPage = () => {
     return t;
   };
   const extraTotalCalc = computeExtraTotal();
-  // Total bruto (antes do ajuste) e total final (helper centralizado: trata desconto>0 e acréscimo<0)
-  const displayTotalBruto = order.tipoExtra ? (extraTotalCalc || order.preco * order.quantidade) : (totalCalc || order.preco * order.quantidade);
+  // Subtotal REAL recalculado a partir dos itens da composição (fonte única de verdade).
+  // Usado para garantir que Total = Subtotal − ajuste, mesmo quando order.preco no banco está dessincronizado.
+  const subtotalReal = order.tipoExtra
+    ? (extraTotalCalc || order.preco * order.quantidade)
+    : (totalCalc || order.preco * order.quantidade);
   const ajusteValor = Number(order.desconto) || 0; // >0 desconto, <0 acréscimo
-  const displayTotal = getOrderFinalValue(order);
+  const displayTotalBruto = subtotalReal;
+  const displayTotal = getOrderFinalValue(order, subtotalReal);
+
+  // Mantém a ref sincronizada para o efeito de auto-correção declarado no topo.
+  subtotalRealRef.current = subtotalReal;
 
   const alteracoes = order.alteracoes || [];
 
@@ -577,111 +613,116 @@ const OrderDetailPage = () => {
 
         <div className="space-y-6">
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
-          {/* Header: order number + vendedor (admin only) + value */}
+          {/* ═══ Cabeçalho do Pedido — grid 2×2 + linha do prazo ═══ */}
           {(() => {
             const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
             const temFoto = fotosValidas.length > 0;
+            const dataHora = `${formatDateBR(order.dataCriacao)} — ${order.horaCriacao || ''}`.trim();
+            const showVendedor = isAdmin;
+            const showConferido = role === 'admin_master';
+            const deadline = getOrderDeadlineInfo(order);
+            const prazoLabel = deadline.isNoDeadline
+              ? 'Sem prazo de produção'
+              : `Prazo ${totalBizDays} dias úteis`;
+            const prazoValor = deadline.isNoDeadline
+              ? '(estoque interno)'
+              : deadline.isFinal
+                ? 'Concluído ✓'
+                : deadline.isOverdue
+                  ? `+${deadline.daysOverdue} dias úteis em atraso`
+                  : `${deadline.daysLeft} dias úteis restantes`;
+            const prazoCls = deadline.isOverdue
+              ? 'text-destructive font-bold'
+              : deadline.isFinal
+                ? 'text-primary font-bold'
+                : 'text-foreground font-semibold';
             return (
-              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl font-display font-bold">{order.numero}</h1>
-                  {isAdmin && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                      const base = order.tipoExtra === 'cinto'
-                        ? `/pedido/${order.id}/editar-cinto`
-                        : order.tipoExtra
-                          ? `/pedido/${order.id}/editar-extra`
-                          : `/pedido/${order.id}/editar`;
-                      const sp = new URLSearchParams(location.search);
-                      if (showFotoPanel) sp.set('foto', '1'); else sp.delete('foto');
-                      const qs = sp.toString();
-                      navigate(`${base}${qs ? `?${qs}` : ''}`, { replace: true });
-                    }}>
-                      <Pencil size={16} />
-                    </Button>
-                  )}
-                  {isAdmin && <span className="text-sm text-muted-foreground">— {order.vendedor}</span>}
-                  {temFoto && (
-                    <button
-                      type="button"
-                      onClick={() => setFotoOpen(true)}
-                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline font-semibold"
-                    >
-                      <ImageIcon className="h-4 w-4" />
-                      {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
-                    </button>
-                  )}
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-3">
+                  {/* Célula 1: Número do pedido + Ver foto */}
+                  <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Número do pedido</span>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <span className="text-base font-display font-bold">{order.numero}</span>
+                      {temFoto && (
+                        <button
+                          type="button"
+                          onClick={() => setFotoOpen(true)}
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-semibold"
+                        >
+                          <ImageIcon className="h-3.5 w-3.5" />
+                          {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Célula 2: Vendedor (só para admin) */}
+                  {showVendedor ? (
+                    <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendedor</span>
+                      <span className="text-sm font-semibold text-right">{order.vendedor}</span>
+                    </div>
+                  ) : <div className="hidden sm:block" />}
+
+                  {/* Célula 3: Data e hora */}
+                  <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data e hora</span>
+                    <span className="text-sm font-semibold text-right">{dataHora}</span>
+                  </div>
+
+                  {/* Célula 4: Conferido (só admin_master) */}
+                  {showConferido ? (
+                    <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conferido</span>
+                      <label htmlFor="conferido-checkbox" className="flex items-center gap-2 cursor-pointer select-none">
+                        <Checkbox
+                          id="conferido-checkbox"
+                          checked={!!order.conferido}
+                          onCheckedChange={async (v) => {
+                            const novo = !!v;
+                            const { error } = await supabase
+                              .from('orders')
+                              .update({
+                                conferido: novo,
+                                conferido_em: novo ? new Date().toISOString() : null,
+                                conferido_por: novo ? user?.id : null,
+                              })
+                              .eq('id', order.id);
+                            if (error) {
+                              toast.error('Erro ao salvar: ' + error.message);
+                              return;
+                            }
+                            await refetchOrder();
+                            toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
+                          }}
+                        />
+                        <CheckCircle2 size={14} className={order.conferido ? 'text-primary' : 'text-muted-foreground'} />
+                        <span className="text-sm font-semibold">
+                          {order.conferido ? 'Sim' : 'Não'}
+                        </span>
+                        {order.conferido && order.conferidoEm && (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ({new Date(order.conferidoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })})
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  ) : <div className="hidden sm:block" />}
                 </div>
-                <span className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</span>
-              </div>
+
+                {/* Linha do prazo — largura cheia */}
+                <div className="flex items-center justify-between gap-3 py-2 mb-4 border-b border-border/40">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Clock size={13} className="text-primary" />
+                    {prazoLabel}
+                  </span>
+                  <span className={`text-sm ${prazoCls}`}>{prazoValor}</span>
+                </div>
+              </>
             );
           })()}
-          <p className="text-sm text-muted-foreground mb-1">
-            {formatDateBR(order.dataCriacao)} — {order.horaCriacao || ''}
-          </p>
-          <div className="flex items-center gap-2 mb-4">
-            <Clock size={14} className="text-primary" />
-            {(() => {
-              const d = getOrderDeadlineInfo(order);
-              if (d.isNoDeadline) {
-                return (
-                  <>
-                    <span className="text-sm font-semibold text-muted-foreground">Sem prazo de produção</span>
-                    <span className="text-xs text-muted-foreground">(estoque interno)</span>
-                  </>
-                );
-              }
-              const text = d.isFinal
-                ? 'Concluído ✓'
-                : d.isOverdue
-                  ? `+${d.daysOverdue} dias úteis em atraso`
-                  : `${d.daysLeft} dias úteis restantes`;
-              const cls = d.isOverdue ? 'text-destructive' : 'text-foreground';
-              return (
-                <>
-                  <span className={`text-sm font-semibold ${cls}`}>{text}</span>
-                  <span className="text-xs text-muted-foreground">
-                    (prazo: {totalBizDays} dias úteis)
-                  </span>
-                </>
-              );
-            })()}
-          </div>
 
-          {role === 'admin_master' && (
-            <div className="mb-4 flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border/40 w-fit">
-              <Checkbox
-                id="conferido-checkbox"
-                checked={!!order.conferido}
-                onCheckedChange={async (v) => {
-                  const novo = !!v;
-                  const { error } = await supabase
-                    .from('orders')
-                    .update({
-                      conferido: novo,
-                      conferido_em: novo ? new Date().toISOString() : null,
-                      conferido_por: novo ? user?.id : null,
-                    })
-                    .eq('id', order.id);
-                  if (error) {
-                    toast.error('Erro ao salvar: ' + error.message);
-                    return;
-                  }
-                  await refetchOrder();
-                  toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
-                }}
-              />
-              <label htmlFor="conferido-checkbox" className="text-sm font-bold cursor-pointer select-none flex items-center gap-2">
-                <CheckCircle2 size={16} className={order.conferido ? 'text-primary' : 'text-muted-foreground'} />
-                Conferido
-                {order.conferido && order.conferidoEm && (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    em {new Date(order.conferidoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}
-                  </span>
-                )}
-              </label>
-            </div>
-          )}
 
           {/* ═══ Composição do Pedido (acima dos Detalhes) ═══ */}
           <h2 className="text-lg font-display font-bold mb-3">Composição do Pedido</h2>
@@ -799,9 +840,9 @@ const OrderDetailPage = () => {
                           <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                         </div>
                       ))}
-                      <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-lg">
-                        <span>Total</span>
-                        <span className="text-primary">{formatCurrency(extraTotal || order.preco * order.quantidade)}</span>
+                      <div className="flex justify-between pt-2 mt-2 border-t border-border font-semibold text-sm">
+                        <span>Subtotal</span>
+                        <span>{formatCurrency(extraTotal || order.preco * order.quantidade)}</span>
                       </div>
                     </>
                   );
@@ -815,29 +856,28 @@ const OrderDetailPage = () => {
                     <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-lg">
-                  <span>Total</span>
-                  <span className="text-primary">{formatCurrency(totalCalc || order.preco * order.quantidade)}</span>
+                <div className="flex justify-between pt-2 mt-2 border-t border-border font-semibold text-sm">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(totalCalc || order.preco * order.quantidade)}</span>
                 </div>
               </>
             )}
-            {/* Desconto OU Acréscimo display */}
+            {/* Linha de ajuste (Desconto / Acréscimo) — só aparece quando há ajuste */}
             {ajusteValor !== 0 && (() => {
               const isAcr = ajusteValor < 0;
               const abs = Math.abs(ajusteValor);
               return (
-                <>
-                  <div className={`flex justify-between pt-1 ${isAcr ? 'text-emerald-600' : 'text-destructive'}`}>
-                    <span className="text-sm font-semibold">{isAcr ? 'Acréscimo' : 'Desconto'}</span>
-                    <span className="text-sm font-semibold">{isAcr ? '+ ' : '- '}{formatCurrency(abs)}</span>
-                  </div>
-                  <div className="flex justify-between pt-1 font-bold text-lg border-t border-border mt-1">
-                    <span>Total {isAcr ? 'com acréscimo' : 'com desconto'}</span>
-                    <span className="text-primary">{formatCurrency(displayTotal)}</span>
-                  </div>
-                </>
+                <div className={`flex justify-between pt-1 ${isAcr ? 'text-emerald-600' : 'text-destructive'}`}>
+                  <span className="text-sm font-semibold">{isAcr ? 'Acréscimo' : 'Desconto'}</span>
+                  <span className="text-sm font-semibold">{isAcr ? '+ ' : '− '}{formatCurrency(abs)}</span>
+                </div>
               );
             })()}
+            {/* Total final — fonte única de verdade */}
+            <div className="flex justify-between pt-2 mt-2 border-t-2 border-border font-bold text-lg">
+              <span>Total</span>
+              <span className="text-primary">{formatCurrency(displayTotal)}</span>
+            </div>
             {ultimaJustificativaValor && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Última justificativa de alteração de valor</p>

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/order-logic';
+import { formatCurrency, getOrderFinalValue } from '@/lib/order-logic';
 import {
   fetchMovimentos, fetchBaixasVendedor, fetchPedidosCobrados, estornarBaixa,
   quitarPedidosHistorico,
@@ -76,7 +76,7 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
     return pedidos
       .filter(p => !baixasMap.has(p.id))
       .map(p => {
-        const valor = (p.preco || 0) * (p.quantidade || 1);
+        const valor = getOrderFinalValue(p as any);
         const cabe = saldoSimulado >= valor;
         const restante = cabe ? 0 : valor - saldoSimulado;
         if (cabe) saldoSimulado -= valor;
