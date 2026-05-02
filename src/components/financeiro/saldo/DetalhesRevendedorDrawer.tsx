@@ -275,48 +275,11 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
           </section>
 
           {/* Baixas realizadas */}
-          <section className="mt-6">
-            <h3 className="font-semibold mb-2 text-sm uppercase text-muted-foreground">Baixas realizadas</h3>
-            {baixas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma baixa realizada.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Pedido</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-right">Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {baixas.map(b => (
-                    <TableRow key={b.id}>
-                      <TableCell className="text-xs">{formatDateBR(b.created_at.slice(0, 10))}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {orderNumeros[b.order_id] ? (
-                          <Link
-                            to={`/pedido/${b.order_id}`}
-                            className="text-primary underline font-medium"
-                          >
-                            Pedido #{orderNumeros[b.order_id]}
-                          </Link>
-                        ) : (
-                          <span>{b.order_id.slice(0, 8)}…</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(b.valor_pedido))}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="ghost" onClick={() => setEstornoTarget(b)}>
-                          <RotateCcw size={14} />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </section>
+          <BaixasRealizadasSection
+            baixas={baixas}
+            orderNumeros={orderNumeros}
+            onEstorno={(b) => setEstornoTarget(b)}
+          />
 
           {/* Extrato (movimentos) */}
           <section className="mt-6">
