@@ -1349,7 +1349,7 @@ const ReportsPage = () => {
                 </div>
                 <DialogFooter className="mt-4">
                   <button
-                    onClick={() => { setShowRegressionConfirmModal(false); setRegressionItems([]); setNormalIds([]); }}
+                    onClick={() => { setShowRegressionConfirmModal(false); }}
                     className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
                   >
                     Cancelar
