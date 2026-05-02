@@ -1,26 +1,26 @@
-## Mudança
-No `OrderDetailPage.tsx` (linha 154), a regra `showCliente` atual mostra o campo "Cliente" no bloco "Detalhes da Bota" para todo usuário não-admin. O usuário quer alinhar com a ficha impressa: o cliente só deve aparecer quando o pedido for de **Juliana Cristina Ribeiro** (admin_master, clientes virtuais) ou de **Rancho Chique** (vendedor_comissao).
+## Problema
+A célula "Cliente" mostrada no card "Detalhes da Bota" (imagem) não vem do array `detailsGrouped` da `OrderDetailPage` — ela é renderizada via `buildBootFichaCategories` em `src/lib/orderFichaCategories.ts` (linha 25), que sempre adiciona Cliente quando preenchido. Por isso a alteração anterior não surtiu efeito nessa visualização.
 
 ## Ajuste
-Trocar a condição:
+1. `src/lib/orderFichaCategories.ts`: aceitar parâmetro opcional `{ showCliente }` e só incluir Cliente quando `showCliente !== false`.
+2. `src/pages/OrderDetailPage.tsx` (linha 1093): passar `{ showCliente }` usando a mesma regra já existente (`order.vendedor === 'Juliana Cristina Ribeiro' || order.vendedor === 'Rancho Chique'`).
 
 ```ts
-// antes
-const showCliente = !isAdmin || order.vendedor === 'Rancho Chique';
-
-// depois
-const showCliente =
-  order.vendedor === 'Juliana Cristina Ribeiro' ||
-  order.vendedor === 'Rancho Chique';
+// orderFichaCategories.ts
+export function buildBootFichaCategories(order, opts?: { showCliente?: boolean }) {
+  const showCliente = opts?.showCliente ?? true;
+  ...
+  if (showCliente && order.cliente) identFields.push({ label: 'Cliente:', value: lower(order.cliente) });
+}
 ```
 
-Assim:
-- Vendedor comum: NÃO vê "Cliente" no bloco Identificação dos detalhes da bota.
-- vendedor_comissao (Rancho Chique): continua vendo.
-- admin_master (Juliana): vê apenas em pedidos próprios (clientes virtuais).
-- admin_producao: vê apenas nos pedidos de Juliana/Rancho Chique (alinhado à ficha impressa).
+```tsx
+// OrderDetailPage.tsx ~1093
+const fichaCats = buildBootFichaCategories(order, { showCliente });
+```
 
-A célula "Cliente" no cabeçalho 2×2 (adicionada agora há pouco para vendedor/comissão) **permanece**, pois é a substituição do campo "Vendedor".
+Default `true` mantém compatibilidade com PDF e qualquer outro consumidor.
 
-## Arquivo afetado
-- `src/pages/OrderDetailPage.tsx` (linha 154)
+## Arquivos afetados
+- `src/lib/orderFichaCategories.ts`
+- `src/pages/OrderDetailPage.tsx`
