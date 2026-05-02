@@ -410,17 +410,22 @@ const OrderDetailPage = () => {
 
   // Agrupa alterações salvas em um mesmo "salvar" (mesma data + hora + usuário)
   const alteracoesAgrupadas = (() => {
-    const groups: { data: string; hora: string; usuario?: string; descricoes: string[] }[] = [];
+    const groups: { data: string; hora: string; usuario?: string; justificativa?: string; afetouValor?: boolean; descricoes: string[] }[] = [];
     for (const a of alteracoes) {
       const last = groups[groups.length - 1];
       if (last && last.data === a.data && last.hora === a.hora && (last.usuario || '') === (a.usuario || '')) {
         last.descricoes.push(a.descricao);
+        if (a.justificativa && !last.justificativa) last.justificativa = a.justificativa;
+        if (a.afetouValor) last.afetouValor = true;
       } else {
-        groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, descricoes: [a.descricao] });
+        groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, justificativa: a.justificativa, afetouValor: a.afetouValor, descricoes: [a.descricao] });
       }
     }
     return groups;
   })();
+
+  // Justificativas que afetaram valor — exibidas na Composição do Pedido
+  const justificativasValor = alteracoesAgrupadas.filter(g => g.afetouValor && g.justificativa);
 
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? null;
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
