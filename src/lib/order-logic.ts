@@ -26,8 +26,11 @@ export function getOrderBaseValue(order: Pick<Order, 'preco' | 'quantidade' | 't
   return preco;
 }
 
-export function getOrderFinalValue(order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra' | 'desconto'>): number {
-  const base = getOrderBaseValue(order);
+export function getOrderFinalValue(
+  order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra' | 'desconto'>,
+  subtotalOverride?: number,
+): number {
+  const base = subtotalOverride != null ? subtotalOverride : getOrderBaseValue(order);
   const ajuste = Number(order.desconto) || 0; // positivo = desconto, negativo = acréscimo
   return Math.max(0, base - ajuste);
 }
