@@ -76,18 +76,21 @@ export function buildBootFichaCategories(order: any): FichaCategory[] {
 
   // METAIS
   const cavaloMetalQtd = det.cavaloMetal ? (Number(det.cavaloMetalQtd) || 0) : 0;
+  const bolaGrandeQtd = Number(det.bolaGrandeQtd) || 0;
   const hasMetalData = !!(order.metais || order.tipoMetal || order.corMetal ||
-    order.strassQtd || order.cruzMetalQtd || order.bridaoMetalQtd || cavaloMetalQtd);
+    order.strassQtd || order.cruzMetalQtd || order.bridaoMetalQtd || cavaloMetalQtd || bolaGrandeQtd);
   if (hasMetalData) {
     const metaisFields: FichaField[] = [];
-    if (order.metais) {
-      const parts = [lower(order.metais)];
+    if (order.metais || order.tipoMetal || order.corMetal) {
+      const parts: string[] = [];
+      if (order.metais) parts.push(lower(order.metais));
       if (order.tipoMetal) parts.push(lower(order.tipoMetal));
       if (order.corMetal) parts.push(lower(order.corMetal));
       metaisFields.push({ label: 'Metais:', value: parts.join(', ') });
     }
     const extras: string[] = [];
     if (order.strassQtd) extras.push(`strass x${order.strassQtd}`);
+    if (bolaGrandeQtd) extras.push(`bola grande x${bolaGrandeQtd}`);
     if (order.cruzMetalQtd) extras.push(`cruz x${order.cruzMetalQtd}`);
     if (order.bridaoMetalQtd) extras.push(`bridão x${order.bridaoMetalQtd}`);
     if (cavaloMetalQtd) extras.push(`cavalo x${cavaloMetalQtd}`);
@@ -98,10 +101,10 @@ export function buildBootFichaCategories(order: any): FichaCategory[] {
   // EXTRAS
   const extrasFields: FichaField[] = [];
   if (order.acessorios) extrasFields.push({ label: 'Acessórios:', value: order.acessorios });
-  if (order.trisce === 'Sim' && order.triceDesc) extrasFields.push({ label: 'Tricê:', value: lower(order.triceDesc) });
-  if (order.tiras === 'Sim' && order.tirasDesc) extrasFields.push({ label: 'Tiras:', value: lower(order.tirasDesc) });
-  if (det.franja) extrasFields.push({ label: 'Franja:', value: [det.franjaCouro, det.franjaCor].filter(Boolean).join(' — ').toLowerCase() || 'sim' });
-  if (det.corrente) extrasFields.push({ label: 'Corrente:', value: lower(det.correnteCor) || 'sim' });
+  if (order.trisce === 'Sim') extrasFields.push({ label: 'Tricê:', value: order.triceDesc ? lower(order.triceDesc) : 'sim' });
+  if (order.tiras === 'Sim') extrasFields.push({ label: 'Tiras:', value: order.tirasDesc ? lower(order.tirasDesc) : 'sim' });
+  if (det.franja || order.franja === 'Sim') extrasFields.push({ label: 'Franja:', value: [det.franjaCouro, det.franjaCor].filter(Boolean).join(' — ').toLowerCase() || 'sim' });
+  if (det.corrente || order.corrente === 'Sim') extrasFields.push({ label: 'Corrente:', value: lower(det.correnteCor) || 'sim' });
   if (order.costuraAtras === 'Sim') extrasFields.push({ label: 'Costura atrás:', value: 'sim' });
   if (order.carimbo) extrasFields.push({ label: 'Carimbo:', value: `${order.carimbo}${order.carimboDesc ? ' - ' + order.carimboDesc : ''}` });
   if (extrasFields.length) categories.push({ title: 'EXTRAS', fields: extrasFields });
