@@ -456,7 +456,7 @@ const EditOrderPage = () => {
       }
     }
 
-    await updateOrder(order.id, {
+    const payload: Partial<Order> = {
       numero: numeroPedido, tamanho, genero, modelo, sobMedida, sobMedidaDesc,
       ...(isAdmin ? { vendedor } : {}),
       solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
@@ -486,12 +486,16 @@ const EditOrderPage = () => {
       recorteCano, corRecorteCano: recorteCano ? corRecorteCano : '',
       recorteGaspea, corRecorteGaspea: recorteGaspea ? corRecorteGaspea : '',
       recorteTaloneira, corRecorteTaloneira: recorteTaloneira ? corRecorteTaloneira : '',
+    };
+
+    await requestSave(order.id, payload, async (oid, data, just) => {
+      await updateOrder(oid, data, just);
+      toast.success('Pedido atualizado com sucesso!');
+      const sp = new URLSearchParams(searchParams);
+      if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
+      const qs = sp.toString();
+      navigate(`/pedido/${id}${qs ? `?${qs}` : ''}`, { replace: true });
     });
-    toast.success('Pedido atualizado com sucesso!');
-    const sp = new URLSearchParams(searchParams);
-    if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
-    const qs = sp.toString();
-    navigate(`/pedido/${id}${qs ? `?${qs}` : ''}`, { replace: true });
   };
 
   return (
