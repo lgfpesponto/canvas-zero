@@ -830,9 +830,6 @@ const OrderDetailPage = () => {
                     <span>Total {isAcr ? 'com acréscimo' : 'com desconto'}</span>
                     <span className="text-primary">{formatCurrency(displayTotal)}</span>
                   </div>
-                  {order.descontoJustificativa && (
-                    <p className="text-xs text-muted-foreground mt-1 italic">Justificativa: {order.descontoJustificativa}</p>
-                  )}
                 </>
               );
             })()}
@@ -893,7 +890,7 @@ const OrderDetailPage = () => {
                   </div>
                 )}
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
                     const val = Number(descontoInput);
                     if (!val || val <= 0) { toast.error('Informe um valor válido.'); return; }
                     if (!justificativaInput.trim()) { toast.error('A justificativa é obrigatória.'); return; }
@@ -905,22 +902,16 @@ const OrderDetailPage = () => {
                       toast.error('O desconto não pode deixar o total negativo.');
                       return;
                     }
-                    const dataHoje = formatBrasiliaDate();
-                    const horaAgora = formatBrasiliaTime();
                     const acaoLabel = tipoAjuste === 'desconto' ? 'Desconto aplicado' : 'Acréscimo aplicado';
-                    const newAlteracao = {
-                      data: dataHoje,
-                      hora: horaAgora,
-                      descricao: `${acaoLabel}: ${formatCurrency(val)} | Justificativa: ${justificativaInput.trim()} | Por: ${user?.nomeCompleto || 'Admin'}`,
-                      usuario: user?.nomeCompleto,
-                    };
-                    updateOrder(order.id, {
+                    // updateOrder detecta a mudança em `desconto` automaticamente e grava
+                    // a alteração com justificativa + afetouValor=true. Não duplicamos aqui.
+                    await updateOrder(order.id, {
                       desconto: novoAjuste,
                       descontoJustificativa: justificativaInput.trim(),
-                      alteracoes: [...(order.alteracoes || []), { ...newAlteracao, justificativa: justificativaInput.trim(), afetouValor: true }],
-                    }, justificativaInput.trim());
+                    }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
                     setDescontoInput('');
                     setJustificativaInput('');
+                    await refetchOrder();
                     toast.success(`${acaoLabel} com sucesso!`);
                   }}
                   disabled={!descontoInput || Number(descontoInput) <= 0}
