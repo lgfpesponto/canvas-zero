@@ -953,11 +953,6 @@ const BeltOrderPage = () => {
               )}
             </div>
 
-            <div className="bg-muted rounded-lg p-4 mb-4">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
-              </div>
-            </div>
 
             <div className="flex gap-3">
               <button onClick={() => setShowMirror(false)} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
