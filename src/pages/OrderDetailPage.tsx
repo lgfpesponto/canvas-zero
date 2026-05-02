@@ -639,22 +639,10 @@ const OrderDetailPage = () => {
             return (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-3">
-                  {/* Célula 1: Número do pedido + Ver foto */}
+                  {/* Célula 1: Número do pedido */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Número do pedido</span>
-                    <div className="flex items-center gap-2 flex-wrap justify-end">
-                      <span className="text-base font-display font-bold">{order.numero}</span>
-                      {temFoto && (
-                        <button
-                          type="button"
-                          onClick={() => setFotoOpen(true)}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-semibold"
-                        >
-                          <ImageIcon className="h-3.5 w-3.5" />
-                          {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
-                        </button>
-                      )}
-                    </div>
+                    <span className="text-base font-display font-bold">{order.numero}</span>
                   </div>
 
                   {/* Célula 2: Vendedor (só para admin) */}
@@ -671,44 +659,22 @@ const OrderDetailPage = () => {
                     <span className="text-sm font-semibold text-right">{dataHora}</span>
                   </div>
 
-                  {/* Célula 4: Conferido (só admin_master) */}
-                  {showConferido ? (
-                    <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conferido</span>
-                      <label htmlFor="conferido-checkbox" className="flex items-center gap-2 cursor-pointer select-none">
-                        <Checkbox
-                          id="conferido-checkbox"
-                          checked={!!order.conferido}
-                          onCheckedChange={async (v) => {
-                            const novo = !!v;
-                            const { error } = await supabase
-                              .from('orders')
-                              .update({
-                                conferido: novo,
-                                conferido_em: novo ? new Date().toISOString() : null,
-                                conferido_por: novo ? user?.id : null,
-                              })
-                              .eq('id', order.id);
-                            if (error) {
-                              toast.error('Erro ao salvar: ' + error.message);
-                              return;
-                            }
-                            await refetchOrder();
-                            toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
-                          }}
-                        />
-                        <CheckCircle2 size={14} className={order.conferido ? 'text-primary' : 'text-muted-foreground'} />
-                        <span className="text-sm font-semibold">
-                          {order.conferido ? 'Sim' : 'Não'}
-                        </span>
-                        {order.conferido && order.conferidoEm && (
-                          <span className="text-xs font-normal text-muted-foreground">
-                            ({new Date(order.conferidoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })})
-                          </span>
-                        )}
-                      </label>
-                    </div>
-                  ) : <div className="hidden sm:block" />}
+                  {/* Célula 4: Foto */}
+                  <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Foto</span>
+                    {temFoto ? (
+                      <button
+                        type="button"
+                        onClick={() => setFotoOpen(true)}
+                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-semibold"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
+                      </button>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Linha do prazo — largura cheia */}
