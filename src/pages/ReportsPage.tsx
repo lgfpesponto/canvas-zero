@@ -1416,11 +1416,7 @@ const ReportsPage = () => {
                     Mínimo 5 caracteres • {regressionReason.trim().length}/500
                   </p>
                 </div>
-                {normalIds.length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    + {normalIds.length} pedido(s) avançam normalmente e serão atualizados junto.
-                  </p>
-                )}
+                {/* Os pedidos sem trava já foram aplicados antes deste modal abrir */}
                 <DialogFooter className="mt-4">
                   <button
                     onClick={() => setShowRegressionModal(false)}
