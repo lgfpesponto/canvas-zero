@@ -182,7 +182,7 @@ const EditBeltPage = () => {
         if (fivela === 'Outro' && fivelaOutroDesc) extraDetalhes.fivelaOutroDesc = fivelaOutroDesc;
       }
 
-      await updateOrder(order.id, {
+      const payload = {
         numero: numeroPedido.trim(),
         cliente: cliente.trim(),
         vendedor,
@@ -193,12 +193,16 @@ const EditBeltPage = () => {
         adicionalDesc: adicionalDesc.trim() || null,
         fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [],
         extraDetalhes,
-      } as any);
-      toast.success('Cinto atualizado com sucesso!');
-      const sp = new URLSearchParams(searchParams);
-      if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
-      const qs = sp.toString();
-      navigate(`/pedido/${order.id}${qs ? `?${qs}` : ''}`, { replace: true });
+      } as any;
+
+      await requestSave(order.id, payload, async (oid, data, just) => {
+        await updateOrder(oid, data, just);
+        toast.success('Cinto atualizado com sucesso!');
+        const sp = new URLSearchParams(searchParams);
+        if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
+        const qs = sp.toString();
+        navigate(`/pedido/${order.id}${qs ? `?${qs}` : ''}`, { replace: true });
+      });
     } catch (err) {
       console.error('updateBelt error:', err);
       toast.error('Erro ao salvar alterações.');
