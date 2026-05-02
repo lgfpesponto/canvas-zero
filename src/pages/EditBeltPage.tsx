@@ -34,6 +34,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 const EditBeltPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles } = useAuth();
+  const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
