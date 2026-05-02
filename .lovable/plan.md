@@ -1,43 +1,92 @@
-## Justificativa obrigatória em edições de pedido
+## Objetivo
 
-Quando um `admin_master` ou `admin_producao` salvar qualquer edição em um pedido (novo OU antigo), aparecerá um modal pedindo uma justificativa. Sem texto preenchido, o salvar não prossegue. A justificativa entra no histórico de alterações e — quando a edição mexer no valor — também aparece na "Composição do Pedido" e no PDF de Cobrança.
+1. Mover a seção **"Composição do Pedido"** para cima dos **"Detalhes da Bota"**, logo abaixo do botão **Conferido** (admin_master).
+2. Substituir o card **"Aplicar Desconto"** por **"Edição de Valor"**, com escolha entre **Desconto** ou **Acréscimo**.
+3. O valor ajustado deve refletir automaticamente em **todo lugar** que mostra valor do pedido: lista (`OrderCard`), topo do detalhe, totais agregados, PDF de cobrança, demais relatórios e tracking público.
 
-### Regras
+## Estratégia técnica (sem migração de banco)
 
-- **Quem precisa justificar**: somente `admin_master` e `admin_producao`. Vendedores continuam salvando sem essa etapa.
-- **Quando aparece**: ao salvar qualquer edição que de fato altere algum campo (se nada mudou, salva direto sem pedir).
-- **Vale para pedidos antigos também**: a regra é por evento de edição, não por pedido. Qualquer pedido — mesmo criado antes desta atualização — exigirá justificativa quando for editado a partir de agora. Edições antigas no histórico continuam exibidas como hoje, sem motivo (pois não tinham campo).
-- **Composição do Pedido (tela + PDF de Cobrança)**: lista somente as justificativas de edições que alteraram o valor final (mudança em `preco`, `desconto`, `quantidade` ou nas estruturas de `extraDetalhes` que impactam total).
-- **Histórico de Alterações**: lista todas as justificativas, junto a cada grupo (data, hora, autor, mudanças, motivo).
+Reaproveitamos o campo já existente `order.desconto`:
+- **Desconto** → grava valor positivo (subtrai do total) — comportamento atual.
+- **Acréscimo** → grava valor **negativo** (será somado ao total).
 
-### Mudanças por arquivo
+Atualizamos o helper central `getOrderFinalValue` em `src/lib/order-logic.ts`:
 
-**`src/contexts/AuthContext.tsx`**
-- Estender `OrderAlteracao` com `justificativa?: string` e `afetouValor?: boolean` (campos opcionais — registros antigos seguem válidos).
-- `updateOrder(id, data, justificativa?)`: ao montar `changes`, anexar `justificativa` em cada item do grupo e marcar `afetouValor: true` quando alguma chave alterada for `preco | desconto | quantidade | extraDetalhes`.
+```ts
+export function getOrderFinalValue(order) {
+  const base = getOrderBaseValue(order);
+  const ajuste = Number(order.desconto) || 0; // positivo = desconto, negativo = acréscimo
+  return Math.max(0, base - ajuste);
+}
+```
 
-**Novo `src/components/JustificativaDialog.tsx`**
-- Modal reutilizável com `<Textarea>` obrigatória, botões Cancelar / Confirmar. Confirmar desabilitado enquanto vazio. Props: `open`, `title`, `onConfirm(motivo)`, `onCancel`.
+Como **todos** os lugares que mostram valor já chamam `getOrderFinalValue` (OrderCard, OrderDetailPage topo, TrackOrderPage, pdfGenerators, SpecializedReports cobrança e demais), o reflexo é automático.
 
-**`src/pages/EditOrderPage.tsx`, `src/pages/EditExtrasPage.tsx`, `src/pages/EditBeltPage.tsx`**
-- Antes de chamar `updateOrder`: se o usuário for admin (`admin_master` ou `admin_producao`) E houver diff vs estado atual, abrir `JustificativaDialog`. Ao confirmar, chamar `updateOrder(id, payload, justificativa)`.
-- Sem diff: salva direto. Vendedor: salva direto como hoje.
+## Mudanças em `src/pages/OrderDetailPage.tsx`
 
-**`src/pages/OrderDetailPage.tsx`**
-- Mesmo wrapper nas chamadas de `updateOrder` que mutam campos do pedido por admin.
-- Seção "Composição do Pedido": após o total/desconto, renderizar lista das justificativas com `afetouValor === true` (data, autor, motivo).
-- Seção "Histórico de Alterações": adicionar linha "Motivo: ..." abaixo das descrições de cada grupo que tiver justificativa.
+### Reordenação
+Mover o bloco **Composição do Pedido** (atualmente linhas ~812–978) para logo após o card **Conferido** (linha ~678) e antes do `<h2>Detalhes…`. O conteúdo da composição permanece idêntico (já mostra justificativas de alteração que afetaram valor).
 
-**`src/components/SpecializedReports.tsx` — `generateCobrancaPDF`**
-- No bloco "COMPOSIÇÃO" de cada pedido, após os itens de preço, listar em linha menor as justificativas com `afetouValor === true` (`Motivo (DD/MM por Fulano): ...`). Recalcular altura/quebra de página considerando as linhas extras.
+### Card "Edição de Valor" (substitui "Aplicar Desconto", linhas ~980–1035)
 
-### Detalhes técnicos
+- Título: **Edição de Valor**.
+- Seletor (RadioGroup ou Tabs) **Tipo**: `Desconto` | `Acréscimo`.
+- Input **Valor (R$)** numérico.
+- Input **Justificativa** (obrigatória, textarea).
+- Botão dinâmico: "Aplicar Desconto" / "Aplicar Acréscimo".
+- Ao salvar:
+  - `delta = tipo === 'desconto' ? +valor : -valor`
+  - `novoAjuste = (order.desconto || 0) + delta`
+  - Validar: se `novoAjuste` resultar em total final < 0, bloquear com toast.
+  - `descricao` no histórico: `"Desconto aplicado: R$ X | Justificativa: … | Por: …"` ou `"Acréscimo aplicado: R$ X | Justificativa: … | Por: …"`.
+  - `alteracoes` com `afetouValor: true` (já é o padrão para mudanças em `desconto`).
+- Mantém a regra: **somente `admin_master`** vê e usa este card (admin_producao não pode mexer no valor monetário — coerente com restrições atuais).
 
-- Coluna `orders.alteracoes` (jsonb) já existe; adicionar campos opcionais não exige migração.
-- Detecção de "afetou valor" feita no contexto comparando `current` vs `data` nas chaves `preco`, `desconto`, `quantidade` e `JSON.stringify(extraDetalhes)`.
-- Agrupamento existente (mesma data+hora+usuário) continua válido; pega-se `justificativa` do primeiro item do grupo.
+### Exibição na Composição (bloco existente que mostra `order.desconto`)
+Atualizar o trecho que renderiza o ajuste para suportar acréscimo:
 
-### Fora do escopo
+```tsx
+{order.desconto && order.desconto !== 0 && (() => {
+  const isAcr = order.desconto < 0;
+  const abs = Math.abs(order.desconto);
+  return (
+    <>
+      <div className={`flex justify-between pt-1 ${isAcr ? 'text-emerald-600' : 'text-destructive'}`}>
+        <span className="text-sm font-semibold">{isAcr ? 'Acréscimo' : 'Desconto'}</span>
+        <span className="text-sm font-semibold">{isAcr ? '+ ' : '- '}{formatCurrency(abs)}</span>
+      </div>
+      <div className="flex justify-between pt-1 font-bold text-lg border-t border-border mt-1">
+        <span>Total {isAcr ? 'com acréscimo' : 'com desconto'}</span>
+        <span className="text-primary">{formatCurrency(getOrderFinalValue(order))}</span>
+      </div>
+      {order.descontoJustificativa && (
+        <p className="text-xs text-muted-foreground mt-1 italic">Justificativa: {order.descontoJustificativa}</p>
+      )}
+    </>
+  );
+})()}
+```
 
-- Backfill de justificativa em alterações antigas (não tinham o campo — exibição condicional já trata).
-- Fluxo de troca de status (cancelamento/regressão) — mantém o modal próprio que já existe.
+A seção "Justificativas de alterações de valor" abaixo já é alimentada por `alteracoes` com `afetouValor=true` e continua funcionando para acréscimos (gravamos a alteração com `afetouValor: true`).
+
+## Mudanças em `src/lib/order-logic.ts`
+
+Atualizar `getOrderFinalValue` para tratar `desconto` negativo como acréscimo (somar). Já documentar no comentário do helper. Como `getOrderBaseValue` permanece, todos os PDFs/relatórios que somam totais por pedido (cobrança, lista de pedidos PDF, métricas) usarão automaticamente o novo valor final — não há outro ponto a alterar.
+
+## Mudanças em `src/components/SpecializedReports.tsx` (PDF de cobrança)
+
+Já usa `getOrderFinalValue` para o total por linha e somatórios. Apenas ajustar o texto do "COMPOSIÇÃO" para citar **"Acréscimo"** quando `order.desconto < 0` (atualmente só fala "Desconto"). Ajuste cosmético no parágrafo que lista o ajuste, mantendo a justificativa.
+
+## Pontos não impactados (já corretos)
+
+- `OrderCard.tsx`, topo do `OrderDetailPage`, `TrackOrderPage`, `pdfGenerators.ts`, `get_orders_totals` (RPC) — este último soma `preco*quantidade` e **não** considera desconto/acréscimo. Se for desejado refletir o ajuste no totalizador da lista de pedidos (barra de totais), também precisamos ajustar a RPC. **Nota:** o totalizador atual já ignora desconto; manteremos consistência (não mexer agora) — mas avise se quiser que eu inclua o ajuste no total da lista também via nova migration na RPC `get_orders_totals`.
+
+## Resumo de arquivos editados
+
+- `src/pages/OrderDetailPage.tsx` — reordenar seções; trocar card por "Edição de Valor"; suportar acréscimo na exibição da composição.
+- `src/lib/order-logic.ts` — `getOrderFinalValue` aceita `desconto` negativo como acréscimo.
+- `src/components/SpecializedReports.tsx` — texto do PDF de cobrança diferenciar "Desconto" / "Acréscimo".
+
+## Pergunta antes de implementar
+
+Você quer que o **totalizador da barra de pedidos** (RPC `get_orders_totals` — "Valor total" no topo da lista) também reflita os ajustes de desconto/acréscimo? Hoje ele ignora ambos. Se sim, adiciono uma migration alterando a RPC para subtrair `COALESCE(desconto, 0)` por pedido.

@@ -3,14 +3,17 @@ import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
 import type { AppRole } from '@/contexts/AuthContext';
 import type { Order, OrderAlteracao } from '@/contexts/AuthContext';
 
-/* ───── Order value helpers (preço final c/ desconto) ─────
+/* ───── Order value helpers (preço final c/ desconto OU acréscimo) ─────
  * Centraliza o cálculo do valor exibido em listagens, detalhe e PDFs.
  * Regras (espelham OrderCard / OrderDetailPage):
  *  - Bota normal (sem tipoExtra): preco × quantidade
  *  - Bota Pronta Entrega: preco já é o total
  *  - Revitalizador / kit_revitalizador: preco × quantidade
  *  - Demais extras: preco unitário (quantidade geralmente 1)
- *  - Desconto sempre subtrai do total final (não pode ficar negativo)
+ *  - Campo `desconto`:
+ *      > 0  → desconto (subtrai do total final, mín. 0)
+ *      < 0  → acréscimo (soma ao total final)
+ *      = 0/null → sem ajuste
  */
 export function getOrderBaseValue(order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra'>): number {
   const preco = Number(order.preco) || 0;
@@ -25,8 +28,8 @@ export function getOrderBaseValue(order: Pick<Order, 'preco' | 'quantidade' | 't
 
 export function getOrderFinalValue(order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra' | 'desconto'>): number {
   const base = getOrderBaseValue(order);
-  const desc = order.desconto && order.desconto > 0 ? Number(order.desconto) : 0;
-  return Math.max(0, base - desc);
+  const ajuste = Number(order.desconto) || 0; // positivo = desconto, negativo = acréscimo
+  return Math.max(0, base - ajuste);
 }
 
 /* ───── Production statuses ───── */
