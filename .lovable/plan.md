@@ -1,52 +1,121 @@
-## Renomear status "Bordado 7Estrivos" e adicionar "Baixa Bordado 7Estrivos"
+## Objetivo
 
-### Mudanças funcionais
-1. **Renomear** o status de produção `Bordado 7Estrivos` → `Entrada Bordado 7Estrivos`.
-2. **Adicionar** um novo status de produção `Baixa Bordado 7Estrivos`, posicionado **logo após** `Entrada Bordado 7Estrivos` (mantendo a sequência natural: entrada antes da baixa, antes de seguir para Pesponto).
+Reorganizar `/pedido/:id` em **3 blocos visuais separados**, com Detalhes da Bota no estilo da ficha impressa e históricos colapsáveis. Manter o comportamento atual do botão "Ver foto" (abre painel lateral).
 
-Sequência final do fluxo de bordado:
+## Estrutura final
+
+```text
+┌─────────────────────────────────────────┐
+│ BLOCO 1 — Informações Base              │
+│  • Cabeçalho (nº, vendedor, "Ver foto", │
+│    valor)                               │
+│  • Data, prazo, "Conferido"             │
+│  • Composição do Pedido (itens + total) │
+│  • Edição de Valor (admin_master)       │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ BLOCO 2 — Detalhes (estilo Ficha)       │
+│  • Categorias com faixa primary         │
+│  • Sem canhotos                         │
+│  • Link da foto (no lugar do QR)        │
+│  • Observação                           │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ BLOCO 3 — Históricos (ordem fixa)       │
+│   1. Produção                           │
+│   2. Alterações                         │
+│   3. Impressão                          │
+│  Cada um:                               │
+│   • Mostra somente a entrada mais recente│
+│   • Botão "Ver mais (N)" / "Ver menos"  │
+│   • Mais antiga sempre por último       │
+└─────────────────────────────────────────┘
 ```
-... → Sem bordado → Bordado Dinei → Bordado Sandro → Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos → Pesponto 01 → ...
-```
 
-Ambos novos status entram nas mesmas regras: aparecem nos filtros do dashboard, contam como "em produção", aparecem no relatório de Bordados, podem ser usados no fluxo de avanço/regressão (já coberto pelo guard de regressão existente).
+## Comportamento do "Ver foto" (mantém o atual)
 
-### Arquivos a alterar
+- O botão "Ver foto/Ver fotos (N)" no cabeçalho do Bloco 1 continua chamando `setFotoOpen(true)`.
+- Painel lateral `FotoPedidoSidePanel` segue aparecendo à direita (grid `lg:grid-cols-[minmax(0,1fr)_400px]`), exatamente como hoje.
+- O link de foto adicionado no Bloco 2 (substituindo o QR da ficha) é **apenas um link clicável** (URL → abre em nova aba). Não substitui o botão "Ver foto" do cabeçalho.
 
-**1. `src/lib/order-logic.ts`** — atualizar 3 arrays:
-- `PRODUCTION_STATUSES` (linha 39)
-- `PRODUCTION_STATUSES_USER` (linha 48)
-- `PRODUCTION_STATUSES_IN_PROD` (linha 67)
+## Alterações por bloco
 
-Em cada um, substituir `"Bordado 7Estrivos"` por `"Entrada Bordado 7Estrivos", "Baixa Bordado 7Estrivos"`.
+### Bloco 1 — Card "Informações Base"
+Envolver em um único card (`bg-card rounded-xl p-6 md:p-8 western-shadow`):
+- Cabeçalho atual (nº pedido, ícone editar, vendedor, botão **Ver foto**, valor à direita) — **inalterado**.
+- Data + prazo + "Conferido" — inalterado.
+- "Composição do Pedido" + "Edição de Valor" — inalterados em lógica.
 
-**2. `src/components/SpecializedReports.tsx`** (linha 63) — atualizar a constante usada no relatório de Bordados:
-```ts
-const BORDADO_STATUSES = ['Bordado Dinei', 'Bordado Sandro', 'Entrada Bordado 7Estrivos', 'Baixa Bordado 7Estrivos'];
-```
-Assim o relatório de Bordados continua agrupando pedidos em ambas as etapas do 7Estrivos.
+### Bloco 2 — Card "Detalhes da Bota" estilo ficha
+Card separado, abaixo do Bloco 1:
+- Título `Detalhes da Bota` (ou `Detalhes — {extra}`).
+- Categorias em faixa `bg-primary text-primary-foreground` (já existe), grid 2 colunas (já existe).
+- Sem canhotos (página já não tem).
+- Para extras/cinto: manter sub-layouts atuais (multi-bota, cinto agrupado).
+- **No final do card**, área "Foto de Referência":
+  - Se `fotosValidas.length > 0`: lista de links clicáveis (`<a target="_blank">`) com a URL da(s) foto(s).
+  - Senão: "Sem foto de referência."
+- "Observação" entra dentro deste card (abaixo das categorias, antes da Foto de Referência).
+- Remover o bloco "Foto de Referência" antigo (linhas 1041-1056) — sua função visual passa a ser cumprida aqui.
 
-**3. `docs/BUSINESS_RULES.md`** (linha 362) — atualizar a documentação do fluxo para refletir os dois novos nomes na ordem.
+### Bloco 3 — Card "Históricos" colapsáveis
+Card separado, ordem fixa:
+1. **Histórico de Produção** (`order.historico` invertido)
+2. **Histórico de Alterações** (`alteracoesAgrupadas` invertido)
+3. **Histórico de Impressão** (`order.impressoes` invertido — já é hoje)
 
-### Migração de dados (banco)
-Existem **227 pedidos** atualmente com `status = 'Bordado 7Estrivos'` na tabela `orders`. É preciso migrar:
-```sql
-UPDATE orders SET status = 'Entrada Bordado 7Estrivos' WHERE status = 'Bordado 7Estrivos';
-```
-Critério: pedidos que estão hoje em "Bordado 7Estrivos" representam peças que **entraram** no bordado, então o destino correto é `Entrada Bordado 7Estrivos`. O novo status `Baixa Bordado 7Estrivos` começa zerado e será atribuído manualmente conforme as peças saírem do bordado.
+Comportamento por seção:
+- Renderizar do mais recente → mais antigo.
+- Estado inicial: mostra **apenas a 1ª entrada** (mais recente).
+- Se `items.length > 1`: botão "Ver mais (N anteriores)" expande o restante; quando expandido vira "Ver menos".
+- Se `items.length === 0`: mensagem de vazio existente.
+- Se `items.length === 1`: nenhum botão.
 
-A migração será feita via arquivo de migração Supabase para ficar versionada.
+## Detalhes técnicos
 
-### O que NÃO muda
-- Ordem visual nos selects (mantém ordem dos arrays).
-- Lógica de regressão/avanço (`statusRegression.ts`) — funciona com qualquer string nova automaticamente.
-- Histórico (`alteracoes`) — entradas antigas continuam apontando para "Bordado 7Estrivos" como referência histórica do que aconteceu naquele momento; isso é correto e não deve ser reescrito.
-- Memórias e demais relatórios que não filtram explicitamente por esse status.
+**Arquivo único:** `src/pages/OrderDetailPage.tsx`
 
-### Resumo de impacto
-| Local | Ação |
-|---|---|
-| `order-logic.ts` (3 arrays) | renomear + inserir novo |
-| `SpecializedReports.tsx` (BORDADO_STATUSES) | renomear + inserir novo |
-| `docs/BUSINESS_RULES.md` | atualizar fluxo |
-| Tabela `orders` (227 registros) | UPDATE via migração |
+1. **Wrapper externo** dos 3 cards: `<div className="space-y-6">…</div>` substituindo o `bg-card` único atual.
+
+2. **Componente local `CollapsibleHistory`** (definido no mesmo arquivo, sem novos imports):
+   - Props: `title: string`, `icon?: ReactNode`, `items: T[]`, `renderItem: (item: T, idx: number) => ReactNode`, `emptyMessage: string`.
+   - `useState` interno para `expanded`.
+   - Usa `Button` (`variant="ghost" size="sm"`) já importado.
+
+3. **Inversão das listas**:
+   - `const historicoDesc = [...order.historico].reverse();`
+   - `const alteracoesDesc = [...alteracoesAgrupadas].reverse();`
+   - `const impressoesDesc = [...(order.impressoes || [])].reverse();`
+
+4. **Foto no Bloco 2**:
+   ```tsx
+   const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
+   <div className="mt-4 pt-3 border-t border-border">
+     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+       Foto de Referência
+     </p>
+     {fotosValidas.length === 0 ? (
+       <p className="text-xs text-muted-foreground">Sem foto de referência.</p>
+     ) : (
+       fotosValidas.map((url, i) => (
+         <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-primary hover:underline break-all block">
+           {url} ↗
+         </a>
+       ))
+     )}
+   </div>
+   ```
+
+5. **Não mexer**: lógica de cálculo, scanner, edição de valor, "Conferido", navegação entre pedidos, painel lateral `FotoPedidoSidePanel` (continua acionado pelo botão "Ver foto" do cabeçalho).
+
+## Fora do escopo
+
+- Sem mudanças em DB, edge functions, PDFs ou outros componentes.
+- Sem alteração de regras de negócio.
+
+## Resultado esperado
+
+Página de detalhe dividida em 3 cartões claros, com o card central espelhando a ficha impressa (link no lugar do QR), históricos enxutos por padrão e o botão "Ver foto" continuando a abrir a foto no painel lateral como já funciona hoje.

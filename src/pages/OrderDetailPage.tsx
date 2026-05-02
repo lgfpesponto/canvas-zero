@@ -65,6 +65,9 @@ const OrderDetailPage = () => {
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkCancelReason, setBulkCancelReason] = useState('');
   const [fotoOpen, setFotoOpen] = useState(false);
+  const [expProducao, setExpProducao] = useState(false);
+  const [expAlteracoes, setExpAlteracoes] = useState(false);
+  const [expImpressao, setExpImpressao] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const handleScanSubmit = useCallback(async () => {
