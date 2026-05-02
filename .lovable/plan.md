@@ -1,57 +1,48 @@
-## Diagnóstico
+Objetivo: corrigir o PDF de cobrança para remover o problema visual da coloração, trocar isso por um marcador discreto de status e acertar a composição/preço exibido em pedidos de cinto.
 
-No PDF da imagem, o pedido **não tem desconto ativo no momento** (`o.desconto === 0`) — a última alteração foi justamente "voltando pro valor original" (zerou o desconto que existia antes). Por isso:
+O que vou alterar
 
-1. **Linha "Desconto R$ X,XX" não aparece** → o bloco `if (o.desconto && o.desconto !== 0)` não dispara, então não adiciona a linha em `priceItems`.
-2. **Sem coloração** → como a palavra "Desconto" não vira linha própria, o overlay colorido também não roda. A palavra só aparece dentro do texto do motivo (`"Desconto aplicado: R$ 10,00 — voltando pro valor original"`).
+1. Remover totalmente a coloração de texto no PDF de cobrança
+- Tirar o bloco que redesenha a palavra “Acréscimo” ou “Desconto” por cima do texto preto.
+- Deixar toda a composição sempre em preto, inclusive justificativa.
+- Isso elimina de vez o efeito de palavra duplicada/deslocada visto no PDF.
 
-A ordem (Desconto/Acréscimo → valor → motivo) **já está correta** no código atual quando há desconto ativo: `priceItems` empilha "Desconto R$ X,XX" antes de `justifLines` ("Motivo: ..."). Você pode confirmar isso testando um pedido com desconto != 0.
+2. Adicionar um indicador visual com bolinha no quadro da composição
+- Quando o pedido tiver acréscimo ativo (`o.desconto < 0`), desenhar uma bolinha pequena verde no canto inferior direito da célula de composição.
+- Quando o pedido tiver desconto ativo (`o.desconto > 0`), desenhar a mesma bolinha em vermelho na mesma posição.
+- Quando não houver ajuste ativo (`o.desconto === 0` ou vazio), não desenhar bolinha.
+- A bolinha ficará dentro do quadro da composição, sem interferir no texto.
 
-## Mudança proposta
+3. Corrigir a composição dos pedidos de cinto no PDF de cobrança
+- Hoje o PDF monta cinto com `['Cinto', 0]`, por isso aparece “Cinto R$ 0,00”.
+- Vou alinhar essa montagem com a lógica já usada no restante do sistema, onde o valor-base do cinto vem do tamanho selecionado (`BELT_SIZES`).
+- Em vez de mostrar “Cinto R$ 0,00”, a composição passará a exibir apenas os itens reais de preço do cinto, por exemplo:
+  - `Tamanho: 1,10 cm R$ 100,00`
+  - `Bordado P R$ 10,00` quando existir
+  - `Nome Bordado R$ 40,00` quando existir
+  - `1 a 3 carimbos R$ 20,00` / `4 a 6 carimbos R$ 40,00` quando existir
+- Assim o valor-base deixa de aparecer zerado e passa a refletir o mesmo cálculo já usado em detalhe/edição.
 
-Tornar a coloração robusta para os dois casos no PDF de cobrança (`generateCobrancaPDF` em `src/components/SpecializedReports.tsx`):
+4. Preservar a ordem que já ficou correta
+- Manter a sequência da composição como está funcionando agora:
+  - itens da composição
+  - `Acréscimo` ou `Desconto` com valor
+  - `Justificativa (...)` com o texto limpo, sem repetir o valor
+- Não vou mexer na ordem, apenas no visual e na origem do preço do cinto.
 
-### 1. Caso já implementado — desconto/acréscimo ativo
-Mantém a linha "Desconto R$ X,XX" (vermelho) ou "Acréscimo R$ X,XX" (verde) antes do motivo. Já funciona.
+Arquivos envolvidos
+- `src/components/SpecializedReports.tsx`
 
-### 2. Novo — quando o motivo menciona Desconto/Acréscimo mesmo sem valor ativo
-Detectar a palavra "Desconto" ou "Acréscimo" dentro da linha "Motivo: ..." e colorir só essa palavra (vermelho/verde) onde ela aparece, calculando o offset X via `doc.getTextWidth(prefix)`.
+Detalhes técnicos
+- O bloco específico de `generateCobrancaPDF()` para cinto será ajustado para usar a mesma regra de belt já presente em outras telas: buscar o preço pelo `det.tamanhoCinto`, em vez de inserir `Cinto = 0`.
+- Também vou aceitar o padrão salvo do cinto que já existe no projeto (`Tem`), para não depender de `Sim` e evitar inconsistência entre criação/edição e PDF.
+- A bolinha será desenhada com `doc.setFillColor(...)` + `doc.circle(...)` posicionada pela largura/altura da coluna de composição.
+- O texto da composição continuará sendo renderizado uma única vez via `doc.text(...)`, sem overlay posterior.
 
-```ts
-// Após desenhar `lines` em preto:
-(lines as string[]).forEach((line, idx) => {
-  const lineY = y + 4 + idx * 3;
-  // 1) Linha que começa com Desconto/Acréscimo (valor ativo)
-  if (line.startsWith('Desconto')) {
-    doc.setTextColor(220, 38, 38);
-    doc.text('Desconto', cx[2] + 1, lineY);
-    doc.setTextColor(0, 0, 0);
-    return;
-  }
-  if (line.startsWith('Acréscimo')) {
-    doc.setTextColor(22, 163, 74);
-    doc.text('Acréscimo', cx[2] + 1, lineY);
-    doc.setTextColor(0, 0, 0);
-    return;
-  }
-  // 2) Palavra dentro do motivo (sem valor ativo ou em qualquer lugar)
-  const m = line.match(/(Desconto|Acréscimo)/i);
-  if (m) {
-    const word = m[1];
-    const before = line.substring(0, m.index!);
-    const xOffset = cx[2] + 1 + doc.getTextWidth(before);
-    if (/^acréscimo/i.test(word)) doc.setTextColor(22, 163, 74);
-    else doc.setTextColor(220, 38, 38);
-    doc.text(word, xOffset, lineY);
-    doc.setTextColor(0, 0, 0);
-  }
-});
-```
+Resultado esperado
+- Nada mais colorido dentro do texto.
+- Acréscimo/desconto indicado só por uma bolinha discreta.
+- Cintos sem “R$ 0,00” no item base.
+- Ordem atual de ajuste + justificativa preservada.
 
-E removo o bloco antigo de overlay (que só pegava `lineIdx` da primeira linha começando com a palavra).
-
-## Confirmação sobre ordem
-
-A ordem no código já é: `[itens... , Desconto/Acréscimo R$ X, Motivo: ...]`. Se você testar um pedido com desconto/acréscimo ativo e ainda vir ordem diferente, me mande print desse caso específico — pode ser outro detalhe.
-
-Posso aplicar?
+Se você aprovar, eu aplico exatamente essas mudanças no gerador do PDF de cobrança.
