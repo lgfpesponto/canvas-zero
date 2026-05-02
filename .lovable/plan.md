@@ -1,27 +1,55 @@
-## Ajuste solicitado
+## Replicar layout da Ficha Impressa no bloco "Detalhes da Bota"
 
-Reorganizar o **Bloco 3 (Históricos)** da página de Detalhes do Pedido (`/pedido/:id`):
+Reescrever o **Bloco 2 — Detalhes** da página de pedido para espelhar exatamente a ficha PDF (foto enviada): cabeçalho compacto de identificação, divisor, grid de **3 colunas** com categorias (COUROS, PESPONTO, SOLADOS, BORDADOS, LASER E RECORTES, METAIS, EXTRAS, OBS, etc.), **sem os canhotos** do rodapé e **sem o QR** — no lugar dele, um link reduzido para a foto.
 
-1. Os 3 históricos (Produção, Alterações, Impressão) ficam **lado a lado em 3 colunas** (em desktop), com **linha vertical separadora** entre eles. No mobile, empilham com linha horizontal separadora.
-2. O botão **"Ver mais (N anteriores)"** ganha fundo **laranja primary** (`bg-primary text-primary-foreground`) em vez de ghost, ficando claramente identificável como botão.
+Esta mudança vale apenas para o caso **bota** (sem `tipoExtra`). Os blocos de **cinto** e **bota_pronta_entrega/extras** permanecem como estão hoje (já têm layout próprio).
 
-## Detalhes técnicos
+### O que muda
 
-**Arquivo único:** `src/pages/OrderDetailPage.tsx`
+**Bloco 2 (`src/pages/OrderDetailPage.tsx`)** — substituir a renderização atual (cards laranja em grid 2-col) pela estrutura da ficha:
 
-- Trocar o wrapper `<div className="space-y-6">` que envolve os 3 históricos por:
-  ```tsx
-  <div className="grid md:grid-cols-3 gap-0 md:divide-x divide-y md:divide-y-0 divide-border">
-  ```
-- Cada coluna recebe padding lateral/vertical para respirar dos divisores:
-  - Coluna 1: `md:pr-5 pb-5 md:pb-0`
-  - Coluna 2: `md:px-5 py-5 md:py-0`
-  - Coluna 3: `md:pl-5 pt-5 md:pt-0`
-- Os 3 botões "Ver mais" passam de `variant="ghost"` para botão padrão com classe:
-  ```
-  bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold
-  ```
-- Listas internas continuam: mais recente em cima, "Ver mais" expande as anteriores; mais antiga sempre por último.
+1. **Mini-cabeçalho da ficha** (apenas informativo, dentro do bloco):
+   - Coluna esquerda: `Código`, `Vendedor`, `Data`
+   - Coluna direita (onde ficaria o QR): bloco "Foto de Referência" com link(s) — mostrando o nome curto do arquivo (ex.: `foto-1.jpg ↗`) em vez da URL completa, com `title` mostrando a URL inteira no hover. Cada link abre em nova aba (igual hoje).
+   - Linha divisória horizontal abaixo.
 
-## Fora do escopo
-- Sem mudanças em Blocos 1 e 2, banco, lógica de cálculo ou outros componentes.
+2. **Grid de 3 colunas** com as mesmas categorias da ficha PDF, na mesma ordem:
+   - IDENTIFICAÇÃO (sob medida / desenv. / cliente — quando existirem)
+   - COUROS (Cano / Gáspea / Taloneira + cor)
+   - PESPONTO (Linha / Borrachinha / Vivo)
+   - SOLADOS (Tipo / Cor / Vira)
+   - BORDADOS (Cano / Gáspea / Taloneira / Nome)
+   - LASER E RECORTES
+   - ESTAMPA
+   - METAIS
+   - EXTRAS (acessórios, tricê, tiras, franja, corrente, costura atrás, carimbo)
+   - ADICIONAL
+   - OBS
+   - Cabeçalho de cada categoria: faixa cinza clara (`bg-muted`), texto pequeno bold uppercase — replicando o estilo dos retângulos cinza do PDF.
+   - Itens: `Label:` em bold + valor em normal, na mesma linha quando couber, fonte pequena (`text-xs` / `text-sm`), espaçamento compacto.
+   - Categorias se distribuem nas 3 colunas com balanceamento simples (ordem fixa preenchendo coluna por coluna, ou distribuídas em sequência — usaremos CSS columns para auto-balanceamento e quebra natural, mantendo categorias inteiras juntas com `break-inside: avoid`).
+
+3. **Sem canhotos** (BORDADO / PESPONTO / EXPEDIÇÃO + código de barras): nada disso é renderizado no bloco — é exclusivo da impressão.
+
+4. **Responsivo**: 3 colunas em `md+`, 2 em `sm`, 1 no mobile.
+
+5. **Remover** o atual bloco "Foto de Referência" no fim do card (item 1047-1074) — o link da foto passa para o cabeçalho do bloco.
+
+6. **Manter intacto**: bloco da observação grande (se existir e não couber inline em OBS, fica embutido na própria categoria OBS como hoje no PDF).
+
+### Fonte de dados (reutilizar lógica do PDF)
+
+Replicar exatamente o mesmo mapeamento usado em `src/lib/pdfGenerators.ts` (linhas 339-443): mesmas regras de fallback (ex.: `solado` → "Borracha", `formatoBico` → "quadrada"), mesma exclusão (cor vira "Bege"/"Neutra" não aparece), mesma substituição de "Bordado Variado" pela descrição. Para evitar duplicação, criamos um helper local `buildBootCategories(order)` no próprio arquivo (ou em `src/lib/orderFichaCategories.ts`) que retorna `Category[]` — e o usamos tanto na tela quanto, opcionalmente no futuro, no PDF.
+
+### Detalhes técnicos
+
+- **Layout**: `<div className="columns-1 sm:columns-2 md:columns-3 gap-6">` com cada categoria em `<div className="break-inside-avoid mb-4">`. Cabeçalho da categoria: `<div className="bg-muted px-2 py-1 text-[11px] font-bold uppercase tracking-wide mb-1.5">`. Itens: `<div className="text-xs leading-relaxed"><span className="font-bold">{label}</span> {value}</div>`.
+- **Mini-cabeçalho**: grid 2 colunas. Esquerda mostra Código/Vendedor/Data (campos já presentes em `order`). Direita mostra o link da foto reduzido (extrair último segmento da URL com `url.split('/').pop()?.split('?')[0]`, truncar a 28 chars com `truncate` + `title={url}`).
+- **Sem mexer**: Bloco 1 (informações base + valor) e Bloco 3 (históricos lado a lado) permanecem exatamente como estão.
+
+### Arquivos a editar
+
+- `src/pages/OrderDetailPage.tsx` — substituir o conteúdo do Bloco 2 quando não há `tipoExtra` (linhas ~1020-1074).
+- (Opcional) `src/lib/orderFichaCategories.ts` — novo helper extraindo a lógica de categorias.
+
+Posso aplicar?
