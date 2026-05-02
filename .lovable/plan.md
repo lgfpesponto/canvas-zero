@@ -1,41 +1,43 @@
-## Diagnóstico
+## Justificativa obrigatória em edições de pedido
 
-Olhei o código do leitor de código de barras dentro de `src/pages/OrderDetailPage.tsx` (botão "Buscar Pedido" no canto superior). Não há erro/crash no console — ele está achando o pedido normalmente (`fetchOrderByScan` funciona). O problema é o mesmo padrão que corrigimos antes nas edições:
+Quando um `admin_master` ou `admin_producao` salvar qualquer edição em um pedido (novo OU antigo), aparecerá um modal pedindo uma justificativa. Sem texto preenchido, o salvar não prossegue. A justificativa entra no histórico de alterações e — quando a edição mexer no valor — também aparece na "Composição do Pedido" e no PDF de Cobrança.
 
-**Linha 80 (`handleScanSubmit`):**
-```ts
-navigate('/pedido/' + match.id);
-```
+### Regras
 
-Ele navega para o pedido escaneado **sem** preservar `location.search`. Resultado prático na visão de detalhe:
+- **Quem precisa justificar**: somente `admin_master` e `admin_producao`. Vendedores continuam salvando sem essa etapa.
+- **Quando aparece**: ao salvar qualquer edição que de fato altere algum campo (se nada mudou, salva direto sem pedir).
+- **Vale para pedidos antigos também**: a regra é por evento de edição, não por pedido. Qualquer pedido — mesmo criado antes desta atualização — exigirá justificativa quando for editado a partir de agora. Edições antigas no histórico continuam exibidas como hoje, sem motivo (pois não tinham campo).
+- **Composição do Pedido (tela + PDF de Cobrança)**: lista somente as justificativas de edições que alteraram o valor final (mudança em `preco`, `desconto`, `quantidade` ou nas estruturas de `extraDetalhes` que impactam total).
+- **Histórico de Alterações**: lista todas as justificativas, junto a cada grupo (data, hora, autor, mudanças, motivo).
 
-1. Você está em `/pedido/AAA?status=...&vendedor=...` (com filtros vindos da listagem).
-2. Aperta "Buscar Pedido", escaneia o código.
-3. App vai para `/pedido/BBB` (sem filtros).
-4. O hook `useOrderNeighbors` recarrega **toda** a base, e o pedido escaneado pode nem estar no conjunto filtrado → as setinhas prev/next ficam confusas, "page X de Y" muda, e dá a sensação de que o leitor "não funcionou".
+### Mudanças por arquivo
 
-Outro detalhe: na linha 76-78, o código tenta marcar o pedido **atual** (o que você estava vendo antes) como selecionado quando você escaneia outro — provavelmente uma intenção antiga de seleção em massa via scan, mas isso confunde porque seleciona algo que o usuário não pediu para selecionar. Vou checar com você se isso fica ou sai.
+**`src/contexts/AuthContext.tsx`**
+- Estender `OrderAlteracao` com `justificativa?: string` e `afetouValor?: boolean` (campos opcionais — registros antigos seguem válidos).
+- `updateOrder(id, data, justificativa?)`: ao montar `changes`, anexar `justificativa` em cada item do grupo e marcar `afetouValor: true` quando alguma chave alterada for `preco | desconto | quantidade | extraDetalhes`.
 
-## Mudanças propostas
+**Novo `src/components/JustificativaDialog.tsx`**
+- Modal reutilizável com `<Textarea>` obrigatória, botões Cancelar / Confirmar. Confirmar desabilitado enquanto vazio. Props: `open`, `title`, `onConfirm(motivo)`, `onCancel`.
 
-### 1. Preservar filtros no scan (`src/pages/OrderDetailPage.tsx`, linha 80)
-```ts
-navigate('/pedido/' + match.id + location.search);
-```
-E adicionar `location.search` ao array de dependências do `useCallback` (linha 88).
+**`src/pages/EditOrderPage.tsx`, `src/pages/EditExtrasPage.tsx`, `src/pages/EditBeltPage.tsx`**
+- Antes de chamar `updateOrder`: se o usuário for admin (`admin_master` ou `admin_producao`) E houver diff vs estado atual, abrir `JustificativaDialog`. Ao confirmar, chamar `updateOrder(id, payload, justificativa)`.
+- Sem diff: salva direto. Vendedor: salva direto como hoje.
 
-### 2. Decisão sobre o auto-select (linhas 76-78)
-Hoje, quando você escaneia o pedido B estando no pedido A, o app marca o **A** como selecionado antes de navegar para o B. Possíveis caminhos:
-- **(a)** Manter como está (lógica antiga de "ir marcando à medida que confere").
-- **(b)** Remover esse auto-select — o scan vira só "ir para o pedido escaneado", sem efeito colateral na seleção.
-- **(c)** Inverter: marca o pedido **escaneado** (B) como selecionado, em vez do atual (A).
+**`src/pages/OrderDetailPage.tsx`**
+- Mesmo wrapper nas chamadas de `updateOrder` que mutam campos do pedido por admin.
+- Seção "Composição do Pedido": após o total/desconto, renderizar lista das justificativas com `afetouValor === true` (data, autor, motivo).
+- Seção "Histórico de Alterações": adicionar linha "Motivo: ..." abaixo das descrições de cada grupo que tiver justificativa.
 
-Preciso da sua escolha aqui — qual é o uso real do scanner nessa tela pra você?
+**`src/components/SpecializedReports.tsx` — `generateCobrancaPDF`**
+- No bloco "COMPOSIÇÃO" de cada pedido, após os itens de preço, listar em linha menor as justificativas com `afetouValor === true` (`Motivo (DD/MM por Fulano): ...`). Recalcular altura/quebra de página considerando as linhas extras.
 
-## Arquivo a editar
-- `src/pages/OrderDetailPage.tsx` (apenas o handler `handleScanSubmit`)
+### Detalhes técnicos
 
-## Resultado esperado
-- Escanear um pedido leva você a ele **mantendo os filtros** que você tinha.
-- Setinha prev/next continua respeitando o filtro.
-- Comportamento de seleção fica conforme sua resposta na pergunta acima.
+- Coluna `orders.alteracoes` (jsonb) já existe; adicionar campos opcionais não exige migração.
+- Detecção de "afetou valor" feita no contexto comparando `current` vs `data` nas chaves `preco`, `desconto`, `quantidade` e `JSON.stringify(extraDetalhes)`.
+- Agrupamento existente (mesma data+hora+usuário) continua válido; pega-se `justificativa` do primeiro item do grupo.
+
+### Fora do escopo
+
+- Backfill de justificativa em alterações antigas (não tinham o campo — exibição condicional já trata).
+- Fluxo de troca de status (cancelamento/regressão) — mantém o modal próprio que já existe.
