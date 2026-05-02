@@ -1234,11 +1234,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       if (o.tipoExtra === 'cinto' && o.extraDetalhes) {
         const det = o.extraDetalhes as any;
-        priceItems.push(['Cinto', 0]);
-        const sizeEntry = BELT_SIZES.find(s => s.label === det.tamanhoCinto);
+        // Tamanho do cinto pode estar salvo como "1,10 cm" ou "1,10 cm (R$X)" — usa startsWith
+        const tamRaw: string = det.tamanhoCinto || '';
+        const sizeEntry = BELT_SIZES.find(s => tamRaw.startsWith(s.label));
         if (sizeEntry) priceItems.push([`Tamanho: ${sizeEntry.label}`, sizeEntry.preco]);
-        if (det.bordadoP === 'Sim') priceItems.push(['Bordado P', BORDADO_P_PRECO]);
-        if (det.nomeBordado === 'Sim') priceItems.push(['Nome Bordado', NOME_BORDADO_CINTO_PRECO]);
+        // Bordado/Nome são salvos como 'Tem' (criação/edição). Mantém 'Sim' por compatibilidade.
+        if (det.bordadoP === 'Tem' || det.bordadoP === 'Sim') priceItems.push(['Bordado P', BORDADO_P_PRECO]);
+        if (det.nomeBordado === 'Tem' || det.nomeBordado === 'Sim') priceItems.push(['Nome Bordado', NOME_BORDADO_CINTO_PRECO]);
         const carimboEntry = BELT_CARIMBO.find(c => c.label === det.carimbo);
         if (carimboEntry) priceItems.push([det.carimbo, carimboEntry.preco]);
       } else if (o.tipoExtra && o.extraDetalhes) {
@@ -1441,20 +1443,18 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       doc.setFontSize(6);
       doc.text(lines, cx[2] + 1, y + 4);
-      // Coloriza apenas a linha-própria que começa com "Acréscimo " (verde) ou
-      // "Desconto " (vermelho). Linhas pós-quebra do splitTextToSize não são tocadas,
-      // evitando palavra deslocada ou duplicada.
-      (lines as string[]).forEach((line, idx) => {
-        const lineY = y + 4 + idx * 3;
-        let word: 'Acréscimo' | 'Desconto' | null = null;
-        if (line.startsWith('Acréscimo ')) word = 'Acréscimo';
-        else if (line.startsWith('Desconto ')) word = 'Desconto';
-        if (!word) return;
-        if (word === 'Acréscimo') doc.setTextColor(22, 163, 74);
-        else doc.setTextColor(220, 38, 38);
-        doc.text(word, cx[2] + 1, lineY);
-        doc.setTextColor(0, 0, 0);
-      });
+
+      // Indicador visual: bolinha no canto inferior direito da célula de composição.
+      // Verde = acréscimo ativo (desconto < 0), vermelho = desconto ativo (desconto > 0).
+      if (o.desconto && o.desconto !== 0) {
+        const isAcrescimo = o.desconto < 0;
+        if (isAcrescimo) doc.setFillColor(22, 163, 74); else doc.setFillColor(220, 38, 38);
+        const compRight = cx[2] + cols[2];
+        const cxBall = compRight - 2.2;
+        const cyBall = y + rowH - 2.2;
+        doc.circle(cxBall, cyBall, 1.1, 'F');
+        doc.setFillColor(0, 0, 0);
+      }
 
       doc.setFontSize(8);
       const detCob = (o.extraDetalhes || {}) as any;
