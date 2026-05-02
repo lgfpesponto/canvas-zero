@@ -58,6 +58,7 @@ const OrderDetailPage = () => {
 
   const [descontoInput, setDescontoInput] = useState('');
   const [justificativaInput, setJustificativaInput] = useState('');
+  const [tipoAjuste, setTipoAjuste] = useState<'desconto' | 'acrescimo'>('desconto');
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
