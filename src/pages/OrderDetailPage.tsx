@@ -678,6 +678,262 @@ const OrderDetailPage = () => {
             </div>
           )}
 
+          {/* ═══ Composição do Pedido (acima dos Detalhes) ═══ */}
+          <h2 className="text-lg font-display font-bold mb-3">Composição do Pedido</h2>
+          <div className="border border-border rounded-lg p-4 mb-2">
+            {order.tipoExtra ? (
+              <>
+                {(() => {
+                  const extraPriceItems: [string, number][] = [];
+                  const det = order.extraDetalhes || {};
+                  switch (order.tipoExtra) {
+                    case 'cinto': {
+                      const sizeItem = BELT_SIZES.find((s: any) => det.tamanhoCinto?.startsWith(s.label));
+                      if (sizeItem) extraPriceItems.push([`Tamanho: ${sizeItem.label}`, sizeItem.preco]);
+                      if (det.bordadoP === 'Tem') extraPriceItems.push(['Bordado P', BORDADO_P_PRECO]);
+                      if (det.nomeBordado === 'Tem') extraPriceItems.push(['Nome Bordado', NOME_BORDADO_CINTO_PRECO]);
+                      if (det.carimbo) {
+                        const car = BELT_CARIMBO.find((c: any) => c.label === det.carimbo);
+                        if (car) extraPriceItems.push([det.carimbo, car.preco]);
+                      }
+                      break;
+                    }
+                    case 'tiras_laterais':
+                      extraPriceItems.push(['Tiras Laterais', 15]);
+                      break;
+                    case 'desmanchar': {
+                      extraPriceItems.push(['Valor base (Desmanchar)', 65]);
+                      if (det.qualSola === 'Preta borracha') extraPriceItems.push(['Sola preta borracha', 25]);
+                      else if (det.qualSola === 'De cor borracha') extraPriceItems.push(['Sola de cor borracha', 40]);
+                      else if (det.qualSola === 'De couro') extraPriceItems.push(['Sola de couro', 60]);
+                      if (det.trocaGaspea === 'Sim') extraPriceItems.push(['Troca de gáspea/taloneira', 35]);
+                      break;
+                    }
+                    case 'kit_canivete':
+                      extraPriceItems.push(['Kit Canivete', 30]);
+                      if (det.vaiCanivete === 'Sim') extraPriceItems.push(['Canivete incluso', 30]);
+                      break;
+                    case 'kit_faca':
+                      extraPriceItems.push(['Kit Faca', 35]);
+                      if (det.vaiCanivete === 'Sim') extraPriceItems.push(['Faca inclusa', 35]);
+                      break;
+                    case 'carimbo_fogo': {
+                      const qty = parseInt(det.qtdCarimbos) || 1;
+                      extraPriceItems.push([`Carimbo a Fogo (${qty}x)`, qty >= 4 ? 40 : 20]);
+                      break;
+                    }
+                    case 'revitalizador': {
+                      const qty = parseInt(det.quantidade) || 1;
+                      extraPriceItems.push([`Revitalizador (${qty}x)`, 10 * qty]);
+                      break;
+                    }
+                    case 'kit_revitalizador': {
+                      const qty = parseInt(det.quantidade) || 1;
+                      extraPriceItems.push([`Kit 2 Revitalizador (${qty}x)`, 26 * qty]);
+                      break;
+                    }
+                    case 'gravata_country':
+                      extraPriceItems.push(['Gravata Country', 30]);
+                      break;
+                    case 'adicionar_metais': {
+                      const sel = (det.metaisSelecionados as string[]) || [];
+                      if (sel.includes('Bola grande')) {
+                        const qty = parseInt(det.qtdBolaGrande) || 1;
+                        extraPriceItems.push([`Bola grande (${qty}x R$0,60)`, 0.60 * qty]);
+                      }
+                      if (sel.includes('Strass')) {
+                        const qty = parseInt(det.qtdStrass) || 1;
+                        extraPriceItems.push([`Strass (${qty}x R$0,60)`, 0.60 * qty]);
+                      }
+                      break;
+                    }
+                    case 'chaveiro_carimbo':
+                      extraPriceItems.push(['Chaveiro c/ Carimbo a Fogo', 50]);
+                      break;
+                    case 'bainha_cartao':
+                      extraPriceItems.push(['Bainha de Cartão', 15]);
+                      break;
+                    case 'regata':
+                      extraPriceItems.push(['Regata', 50]);
+                      break;
+                    case 'bota_pronta_entrega': {
+                      if (Array.isArray(det.botas)) {
+                        (det.botas as any[]).forEach((b: any, idx: number) => {
+                          const val = parseFloat(b.valorManual) || 0;
+                          extraPriceItems.push([`Bota ${idx + 1}: ${b.descricaoProduto || ''}`, val]);
+                          if (Array.isArray(b.extras)) {
+                            const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
+                            b.extras.forEach((ex: any) => {
+                              let detail = '';
+                              if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
+                                const parts: string[] = [];
+                                if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push(`Bola grande x${ex.dados.qtdBolaGrande || 1}`);
+                                if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
+                                detail = parts.length ? ` (${parts.join(', ')})` : '';
+                              } else if (ex.tipo === 'carimbo_fogo') {
+                                detail = ` (${ex.dados?.qtdCarimbos || 1} carimbos)`;
+                              } else if (ex.tipo === 'tiras_laterais' && ex.dados?.corTiras) {
+                                detail = ` (${ex.dados.corTiras})`;
+                              }
+                              extraPriceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}${detail}`, ex.preco || 0]);
+                            });
+                          }
+                        });
+                      } else {
+                        extraPriceItems.push(['Bota Pronta Entrega', order.preco]);
+                      }
+                      break;
+                    }
+                  }
+                  const extraTotal = extraPriceItems.reduce((s, [, v]) => s + v, 0);
+                  return (
+                    <>
+                      {extraPriceItems.map(([label, value], i) => (
+                        <div key={i} className="flex justify-between py-1 border-b border-border/30 last:border-0">
+                          <span className="text-sm">{label}</span>
+                          <span className="text-sm font-semibold">{formatCurrency(value)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-lg">
+                        <span>Total</span>
+                        <span className="text-primary">{formatCurrency(extraTotal || order.preco * order.quantidade)}</span>
+                      </div>
+                    </>
+                  );
+                })()}
+              </>
+            ) : (
+              <>
+                {priceItems.map(([label, value], i) => (
+                  <div key={i} className="flex justify-between py-1 border-b border-border/30 last:border-0">
+                    <span className="text-sm">{label}</span>
+                    <span className="text-sm font-semibold">{formatCurrency(value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-lg">
+                  <span>Total</span>
+                  <span className="text-primary">{formatCurrency(totalCalc || order.preco * order.quantidade)}</span>
+                </div>
+              </>
+            )}
+            {/* Desconto OU Acréscimo display */}
+            {ajusteValor !== 0 && (() => {
+              const isAcr = ajusteValor < 0;
+              const abs = Math.abs(ajusteValor);
+              return (
+                <>
+                  <div className={`flex justify-between pt-1 ${isAcr ? 'text-emerald-600' : 'text-destructive'}`}>
+                    <span className="text-sm font-semibold">{isAcr ? 'Acréscimo' : 'Desconto'}</span>
+                    <span className="text-sm font-semibold">{isAcr ? '+ ' : '- '}{formatCurrency(abs)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-bold text-lg border-t border-border mt-1">
+                    <span>Total {isAcr ? 'com acréscimo' : 'com desconto'}</span>
+                    <span className="text-primary">{formatCurrency(displayTotal)}</span>
+                  </div>
+                  {order.descontoJustificativa && (
+                    <p className="text-xs text-muted-foreground mt-1 italic">Justificativa: {order.descontoJustificativa}</p>
+                  )}
+                </>
+              );
+            })()}
+            {justificativasValor.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Justificativas de alterações de valor</p>
+                {justificativasValor.map((g, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">
+                    <span className="font-medium">{formatDateBR(g.data)} às {g.hora} — {g.usuario || '—'}:</span>{' '}
+                    <span className="italic">{g.justificativa}</span>
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Edição de Valor — admin_master only */}
+          {role === 'admin_master' && (
+            <div className="border border-border rounded-lg p-4 mt-4 mb-6">
+              <h3 className="text-sm font-bold mb-3">Edição de Valor</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Tipo</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTipoAjuste('desconto')}
+                      className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${tipoAjuste === 'desconto' ? 'bg-destructive text-destructive-foreground border-destructive' : 'bg-background border-border text-muted-foreground hover:border-destructive/50'}`}
+                    >
+                      Desconto (−)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoAjuste('acrescimo')}
+                      className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${tipoAjuste === 'acrescimo' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-background border-border text-muted-foreground hover:border-emerald-600/50'}`}
+                    >
+                      Acréscimo (+)
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground">Valor (R$)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={descontoInput}
+                    onChange={e => setDescontoInput(e.target.value)}
+                  />
+                </div>
+                {Number(descontoInput) > 0 && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">Justificativa *</label>
+                    <Textarea
+                      placeholder={tipoAjuste === 'desconto' ? 'Motivo do desconto...' : 'Motivo do acréscimo...'}
+                      value={justificativaInput}
+                      onChange={e => setJustificativaInput(e.target.value)}
+                    />
+                  </div>
+                )}
+                <Button
+                  onClick={() => {
+                    const val = Number(descontoInput);
+                    if (!val || val <= 0) { toast.error('Informe um valor válido.'); return; }
+                    if (!justificativaInput.trim()) { toast.error('A justificativa é obrigatória.'); return; }
+                    const delta = tipoAjuste === 'desconto' ? val : -val;
+                    const novoAjuste = (Number(order.desconto) || 0) + delta;
+                    // Garante que não fica total negativo
+                    const baseBruto = displayTotalBruto;
+                    if (baseBruto - novoAjuste < 0) {
+                      toast.error('O desconto não pode deixar o total negativo.');
+                      return;
+                    }
+                    const dataHoje = formatBrasiliaDate();
+                    const horaAgora = formatBrasiliaTime();
+                    const acaoLabel = tipoAjuste === 'desconto' ? 'Desconto aplicado' : 'Acréscimo aplicado';
+                    const newAlteracao = {
+                      data: dataHoje,
+                      hora: horaAgora,
+                      descricao: `${acaoLabel}: ${formatCurrency(val)} | Justificativa: ${justificativaInput.trim()} | Por: ${user?.nomeCompleto || 'Admin'}`,
+                      usuario: user?.nomeCompleto,
+                    };
+                    updateOrder(order.id, {
+                      desconto: novoAjuste,
+                      descontoJustificativa: justificativaInput.trim(),
+                      alteracoes: [...(order.alteracoes || []), { ...newAlteracao, justificativa: justificativaInput.trim(), afetouValor: true }],
+                    }, justificativaInput.trim());
+                    setDescontoInput('');
+                    setJustificativaInput('');
+                    toast.success(`${acaoLabel} com sucesso!`);
+                  }}
+                  disabled={!descontoInput || Number(descontoInput) <= 0}
+                  className="w-full"
+                >
+                  {tipoAjuste === 'desconto' ? 'Aplicar Desconto' : 'Aplicar Acréscimo'}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Detalhes */}
           <h2 className="text-lg font-display font-bold mb-3">
             {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
