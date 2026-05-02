@@ -410,17 +410,22 @@ const OrderDetailPage = () => {
 
   // Agrupa alterações salvas em um mesmo "salvar" (mesma data + hora + usuário)
   const alteracoesAgrupadas = (() => {
-    const groups: { data: string; hora: string; usuario?: string; descricoes: string[] }[] = [];
+    const groups: { data: string; hora: string; usuario?: string; justificativa?: string; afetouValor?: boolean; descricoes: string[] }[] = [];
     for (const a of alteracoes) {
       const last = groups[groups.length - 1];
       if (last && last.data === a.data && last.hora === a.hora && (last.usuario || '') === (a.usuario || '')) {
         last.descricoes.push(a.descricao);
+        if (a.justificativa && !last.justificativa) last.justificativa = a.justificativa;
+        if (a.afetouValor) last.afetouValor = true;
       } else {
-        groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, descricoes: [a.descricao] });
+        groups.push({ data: a.data, hora: a.hora, usuario: a.usuario, justificativa: a.justificativa, afetouValor: a.afetouValor, descricoes: [a.descricao] });
       }
     }
     return groups;
   })();
+
+  // Justificativas que afetaram valor — exibidas na Composição do Pedido
+  const justificativasValor = alteracoesAgrupadas.filter(g => g.afetouValor && g.justificativa);
 
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? null;
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
@@ -959,6 +964,17 @@ const OrderDetailPage = () => {
                 )}
               </>
             )}
+            {justificativasValor.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Justificativas de alterações de valor</p>
+                {justificativasValor.map((g, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">
+                    <span className="font-medium">{formatDateBR(g.data)} às {g.hora} — {g.usuario || '—'}:</span>{' '}
+                    <span className="italic">{g.justificativa}</span>
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Discount input — Juliana ADM only */}
@@ -1003,8 +1019,8 @@ const OrderDetailPage = () => {
                     updateOrder(order.id, {
                       desconto: (order.desconto || 0) + val,
                       descontoJustificativa: justificativaInput.trim(),
-                      alteracoes: [...(order.alteracoes || []), newAlteracao],
-                    });
+                      alteracoes: [...(order.alteracoes || []), { ...newAlteracao, justificativa: justificativaInput.trim(), afetouValor: true }],
+                    }, justificativaInput.trim());
                     setDescontoInput('');
                     setJustificativaInput('');
                     toast.success('Desconto aplicado com sucesso!');
@@ -1064,6 +1080,9 @@ const OrderDetailPage = () => {
                         <ul className="text-sm list-disc pl-5 mt-0.5 space-y-0.5">
                           {g.descricoes.map((d, j) => <li key={j}>{d}</li>)}
                         </ul>
+                      )}
+                      {g.justificativa && (
+                        <p className="text-xs italic text-muted-foreground mt-1">Motivo: {g.justificativa}</p>
                       )}
                     </div>
                   ))}

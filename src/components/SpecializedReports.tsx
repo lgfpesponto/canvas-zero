@@ -1385,7 +1385,20 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.desconto && o.desconto > 0) {
         priceItems.push([`Desconto${o.descontoJustificativa ? ` (${o.descontoJustificativa})` : ''}`, -o.desconto]);
       }
-      const compText = priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`).join('\n');
+      // Justificativas de edições que afetaram o valor (admin_master/admin_producao)
+      const justifLines: string[] = [];
+      const seenJust = new Set<string>();
+      for (const a of (o.alteracoes || [])) {
+        if (!a.afetouValor || !a.justificativa) continue;
+        const key = `${a.data}|${a.hora}|${a.usuario || ''}|${a.justificativa}`;
+        if (seenJust.has(key)) continue;
+        seenJust.add(key);
+        justifLines.push(`Motivo (${a.data} por ${a.usuario || '—'}): ${a.justificativa}`);
+      }
+      const compText = [
+        ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
+        ...justifLines,
+      ].join('\n');
 
       doc.setFontSize(6);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);

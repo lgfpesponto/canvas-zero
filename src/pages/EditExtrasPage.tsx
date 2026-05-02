@@ -18,10 +18,13 @@ import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota, deserializeBota } from '@/lib/botaExtraHelpers';
+import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { JustificativaDialog } from '@/components/JustificativaDialog';
 
 const EditExtrasPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles, user } = useAuth();
+  const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -188,19 +191,23 @@ const EditExtrasPage = () => {
       }
     }
 
-    await updateOrder(order.id, {
+    const payload = {
       numero: form.numeroPedidoBota.trim(),
       numeroPedidoBota: form.numeroPedidoBota.trim(),
       vendedor: form.vendedorSelecionado || order.vendedor,
       preco: price,
       quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
       extraDetalhes: detalhes,
+    };
+
+    await requestSave(order.id, payload, async (oid, data, just) => {
+      await updateOrder(oid, data, just);
+      toast.success('Pedido atualizado com sucesso!');
+      const sp = new URLSearchParams(searchParams);
+      if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
+      const qs = sp.toString();
+      navigate(`/pedido/${order.id}${qs ? `?${qs}` : ''}`, { replace: true });
     });
-    toast.success('Pedido atualizado com sucesso!');
-    const sp = new URLSearchParams(searchParams);
-    if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
-    const qs = sp.toString();
-    navigate(`/pedido/${order.id}${qs ? `?${qs}` : ''}`, { replace: true });
   };
 
   const price = calcPrice();
@@ -605,6 +612,7 @@ const EditExtrasPage = () => {
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={closeFotoPanel} />
         )}
       </div>
+      <JustificativaDialog {...dialogProps} />
     </div>
   );
 };

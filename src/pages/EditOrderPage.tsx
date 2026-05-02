@@ -11,6 +11,8 @@ import { Link2, X, Save, ArrowLeft, Search } from 'lucide-react';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
+import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { JustificativaDialog } from '@/components/JustificativaDialog';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO,
@@ -112,6 +114,7 @@ const SelectField = ({ label, value, onChange, options }: { label: string; value
 const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles } = useAuth();
+  const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
   const { getByCategoria, loading: customOptsLoading } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
@@ -453,7 +456,7 @@ const EditOrderPage = () => {
       }
     }
 
-    await updateOrder(order.id, {
+    const payload: Partial<Order> = {
       numero: numeroPedido, tamanho, genero, modelo, sobMedida, sobMedidaDesc,
       ...(isAdmin ? { vendedor } : {}),
       solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
@@ -483,12 +486,16 @@ const EditOrderPage = () => {
       recorteCano, corRecorteCano: recorteCano ? corRecorteCano : '',
       recorteGaspea, corRecorteGaspea: recorteGaspea ? corRecorteGaspea : '',
       recorteTaloneira, corRecorteTaloneira: recorteTaloneira ? corRecorteTaloneira : '',
+    };
+
+    await requestSave(order.id, payload, async (oid, data, just) => {
+      await updateOrder(oid, data, just);
+      toast.success('Pedido atualizado com sucesso!');
+      const sp = new URLSearchParams(searchParams);
+      if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
+      const qs = sp.toString();
+      navigate(`/pedido/${id}${qs ? `?${qs}` : ''}`, { replace: true });
     });
-    toast.success('Pedido atualizado com sucesso!');
-    const sp = new URLSearchParams(searchParams);
-    if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
-    const qs = sp.toString();
-    navigate(`/pedido/${id}${qs ? `?${qs}` : ''}`, { replace: true });
   };
 
   return (
@@ -744,6 +751,7 @@ const EditOrderPage = () => {
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={closeFotoPanel} />
         )}
       </div>
+      <JustificativaDialog {...dialogProps} />
     </div>
   );
 };
