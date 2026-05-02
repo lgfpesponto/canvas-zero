@@ -63,6 +63,22 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
         fetchPedidosCobrados(vendedor),
       ]);
       setMovs(m); setBaixas(b); setPedidos(p);
+
+      // Busca números dos pedidos referenciados pelos movimentos (para exibir no extrato)
+      const orderIds = Array.from(new Set(
+        m.map(x => x.order_id).filter((x): x is string => !!x)
+      ));
+      const pedidosMap: Record<string, string> = {};
+      p.forEach(x => { pedidosMap[x.id] = x.numero; });
+      const missing = orderIds.filter(id => !pedidosMap[id]);
+      if (missing.length > 0) {
+        const { data: extra } = await supabase
+          .from('orders')
+          .select('id, numero')
+          .in('id', missing);
+        (extra || []).forEach((o: any) => { pedidosMap[o.id] = o.numero; });
+      }
+      setOrderNumeros(pedidosMap);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar detalhes', description: e.message, variant: 'destructive' });
     } finally {
