@@ -1434,18 +1434,20 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       doc.setFontSize(6);
       doc.text(lines, cx[2] + 1, y + 4);
-      // Sobrepõe a palavra "Desconto" (vermelho) ou "Acréscimo" (verde) com cor
-      if (o.desconto && o.desconto !== 0) {
-        const isAcr = o.desconto < 0;
-        const word = isAcr ? 'Acréscimo' : 'Desconto';
-        const lineIdx = (lines as string[]).findIndex((l: string) => l.startsWith(word));
-        if (lineIdx >= 0) {
-          if (isAcr) doc.setTextColor(22, 163, 74); // verde
-          else doc.setTextColor(220, 38, 38);       // vermelho
-          doc.text(word, cx[2] + 1, y + 4 + lineIdx * 3);
-          doc.setTextColor(0, 0, 0);
-        }
-      }
+      // Coloriza "Desconto" (vermelho) e "Acréscimo" (verde) — tanto em linhas próprias
+      // (quando há valor ativo) quanto dentro do texto do motivo.
+      (lines as string[]).forEach((line, idx) => {
+        const lineY = y + 4 + idx * 3;
+        const m = line.match(/(Acréscimo|Desconto)/);
+        if (!m) return;
+        const word = m[1];
+        const before = line.substring(0, m.index!);
+        const xOffset = cx[2] + 1 + doc.getTextWidth(before);
+        if (word === 'Acréscimo') doc.setTextColor(22, 163, 74); // verde
+        else doc.setTextColor(220, 38, 38);                       // vermelho
+        doc.text(word, xOffset, lineY);
+        doc.setTextColor(0, 0, 0);
+      });
 
       doc.setFontSize(8);
       const detCob = (o.extraDetalhes || {}) as any;
