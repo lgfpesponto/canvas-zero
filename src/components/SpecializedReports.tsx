@@ -1434,6 +1434,18 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       doc.setFontSize(6);
       doc.text(lines, cx[2] + 1, y + 4);
+      // Sobrepõe a palavra "Desconto" (vermelho) ou "Acréscimo" (verde) com cor
+      if (o.desconto && o.desconto !== 0) {
+        const isAcr = o.desconto < 0;
+        const word = isAcr ? 'Acréscimo' : 'Desconto';
+        const lineIdx = (lines as string[]).findIndex((l: string) => l.startsWith(word));
+        if (lineIdx >= 0) {
+          if (isAcr) doc.setTextColor(22, 163, 74); // verde
+          else doc.setTextColor(220, 38, 38);       // vermelho
+          doc.text(word, cx[2] + 1, y + 4 + lineIdx * 3);
+          doc.setTextColor(0, 0, 0);
+        }
+      }
 
       doc.setFontSize(8);
       const detCob = (o.extraDetalhes || {}) as any;
