@@ -30,11 +30,14 @@ async function recomputarTodos(
   const PAGE = 1000;
   const allRows: any[] = [];
   let from = 0;
+  // v2: passa a varrer TODOS os pedidos não cancelados (inclusive Entregue/Cobrado/Pago).
+  // Antes ignorava cobrados/pagos, então pedidos antigos seguiam com `preco` desatualizado
+  // no banco e relatórios derivados podiam exibir total errado.
   while (true) {
     const { data, error } = await supabase
       .from('orders')
       .select('*')
-      .not('status', 'in', '("Cobrado","Pago","Cancelado")')
+      .neq('status', 'Cancelado')
       .range(from, from + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
