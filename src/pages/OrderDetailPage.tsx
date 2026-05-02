@@ -1019,23 +1019,80 @@ const OrderDetailPage = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-5 mb-6">
-              {detailsGrouped.map(grupo => (
-                <div key={grupo.categoria}>
-                  <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-base uppercase tracking-wide py-1.5 rounded-sm mb-2">
-                    {grupo.categoria}
-                  </h3>
-                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 px-1">
-                    {grupo.itens.map(([label, value]) => (
-                      <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
-                        <span className="text-sm text-muted-foreground">{label}</span>
-                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+            (() => {
+              const fichaCats = buildBootFichaCategories(order);
+              const fotosValidasDet = (order.fotos || []).filter((f: string) => isHttpUrl(f));
+              const dateStr = `${order.dataCriacao.slice(8, 10)}/${order.dataCriacao.slice(5, 7)} ${order.horaCriacao || ''}`.trim();
+              const tamText = `${order.tamanho || ''}${order.genero ? ' ' + order.genero.substring(0, 3).toLowerCase() + '.' : ''}`;
+              const shortenUrl = (u: string) => {
+                try {
+                  const last = u.split('?')[0].split('/').filter(Boolean).pop() || u;
+                  return decodeURIComponent(last).slice(0, 32);
+                } catch {
+                  return u.slice(0, 32);
+                }
+              };
+
+              return (
+                <div className="border border-border rounded-lg p-4 md:p-5 bg-background mb-4">
+                  {/* Mini-cabeçalho da ficha */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                    <div className="space-y-0.5 text-xs">
+                      <div className="font-display font-bold text-base mb-1">7ESTRIVOS</div>
+                      <div><span className="font-bold">Código: </span>{order.numero}</div>
+                      <div><span className="font-bold">Vendedor: </span>{order.vendedor}</div>
+                      <div><span className="font-bold">Data: </span>{dateStr}</div>
+                    </div>
+                    <div className="space-y-0.5 text-xs">
+                      <div><span className="font-bold">Tamanho: </span>{tamText}{order.sobMedida ? ` | sob medida${order.sobMedidaDesc ? ': ' + order.sobMedidaDesc : ''}` : ''}</div>
+                      <div><span className="font-bold">Modelo: </span>{(order.modelo || '').toLowerCase()}</div>
+                    </div>
+                    <div className="text-xs">
+                      <p className="font-bold uppercase tracking-wide text-[10px] text-muted-foreground mb-1">Foto de referência</p>
+                      {fotosValidasDet.length === 0 ? (
+                        <p className="text-muted-foreground italic text-[11px]">Sem foto</p>
+                      ) : (
+                        <div className="space-y-0.5">
+                          {fotosValidasDet.map((url: string, i: number) => (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={url}
+                              className="text-primary hover:underline block truncate"
+                            >
+                              {shortenUrl(url)} ↗
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border mb-3" />
+
+                  {/* Categorias em 3 colunas (auto-balanceadas, igual à ficha PDF) */}
+                  <div className="columns-1 sm:columns-2 md:columns-3 gap-5">
+                    {fichaCats.map(cat => (
+                      <div key={cat.title} className="break-inside-avoid mb-3">
+                        <div className="bg-muted px-2 py-1 text-[11px] font-bold uppercase tracking-wide mb-1.5">
+                          {cat.title}
+                        </div>
+                        <div className="px-1 space-y-0.5">
+                          {cat.fields.map((f, i) => (
+                            <div key={i} className="text-xs leading-snug">
+                              {f.label && <span className="font-bold">{f.label} </span>}
+                              <span>{f.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })()
           )}
 
           {order.observacao && (
