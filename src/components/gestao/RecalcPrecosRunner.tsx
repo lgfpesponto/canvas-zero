@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import { recomputeSubtotal, targetPrecoFromSubtotal } from '@/lib/recomputeOrderPrice';
 
-const STORAGE_KEY = 'recalc_precos_v1_done';
+const STORAGE_KEY = 'recalc_precos_v2_done';
 const PARALLEL = 25;
 
 async function recomputarTodos(
