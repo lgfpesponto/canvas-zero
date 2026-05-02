@@ -626,7 +626,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   /* ───── Update Order ───── */
-  const updateOrder = useCallback(async (id: string, data: Partial<Order>) => {
+  const updateOrder = useCallback(async (id: string, data: Partial<Order>, justificativa?: string) => {
     const dataHoje = formatBrasiliaDate();
     const horaAgora = formatBrasiliaTime();
     const usuarioAtual = user?.nomeCompleto;
@@ -635,25 +635,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!currentRow) return;
     const current = dbRowToOrder(currentRow);
 
+    const VALUE_KEYS = new Set(['preco', 'desconto', 'quantidade', 'extraDetalhes']);
+    let afetouValor = false;
+
     const changes: OrderAlteracao[] = [];
     for (const key of Object.keys(data)) {
       if (key === 'historico' || key === 'alteracoes') continue;
       const oldVal = String((current as any)[key] ?? '');
       const newVal = String((data as any)[key] ?? '');
       if (oldVal !== newVal) {
+        if (VALUE_KEYS.has(key)) afetouValor = true;
         const label = FIELD_LABELS[key] || key;
+        const base = { data: dataHoje, hora: horaAgora, usuario: usuarioAtual, justificativa };
         if (oldVal && newVal) {
-          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Alterado ${label} de "${oldVal}" para "${newVal}"`, usuario: usuarioAtual });
+          changes.push({ ...base, descricao: `Alterado ${label} de "${oldVal}" para "${newVal}"` });
         } else if (newVal) {
-          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Adicionado ${label}: "${newVal}"`, usuario: usuarioAtual });
+          changes.push({ ...base, descricao: `Adicionado ${label}: "${newVal}"` });
         } else {
-          changes.push({ data: dataHoje, hora: horaAgora, descricao: `Removido ${label}`, usuario: usuarioAtual });
+          changes.push({ ...base, descricao: `Removido ${label}` });
         }
       }
     }
 
     if (data.fotos && JSON.stringify(data.fotos) !== JSON.stringify(current.fotos)) {
-      changes.push({ data: dataHoje, hora: horaAgora, descricao: 'Foto de referência alterada', usuario: usuarioAtual });
+      changes.push({ data: dataHoje, hora: horaAgora, descricao: 'Foto de referência alterada', usuario: usuarioAtual, justificativa });
+    }
+
+    if (changes.length > 0 && afetouValor) {
+      changes.forEach(c => { c.afetouValor = true; });
     }
 
     const updatedAlteracoes = [...(current.alteracoes || []), ...changes];
