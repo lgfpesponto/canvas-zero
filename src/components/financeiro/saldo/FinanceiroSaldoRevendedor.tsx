@@ -22,6 +22,7 @@ import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
 import { ComprovantesPorRevendedor } from './ComprovantesPorRevendedor';
 import { LoadingValue } from '@/components/ui/LoadingValue';
+import { PedidosAbatidosCard } from './PedidosAbatidosCard';
 
 type PeriodoOption = 'mes' | '30d' | 'todos';
 type TipoOption = 'todos' | ComprovanteStatus;
