@@ -331,7 +331,21 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
                           {new Date(m.created_at).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell className="text-xs">{tipoMovimentoLabel(m.tipo)}</TableCell>
-                        <TableCell className="text-xs max-w-[280px] truncate">{m.descricao || '—'}</TableCell>
+                        <TableCell className="text-xs max-w-[320px]">
+                          {m.order_id && orderNumeros[m.order_id] ? (
+                            <span>
+                              {m.descricao || '—'}{' '}
+                              <Link
+                                to={`/pedido/${m.order_id}`}
+                                className="text-primary underline font-medium"
+                              >
+                                Pedido #{orderNumeros[m.order_id]}
+                              </Link>
+                            </span>
+                          ) : (
+                            <span className="truncate">{m.descricao || '—'}</span>
+                          )}
+                        </TableCell>
                         <TableCell className={`text-right font-mono text-xs ${isOut ? 'text-destructive' : 'text-primary'}`}>
                           {isOut ? '−' : '+'} {formatCurrency(Number(m.valor))}
                         </TableCell>
