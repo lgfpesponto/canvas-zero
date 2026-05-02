@@ -1081,6 +1081,9 @@ const OrderDetailPage = () => {
                           {g.descricoes.map((d, j) => <li key={j}>{d}</li>)}
                         </ul>
                       )}
+                      {g.justificativa && (
+                        <p className="text-xs italic text-muted-foreground mt-1">Motivo: {g.justificativa}</p>
+                      )}
                     </div>
                   ))}
                 </div>
