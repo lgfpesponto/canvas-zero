@@ -645,13 +645,18 @@ const OrderDetailPage = () => {
                     <span className="text-base font-display font-bold">{order.numero}</span>
                   </div>
 
-                  {/* Célula 2: Vendedor (só para admin) */}
+                  {/* Célula 2: Vendedor (admin) ou Cliente (vendedor/comissão) */}
                   {showVendedor ? (
                     <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendedor</span>
                       <span className="text-sm font-semibold text-right">{order.vendedor}</span>
                     </div>
-                  ) : <div className="hidden sm:block" />}
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cliente</span>
+                      <span className="text-sm font-semibold text-right">{order.cliente || '—'}</span>
+                    </div>
+                  )}
 
                   {/* Célula 3: Data e hora */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">

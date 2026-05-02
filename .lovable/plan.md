@@ -1,16 +1,25 @@
 ## Mudança
-No PDF de Cobrança (`generateCobrancaPDF` em `src/components/SpecializedReports.tsx`, linha 1205), a ordenação atual é por número do pedido (desc) e usa data como desempate. Isso difere da listagem do portal, que ordena por `data_criacao DESC, hora_criacao DESC`.
+No `OrderDetailPage.tsx`, no cabeçalho 2×2 do pedido detalhado, a célula "Vendedor" só aparece para admins (`showVendedor = isAdmin`). Para os usuários `vendedor` e `vendedor_comissao` a célula fica vazia.
 
 ## Ajuste
-Trocar o `.sort(...)` da linha 1205 para ordenar igual ao portal:
+Quando o usuário não for admin (ou seja, é o próprio vendedor do pedido), substituir a célula por **"Cliente"** com o valor de `order.cliente`. Se não houver cliente preenchido, mostrar "—".
 
-1. `dataCriacao` desc
-2. `horaCriacao` desc (desempate)
-3. `numero` desc (desempate final)
+```tsx
+// linha ~648
+{showVendedor ? (
+  <div className="...">
+    <span>...Vendedor</span>
+    <span>{order.vendedor}</span>
+  </div>
+) : (
+  <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
+    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cliente</span>
+    <span className="text-sm font-semibold text-right">{order.cliente || '—'}</span>
+  </div>
+)}
+```
 
-Assim o PDF de cobrança lista os pedidos da data mais atual para a mais antiga, idêntico ao que aparece em "Pedidos" no portal.
+Não muda nada para admin_master/admin_producao (continua vendo "Vendedor"), nem afeta a regra de privacidade do cliente (já que para o próprio criador o cliente sempre é visível).
 
 ## Arquivo afetado
-- `src/components/SpecializedReports.tsx` (apenas a linha do `.sort` em `generateCobrancaPDF`)
-
-Nenhuma outra lógica (filtros, composição, totais) é alterada.
+- `src/pages/OrderDetailPage.tsx` (célula 2 do header, ~linha 648-654)
