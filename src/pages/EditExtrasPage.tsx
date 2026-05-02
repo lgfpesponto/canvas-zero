@@ -612,6 +612,7 @@ const EditExtrasPage = () => {
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={closeFotoPanel} />
         )}
       </div>
+      <JustificativaDialog {...dialogProps} />
     </div>
   );
 };
