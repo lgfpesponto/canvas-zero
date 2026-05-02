@@ -25,6 +25,8 @@ import {
 } from '@/lib/revendedorSaldo';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 import { AjusteSaldoDialog } from './AjusteSaldoDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 interface Props {
   open: boolean;
