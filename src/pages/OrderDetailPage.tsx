@@ -1038,115 +1038,181 @@ const OrderDetailPage = () => {
           )}
 
           {order.observacao && (
-            <div className="bg-muted rounded-lg p-3 mb-6">
+            <div className="bg-muted rounded-lg p-3 mb-4">
               <p className="text-sm font-semibold mb-1">Observação:</p>
               <p className="text-sm text-muted-foreground">{order.observacao}</p>
             </div>
           )}
 
-          {/* Fotos */}
-          {order.fotos && order.fotos.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-lg font-display font-bold mb-3">Foto de Referência</h2>
-              <div className="space-y-2">
-                {order.fotos.map((f, i) => (
-                  f.startsWith('http') ? (
-                    <a key={i} href={f} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all block">
-                      {f} ↗
-                    </a>
-                  ) : (
-                    <img key={i} src={f} alt={`Ref ${i + 1}`} className="w-24 h-24 object-cover rounded-lg border border-border" />
-                  )
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Composição do Pedido + Edição de Valor agora aparecem ACIMA dos Detalhes */}
-
-          {/* Production History + Change History side by side */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8 mt-8">
-            {/* Histórico de Produção */}
-            <div>
-              <h2 className="text-lg font-display font-bold mb-3">Histórico de Produção</h2>
-              <div className="space-y-3">
-                {order.historico.map((h, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <CheckCircle2 size={18} className="text-primary flex-shrink-0" />
-                      {i < order.historico.length - 1 && <div className="w-0.5 h-full bg-border mt-1" />}
-                    </div>
-                    <div className="pb-3">
-                      <p className="text-sm font-semibold">{h.local}</p>
-                      <p className="text-xs text-muted-foreground">{formatDateBR(h.data)} às {h.hora || '—'} — {h.descricao}</p>
-                      <p className="text-xs text-muted-foreground">por {h.usuario || '—'}</p>
-                      {h.observacao && <p className="text-xs text-primary italic mt-0.5">Observação: {h.observacao}</p>}
-                    </div>
+          {/* Foto de Referência (link no lugar do QR) */}
+          {(() => {
+            const fotosValidasDet = (order.fotos || []).filter(f => isHttpUrl(f));
+            return (
+              <div className="mt-4 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Foto de Referência
+                </p>
+                {fotosValidasDet.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sem foto de referência.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {fotosValidasDet.map((url, i) => (
+                      <a
+                        key={i}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline break-all block"
+                      >
+                        {url} ↗
+                      </a>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
+            );
+          })()}
+        </div>
 
-            {/* Histórico de Alterações */}
-            <div>
-              <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
-                <History size={18} /> Histórico de Alterações
-              </h2>
-              {alteracoes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma alteração registrada.</p>
-              ) : (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {alteracoesAgrupadas.map((g, i) => (
-                    <div key={i} className="border-b border-border/30 pb-2">
-                      <p className="text-xs text-muted-foreground">
-                        {formatDateBR(g.data)} às {g.hora} — por {g.usuario || '—'}
-                        {g.descricoes.length > 1 && (
-                          <span className="ml-1 text-muted-foreground/70">({g.descricoes.length} alterações)</span>
-                        )}
-                      </p>
-                      {g.descricoes.length === 1 ? (
-                        <p className="text-sm">{g.descricoes[0]}</p>
-                      ) : (
-                        <ul className="text-sm list-disc pl-5 mt-0.5 space-y-0.5">
-                          {g.descricoes.map((d, j) => <li key={j}>{d}</li>)}
-                        </ul>
-                      )}
-                      {g.justificativa && (
-                        <p className="text-xs italic text-muted-foreground mt-1">Motivo: {g.justificativa}</p>
-                      )}
-                    </div>
-                  ))}
+        {/* ═══ BLOCO 3 — Históricos colapsáveis ═══ */}
+        <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
+          {(() => {
+            const historicoDesc = [...order.historico].reverse();
+            const alteracoesDesc = [...alteracoesAgrupadas].reverse();
+            const impressoesDesc = [...(order.impressoes || [])].reverse();
+
+            const renderHistoricoItem = (h: any, i: number, isLast: boolean) => (
+              <div key={i} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <CheckCircle2 size={18} className="text-primary flex-shrink-0" />
+                  {!isLast && <div className="w-0.5 h-full bg-border mt-1" />}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Histórico de Impressão */}
-          <div className="mb-8">
-            <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
-              <Printer size={18} /> Histórico de Impressão
-            </h2>
-            {(!order.impressoes || order.impressoes.length === 0) ? (
-              <p className="text-sm text-muted-foreground">Nenhuma impressão registrada.</p>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {[...order.impressoes].reverse().map((p, i) => (
-                  <div key={i} className="border-b border-border/30 pb-2 flex flex-wrap items-baseline gap-x-2">
-                    <p className="text-xs text-muted-foreground">{formatDateBR(p.data)} às {p.hora}</p>
-                    <p className="text-sm font-semibold">
-                      {p.tipo}
-                      {p.total_pedidos > 1 && (
-                        <span className="text-xs font-normal text-muted-foreground ml-1">
-                          ({p.total_pedidos} pedidos no lote)
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">— {p.usuario}</p>
-                  </div>
-                ))}
+                <div className="pb-3">
+                  <p className="text-sm font-semibold">{h.local}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateBR(h.data)} às {h.hora || '—'} — {h.descricao}</p>
+                  <p className="text-xs text-muted-foreground">por {h.usuario || '—'}</p>
+                  {h.observacao && <p className="text-xs text-primary italic mt-0.5">Observação: {h.observacao}</p>}
+                </div>
               </div>
-            )}
-          </div>
+            );
+
+            const renderAlteracaoItem = (g: any, i: number) => (
+              <div key={i} className="border-b border-border/30 pb-2">
+                <p className="text-xs text-muted-foreground">
+                  {formatDateBR(g.data)} às {g.hora} — por {g.usuario || '—'}
+                  {g.descricoes.length > 1 && (
+                    <span className="ml-1 text-muted-foreground/70">({g.descricoes.length} alterações)</span>
+                  )}
+                </p>
+                {g.descricoes.length === 1 ? (
+                  <p className="text-sm">{g.descricoes[0]}</p>
+                ) : (
+                  <ul className="text-sm list-disc pl-5 mt-0.5 space-y-0.5">
+                    {g.descricoes.map((d: string, j: number) => <li key={j}>{d}</li>)}
+                  </ul>
+                )}
+                {g.justificativa && (
+                  <p className="text-xs italic text-muted-foreground mt-1">Motivo: {g.justificativa}</p>
+                )}
+              </div>
+            );
+
+            const renderImpressaoItem = (p: any, i: number) => (
+              <div key={i} className="border-b border-border/30 pb-2 flex flex-wrap items-baseline gap-x-2">
+                <p className="text-xs text-muted-foreground">{formatDateBR(p.data)} às {p.hora}</p>
+                <p className="text-sm font-semibold">
+                  {p.tipo}
+                  {p.total_pedidos > 1 && (
+                    <span className="text-xs font-normal text-muted-foreground ml-1">
+                      ({p.total_pedidos} pedidos no lote)
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">— {p.usuario}</p>
+              </div>
+            );
+
+            return (
+              <div className="space-y-6">
+                {/* 1. Histórico de Produção */}
+                <div>
+                  <h2 className="text-lg font-display font-bold mb-3">Histórico de Produção</h2>
+                  {historicoDesc.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma etapa registrada.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(expProducao ? historicoDesc : historicoDesc.slice(0, 1)).map((h, i, arr) =>
+                        renderHistoricoItem(h, i, i === arr.length - 1)
+                      )}
+                      {historicoDesc.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpProducao(v => !v)}
+                          className="text-xs"
+                        >
+                          {expProducao ? 'Ver menos' : `Ver mais (${historicoDesc.length - 1} anteriores)`}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Histórico de Alterações */}
+                <div>
+                  <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
+                    <History size={18} /> Histórico de Alterações
+                  </h2>
+                  {alteracoesDesc.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma alteração registrada.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(expAlteracoes ? alteracoesDesc : alteracoesDesc.slice(0, 1)).map((g, i) =>
+                        renderAlteracaoItem(g, i)
+                      )}
+                      {alteracoesDesc.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpAlteracoes(v => !v)}
+                          className="text-xs"
+                        >
+                          {expAlteracoes ? 'Ver menos' : `Ver mais (${alteracoesDesc.length - 1} anteriores)`}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Histórico de Impressão */}
+                <div>
+                  <h2 className="text-lg font-display font-bold mb-3 flex items-center gap-2">
+                    <Printer size={18} /> Histórico de Impressão
+                  </h2>
+                  {impressoesDesc.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma impressão registrada.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(expImpressao ? impressoesDesc : impressoesDesc.slice(0, 1)).map((p, i) =>
+                        renderImpressaoItem(p, i)
+                      )}
+                      {impressoesDesc.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpImpressao(v => !v)}
+                          className="text-xs"
+                        >
+                          {expImpressao ? 'Ver menos' : `Ver mais (${impressoesDesc.length - 1} anteriores)`}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
         </div>
       </motion.div>
         {showFotoPanel && (
