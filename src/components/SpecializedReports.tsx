@@ -349,7 +349,7 @@ function buildCompositionItems(o: Order): [string, number][] {
     if (o.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
     const soladoP = SOLADO.find(s => s.label === o.solado)?.preco;
     if (soladoP) priceItems.push(['Solado: ' + o.solado, soladoP]);
-    const corSolaP = COR_SOLA.find(c => c.label === o.corSola)?.preco;
+    const corSolaP = getCorSolaPrecoContextual(o.modelo, o.solado, o.formatoBico, o.corSola);
     if (corSolaP) priceItems.push(['Cor Sola: ' + o.corSola, corSolaP]);
     const corViraP = (o.corVira && !['Bege', 'Neutra'].includes(o.corVira)) ? (COR_VIRA.find(c => c.label === o.corVira)?.preco || 0) : 0;
     if (corViraP) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
@@ -1370,7 +1370,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         if (o.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
         const soladoP = SOLADO.find(s => s.label === o.solado)?.preco;
         if (soladoP) priceItems.push(['Solado: ' + o.solado, soladoP]);
-        const corSolaP = COR_SOLA.find(c => c.label === o.corSola)?.preco;
+        const corSolaP = getCorSolaPrecoContextual(o.modelo, o.solado, o.formatoBico, o.corSola);
         if (corSolaP) priceItems.push(['Cor Sola: ' + o.corSola, corSolaP]);
         const corViraP = (o.corVira && !['Bege', 'Neutra'].includes(o.corVira)) ? (COR_VIRA.find(c => c.label === o.corVira)?.preco || 0) : 0;
         if (corViraP) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);

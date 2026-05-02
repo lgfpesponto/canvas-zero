@@ -383,7 +383,7 @@ const OrderDetailPage = () => {
   if (detP.corrente) priceItems.push(['Corrente', CORRENTE_PRECO]);
   const soladoP = SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
-  const corSolaP = COR_SOLA.find(c => c.label === order.corSola)?.preco;
+  const corSolaP = getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
   if (corSolaP) priceItems.push(['Cor Sola: ' + order.corSola, corSolaP]);
   const corViraP = COR_VIRA.find(c => c.label === order.corVira)?.preco;
   if (corViraP) priceItems.push(['Cor Vira: ' + order.corVira, corViraP]);
