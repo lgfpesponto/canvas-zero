@@ -1381,9 +1381,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       }
 
       const isBotaPE_cob = o.tipoExtra === 'bota_pronta_entrega';
-      // Total final = valor com desconto aplicado (se houver). Centralizado em getOrderFinalValue
-      // para bater 100% com a tela de detalhes, lista de pedidos e demais PDFs.
-      const orderTotal = getOrderFinalValue(o);
+      // Subtotal calculado a partir dos itens listados nesta linha do PDF — fonte única de
+      // verdade. Garante que Total = Σ itens − desconto, mesmo para pedidos antigos cujo
+      // o.preco no banco esteja dessincronizado. Espelha a lógica do OrderDetailPage.
+      // Bota Pronta Entrega e extras genéricos mantêm o.preco como base (já é o total do extra).
+      const subtotalCalc = priceItems.reduce((s, [, v]) => s + (Number(v) || 0), 0);
+      const useCalc = !o.tipoExtra || o.tipoExtra === 'cinto';
+      const subtotalBase = useCalc && subtotalCalc > 0 ? subtotalCalc : undefined;
+      const orderTotal = getOrderFinalValue(o, subtotalBase);
       if (o.desconto && o.desconto !== 0) {
         const isAcr = o.desconto < 0;
         const label = isAcr ? 'Acréscimo' : 'Desconto';
