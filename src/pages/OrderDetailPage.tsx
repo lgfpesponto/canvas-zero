@@ -1003,8 +1003,8 @@ const OrderDetailPage = () => {
                     updateOrder(order.id, {
                       desconto: (order.desconto || 0) + val,
                       descontoJustificativa: justificativaInput.trim(),
-                      alteracoes: [...(order.alteracoes || []), newAlteracao],
-                    });
+                      alteracoes: [...(order.alteracoes || []), { ...newAlteracao, justificativa: justificativaInput.trim(), afetouValor: true }],
+                    }, justificativaInput.trim());
                     setDescontoInput('');
                     setJustificativaInput('');
                     toast.success('Desconto aplicado com sucesso!');
