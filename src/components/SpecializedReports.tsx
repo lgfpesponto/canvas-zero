@@ -1444,15 +1444,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       doc.setFontSize(6);
       doc.text(lines, cx[2] + 1, y + 4);
 
-      // Indicador visual: bolinha no canto inferior direito da célula de composição.
+      // Indicador visual: bolinha na coluna do número do pedido, abaixo do código de barras.
       // Verde = acréscimo ativo (desconto < 0), vermelho = desconto ativo (desconto > 0).
       if (o.desconto && o.desconto !== 0) {
         const isAcrescimo = o.desconto < 0;
         if (isAcrescimo) doc.setFillColor(22, 163, 74); else doc.setFillColor(220, 38, 38);
-        const compRight = cx[2] + cols[2];
-        const cxBall = compRight - 2.2;
-        const cyBall = y + rowH - 2.2;
-        doc.circle(cxBall, cyBall, 1.1, 'F');
+        const cxBall = cx[0] + cols[0] / 2;
+        const cyBall = y + 17;
+        doc.circle(cxBall, cyBall, 2.0, 'F');
         doc.setFillColor(0, 0, 0);
       }
 

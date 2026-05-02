@@ -1,48 +1,25 @@
-Objetivo: corrigir o PDF de cobrança para remover o problema visual da coloração, trocar isso por um marcador discreto de status e acertar a composição/preço exibido em pedidos de cinto.
+## Ajuste no PDF de Cobrança — Bolinha de status
 
-O que vou alterar
+Arquivo: `src/components/SpecializedReports.tsx` (bloco ~linhas 1447-1457).
 
-1. Remover totalmente a coloração de texto no PDF de cobrança
-- Tirar o bloco que redesenha a palavra “Acréscimo” ou “Desconto” por cima do texto preto.
-- Deixar toda a composição sempre em preto, inclusive justificativa.
-- Isso elimina de vez o efeito de palavra duplicada/deslocada visto no PDF.
+### Mudanças
+1. **Reposicionar a bolinha** da célula de composição (`cx[2]`) para a célula do número do pedido (`cx[0]`), centralizada horizontalmente abaixo do código de barras.
+   - X: centro da coluna 0 → `cx[0] + cols[0] / 2`
+   - Y: logo abaixo do código de barras (que está em `y + 6` com altura 7) com folga → `y + 6 + 7 + 4` ≈ `y + 17`
+2. **Aumentar o raio** da bolinha de `1.1` para `2.0` para melhor visibilidade.
+3. Manter cores: verde (22,163,74) para acréscimo, vermelho (220,38,38) para desconto.
+4. Resetar `setFillColor(0,0,0)` após desenhar.
 
-2. Adicionar um indicador visual com bolinha no quadro da composição
-- Quando o pedido tiver acréscimo ativo (`o.desconto < 0`), desenhar uma bolinha pequena verde no canto inferior direito da célula de composição.
-- Quando o pedido tiver desconto ativo (`o.desconto > 0`), desenhar a mesma bolinha em vermelho na mesma posição.
-- Quando não houver ajuste ativo (`o.desconto === 0` ou vazio), não desenhar bolinha.
-- A bolinha ficará dentro do quadro da composição, sem interferir no texto.
+### Snippet proposto
+```ts
+if (o.desconto && o.desconto !== 0) {
+  const isAcrescimo = o.desconto < 0;
+  if (isAcrescimo) doc.setFillColor(22, 163, 74); else doc.setFillColor(220, 38, 38);
+  const cxBall = cx[0] + cols[0] / 2;
+  const cyBall = y + 17; // abaixo do código de barras
+  doc.circle(cxBall, cyBall, 2.0, 'F');
+  doc.setFillColor(0, 0, 0);
+}
+```
 
-3. Corrigir a composição dos pedidos de cinto no PDF de cobrança
-- Hoje o PDF monta cinto com `['Cinto', 0]`, por isso aparece “Cinto R$ 0,00”.
-- Vou alinhar essa montagem com a lógica já usada no restante do sistema, onde o valor-base do cinto vem do tamanho selecionado (`BELT_SIZES`).
-- Em vez de mostrar “Cinto R$ 0,00”, a composição passará a exibir apenas os itens reais de preço do cinto, por exemplo:
-  - `Tamanho: 1,10 cm R$ 100,00`
-  - `Bordado P R$ 10,00` quando existir
-  - `Nome Bordado R$ 40,00` quando existir
-  - `1 a 3 carimbos R$ 20,00` / `4 a 6 carimbos R$ 40,00` quando existir
-- Assim o valor-base deixa de aparecer zerado e passa a refletir o mesmo cálculo já usado em detalhe/edição.
-
-4. Preservar a ordem que já ficou correta
-- Manter a sequência da composição como está funcionando agora:
-  - itens da composição
-  - `Acréscimo` ou `Desconto` com valor
-  - `Justificativa (...)` com o texto limpo, sem repetir o valor
-- Não vou mexer na ordem, apenas no visual e na origem do preço do cinto.
-
-Arquivos envolvidos
-- `src/components/SpecializedReports.tsx`
-
-Detalhes técnicos
-- O bloco específico de `generateCobrancaPDF()` para cinto será ajustado para usar a mesma regra de belt já presente em outras telas: buscar o preço pelo `det.tamanhoCinto`, em vez de inserir `Cinto = 0`.
-- Também vou aceitar o padrão salvo do cinto que já existe no projeto (`Tem`), para não depender de `Sim` e evitar inconsistência entre criação/edição e PDF.
-- A bolinha será desenhada com `doc.setFillColor(...)` + `doc.circle(...)` posicionada pela largura/altura da coluna de composição.
-- O texto da composição continuará sendo renderizado uma única vez via `doc.text(...)`, sem overlay posterior.
-
-Resultado esperado
-- Nada mais colorido dentro do texto.
-- Acréscimo/desconto indicado só por uma bolinha discreta.
-- Cintos sem “R$ 0,00” no item base.
-- Ordem atual de ajuste + justificativa preservada.
-
-Se você aprovar, eu aplico exatamente essas mudanças no gerador do PDF de cobrança.
+Nenhuma outra lógica é alterada.
