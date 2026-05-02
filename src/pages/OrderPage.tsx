@@ -1025,6 +1025,66 @@ const OrderPage = () => {
 
 
 
+  /* ───── price breakdown para o espelho (espelha OrderDetailPage) ───── */
+  const mirrorPriceItems: [string, number][] = (() => {
+    const items: [string, number][] = [];
+    if (modeloPreco) items.push(['Modelo: ' + modelo, modeloPreco]);
+    if (sobMedida) items.push(['Sob Medida', SOB_MEDIDA_PRECO]);
+    acessorios.forEach(a => {
+      const p = ACESSORIOS.find(x => x.label === a)?.preco;
+      if (p) items.push([a, p]);
+    });
+    [
+      [tipoCouroCano, 'couro_cano'] as const,
+      [tipoCouroGaspea, 'couro_gaspea'] as const,
+      [tipoCouroTaloneira, 'couro_taloneira'] as const,
+    ].forEach(([t, cat]) => {
+      if (!t) return;
+      const p = findFichaPrice(t, cat) ?? COURO_PRECOS[t] ?? 0;
+      if (p) items.push(['Couro: ' + t, p]);
+    });
+    if (desenvPreco) items.push(['Desenvolvimento: ' + desenvolvimento, desenvPreco]);
+    const bordadoTriples: [string[], string, { label: string; preco: number }[]][] = [
+      [bordadoCano, 'bordado_cano', BORDADOS_CANO],
+      [bordadoGaspea, 'bordado_gaspea', BORDADOS_GASPEA],
+      [bordadoTaloneira, 'bordado_taloneira', BORDADOS_TALONEIRA],
+    ];
+    bordadoTriples.forEach(([arr, cat, fallback]) => {
+      arr.forEach(b => {
+        const p = findPrice(b, cat, fallback);
+        if (p) items.push([b, p]);
+      });
+    });
+    if (nomeBordado) items.push(['Nome Bordado', NOME_BORDADO_PRECO]);
+    if (laserCano.length) items.push(['Laser Cano', laserCanoPreco || LASER_CANO_PRECO]);
+    if (corGlitterCano) items.push(['Glitter/Tecido Cano', GLITTER_CANO_PRECO]);
+    if (laserGaspea.length) items.push(['Laser Gáspea', laserGaspeaPreco || LASER_GASPEA_PRECO]);
+    if (corGlitterGaspea) items.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
+    if (laserTaloneira.length) items.push(['Laser Taloneira', laserTaloneiraPreco || LASER_TALONEIRA_PRECO]);
+    if (corGlitterTaloneira) items.push(['Glitter/Tecido Taloneira', GLITTER_TALONEIRA_PRECO]);
+    if (pintura) items.push(['Pintura', PINTURA_PRECO]);
+    if (estampa) items.push(['Estampa', ESTAMPA_PRECO]);
+    if (areaMetalPreco) items.push(['Área Metal: ' + areaMetal, areaMetalPreco]);
+    if (strass && strassQtd) items.push([`Strass (${strassQtd} un.)`, strassQtd * STRASS_PRECO]);
+    if (bolaGrande && bolaGrandeQtd) items.push([`Bola Grande (${bolaGrandeQtd} un.)`, bolaGrandeQtd * BOLA_GRANDE_PRECO]);
+    if (cruzMetal && cruzMetalQtd) items.push([`Cruz metal (${cruzMetalQtd} un.)`, cruzMetalQtd * CRUZ_METAL_PRECO]);
+    if (bridaoMetal && bridaoMetalQtd) items.push([`Bridão metal (${bridaoMetalQtd} un.)`, bridaoMetalQtd * BRIDAO_METAL_PRECO]);
+    if (cavaloMetal && cavaloMetalQtd) items.push([`Cavalo metal (${cavaloMetalQtd} un.)`, cavaloMetalQtd * CAVALO_METAL_PRECO]);
+    if (trice) items.push(['Tricê', TRICE_PRECO]);
+    if (tiras) items.push(['Tiras', TIRAS_PRECO]);
+    if (franja) items.push(['Franja', FRANJA_PRECO]);
+    if (corrente) items.push(['Corrente', CORRENTE_PRECO]);
+    if (soladoPreco) items.push(['Solado: ' + solado, soladoPreco]);
+    const corSolaP = getCorSolaPrecoContextual(modelo, solado, formatoBico, corSola);
+    if (corSolaP) items.push(['Cor Sola: ' + corSola, corSolaP]);
+    if (corViraPreco) items.push(['Cor Vira: ' + corVira, corViraPreco]);
+    if (costuraAtras) items.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
+    if (carimboPreco && carimbo) items.push([carimbo, carimboPreco]);
+    if (adicionalValor && adicionalValor > 0) items.push(['Adicional: ' + (adicionalDesc || ''), adicionalValor]);
+    return items;
+  })();
+  const mirrorSubtotal = mirrorPriceItems.reduce((s, [, v]) => s + v, 0);
+
   /* ───── mirror data agrupado por categoria (espelho da ficha) ───── */
   const filterRows = (arr: [string, string][]): [string, string][] => arr.filter(([, v]) => v && String(v).trim() !== '');
   const mirrorGrouped: { categoria: string; itens: [string, string][] }[] = [
