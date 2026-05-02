@@ -1090,7 +1090,7 @@ const OrderDetailPage = () => {
             </div>
           ) : (
             (() => {
-              const fichaCats = buildBootFichaCategories(order);
+              const fichaCats = buildBootFichaCategories(order, { showCliente });
               const fotosValidasDet = (order.fotos || []).filter((f: string) => isHttpUrl(f));
               const dateStr = `${order.dataCriacao.slice(8, 10)}/${order.dataCriacao.slice(5, 7)} ${order.horaCriacao || ''}`.trim();
               const tamText = `${order.tamanho || ''}${order.genero ? ' ' + order.genero.substring(0, 3).toLowerCase() + '.' : ''}`;
