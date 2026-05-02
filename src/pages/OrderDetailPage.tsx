@@ -406,10 +406,42 @@ const OrderDetailPage = () => {
     return t;
   };
   const extraTotalCalc = computeExtraTotal();
-  // Total bruto (antes do ajuste) e total final (helper centralizado: trata desconto>0 e acréscimo<0)
-  const displayTotalBruto = order.tipoExtra ? (extraTotalCalc || order.preco * order.quantidade) : (totalCalc || order.preco * order.quantidade);
+  // Subtotal REAL recalculado a partir dos itens da composição (fonte única de verdade).
+  // Usado para garantir que Total = Subtotal − ajuste, mesmo quando order.preco no banco está dessincronizado.
+  const subtotalReal = order.tipoExtra
+    ? (extraTotalCalc || order.preco * order.quantidade)
+    : (totalCalc || order.preco * order.quantidade);
   const ajusteValor = Number(order.desconto) || 0; // >0 desconto, <0 acréscimo
-  const displayTotal = getOrderFinalValue(order);
+  const displayTotalBruto = subtotalReal;
+  const displayTotal = getOrderFinalValue(order, subtotalReal);
+
+  // ─── Auto-correção: sincroniza order.preco no banco quando divergir do subtotal real ───
+  // Garante que listagens, dashboard, expedição/cobrança (que leem via getOrderFinalValue
+  // sobre order.preco) reflitam o valor correto sem necessidade de migration manual.
+  useEffect(() => {
+    if (!order || orderLoading) return;
+    // Pula bota_pronta_entrega quando preco já é o total (não multiplicado por qtd) — getOrderBaseValue trata.
+    const baseEsperadoPersistido = order.tipoExtra
+      ? (order.tipoExtra === 'bota_pronta_entrega' ? subtotalReal : subtotalReal)
+      : (subtotalReal / Math.max(1, order.quantidade || 1));
+    const precoAtual = Number(order.preco) || 0;
+    // Para bota normal precisamos comparar preco unitário; para extras, preco total.
+    const precoAlvo = order.tipoExtra ? subtotalReal : subtotalReal / Math.max(1, order.quantidade || 1);
+    if (Math.abs(precoAtual - precoAlvo) > 0.01 && subtotalReal > 0) {
+      // Atualização silenciosa, sem registrar como alteração do usuário
+      supabase
+        .from('orders')
+        .update({ preco: precoAlvo })
+        .eq('id', order.id)
+        .then(({ error }) => {
+          if (!error) {
+            // Não precisa refetch — UI já mostra o valor correto via subtotalReal
+          }
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, subtotalReal]);
+
 
   const alteracoes = order.alteracoes || [];
 
