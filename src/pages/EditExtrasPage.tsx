@@ -18,10 +18,13 @@ import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota, deserializeBota } from '@/lib/botaExtraHelpers';
+import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { JustificativaDialog } from '@/components/JustificativaDialog';
 
 const EditExtrasPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles, user } = useAuth();
+  const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
