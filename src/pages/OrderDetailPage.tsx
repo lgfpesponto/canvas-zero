@@ -927,6 +927,9 @@ const OrderDetailPage = () => {
             </div>
           )}
 
+        </div>
+        {/* ═══ BLOCO 2 — Detalhes (estilo Ficha) ═══ */}
+        <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
           {/* Detalhes */}
           <h2 className="text-lg font-display font-bold mb-3">
             {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
