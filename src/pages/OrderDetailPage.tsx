@@ -691,7 +691,46 @@ const OrderDetailPage = () => {
 
 
           {/* ═══ Composição do Pedido (acima dos Detalhes) ═══ */}
-          <h2 className="text-lg font-display font-bold mb-3">Composição do Pedido</h2>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <h2 className="text-lg font-display font-bold">Composição do Pedido</h2>
+            {role === 'admin_master' && (
+              <label
+                htmlFor="conferido-checkbox"
+                className="inline-flex items-center gap-2 cursor-pointer select-none px-3 py-1.5 rounded-md bg-muted/50 border border-border/60 hover:bg-muted/70 transition-colors"
+              >
+                <Checkbox
+                  id="conferido-checkbox"
+                  checked={!!order.conferido}
+                  onCheckedChange={async (v) => {
+                    const novo = !!v;
+                    const { error } = await supabase
+                      .from('orders')
+                      .update({
+                        conferido: novo,
+                        conferido_em: novo ? new Date().toISOString() : null,
+                        conferido_por: novo ? user?.id : null,
+                      })
+                      .eq('id', order.id);
+                    if (error) {
+                      toast.error('Erro ao salvar: ' + error.message);
+                      return;
+                    }
+                    await refetchOrder();
+                    toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
+                  }}
+                />
+                <CheckCircle2 size={14} className={order.conferido ? 'text-primary' : 'text-muted-foreground'} />
+                <span className="text-sm font-bold">Conferido</span>
+                {order.conferido && order.conferidoEm ? (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    em {new Date(order.conferidoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}
+                  </span>
+                ) : (
+                  !order.conferido && <span className="text-sm text-muted-foreground">Não</span>
+                )}
+              </label>
+            )}
+          </div>
           <div className="border border-border rounded-lg p-4 mb-2">
             {order.tipoExtra ? (
               <>
