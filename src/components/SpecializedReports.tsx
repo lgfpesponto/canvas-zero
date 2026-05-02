@@ -1387,8 +1387,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.desconto && o.desconto !== 0) {
         const isAcr = o.desconto < 0;
         const label = isAcr ? 'Acréscimo' : 'Desconto';
-        // val positivo para acréscimo (mostra como soma), negativo para desconto (mostra como subtração)
-        priceItems.push([label, isAcr ? Math.abs(o.desconto) : -o.desconto]);
+        // Sempre exibe valor absoluto positivo; o rótulo + bolinha colorida no nº do pedido
+        // indicam o tipo. Antes "-R$" no Desconto sumia visualmente no PDF.
+        priceItems.push([label, Math.abs(o.desconto)]);
       }
       // Última justificativa que afetou o valor (admin_master/admin_producao)
       const ultimaJust = [...(o.alteracoes || [])]

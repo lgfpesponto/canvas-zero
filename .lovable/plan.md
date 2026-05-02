@@ -1,25 +1,24 @@
-## Ajuste no PDF de Cobrança — Bolinha de status
+## Correção: Desconto sumindo no PDF de Cobrança
 
-Arquivo: `src/components/SpecializedReports.tsx` (bloco ~linhas 1447-1457).
+### Causa
+Em `src/components/SpecializedReports.tsx` (linha ~1391), quando o pedido tem **desconto** (`o.desconto > 0`), o código empurra o valor como **negativo**:
+```ts
+priceItems.push([label, isAcr ? Math.abs(o.desconto) : -o.desconto]);
+```
+O `formatCurrency(-10)` produz algo como `-R$ 10,00`. Combinado com a fonte 6pt e o `splitTextToSize`, a linha "Desconto -R$ 10,00" pode estar quebrando ou sendo cortada visualmente — por isso o "Acréscimo" aparece e o "Desconto" não.
 
-### Mudanças
-1. **Reposicionar a bolinha** da célula de composição (`cx[2]`) para a célula do número do pedido (`cx[0]`), centralizada horizontalmente abaixo do código de barras.
-   - X: centro da coluna 0 → `cx[0] + cols[0] / 2`
-   - Y: logo abaixo do código de barras (que está em `y + 6` com altura 7) com folga → `y + 6 + 7 + 4` ≈ `y + 17`
-2. **Aumentar o raio** da bolinha de `1.1` para `2.0` para melhor visibilidade.
-3. Manter cores: verde (22,163,74) para acréscimo, vermelho (220,38,38) para desconto.
-4. Resetar `setFillColor(0,0,0)` após desenhar.
+### Correção
+Sempre empurrar o valor **absoluto positivo**. O tipo (acréscimo/desconto) já é indicado pelo rótulo + bolinha colorida na coluna do número do pedido (verde/vermelha), então não precisa de sinal negativo no número.
 
-### Snippet proposto
 ```ts
 if (o.desconto && o.desconto !== 0) {
-  const isAcrescimo = o.desconto < 0;
-  if (isAcrescimo) doc.setFillColor(22, 163, 74); else doc.setFillColor(220, 38, 38);
-  const cxBall = cx[0] + cols[0] / 2;
-  const cyBall = y + 17; // abaixo do código de barras
-  doc.circle(cxBall, cyBall, 2.0, 'F');
-  doc.setFillColor(0, 0, 0);
+  const isAcr = o.desconto < 0;
+  const label = isAcr ? 'Acréscimo' : 'Desconto';
+  priceItems.push([label, Math.abs(o.desconto)]);
 }
 ```
 
-Nenhuma outra lógica é alterada.
+A bolinha (verde p/ acréscimo, vermelha p/ desconto) e o cálculo do `getOrderFinalValue` continuam intactos — só muda a apresentação do número.
+
+### Arquivo
+- `src/components/SpecializedReports.tsx` (bloco ~linhas 1387-1392)
