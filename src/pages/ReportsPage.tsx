@@ -1,7 +1,7 @@
 import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue, matchOrderBarcode, type Order } from '@/contexts/AuthContext';
 import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchAllFilteredOrderIds, fetchOrdersByIds, type OrderFilters } from '@/hooks/useOrders';
 import { supabase } from '@/integrations/supabase/client';
-import { dbRowToOrder } from '@/lib/order-logic';
+import { dbRowToOrder, getOrderFinalValue } from '@/lib/order-logic';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -351,7 +351,7 @@ const ReportsPage = () => {
       } else {
         prod += qtd;
       }
-      val += (Number(o.preco) || 0) * qtd;
+      val += getOrderFinalValue(o);
     }
     return { displayTotalProdutos: prod, displayTotalValue: val };
   }, [onlyOverdue, visibleOrders, totalProdutos, totalValue]);
