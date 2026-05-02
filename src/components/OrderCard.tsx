@@ -89,7 +89,7 @@ const OrderCard = React.memo(({
               : order.tipoExtra
                 ? `/pedido/${order.id}/editar-extra`
                 : `/pedido/${order.id}/editar`;
-            navigate(editPath);
+            navigate(`${editPath}${location.search}`);
           }} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
             <Pencil size={16} />
           </button>

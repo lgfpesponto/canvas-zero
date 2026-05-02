@@ -192,7 +192,10 @@ const EditBeltPage = () => {
         extraDetalhes,
       } as any);
       toast.success('Cinto atualizado com sucesso!');
-      navigate(`/pedido/${order.id}${fotoParam ? '?foto=1' : ''}`, { replace: true });
+      const sp = new URLSearchParams(searchParams);
+      if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
+      const qs = sp.toString();
+      navigate(`/pedido/${order.id}${qs ? `?${qs}` : ''}`, { replace: true });
     } catch (err) {
       console.error('updateBelt error:', err);
       toast.error('Erro ao salvar alterações.');
