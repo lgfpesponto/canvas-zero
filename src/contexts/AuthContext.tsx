@@ -37,6 +37,8 @@ export interface OrderAlteracao {
   hora: string;
   descricao: string;
   usuario?: string;
+  justificativa?: string;
+  afetouValor?: boolean;
 }
 
 export interface Order {
