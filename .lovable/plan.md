@@ -1,86 +1,58 @@
-## Objetivo
+## Confirmação sobre pedidos antigos
 
-Refinar o sistema de justificativas e ajuste de valor:
+**Sim, funciona em pedidos antigos.** Tudo que foi feito é compatível:
 
-1. **Totalizador da lista de pedidos** (RPC `get_orders_totals`) reflete desconto/acréscimo.
-2. Na **Composição do Pedido** (tela e PDF de cobrança), mostrar **apenas a ÚLTIMA justificativa que afetou valor** (seja de edição de campo monetário, seja do card "Edição de Valor").
-3. **Histórico de Alterações**: mostrar **TODAS** as justificativas (mesmo as que não alteraram valor) — confirmar/garantir comportamento.
-4. A justificativa do botão "Aplicar Desconto/Acréscimo" deve sair também na **Composição** e no **PDF de cobrança** (atualmente sai via `descontoJustificativa` + linha de `Desconto/Acréscimo`; vamos unificar com as demais via `alteracoes.afetouValor`).
+- A coluna `desconto` (numeric) e `descontoJustificativa` (text) já existem na tabela `orders` há tempo — qualquer pedido antigo aceita receber valor.
+- A coluna `alteracoes` é JSONB e cresce a cada edição. Alterações antigas que não tinham `justificativa` ou `afetouValor` continuam aparecendo no histórico normalmente, só sem a linha "Motivo:" — comportamento esperado.
+- A RPC `get_orders_totals` agora aplica o desconto/acréscimo de qualquer pedido (novo ou antigo) automaticamente, pois lê direto do campo `desconto`.
+- O PDF de cobrança e a composição buscam a "última justificativa que afetou valor" via `alteracoes[].afetouValor`. Pedidos antigos sem nenhuma alteração desse tipo simplesmente não exibem a linha — assim que o admin editar valor agora, ela passa a aparecer.
 
-## Mudanças
+## Problemas detectados na revisão
 
-### 1. Migration: RPC `get_orders_totals`
+### 1. Card "Edição de Valor" não atualiza a tela sem recarregar
 
-Atualizar o `valor_total` para subtrair `COALESCE(desconto, 0)` por pedido (positivo = desconto, negativo = acréscimo somando). Manter assinatura, parâmetros e demais colunas (`total_pedidos`, `total_produtos`).
+O botão chama `updateOrder(...)` mas **nunca chama `refetchOrder()`**, então a UI fica usando o `order` antigo do hook `useOrderById`. Outras ações da página (ex: linha 665) já fazem `await refetchOrder()`.
 
-```sql
-SELECT
-  COUNT(*)::bigint,
-  COALESCE(SUM(...), 0)::bigint,                                 -- total_produtos (sem mudança)
-  COALESCE(SUM(
-    GREATEST(
-      COALESCE(preco, 0) * COALESCE(quantidade, 1) - COALESCE(desconto, 0),
-      0
-    )
-  ), 0)::numeric AS valor_total
-FROM filtered;
-```
+### 2. Justificativa duplicada no histórico
 
-Mesma fórmula é usada no `ReportsPage.tsx` (linha 339, comentário "mesma fórmula da RPC"). Atualizar lá também para somar `getOrderFinalValue` por pedido (ou subtrair `desconto`). Verificar e ajustar.
+O onClick atual monta MANUALMENTE uma entrada em `alteracoes` e passa para o `updateOrder`. Mas o próprio `updateOrder` no `AuthContext` **detecta a mudança em `desconto`** (está em `VALUE_KEYS`) e gera AUTOMATICAMENTE uma alteração com `justificativa` + `afetouValor: true`. Resultado: cada clique vira **2 entradas** no histórico para a mesma ação.
 
-### 2. `src/pages/OrderDetailPage.tsx` — Composição
+### 3. Linha "Justificativa:" redundante
 
-Substituir o bloco "Justificativas de alterações de valor" (linhas 839-849) por exibir **apenas a última**:
+Logo abaixo de "Total com desconto" tem `{order.descontoJustificativa && <p>Justificativa: ...</p>}` (linhas 833-835). Como agora temos a seção "Última justificativa de alteração de valor" logo abaixo (cobrindo edição normal + edição de valor), a linha vira duplicação visual.
 
+## Mudanças propostas
+
+### `src/pages/OrderDetailPage.tsx`
+
+**A) Tornar o botão `async` + chamar `refetchOrder` ao final:**
 ```tsx
-{(() => {
-  const ultima = [...justificativasValor].pop(); // último grupo afetouValor com justificativa
-  if (!ultima) return null;
-  return (
-    <div className="mt-3 pt-3 border-t border-border">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-        Última justificativa de alteração de valor
-      </p>
-      <p className="text-xs text-muted-foreground">
-        <span className="font-medium">{formatDateBR(ultima.data)} às {ultima.hora} — {ultima.usuario || '—'}:</span>{' '}
-        <span className="italic">{ultima.justificativa}</span>
-      </p>
-    </div>
-  );
-})()}
+onClick={async () => {
+  // ... validações ...
+  await updateOrder(order.id, {
+    desconto: novoAjuste,
+    descontoJustificativa: justificativaInput.trim(),
+  }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
+  setDescontoInput('');
+  setJustificativaInput('');
+  await refetchOrder();           // ← faz a tela atualizar na hora
+  toast.success(...);
+}}
 ```
 
-Como a JustificativaDialog também é acionada pelo card "Edição de Valor" (já adicionamos `afetouValor: true` ao registrar), a última justificativa cobre ambos os casos (campos monetários alterados via edição normal **e** uso do botão Edição de Valor).
+**B) Remover a montagem manual de `alteracoes` no payload** — deixar o `updateOrder` detectar a mudança em `desconto` sozinho. Assim cada clique gera UMA entrada no histórico, com `afetouValor: true` e a `justificativa` informada.
 
-Remover também a linha que mostra `order.descontoJustificativa` solto na seção de Desconto/Acréscimo (vira redundante com a "Última justificativa"). Manter apenas a barra Desconto/Acréscimo + Total final.
+**C) Remover as linhas 833-835** (`Justificativa: ...` redundante).
 
-### 3. `src/components/SpecializedReports.tsx` — PDF de Cobrança
+### Sem mudanças no banco
 
-No `compText` (linhas 1392-1405), substituir o loop que adiciona TODAS as justificativas afetuValor por apenas a **última**:
+A migration anterior (RPC `get_orders_totals`) já cobre o totalizador para pedidos antigos.
 
-```ts
-// Última justificativa que afetou o valor
-const ultimaJust = [...(o.alteracoes || [])]
-  .reverse()
-  .find(a => a.afetouValor && a.justificativa);
-const justifLines: string[] = ultimaJust
-  ? [`Motivo (${ultimaJust.data} por ${ultimaJust.usuario || '—'}): ${ultimaJust.justificativa}`]
-  : [];
-```
+## Resultado esperado
 
-Remover o sufixo `(${o.descontoJustificativa})` da linha "Desconto/Acréscimo" para evitar duplicação (a justificativa fica somente na linha "Motivo:" abaixo).
+- **Pedidos antigos**: ao aplicar desconto/acréscimo, valor é refletido imediatamente em lista, totalizador, detalhe e PDF de cobrança.
+- **Tela atualiza sozinha** após clicar em "Aplicar Desconto/Acréscimo" — sem F5, sem voltar.
+- **Histórico limpo**: 1 linha por aplicação, com a justificativa correta.
+- **Composição** mostra apenas a "Última justificativa de alteração de valor" (sem duplicar com a linha solta antiga).
 
-### 4. `src/pages/OrderDetailPage.tsx` — Histórico de Alterações
-
-Confirmar que continua exibindo TODAS as justificativas (já faz via `g.justificativa` nas linhas 1118-1120). Sem mudança de código necessária — apenas validar visualmente. **Importante:** edições antigas (pré-feature) não terão `justificativa`, então só não aparecerá "Motivo:" nelas — comportamento esperado.
-
-## Resumo de arquivos editados
-
-- **Migration SQL** — atualizar RPC `get_orders_totals` para descontar/somar `desconto` no `valor_total`.
-- `src/pages/ReportsPage.tsx` — alinhar fórmula local do totalizador (linha 339+) com a RPC.
-- `src/pages/OrderDetailPage.tsx` — composição mostra apenas última justificativa de valor; remover linha redundante de `descontoJustificativa`.
-- `src/components/SpecializedReports.tsx` — PDF cobrança mostra apenas última justificativa de valor; remover duplicação do `descontoJustificativa` no rótulo.
-
-## Confirmação
-
-Posso executar a migration da RPC `get_orders_totals` e aplicar as mudanças acima?
+Posso aplicar?
