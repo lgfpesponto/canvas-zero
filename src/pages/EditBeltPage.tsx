@@ -14,6 +14,8 @@ import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
   FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
+import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { JustificativaDialog } from '@/components/JustificativaDialog';
 
 const cls = {
   label: 'block text-sm font-semibold mb-1',
