@@ -1392,8 +1392,15 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const ultimaJust = [...(o.alteracoes || [])]
         .reverse()
         .find(a => a.afetouValor && a.justificativa);
+      // Remove prefixo "Acréscimo/Desconto aplicado: R$ X,XX — " da justificativa
+      // (o valor já é mostrado na linha própria acima, não repetir).
+      const justifTextoLimpo = ultimaJust
+        ? ultimaJust.justificativa
+            .replace(/^\s*(Acréscimo|Desconto)\s+aplicado:\s*R\$\s*[\d.,]+\s*[—\-–]\s*/i, '')
+            .trim()
+        : '';
       const justifLines: string[] = ultimaJust
-        ? [`Motivo (${ultimaJust.data} por ${ultimaJust.usuario || '—'}): ${ultimaJust.justificativa}`]
+        ? [`Justificativa (${ultimaJust.data} por ${ultimaJust.usuario || '—'}): ${justifTextoLimpo}`]
         : [];
       const compText = [
         ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
@@ -1434,18 +1441,18 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       doc.setFontSize(6);
       doc.text(lines, cx[2] + 1, y + 4);
-      // Coloriza "Desconto" (vermelho) e "Acréscimo" (verde) — tanto em linhas próprias
-      // (quando há valor ativo) quanto dentro do texto do motivo.
+      // Coloriza apenas a linha-própria que começa com "Acréscimo " (verde) ou
+      // "Desconto " (vermelho). Linhas pós-quebra do splitTextToSize não são tocadas,
+      // evitando palavra deslocada ou duplicada.
       (lines as string[]).forEach((line, idx) => {
         const lineY = y + 4 + idx * 3;
-        const m = line.match(/(Acréscimo|Desconto)/);
-        if (!m) return;
-        const word = m[1];
-        const before = line.substring(0, m.index!);
-        const xOffset = cx[2] + 1 + doc.getTextWidth(before);
-        if (word === 'Acréscimo') doc.setTextColor(22, 163, 74); // verde
-        else doc.setTextColor(220, 38, 38);                       // vermelho
-        doc.text(word, xOffset, lineY);
+        let word: 'Acréscimo' | 'Desconto' | null = null;
+        if (line.startsWith('Acréscimo ')) word = 'Acréscimo';
+        else if (line.startsWith('Desconto ')) word = 'Desconto';
+        if (!word) return;
+        if (word === 'Acréscimo') doc.setTextColor(22, 163, 74);
+        else doc.setTextColor(220, 38, 38);
+        doc.text(word, cx[2] + 1, lineY);
         doc.setTextColor(0, 0, 0);
       });
 
