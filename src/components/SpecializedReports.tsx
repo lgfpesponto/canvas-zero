@@ -316,15 +316,22 @@ function buildCompositionItems(o: Order): [string, number][] {
         if (p) priceItems.push([a, p]);
       });
     }
-    [o.couroCano, o.couroGaspea, o.couroTaloneira].forEach(t => {
-      if (t && COURO_PRECOS[t]) priceItems.push(['Couro: ' + t, COURO_PRECOS[t]]);
+    ([
+      [o.couroCano, 'couro_cano'],
+      [o.couroGaspea, 'couro_gaspea'],
+      [o.couroTaloneira, 'couro_taloneira'],
+    ] as [string | undefined, string][]).forEach(([t, cat]) => {
+      if (!t) return;
+      const fb = COURO_PRECOS[t];
+      const p = priceWithFallback([cat], t, fb);
+      if (p > 0) priceItems.push(['Couro: ' + t, p]);
     });
     const desenvP = DESENVOLVIMENTO.find(d => d.label === o.desenvolvimento)?.preco;
     if (desenvP) priceItems.push(['Desenvolvimento: ' + o.desenvolvimento, desenvP]);
     const bordadoLists: [string | undefined, typeof BORDADOS_CANO, string[]][] = [
-      [o.bordadoCano, BORDADOS_CANO, ['bordados-cano', 'bordado_cano']],
-      [o.bordadoGaspea, BORDADOS_GASPEA, ['bordados-gaspea', 'bordado_gaspea']],
-      [o.bordadoTaloneira, BORDADOS_TALONEIRA, ['bordados-taloneira', 'bordado_taloneira']],
+      [o.bordadoCano, BORDADOS_CANO, ['bordados-cano', 'bordado_cano', 'bordados-visual']],
+      [o.bordadoGaspea, BORDADOS_GASPEA, ['bordados-gaspea', 'bordado_gaspea', 'bordados-visual']],
+      [o.bordadoTaloneira, BORDADOS_TALONEIRA, ['bordados-taloneira', 'bordado_taloneira', 'bordados-visual']],
     ];
     bordadoLists.forEach(([bStr, list, cats]) => {
       if (bStr) bStr.split(', ').filter(Boolean).forEach(b => {
@@ -351,8 +358,8 @@ function buildCompositionItems(o: Order): [string, number][] {
     if (soladoP) priceItems.push(['Solado: ' + o.solado, soladoP]);
     const corSolaP = getCorSolaPrecoContextual(o.modelo, o.solado, o.formatoBico, o.corSola);
     if (corSolaP) priceItems.push(['Cor Sola: ' + o.corSola, corSolaP]);
-    const corViraP = (o.corVira && !['Bege', 'Neutra'].includes(o.corVira)) ? (COR_VIRA.find(c => c.label === o.corVira)?.preco || 0) : 0;
-    if (corViraP) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
+    const corViraP = COR_VIRA.find(c => c.label === o.corVira)?.preco || 0;
+    if (corViraP > 0) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
     if (o.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
     const carimboP = CARIMBO.find(c => c.label === o.carimbo)?.preco;
     if (carimboP) priceItems.push([o.carimbo!, carimboP]);
@@ -1336,16 +1343,30 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             if (p) priceItems.push([a, p]);
           });
         }
-        [o.couroCano, o.couroGaspea, o.couroTaloneira].forEach(t => {
-          if (t && COURO_PRECOS[t]) priceItems.push(['Couro: ' + t, COURO_PRECOS[t]]);
+        // Couros — preço REAL do banco POR REGIÃO (cano/gáspea/taloneira). Antes
+        // o PDF usava COURO_PRECOS[t], um mapa global por NOME do couro, ignorando
+        // a região e cobrando o mesmo valor nos 3 campos. O detalhe do pedido já
+        // respeita o preço por região; agora o PDF também respeita.
+        ([
+          [o.couroCano, 'couro_cano'],
+          [o.couroGaspea, 'couro_gaspea'],
+          [o.couroTaloneira, 'couro_taloneira'],
+        ] as [string | undefined, string][]).forEach(([t, cat]) => {
+          if (!t) return;
+          const fb = COURO_PRECOS[t];
+          const p = priceWithFallback([cat], t, fb);
+          if (p > 0) priceItems.push(['Couro: ' + t, p]);
         });
         const desenvP = DESENVOLVIMENTO.find(d => d.label === o.desenvolvimento)?.preco;
         if (desenvP) priceItems.push(['Desenvolvimento: ' + o.desenvolvimento, desenvP]);
-        // Bordados — preço REAL do banco com fallback nas constantes
+        // Bordados — busca em todos os aliases possíveis (categoria visual, categoria
+        // legada e slug do campo). "bordados-visual" cobre os bordados cadastrados
+        // no editor visual; "bordados-cano" mantém compatibilidade com o cadastro
+        // antigo; e o slug do CAMPO (`bordado_cano`) cobre custom_options.
         const bordadoLists: [string | undefined, typeof BORDADOS_CANO, string[]][] = [
-          [o.bordadoCano, BORDADOS_CANO, ['bordados-cano', 'bordado_cano']],
-          [o.bordadoGaspea, BORDADOS_GASPEA, ['bordados-gaspea', 'bordado_gaspea']],
-          [o.bordadoTaloneira, BORDADOS_TALONEIRA, ['bordados-taloneira', 'bordado_taloneira']],
+          [o.bordadoCano, BORDADOS_CANO, ['bordados-cano', 'bordado_cano', 'bordados-visual']],
+          [o.bordadoGaspea, BORDADOS_GASPEA, ['bordados-gaspea', 'bordado_gaspea', 'bordados-visual']],
+          [o.bordadoTaloneira, BORDADOS_TALONEIRA, ['bordados-taloneira', 'bordado_taloneira', 'bordados-visual']],
         ];
         bordadoLists.forEach(([bStr, list, cats]) => {
           if (bStr) bStr.split(', ').filter(Boolean).forEach(b => {
@@ -1372,8 +1393,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         if (soladoP) priceItems.push(['Solado: ' + o.solado, soladoP]);
         const corSolaP = getCorSolaPrecoContextual(o.modelo, o.solado, o.formatoBico, o.corSola);
         if (corSolaP) priceItems.push(['Cor Sola: ' + o.corSola, corSolaP]);
-        const corViraP = (o.corVira && !['Bege', 'Neutra'].includes(o.corVira)) ? (COR_VIRA.find(c => c.label === o.corVira)?.preco || 0) : 0;
-        if (corViraP) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
+        // Cor da Vira: o detalhe lista qualquer cor com preço > 0 (sem filtro
+        // antecipado por nome). Mantemos o mesmo critério aqui.
+        const corViraP = COR_VIRA.find(c => c.label === o.corVira)?.preco || 0;
+        if (corViraP > 0) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
         if (o.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
         const carimboP = CARIMBO.find(c => c.label === o.carimbo)?.preco;
         if (carimboP) priceItems.push([o.carimbo!, carimboP]);
