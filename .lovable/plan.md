@@ -1,31 +1,34 @@
-## Garantir paridade total entre "Detalhes da Bota" e a ficha impressa
+## Restaurar botão de edição (lápis) no Bloco 2 — Detalhes da Bota
 
-Comparando o helper atual `buildBootFichaCategories` (usado no novo Bloco 2) com o "ver-tudo" anterior (`detailsGrouped`) e com a ficha PDF, há campos selecionáveis no pedido que **não estão sendo exibidos** quando preenchidos. Vamos completar o helper para que toda seleção apareça — tanto na tela quanto, futuramente, na ficha impressa (mesma fonte de dados).
+### Problema
+Na reorganização anterior do detalhe do pedido, o botão lápis foi removido do Bloco 1 com a intenção de movê-lo para o Bloco 2 ("Detalhes da Bota"), mas não chegou a ser renderizado lá. O ícone `Pencil` está importado em `OrderDetailPage.tsx`, porém sem uso no JSX.
 
-### Campos que podem sumir hoje e serão garantidos
+### Solução
+Adicionar o botão lápis no cabeçalho do Bloco 2, ao lado do título "Detalhes da Bota / Detalhes — {Extra}", apontando para a mesma rota que o `OrderCard` já usa, levando à página "Faça seu pedido / Bota" (ou Extras / Cinto, conforme o tipo do pedido).
 
-**METAIS**
-- `Bola Grande` (`extraDetalhes.bolaGrandeQtd`) — não aparece em lugar nenhum no helper atual.
-- Linha "Metais:" só aparece se `order.metais` existir. Se o pedido tiver apenas `tipoMetal` ou `corMetal` (sem área), nada é mostrado — passa a renderizar mesmo assim.
+### Comportamento
+- Visível apenas para quem pode editar (mesma regra usada hoje no `OrderCard`: `isAdmin` — admin_master e admin_producao).
+- Rota destino, replicando a lógica existente:
+  - `tipoExtra === 'cinto'` → `/pedido/:id/editar-cinto`
+  - outro `tipoExtra` → `/pedido/:id/editar-extra`
+  - sem `tipoExtra` (bota) → `/pedido/:id/editar`
+- Preserva `location.search` ao navegar (mantém filtros/contexto, igual ao card).
+- Tooltip "Editar pedido", estilo idêntico ao do card (botão pequeno, cor primária, hover suave).
 
-**EXTRAS**
-- `Tricê = "Sim"` sem descrição → some hoje (exige `triceDesc`). Passa a mostrar "tricê: sim".
-- `Tiras = "Sim"` sem descrição → mesmo problema, mesma correção.
-- `Franja` / `Corrente` quando vêm como flags em `order.franja`/`order.corrente === 'Sim'` (em vez de `extraDetalhes.franja`/`corrente`) → também passam a aparecer.
+### Posicionamento
+Cabeçalho do Bloco 2 vira um flex com o título à esquerda e o lápis à direita:
 
-**Verificação cruzada** (já cobertos, sem mudança):
-- IDENTIFICAÇÃO: sob medida, desenvolvimento, cliente. ✓
-- COUROS: cano, gáspea, taloneira + cor. ✓
-- PESPONTO: linha, borrachinha, vivo. ✓
-- SOLADOS: tipo (solado + formatoBico), cor, vira (com filtro Bege/Neutra igual à ficha). ✓
-- BORDADOS: cano, gáspea, taloneira (com substituição de "Bordado Variado" pela descrição) + nome. ✓
-- LASER E RECORTES: laser cano/gáspea/taloneira + glitter, recorte cano/gáspea/taloneira + cor, pintura. ✓
-- ESTAMPA, CARIMBO, COSTURA ATRÁS, ACESSÓRIOS, ADICIONAL, OBS. ✓
+```text
+[ Detalhes da Bota                                    [✏️] ]
+---------------------------------------------------------
+( conteúdo do bloco )
+```
 
-### Arquivos a editar
+### Detalhes técnicos
+- Arquivo: `src/pages/OrderDetailPage.tsx` (linhas ~972-977).
+- Envolver o `<h2>` em um `<div className="flex items-center justify-between mb-3">` e adicionar o `<button>` com `<Pencil size={16} />` ao lado.
+- Reaproveitar `useNavigate` e `useLocation` (já presentes na página) e o role check já existente para o checkbox "Conferido"/edição de valor (admin_master / admin_producao = `isAdmin`).
+- Nenhuma alteração em rotas, hooks ou lógica de negócio. Apenas UI.
 
-- `src/lib/orderFichaCategories.ts` — ampliar blocos METAIS e EXTRAS conforme acima.
-
-Não toco no layout do Bloco 2 nem no PDF — só no helper compartilhado, então a tela e (no futuro) o PDF passam a refletir o mesmo conjunto completo.
-
-Posso aplicar?
+### Fora do escopo
+- Não mexer em Bloco 1, composição, subtotal/total, auto-correção de preço — tudo isso permanece como ficou.
