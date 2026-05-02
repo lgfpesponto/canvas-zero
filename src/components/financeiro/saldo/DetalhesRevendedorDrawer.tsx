@@ -25,6 +25,8 @@ import {
 } from '@/lib/revendedorSaldo';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 import { AjusteSaldoDialog } from './AjusteSaldoDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 interface Props {
   open: boolean;
@@ -38,6 +40,7 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
   const [movs, setMovs] = useState<RevendedorMovimento[]>([]);
   const [baixas, setBaixas] = useState<RevendedorBaixa[]>([]);
   const [pedidos, setPedidos] = useState<PedidoCobrado[]>([]);
+  const [orderNumeros, setOrderNumeros] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [ajusteOpen, setAjusteOpen] = useState(false);
   const [estornoTarget, setEstornoTarget] = useState<RevendedorBaixa | null>(null);
@@ -60,6 +63,22 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
         fetchPedidosCobrados(vendedor),
       ]);
       setMovs(m); setBaixas(b); setPedidos(p);
+
+      // Busca números dos pedidos referenciados pelos movimentos (para exibir no extrato)
+      const orderIds = Array.from(new Set(
+        m.map(x => x.order_id).filter((x): x is string => !!x)
+      ));
+      const pedidosMap: Record<string, string> = {};
+      p.forEach(x => { pedidosMap[x.id] = x.numero; });
+      const missing = orderIds.filter(id => !pedidosMap[id]);
+      if (missing.length > 0) {
+        const { data: extra } = await supabase
+          .from('orders')
+          .select('id, numero')
+          .in('id', missing);
+        (extra || []).forEach((o: any) => { pedidosMap[o.id] = o.numero; });
+      }
+      setOrderNumeros(pedidosMap);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar detalhes', description: e.message, variant: 'destructive' });
     } finally {
@@ -312,7 +331,21 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
                           {new Date(m.created_at).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell className="text-xs">{tipoMovimentoLabel(m.tipo)}</TableCell>
-                        <TableCell className="text-xs max-w-[280px] truncate">{m.descricao || '—'}</TableCell>
+                        <TableCell className="text-xs max-w-[320px]">
+                          {m.order_id && orderNumeros[m.order_id] ? (
+                            <span>
+                              {m.descricao || '—'}{' '}
+                              <Link
+                                to={`/pedido/${m.order_id}`}
+                                className="text-primary underline font-medium"
+                              >
+                                Pedido #{orderNumeros[m.order_id]}
+                              </Link>
+                            </span>
+                          ) : (
+                            <span className="truncate">{m.descricao || '—'}</span>
+                          )}
+                        </TableCell>
                         <TableCell className={`text-right font-mono text-xs ${isOut ? 'text-destructive' : 'text-primary'}`}>
                           {isOut ? '−' : '+'} {formatCurrency(Number(m.valor))}
                         </TableCell>
