@@ -1738,6 +1738,31 @@ const OrderPage = () => {
             <p className="text-sm text-muted-foreground text-center mb-6">Confira todas as informações antes de finalizar</p>
 
             <div className="space-y-5 mb-4">
+              {/* ───── Composição do Pedido (mesma estrutura do OrderDetailPage) ───── */}
+              <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                <h3 className="font-display font-bold text-base mb-3 text-center uppercase tracking-wide">Composição do Pedido</h3>
+                <div className="space-y-1.5">
+                  {mirrorPriceItems.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center italic">Nenhum item com preço selecionado ainda.</p>
+                  )}
+                  {mirrorPriceItems.map(([label, valor], i) => (
+                    <div key={`${label}-${i}`} className="flex justify-between text-sm py-1 border-b border-border/30 last:border-0">
+                      <span className="text-foreground">{label}</span>
+                      <span className="text-primary font-semibold whitespace-nowrap ml-2">{formatCurrency(valor)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-sm pt-2 border-t border-border mt-2">
+                    <span className="font-semibold">Subtotal</span>
+                    <span className="font-semibold">{formatCurrency(mirrorSubtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg pt-1">
+                    <span className="font-display font-bold">Total</span>
+                    <span className="font-display font-bold text-primary">{formatCurrency(mirrorSubtotal)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ───── Detalhes da Bota (campos agrupados) ───── */}
               {mirrorGrouped.map(grupo => (
                 <div key={grupo.categoria}>
                   <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-sm uppercase tracking-wide py-1.5 rounded-sm mb-2">
