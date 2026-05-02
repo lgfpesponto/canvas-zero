@@ -1382,8 +1382,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       // Total final = valor com desconto aplicado (se houver). Centralizado em getOrderFinalValue
       // para bater 100% com a tela de detalhes, lista de pedidos e demais PDFs.
       const orderTotal = getOrderFinalValue(o);
-      if (o.desconto && o.desconto > 0) {
-        priceItems.push([`Desconto${o.descontoJustificativa ? ` (${o.descontoJustificativa})` : ''}`, -o.desconto]);
+      if (o.desconto && o.desconto !== 0) {
+        const isAcr = o.desconto < 0;
+        const label = isAcr ? 'Acréscimo' : 'Desconto';
+        const justSuffix = o.descontoJustificativa ? ` (${o.descontoJustificativa})` : '';
+        // val positivo para acréscimo (mostra como soma), negativo para desconto (mostra como subtração)
+        priceItems.push([`${label}${justSuffix}`, isAcr ? Math.abs(o.desconto) : -o.desconto]);
       }
       // Justificativas de edições que afetaram o valor (admin_master/admin_producao)
       const justifLines: string[] = [];
