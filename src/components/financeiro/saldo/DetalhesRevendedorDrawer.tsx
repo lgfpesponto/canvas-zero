@@ -64,10 +64,11 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
       ]);
       setMovs(m); setBaixas(b); setPedidos(p);
 
-      // Busca números dos pedidos referenciados pelos movimentos (para exibir no extrato)
-      const orderIds = Array.from(new Set(
-        m.map(x => x.order_id).filter((x): x is string => !!x)
-      ));
+      // Busca números dos pedidos referenciados (extrato + baixas realizadas)
+      const orderIds = Array.from(new Set([
+        ...m.map(x => x.order_id).filter((x): x is string => !!x),
+        ...b.map(x => x.order_id).filter((x): x is string => !!x),
+      ]));
       const pedidosMap: Record<string, string> = {};
       p.forEach(x => { pedidosMap[x.id] = x.numero; });
       const missing = orderIds.filter(id => !pedidosMap[id]);
@@ -292,7 +293,18 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
                   {baixas.map(b => (
                     <TableRow key={b.id}>
                       <TableCell className="text-xs">{formatDateBR(b.created_at.slice(0, 10))}</TableCell>
-                      <TableCell className="font-mono text-xs">{b.order_id.slice(0, 8)}…</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {orderNumeros[b.order_id] ? (
+                          <Link
+                            to={`/pedido/${b.order_id}`}
+                            className="text-primary underline font-medium"
+                          >
+                            Pedido #{orderNumeros[b.order_id]}
+                          </Link>
+                        ) : (
+                          <span>{b.order_id.slice(0, 8)}…</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">{formatCurrency(Number(b.valor_pedido))}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="ghost" onClick={() => setEstornoTarget(b)}>
