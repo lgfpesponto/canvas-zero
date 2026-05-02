@@ -40,6 +40,7 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
   const [movs, setMovs] = useState<RevendedorMovimento[]>([]);
   const [baixas, setBaixas] = useState<RevendedorBaixa[]>([]);
   const [pedidos, setPedidos] = useState<PedidoCobrado[]>([]);
+  const [orderNumeros, setOrderNumeros] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [ajusteOpen, setAjusteOpen] = useState(false);
   const [estornoTarget, setEstornoTarget] = useState<RevendedorBaixa | null>(null);
