@@ -619,7 +619,7 @@ const OrderDetailPage = () => {
             const temFoto = fotosValidas.length > 0;
             const dataHora = `${formatDateBR(order.dataCriacao)} — ${order.horaCriacao || ''}`.trim();
             const showVendedor = isAdmin;
-            const showConferido = role === 'admin_master';
+            
             const deadline = getOrderDeadlineInfo(order);
             const prazoLabel = deadline.isNoDeadline
               ? 'Sem prazo de produção'
