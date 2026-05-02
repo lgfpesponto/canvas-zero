@@ -29,7 +29,7 @@ import {
   TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, CRUZ_METAL_PRECO,
   BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO, FRANJA_PRECO, CORRENTE_PRECO,
   LASER_CANO_PRECO, LASER_GASPEA_PRECO, GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
-  VIRA_HIDDEN,
+  VIRA_HIDDEN, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
 
@@ -383,7 +383,7 @@ const OrderDetailPage = () => {
   if (detP.corrente) priceItems.push(['Corrente', CORRENTE_PRECO]);
   const soladoP = SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
-  const corSolaP = COR_SOLA.find(c => c.label === order.corSola)?.preco;
+  const corSolaP = getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
   if (corSolaP) priceItems.push(['Cor Sola: ' + order.corSola, corSolaP]);
   const corViraP = COR_VIRA.find(c => c.label === order.corVira)?.preco;
   if (corViraP) priceItems.push(['Cor Vira: ' + order.corVira, corViraP]);

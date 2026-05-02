@@ -440,6 +440,25 @@ export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: 
   }
 }
 
+/**
+ * Preço da Cor da Sola conforme o CONTEXTO (modelo + solado + bico).
+ *
+ * Crucial para a composição: a mesma "Marrom" custa R$ 20 quando o solado é Borracha
+ * e R$ 0 quando é PVC. Sempre use este helper ao montar o breakdown de preços do pedido —
+ * NUNCA leia direto de COR_SOLA, que carrega só o preço da combinação Borracha.
+ */
+export function getCorSolaPrecoContextual(
+  modelo: string | undefined | null,
+  solado: string | undefined | null,
+  formatoBico: string | undefined | null,
+  corSola: string | undefined | null,
+): number {
+  if (!corSola || !modelo || !solado) return 0;
+  const opts = getCorSolaOptions(modelo, solado, formatoBico || undefined);
+  if (!opts) return 0;
+  return opts.find(o => o.label === corSola)?.preco ?? 0;
+}
+
 export function getCorViraOptions(modelo: string, solado?: string): { label: string; preco: number }[] {
   const block = getBlockForModelo(modelo);
   if (!block) return COR_VIRA;
