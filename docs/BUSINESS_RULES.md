@@ -358,8 +358,8 @@ Extras possíveis dentro de Bota PE:
 
 ## R. Fluxos de Status
 
-### Botas (22 etapas)
-Em aberto → Aguardando → Aguardando Couro → Emprestado → Corte → Sem bordado → Bordado Dinei → Bordado Sandro → Bordado 7Estrivos → Pesponto 01 → Pesponto 02 → Pesponto 03 → Pesponto 04 → Pesponto 05 → Pesponto Ailton → Pespontando → Montagem → Revisão → Expedição → Baixa Estoque → Baixa Site (Despachado) → Entregue → Cobrado → Pago
+### Botas (23 etapas)
+Em aberto → Aguardando → Aguardando Couro → Emprestado → Corte → Sem bordado → Bordado Dinei → Bordado Sandro → Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos → Pesponto 01 → Pesponto 02 → Pesponto 03 → Pesponto 04 → Pesponto 05 → Pesponto Ailton → Pespontando → Montagem → Revisão → Expedição → Baixa Estoque → Baixa Site (Despachado) → Entregue → Cobrado → Pago
 
 > **Vendedores não veem**: "Baixa Estoque" e "Baixa Site (Despachado)" — usam `PRODUCTION_STATUSES_USER`
 
