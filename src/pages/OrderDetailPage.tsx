@@ -836,9 +836,9 @@ const OrderDetailPage = () => {
                           <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                         </div>
                       ))}
-                      <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-lg">
-                        <span>Total</span>
-                        <span className="text-primary">{formatCurrency(extraTotal || order.preco * order.quantidade)}</span>
+                      <div className="flex justify-between pt-2 mt-2 border-t border-border font-semibold text-sm">
+                        <span>Subtotal</span>
+                        <span>{formatCurrency(extraTotal || order.preco * order.quantidade)}</span>
                       </div>
                     </>
                   );
@@ -852,29 +852,28 @@ const OrderDetailPage = () => {
                     <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-lg">
-                  <span>Total</span>
-                  <span className="text-primary">{formatCurrency(totalCalc || order.preco * order.quantidade)}</span>
+                <div className="flex justify-between pt-2 mt-2 border-t border-border font-semibold text-sm">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(totalCalc || order.preco * order.quantidade)}</span>
                 </div>
               </>
             )}
-            {/* Desconto OU Acréscimo display */}
+            {/* Linha de ajuste (Desconto / Acréscimo) — só aparece quando há ajuste */}
             {ajusteValor !== 0 && (() => {
               const isAcr = ajusteValor < 0;
               const abs = Math.abs(ajusteValor);
               return (
-                <>
-                  <div className={`flex justify-between pt-1 ${isAcr ? 'text-emerald-600' : 'text-destructive'}`}>
-                    <span className="text-sm font-semibold">{isAcr ? 'Acréscimo' : 'Desconto'}</span>
-                    <span className="text-sm font-semibold">{isAcr ? '+ ' : '- '}{formatCurrency(abs)}</span>
-                  </div>
-                  <div className="flex justify-between pt-1 font-bold text-lg border-t border-border mt-1">
-                    <span>Total {isAcr ? 'com acréscimo' : 'com desconto'}</span>
-                    <span className="text-primary">{formatCurrency(displayTotal)}</span>
-                  </div>
-                </>
+                <div className={`flex justify-between pt-1 ${isAcr ? 'text-emerald-600' : 'text-destructive'}`}>
+                  <span className="text-sm font-semibold">{isAcr ? 'Acréscimo' : 'Desconto'}</span>
+                  <span className="text-sm font-semibold">{isAcr ? '+ ' : '− '}{formatCurrency(abs)}</span>
+                </div>
               );
             })()}
+            {/* Total final — fonte única de verdade */}
+            <div className="flex justify-between pt-2 mt-2 border-t-2 border-border font-bold text-lg">
+              <span>Total</span>
+              <span className="text-primary">{formatCurrency(displayTotal)}</span>
+            </div>
             {ultimaJustificativaValor && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Última justificativa de alteração de valor</p>
