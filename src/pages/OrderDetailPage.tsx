@@ -444,9 +444,8 @@ const OrderDetailPage = () => {
   const displayTotalBruto = subtotalReal;
   const displayTotal = getOrderFinalValue(order, subtotalReal);
 
-  // Auto-correção de order.preco — efeito declarado mais abaixo (após if-returns).
-  // Aqui apenas usamos `subtotalReal`/`displayTotal` para renderização.
-
+  // Mantém a ref sincronizada para o efeito de auto-correção declarado no topo.
+  subtotalRealRef.current = subtotalReal;
 
   const alteracoes = order.alteracoes || [];
 
