@@ -461,18 +461,34 @@ const ReportsPage = () => {
       }
     });
 
+    // Aplica imediatamente os pedidos sem trava (não esperam o modal de justificativa)
+    const baseObs = progressObservacao.trim();
+    if (normals.length > 0) {
+      for (const id of normals) {
+        await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+      }
+      // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        normals.forEach(id => next.delete(id));
+        return next;
+      });
+      if (regressions.length === 0) {
+        toast.success(`${normals.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+      } else {
+        toast.success(`${normals.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
+      }
+    }
+
     if (regressions.length > 0) {
       setRegressionItems(regressions);
-      setNormalIds(normals);
+      setNormalIds([]); // já foram aplicados — não reaplicar
       setRegressionReason('');
       setShowRegressionConfirmModal(true);
       return;
     }
 
-    for (const id of selectedIds) {
-      await updateOrderStatus(id, selectedProgress, progressObservacao.trim() || undefined);
-    }
-    finalizeBulkUpdate(selectedIds.size);
+    finalizeBulkUpdate(normals.length);
   };
 
   const handleConfirmRegression = async () => {
@@ -489,10 +505,7 @@ const ReportsPage = () => {
       const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
       await updateOrderStatus(item.id, selectedProgress, obs);
     }
-    for (const id of normalIds) {
-      await updateOrderStatus(id, selectedProgress, baseObs || undefined);
-    }
-    finalizeBulkUpdate(regressionItems.length + normalIds.length);
+    finalizeBulkUpdate(regressionItems.length);
   };
 
 
