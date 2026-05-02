@@ -77,7 +77,7 @@ const OrderDetailPage = () => {
           toggle(order.id);
         }
         setScanValue('');
-        navigate('/pedido/' + match.id);
+        navigate('/pedido/' + match.id + location.search);
       } else {
         toast.error('Pedido não encontrado.');
         setScanValue('');
@@ -85,7 +85,7 @@ const OrderDetailPage = () => {
     } finally {
       setScanning(false);
     }
-  }, [scanValue, navigate, order, isSelected, toggle, scanning]);
+  }, [scanValue, navigate, order, isSelected, toggle, scanning, location.search]);
 
   if (orderLoading) {
     return (
