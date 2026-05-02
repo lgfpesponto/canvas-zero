@@ -112,6 +112,7 @@ const SelectField = ({ label, value, onChange, options }: { label: string; value
 const EditOrderPage = () => {
   const { id } = useParams();
   const { isAdmin, updateOrder, allProfiles } = useAuth();
+  const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
   const { getByCategoria, loading: customOptsLoading } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
