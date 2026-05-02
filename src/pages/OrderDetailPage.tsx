@@ -402,10 +402,10 @@ const OrderDetailPage = () => {
     return t;
   };
   const extraTotalCalc = computeExtraTotal();
-  // Total bruto (antes do desconto) e total final (com desconto aplicado)
+  // Total bruto (antes do ajuste) e total final (helper centralizado: trata desconto>0 e acréscimo<0)
   const displayTotalBruto = order.tipoExtra ? (extraTotalCalc || order.preco * order.quantidade) : (totalCalc || order.preco * order.quantidade);
-  const desconto = order.desconto && order.desconto > 0 ? Number(order.desconto) : 0;
-  const displayTotal = Math.max(0, displayTotalBruto - desconto);
+  const ajusteValor = Number(order.desconto) || 0; // >0 desconto, <0 acréscimo
+  const displayTotal = getOrderFinalValue(order);
 
   const alteracoes = order.alteracoes || [];
 
