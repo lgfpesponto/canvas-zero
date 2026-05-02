@@ -14,15 +14,16 @@ const replaceBordadoVariado = (text: string | undefined, desc?: string) => {
     .join(', ');
 };
 
-export function buildBootFichaCategories(order: any): FichaCategory[] {
+export function buildBootFichaCategories(order: any, opts?: { showCliente?: boolean }): FichaCategory[] {
   const categories: FichaCategory[] = [];
   const det: any = order.extraDetalhes || {};
+  const showCliente = opts?.showCliente ?? true;
 
   // IDENTIFICAÇÃO
   const identFields: FichaField[] = [];
   if (order.sobMedida && order.sobMedidaDesc) identFields.push({ label: 'Sob medida:', value: lower(order.sobMedidaDesc) });
   if (order.desenvolvimento) identFields.push({ label: 'Desenv.:', value: lower(order.desenvolvimento) });
-  if (order.cliente) identFields.push({ label: 'Cliente:', value: lower(order.cliente) });
+  if (showCliente && order.cliente) identFields.push({ label: 'Cliente:', value: lower(order.cliente) });
   if (identFields.length) categories.push({ title: 'IDENTIFICAÇÃO', fields: identFields });
 
   // COUROS
