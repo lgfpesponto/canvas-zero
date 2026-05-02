@@ -972,9 +972,28 @@ const OrderDetailPage = () => {
         {/* ═══ BLOCO 2 — Detalhes (estilo Ficha) ═══ */}
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
           {/* Detalhes */}
-          <h2 className="text-lg font-display font-bold mb-3">
-            {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
-          </h2>
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <h2 className="text-lg font-display font-bold">
+              {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
+            </h2>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  const editPath = order.tipoExtra === 'cinto'
+                    ? `/pedido/${order.id}/editar-cinto`
+                    : order.tipoExtra
+                      ? `/pedido/${order.id}/editar-extra`
+                      : `/pedido/${order.id}/editar`;
+                  navigate(`${editPath}${location.search}`);
+                }}
+                className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors flex-shrink-0"
+                title="Editar pedido"
+                aria-label="Editar pedido"
+              >
+                <Pencil size={18} />
+              </button>
+            )}
+          </div>
           {order.tipoExtra && order.extraDetalhes ? (
             <div className="mb-6 space-y-4">
               {order.numeroPedidoBota && (
