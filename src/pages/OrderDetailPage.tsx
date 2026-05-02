@@ -1095,16 +1095,16 @@ const OrderDetailPage = () => {
             })()
           )}
 
-          {order.observacao && (
+          {order.tipoExtra && order.observacao && (
             <div className="bg-muted rounded-lg p-3 mb-4">
               <p className="text-sm font-semibold mb-1">Observação:</p>
               <p className="text-sm text-muted-foreground">{order.observacao}</p>
             </div>
           )}
 
-          {/* Foto de Referência (link no lugar do QR) */}
-          {(() => {
-            const fotosValidasDet = (order.fotos || []).filter(f => isHttpUrl(f));
+          {/* Foto de Referência — apenas para extras (na bota a foto está no cabeçalho da ficha) */}
+          {order.tipoExtra && (() => {
+            const fotosValidasDet = (order.fotos || []).filter((f: string) => isHttpUrl(f));
             return (
               <div className="mt-4 pt-3 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
@@ -1114,7 +1114,7 @@ const OrderDetailPage = () => {
                   <p className="text-xs text-muted-foreground">Sem foto de referência.</p>
                 ) : (
                   <div className="space-y-1">
-                    {fotosValidasDet.map((url, i) => (
+                    {fotosValidasDet.map((url: string, i: number) => (
                       <a
                         key={i}
                         href={url}
