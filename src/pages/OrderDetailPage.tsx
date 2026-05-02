@@ -964,6 +964,17 @@ const OrderDetailPage = () => {
                 )}
               </>
             )}
+            {justificativasValor.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Justificativas de alterações de valor</p>
+                {justificativasValor.map((g, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">
+                    <span className="font-medium">{formatDateBR(g.data)} às {g.hora} — {g.usuario || '—'}:</span>{' '}
+                    <span className="italic">{g.justificativa}</span>
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Discount input — Juliana ADM only */}
