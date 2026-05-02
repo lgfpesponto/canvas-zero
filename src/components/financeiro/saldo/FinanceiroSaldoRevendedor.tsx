@@ -22,6 +22,7 @@ import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
 import { ComprovantesPorRevendedor } from './ComprovantesPorRevendedor';
 import { LoadingValue } from '@/components/ui/LoadingValue';
+import { PedidosAbatidosCard } from './PedidosAbatidosCard';
 
 type PeriodoOption = 'mes' | '30d' | 'todos';
 type TipoOption = 'todos' | ComprovanteStatus;
@@ -184,7 +185,7 @@ const FinanceiroSaldoRevendedor = () => {
       </div>
 
       {/* Cards de resumo (atualizam conforme filtros) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Recebido ({periodoLabel})</CardTitle>
@@ -236,6 +237,7 @@ const FinanceiroSaldoRevendedor = () => {
             </p>
           </CardContent>
         </Card>
+        <PedidosAbatidosCard vendedoresOptions={vendedoresOptions} />
       </div>
 
       {/* Comprovantes pendentes (geral, não filtrado) */}

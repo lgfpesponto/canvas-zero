@@ -146,6 +146,16 @@ export async function fetchMovimentos(vendedor: string): Promise<RevendedorMovim
   return (data as any) || [];
 }
 
+/** Todas as baixas (admin only). */
+export async function fetchBaixasTodas(): Promise<RevendedorBaixa[]> {
+  const { data, error } = await supabase
+    .from('revendedor_baixas_pedido' as any)
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as any) || [];
+}
+
 export async function fetchBaixasVendedor(vendedor: string): Promise<RevendedorBaixa[]> {
   const { data, error } = await supabase
     .from('revendedor_baixas_pedido' as any)
