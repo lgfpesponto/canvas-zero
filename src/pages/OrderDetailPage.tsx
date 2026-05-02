@@ -151,7 +151,8 @@ const OrderDetailPage = () => {
   const daysLeft = businessDaysRemaining(createdDate, totalBizDays);
 
   // Build grouped details list (only filled fields per group)
-  const showCliente = !isAdmin || order.vendedor === 'Rancho Chique';
+  // Cliente nos detalhes da bota: alinhado à ficha impressa — só Juliana (clientes virtuais) e Rancho Chique.
+  const showCliente = order.vendedor === 'Juliana Cristina Ribeiro' || order.vendedor === 'Rancho Chique';
   const detP: any = order.extraDetalhes || {};
   const filterPairs = (arr: [string, string | undefined | null][]): [string, string][] =>
     arr.filter(([, v]) => v != null && String(v).trim() !== '') as [string, string][];
