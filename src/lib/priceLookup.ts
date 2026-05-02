@@ -23,17 +23,24 @@ export async function loadPriceLookup(): Promise<PriceMap> {
     map[cat][key] = preco;
   };
 
-  // 1. ficha_variacoes JOIN ficha_categorias
+  // 1. ficha_variacoes JOIN ficha_categorias + ficha_campos
+  // Indexamos a variação tanto pelo slug da CATEGORIA (`bordados-cano`, `couros`…)
+  // quanto pelo slug do CAMPO (`bordado_cano`, `couro_taloneira`…). Assim:
+  //  - bordados visuais cadastrados em `bordados-visual` mas no campo `bordado_cano`
+  //    aparecem ao buscar por `bordado_cano`.
+  //  - couros com preço diferente por região (`couro_cano`/`couro_gaspea`/`couro_taloneira`)
+  //    são respeitados, em vez de cair num único preço global por nome.
   const { data: varData } = await supabase
     .from('ficha_variacoes')
-    .select('nome, preco_adicional, ficha_categorias!inner(slug)')
-    .eq('ativo', true);
+    .select('nome, preco_adicional, ficha_categorias(slug), ficha_campos(slug)');
 
   if (varData) {
     for (const v of varData as any[]) {
-      const slug = v.ficha_categorias?.slug;
-      if (!slug) continue;
-      put(slug, v.nome, Number(v.preco_adicional) || 0);
+      const catSlug = v.ficha_categorias?.slug;
+      const campoSlug = v.ficha_campos?.slug;
+      const preco = Number(v.preco_adicional) || 0;
+      if (catSlug) put(catSlug, v.nome, preco);
+      if (campoSlug && campoSlug !== catSlug) put(campoSlug, v.nome, preco);
     }
   }
 
