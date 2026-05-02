@@ -32,7 +32,8 @@ export async function loadPriceLookup(): Promise<PriceMap> {
   //    são respeitados, em vez de cair num único preço global por nome.
   const { data: varData } = await supabase
     .from('ficha_variacoes')
-    .select('nome, preco_adicional, ficha_categorias(slug), ficha_campos(slug)');
+    .select('nome, preco_adicional, ficha_categorias(slug), ficha_campos(slug)')
+    .eq('ativo', true);
 
   if (varData) {
     for (const v of varData as any[]) {
