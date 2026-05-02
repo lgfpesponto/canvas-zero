@@ -1412,7 +1412,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
       doc.setFontSize(6);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);
-      const rowH = Math.max(14, lines.length * 3.5 + 6);
+      // Altura mínima precisa abraçar a bolinha (centro em y+17, raio 2 → vai até y+19)
+      // quando o pedido tem desconto/acréscimo. Sem isso, em linhas curtas a bolinha
+      // estouraria o quadro e apareceria dentro do pedido de baixo.
+      const minRowH = (o.desconto && o.desconto !== 0) ? 20 : 14;
+      const rowH = Math.max(minRowH, lines.length * 3.5 + 6);
 
       if (y + rowH > 280) { doc.addPage(); y = 20; }
 
