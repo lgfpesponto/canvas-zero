@@ -400,3 +400,114 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
     </>
   );
 };
+
+type PeriodoBaixa = 'todos' | 'hoje' | '7d' | 'mes' | 'mes_anterior';
+
+const BaixasRealizadasSection = ({
+  baixas, orderNumeros, onEstorno,
+}: {
+  baixas: RevendedorBaixa[];
+  orderNumeros: Record<string, string>;
+  onEstorno: (b: RevendedorBaixa) => void;
+}) => {
+  const [periodo, setPeriodo] = useState<PeriodoBaixa>('mes');
+
+  const { start, end } = useMemo(() => {
+    const now = new Date();
+    if (periodo === 'hoje') {
+      const d = new Date(now); d.setHours(0, 0, 0, 0);
+      return { start: d, end: null as Date | null };
+    }
+    if (periodo === '7d') {
+      const d = new Date(now); d.setDate(d.getDate() - 7); d.setHours(0, 0, 0, 0);
+      return { start: d, end: null as Date | null };
+    }
+    if (periodo === 'mes') {
+      return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: null as Date | null };
+    }
+    if (periodo === 'mes_anterior') {
+      return {
+        start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        end: new Date(now.getFullYear(), now.getMonth(), 1),
+      };
+    }
+    return { start: null as Date | null, end: null as Date | null };
+  }, [periodo]);
+
+  const filtradas = useMemo(() => {
+    return baixas.filter(b => {
+      const d = new Date(b.created_at);
+      if (start && d < start) return false;
+      if (end && d >= end) return false;
+      return true;
+    });
+  }, [baixas, start, end]);
+
+  const total = filtradas.reduce((s, b) => s + Number(b.valor_pedido || 0), 0);
+
+  return (
+    <section className="mt-6">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h3 className="font-semibold text-sm uppercase text-muted-foreground">
+          Baixas realizadas
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {filtradas.length} pedido(s) · {formatCurrency(total)}
+          </span>
+          <select
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value as PeriodoBaixa)}
+            className="h-8 text-xs rounded-md border border-input bg-background px-2"
+          >
+            <option value="hoje">Hoje</option>
+            <option value="7d">Últimos 7 dias</option>
+            <option value="mes">Este mês</option>
+            <option value="mes_anterior">Mês anterior</option>
+            <option value="todos">Todos</option>
+          </select>
+        </div>
+      </div>
+      {filtradas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma baixa no período selecionado.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead>
+              <TableHead>Pedido</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="text-right">Ação</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtradas.map(b => (
+              <TableRow key={b.id}>
+                <TableCell className="text-xs">{formatDateBR(b.created_at.slice(0, 10))}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {orderNumeros[b.order_id] ? (
+                    <Link
+                      to={`/pedido/${b.order_id}`}
+                      className="text-primary underline font-medium"
+                    >
+                      Pedido #{orderNumeros[b.order_id]}
+                    </Link>
+                  ) : (
+                    <span>{b.order_id.slice(0, 8)}…</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(b.valor_pedido))}</TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" variant="ghost" onClick={() => onEstorno(b)}>
+                    <RotateCcw size={14} />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </section>
+  );
+};
+
