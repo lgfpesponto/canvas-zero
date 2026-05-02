@@ -1385,20 +1385,16 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.desconto && o.desconto !== 0) {
         const isAcr = o.desconto < 0;
         const label = isAcr ? 'Acréscimo' : 'Desconto';
-        const justSuffix = o.descontoJustificativa ? ` (${o.descontoJustificativa})` : '';
         // val positivo para acréscimo (mostra como soma), negativo para desconto (mostra como subtração)
-        priceItems.push([`${label}${justSuffix}`, isAcr ? Math.abs(o.desconto) : -o.desconto]);
+        priceItems.push([label, isAcr ? Math.abs(o.desconto) : -o.desconto]);
       }
-      // Justificativas de edições que afetaram o valor (admin_master/admin_producao)
-      const justifLines: string[] = [];
-      const seenJust = new Set<string>();
-      for (const a of (o.alteracoes || [])) {
-        if (!a.afetouValor || !a.justificativa) continue;
-        const key = `${a.data}|${a.hora}|${a.usuario || ''}|${a.justificativa}`;
-        if (seenJust.has(key)) continue;
-        seenJust.add(key);
-        justifLines.push(`Motivo (${a.data} por ${a.usuario || '—'}): ${a.justificativa}`);
-      }
+      // Última justificativa que afetou o valor (admin_master/admin_producao)
+      const ultimaJust = [...(o.alteracoes || [])]
+        .reverse()
+        .find(a => a.afetouValor && a.justificativa);
+      const justifLines: string[] = ultimaJust
+        ? [`Motivo (${ultimaJust.data} por ${ultimaJust.usuario || '—'}): ${ultimaJust.justificativa}`]
+        : [];
       const compText = [
         ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
         ...justifLines,

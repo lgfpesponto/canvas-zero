@@ -425,8 +425,8 @@ const OrderDetailPage = () => {
     return groups;
   })();
 
-  // Justificativas que afetaram valor — exibidas na Composição do Pedido
-  const justificativasValor = alteracoesAgrupadas.filter(g => g.afetouValor && g.justificativa);
+  // Última justificativa que afetou valor — exibida na Composição do Pedido (e PDF de cobrança)
+  const ultimaJustificativaValor = [...alteracoesAgrupadas].reverse().find(g => g.afetouValor && g.justificativa);
 
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? null;
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
@@ -836,15 +836,13 @@ const OrderDetailPage = () => {
                 </>
               );
             })()}
-            {justificativasValor.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-border space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Justificativas de alterações de valor</p>
-                {justificativasValor.map((g, i) => (
-                  <p key={i} className="text-xs text-muted-foreground">
-                    <span className="font-medium">{formatDateBR(g.data)} às {g.hora} — {g.usuario || '—'}:</span>{' '}
-                    <span className="italic">{g.justificativa}</span>
-                  </p>
-                ))}
+            {ultimaJustificativaValor && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Última justificativa de alteração de valor</p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">{formatDateBR(ultimaJustificativaValor.data)} às {ultimaJustificativaValor.hora} — {ultimaJustificativaValor.usuario || '—'}:</span>{' '}
+                  <span className="italic">{ultimaJustificativaValor.justificativa}</span>
+                </p>
               </div>
             )}
           </div>
