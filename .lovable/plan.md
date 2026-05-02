@@ -1,68 +1,57 @@
-# Composição correta + varredura retroativa de preços
+# Plano
 
-## Diagnóstico do bug
+## 1. Scanner em massa — separar pedidos sem trava dos com trava
 
-A função `getCorSolaOptions(modelo, solado, formatoBico)` em `src/lib/orderFieldsConfig.ts` já é **contextual** e retorna o preço certo (PVC = R$ 0 para todas as cores, Borracha + Marrom/Branco = R$ 20, Borracha + Preto = R$ 0). O formulário de pedido (`OrderPage`/`EditOrderPage`) usa essa função e calcula bem.
+**Comportamento atual** (`src/pages/ReportsPage.tsx`, `handleBulkProgressUpdate`):
+Quando há qualquer pedido travado (retrocesso/pausa/cancelamento) na seleção, TODO o lote (incluindo os pedidos sem trava, ex: "Entregue" indo para "Cobrado") fica parado esperando o admin justificar os travados no modal único. Se ele cancelar, ninguém é movido.
 
-O furo está em **3 lugares** que ignoram o contexto e fazem `COR_SOLA.find(c => c.label === order.corSola)?.preco` direto — então qualquer "Marrom", mesmo em PVC, herda os R$ 20 da entrada Borracha+Marrom:
+**Comportamento desejado**:
+- Pedidos sem trava são atualizados imediatamente para a nova etapa (silenciosamente, com toast de sucesso).
+- Pedidos com trava aparecem num modal separado depois, com a lista, o tipo de trava (retrocesso/pausa/cancelamento) e o fluxo "Tem certeza? → Justificativa" para o lote travado.
+- Se o admin cancelar o modal de travados, os normais permanecem aplicados (já foram salvos), e os travados continuam selecionados para nova tentativa.
 
-1. `src/pages/OrderDetailPage.tsx` linha 386-387 (composição do detalhe).
-2. `src/components/SpecializedReports.tsx` linhas 352-353 (relatório de cobrança).
-3. `src/components/SpecializedReports.tsx` linhas 1373-1374 (outro breakdown).
+**Mudanças em `src/pages/ReportsPage.tsx`**:
+1. `handleBulkProgressUpdate`: aplicar `updateOrderStatus` direto nos `normals` antes de abrir o Step 1; toast "X pedido(s) avançaram para Y". Se não houver `regressions`, encerrar via `finalizeBulkUpdate`. Se houver, abrir o Step 1 só com os travados.
+2. `handleConfirmRegression`: remover o segundo loop sobre `normalIds` (já foram aplicados) — manter apenas o loop dos `regressionItems` com a justificativa.
+3. Step 1 (modal de confirmação): trocar a frase "+ N pedido(s) avançam normalmente" por "✅ N pedido(s) sem trava já foram atualizados" no topo, deixando claro que só falta resolver os travados.
+4. Cancelar no Step 1 mantém os travados selecionados (não limpa `selectedIds` deles).
 
-A "Marrom" duplicada em `solados-visual` (R$ 0) no banco é só ruído visual — não interfere no cálculo, que vem das constantes em `orderFieldsConfig.ts`. Pode ser ignorada ou removida via admin depois.
+## 2. Espelho de conferência — replicar o layout do `OrderDetailPage`
 
-## O que será feito
+**Comportamento atual** (`src/pages/OrderPage.tsx`, modal `showMirror`): mostra apenas os campos agrupados por categoria. Não mostra a Composição com preços nem o cabeçalho do pedido.
 
-### 1. Helper único de preço da cor da sola
+**Comportamento desejado** (conforme imagem enviada):
+O espelho deve ficar **visualmente idêntico** ao `OrderDetailPage`, com duas seções principais:
 
-Adicionar em `src/lib/orderFieldsConfig.ts`:
+### Seção 1 — Cabeçalho + Composição do Pedido
+Card superior com:
+- Linha "Número do Pedido" + número | "Data e Hora" + data/hora atual | "Foto" → "Ver foto" (se houver `fotoUrl`).
+- Linha "Prazo X dias úteis" + "X dias úteis restantes" (calculado pelo `orderDeadline.ts` no momento da criação).
+- Subtítulo **"Composição do Pedido"**.
+- Lista linha-a-linha de cada item de preço (Modelo, Couros, Bordados nominais como "Florência", "Florão Trad", Solado, Cor Sola contextual via `getCorSolaPrecoContextual`, Laser, Glitter, Pintura, Estampa, Metais, Strass/Cruz/Bridão/Cavalo, Tricê, Tiras, Franja, Corrente, Cor Vira, Costura Atrás, Carimbo, Sob Medida, Adicional, Acessórios), com o valor à direita em laranja (`R$ X,XX`).
+- Linha **Subtotal**.
+- Se houver desconto/acréscimo: linha de ajuste.
+- Linha **Total** em destaque (laranja, fonte maior).
 
-```ts
-export function getCorSolaPrecoContextual(modelo: string, solado: string, formatoBico: string | undefined, corSola: string): number {
-  const opts = getCorSolaOptions(modelo, solado, formatoBico);
-  if (!opts) return 0;
-  return opts.find(o => o.label === corSola)?.preco ?? 0;
-}
-```
+### Seção 2 — Detalhes da Bota
+Card inferior com cabeçalho "7ESTRIVOS" + Código (numeroPedido) + Vendedor + Data + Tamanho + Modelo + "Foto de Referência" (link), seguido dos blocos `IDENTIFICAÇÃO`, `PESPONTO`, `SOLADOS`, `COUROS`, `BORDADOS` (e demais que tiverem dados), no mesmo estilo do `mirrorGrouped` atual mas com header colorido por categoria igual ao detalhe.
 
-Substituir os 3 pontos acima por essa função, passando `order.modelo`, `order.solado`, `order.formatoBico`, `order.corSola`. Resultado: PVC Marrom para de aparecer com R$ 20 na composição imediatamente, e o subtotal recalculado fica certo.
+### Implementação
+- Reutilizar a lógica de `priceItems` de `OrderDetailPage.tsx` linhas 330-394 (mesmas constantes: `MODELOS`, `COURO_PRECOS`, `BORDADOS_*`, `SOLADO`, `getCorSolaPrecoContextual`, `findFichaPrice`, `getByCategoria`, etc.) — ler do estado local do form em vez de `order.*`.
+- `subtotal = sum(priceItems)`, `ajuste = descontoValor || 0`, `total = max(0, subtotal - ajuste)`.
+- Botões EDITAR / OK — FINALIZAR no rodapé continuam.
+- O modal precisa virar scroll vertical com `max-h-[90vh] overflow-y-auto` (já tem) — o conteúdo cresce.
 
-### 2. Auto-correção retroativa para LISTAGENS e RELATÓRIOS
+### Escopo
+- **Bota**: `src/pages/OrderPage.tsx` (principal, baseado na imagem).
+- **Cinto**: `src/pages/BeltOrderPage.tsx` — aplicar mesmo padrão usando o breakdown de cinto que já existe no detalhe.
+- **Extras**: `src/pages/ExtrasPage.tsx` — aplicar mesmo padrão usando `computeExtraTotal`.
 
-Hoje a auto-correção em `OrderDetailPage` só roda quando alguém **abre** o pedido. Para que `MeusPedidos`, dashboards, cobrança e expedição já saiam certos sem isso:
+## Arquivos afetados
+- `src/pages/ReportsPage.tsx` — split scanner em massa
+- `src/pages/OrderPage.tsx` — espelho com Composição + Detalhes igual ao detalhe
+- `src/pages/BeltOrderPage.tsx` — mesmo espelho para cinto
+- `src/pages/ExtrasPage.tsx` — mesmo espelho para extras
 
-**Opção escolhida — varredura única em background, executada pelo admin_master no primeiro acesso pós-deploy**, com checkpoint para não repetir.
-
-- Criar `src/lib/recomputeOrderPrice.ts` com função pura `recomputeSubtotal(order, findFichaPrice, getByCategoria)` que devolve o subtotal real. A lógica é o mesmo `priceItems.reduce(...)` que hoje vive embutido em `OrderDetailPage`, extraído para arquivo isolado e usando o helper novo do item 1.
-- Criar componente `<RecalcPrecosRunner />` montado dentro de `GestaoPage` (ou no shell do admin_master). Ao montar, faz:
-  1. Lê flag `localStorage.recalc_precos_v1_done` — se já rodou, sai.
-  2. Busca via Supabase todos os pedidos com `status NOT IN ('Cobrado', 'Pago')` (≈ 2.000 dos ~2.860 do banco).
-  3. Para cada pedido, calcula `subtotalReal` via `recomputeSubtotal`. Se divergir de `order.preco × quantidade` (tolerância R$ 0,01), agrupa em batch de 200.
-  4. Faz `UPDATE orders SET preco = ? WHERE id = ?` em paralelo (batches de 50 simultâneos para não estourar).
-  5. Mostra toast de progresso ("Recalculando preços antigos: 412/1.937…") e ao terminar grava a flag + toast final ("X pedidos corrigidos").
-- Como **plus**: botão manual "Recalcular preços" na aba Gestão para rodar de novo se necessário (limpa a flag e dispara).
-
-### 3. Reforço no recálculo já existente
-
-Manter o `useEffect` de auto-correção em `OrderDetailPage` (cobre pedidos que forem editados depois) e fazer ele usar a mesma `recomputeSubtotal` do item 2 — fonte única de verdade, evita drift futuro.
-
-### 4. Pedidos Cobrado/Pago
-
-Excluídos da varredura conforme pedido — preservam o histórico financeiro já fechado.
-
-## Arquivos tocados
-
-- `src/lib/orderFieldsConfig.ts` — adiciona `getCorSolaPrecoContextual`.
-- `src/lib/recomputeOrderPrice.ts` — **novo**, função pura de cálculo.
-- `src/pages/OrderDetailPage.tsx` — usa o helper novo + delega cálculo para `recomputeSubtotal`.
-- `src/components/SpecializedReports.tsx` — usa `getCorSolaPrecoContextual` nas 2 ocorrências.
-- `src/pages/GestaoPage.tsx` — monta `<RecalcPrecosRunner />` + botão manual.
-- `src/components/gestao/RecalcPrecosRunner.tsx` — **novo**, componente da varredura.
-
-## Resultado esperado
-
-- Detalhe do pedido: "Cor Sola: Marrom" some quando solado é PVC; subtotal vira soma exata da composição; total = subtotal − desconto (ou + acréscimo).
-- "Meus Pedidos" coluna **Valor total**: corrigido após a varredura rodar uma vez (≈ 30-60 s ao primeiro admin_master logar).
-- PDFs de cobrança e expedição: saem com valores certos sem precisar abrir cada pedido.
-- Pedidos Cobrado/Pago: intocados.
+## Pendência rápida (sem bloquear)
+Os preços no espelho usam o mesmo cascading do detalhe (`ficha_variacoes` → `custom_options` → fallback hardcoded), então não há risco de divergir do que será salvo.

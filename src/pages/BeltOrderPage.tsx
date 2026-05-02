@@ -889,6 +889,39 @@ const BeltOrderPage = () => {
             <p className="text-sm text-muted-foreground text-center mb-6">Confira todas as informações antes de finalizar</p>
 
             <div className="space-y-5 mb-4">
+              {/* ───── Composição do Pedido ───── */}
+              {(() => {
+                const items: [string, number][] = [];
+                if (tamanhoPreco) items.push(['Tamanho: ' + tamanho, tamanhoPreco]);
+                if (bordadoPPreco) items.push(['Bordado P', bordadoPPreco]);
+                if (nomeBordadoPreco) items.push(['Nome Bordado', nomeBordadoPreco]);
+                if (carimboPreco && carimbo) items.push([carimbo, carimboPreco]);
+                if (adicionalPreco > 0) items.push(['Adicional' + (adicionalDesc ? ': ' + adicionalDesc : ''), adicionalPreco]);
+                const subtotal = items.reduce((s, [, v]) => s + v, 0);
+                return (
+                  <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                    <h3 className="font-display font-bold text-base mb-3 text-center uppercase tracking-wide">Composição do Pedido</h3>
+                    <div className="space-y-1.5">
+                      {items.length === 0 && <p className="text-xs text-muted-foreground text-center italic">Nenhum item com preço selecionado ainda.</p>}
+                      {items.map(([label, valor], i) => (
+                        <div key={`${label}-${i}`} className="flex justify-between text-sm py-1 border-b border-border/30 last:border-0">
+                          <span className="text-foreground">{label}</span>
+                          <span className="text-primary font-semibold whitespace-nowrap ml-2">{formatCurrency(valor)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm pt-2 border-t border-border mt-2">
+                        <span className="font-semibold">Subtotal</span>
+                        <span className="font-semibold">{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg pt-1">
+                        <span className="font-display font-bold">Total</span>
+                        <span className="font-display font-bold text-primary">{formatCurrency(subtotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {mirrorGrouped.map(grupo => (
                 <div key={grupo.categoria}>
                   <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-sm uppercase tracking-wide py-1.5 rounded-sm mb-2">
@@ -920,11 +953,6 @@ const BeltOrderPage = () => {
               )}
             </div>
 
-            <div className="bg-muted rounded-lg p-4 mb-4">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Valor Total</span><span className="text-primary">{formatCurrency(total)}</span>
-              </div>
-            </div>
 
             <div className="flex gap-3">
               <button onClick={() => setShowMirror(false)} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
