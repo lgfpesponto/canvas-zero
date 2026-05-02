@@ -1202,7 +1202,18 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const filtered = sourceOrders.filter(o =>
       COBRANCA_STATUSES.includes((o.status || '').trim().toLowerCase()) &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
-    ).sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
+    ).sort((a, b) => {
+      // Igual ao portal: data_criacao desc, hora_criacao desc, numero desc
+      const dA = (a.dataCriacao || '');
+      const dB = (b.dataCriacao || '');
+      if (dA !== dB) return dA < dB ? 1 : -1;
+      const hA = (a.horaCriacao || '');
+      const hB = (b.horaCriacao || '');
+      if (hA !== hB) return hA < hB ? 1 : -1;
+      const numA = parseInt((a.numero || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt((b.numero || '').replace(/\D/g, ''), 10) || 0;
+      return numB - numA;
+    });
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const pw = 210;
