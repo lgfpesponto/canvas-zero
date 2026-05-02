@@ -581,7 +581,10 @@ const OrderDetailPage = () => {
                         : order.tipoExtra
                           ? `/pedido/${order.id}/editar-extra`
                           : `/pedido/${order.id}/editar`;
-                      navigate(showFotoPanel ? `${base}?foto=1` : base, { replace: true });
+                      const sp = new URLSearchParams(location.search);
+                      if (showFotoPanel) sp.set('foto', '1'); else sp.delete('foto');
+                      const qs = sp.toString();
+                      navigate(`${base}${qs ? `?${qs}` : ''}`, { replace: true });
                     }}>
                       <Pencil size={16} />
                     </Button>

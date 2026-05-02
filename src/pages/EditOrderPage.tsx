@@ -485,7 +485,10 @@ const EditOrderPage = () => {
       recorteTaloneira, corRecorteTaloneira: recorteTaloneira ? corRecorteTaloneira : '',
     });
     toast.success('Pedido atualizado com sucesso!');
-    navigate(`/pedido/${id}${fotoParam ? '?foto=1' : ''}`, { replace: true });
+    const sp = new URLSearchParams(searchParams);
+    if (fotoParam) sp.set('foto', '1'); else sp.delete('foto');
+    const qs = sp.toString();
+    navigate(`/pedido/${id}${qs ? `?${qs}` : ''}`, { replace: true });
   };
 
   return (
