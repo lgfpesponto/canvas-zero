@@ -511,11 +511,19 @@ const ReportsPage = () => {
     const prefixOf = (k: JustificationKind) =>
       k === 'cancel' ? '[CANCELAMENTO]' : k === 'pause' ? '[PAUSA]' : '[RETROCESSO]';
 
+    let okCount = 0;
+    let blockedCount = 0;
     for (const item of regressionItems) {
       const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
-      await updateOrderStatus(item.id, selectedProgress, obs);
+      try {
+        await updateOrderStatus(item.id, selectedProgress, obs);
+        okCount++;
+      } catch {
+        blockedCount++;
+      }
     }
-    finalizeBulkUpdate(regressionItems.length);
+    if (blockedCount > 0) toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
+    finalizeBulkUpdate(okCount);
   };
 
 
