@@ -1116,6 +1116,10 @@ export type Database = {
         Args: { _comprovante_id: string }
         Returns: Json
       }
+      bordado_baixar_pedido: {
+        Args: { _novo_status: string; _order_id: string }
+        Returns: Json
+      }
       current_user_nome_completo: { Args: never; Returns: string }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
       descartar_comprovantes_historico: {
