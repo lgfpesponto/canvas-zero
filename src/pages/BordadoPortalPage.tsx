@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
-import { ScanBarcode, LogOut, FileText, Loader2, X, ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
@@ -33,8 +33,6 @@ const BordadoPortalPage = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [scanned, setScanned] = useState<Order | null>(null);
-  const [acting, setActing] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfDate, setPdfDate] = useState(() => {
     const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
@@ -50,11 +48,8 @@ const BordadoPortalPage = () => {
       .in('status', BORDADO_STATUSES as any)
       .order('data_criacao', { ascending: true })
       .order('hora_criacao', { ascending: true });
-    if (error) {
-      toast.error('Erro ao carregar pedidos: ' + error.message);
-    } else {
-      setOrders((data || []).map(dbRowToOrder) as Order[]);
-    }
+    if (error) toast.error('Erro ao carregar pedidos: ' + error.message);
+    else setOrders((data || []).map(dbRowToOrder) as Order[]);
     setLoading(false);
   }, []);
 
@@ -77,41 +72,18 @@ const BordadoPortalPage = () => {
     setScanning(true);
     try {
       const found = await fetchOrderByScan(v);
-      if (!found) {
-        playBeep(false);
-        toast.error('Pedido não encontrado ou fora das etapas de bordado');
-      } else if (!BORDADO_STATUSES.includes(found.status as any)) {
-        playBeep(false);
-        toast.error(`Pedido ${found.numero} está em "${found.status}", não está no bordado`);
-      } else {
+      if (!found) { playBeep(false); toast.error('Pedido não encontrado'); }
+      else if (!BORDADO_STATUSES.includes(found.status as any)) { playBeep(false); toast.error(`Pedido em "${found.status}" — fora do bordado`); }
+      else {
         playBeep(true);
-        setScanned(found);
+        setScanValue('');
         setShowScanner(false);
+        navigate('/pedido/' + found.id);
       }
-      setScanValue('');
     } catch (err: any) {
       playBeep(false);
-      toast.error(err?.message || 'Erro ao buscar pedido');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const baixar = async (novoStatus: typeof BORDADO_STATUSES[number]) => {
-    if (!scanned) return;
-    setActing(true);
-    const { error } = await supabase.rpc('bordado_baixar_pedido' as any, {
-      _order_id: scanned.id,
-      _novo_status: novoStatus,
-    });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(`Pedido ${scanned.numero} → ${novoStatus}`);
-      setScanned(null);
-      fetchOrders();
-    }
-    setActing(false);
+      toast.error(err?.message || 'Erro ao buscar');
+    } finally { setScanning(false); }
   };
 
   const gerarPDF = async () => {
@@ -124,20 +96,14 @@ const BordadoPortalPage = () => {
       });
       if (error) throw error;
       const idList = (ids || []).map((r: any) => r.id ?? r);
-      if (idList.length === 0) {
-        toast.info('Nenhum pedido baixado nessa data.');
-        return;
-      }
-      const { data: rows, error: fErr } = await supabase
-        .from('orders').select('*').in('id', idList);
+      if (idList.length === 0) { toast.info('Nenhum pedido baixado nessa data.'); return; }
+      const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
       if (fErr) throw fErr;
       const list = (rows || []).map(dbRowToOrder) as Order[];
       generateBordadoBaixaResumoPDF(list, pdfDate, user?.nomeCompleto || 'Bordado');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
-    } finally {
-      setPdfLoading(false);
-    }
+    } finally { setPdfLoading(false); }
   };
 
   const entrada = orders.filter(o => o.status === 'Entrada Bordado 7Estrivos');
@@ -145,7 +111,6 @@ const BordadoPortalPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header minimal */}
       <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -162,7 +127,6 @@ const BordadoPortalPage = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        {/* Action bar */}
         <div className="grid sm:grid-cols-2 gap-3">
           <button
             onClick={() => setShowScanner(true)}
@@ -191,7 +155,6 @@ const BordadoPortalPage = () => {
           </div>
         </div>
 
-        {/* Lists */}
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-xl">Pedidos no bordado</h2>
           <button onClick={fetchOrders} className="flex items-center gap-1 text-sm text-primary font-semibold hover:underline">
@@ -209,19 +172,18 @@ const BordadoPortalPage = () => {
               title="Entrada Bordado 7Estrivos"
               color="bg-amber-100 border-amber-300 text-amber-900"
               orders={entrada}
-              onClick={(o) => setScanned(o)}
+              onClick={(o) => navigate('/pedido/' + o.id)}
             />
             <BordadoColumn
               title="Baixa Bordado 7Estrivos"
               color="bg-emerald-100 border-emerald-300 text-emerald-900"
               orders={baixa}
-              onClick={(o) => setScanned(o)}
+              onClick={(o) => navigate('/pedido/' + o.id)}
             />
           </div>
         )}
       </main>
 
-      {/* Scanner modal */}
       {showScanner && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowScanner(false)}>
           <div className="bg-card rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -243,52 +205,6 @@ const BordadoPortalPage = () => {
                 {scanning ? <Loader2 className="animate-spin mx-auto" /> : 'Buscar'}
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Action modal */}
-      {scanned && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => !acting && setScanned(null)}>
-          <div className="bg-card rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-xl">{scanned.numero}</h3>
-              <button onClick={() => setScanned(null)} disabled={acting} className="p-1 hover:bg-muted rounded"><X size={20} /></button>
-            </div>
-            <div className="space-y-2 text-sm mb-4">
-              <div><span className="font-semibold">Modelo:</span> {scanned.modelo || '—'}</div>
-              <div><span className="font-semibold">Tamanho:</span> {scanned.tamanho || '—'}</div>
-              <div><span className="font-semibold">Vendedor:</span> {scanned.vendedor || '—'}</div>
-              <div><span className="font-semibold">Status atual:</span> <span className="px-2 py-1 rounded bg-muted text-xs">{scanned.status}</span></div>
-              {scanned.observacao && <div><span className="font-semibold">Obs:</span> {scanned.observacao}</div>}
-            </div>
-            <div className="space-y-2">
-              {scanned.status !== 'Entrada Bordado 7Estrivos' && (
-                <button
-                  onClick={() => baixar('Entrada Bordado 7Estrivos')}
-                  disabled={acting}
-                  className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-lg font-bold disabled:opacity-50"
-                >
-                  <ArrowRight size={18} /> Marcar ENTRADA Bordado
-                </button>
-              )}
-              {scanned.status !== 'Baixa Bordado 7Estrivos' && (
-                <button
-                  onClick={() => baixar('Baixa Bordado 7Estrivos')}
-                  disabled={acting}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold disabled:opacity-50"
-                >
-                  <CheckCircle2 size={18} /> Marcar BAIXA Bordado
-                </button>
-              )}
-              <button
-                onClick={() => { const id = scanned.id; setScanned(null); navigate(`/pedido/${id}`); }}
-                disabled={acting}
-                className="w-full py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10"
-              >
-                Ver pedido completo
-              </button>
-            </div>
           </div>
         </div>
       )}
