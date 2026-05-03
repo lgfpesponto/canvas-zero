@@ -36,7 +36,7 @@ import { BordadoOrderView } from '@/components/BordadoOrderView';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
-  const { isAdmin, user, updateOrder, isFernanda, role } = useAuth();
+  const { isAdmin, user, updateOrder, updateOrderStatus, isFernanda, role } = useAuth();
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const location = useLocation();
