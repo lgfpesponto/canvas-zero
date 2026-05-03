@@ -1669,7 +1669,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         {reports.map(r => (
           <button
             key={r}
-            onClick={() => { setActiveReport(activeReport === r ? null : r); resetFilters(); }}
+            onClick={() => {
+              const next = activeReport === r ? null : r;
+              setActiveReport(next);
+              resetFilters();
+              if (next === 'cobranca') setFilterProgresso(new Set(['Entregue']));
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors ${
               activeReport === r ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary/10'
             }`}
