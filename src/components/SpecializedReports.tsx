@@ -1446,8 +1446,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const justifLines: string[] = ultimaJust
         ? [`Justificativa (${ultimaJust.data} por ${ultimaJust.usuario || '—'}): ${justifTextoLimpo}`]
         : [];
+      const divergLines: string[] = tabelaDivergente
+        ? [`(valor congelado do pedido — soma da tabela atual: ${formatCurrency(subtotalCalc)})`]
+        : [];
       const compText = [
         ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
+        ...divergLines,
         ...justifLines,
       ].join('\n');
 
