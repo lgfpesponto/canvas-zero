@@ -1,0 +1,109 @@
+/**
+ * Mapa de transições válidas entre etapas de produção (botas).
+ *
+ * Regras:
+ * - "Aguardando" e "Cancelado" podem ser alcançados a partir de qualquer etapa.
+ * - Quando saindo de "Aguardando" ou "Cancelado", qualquer destino é permitido
+ *   (a justificativa para retrocesso é tratada por statusRegression.ts).
+ * - "Baixa Estoque" só é destino válido para o pseudo-vendedor "Estoque".
+ * - "Baixa Site (Despachado)" só é destino válido para vendedor de comissão.
+ */
+
+export const PESPONTOS = [
+  'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
+  'Pesponto Ailton', 'Pespontando',
+];
+
+const BAIXA_CORTE_NEXT = [
+  'Entrada Laser Dinei', 'Estampa', 'Sem bordado',
+  'Bordado Dinei', 'Bordado Sandro', 'Entrada Bordado 7Estrivos',
+];
+
+const FLOW: Record<string, string[]> = {
+  'Em aberto': ['Impresso'],
+  'Impresso': ['Corte'],
+  'Corte': ['Baixa Corte', 'Aguardando Couro'],
+  'Aguardando Couro': ['Corte'],
+  'Baixa Corte': BAIXA_CORTE_NEXT,
+  'Entrada Laser Dinei': ['Baixa Laser Dinei'],
+  'Baixa Laser Dinei': PESPONTOS,
+  'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Dinei', 'Bordado Sandro', ...PESPONTOS],
+  'Sem bordado': PESPONTOS,
+  'Bordado Dinei': PESPONTOS,
+  'Bordado Sandro': PESPONTOS,
+  'Entrada Bordado 7Estrivos': ['Baixa Bordado 7Estrivos'],
+  'Baixa Bordado 7Estrivos': PESPONTOS,
+  'Pesponto 01': ['Montagem'],
+  'Pesponto 02': ['Montagem'],
+  'Pesponto 03': ['Montagem'],
+  'Pesponto 04': ['Montagem'],
+  'Pesponto 05': ['Montagem'],
+  'Pesponto Ailton': ['Montagem'],
+  'Pespontando': ['Montagem'],
+  'Montagem': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque'],
+  'Revisão': ['Expedição'],
+  'Expedição': ['Entregue', 'Baixa Site (Despachado)', 'Baixa Estoque'],
+  'Baixa Estoque': ['Entregue'],
+  'Baixa Site (Despachado)': ['Entregue'],
+  'Entregue': ['Conferido'],
+  'Conferido': ['Cobrado'],
+  'Cobrado': ['Pago'],
+  'Pago': [],
+  'Emprestado': ['Corte', 'Em aberto'],
+};
+
+export const ALWAYS_AVAILABLE = ['Aguardando', 'Cancelado'];
+
+/** Status a partir dos quais qualquer destino é permitido (sem checagem de fluxo). */
+const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
+
+export interface TransitionContext {
+  /** Vendedor do pedido — usado para Baixa Estoque/Site. */
+  vendedor?: string;
+  /** Role do usuário que está tentando — usado para futuras restrições. */
+  role?: string;
+}
+
+function applyContextFilter(targets: string[], ctx?: TransitionContext): string[] {
+  if (!ctx) return targets;
+  return targets.filter(t => {
+    if (t === 'Baixa Estoque') return ctx.vendedor === 'Estoque';
+    if (t === 'Baixa Site (Despachado)') return ctx.vendedor !== 'Estoque';
+    return true;
+  });
+}
+
+/** Lista todos os destinos válidos a partir de `current`. Inclui Aguardando/Cancelado. */
+export function getAllowedNextStatuses(current: string | null | undefined, ctx?: TransitionContext): string[] {
+  if (!current) return [];
+  const base = FREE_FROM.has(current)
+    ? Object.keys(FLOW) // qualquer etapa
+    : (FLOW[current] || []);
+  const merged = Array.from(new Set([...base, ...ALWAYS_AVAILABLE]));
+  return applyContextFilter(merged, ctx);
+}
+
+/** Verifica se ir de current → next é permitido. */
+export function isTransitionAllowed(
+  current: string | null | undefined,
+  next: string,
+  ctx?: TransitionContext,
+): boolean {
+  if (!current || !next) return false;
+  if (current === next) return true;
+  if (ALWAYS_AVAILABLE.includes(next)) {
+    // Aguardando/Cancelado têm restrição de contexto
+    return applyContextFilter([next], ctx).length > 0
+      || ALWAYS_AVAILABLE.includes(next); // sempre disponível
+  }
+  if (FREE_FROM.has(current)) {
+    // pode voltar para qualquer etapa válida
+    return applyContextFilter([next], ctx).length > 0
+      && (Object.prototype.hasOwnProperty.call(FLOW, next) || ALWAYS_AVAILABLE.includes(next));
+  }
+  const allowed = applyContextFilter(FLOW[current] || [], ctx);
+  return allowed.includes(next);
+}
+
+export const TRANSITION_BLOCKED_MESSAGE =
+  'Progresso indisponível para esse pedido, siga a ordem de produção';
