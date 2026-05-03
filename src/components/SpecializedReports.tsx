@@ -1198,9 +1198,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   // ── Cobrança: tabular A4 layout ──
   const generateCobrancaPDF = () => {
-    const COBRANCA_STATUSES = ['entregue'];
+    const DEFAULT_COBRANCA = ['Entregue', 'Conferido', 'Cobrado', 'Pago'];
+    const selecionados = filterProgresso.size === 0 ? DEFAULT_COBRANCA : [...filterProgresso];
+    const statusSetLower = new Set(selecionados.map(s => s.trim().toLowerCase()));
     const filtered = sourceOrders.filter(o =>
-      COBRANCA_STATUSES.includes((o.status || '').trim().toLowerCase()) &&
+      statusSetLower.has((o.status || '').trim().toLowerCase()) &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
     ).sort((a, b) => {
       // Igual ao portal: data_criacao desc, hora_criacao desc, numero desc
@@ -1224,7 +1226,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Cobrança  [${geradoEm} — ${vendedorLabel}]`, mx, 20);
+    const statusLabel = selecionados.join(' / ');
+    doc.text(`Cobrança  [${geradoEm} — ${vendedorLabel} — ${statusLabel}]`, mx, 20);
 
     const cols = [45, 22, 68, 15, 32];
     const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3]];
@@ -1643,12 +1646,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos';
+  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos' || activeReport === 'cobranca';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
   const progressOptions = useMemo(() => {
     if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
+    if (activeReport === 'cobranca') return ['Entregue', 'Conferido', 'Cobrado', 'Pago'];
     return PRODUCTION_STATUSES;
   }, [activeReport]);
 
@@ -1665,7 +1669,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         {reports.map(r => (
           <button
             key={r}
-            onClick={() => { setActiveReport(activeReport === r ? null : r); resetFilters(); }}
+            onClick={() => {
+              const next = activeReport === r ? null : r;
+              setActiveReport(next);
+              resetFilters();
+              if (next === 'cobranca') setFilterProgresso(new Set(['Entregue']));
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors ${
               activeReport === r ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary/10'
             }`}
