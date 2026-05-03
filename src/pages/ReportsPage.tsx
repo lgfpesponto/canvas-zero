@@ -463,20 +463,30 @@ const ReportsPage = () => {
 
     // Aplica imediatamente os pedidos sem trava (não esperam o modal de justificativa)
     const baseObs = progressObservacao.trim();
+    let blockedCount = 0;
     if (normals.length > 0) {
+      const appliedIds: string[] = [];
       for (const id of normals) {
-        await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+        try {
+          await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+          appliedIds.push(id);
+        } catch {
+          blockedCount++;
+        }
       }
       // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
       setSelectedIds(prev => {
         const next = new Set(prev);
-        normals.forEach(id => next.delete(id));
+        appliedIds.forEach(id => next.delete(id));
         return next;
       });
+      if (blockedCount > 0) {
+        toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
+      }
       if (regressions.length === 0) {
-        toast.success(`${normals.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
-      } else {
-        toast.success(`${normals.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
+        if (appliedIds.length > 0) toast.success(`${appliedIds.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+      } else if (appliedIds.length > 0) {
+        toast.success(`${appliedIds.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
       }
     }
 
@@ -488,7 +498,7 @@ const ReportsPage = () => {
       return;
     }
 
-    finalizeBulkUpdate(normals.length);
+    finalizeBulkUpdate(normals.length - blockedCount);
   };
 
   const handleConfirmRegression = async () => {
