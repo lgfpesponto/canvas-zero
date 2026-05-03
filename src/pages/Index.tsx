@@ -14,6 +14,13 @@ const fadeIn = {
 const Index = () => {
   const { isLoggedIn, role, loading: authLoading } = useAuth();
 
+  if (authLoading) {
+    return <div className="min-h-screen" />;
+  }
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero */}
