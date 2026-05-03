@@ -709,20 +709,42 @@ const OrderDetailPage = () => {
                   checked={!!order.conferido}
                   onCheckedChange={async (v) => {
                     const novo = !!v;
+                    const updates: any = {
+                      conferido: novo,
+                      conferido_em: novo ? new Date().toISOString() : null,
+                      conferido_por: novo ? user?.id : null,
+                    };
+                    let moveuStatus = false;
+                    // Se marcando E status atual é "Entregue", move pedido para "Conferido"
+                    if (novo && order.status === 'Entregue') {
+                      const agora = new Date();
+                      const data = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
+                      const hora = agora.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+                      const entry = {
+                        data,
+                        hora,
+                        local: 'Conferido',
+                        descricao: 'Pedido movido para Conferido (via checkbox)',
+                        usuario: user?.nomeCompleto || user?.email || 'admin',
+                      };
+                      updates.status = 'Conferido';
+                      updates.historico = [...(order.historico || []), entry];
+                      moveuStatus = true;
+                    }
                     const { error } = await supabase
                       .from('orders')
-                      .update({
-                        conferido: novo,
-                        conferido_em: novo ? new Date().toISOString() : null,
-                        conferido_por: novo ? user?.id : null,
-                      })
+                      .update(updates)
                       .eq('id', order.id);
                     if (error) {
                       toast.error('Erro ao salvar: ' + error.message);
                       return;
                     }
                     await refetchOrder();
-                    toast.success(novo ? 'Pedido marcado como conferido' : 'Marcação removida');
+                    toast.success(
+                      novo
+                        ? (moveuStatus ? 'Conferido — pedido movido para "Conferido"' : 'Pedido marcado como conferido')
+                        : 'Marcação removida'
+                    );
                   }}
                 />
                 <CheckCircle2 size={14} className={order.conferido ? 'text-primary' : 'text-muted-foreground'} />
