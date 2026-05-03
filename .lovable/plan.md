@@ -1,67 +1,72 @@
 ## Objetivo
 
-Criar uma nova etapa de produção chamada **Conferido**, posicionada entre **Entregue** e **Cobrado** no fluxo:
+Quando um pedido já baixado tem seu valor alterado, **estornar a baixa anterior**, **devolver o valor ao saldo** e **voltar o pedido para "Cobrado"**. Se o saldo atual não cobrir o novo valor, o pedido **fica em "Cobrado" mostrando "Falta R$ X,XX para quitar"** (sem permitir saldo negativo).
 
-```text
-... → Expedição → Entregue → Conferido → Cobrado → Pago → Garantia
+## Comportamento
+
+**Cenário exemplo:**
+- Pedido baixado por R$ 300 → status "Pago"
+- Admin edita o pedido → novo valor R$ 315
+- Sistema estorna os R$ 300 ao saldo do vendedor
+- Tenta nova baixa: saldo (R$ 300) < R$ 315 → **não baixa**
+- Pedido volta para "Cobrado"
+- Em qualquer tela onde aparece o pedido (lista de pedidos, painel do revendedor, detalhe), exibe a tag: **"Falta R$ 15,00 para quitar"**
+
+**Quando saldo cobre:** baixa automaticamente e volta para "Pago" (sem mostrar tag).
+
+## Mudanças técnicas
+
+### 1. Migration (`supabase/migrations/...`)
+
+**a)** Correção retroativa dos 50 pedidos do Rafael Silva travados em "Cobrado" com baixa registrada → atualizar para "Pago" + adicionar histórico "Baixa automática (correção retroativa)".
+
+**b)** Trigger `trg_orders_value_change_baixa` em `BEFORE UPDATE OF preco, quantidade, vendedor ON orders`:
+   - Se o pedido tem registro em `revendedor_baixas_pedido` E (`preco*quantidade` mudou OU `vendedor` mudou):
+     1. Insere movimento `estorno` devolvendo `valor_pedido` ao saldo do vendedor original
+     2. `DELETE` da linha em `revendedor_baixas_pedido`
+     3. Força `NEW.status := 'Cobrado'` (e adiciona histórico "Estorno automático: valor alterado")
+     4. Após o UPDATE (trigger AFTER), chama `tentar_baixa_automatica(NEW.vendedor)` — se saldo cobrir, volta a "Pago"; senão fica em "Cobrado"
+
+**c)** Reprocessamento global: rodar `tentar_baixa_automatica` para todos os vendedores com saldo > 0 (aproveita saldo recém-liberado).
+
+**Saldo negativo:** **não permitido** (regra mantida). Pedido fica em "Cobrado" com indicador de falta.
+
+### 2. Helper compartilhado (`src/lib/saldo-utils.ts`)
+
+```ts
+export function getValorFaltanteParaQuitar(
+  order: Order, 
+  saldoVendedor: number
+): number {
+  if (order.status !== 'Cobrado') return 0;
+  const valorPedido = (order.preco ?? 0) * (order.quantidade ?? 1) - (order.desconto ?? 0);
+  const falta = valorPedido - saldoVendedor;
+  return falta > 0 ? falta : 0;
+}
 ```
 
-Quando o admin_master clicar no checkbox "Conferido" já existente, **se o pedido estiver em "Entregue"**, ele será movido automaticamente para o novo status "Conferido". Vale para botas, extras e cintos.
+### 3. UI — Tag "Falta R$ X para quitar"
 
----
+Exibir em badge âmbar/laranja nos seguintes locais quando `falta > 0`:
+- `src/pages/RelatoriosPage.tsx` (lista de pedidos — coluna status)
+- `src/pages/OrderDetailPage.tsx` (header do pedido, ao lado do status)
+- `src/pages/SaldoRevendedorPage.tsx` (painel do revendedor — lista de pedidos cobrados)
+- PDF financeiro de cobrança (opcional — adicionar coluna "Falta")
 
-## O que muda
+Para evitar N consultas de saldo, buscar saldo dos vendedores envolvidos uma vez por tela (já existe `vw_revendedor_saldo`) e mapear por nome.
 
-### 1. Banco de dados (migration)
+### 4. Realtime
 
-Inserir novo registro em `status_etapas` com `ordem = 21` (entre Entregue=20 e Cobrado=21 antigo) e reordenar os status posteriores (Cobrado→22, Pago→23, Garantia→24, Cancelado→25, Deletado→26).
+Como já há subscription em `orders` e `revendedor_saldo_movimentos`, as telas vão recalcular a tag automaticamente quando o trigger disparar.
 
-```sql
-INSERT INTO status_etapas (nome, slug, ordem) VALUES ('Conferido', 'conferido', 21);
-UPDATE status_etapas SET ordem = ordem + 1 WHERE ordem >= 21 AND slug <> 'conferido';
-```
+## Arquivos afetados
 
-### 2. Listas de status (`src/lib/order-logic.ts`)
+- **Novo:** `supabase/migrations/20260503010000_baixa_estorno_automatico_e_correcao.sql`
+- **Novo:** `src/lib/saldo-utils.ts` (helper `getValorFaltanteParaQuitar`)
+- **Editar:** `src/pages/RelatoriosPage.tsx`, `src/pages/OrderDetailPage.tsx`, `src/pages/SaldoRevendedorPage.tsx`
+- **Memória:** atualizar `mem://features/financeiro/saldo-revendedor` com regra de estorno automático e tag "Falta para quitar"
 
-Adicionar `"Conferido"` após `"Entregue"` em:
-- `PRODUCTION_STATUSES`
-- `PRODUCTION_STATUSES_USER`
-- `EXTRAS_STATUSES`
-- `BELT_STATUSES`
+## Confirmações
 
-### 3. Permissões
-
-Apenas `admin_master` pode mover pedidos para "Conferido" — adicionar guarda no seletor de status (onde já existe `ADMIN_STATUS_ROLES`) para esconder/bloquear "Conferido" para `admin_producao`.
-
-### 4. Integração com o checkbox "Conferido" (`src/pages/OrderDetailPage.tsx`, ~linha 710)
-
-No `onCheckedChange` do checkbox existente:
-
-- Ao **marcar** (true): atualiza `conferido / conferido_em / conferido_por` E, se o `order.status === 'Entregue'`, também atualiza `status = 'Conferido'` + adiciona entrada no `historico` (data/hora/local/descricao/usuario).
-- Ao **desmarcar** (false): apenas remove a flag (não regride status automaticamente, para evitar regressão sem justificativa — segue a regra existente de `Status Regression Guard`).
-
-### 5. Função `tentar_baixa_automatica`
-
-Continua olhando para pedidos em status **'Cobrado'**, então o fluxo automático para "Pago" segue intacto. Nada a mudar aqui.
-
-### 6. Dashboards e relatórios
-
-- `PRODUCTION_STATUSES_IN_PROD` em `order-logic.ts`: **não incluir** "Conferido" (segue mesma regra de "Entregue", que já não conta como "em produção").
-- `get_production_counts` (RPC): não precisa alteração — também não conta Entregue/Conferido.
-- Métricas de vendas/comissão: "Conferido" é status válido (igual a Entregue/Cobrado/Pago para fins de venda), então o filtro `status <> 'Cancelado'` já cobre.
-
-### 7. Memória
-
-Atualizar `mem://features/orders/conferido-flag` para refletir que o checkbox agora também move o status para "Conferido" quando o pedido está em "Entregue".
-
----
-
-## Resumo do comportamento final
-
-| Ação no checkbox | Status atual do pedido | Resultado |
-|---|---|---|
-| Marcar ✅ | Entregue | flag = true + status vira **Conferido** + histórico |
-| Marcar ✅ | Qualquer outro | apenas flag = true (não mexe em status) |
-| Desmarcar ❌ | Qualquer | apenas flag = false (status preservado) |
-
-E o status "Conferido" também aparece manualmente no seletor de status do admin_master para todos os tipos (botas/extras/cintos), permitindo mudança direta.
+1. Confirma que **saldo nunca pode ficar negativo** (estorno + tag de falta é a abordagem correta)?
+2. Quer a tag "Falta R$ X" também no **PDF financeiro de cobrança**?
