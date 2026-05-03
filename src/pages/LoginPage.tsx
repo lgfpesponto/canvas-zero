@@ -58,13 +58,12 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 orange-gradient">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
         <div className="bg-card rounded-xl p-8 western-shadow">
           <div className="text-center mb-6">
             <img src={logo} alt="7ESTRIVOS" className="h-20 w-20 mx-auto mb-4 object-contain" />
             <h1 className="text-2xl font-display font-bold">Entrar</h1>
-            <p className="text-sm text-muted-foreground mt-1">Acesse sua conta de revendedor</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
