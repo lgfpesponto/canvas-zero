@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Eye } from 'lucide-react';
 import FernandaDashboard from '@/components/dashboard/FernandaDashboard';
@@ -13,6 +13,13 @@ const fadeIn = {
 
 const Index = () => {
   const { isLoggedIn, role, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return <div className="min-h-screen" />;
+  }
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="min-h-screen">
