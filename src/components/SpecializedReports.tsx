@@ -1226,7 +1226,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Cobrança  [${geradoEm} — ${vendedorLabel}]`, mx, 20);
+    const statusLabel = selecionados.join(' / ');
+    doc.text(`Cobrança  [${geradoEm} — ${vendedorLabel} — ${statusLabel}]`, mx, 20);
 
     const cols = [45, 22, 68, 15, 32];
     const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3]];
