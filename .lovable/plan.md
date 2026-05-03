@@ -1,80 +1,67 @@
-## Contexto rápido (como funciona hoje)
+## Objetivo
 
-O sistema **NÃO** move pedido pra "Pago" automaticamente só por estar em "Cobrado". A baixa só acontece quando entra crédito no saldo do vendedor (comprovante aprovado, ajuste positivo, ou lançamento em "A Receber"). Aí a função `tentar_baixa_automatica` percorre os pedidos em "Cobrado" do vendedor (mais antigos primeiro) e abate **integralmente** enquanto o saldo cobrir. Cada baixa registra:
-
-- linha em `revendedor_baixas_pedido` (com `order_id`, `vendedor`, `valor_pedido`, `created_at`)
-- movimento em `revendedor_saldo_movimentos` tipo `baixa_pedido`
-- pedido vai pra `Pago` com histórico marcado como "Baixa automática" (nunca o nome da Juliana)
-
-Isso me dá tudo que preciso pra montar o painel pedido — não precisa migration nem mudança de banco.
-
----
-
-## O que vou construir
-
-### 1) Card resumo no topo da aba "Saldo do Vendedor" (admin master)
-
-Novo card ao lado dos atuais (Saldo, A pagar etc.):
+Criar uma nova etapa de produção chamada **Conferido**, posicionada entre **Entregue** e **Cobrado** no fluxo:
 
 ```text
-┌──────────────────────────────┐
-│ Pedidos abatidos             │
-│ 🔢 42 pedidos                │
-│ 💰 R$ 28.450,00              │
-│ [Período: Este mês ▾]        │
-│ [Vendedor: Todos ▾]          │
-└──────────────────────────────┘
+... → Expedição → Entregue → Conferido → Cobrado → Pago → Garantia
 ```
 
-- Conta linhas de `revendedor_baixas_pedido` no período + vendedor selecionados
-- Soma `valor_pedido`
-- Filtro de período: Hoje / Últimos 7 dias / Este mês / Mês anterior / Personalizado
-- Filtro de vendedor: dropdown com todos os vendedores que têm baixas (ou "Todos")
-- Estado dos filtros persistido em URL (`?abatidosDe=...&abatidosAte=...&abatidosVendedor=...`) seguindo o padrão do projeto
-
-### 2) Bloco filtrável dentro do drawer "Detalhes do Vendedor"
-
-Hoje o drawer já mostra a tabela "Baixas realizadas" do vendedor. Vou adicionar acima dela:
-
-- Mini-resumo: **"X pedidos abatidos · R$ Y,YY"** no período selecionado
-- Seletor de período compacto (mesmas opções do card)
-- A tabela "Baixas realizadas" passa a respeitar esse filtro de período
-- Cada linha já vai mostrar o número do pedido clicável (já implementado na rodada anterior)
-
-O drawer já é por vendedor, então não precisa do filtro de vendedor aqui.
-
-### 3) Detalhamento opcional (expandir)
-
-No card resumo da aba principal, um botão **"Ver lista"** abre um modal/sheet com a lista detalhada das baixas do filtro atual:
-
-| Data | Pedido | Vendedor | Valor |
-|------|--------|----------|-------|
-| 02/05/26 | #95928488 (link) | Stefany | R$ 680,00 |
-| ... | ... | ... | ... |
-
-Com botão "Exportar CSV" (opcional, simples).
+Quando o admin_master clicar no checkbox "Conferido" já existente, **se o pedido estiver em "Entregue"**, ele será movido automaticamente para o novo status "Conferido". Vale para botas, extras e cintos.
 
 ---
 
-## Arquivos a editar/criar
+## O que muda
 
-- `src/lib/revendedorSaldo.ts` — adicionar helpers:
-  - `fetchBaixasFiltradas({ de, ate, vendedor? })` → consulta `revendedor_baixas_pedido` com filtros
-  - `fetchVendedoresComBaixas()` → lista distinct de vendedores que aparecem em `revendedor_baixas_pedido` (pra preencher o dropdown)
-- `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx` — novo card "Pedidos abatidos" + modal "Ver lista"
-- `src/components/financeiro/saldo/PedidosAbatidosCard.tsx` (novo) — card isolado com filtros, contagem e valor
-- `src/components/financeiro/saldo/PedidosAbatidosListaDialog.tsx` (novo) — modal com tabela detalhada + export CSV
-- `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx` — adicionar mini-resumo e seletor de período acima da tabela "Baixas realizadas"
+### 1. Banco de dados (migration)
 
-## Não vou mexer
+Inserir novo registro em `status_etapas` com `ordem = 21` (entre Entregue=20 e Cobrado=21 antigo) e reordenar os status posteriores (Cobrado→22, Pago→23, Garantia→24, Cancelado→25, Deletado→26).
 
-- Lógica de baixa automática no banco (já está correta e atende o que você descreveu)
-- Histórico do pedido (já mostra "Baixa automática" sem nome da Juliana)
-- Coluna "Pedido" na tabela de baixas (já mostra número clicável)
+```sql
+INSERT INTO status_etapas (nome, slug, ordem) VALUES ('Conferido', 'conferido', 21);
+UPDATE status_etapas SET ordem = ordem + 1 WHERE ordem >= 21 AND slug <> 'conferido';
+```
 
-## Observações
+### 2. Listas de status (`src/lib/order-logic.ts`)
 
-- Tudo client-side a partir de `revendedor_baixas_pedido` (RLS já permite admin_master ver todas)
-- Sem migration, sem alteração de banco
-- Filtros usam URL params pra você poder copiar/compartilhar a visão filtrada
-- Período padrão ao abrir: **Este mês**
+Adicionar `"Conferido"` após `"Entregue"` em:
+- `PRODUCTION_STATUSES`
+- `PRODUCTION_STATUSES_USER`
+- `EXTRAS_STATUSES`
+- `BELT_STATUSES`
+
+### 3. Permissões
+
+Apenas `admin_master` pode mover pedidos para "Conferido" — adicionar guarda no seletor de status (onde já existe `ADMIN_STATUS_ROLES`) para esconder/bloquear "Conferido" para `admin_producao`.
+
+### 4. Integração com o checkbox "Conferido" (`src/pages/OrderDetailPage.tsx`, ~linha 710)
+
+No `onCheckedChange` do checkbox existente:
+
+- Ao **marcar** (true): atualiza `conferido / conferido_em / conferido_por` E, se o `order.status === 'Entregue'`, também atualiza `status = 'Conferido'` + adiciona entrada no `historico` (data/hora/local/descricao/usuario).
+- Ao **desmarcar** (false): apenas remove a flag (não regride status automaticamente, para evitar regressão sem justificativa — segue a regra existente de `Status Regression Guard`).
+
+### 5. Função `tentar_baixa_automatica`
+
+Continua olhando para pedidos em status **'Cobrado'**, então o fluxo automático para "Pago" segue intacto. Nada a mudar aqui.
+
+### 6. Dashboards e relatórios
+
+- `PRODUCTION_STATUSES_IN_PROD` em `order-logic.ts`: **não incluir** "Conferido" (segue mesma regra de "Entregue", que já não conta como "em produção").
+- `get_production_counts` (RPC): não precisa alteração — também não conta Entregue/Conferido.
+- Métricas de vendas/comissão: "Conferido" é status válido (igual a Entregue/Cobrado/Pago para fins de venda), então o filtro `status <> 'Cancelado'` já cobre.
+
+### 7. Memória
+
+Atualizar `mem://features/orders/conferido-flag` para refletir que o checkbox agora também move o status para "Conferido" quando o pedido está em "Entregue".
+
+---
+
+## Resumo do comportamento final
+
+| Ação no checkbox | Status atual do pedido | Resultado |
+|---|---|---|
+| Marcar ✅ | Entregue | flag = true + status vira **Conferido** + histórico |
+| Marcar ✅ | Qualquer outro | apenas flag = true (não mexe em status) |
+| Desmarcar ❌ | Qualquer | apenas flag = false (status preservado) |
+
+E o status "Conferido" também aparece manualmente no seletor de status do admin_master para todos os tipos (botas/extras/cintos), permitindo mudança direta.
