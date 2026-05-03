@@ -14,6 +14,7 @@ import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
+import { isTransitionAllowed } from '@/lib/statusTransitions';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import { getOrderDeadlineInfo, FINAL_STAGES, isAlertOrder } from '@/lib/orderDeadline';
 import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
