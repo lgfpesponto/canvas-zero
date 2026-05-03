@@ -32,6 +32,7 @@ import {
   VIRA_HIDDEN, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
+import { BordadoOrderView } from '@/components/BordadoOrderView';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
