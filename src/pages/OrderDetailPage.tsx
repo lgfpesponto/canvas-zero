@@ -138,6 +138,11 @@ const OrderDetailPage = () => {
     );
   }
 
+  // ─── Modo BORDADO: render minimal sem preços/composição ───
+  if (role === 'bordado') {
+    return <BordadoOrderView order={order} onBack={() => navigate('/bordado')} />;
+  }
+
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const formatDateBR = (date: string) => {
