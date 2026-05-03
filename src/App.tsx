@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,6 +36,19 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  const hideChrome = location.pathname === '/login';
+  return (
+    <>
+      {!hideChrome && <DeployNoticeBanner />}
+      {!hideChrome && <Header />}
+      {!hideChrome && <AdminAssistantFab />}
+      {children}
+    </>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,9 +58,7 @@ const App = () => (
         <AuthProvider>
           <SelectedOrdersProvider>
           <PresenceTracker />
-          <DeployNoticeBanner />
-          <Header />
-          <AdminAssistantFab />
+          <ChromeWrapper>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
@@ -76,6 +87,7 @@ const App = () => (
             <Route path="/admin/gestao" element={<GestaoPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ChromeWrapper>
           </SelectedOrdersProvider>
         </AuthProvider>
       </BrowserRouter>

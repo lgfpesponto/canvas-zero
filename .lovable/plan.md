@@ -1,31 +1,37 @@
 ## Objetivo
-Permitir, no relatório especializado **Cobrança**, escolher quais "Progresso de Produção" (status) entram no PDF — hoje está fixo em `Entregue`.
+Transformar a tela de login (`/login`) em uma página dedicada em fundo laranja, sem cabeçalho, exibindo apenas o painel de login. Remover o subtítulo "Acesse sua conta de revendedor".
 
-## Mudanças (arquivo: `src/components/SpecializedReports.tsx`)
+## Mudanças
 
-1. **Habilitar filtro de Progresso para Cobrança**
-   - Em `needsProgressFilter`, incluir `activeReport === 'cobranca'`.
-   - Em `progressOptions`, quando `activeReport === 'cobranca'` retornar uma lista focada nos status comuns de cobrança (ordem do fluxo):
-     `['Entregue', 'Conferido', 'Cobrado', 'Pago']`
-     (mantém comportamento de "Todos = todos os 4" e seleção múltipla via checkbox que já existe).
+### 1. `src/App.tsx` — esconder o Header na rota `/login`
+Atualmente `<Header />` é renderizado fora das `<Routes>`, aparecendo em todas as páginas. Vou envolver o Header em um pequeno componente que usa `useLocation` para não renderizar quando `pathname === '/login'`. O `DeployNoticeBanner` e `AdminAssistantFab` também serão ocultados em `/login` (usuário ainda não está logado, faz sentido).
 
-2. **Default ao abrir Cobrança = "Entregue"** (preserva comportamento atual)
-   - Ao clicar no botão "Cobrança", após `resetFilters()` setar `filterProgresso` para `new Set(['Entregue'])`.
-   - Implementação: ajustar o `onClick` do botão para, quando `r === 'cobranca'`, chamar `setFilterProgresso(new Set(['Entregue']))` após o reset.
+### 2. `src/pages/LoginPage.tsx`
+- Trocar o wrapper externo para ocupar a tela inteira com fundo laranja (usando o gradiente/cor primária da marca, ex.: `bg-primary` ou `orange-gradient` já existente no projeto).
+- Centralizar o card de login (mantém o card branco/claro atual sobre o fundo laranja para contraste e legibilidade).
+- Remover a linha `<p>Acesse sua conta de revendedor</p>`.
+- Manter apenas o título "Entrar" (sem subtítulo).
+- Garantir `min-h-screen` em vez de `min-h-[80vh]` já que não há mais header.
 
-3. **Ajustar `generateCobrancaPDF`**
-   - Substituir o `COBRANCA_STATUSES` fixo por:
-     - se `filterProgresso.size === 0` → usar `['Entregue', 'Conferido', 'Cobrado', 'Pago']` (tudo).
-     - senão → usar `[...filterProgresso]` (case-insensitive como hoje).
-   - Incluir o filtro selecionado no título do PDF (ex.: `Cobrança [data — vendedor — Entregue/Conferido]`) para rastreabilidade.
-   - Manter o nome do arquivo atual; opcionalmente acrescentar sufixo com os status quando houver seleção.
+### 3. Resultado visual
+```text
++--------------------------------------------------+
+|                                                  |
+|              [fundo laranja inteiro]             |
+|                                                  |
+|          +----------------------------+          |
+|          |          [logo]            |          |
+|          |          Entrar            |          |
+|          |   Nome de Usuário [____]   |          |
+|          |   Senha           [____]   |          |
+|          |        [ ENTRAR ]          |          |
+|          +----------------------------+          |
+|                                                  |
++--------------------------------------------------+
+```
 
-## O que NÃO muda
-- Ordenação, layout, cálculo de valores (continua usando `getOrderFinalValue` / valor congelado do banco).
-- Filtro de Vendedor permanece igual.
-- Outros relatórios não são afetados.
+Sem header, sem banners, sem FAB, sem subtítulo "Acesse sua conta de revendedor".
 
-## Resultado esperado
-- Ao abrir "Cobrança", aparece o seletor "Progresso de Produção" com Entregue já marcado (comportamento atual preservado).
-- O usuário pode marcar Conferido / Cobrado / Pago (ou combinações) e gerar o PDF apenas com esses pedidos.
-- "Nenhum" selecionado → traz todos os 4 status de cobrança.
+## Observações
+- Após login bem-sucedido, o redirecionamento existente para `/` continua funcionando e o Header volta a aparecer normalmente nas demais rotas.
+- Mensagens de erro e o painel de diagnóstico de rede continuam funcionando dentro do card.
