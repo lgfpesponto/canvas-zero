@@ -20,6 +20,9 @@ const Index = () => {
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
+  if (role === 'bordado') {
+    return <Navigate to="/bordado" replace />;
+  }
 
   return (
     <div className="min-h-screen">

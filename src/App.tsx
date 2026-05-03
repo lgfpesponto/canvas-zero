@@ -32,13 +32,27 @@ import GestaoPage from "./pages/GestaoPage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
+import BordadoPortalPage from "./pages/BordadoPortalPage";
 import NotFound from "./pages/NotFound.tsx";
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
+const BORDADO_ALLOWED = new Set<string>(['/bordado', '/perfil']);
+
 const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const hideChrome = location.pathname === '/login';
+  const { role } = useAuth();
+  const isBordado = role === 'bordado';
+  const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
+  const hideChrome = location.pathname === '/login' || isBordado;
+
+  // Force redirect bordado users out of disallowed routes
+  if (isBordado && !isBordadoRoute && !BORDADO_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
+    return <Navigate to="/bordado" replace />;
+  }
+
   return (
     <>
       {!hideChrome && <DeployNoticeBanner />}
@@ -62,6 +76,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/bordado" element={<BordadoPortalPage />} />
             
             
             <Route path="/pedido" element={<OrderPage />} />

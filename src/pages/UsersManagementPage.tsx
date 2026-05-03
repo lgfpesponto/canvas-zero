@@ -28,6 +28,7 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'admin_producao', label: 'Admin Produção' },
   { value: 'vendedor', label: 'Vendedor' },
   { value: 'vendedor_comissao', label: 'Vendedor Comissão' },
+  { value: 'bordado', label: 'Bordado (portal restrito)' },
 ];
 
 const PROTECTED_USERNAMES = ['7estrivos', 'fernanda', 'demo'];

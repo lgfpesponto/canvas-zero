@@ -32,6 +32,7 @@ import {
   VIRA_HIDDEN, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
+import { BordadoOrderView } from '@/components/BordadoOrderView';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
@@ -136,6 +137,11 @@ const OrderDetailPage = () => {
         <p className="text-muted-foreground">Pedido não encontrado.</p>
       </div>
     );
+  }
+
+  // ─── Modo BORDADO: render minimal sem preços/composição ───
+  if (role === 'bordado') {
+    return <BordadoOrderView order={order} onBack={() => navigate('/bordado')} />;
   }
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
