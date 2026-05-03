@@ -709,12 +709,11 @@ const OrderDetailPage = () => {
                   checked={!!order.conferido}
                   onCheckedChange={async (v) => {
                     const novo = !!v;
-                    const updates: Record<string, unknown> = {
+                    const updates: any = {
                       conferido: novo,
                       conferido_em: novo ? new Date().toISOString() : null,
                       conferido_por: novo ? user?.id : null,
                     };
-                    let novoHistorico = order.historico;
                     let moveuStatus = false;
                     // Se marcando E status atual é "Entregue", move pedido para "Conferido"
                     if (novo && order.status === 'Entregue') {
@@ -726,11 +725,10 @@ const OrderDetailPage = () => {
                         hora,
                         local: 'Conferido',
                         descricao: 'Pedido movido para Conferido (via checkbox)',
-                        usuario: user?.user_metadata?.nome_completo || user?.email || 'admin',
+                        usuario: user?.nomeCompleto || user?.email || 'admin',
                       };
-                      novoHistorico = [...(order.historico || []), entry];
                       updates.status = 'Conferido';
-                      updates.historico = novoHistorico;
+                      updates.historico = [...(order.historico || []), entry];
                       moveuStatus = true;
                     }
                     const { error } = await supabase
