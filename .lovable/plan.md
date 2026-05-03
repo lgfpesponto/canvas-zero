@@ -1,128 +1,125 @@
-## Refinar portal Bordado: visão de pedido + transições controladas
+## Objetivo
+Criar regras explícitas de transição de status de produção (botas), criar 4 novas etapas, bloquear transições inválidas com aviso, tratar Cancelado (zera valor/qtd e restaura ao voltar), e exigir justificativa em qualquer retrocesso na ordem comum.
 
-### 1. Reescrever `BordadoOrderView` para espelhar o detalhe normal
+## 1. Novas etapas
 
-Em vez do card minimalista atual, o componente vai renderizar o **mesmo layout** do `OrderDetailPage` (cabeçalho 2×2 + bloco "Detalhes da Bota" agrupado por categoria), porém:
+Adicionar em `PRODUCTION_STATUSES` / `PRODUCTION_STATUSES_USER` / `PRODUCTION_STATUSES_IN_PROD` (`src/lib/order-logic.ts`):
 
-- Sem o lápis de edição em nenhum bloco.
-- Sem a seção "Composição do Pedido" (preços, subtotal, total, desconto, conferido).
-- Sem "Histórico de Alterações", "Histórico de Impressão", botões de imprimir/excluir/editar.
-- A célula **Foto** mostra "Ver foto" e abre o **`FotoPedidoSidePanel`** (mesmo painel lateral, mesma animação `max-w-3xl → max-w-6xl`).
-- Mostra **Vendedor** (não troca por Cliente — bordado é interno).
-- Mostra "Status atual" como badge.
-- Reusa o mesmo array `detailsGrouped` (Identificação / Couros / Bordados / Laser / Pesponto / Metais / Extras / Solados / Finalização) — exatamente como o admin vê, mas sem valores monetários.
+- **Entrada Laser Dinei**
+- **Baixa Laser Dinei**
+- **Estampa**
+- *"Sem bordado"* já existe — manter.
 
-Tecnicamente: extrair o cálculo de `detailsGrouped` em `src/lib/orderDetailGroups.ts` (helper puro) reaproveitado por OrderDetailPage e BordadoOrderView, evitando manter dois lugares.
+Ordem canônica nova (sem Aguardando/Cancelado/Emprestado/Aguardando Couro):
 
-### 2. Barra superior idêntica à do admin
-
-Acima da ficha:
-- **← Voltar** (volta para `/bordado`).
-- **Paginação** (`< 1/2866 >`) usando `useOrderNeighbors(id)` — RLS já restringe a lista aos 2 status do bordado, então o vizinho será sempre outro pedido bordado.
-- **☐ Selecionar** (usa `useSelectedOrders` igual ao admin) → quando count > 0 aparece a barra de bulk:
-  - Select de novo status restrito a `Entrada Bordado 7Estrivos` / `Baixa Bordado 7Estrivos`.
-  - Mesmas regras de transição da seção 4 aplicadas pedido-a-pedido.
-- **🔍 Buscar Pedido**: abre o **mesmo input inline** do `OrderDetailPage` (não modal) usando `fetchOrderByScan`; ao achar, navega para `/pedido/:id`.
-
-### 3. Portal `/bordado` (lista)
-
-Mantém as duas colunas Entrada / Baixa, mas:
-- Ao clicar num card, navega direto para `/pedido/:id` (não abre mais o modal de ação rápida).
-- Mantém o botão grande **"Escanear / Buscar pedido"** que abre o scanner em modal (modo balcão), e ao achar navega para o pedido.
-- Mantém o gerador de PDF do dia.
-
-### 4. Regras de transição de status (Entrada ↔ Baixa)
-
-No componente do pedido, aparecerão **botões de progresso** (substituindo os dois botões diretos atuais):
-
-- Status atual **fora do bordado**: nenhum botão (RLS nem deixa ver, mas guard).
-- Status atual **Entrada Bordado 7Estrivos**:
-  - Botão "Marcar BAIXA Bordado" → chama RPC sem justificativa.
-- Status atual **Baixa Bordado 7Estrivos**:
-  - Botão "Voltar para ENTRADA Bordado" → abre `JustificativaDialog` (kind=regression). Só envia ao confirmar com motivo.
-- **Nunca** permitir Baixa direto sem ter passado por Entrada (a RPC valida).
-
-### 5. Atualizar RPC `bordado_baixar_pedido`
-
-Nova migration substituindo a função:
-
-```sql
-create or replace function public.bordado_baixar_pedido(
-  _order_id uuid,
-  _novo_status text,
-  _justificativa text default null
-) returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  _atual text;
-  _user_nome text;
-begin
-  if not (has_role(auth.uid(),'bordado') or has_role(auth.uid(),'admin_master')) then
-    raise exception 'Sem permissão';
-  end if;
-  if _novo_status not in ('Entrada Bordado 7Estrivos','Baixa Bordado 7Estrivos') then
-    raise exception 'Status inválido';
-  end if;
-
-  select status into _atual from orders where id = _order_id for update;
-  if _atual is null then raise exception 'Pedido não encontrado'; end if;
-  if _atual = _novo_status then return; end if;
-
-  -- Regras de transição
-  if _novo_status = 'Baixa Bordado 7Estrivos'
-     and _atual <> 'Entrada Bordado 7Estrivos' then
-    raise exception 'É preciso passar por Entrada Bordado antes de dar Baixa';
-  end if;
-  if _novo_status = 'Entrada Bordado 7Estrivos'
-     and _atual = 'Baixa Bordado 7Estrivos'
-     and coalesce(btrim(_justificativa),'') = '' then
-    raise exception 'Justificativa obrigatória para retroceder Baixa → Entrada';
-  end if;
-
-  select coalesce(nome_completo, email) into _user_nome
-    from profiles where id = auth.uid();
-
-  update orders
-  set status = _novo_status,
-      historico = coalesce(historico,'[]'::jsonb) || jsonb_build_array(jsonb_build_object(
-        'data', to_char(now() at time zone 'America/Sao_Paulo','YYYY-MM-DD'),
-        'hora', to_char(now() at time zone 'America/Sao_Paulo','HH24:MI'),
-        'local', _novo_status,
-        'descricao', case
-          when _novo_status='Entrada Bordado 7Estrivos' and _atual='Baixa Bordado 7Estrivos'
-            then 'Retrocesso Baixa→Entrada Bordado: ' || _justificativa
-          else 'Movido para ' || _novo_status end,
-        'usuario', _user_nome,
-        'justificativa', _justificativa
-      ))
-  where id = _order_id;
-end;
-$$;
+```
+Em aberto → Impresso → Corte → Baixa Corte
+  → [Entrada Laser Dinei → Baixa Laser Dinei]
+  → [Estampa]
+  → [Sem bordado]
+  → [Bordado Dinei | Bordado Sandro]
+  → [Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos]
+  → Pesponto (01..05 / Ailton / Pespontando)
+  → Montagem → Revisão → Expedição
+  → Baixa Estoque | Baixa Site (Despachado)
+  → Entregue → Conferido → Cobrado → Pago
 ```
 
-### 6. Mudanças no front
+## 2. Mapa de transições permitidas
 
-Arquivos:
-- `src/components/BordadoOrderView.tsx` — reescrita completa (layout estilo OrderDetailPage, paginação, scanner inline, bulk select, JustificativaDialog).
-- `src/lib/orderDetailGroups.ts` (novo) — helper `buildDetailsGrouped(order)`.
-- `src/pages/OrderDetailPage.tsx` — usar o novo helper (refactor sem mudança visual).
-- `src/pages/BordadoPortalPage.tsx` — remover modal de ação rápida; cards levam para `/pedido/:id`.
-- `src/hooks/useOrders.ts` (se necessário) — garantir que `useOrderNeighbors` respeita RLS (nenhuma alteração esperada).
-- Nova migration SQL substituindo a RPC.
+Novo arquivo **`src/lib/statusTransitions.ts`** exporta `getAllowedNextStatuses(current, role)` baseado nesta tabela:
 
-### 7. Memória
+```text
+Em aberto       → Impresso
+Impresso        → Corte
+Corte           → Baixa Corte | Aguardando Couro
+Aguardando Couro→ Corte
+Baixa Corte     → Entrada Laser Dinei | Estampa | Sem bordado
+                  | Bordado Dinei | Bordado Sandro | Entrada Bordado 7Estrivos
+Entrada Laser Dinei → Baixa Laser Dinei
+Baixa Laser Dinei   → Pesponto*  (qualquer pesponto / pespontando / ailton)
+Estampa         → Entrada Bordado 7Estrivos | Bordado Dinei | Bordado Sandro | Pesponto*
+Sem bordado     → Pesponto*
+Bordado Dinei / Bordado Sandro → Pesponto*
+Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos
+Baixa Bordado 7Estrivos   → Pesponto*
+Pesponto 01..05 / Pespontando / Pesponto Ailton → Montagem
+Montagem        → Revisão | Expedição
+                  | Baixa Site (Despachado)  (apenas vendedor=comissão)
+                  | Baixa Estoque            (apenas vendedor=Estoque)
+Revisão         → Expedição
+Expedição       → Entregue
+Entregue        → Conferido
+Conferido       → Cobrado
+Cobrado         → Pago
 
-Atualizar `mem://auth/role-bordado` documentando: visão estilo ficha sem preços, paginação/seleção/scanner reaproveitados, e a regra de transição (não pula Entrada; volta exige justificativa registrada no histórico).
+Aguardando      → ★ qualquer etapa
+Cancelado       → ★ qualquer etapa (com restauração)
+Emprestado      → preserva comportamento atual
 
-### Ordem de implementação
+★ Toda etapa pode ir para "Aguardando" ou "Cancelado".
+```
 
-1. Migration nova RPC.
-2. Helper `orderDetailGroups.ts` + refactor leve em OrderDetailPage.
-3. Reescrita do `BordadoOrderView` (layout, paginação, scanner inline, bulk, justificativa).
-4. Ajuste do `BordadoPortalPage` (remover modal de ação rápida).
-5. Atualizar memória.
+`Baixa Estoque` / `Baixa Site (Despachado)` continuam restritas pelo destino do pedido (vendedor `Estoque` x vendedor comissão), regra já existente — só aparecem na lista se aplicável.
 
-Aprovando, implemento nesta ordem.
+## 3. Validação no momento da troca
+
+Em `updateOrderStatus` (`src/contexts/AuthContext.tsx`) e em `handleBulkProgressUpdate` (`src/pages/ReportsPage.tsx`) e nos selects de status (`OrderDetailPage.tsx` linha 543 e 548):
+
+- Antes de gravar, chamar `isTransitionAllowed(current, next, ctx)`.
+- Se não permitido: `toast.error("Progresso indisponível para esse pedido, siga a ordem de produção")` e abortar.
+- No `<Select>` da listagem/detalhe, filtrar `PRODUCTION_STATUSES` por `getAllowedNextStatuses(order.status, role, vendedor)` para já não oferecer destinos inválidos. Mantém `Aguardando` e `Cancelado` sempre.
+
+## 4. Justificativa em retrocesso
+
+`src/lib/statusRegression.ts` já cobre retrocesso/pausa/cancelamento usando ordem de `PRODUCTION_STATUSES`.
+- Reordenar `PRODUCTION_STATUSES` para refletir a ordem nova (acima) — assim "voltar para etapa anterior" continua disparando o modal de justificativa que o ReportsPage já tem.
+- Sair de `Cancelado` para qualquer outra etapa: também tratar como retrocesso → exige justificativa. Ajustar `requiresJustification` para considerar `current === 'Cancelado'` como `'regression'`.
+- O fluxo do detalhe (single order) hoje só pede justificativa para Cancelado. Vamos reaproveitar a infra do ReportsPage: extrair os modais (`RegressionConfirm` + `Cancel reason`) num componente `StatusChangeDialog` usado por ambos.
+
+## 5. Cancelado: zerar valor/qtd e restaurar
+
+Mudança em `updateOrderStatus`:
+
+```ts
+if (newStatus === 'Cancelado' && order.status !== 'Cancelado') {
+  patch.preco_anterior   = order.preco;
+  patch.quantidade_anterior = order.quantidade;
+  patch.preco = 0;
+  patch.quantidade = 0;
+}
+if (order.status === 'Cancelado' && newStatus !== 'Cancelado') {
+  patch.preco      = order.preco_anterior      ?? order.preco;
+  patch.quantidade = order.quantidade_anterior ?? order.quantidade ?? 1;
+  patch.preco_anterior = null;
+  patch.quantidade_anterior = null;
+}
+```
+
+### Migração SQL
+```sql
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS preco_anterior      numeric,
+  ADD COLUMN IF NOT EXISTS quantidade_anterior integer;
+```
+
+Snapshot armazenado garante restauração mesmo após reload. Histórico recebe entrada com a justificativa (regressão) ao sair de Cancelado.
+
+## 6. Mensagens / UX
+
+- Toast bloqueio: **"Progresso indisponível para esse pedido, siga a ordem de produção"**.
+- No modal bulk, etapas inválidas para todos os pedidos selecionados aparecem desabilitadas com tooltip explicativo (mantém comportamento atual; só desabilitar se 100% inválido).
+
+## 7. Arquivos tocados
+
+- `src/lib/order-logic.ts` — adicionar 3 status e reordenar.
+- `src/lib/statusTransitions.ts` — **novo** (mapa + helpers).
+- `src/lib/statusRegression.ts` — Cancelado→outro = regression.
+- `src/contexts/AuthContext.tsx` — validar transição + snapshot/restore preço/qtd.
+- `src/pages/ReportsPage.tsx` — usar `getAllowedNextStatuses` no select da etapa em massa + toast bloqueio.
+- `src/pages/OrderDetailPage.tsx` — filtrar select de status (linhas 543 e 548) e tratar bloqueio.
+- `supabase/migrations/...` — colunas `preco_anterior`, `quantidade_anterior`.
+
+## Observações
+- Regras de comissão / saldo revendedor não mudam: pedido cancelado tem valor 0, então naturalmente sai do A Receber. Trigger `trg_orders_estorno_baixa_on_value_change` já estorna baixa se pedido voltar com novo valor.
+- "Sem bordado" continua existindo como status (já está em `PRODUCTION_STATUSES`); só explicitamos transições.
