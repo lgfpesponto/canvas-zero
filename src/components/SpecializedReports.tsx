@@ -1198,9 +1198,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   // ── Cobrança: tabular A4 layout ──
   const generateCobrancaPDF = () => {
-    const COBRANCA_STATUSES = ['entregue'];
+    const DEFAULT_COBRANCA = ['Entregue', 'Conferido', 'Cobrado', 'Pago'];
+    const selecionados = filterProgresso.size === 0 ? DEFAULT_COBRANCA : [...filterProgresso];
+    const statusSetLower = new Set(selecionados.map(s => s.trim().toLowerCase()));
     const filtered = sourceOrders.filter(o =>
-      COBRANCA_STATUSES.includes((o.status || '').trim().toLowerCase()) &&
+      statusSetLower.has((o.status || '').trim().toLowerCase()) &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
     ).sort((a, b) => {
       // Igual ao portal: data_criacao desc, hora_criacao desc, numero desc

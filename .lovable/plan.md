@@ -1,27 +1,31 @@
 ## Objetivo
+Permitir, no relatório especializado **Cobrança**, escolher quais "Progresso de Produção" (status) entram no PDF — hoje está fixo em `Entregue`.
 
-Corrigir o gap de **13 pedidos do Rafael Silva** (R$ 1.020) que estão em status `Pago` mas sem registro em `revendedor_baixas_pedido`. Como o saldo disponível (R$ 29.899,80) cobre folgadamente, o resultado esperado é: todos voltam a Pago **com** baixa registrada e sobram **R$ 28.879,80**.
+## Mudanças (arquivo: `src/components/SpecializedReports.tsx`)
 
-## Migration (data-only, idempotente)
+1. **Habilitar filtro de Progresso para Cobrança**
+   - Em `needsProgressFilter`, incluir `activeReport === 'cobranca'`.
+   - Em `progressOptions`, quando `activeReport === 'cobranca'` retornar uma lista focada nos status comuns de cobrança (ordem do fluxo):
+     `['Entregue', 'Conferido', 'Cobrado', 'Pago']`
+     (mantém comportamento de "Todos = todos os 4" e seleção múltipla via checkbox que já existe).
 
-Para qualquer pedido com `status='Pago'`, vendedor válido (≠ 'Estoque') e **sem** linha em `revendedor_baixas_pedido`:
+2. **Default ao abrir Cobrança = "Entregue"** (preserva comportamento atual)
+   - Ao clicar no botão "Cobrança", após `resetFilters()` setar `filterProgresso` para `new Set(['Entregue'])`.
+   - Implementação: ajustar o `onClick` do botão para, quando `r === 'cobranca'`, chamar `setFilterProgresso(new Set(['Entregue']))` após o reset.
 
-1. `UPDATE orders SET status='Cobrado'` + entrada no histórico: *"Correção: pedido reaberto para baixa automática (estava Pago sem registro de baixa)"*
-2. Coletar lista de vendedores afetados
-3. Para cada vendedor: `PERFORM tentar_baixa_automatica(vendedor, NULL)`
+3. **Ajustar `generateCobrancaPDF`**
+   - Substituir o `COBRANCA_STATUSES` fixo por:
+     - se `filterProgresso.size === 0` → usar `['Entregue', 'Conferido', 'Cobrado', 'Pago']` (tudo).
+     - senão → usar `[...filterProgresso]` (case-insensitive como hoje).
+   - Incluir o filtro selecionado no título do PDF (ex.: `Cobrança [data — vendedor — Entregue/Conferido]`) para rastreabilidade.
+   - Manter o nome do arquivo atual; opcionalmente acrescentar sufixo com os status quando houver seleção.
 
-Isso reaproveita a função existente — que já cria o movimento `baixa_pedido`, insere em `revendedor_baixas_pedido` e move o pedido de volta para `Pago` com histórico correto. Se o saldo não cobrir algum pedido (não é o caso do Rafael), ele permanece em `Cobrado` e a tag "Falta R$ X" já implementada aparece automaticamente.
+## O que NÃO muda
+- Ordenação, layout, cálculo de valores (continua usando `getOrderFinalValue` / valor congelado do banco).
+- Filtro de Vendedor permanece igual.
+- Outros relatórios não são afetados.
 
-A query foi escrita genericamente — corrige o Rafael e qualquer outro vendedor que tenha o mesmo gap.
-
-## Resultado esperado para o Rafael
-
-| Antes | Depois |
-|---|---|
-| 208 Pago / 195 baixas / saldo R$ 29.899,80 | 208 Pago / **208 baixas** / saldo **R$ 28.879,80** |
-
-## Arquivos
-
-- **Novo:** `supabase/migrations/20260503020000_corrigir_pago_sem_baixa.sql`
-
-Sem mudanças de código frontend — a UI já reflete os movimentos via realtime.
+## Resultado esperado
+- Ao abrir "Cobrança", aparece o seletor "Progresso de Produção" com Entregue já marcado (comportamento atual preservado).
+- O usuário pode marcar Conferido / Cobrado / Pago (ou combinações) e gerar o PDF apenas com esses pedidos.
+- "Nenhum" selecionado → traz todos os 4 status de cobrança.
