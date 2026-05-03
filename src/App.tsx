@@ -87,6 +87,7 @@ const App = () => (
             <Route path="/admin/gestao" element={<GestaoPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ChromeWrapper>
           </SelectedOrdersProvider>
         </AuthProvider>
       </BrowserRouter>
