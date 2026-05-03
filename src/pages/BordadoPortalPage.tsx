@@ -33,8 +33,6 @@ const BordadoPortalPage = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [scanned, setScanned] = useState<Order | null>(null);
-  const [acting, setActing] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfDate, setPdfDate] = useState(() => {
     const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
