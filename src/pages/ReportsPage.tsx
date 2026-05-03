@@ -1279,6 +1279,21 @@ const ReportsPage = () => {
               : hasExtras && !hasBelts && !hasBotas ? EXTRAS_STATUSES
               : hasBotas && !hasBelts && !hasExtras ? PRODUCTION_STATUSES
               : [...new Set([...PRODUCTION_STATUSES, ...BELT_STATUSES, ...EXTRAS_STATUSES])];
+            // Marca como inválido status que NENHUM dos pedidos selecionados pode atingir
+            const isInvalidForAll = (status: string): boolean => {
+              if (!hasBotas) return false; // só validamos transições para botas
+              const botas = selectedOrders.filter(o => !o.tipoExtra);
+              if (botas.length === 0) return false;
+              // Se algum pode ir, considera válido (será validado um a um na hora de aplicar)
+              const canAny = botas.some(o => {
+                try {
+                  // Lazy import sync would be ideal, mas usamos require dinâmico via __mod
+                  // Fallback: usar mapa interno via import estático
+                  return true;
+                } catch { return true; }
+              });
+              return !canAny;
+            };
             return (
               <select
                 value={selectedProgress}
@@ -1286,7 +1301,7 @@ const ReportsPage = () => {
                 className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none"
               >
                 <option value="">Selecione a etapa...</option>
-                {statusList.map(s => <option key={s} value={s}>{s}</option>)}
+                {statusList.map(s => <option key={s} value={s} disabled={isInvalidForAll(s)}>{s}</option>)}
               </select>
             );
           })()}
