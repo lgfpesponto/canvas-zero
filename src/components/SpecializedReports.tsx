@@ -1415,14 +1415,16 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       }
 
       const isBotaPE_cob = o.tipoExtra === 'bota_pronta_entrega';
-      // Subtotal calculado a partir dos itens listados nesta linha do PDF — fonte única de
-      // verdade. Garante que Total = Σ itens − desconto, mesmo para pedidos antigos cujo
-      // o.preco no banco esteja dessincronizado. Espelha a lógica do OrderDetailPage.
-      // Bota Pronta Entrega e extras genéricos mantêm o.preco como base (já é o total do extra).
+      // Total = preco × quantidade − desconto direto do banco (mesma fórmula do Portal e da
+      // RPC get_orders_totals). A coluna "Composição" continua listando os itens só para
+      // referência; não é mais usada como base do total para evitar divergência quando
+      // tabelas de preço (ficha_variacoes / custom_options) mudam após o pedido ser fechado.
       const subtotalCalc = priceItems.reduce((s, [, v]) => s + (Number(v) || 0), 0);
-      const useCalc = !o.tipoExtra || o.tipoExtra === 'cinto';
-      const subtotalBase = useCalc && subtotalCalc > 0 ? subtotalCalc : undefined;
-      const orderTotal = getOrderFinalValue(o, subtotalBase);
+      const orderTotal = getOrderFinalValue(o);
+      const baseDb = getOrderBaseValue(o);
+      const tabelaDivergente = (!o.tipoExtra || o.tipoExtra === 'cinto')
+        && subtotalCalc > 0
+        && Math.abs(subtotalCalc - baseDb) > 0.01;
       if (o.desconto && o.desconto !== 0) {
         const isAcr = o.desconto < 0;
         const label = isAcr ? 'Acréscimo' : 'Desconto';
@@ -1444,8 +1446,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const justifLines: string[] = ultimaJust
         ? [`Justificativa (${ultimaJust.data} por ${ultimaJust.usuario || '—'}): ${justifTextoLimpo}`]
         : [];
+      const divergLines: string[] = tabelaDivergente
+        ? [`(valor congelado do pedido — soma da tabela atual: ${formatCurrency(subtotalCalc)})`]
+        : [];
       const compText = [
         ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
+        ...divergLines,
         ...justifLines,
       ].join('\n');
 
