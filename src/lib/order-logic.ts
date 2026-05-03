@@ -43,7 +43,7 @@ export const PRODUCTION_STATUSES = [
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05", "Pesponto Ailton",
   "Pespontando", "Montagem", "Revisão", "Expedição",
   "Baixa Estoque", "Baixa Site (Despachado)",
-  "Entregue", "Cobrado", "Pago", "Cancelado"
+  "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const PRODUCTION_STATUSES_USER = [
@@ -51,17 +51,20 @@ export const PRODUCTION_STATUSES_USER = [
   "Bordado Dinei", "Bordado Sandro", "Entrada Bordado 7Estrivos", "Baixa Bordado 7Estrivos",
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05", "Pesponto Ailton",
   "Pespontando", "Montagem", "Revisão", "Expedição",
-  "Entregue", "Cobrado", "Pago", "Cancelado"
+  "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const EXTRAS_STATUSES = [
-  "Em aberto", "Produzindo", "Expedição", "Entregue", "Cobrado", "Pago", "Cancelado"
+  "Em aberto", "Produzindo", "Expedição", "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const BELT_STATUSES = [
   "Em aberto", "Aguardando", "Corte", "Bordado", "Pesponto",
-  "Expedição", "Entregue", "Cobrado", "Pago", "Cancelado"
+  "Expedição", "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
+
+/** Status "Conferido" só pode ser definido por admin_master */
+export const CONFERIDO_ONLY_ROLES: AppRole[] = ['admin_master'];
 
 /** Statuses that mean "in production" (for dashboard counters) */
 export const PRODUCTION_STATUSES_IN_PROD = [
