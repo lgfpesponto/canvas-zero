@@ -77,7 +77,10 @@ export const CONFERIDO_ONLY_ROLES: AppRole[] = ['admin_master'];
 /** Statuses that mean "in production" (for dashboard counters) */
 export const PRODUCTION_STATUSES_IN_PROD = [
   'Impresso',
-  'Aguardando', 'Aguardando Couro', 'Corte', 'Baixa Corte', 'Sem bordado',
+  'Aguardando', 'Aguardando Couro', 'Corte', 'Baixa Corte',
+  'Entrada Laser Dinei', 'Baixa Laser Dinei',
+  'Estampa',
+  'Sem bordado',
   'Bordado Dinei', 'Bordado Sandro', 'Entrada Bordado 7Estrivos', 'Baixa Bordado 7Estrivos',
   'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton',
   'Pespontando', 'Montagem', 'Revisão', 'Expedição',
