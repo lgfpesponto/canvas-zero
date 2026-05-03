@@ -651,3 +651,69 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
   void recordPrintHistory(orders.map(o => o.id), 'Comissão', meta?.userName || '');
   doc.save(`Comissão - Rancho Chique - ${monthStr}-${yearStr}.pdf`);
 }
+
+/* ─────────── Resumo Baixa Bordado 7Estrivos ─────────── */
+export function generateBordadoBaixaResumoPDF(orders: any[], dataRef: string, userName: string) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 12;
+
+  // Header
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 0, pageW, 18, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('Resumo Baixa Bordado 7Estrivos', margin, 11);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(formatDateBR(dataRef), pageW - margin, 11, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+
+  let y = 26;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Total de pedidos: ${orders.length}`, margin, y);
+  doc.text(`Gerado por: ${userName}`, pageW - margin, y, { align: 'right' });
+  y += 6;
+
+  // Table header
+  doc.setFillColor(230, 230, 230);
+  doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('Nº Pedido', margin + 2, y + 5);
+  doc.text('Modelo', margin + 38, y + 5);
+  doc.text('Tamanho', margin + 95, y + 5);
+  doc.text('Vendedor', margin + 118, y + 5);
+  doc.text('Hora baixa', pageW - margin - 2, y + 5, { align: 'right' });
+  y += 9;
+
+  doc.setFont('helvetica', 'normal');
+  const sorted = [...orders].sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
+
+  for (const o of sorted) {
+    if (y > 280) {
+      doc.addPage();
+      y = 18;
+    }
+    // Find hora baixa from historico
+    let hora = '—';
+    const hist = Array.isArray(o.historico) ? o.historico : [];
+    const baixaEntries = hist.filter((h: any) => h?.local === 'Baixa Bordado 7Estrivos' && h?.data === dataRef);
+    if (baixaEntries.length > 0) hora = baixaEntries[baixaEntries.length - 1].hora || '—';
+
+    doc.setFontSize(9);
+    doc.text(String(o.numero || ''), margin + 2, y);
+    doc.text(String(o.modelo || '').slice(0, 32), margin + 38, y);
+    doc.text(String(o.tamanho || ''), margin + 95, y);
+    doc.text(String(o.vendedor || '').slice(0, 22), margin + 118, y);
+    doc.text(hora, pageW - margin - 2, y, { align: 'right' });
+    y += 5.5;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(margin, y - 1.5, pageW - margin, y - 1.5);
+  }
+
+  stampPageNumbers(doc);
+  doc.save(`Baixa-Bordado-${dataRef}.pdf`);
+}
