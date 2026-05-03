@@ -76,6 +76,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/bordado" element={<BordadoPortalPage />} />
             
             
             <Route path="/pedido" element={<OrderPage />} />
