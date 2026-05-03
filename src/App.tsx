@@ -36,6 +36,19 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  const hideChrome = location.pathname === '/login';
+  return (
+    <>
+      {!hideChrome && <DeployNoticeBanner />}
+      {!hideChrome && <Header />}
+      {!hideChrome && <AdminAssistantFab />}
+      {children}
+    </>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,9 +58,7 @@ const App = () => (
         <AuthProvider>
           <SelectedOrdersProvider>
           <PresenceTracker />
-          <DeployNoticeBanner />
-          <Header />
-          <AdminAssistantFab />
+          <ChromeWrapper>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
