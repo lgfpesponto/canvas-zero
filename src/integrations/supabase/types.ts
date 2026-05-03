@@ -589,7 +589,9 @@ export type Database = {
           pintura: string | null
           pintura_desc: string | null
           preco: number
+          preco_anterior: number | null
           quantidade: number
+          quantidade_anterior: number | null
           recorte_cano: string | null
           recorte_gaspea: string | null
           recorte_taloneira: string | null
@@ -681,7 +683,9 @@ export type Database = {
           pintura?: string | null
           pintura_desc?: string | null
           preco?: number
+          preco_anterior?: number | null
           quantidade?: number
+          quantidade_anterior?: number | null
           recorte_cano?: string | null
           recorte_gaspea?: string | null
           recorte_taloneira?: string | null
@@ -773,7 +777,9 @@ export type Database = {
           pintura?: string | null
           pintura_desc?: string | null
           preco?: number
+          preco_anterior?: number | null
           quantidade?: number
+          quantidade_anterior?: number | null
           recorte_cano?: string | null
           recorte_gaspea?: string | null
           recorte_taloneira?: string | null
@@ -1210,7 +1216,9 @@ export type Database = {
           pintura: string | null
           pintura_desc: string | null
           preco: number
+          preco_anterior: number | null
           quantidade: number
+          quantidade_anterior: number | null
           recorte_cano: string | null
           recorte_gaspea: string | null
           recorte_taloneira: string | null
