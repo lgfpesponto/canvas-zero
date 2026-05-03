@@ -36,7 +36,7 @@ import { BordadoOrderView } from '@/components/BordadoOrderView';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
-  const { isAdmin, user, updateOrder, isFernanda, role } = useAuth();
+  const { isAdmin, user, updateOrder, updateOrderStatus, isFernanda, role } = useAuth();
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const location = useLocation();
@@ -566,27 +566,19 @@ const OrderDetailPage = () => {
                     return;
                   }
                   const ids = Array.from(selectedIds);
-                  const { fetchOrdersByIds } = await import('@/hooks/useOrders');
-                  const fetchedOrders = await fetchOrdersByIds(ids);
-                  let updated = 0;
                   const observacao = bulkStatus === 'Cancelado' ? bulkCancelReason.trim() : undefined;
+                  let updated = 0;
+                  let blocked = 0;
                   for (const oid of ids) {
-                    const o = fetchedOrders.find(x => x.id === oid);
-                    if (!o) continue;
-                    const dataHoje = formatBrasiliaDate();
-                    const horaAgora = formatBrasiliaTime();
-                    const descricao = bulkStatus === 'Cancelado'
-                      ? `Cancelado: ${bulkCancelReason.trim()}`
-                      : `Movido para ${bulkStatus}`;
-                    const newHist: any = { local: bulkStatus, data: dataHoje, hora: horaAgora, descricao, usuario: user?.nomeCompleto };
-                    if (observacao) newHist.observacao = observacao;
-                    await updateOrder(oid, {
-                      status: bulkStatus,
-                      historico: [...(o.historico || []), newHist],
-                    });
-                    updated++;
+                    try {
+                      await updateOrderStatus(oid, bulkStatus, observacao);
+                      updated++;
+                    } catch {
+                      blocked++;
+                    }
                   }
-                  toast.success(`${updated} pedido${updated > 1 ? 's' : ''} atualizado${updated > 1 ? 's' : ''} para "${bulkStatus}"`);
+                  if (updated > 0) toast.success(`${updated} pedido${updated > 1 ? 's' : ''} atualizado${updated > 1 ? 's' : ''} para "${bulkStatus}"`);
+                  if (blocked > 0) toast.error(`${blocked} pedido(s) bloqueado(s) por ordem de produção.`);
                   clear();
                   setBulkStatus('');
                   setBulkCancelReason('');

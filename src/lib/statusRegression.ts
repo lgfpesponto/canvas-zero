@@ -46,6 +46,9 @@ export function requiresJustification(
 
   if (CANCEL_STATUSES.includes(next)) return 'cancel';
   if (PAUSE_STATUSES.includes(next)) return 'pause';
+  // Sair de Cancelado para qualquer outra etapa = retrocesso (precisa justificar)
+  if (CANCEL_STATUSES.includes(current)) return 'regression';
+  // Sair de Aguardando NÃO precisa justificativa (é apenas reativar)
   if (isStatusRegression(current, next)) return 'regression';
   return null;
 }

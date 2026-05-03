@@ -14,6 +14,7 @@ import SpecializedReports from '@/components/SpecializedReports';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
+import { isTransitionAllowed } from '@/lib/statusTransitions';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import { getOrderDeadlineInfo, FINAL_STAGES, isAlertOrder } from '@/lib/orderDeadline';
 import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
@@ -463,20 +464,30 @@ const ReportsPage = () => {
 
     // Aplica imediatamente os pedidos sem trava (não esperam o modal de justificativa)
     const baseObs = progressObservacao.trim();
+    let blockedCount = 0;
     if (normals.length > 0) {
+      const appliedIds: string[] = [];
       for (const id of normals) {
-        await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+        try {
+          await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+          appliedIds.push(id);
+        } catch {
+          blockedCount++;
+        }
       }
       // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
       setSelectedIds(prev => {
         const next = new Set(prev);
-        normals.forEach(id => next.delete(id));
+        appliedIds.forEach(id => next.delete(id));
         return next;
       });
+      if (blockedCount > 0) {
+        toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
+      }
       if (regressions.length === 0) {
-        toast.success(`${normals.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
-      } else {
-        toast.success(`${normals.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
+        if (appliedIds.length > 0) toast.success(`${appliedIds.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+      } else if (appliedIds.length > 0) {
+        toast.success(`${appliedIds.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
       }
     }
 
@@ -488,7 +499,7 @@ const ReportsPage = () => {
       return;
     }
 
-    finalizeBulkUpdate(normals.length);
+    finalizeBulkUpdate(normals.length - blockedCount);
   };
 
   const handleConfirmRegression = async () => {
@@ -501,11 +512,19 @@ const ReportsPage = () => {
     const prefixOf = (k: JustificationKind) =>
       k === 'cancel' ? '[CANCELAMENTO]' : k === 'pause' ? '[PAUSA]' : '[RETROCESSO]';
 
+    let okCount = 0;
+    let blockedCount = 0;
     for (const item of regressionItems) {
       const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
-      await updateOrderStatus(item.id, selectedProgress, obs);
+      try {
+        await updateOrderStatus(item.id, selectedProgress, obs);
+        okCount++;
+      } catch {
+        blockedCount++;
+      }
     }
-    finalizeBulkUpdate(regressionItems.length);
+    if (blockedCount > 0) toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
+    finalizeBulkUpdate(okCount);
   };
 
 
@@ -1261,6 +1280,12 @@ const ReportsPage = () => {
               : hasExtras && !hasBelts && !hasBotas ? EXTRAS_STATUSES
               : hasBotas && !hasBelts && !hasExtras ? PRODUCTION_STATUSES
               : [...new Set([...PRODUCTION_STATUSES, ...BELT_STATUSES, ...EXTRAS_STATUSES])];
+            // Marca como inválido status que NENHUM dos pedidos selecionados pode atingir
+            const isInvalidForAll = (status: string): boolean => {
+              const botas = selectedOrders.filter(o => !o.tipoExtra);
+              if (botas.length === 0) return false; // só validamos transições para botas
+              return !botas.some(o => isTransitionAllowed(o.status, status, { vendedor: o.vendedor }));
+            };
             return (
               <select
                 value={selectedProgress}
@@ -1268,7 +1293,7 @@ const ReportsPage = () => {
                 className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none"
               >
                 <option value="">Selecione a etapa...</option>
-                {statusList.map(s => <option key={s} value={s}>{s}</option>)}
+                {statusList.map(s => <option key={s} value={s} disabled={isInvalidForAll(s)}>{s}{isInvalidForAll(s) ? ' (indisponível)' : ''}</option>)}
               </select>
             );
           })()}

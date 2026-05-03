@@ -712,19 +712,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const dataHoje = formatBrasiliaDate();
     const horaAgora = formatBrasiliaTime();
 
-    const { data: currentRow } = await supabase.from('orders').select('historico').eq('id', id).single();
+    const { data: currentRow } = await supabase
+      .from('orders')
+      .select('historico, status, preco, quantidade, preco_anterior, quantidade_anterior, vendedor')
+      .eq('id', id)
+      .single();
     if (!currentRow) return;
+
+    const { isTransitionAllowed, TRANSITION_BLOCKED_MESSAGE } = await import('@/lib/statusTransitions');
+    if (!isTransitionAllowed(currentRow.status, newStatus, { vendedor: currentRow.vendedor || undefined })) {
+      const { toast } = await import('sonner');
+      toast.error(TRANSITION_BLOCKED_MESSAGE);
+      throw new Error(TRANSITION_BLOCKED_MESSAGE);
+    }
 
     const currentHistorico = (currentRow.historico as any[]) || [];
     const newHistEntry = { data: dataHoje, hora: horaAgora, local: newStatus, descricao: `Pedido movido para ${newStatus}`, observacao: observacao || undefined, usuario: user?.nomeCompleto };
     const updatedHistorico = [...currentHistorico, newHistEntry];
 
-    const { error } = await supabase.from('orders').update({
+    const update: any = {
       status: newStatus,
-      historico: updatedHistorico as any,
-    }).eq('id', id);
+      historico: updatedHistorico,
+    };
 
-    if (error) { console.error('Error updating status:', error); }
+    // Cancelando: snapshot do valor/qtd e zera
+    if (newStatus === 'Cancelado' && currentRow.status !== 'Cancelado') {
+      update.preco_anterior = currentRow.preco;
+      update.quantidade_anterior = currentRow.quantidade;
+      update.preco = 0;
+      update.quantidade = 0;
+    }
+    // Saindo de Cancelado: restaura snapshot
+    if (currentRow.status === 'Cancelado' && newStatus !== 'Cancelado') {
+      update.preco = currentRow.preco_anterior ?? currentRow.preco ?? 0;
+      update.quantidade = currentRow.quantidade_anterior ?? currentRow.quantidade ?? 1;
+      update.preco_anterior = null;
+      update.quantidade_anterior = null;
+    }
+
+    const { error } = await supabase.from('orders').update(update).eq('id', id);
+    if (error) { console.error('Error updating status:', error); throw error; }
   }, [user]);
 
   /* ───── Load all profiles for ADM vendor selection ───── */
