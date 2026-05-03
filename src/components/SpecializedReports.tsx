@@ -1646,12 +1646,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos';
+  const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos' || activeReport === 'cobranca';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
 
   const progressOptions = useMemo(() => {
     if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
+    if (activeReport === 'cobranca') return ['Entregue', 'Conferido', 'Cobrado', 'Pago'];
     return PRODUCTION_STATUSES;
   }, [activeReport]);
 
