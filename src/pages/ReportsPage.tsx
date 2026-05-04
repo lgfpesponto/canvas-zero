@@ -1285,16 +1285,15 @@ const ReportsPage = () => {
             const hasBelts = selectedOrders.some(o => o.tipoExtra === 'cinto');
             const hasExtras = selectedOrders.some(o => o.tipoExtra && o.tipoExtra !== 'cinto');
             const hasBotas = selectedOrders.some(o => !o.tipoExtra);
-            const statusList = hasBelts && !hasExtras && !hasBotas ? BELT_STATUSES
+            let statusList = hasBelts && !hasExtras && !hasBotas ? BELT_STATUSES
               : hasExtras && !hasBelts && !hasBotas ? EXTRAS_STATUSES
               : hasBotas && !hasBelts && !hasExtras ? PRODUCTION_STATUSES
               : [...new Set([...PRODUCTION_STATUSES, ...BELT_STATUSES, ...EXTRAS_STATUSES])];
-            // Marca como inválido status que NENHUM dos pedidos selecionados pode atingir
-            const isInvalidForAll = (status: string): boolean => {
-              const botas = selectedOrders.filter(o => !o.tipoExtra);
-              if (botas.length === 0) return false; // só validamos transições para botas
-              return !botas.some(o => isTransitionAllowed(o.status, status, { vendedor: o.vendedor }));
-            };
+            // Se exatamente 1 pedido selecionado (e é bota), filtra para mostrar apenas etapas válidas
+            if (selectedOrders.length === 1 && !selectedOrders[0].tipoExtra) {
+              const o = selectedOrders[0];
+              statusList = statusList.filter(s => isTransitionAllowed(o.status, s, { vendedor: o.vendedor }));
+            }
             return (
               <select
                 value={selectedProgress}
@@ -1302,7 +1301,7 @@ const ReportsPage = () => {
                 className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none"
               >
                 <option value="">Selecione a etapa...</option>
-                {statusList.map(s => <option key={s} value={s} disabled={isInvalidForAll(s)}>{s}{isInvalidForAll(s) ? ' (indisponível)' : ''}</option>)}
+                {statusList.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             );
           })()}
