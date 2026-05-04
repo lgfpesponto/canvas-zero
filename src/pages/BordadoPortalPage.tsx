@@ -557,20 +557,12 @@ interface BordadoColumnProps {
   showQuickEntrada?: boolean;
   onQuickEntrada?: (o: Order, e: React.MouseEvent) => void;
   quickBaixaIds?: Set<string>;
-  page: number;
-  onPageChange: (p: number) => void;
 }
 
 const BordadoColumn = ({
   title, color, inputBorder, orders, onClick, search, onSearchChange, onSearchSubmit,
   showQuickBaixa, onQuickBaixa, showQuickEntrada, onQuickEntrada, quickBaixaIds,
-  page, onPageChange,
 }: BordadoColumnProps) => {
-  const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * PAGE_SIZE;
-  const visible = orders.slice(start, start + PAGE_SIZE);
-
   return (
     <div className={`rounded-xl border-2 p-3 ${color}`}>
       <div className="flex items-center justify-between mb-2">
@@ -593,7 +585,7 @@ const BordadoColumn = ({
       </form>
       <div className="space-y-2 max-h-[60vh] overflow-y-auto">
         {orders.length === 0 && <div className="text-xs opacity-70 text-center py-4">Nenhum pedido</div>}
-        {visible.map(o => {
+        {orders.map(o => {
           const loading = quickBaixaIds?.has(o.id);
           return (
             <div
@@ -633,27 +625,6 @@ const BordadoColumn = ({
           );
         })}
       </div>
-      {totalPages > 1 && (
-        <div className="mt-3 flex items-center justify-between gap-2 text-xs">
-          <button
-            type="button"
-            onClick={() => onPageChange(Math.max(1, safePage - 1))}
-            disabled={safePage <= 1}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-white/70 hover:bg-white border border-current/20 disabled:opacity-40"
-          >
-            <ChevronLeft size={14} /> Anterior
-          </button>
-          <span className="font-semibold opacity-80">Página {safePage} de {totalPages}</span>
-          <button
-            type="button"
-            onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
-            disabled={safePage >= totalPages}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-white/70 hover:bg-white border border-current/20 disabled:opacity-40"
-          >
-            Próxima <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 };
