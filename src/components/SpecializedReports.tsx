@@ -19,9 +19,12 @@ import {
   getForma, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
-import { getCouroSortKey, stampPageNumbers } from '@/lib/pdfGenerators';
+import { getCouroSortKey, stampPageNumbers, generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
+import { supabase } from '@/integrations/supabase/client';
+import { dbRowToOrder } from '@/lib/order-logic';
+import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
