@@ -107,11 +107,11 @@ const BordadoPortalPage = () => {
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (role !== 'bordado') return <Navigate to="/" replace />;
 
-  const aplicarStatus = async (orderId: string, novoStatus: string): Promise<{ ok: boolean; msg?: string }> => {
+  const aplicarStatus = async (orderId: string, novoStatus: string, justificativa?: string): Promise<{ ok: boolean; msg?: string }> => {
     const { error } = await supabase.rpc('bordado_baixar_pedido' as any, {
       _order_id: orderId,
       _novo_status: novoStatus,
-      _justificativa: null,
+      _justificativa: justificativa ?? null,
     } as any);
     if (error) return { ok: false, msg: error.message };
     return { ok: true };
