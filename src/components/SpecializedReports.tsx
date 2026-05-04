@@ -413,7 +413,40 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const [filterTipoProduto, setFilterTipoProduto] = useState('');
   const [filterCampos, setFilterCampos] = useState<Set<string>>(new Set());
 
+  // Comissão Bordado: filtro por quem deu baixa
+  const [filterBordadoUsuarios, setFilterBordadoUsuarios] = useState<Set<string>>(new Set());
+  const [bordadoUsuariosOptions, setBordadoUsuariosOptions] = useState<string[]>([]);
+
   const vendedores = useMemo(() => [...new Set(sourceOrders.map(o => o.vendedor))].sort(), [sourceOrders]);
+
+  // Carrega usuários distintos que já deram baixa de bordado (para o multiselect)
+  useEffect(() => {
+    if (activeReport !== 'comissao_bordado') return;
+    if (bordadoUsuariosOptions.length > 0) return;
+    (async () => {
+      const fallback = ['Mariana ADM', 'Debora', 'Neto'];
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('historico')
+          .limit(2000);
+        if (error) throw error;
+        const set = new Set<string>();
+        for (const row of (data || [])) {
+          const hist = Array.isArray((row as any).historico) ? (row as any).historico : [];
+          for (const h of hist) {
+            if (h?.local === 'Baixa Bordado 7Estrivos' && typeof h?.usuario === 'string' && h.usuario.trim()) {
+              set.add(h.usuario.trim());
+            }
+          }
+        }
+        if (set.size === 0) fallback.forEach(u => set.add(u));
+        setBordadoUsuariosOptions([...set].sort());
+      } catch {
+        setBordadoUsuariosOptions(fallback);
+      }
+    })();
+  }, [activeReport, bordadoUsuariosOptions.length]);
 
   const resetFilters = () => {
     setFilterVendedor('todos');
@@ -422,6 +455,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     setFilterCampos(new Set());
     setFilterDataDe('');
     setFilterDataAte('');
+    setFilterBordadoUsuarios(new Set());
   };
 
   const availableFields = useMemo(() => {

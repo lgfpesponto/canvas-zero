@@ -1,38 +1,47 @@
 ## Objetivo
 
-Destravar a baixa de bordado dos **83 pedidos legados** que ainda estão com status antigo `Bordado` ou `Bordado 7Estrivos` — esses status não são aceitos pela RPC `bordado_baixar_pedido`, por isso a Mariana não consegue dar baixa neles pelo portal.
+Adicionar no relatório **"Comissão Bordado"** (admin_master, em `/relatorios`) um filtro multi-seleção **"Quem deu baixa"** que permite escolher um ou mais usuários (Mariana ADM, Débora, Neto). Vazio = todos. Isso resolve o problema da Mariana baixar pedidos antigos sem misturar com a comissão do dia da Débora/Neto.
 
-Os 6 pedidos que foram para "Aguardando" hoje **ficam como estão** (decisão do usuário). A questão da data retroativa de baixa fica para uma próxima rodada.
+## Como funciona
 
-## O que muda
+- **Sem filtro selecionado** → comportamento atual (todas as baixas no período).
+- **Com 1+ usuário selecionado** → o PDF mostra só as baixas onde `historico[].usuario` está na seleção.
+- O subtítulo do PDF passa a indicar quem foi filtrado (ex: "Filtrado por: Débora, Neto").
 
-**Migration de dados (UPDATE):** para cada pedido com `status IN ('Bordado', 'Bordado 7Estrivos')`:
+## Onde
 
-1. Atualiza `status = 'Entrada Bordado 7Estrivos'`.
-2. Anexa uma entrada no `historico` registrando a normalização:
-   - `local = 'Entrada Bordado 7Estrivos'`
-   - `data = data atual` (a normalização acontece hoje, mas a data ORIGINAL do bordado já está preservada no histórico anterior do pedido)
-   - `descricao = 'Migração automática: status legado "Bordado 7Estrivos" normalizado para "Entrada Bordado 7Estrivos"'`
-   - `usuario = 'Sistema'`
+### 1) `src/components/SpecializedReports.tsx`
 
-Resultado: os 83 viram "Entrada Bordado 7Estrivos" e a Mariana passa a conseguir bipar/dar baixa pelo portal normalmente. Nenhum valor, vendedor, cliente ou outro campo é tocado.
+- Novo state `filterBordadoUsuarios: Set<string>` + `bordadoUsuariosOptions: string[]`.
+- `useEffect` ao selecionar o relatório `comissao_bordado` carrega dinamicamente os usuários distintos que já aparecem no histórico em `local = 'Baixa Bordado 7Estrivos'` (uma única consulta a `orders`, deduplicação no front). Fallback fixo `['Mariana ADM', 'Debora', 'Neto']` se a consulta vier vazia.
+- `resetFilters()` zera o novo set.
+- Novo bloco de UI (Popover + Checkbox, padrão idêntico ao de "Progresso de Produção") visível **apenas** quando `activeReport === 'comissao_bordado'`. Botões "Todos" e "Nenhum".
+- `generateComissaoBordadoPDF` passa o array de usuários filtrados para `generateBordadoBaixaResumoPDF`.
+
+### 2) `src/lib/pdfGenerators.ts`
+
+- `generateBordadoBaixaResumoPDF` ganha **novo parâmetro opcional** `usuariosFiltro?: string[]`:
+  - Quando vazio/undefined → comportamento atual.
+  - Quando preenchido → filtro extra dentro de `baixasValidas`: aceita só `h.usuario` que esteja no array.
+  - O `periodoLabel` no cabeçalho do PDF ganha sufixo `" • Filtrado por: <nomes>"`.
+  - O nome do arquivo ganha sufixo (ex: `Comissao-Bordado-2026-05-04_Mariana-ADM.pdf`) quando há filtro.
 
 ## O que NÃO muda
 
-- Código da aplicação: nada.
-- RPC `bordado_baixar_pedido`: nada.
-- Os 6 pedidos do "Aguardando": ficam como estão.
-- Comissão, RLS, notificações, fluxo de pesponto: tudo intacto.
-- Histórico antigo dos 83 pedidos: preservado integralmente; a entrada de migração é só **adicionada** no fim.
+- RPC, RLS, dados, comissão padrão, lógica de dia útil, exclusão de Cancelado: tudo intacto.
+- Outros relatórios: zero impacto (state e UI são exclusivos do `comissao_bordado`).
+- Portal Bordado (`BordadoPortalPage.tsx`): não muda. A baixa continua registrando o `usuario` no histórico igual já faz hoje (a função RPC `bordado_baixar_pedido` já usa `current_user_nome_completo()`).
 
-## Aviso sobre a comissão de bordado
+## Resultado prático
 
-Como a Mariana vai dar baixa nesses 83 pedidos hoje (ou nos próximos dias) pelo portal, a entrada `Baixa Bordado 7Estrivos` no histórico deles vai ficar com a data de hoje — então eles vão entrar na comissão de bordado de hoje, não do dia em que foram bordados de verdade. Isso é consequência conhecida e você decidiu resolver depois (etapa de baixa retroativa fica para outra rodada).
+- Você gera 2 PDFs: um filtrando "Débora + Neto" (comissão real do dia) e outro filtrando "Mariana ADM" (baixas administrativas dos dias anteriores).
+- Os relatórios saem separados e não se misturam.
 
-## Arquivos / objetos afetados
+## Arquivos afetados
 
 ```
-Migration única (dados): UPDATE em ~83 orders + append no campo historico
+src/components/SpecializedReports.tsx   (state + UI + carregamento da lista de usuários)
+src/lib/pdfGenerators.ts                (parâmetro novo + filtro + label)
 ```
 
-Confirmando, eu rodo a migration.
+Confirmando, eu implemento.
