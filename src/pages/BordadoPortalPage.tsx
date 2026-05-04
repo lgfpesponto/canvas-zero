@@ -303,7 +303,7 @@ const BordadoPortalPage = () => {
             <div className="md:col-span-3 flex flex-col gap-3">
               <button
                 onClick={() => setScannerMode('entrada')}
-                className="flex flex-col items-center justify-center gap-1 bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-6 py-5 shadow transition"
+                className="flex flex-col items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-6 py-5 shadow transition"
               >
                 <div className="flex items-center gap-3">
                   <ScanBarcode size={26} />
@@ -313,7 +313,7 @@ const BordadoPortalPage = () => {
               </button>
               <button
                 onClick={() => setScannerMode('baixa')}
-                className="flex flex-col items-center justify-center gap-1 bg-primary text-primary-foreground rounded-xl px-6 py-5 shadow hover:opacity-90 transition"
+                className="flex flex-col items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6 py-5 shadow transition"
               >
                 <div className="flex items-center gap-3">
                   <ScanBarcode size={26} />
