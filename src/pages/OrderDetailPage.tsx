@@ -631,7 +631,7 @@ const OrderDetailPage = () => {
             const dataHora = `${formatDateBR(order.dataCriacao)} — ${order.horaCriacao || ''}`.trim();
             const showVendedor = isAdmin;
             
-            const deadline = getOrderDeadlineInfo(order);
+            const deadline = getOrderDeadlineInfo(order, linkedBoot);
             const prazoLabel = deadline.isNoDeadline
               ? 'Sem prazo de produção'
               : `Prazo ${totalBizDays} dias úteis`;
