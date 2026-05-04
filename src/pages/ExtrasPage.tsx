@@ -853,6 +853,12 @@ const ExtrasPage = () => {
                       Organizar estoque
                     </Button>
                   )}
+                  {product.id === 'regata_pronta_entrega' && isAdmin && (
+                    <Button variant="outline" className="w-full" onClick={() => { fetchRegataStock(); setShowRegataStockManager(true); }}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Organizar estoque
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
