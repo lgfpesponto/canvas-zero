@@ -1855,6 +1855,49 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
               <p className="text-xs text-muted-foreground mt-2">
                 Resumo das baixas válidas no período (mesmo PDF gerado pelo portal Bordado).
               </p>
+
+              <div className="mt-3">
+                <label className="block text-xs font-semibold mb-1">Quem deu baixa (opcional)</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="bg-background border border-input rounded-md px-3 py-2 text-sm w-64 text-left">
+                      {filterBordadoUsuarios.size === 0
+                        ? 'Todos'
+                        : `${filterBordadoUsuarios.size} selecionado${filterBordadoUsuarios.size > 1 ? 's' : ''}`}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-72 overflow-y-auto p-3" align="start">
+                    <div className="flex gap-2 mb-3">
+                      <button type="button" onClick={() => setFilterBordadoUsuarios(new Set(bordadoUsuariosOptions))} className="text-xs font-semibold text-primary hover:underline">Todos</button>
+                      <button type="button" onClick={() => setFilterBordadoUsuarios(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline">Nenhum</button>
+                    </div>
+                    {bordadoUsuariosOptions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Carregando...</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {bordadoUsuariosOptions.map(u => (
+                          <label key={u} className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox
+                              checked={filterBordadoUsuarios.has(u)}
+                              onCheckedChange={() => {
+                                setFilterBordadoUsuarios(prev => {
+                                  const next = new Set(prev);
+                                  next.has(u) ? next.delete(u) : next.add(u);
+                                  return next;
+                                });
+                              }}
+                            />
+                            <span className="text-sm">{u}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Vazio = todas as baixas do período. Útil para separar baixas administrativas das do bordado.
+                </p>
+              </div>
             </div>
           )}
 
