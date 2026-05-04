@@ -8,6 +8,8 @@ import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
+import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
+import { useOrders } from '@/hooks/useOrders';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
 import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
