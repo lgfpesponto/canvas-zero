@@ -9,20 +9,49 @@ import { PRODUCTION_STATUSES } from './order-logic';
 /** Ordem canônica derivada de PRODUCTION_STATUSES, sem 'Cancelado' (tratado à parte). */
 export const STATUS_ORDER: string[] = PRODUCTION_STATUSES.filter(s => s !== 'Cancelado');
 
+/** Ordem canônica para extras (qualquer tipoExtra != 'cinto'). */
+export const EXTRAS_STATUS_ORDER: string[] = [
+  'Em aberto', 'Produzindo', 'Expedição',
+  'Entregue', 'Conferido', 'Cobrado', 'Pago',
+];
+
+/**
+ * Trio livre dos extras: Em aberto / Produzindo / Expedição podem ser
+ * trocados em qualquer direção sem justificativa (regra de negócio).
+ */
+const EXTRAS_FREE_TRIO = new Set(['Em aberto', 'Produzindo', 'Expedição']);
+
 /** Status que representam pausa (fora da ordem linear). */
 export const PAUSE_STATUSES: string[] = ['Aguardando'];
 
 /** Status que representam cancelamento (fora da ordem linear). */
 export const CANCEL_STATUSES: string[] = ['Cancelado'];
 
+function isPureExtra(tipoExtra?: string | null): boolean {
+  return !!tipoExtra && tipoExtra !== 'cinto';
+}
+
 /**
  * Retorna true se mover de `current` para `next` representa um retrocesso
  * na linha de produção. Status desconhecidos ou 'Cancelado' nunca disparam.
  */
-export function isStatusRegression(current: string | undefined | null, next: string): boolean {
+export function isStatusRegression(
+  current: string | undefined | null,
+  next: string,
+  tipoExtra?: string | null,
+): boolean {
   if (!current || !next) return false;
   if (current === next) return false;
   if (next === 'Cancelado' || current === 'Cancelado') return false;
+
+  if (isPureExtra(tipoExtra)) {
+    // Trio livre: nenhuma transição entre eles é regressão
+    if (EXTRAS_FREE_TRIO.has(current) && EXTRAS_FREE_TRIO.has(next)) return false;
+    const cIdx = EXTRAS_STATUS_ORDER.indexOf(current);
+    const nIdx = EXTRAS_STATUS_ORDER.indexOf(next);
+    if (cIdx === -1 || nIdx === -1) return false;
+    return nIdx < cIdx;
+  }
 
   const currentIdx = STATUS_ORDER.indexOf(current);
   const nextIdx = STATUS_ORDER.indexOf(next);
@@ -40,6 +69,7 @@ export type JustificationKind = 'cancel' | 'pause' | 'regression';
 export function requiresJustification(
   current: string | undefined | null,
   next: string,
+  tipoExtra?: string | null,
 ): JustificationKind | null {
   if (!current || !next) return null;
   if (current === next) return null;
@@ -49,6 +79,6 @@ export function requiresJustification(
   // Sair de Cancelado para qualquer outra etapa = retrocesso (precisa justificar)
   if (CANCEL_STATUSES.includes(current)) return 'regression';
   // Sair de Aguardando NÃO precisa justificativa (é apenas reativar)
-  if (isStatusRegression(current, next)) return 'regression';
+  if (isStatusRegression(current, next, tipoExtra)) return 'regression';
   return null;
 }
