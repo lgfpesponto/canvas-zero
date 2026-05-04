@@ -27,6 +27,13 @@ interface StockItem {
   cor_brilho?: string;
 }
 
+interface RegataStockItem {
+  id: string;
+  cor_tecido: string;
+  desenho_bordado: string;
+  quantidade: number;
+}
+
 const emptyForm = (): Record<string, any> => ({
   numeroPedidoBota: '',
   cliente: '',
@@ -52,6 +59,7 @@ const emptyForm = (): Record<string, any> => ({
   descricaoProduto: '',
   valorManual: '',
   numeroPedidoBotaVinculo: '',
+  vinculadoBota: false,
 });
 
 const ExtrasPage = () => {
@@ -76,12 +84,28 @@ const ExtrasPage = () => {
   const [editingStockQtd, setEditingStockQtd] = useState('');
   const [gravataSearch, setGravataSearch] = useState('');
 
+  // Regata stock
+  const [regataStockItems, setRegataStockItems] = useState<RegataStockItem[]>([]);
+  const [selectedRegataStockId, setSelectedRegataStockId] = useState('');
+  const [showRegataStockManager, setShowRegataStockManager] = useState(false);
+  const [regataStockCorTecido, setRegataStockCorTecido] = useState('');
+  const [regataStockDesenho, setRegataStockDesenho] = useState('');
+  const [regataStockQtd, setRegataStockQtd] = useState('');
+  const [editingRegataStockId, setEditingRegataStockId] = useState<string | null>(null);
+  const [editingRegataStockQtd, setEditingRegataStockQtd] = useState('');
+  const [regataSearch, setRegataSearch] = useState('');
+
   const fetchStock = useCallback(async () => {
     const { data } = await supabase.from('gravata_stock').select('*');
     if (data) setStockItems(data as StockItem[]);
   }, []);
 
-  useEffect(() => { fetchStock(); }, [fetchStock]);
+  const fetchRegataStock = useCallback(async () => {
+    const { data } = await (supabase as any).from('regata_stock').select('*');
+    if (data) setRegataStockItems(data as RegataStockItem[]);
+  }, []);
+
+  useEffect(() => { fetchStock(); fetchRegataStock(); }, [fetchStock, fetchRegataStock]);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -93,9 +117,11 @@ const ExtrasPage = () => {
     }
     setForm(emptyForm());
     setSelectedStockId('');
+    setSelectedRegataStockId('');
     setBotasPE([emptyBotaPE()]);
     setOpenProduct(productId);
     if (productId === 'gravata_pronta_entrega') fetchStock();
+    if (productId === 'regata_pronta_entrega') fetchRegataStock();
   };
 
   const calcPrice = (productId: string): number => {
@@ -129,6 +155,7 @@ const ExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
+      case 'regata_pronta_entrega': return 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       default: return 0;
     }
@@ -176,6 +203,23 @@ const ExtrasPage = () => {
         }
       }
 
+      if (productId === 'regata_pronta_entrega') {
+        if (!selectedRegataStockId) {
+          toast({ title: 'Selecione uma variação disponível', variant: 'destructive' });
+          return;
+        }
+        const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId);
+        if (!stockItem || stockItem.quantidade <= 0) {
+          toast({ title: 'Variação sem estoque disponível', variant: 'destructive' });
+          return;
+        }
+      }
+
+      if (productId === 'carimbo_fogo' && form.vinculadoBota && !(form.numeroPedidoBotaVinculo || '').trim()) {
+        toast({ title: 'Informe o nº do pedido da bota vinculada', variant: 'destructive' });
+        return;
+      }
+
       const price = calcPrice(productId);
 
       const PRODUCT_FIELDS: Record<string, string[]> = {
@@ -183,7 +227,7 @@ const ExtrasPage = () => {
         desmanchar: ['qualSola', 'trocaGaspea', 'numeroPedidoBotaVinculo'],
         kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
         kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
-        carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo'],
+        carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
         revitalizador: ['tipoRevitalizador', 'quantidade'],
         kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
         gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
@@ -192,6 +236,7 @@ const ExtrasPage = () => {
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
         bainha_cartao: ['tipoCouro', 'corCouro'],
         regata: ['corRegata', 'descBordadoRegata'],
+        regata_pronta_entrega: [],
         bota_pronta_entrega: [],
       };
 
@@ -201,7 +246,6 @@ const ExtrasPage = () => {
         detalhes = {
           botas: botasPE.map(b => serializeBota(b)),
         };
-        // Backward compat: also set root-level fields from first item
         if (botasPE.length === 1) {
           detalhes.descricaoProduto = botasPE[0].descricao;
           detalhes.valorManual = botasPE[0].valor;
@@ -210,10 +254,14 @@ const ExtrasPage = () => {
         const stockItem = stockItems.find(s => s.id === selectedStockId)!;
         detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
         if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
+      } else if (productId === 'regata_pronta_entrega') {
+        const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId)!;
+        detalhes = { corTecidoRegata: stockItem.cor_tecido, desenhoBordadoRegata: stockItem.desenho_bordado };
       } else {
         const relevantKeys = PRODUCT_FIELDS[productId] || [];
         for (const key of relevantKeys) {
-          if (form[key] !== undefined && form[key] !== '') detalhes[key] = form[key];
+          const v = form[key];
+          if (v !== undefined && v !== '' && v !== false) detalhes[key] = v;
         }
       }
 
@@ -253,16 +301,20 @@ const ExtrasPage = () => {
       });
 
       if (success) {
-        // Decrement stock for gravata_pronta_entrega
         if (productId === 'gravata_pronta_entrega') {
           await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
           fetchStock();
+        }
+        if (productId === 'regata_pronta_entrega') {
+          await (supabase as any).rpc('decrement_regata_stock', { stock_id: selectedRegataStockId });
+          fetchRegataStock();
         }
         const numeroSalvo = form.numeroPedidoBota.trim() || '(novo)';
         setOpenProduct(null);
         setForm(emptyForm());
         setBotasPE([emptyBotaPE()]);
         setSelectedStockId('');
+        setSelectedRegataStockId('');
         toast({ title: `${product.nome} ${numeroSalvo} lançado em Meus Pedidos!` });
       } else {
         toast({ title: 'Erro ao salvar o pedido. Faça login novamente e tente.', variant: 'destructive' });
@@ -425,6 +477,22 @@ const ExtrasPage = () => {
               <Label>Onde será aplicado *</Label>
               <Input value={form.ondeAplicado} onChange={e => set('ondeAplicado', e.target.value)} placeholder="Ex: Cano direito" />
             </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Checkbox
+                checked={!!form.vinculadoBota}
+                onCheckedChange={(c) => set('vinculadoBota', !!c)}
+                id="vinculadoBotaCarimbo"
+              />
+              <Label htmlFor="vinculadoBotaCarimbo" className="cursor-pointer text-sm">
+                Vai com bota por encomenda? (prazo conta a partir da bota chegar em Revisão)
+              </Label>
+            </div>
+            {form.vinculadoBota && (
+              <div>
+                <Label>Nº do pedido da bota vinculada *</Label>
+                <Input value={form.numeroPedidoBotaVinculo || ''} onChange={e => set('numeroPedidoBotaVinculo', e.target.value)} placeholder="Ex: 7E-20240010" />
+              </div>
+            )}
           </>
         )}
 
@@ -519,6 +587,39 @@ const ExtrasPage = () => {
                       </div>
                     ))}
                     {filtered.length === 0 && <p className="text-sm text-muted-foreground">Nenhum resultado para "{gravataSearch}".</p>}
+                  </RadioGroup>
+                </div>
+              );
+            })()}
+          </>
+        )}
+
+        {productId === 'regata_pronta_entrega' && (
+          <>
+            {(() => {
+              const available = regataStockItems.filter(s => s.quantidade > 0);
+              const filtered = regataSearch
+                ? available.filter(s => `${s.cor_tecido} ${s.desenho_bordado}`.toLowerCase().includes(regataSearch.toLowerCase()))
+                : available;
+              if (available.length === 0) {
+                return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
+              }
+              return (
+                <div>
+                  <Label>Selecione a variação *</Label>
+                  <div className="relative mt-1 mb-2">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={regataSearch} onChange={e => setRegataSearch(e.target.value)} placeholder="Pesquisar regata..." className="pl-8 h-8 text-xs" />
+                  </div>
+                  <RadioGroup value={selectedRegataStockId} onValueChange={setSelectedRegataStockId} className="space-y-2">
+                    {filtered.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
+                        <RadioGroupItem value={item.id} id={`regata-${item.id}`} />
+                        <Label htmlFor={`regata-${item.id}`} className="flex-1 cursor-pointer font-normal">
+                          {item.cor_tecido} + {item.desenho_bordado} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                        </Label>
+                      </div>
+                    ))}
                   </RadioGroup>
                 </div>
               );
@@ -748,6 +849,12 @@ const ExtrasPage = () => {
                   </Button>
                   {product.id === 'gravata_pronta_entrega' && isAdmin && (
                     <Button variant="outline" className="w-full" onClick={() => { fetchStock(); setShowStockManager(true); }}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Organizar estoque
+                    </Button>
+                  )}
+                  {product.id === 'regata_pronta_entrega' && isAdmin && (
+                    <Button variant="outline" className="w-full" onClick={() => { fetchRegataStock(); setShowRegataStockManager(true); }}>
                       <Settings className="mr-2 h-4 w-4" />
                       Organizar estoque
                     </Button>
