@@ -20,7 +20,8 @@ export const EXTRA_PRODUCTS: ExtraProduct[] = [
   { id: 'adicionar_metais', nome: 'Adicionar Metais', descricao: 'Metais adicionais para botas', precoBase: null, precoLabel: 'Variável' },
   { id: 'chaveiro_carimbo', nome: 'Chaveiro c/ Carimbo a Fogo', descricao: 'Chaveiro em couro com carimbo', precoBase: 50, precoLabel: 'R$ 50,00' },
   { id: 'bainha_cartao', nome: 'Bainha de Cartão', descricao: 'Bainha de cartão em couro', precoBase: 15, precoLabel: 'R$ 15,00' },
-  { id: 'regata', nome: 'Regata', descricao: 'Regata bordada personalizada', precoBase: 50, precoLabel: 'R$ 50,00' },
+  { id: 'regata', nome: 'Regata', descricao: 'Regata bordada personalizada (encomenda)', precoBase: 50, precoLabel: 'R$ 50,00' },
+  { id: 'regata_pronta_entrega', nome: 'Regata Pronta Entrega', descricao: 'Regata pronta com controle de estoque', precoBase: 50, precoLabel: 'R$ 50,00' },
   { id: 'bota_pronta_entrega', nome: 'Bota Pronta Entrega', descricao: 'Bota pronta para entrega imediata', precoBase: null, precoLabel: 'Valor manual' },
   { id: 'gravata_pronta_entrega', nome: 'Gravata Pronta Entrega', descricao: 'Gravata pronta com controle de estoque', precoBase: 30, precoLabel: 'R$ 30,00' },
 ];
