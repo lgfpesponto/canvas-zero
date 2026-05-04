@@ -30,6 +30,7 @@ interface StockItem {
 interface RegataStockItem {
   id: string;
   cor_tecido: string;
+  cor_bordado: string;
   desenho_bordado: string;
   quantidade: number;
 }
@@ -89,6 +90,7 @@ const ExtrasPage = () => {
   const [selectedRegataStockId, setSelectedRegataStockId] = useState('');
   const [showRegataStockManager, setShowRegataStockManager] = useState(false);
   const [regataStockCorTecido, setRegataStockCorTecido] = useState('');
+  const [regataStockCorBordado, setRegataStockCorBordado] = useState('');
   const [regataStockDesenho, setRegataStockDesenho] = useState('');
   const [regataStockQtd, setRegataStockQtd] = useState('');
   const [editingRegataStockId, setEditingRegataStockId] = useState<string | null>(null);
@@ -256,7 +258,11 @@ const ExtrasPage = () => {
         if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
       } else if (productId === 'regata_pronta_entrega') {
         const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId)!;
-        detalhes = { corTecidoRegata: stockItem.cor_tecido, desenhoBordadoRegata: stockItem.desenho_bordado };
+        detalhes = {
+          corTecidoRegata: stockItem.cor_tecido,
+          corBordadoRegata: stockItem.cor_bordado,
+          desenhoBordadoRegata: stockItem.desenho_bordado,
+        };
       } else {
         const relevantKeys = PRODUCT_FIELDS[productId] || [];
         for (const key of relevantKeys) {
@@ -359,6 +365,34 @@ const ExtrasPage = () => {
     setStockQtd('');
     setStockCorBrilho('');
     await fetchStock();
+    toast({ title: 'Estoque atualizado com sucesso!' });
+  };
+
+  const handleSaveRegataStock = async () => {
+    const cap = (s: string) => s.trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const corTecido = cap(regataStockCorTecido);
+    const corBordado = cap(regataStockCorBordado);
+    const desenho = cap(regataStockDesenho);
+    const qty = parseInt(regataStockQtd) || 0;
+    if (!corTecido || !corBordado || !desenho || qty <= 0) {
+      toast({ title: 'Preencha todos os campos do estoque', variant: 'destructive' });
+      return;
+    }
+    const existing = regataStockItems.find(s =>
+      s.cor_tecido === corTecido && (s.cor_bordado || '') === corBordado && s.desenho_bordado === desenho
+    );
+    if (existing) {
+      const { error } = await (supabase as any).from('regata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
+      if (error) { toast({ title: 'Erro ao atualizar estoque', description: error.message, variant: 'destructive' }); return; }
+    } else {
+      const { error } = await (supabase as any).from('regata_stock').insert({ cor_tecido: corTecido, cor_bordado: corBordado, desenho_bordado: desenho, quantidade: qty });
+      if (error) { toast({ title: 'Erro ao criar estoque', description: error.message, variant: 'destructive' }); return; }
+    }
+    setRegataStockCorTecido('');
+    setRegataStockCorBordado('');
+    setRegataStockDesenho('');
+    setRegataStockQtd('');
+    await fetchRegataStock();
     toast({ title: 'Estoque atualizado com sucesso!' });
   };
 
@@ -599,7 +633,7 @@ const ExtrasPage = () => {
             {(() => {
               const available = regataStockItems.filter(s => s.quantidade > 0);
               const filtered = regataSearch
-                ? available.filter(s => `${s.cor_tecido} ${s.desenho_bordado}`.toLowerCase().includes(regataSearch.toLowerCase()))
+                ? available.filter(s => `${s.cor_tecido} ${s.cor_bordado || ''} ${s.desenho_bordado}`.toLowerCase().includes(regataSearch.toLowerCase()))
                 : available;
               if (available.length === 0) {
                 return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
@@ -616,7 +650,7 @@ const ExtrasPage = () => {
                       <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
                         <RadioGroupItem value={item.id} id={`regata-${item.id}`} />
                         <Label htmlFor={`regata-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                          {item.cor_tecido} + {item.desenho_bordado} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          {[item.cor_tecido, item.cor_bordado, item.desenho_bordado].filter(Boolean).join(' + ')} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
                         </Label>
                       </div>
                     ))}
@@ -974,6 +1008,94 @@ const ExtrasPage = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Regata Stock Manager Dialog */}
+      <Dialog open={showRegataStockManager} onOpenChange={setShowRegataStockManager}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Organizar Estoque — Regata Pronta Entrega</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const distinct = (key: 'cor_tecido' | 'cor_bordado' | 'desenho_bordado') =>
+              Array.from(new Set(regataStockItems.map(s => (s as any)[key]).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const corTecidoOpts = distinct('cor_tecido');
+            const corBordadoOpts = distinct('cor_bordado');
+            const desenhoOpts = distinct('desenho_bordado');
+            return (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {regataStockItems.length > 0 && (
+                  <div>
+                    <Label className="text-base font-semibold">Estoque atual</Label>
+                    <div className="mt-2 space-y-1">
+                      {regataStockItems.map(item => {
+                        const isEditing = editingRegataStockId === item.id;
+                        const labelStr = [item.cor_tecido, item.cor_bordado, item.desenho_bordado].filter(Boolean).join(' + ');
+                        return (
+                          <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm gap-2">
+                            <span className="flex-1">{labelStr}</span>
+                            {isEditing ? (
+                              <div className="flex items-center gap-1">
+                                <Input type="number" min="0" className="w-20 h-8" value={editingRegataStockQtd} onChange={e => setEditingRegataStockQtd(e.target.value)} />
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={async () => {
+                                  await (supabase as any).from('regata_stock').update({ quantidade: parseInt(editingRegataStockQtd) || 0 }).eq('id', item.id);
+                                  setEditingRegataStockId(null);
+                                  fetchRegataStock();
+                                }}><Check className="h-4 w-4 text-green-600" /></Button>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingRegataStockId(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <span className="font-bold">{item.quantidade} un</span>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingRegataStockId(item.id); setEditingRegataStockQtd(String(item.quantidade)); }}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={async () => {
+                                  await (supabase as any).from('regata_stock').delete().eq('id', item.id);
+                                  fetchRegataStock();
+                                }}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {regataStockItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhuma variação cadastrada.</p>
+                )}
+
+                <div className="pt-4 border-t border-border space-y-3">
+                  <Label className="text-base font-semibold">Adicionar ao estoque</Label>
+                  <p className="text-xs text-muted-foreground">Digite e pressione Enter. As variações ficam salvas como sugestão para os próximos cadastros.</p>
+                  <div>
+                    <Label>Cor do tecido *</Label>
+                    <Input list="regata-cor-tecido-opts" value={regataStockCorTecido} onChange={e => setRegataStockCorTecido(e.target.value)} placeholder="Ex: Marrom" />
+                    <datalist id="regata-cor-tecido-opts">{corTecidoOpts.map(v => <option key={v} value={v} />)}</datalist>
+                  </div>
+                  <div>
+                    <Label>Cor do bordado *</Label>
+                    <Input list="regata-cor-bordado-opts" value={regataStockCorBordado} onChange={e => setRegataStockCorBordado(e.target.value)} placeholder="Ex: Branco" />
+                    <datalist id="regata-cor-bordado-opts">{corBordadoOpts.map(v => <option key={v} value={v} />)}</datalist>
+                  </div>
+                  <div>
+                    <Label>Desenho do bordado *</Label>
+                    <Input list="regata-desenho-opts" value={regataStockDesenho} onChange={e => setRegataStockDesenho(e.target.value)} placeholder="Ex: Cruz" />
+                    <datalist id="regata-desenho-opts">{desenhoOpts.map(v => <option key={v} value={v} />)}</datalist>
+                  </div>
+                  <div>
+                    <Label>Quantidade *</Label>
+                    <Input type="number" min="1" value={regataStockQtd} onChange={e => setRegataStockQtd(e.target.value)} placeholder="Ex: 5" />
+                  </div>
+                  <Button className="w-full" onClick={handleSaveRegataStock}>Salvar</Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

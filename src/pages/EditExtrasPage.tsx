@@ -74,6 +74,7 @@ const EditExtrasPage = () => {
       numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
       vinculadoBota: det.vinculadoBota === true,
       corTecidoRegata: det.corTecidoRegata || '',
+      corBordadoRegata: det.corBordadoRegata || '',
       desenhoBordadoRegata: det.desenhoBordadoRegata || '',
       corBrilho: det.corBrilho || '',
     });
@@ -148,7 +149,7 @@ const EditExtrasPage = () => {
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
-    regata_pronta_entrega: ['corTecidoRegata', 'desenhoBordadoRegata'],
+    regata_pronta_entrega: ['corTecidoRegata', 'corBordadoRegata', 'desenhoBordadoRegata'],
     bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
   };
 
@@ -508,6 +509,7 @@ const EditExtrasPage = () => {
             <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
               <p className="font-semibold mb-1">Variação do estoque (não editável)</p>
               <p>Cor do tecido: <span className="font-medium">{form.corTecidoRegata || '—'}</span></p>
+              <p>Cor do bordado: <span className="font-medium">{form.corBordadoRegata || '—'}</span></p>
               <p>Desenho do bordado: <span className="font-medium">{form.desenhoBordadoRegata || '—'}</span></p>
             </div>
           )}
