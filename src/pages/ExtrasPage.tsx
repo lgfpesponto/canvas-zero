@@ -27,6 +27,13 @@ interface StockItem {
   cor_brilho?: string;
 }
 
+interface RegataStockItem {
+  id: string;
+  cor_tecido: string;
+  desenho_bordado: string;
+  quantidade: number;
+}
+
 const emptyForm = (): Record<string, any> => ({
   numeroPedidoBota: '',
   cliente: '',
@@ -52,6 +59,7 @@ const emptyForm = (): Record<string, any> => ({
   descricaoProduto: '',
   valorManual: '',
   numeroPedidoBotaVinculo: '',
+  vinculadoBota: false,
 });
 
 const ExtrasPage = () => {
