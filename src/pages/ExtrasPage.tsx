@@ -203,6 +203,23 @@ const ExtrasPage = () => {
         }
       }
 
+      if (productId === 'regata_pronta_entrega') {
+        if (!selectedRegataStockId) {
+          toast({ title: 'Selecione uma variação disponível', variant: 'destructive' });
+          return;
+        }
+        const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId);
+        if (!stockItem || stockItem.quantidade <= 0) {
+          toast({ title: 'Variação sem estoque disponível', variant: 'destructive' });
+          return;
+        }
+      }
+
+      if (productId === 'carimbo_fogo' && form.vinculadoBota && !(form.numeroPedidoBotaVinculo || '').trim()) {
+        toast({ title: 'Informe o nº do pedido da bota vinculada', variant: 'destructive' });
+        return;
+      }
+
       const price = calcPrice(productId);
 
       const PRODUCT_FIELDS: Record<string, string[]> = {
@@ -210,7 +227,7 @@ const ExtrasPage = () => {
         desmanchar: ['qualSola', 'trocaGaspea', 'numeroPedidoBotaVinculo'],
         kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
         kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
-        carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo'],
+        carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
         revitalizador: ['tipoRevitalizador', 'quantidade'],
         kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
         gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
@@ -219,6 +236,7 @@ const ExtrasPage = () => {
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
         bainha_cartao: ['tipoCouro', 'corCouro'],
         regata: ['corRegata', 'descBordadoRegata'],
+        regata_pronta_entrega: [],
         bota_pronta_entrega: [],
       };
 
@@ -228,7 +246,6 @@ const ExtrasPage = () => {
         detalhes = {
           botas: botasPE.map(b => serializeBota(b)),
         };
-        // Backward compat: also set root-level fields from first item
         if (botasPE.length === 1) {
           detalhes.descricaoProduto = botasPE[0].descricao;
           detalhes.valorManual = botasPE[0].valor;
@@ -237,10 +254,14 @@ const ExtrasPage = () => {
         const stockItem = stockItems.find(s => s.id === selectedStockId)!;
         detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
         if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
+      } else if (productId === 'regata_pronta_entrega') {
+        const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId)!;
+        detalhes = { corTecidoRegata: stockItem.cor_tecido, desenhoBordadoRegata: stockItem.desenho_bordado };
       } else {
         const relevantKeys = PRODUCT_FIELDS[productId] || [];
         for (const key of relevantKeys) {
-          if (form[key] !== undefined && form[key] !== '') detalhes[key] = form[key];
+          const v = form[key];
+          if (v !== undefined && v !== '' && v !== false) detalhes[key] = v;
         }
       }
 
