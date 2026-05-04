@@ -84,12 +84,28 @@ const ExtrasPage = () => {
   const [editingStockQtd, setEditingStockQtd] = useState('');
   const [gravataSearch, setGravataSearch] = useState('');
 
+  // Regata stock
+  const [regataStockItems, setRegataStockItems] = useState<RegataStockItem[]>([]);
+  const [selectedRegataStockId, setSelectedRegataStockId] = useState('');
+  const [showRegataStockManager, setShowRegataStockManager] = useState(false);
+  const [regataStockCorTecido, setRegataStockCorTecido] = useState('');
+  const [regataStockDesenho, setRegataStockDesenho] = useState('');
+  const [regataStockQtd, setRegataStockQtd] = useState('');
+  const [editingRegataStockId, setEditingRegataStockId] = useState<string | null>(null);
+  const [editingRegataStockQtd, setEditingRegataStockQtd] = useState('');
+  const [regataSearch, setRegataSearch] = useState('');
+
   const fetchStock = useCallback(async () => {
     const { data } = await supabase.from('gravata_stock').select('*');
     if (data) setStockItems(data as StockItem[]);
   }, []);
 
-  useEffect(() => { fetchStock(); }, [fetchStock]);
+  const fetchRegataStock = useCallback(async () => {
+    const { data } = await (supabase as any).from('regata_stock').select('*');
+    if (data) setRegataStockItems(data as RegataStockItem[]);
+  }, []);
+
+  useEffect(() => { fetchStock(); fetchRegataStock(); }, [fetchStock, fetchRegataStock]);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -101,9 +117,11 @@ const ExtrasPage = () => {
     }
     setForm(emptyForm());
     setSelectedStockId('');
+    setSelectedRegataStockId('');
     setBotasPE([emptyBotaPE()]);
     setOpenProduct(productId);
     if (productId === 'gravata_pronta_entrega') fetchStock();
+    if (productId === 'regata_pronta_entrega') fetchRegataStock();
   };
 
   const calcPrice = (productId: string): number => {
