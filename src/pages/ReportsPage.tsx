@@ -128,6 +128,7 @@ const ReportsPage = () => {
   const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string; kind: JustificationKind }[]>([]);
   const [normalIds, setNormalIds] = useState<string[]>([]);
   const [regressionReason, setRegressionReason] = useState('');
+  const [blockedDialog, setBlockedDialog] = useState<{ open: boolean; destino: string; blocked: BlockedItem[]; movedCount: number }>({ open: false, destino: '', blocked: [], movedCount: 0 });
 
   // Barcode scanner
   const [showScanner, setShowScanner] = useState(false);
