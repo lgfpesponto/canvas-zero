@@ -152,9 +152,13 @@ export const ComprovantesPorRevendedor = ({
                         ) : (c.observacao || '—')}
                       </TableCell>
                       <TableCell>
-                        <Button size="sm" variant="ghost" onClick={() => setViewerPath(c.comprovante_url)}>
-                          <FileText size={14} />
-                        </Button>
+                        {c.comprovante_url ? (
+                          <Button size="sm" variant="ghost" onClick={() => setViewerPath(c.comprovante_url!)}>
+                            <FileText size={14} />
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground" title="Comprovante não armazenado — apenas dados extraídos por IA">só dados</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {c.status === 'aprovado' ? (
