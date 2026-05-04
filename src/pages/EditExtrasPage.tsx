@@ -72,6 +72,9 @@ const EditExtrasPage = () => {
       descricaoProduto: det.descricaoProduto || '',
       valorManual: det.valorManual || String(order.preco || ''),
       numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
+      vinculadoBota: det.vinculadoBota === true,
+      corTecidoRegata: det.corTecidoRegata || '',
+      desenhoBordadoRegata: det.desenhoBordadoRegata || '',
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
