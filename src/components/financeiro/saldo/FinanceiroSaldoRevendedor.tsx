@@ -227,6 +227,31 @@ const FinanceiroSaldoRevendedor = () => {
         </div>
       </div>
 
+      {aviso.qtdPedidos > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Faltam pedidos para dar baixa</AlertTitle>
+          <AlertDescription>
+            {filterVendedor === 'todos' ? (
+              <>
+                <strong>{aviso.qtdPedidos}</strong> pedido(s) cobrado(s) sem baixa em{' '}
+                <strong>{aviso.vendedoresPend}</strong> vendedor(es).
+                {aviso.aQuitar > 0
+                  ? <> Total a quitar: <strong>{formatCurrency(aviso.aQuitar)}</strong>.</>
+                  : <> O saldo já cobre todos os valores — basta registrar a baixa.</>}
+              </>
+            ) : (
+              <>
+                <strong>{filterVendedor}</strong>: <strong>{aviso.qtdPedidos}</strong> pedido(s) cobrado(s) sem baixa.
+                {aviso.aQuitar > 0
+                  ? <> Falta <strong>{formatCurrency(aviso.aQuitar)}</strong> para quitar.</>
+                  : <> O saldo já cobre o valor — basta registrar a baixa.</>}
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Cards de resumo (atualizam conforme filtros) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
