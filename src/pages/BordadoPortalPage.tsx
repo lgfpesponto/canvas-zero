@@ -67,6 +67,13 @@ const BordadoPortalPage = () => {
   // Per-column search
   const [searchEntrada, setSearchEntrada] = useState('');
   const [searchBaixa, setSearchBaixa] = useState('');
+  const [pageEntrada, setPageEntrada] = useState(1);
+  const [pageBaixa, setPageBaixa] = useState(1);
+
+  // Justificativa para retroceder Baixa → Entrada
+  const [pendingRetrocesso, setPendingRetrocesso] = useState<Order | null>(null);
+  useEffect(() => { setPageEntrada(1); }, [searchEntrada]);
+  useEffect(() => { setPageBaixa(1); }, [searchBaixa]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
