@@ -444,7 +444,7 @@ const ReportsPage = () => {
     selectedIds.forEach(id => {
       const ord = mergedOrdersMap.get(id);
       if (!ord) { normals.push(id); return; }
-      const kind = requiresJustification(ord.status, selectedProgress);
+      const kind = requiresJustification(ord.status, selectedProgress, ord.tipoExtra);
       if (kind) {
         // Procura no histórico a última entrada na etapa atual
         let desdeData = ord.dataCriacao || '';
