@@ -97,9 +97,6 @@ const BordadoPortalPage = () => {
     if (scannerMode) setTimeout(() => scanInputRef.current?.focus(), 50);
   }, [scannerMode]);
 
-  if (authLoading) return <div className="min-h-screen bg-background" />;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
-  if (role !== 'bordado') return <Navigate to="/" replace />;
 
   const aplicarStatus = async (orderId: string, novoStatus: string, justificativa?: string): Promise<{ ok: boolean; msg?: string }> => {
     const { error } = await supabase.rpc('bordado_baixar_pedido' as any, {
@@ -295,6 +292,10 @@ const BordadoPortalPage = () => {
     const q = searchBaixa.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));
   }, [orders, searchBaixa]);
+
+  if (authLoading) return <div className="min-h-screen bg-background" />;
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  if (role !== 'bordado') return <Navigate to="/" replace />;
 
   const isBaixaMode = scannerMode === 'baixa';
   const accent = isBaixaMode ? 'emerald' : 'sky';
