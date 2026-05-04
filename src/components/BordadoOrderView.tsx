@@ -324,6 +324,9 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
                       </div>
                     ))}
                   </div>
+
+                  {/* Canhoto da ficha (igual ao PDF impresso) */}
+                  <FichaStub order={order} />
                 </div>
 
                 {order.observacao && (
