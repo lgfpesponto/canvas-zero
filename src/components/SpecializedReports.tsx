@@ -1632,6 +1632,34 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.save(`relatorio-${filterTipoProduto}.pdf`);
   };
 
+  // ── Comissão Bordado: replicates BordadoPortalPage.gerarPDF ──
+  const generateComissaoBordadoPDF = async () => {
+    if (!filterDataDe || !filterDataAte) { toast.error('Informe o período (De e Até).'); return; }
+    if (filterDataDe > filterDataAte) { toast.error('Data inicial maior que a final.'); return; }
+    try {
+      const { data: ids, error } = await supabase.rpc('find_orders_by_status_change' as any, {
+        _status: ['Baixa Bordado 7Estrivos'],
+        _de: filterDataDe,
+        _ate: filterDataAte,
+      });
+      if (error) throw error;
+      const idList = (ids || []).map((r: any) => r.id ?? r);
+      if (idList.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
+      const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
+      if (fErr) throw fErr;
+      const list = (rows || []).map(dbRowToOrder) as Order[];
+      const baixaIdx = PRODUCTION_STATUSES.indexOf('Baixa Bordado 7Estrivos');
+      const valid = list.filter(o => {
+        const idx = PRODUCTION_STATUSES.indexOf(o.status);
+        return idx >= baixaIdx && o.status !== 'Cancelado';
+      });
+      if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
+      await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin');
+    } catch (err: any) {
+      toast.error('Erro ao gerar PDF: ' + (err?.message || err));
+    }
+  };
+
   const generateReport = () => {
     if (!activeReport) return;
     switch (activeReport) {
@@ -1646,12 +1674,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       case 'expedicao': generateExpedicaoPDF(); break;
       case 'cobranca': generateCobrancaPDF(); break;
       case 'extras_cintos': generateExtrasCintosPDF(); break;
+      case 'comissao_bordado': void generateComissaoBordadoPDF(); break;
     }
   };
 
   const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos' || activeReport === 'cobranca';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
+  const needsComissaoBordadoFilter = activeReport === 'comissao_bordado';
 
   const progressOptions = useMemo(() => {
     if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
