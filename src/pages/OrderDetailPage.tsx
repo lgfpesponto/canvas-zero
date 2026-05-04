@@ -1191,6 +1191,9 @@ const OrderDetailPage = () => {
                       </div>
                     ))}
                   </div>
+
+                  {/* Canhoto da ficha (igual ao PDF impresso) */}
+                  <FichaStub order={order} />
                 </div>
               );
             })()
