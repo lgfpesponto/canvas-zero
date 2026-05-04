@@ -30,6 +30,7 @@ interface StockItem {
 interface RegataStockItem {
   id: string;
   cor_tecido: string;
+  cor_bordado: string;
   desenho_bordado: string;
   quantidade: number;
 }
