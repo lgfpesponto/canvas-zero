@@ -567,73 +567,105 @@ interface BordadoColumnProps {
   showQuickEntrada?: boolean;
   onQuickEntrada?: (o: Order, e: React.MouseEvent) => void;
   quickBaixaIds?: Set<string>;
+  page: number;
+  onPageChange: (p: number) => void;
 }
 
 const BordadoColumn = ({
   title, color, inputBorder, orders, onClick, search, onSearchChange, onSearchSubmit,
   showQuickBaixa, onQuickBaixa, showQuickEntrada, onQuickEntrada, quickBaixaIds,
-}: BordadoColumnProps) => (
-  <div className={`rounded-xl border-2 p-3 ${color}`}>
-    <div className="flex items-center justify-between mb-2">
-      <h3 className="font-bold text-sm">{title}</h3>
-      <span className="font-bold text-lg">{orders.length}</span>
-    </div>
-    <form
-      onSubmit={(e) => { e.preventDefault(); onSearchSubmit(search); }}
-      className="mb-3 relative"
-    >
-      <ScanBarcode size={20} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-70 pointer-events-none" />
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Digite o nº do pedido ou escaneie..."
-        className={`w-full h-12 pl-10 pr-3 rounded-lg border-2 ${inputBorder} bg-white text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-current/30`}
-        autoComplete="off"
-      />
-    </form>
-    <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-      {orders.length === 0 && <div className="text-xs opacity-70 text-center py-4">Nenhum pedido</div>}
-      {orders.map(o => {
-        const loading = quickBaixaIds?.has(o.id);
-        return (
-          <div
-            key={o.id}
-            onClick={() => onClick(o)}
-            className="w-full text-left bg-white/80 hover:bg-white rounded-lg p-3 border border-current/20 transition flex items-center justify-between gap-2 cursor-pointer"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="font-bold text-sm">{o.numero}</div>
-              <div className="text-xs opacity-80 line-clamp-1">{o.modelo} • {o.tamanho}</div>
-              <div className="text-xs opacity-70 line-clamp-1">{o.vendedor}</div>
+  page, onPageChange,
+}: BordadoColumnProps) => {
+  const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const visible = orders.slice(start, start + PAGE_SIZE);
+
+  return (
+    <div className={`rounded-xl border-2 p-3 ${color}`}>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-bold text-sm">{title}</h3>
+        <span className="font-bold text-lg">{orders.length}</span>
+      </div>
+      <form
+        onSubmit={(e) => { e.preventDefault(); onSearchSubmit(search); }}
+        className="mb-3 relative"
+      >
+        <ScanBarcode size={20} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-70 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Digite o nº do pedido ou escaneie..."
+          className={`w-full h-12 pl-10 pr-3 rounded-lg border-2 ${inputBorder} bg-white text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-current/30`}
+          autoComplete="off"
+        />
+      </form>
+      <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+        {orders.length === 0 && <div className="text-xs opacity-70 text-center py-4">Nenhum pedido</div>}
+        {visible.map(o => {
+          const loading = quickBaixaIds?.has(o.id);
+          return (
+            <div
+              key={o.id}
+              onClick={() => onClick(o)}
+              className="w-full text-left bg-white/80 hover:bg-white rounded-lg p-3 border border-current/20 transition flex items-center justify-between gap-2 cursor-pointer"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-sm">{o.numero}</div>
+                <div className="text-xs opacity-80 line-clamp-1">
+                  {formatDataCriacao(o.dataCriacao)} • {o.vendedor}
+                </div>
+              </div>
+              {showQuickBaixa && onQuickBaixa && (
+                <button
+                  type="button"
+                  onClick={(e) => onQuickBaixa(o, e)}
+                  disabled={loading}
+                  title="Mover para Baixa Bordado 7Estrivos"
+                  className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 transition"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownToLine size={16} />}
+                </button>
+              )}
+              {showQuickEntrada && onQuickEntrada && (
+                <button
+                  type="button"
+                  onClick={(e) => onQuickEntrada(o, e)}
+                  disabled={loading}
+                  title="Voltar para Entrada Bordado 7Estrivos"
+                  className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50 transition"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                </button>
+              )}
             </div>
-            {showQuickBaixa && onQuickBaixa && (
-              <button
-                type="button"
-                onClick={(e) => onQuickBaixa(o, e)}
-                disabled={loading}
-                title="Mover para Baixa Bordado 7Estrivos"
-                className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 transition"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownToLine size={16} />}
-              </button>
-            )}
-            {showQuickEntrada && onQuickEntrada && (
-              <button
-                type="button"
-                onClick={(e) => onQuickEntrada(o, e)}
-                disabled={loading}
-                title="Voltar para Entrada Bordado 7Estrivos"
-                className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50 transition"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-              </button>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      {totalPages > 1 && (
+        <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.max(1, safePage - 1))}
+            disabled={safePage <= 1}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-white/70 hover:bg-white border border-current/20 disabled:opacity-40"
+          >
+            <ChevronLeft size={14} /> Anterior
+          </button>
+          <span className="font-semibold opacity-80">Página {safePage} de {totalPages}</span>
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+            disabled={safePage >= totalPages}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-white/70 hover:bg-white border border-current/20 disabled:opacity-40"
+          >
+            Próxima <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 export default BordadoPortalPage;
