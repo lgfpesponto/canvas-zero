@@ -69,6 +69,19 @@ const BordadoPortalPage = () => {
   // Justificativa para retroceder Baixa → Entrada
   const [pendingRetrocesso, setPendingRetrocesso] = useState<Order | null>(null);
 
+  // Nomes dos usuários com role 'bordado' (Neto, Débora) — usado para isolar
+  // quadro de Baixa e PDF do portal das baixas feitas por outros usuários (admin).
+  const [bordadoNames, setBordadoNames] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('list_bordado_usuarios' as any);
+      if (!error && Array.isArray(data)) {
+        setBordadoNames(new Set((data as string[]).map(s => (s || '').trim()).filter(Boolean)));
+      }
+    })();
+  }, []);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase

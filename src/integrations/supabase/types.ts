@@ -1335,6 +1335,7 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      list_bordado_usuarios: { Args: never; Returns: string[] }
       list_profiles_minimal: {
         Args: never
         Returns: {
