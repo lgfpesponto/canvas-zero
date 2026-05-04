@@ -239,9 +239,9 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Foto</span>
                     {temFoto ? (
-                      <button type="button" onClick={() => setFotoOpen(true)} className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-semibold">
+                      <button type="button" onClick={() => setFotoOpen(o => !o)} className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-semibold">
                         <ImageIcon className="h-4 w-4" />
-                        {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
+                        {fotoOpen ? 'Recolher foto' : (fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto')}
                       </button>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
