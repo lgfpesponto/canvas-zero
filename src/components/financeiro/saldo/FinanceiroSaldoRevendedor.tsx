@@ -14,9 +14,11 @@ import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
+  fetchPedidosCobrados, fetchBaixasVendedor,
   type RevendedorSaldo, type RevendedorComprovante, type RevendedorMovimento,
   type ComprovanteStatus,
 } from '@/lib/revendedorSaldo';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { fetchVendedoresList } from '@/components/financeiro/financeiroHelpers';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
