@@ -679,11 +679,11 @@ const OrderDetailPage = () => {
                     {temFoto ? (
                       <button
                         type="button"
-                        onClick={() => setFotoOpen(true)}
+                        onClick={() => setFotoOpen(o => !o)}
                         className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-semibold"
                       >
                         <ImageIcon className="h-4 w-4" />
-                        {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
+                        {fotoOpen ? 'Recolher foto' : (fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto')}
                       </button>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
