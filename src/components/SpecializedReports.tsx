@@ -1795,6 +1795,35 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             </div>
           )}
 
+          {needsComissaoBordadoFilter && (
+            <div>
+              <label className="block text-xs font-semibold mb-1">Período de baixa (obrigatório)</label>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">De</label>
+                  <input
+                    type="date"
+                    value={filterDataDe}
+                    onChange={(e) => setFilterDataDe(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Até</label>
+                  <input
+                    type="date"
+                    value={filterDataAte}
+                    onChange={(e) => setFilterDataAte(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Resumo das baixas válidas no período (mesmo PDF gerado pelo portal Bordado).
+              </p>
+            </div>
+          )}
+
           {needsVendedorFilter && (
             <div>
               <label className="block text-xs font-semibold mb-1">Vendedor</label>
