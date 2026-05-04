@@ -875,7 +875,11 @@ const ExtrasPage = () => {
                   </div>
                   <h3 className="font-semibold text-foreground">{product.nome}</h3>
                 </div>
-                <p className="text-sm text-muted-foreground mb-2 flex-1">{product.descricao}</p>
+                {(() => {
+                  const lt = getExtraLeadTime(product.id);
+                  const txt = lt <= 1 ? 'Pronta entrega (1 dia útil)' : `Prazo: ${lt} dias úteis`;
+                  return <p className="text-sm text-muted-foreground mb-2 flex-1">{txt}</p>;
+                })()}
                 <p className="text-sm font-bold text-primary mb-4">{product.precoLabel}</p>
                 <div className="space-y-2">
                   <Button onClick={() => openModal(product.id)} className="w-full">
