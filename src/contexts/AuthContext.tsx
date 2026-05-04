@@ -768,13 +768,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: currentRow } = await supabase
       .from('orders')
-      .select('historico, status, preco, quantidade, preco_anterior, quantidade_anterior, vendedor')
+      .select('historico, status, preco, quantidade, preco_anterior, quantidade_anterior, vendedor, tipo_extra')
       .eq('id', id)
       .single();
     if (!currentRow) return;
 
     const { isTransitionAllowed, TRANSITION_BLOCKED_MESSAGE } = await import('@/lib/statusTransitions');
-    if (!isTransitionAllowed(currentRow.status, newStatus, { vendedor: currentRow.vendedor || undefined })) {
+    if (!isTransitionAllowed(currentRow.status, newStatus, { vendedor: currentRow.vendedor || undefined, tipoExtra: (currentRow as any).tipo_extra || undefined })) {
       const { toast } = await import('sonner');
       toast.error(TRANSITION_BLOCKED_MESSAGE);
       throw new Error(TRANSITION_BLOCKED_MESSAGE);
