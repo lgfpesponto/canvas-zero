@@ -72,6 +72,10 @@ const EditExtrasPage = () => {
       descricaoProduto: det.descricaoProduto || '',
       valorManual: det.valorManual || String(order.preco || ''),
       numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
+      vinculadoBota: det.vinculadoBota === true,
+      corTecidoRegata: det.corTecidoRegata || '',
+      desenhoBordadoRegata: det.desenhoBordadoRegata || '',
+      corBrilho: det.corBrilho || '',
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
@@ -123,6 +127,8 @@ const EditExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
+      case 'regata_pronta_entrega': return 50;
+      case 'gravata_pronta_entrega': return 30;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       default: return 0;
     }
@@ -133,14 +139,16 @@ const EditExtrasPage = () => {
     desmanchar: ['qualSola', 'trocaGaspea', 'numeroPedidoBotaVinculo'],
     kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
     kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
-    carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo'],
+    carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
     revitalizador: ['tipoRevitalizador', 'quantidade'],
     kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
     gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
+    gravata_pronta_entrega: ['corTira', 'tipoMetal', 'corBrilho'],
     adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
+    regata_pronta_entrega: ['corTecidoRegata', 'desenhoBordadoRegata'],
     bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
   };
 
@@ -335,6 +343,16 @@ const EditExtrasPage = () => {
                 <Label>Onde será aplicado *</Label>
                 <Input value={form.ondeAplicado || ''} onChange={e => set('ondeAplicado', e.target.value)} placeholder="Ex: Cano direito" />
               </div>
+              <div className="flex items-center gap-2 pt-2">
+                <Checkbox
+                  checked={!!form.vinculadoBota}
+                  onCheckedChange={(c) => set('vinculadoBota', !!c)}
+                  id="vinculadoBotaEdit"
+                />
+                <Label htmlFor="vinculadoBotaEdit" className="cursor-pointer text-sm">
+                  Vai com bota por encomenda? (prazo conta a partir da bota chegar em Revisão)
+                </Label>
+              </div>
             </>
           )}
 
@@ -484,6 +502,23 @@ const EditExtrasPage = () => {
                 <Textarea value={form.descBordadoRegata || ''} onChange={e => set('descBordadoRegata', e.target.value)} placeholder="Descrição do bordado e cor" />
               </div>
             </>
+          )}
+
+          {productId === 'regata_pronta_entrega' && (
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+              <p className="font-semibold mb-1">Variação do estoque (não editável)</p>
+              <p>Cor do tecido: <span className="font-medium">{form.corTecidoRegata || '—'}</span></p>
+              <p>Desenho do bordado: <span className="font-medium">{form.desenhoBordadoRegata || '—'}</span></p>
+            </div>
+          )}
+
+          {productId === 'gravata_pronta_entrega' && (
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+              <p className="font-semibold mb-1">Variação do estoque (não editável)</p>
+              <p>Cor da tira: <span className="font-medium">{form.corTira || '—'}</span></p>
+              <p>Tipo de metal: <span className="font-medium">{form.tipoMetal || '—'}</span></p>
+              {form.corBrilho && <p>Cor do brilho: <span className="font-medium">{form.corBrilho}</span></p>}
+            </div>
           )}
 
           {productId === 'bota_pronta_entrega' && (

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 import { getOrderFinalValue } from '@/lib/order-logic';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
@@ -43,6 +44,7 @@ const OrderDetailPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
+  const linkedBoot = useLinkedBoot(order);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
@@ -629,7 +631,7 @@ const OrderDetailPage = () => {
             const dataHora = `${formatDateBR(order.dataCriacao)} — ${order.horaCriacao || ''}`.trim();
             const showVendedor = isAdmin;
             
-            const deadline = getOrderDeadlineInfo(order);
+            const deadline = getOrderDeadlineInfo(order, linkedBoot);
             const prazoLabel = deadline.isNoDeadline
               ? 'Sem prazo de produção'
               : `Prazo ${totalBizDays} dias úteis`;

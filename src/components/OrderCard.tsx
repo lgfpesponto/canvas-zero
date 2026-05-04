@@ -4,6 +4,7 @@ import { CheckCircle, Pencil, Trash2 } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { getOrderFinalValue } from '@/lib/order-logic';
+import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 
 interface OrderCardProps {
   order: any;
@@ -26,6 +27,7 @@ const OrderCard = React.memo(({
 }: OrderCardProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const linkedBoot = useLinkedBoot(order);
 
   return (
     <div className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
@@ -54,7 +56,7 @@ const OrderCard = React.memo(({
               // Valor final já considera desconto (se houver) — centralizado em getOrderFinalValue.
               const valor = getOrderFinalValue(order);
               const temDesconto = order.desconto && order.desconto > 0;
-              const deadline = getOrderDeadlineInfo(order);
+              const deadline = getOrderDeadlineInfo(order, linkedBoot);
               const deadlineClass = deadline.tone === 'danger'
                 ? 'text-destructive font-bold'
                 : deadline.tone === 'success'
