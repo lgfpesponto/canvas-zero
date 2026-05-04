@@ -524,12 +524,14 @@ interface BordadoColumnProps {
   onSearchSubmit: (v: string) => void;
   showQuickBaixa?: boolean;
   onQuickBaixa?: (o: Order, e: React.MouseEvent) => void;
+  showQuickEntrada?: boolean;
+  onQuickEntrada?: (o: Order, e: React.MouseEvent) => void;
   quickBaixaIds?: Set<string>;
 }
 
 const BordadoColumn = ({
   title, color, inputBorder, orders, onClick, search, onSearchChange, onSearchSubmit,
-  showQuickBaixa, onQuickBaixa, quickBaixaIds,
+  showQuickBaixa, onQuickBaixa, showQuickEntrada, onQuickEntrada, quickBaixaIds,
 }: BordadoColumnProps) => (
   <div className={`rounded-xl border-2 p-3 ${color}`}>
     <div className="flex items-center justify-between mb-2">
@@ -553,7 +555,7 @@ const BordadoColumn = ({
     <div className="space-y-2 max-h-[60vh] overflow-y-auto">
       {orders.length === 0 && <div className="text-xs opacity-70 text-center py-4">Nenhum pedido</div>}
       {orders.map(o => {
-        const baixando = quickBaixaIds?.has(o.id);
+        const loading = quickBaixaIds?.has(o.id);
         return (
           <div
             key={o.id}
@@ -569,11 +571,22 @@ const BordadoColumn = ({
               <button
                 type="button"
                 onClick={(e) => onQuickBaixa(o, e)}
-                disabled={baixando}
+                disabled={loading}
                 title="Mover para Baixa Bordado 7Estrivos"
                 className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 transition"
               >
-                {baixando ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownToLine size={16} />}
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownToLine size={16} />}
+              </button>
+            )}
+            {showQuickEntrada && onQuickEntrada && (
+              <button
+                type="button"
+                onClick={(e) => onQuickEntrada(o, e)}
+                disabled={loading}
+                title="Voltar para Entrada Bordado 7Estrivos"
+                className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50 transition"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
               </button>
             )}
           </div>
