@@ -18,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import {
   validateComprovante, fileHash, todayISO, formatDateBR,
 } from '@/components/financeiro/financeiroHelpers';
-import { uploadComprovanteRevendedor } from '@/lib/revendedorSaldo';
 import { formatCurrency } from '@/lib/order-logic';
 
 interface Props {
