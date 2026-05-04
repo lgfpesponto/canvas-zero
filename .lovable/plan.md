@@ -1,36 +1,46 @@
-## Objetivo
+## Aviso "Faltam pedidos para dar baixa"
 
-Para o **admin_master**, mover "Usuários" e "Gestão" para dentro de **Configurações** (`/admin/configuracoes`) como abas, junto com "ficha de produção", "extras", "progresso de produção" e "relatórios". Remover esses dois itens do header (somente para admin_master).
+Mostrar, em cima do conteúdo do Saldo do Vendedor (admin) e do Meu Saldo (vendedor), um alerta destacando quantos pedidos cobrados ainda estão sem baixa e quanto falta pagar para quitar.
 
-## Alterações
+### Cálculo (mesma regra dos dois lados)
+Para cada vendedor:
+- `pedidosCobrados` = `fetchPedidosCobrados(vendedor)` (já existe em `src/lib/revendedorSaldo.ts`)
+- `baixas` = `fetchBaixasVendedor(vendedor)` → set de `order_id` já abatidos
+- `pendentes` = pedidos cobrados cujo `id` NÃO está no set de baixas
+- `qtdPendente` = `pendentes.length`
+- `valorPendenteBruto` = soma de `preco * quantidade` dos pendentes
+- `saldoDisponivel` = `vw_revendedor_saldo.saldo_disponivel`
+- `valorAQuitar` = `max(0, valorPendenteBruto - saldoDisponivel)`
 
-### 1. `src/pages/AdminConfigPage.tsx`
-- Adicionar 2 novas abas no `<TabsList>`, **visíveis apenas para `role === 'admin_master'`**:
-  - `usuarios` (ícone `Users`)
-  - `gestao` (ícone `Activity` — já importado)
-- Adicionar `<TabsContent value="usuarios">` que renderiza `<UsersManagementInner />` e `<TabsContent value="gestao">` que renderiza `<GestaoInner />`.
-- Manter as abas existentes (fichas, extras, progresso, relatórios) inalteradas.
+Aviso só aparece quando `qtdPendente > 0`.
 
-### 2. Refatorar páginas em componentes embutidos
-- `src/pages/UsersManagementPage.tsx`: extrair o conteúdo (toda a UI a partir do `return`) para um componente exportado `UsersManagementInner` no mesmo arquivo. A página continua existindo (renderiza o inner com o mesmo guard de auth) para retrocompatibilidade da rota `/usuarios`.
-- `src/pages/GestaoPage.tsx`: idem — exportar `GestaoInner`. Página `/admin/gestao` continua funcionando.
-- Remover do inner os wrappers `min-h-screen px-... py-...` redundantes (o AdminConfigPage já provê padding) e o título principal duplicado, mantendo apenas o conteúdo funcional.
+### 1) `src/pages/RevendedorSaldoPage.tsx` (vendedor — Stefany)
+A página já calcula `totalPendente` e tem o card "A pagar (pedidos cobrados)". Adicionar, logo abaixo do header (antes do grid de cards), um `Alert` destrutivo quando houver pendência:
 
-### 3. `src/components/Header.tsx`
-- Quando `role === 'admin_master'`, **remover** os links "USUÁRIOS" e "GESTÃO" do menu (eles passam a viver dentro de "CONFIGURAÇÕES").
-- Para `admin_producao`, manter "USUÁRIOS" como hoje (ele não tem acesso a Gestão e continua sem ver a aba dentro de Configurações).
-- "CONFIGURAÇÕES" continua aparecendo para ambos admins.
+```text
+[!] Faltam {N} pedido(s) cobrado(s) sem baixa.
+    Falta R$ X,XX para quitar.   [Enviar comprovante]
+```
 
-### 4. Rotas
-- Manter `/usuarios` e `/admin/gestao` no `App.tsx` (sem mudança) — apenas deixam de estar no menu do admin_master, mas continuam acessíveis via deep link e via as novas abas (que internamente apenas renderizam o conteúdo, sem navegar).
+Reutilizar o estado já existente: contar `pendentes.length` (hoje só somamos valor — passar a guardar também a contagem em `setQtdPendente`). Botão do alerta abre o mesmo `EnviarComprovanteDialog`.
 
-## Notas técnicas
-- `AdminConfigPage` já tem guard que permite `admin_master` e `admin_producao`. As novas abas serão renderizadas condicionalmente: `{user.role === 'admin_master' && <TabsTrigger value="usuarios">…}`.
-- `TabsList` usa `overflow-x-auto`, então 6 abas cabem bem.
-- Não há mudanças de banco, RLS, RPC ou edge functions.
+### 2) `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx` (admin)
+Adicionar, abaixo da toolbar de filtros (antes dos cards de resumo), um `Alert` agregado:
 
-## Arquivos alterados
-- `src/pages/AdminConfigPage.tsx`
-- `src/pages/UsersManagementPage.tsx` (export adicional `UsersManagementInner`)
-- `src/pages/GestaoPage.tsx` (export adicional `GestaoInner`)
-- `src/components/Header.tsx`
+- Quando `filterVendedor === 'todos'`: somar pendências de todos vendedores que aparecem em `saldos`. Texto:
+  `Faltam {N} pedido(s) cobrado(s) sem baixa em {V} vendedor(es). Total a quitar: R$ X,XX.`
+- Quando `filterVendedor !== 'todos'`: mostrar apenas daquele vendedor:
+  `{vendedor}: {N} pedido(s) cobrado(s) sem baixa — falta R$ X,XX para quitar.`
+
+Para isso, criar um `useEffect` que carrega, em paralelo, `fetchPedidosCobrados` + `fetchBaixasVendedor` para cada vendedor presente em `saldos` (ou apenas o filtrado). Cachear o resultado em estado `pendenciasPorVendedor: Record<string, { qtd: number; valor: number }>` e recalcular o agregado conforme filtros.
+
+Para evitar muitas chamadas, fazer um único batch `Promise.all` quando `saldos` chega; refazer junto com `load()`.
+
+### 3) Estilo
+Usar `<Alert variant="destructive">` de `@/components/ui/alert` com ícone `AlertTriangle` da `lucide-react`. Texto em UTF-8 literal (ç, ã). Não exibir quando não houver pendência.
+
+### Arquivos a alterar
+- `src/pages/RevendedorSaldoPage.tsx`
+- `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx`
+
+Sem mudanças no banco — toda a informação já existe via `fetchPedidosCobrados` e `fetchBaixasVendedor`.

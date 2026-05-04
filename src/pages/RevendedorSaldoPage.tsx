@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Upload, FileText, CheckCircle2, XCircle, Clock, Wallet } from 'lucide-react';
+import { Loader2, Upload, FileText, CheckCircle2, XCircle, Clock, Wallet, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -28,6 +29,7 @@ const RevendedorSaldoPage = () => {
   const [saldo, setSaldo] = useState<RevendedorSaldo | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [totalPendente, setTotalPendente] = useState(0);
+  const [qtdPendente, setQtdPendente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
@@ -53,10 +55,10 @@ const RevendedorSaldoPage = () => {
       setSaldo(s);
       setComprovantes(c);
       const baixasSet = new Set(b.map(x => x.order_id));
-      const pendente = p
-        .filter(x => !baixasSet.has(x.id))
-        .reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
+      const pendentesArr = p.filter(x => !baixasSet.has(x.id));
+      const pendente = pendentesArr.reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
       const saldoDisp = Number(s?.saldo_disponivel || 0);
+      setQtdPendente(pendentesArr.length);
       setTotalPendente(Math.max(0, pendente - saldoDisp));
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
@@ -106,6 +108,24 @@ const RevendedorSaldoPage = () => {
           <Upload size={18} /> Enviar comprovante
         </Button>
       </div>
+
+      {qtdPendente > 0 && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Faltam pedidos para dar baixa</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Você tem <strong>{qtdPendente}</strong> pedido(s) cobrado(s) sem baixa.
+              {totalPendente > 0
+                ? <> Falta <strong>{formatCurrency(totalPendente)}</strong> para quitar.</>
+                : <> Seu saldo já cobre o valor — envie um comprovante para registrar a baixa.</>}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => setEnviarOpen(true)}>
+              <Upload size={14} /> Enviar comprovante
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

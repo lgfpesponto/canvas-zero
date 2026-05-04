@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Eye, Filter } from 'lucide-react';
+import { Loader2, Eye, Filter, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -14,9 +14,11 @@ import { formatCurrency } from '@/lib/order-logic';
 import {
   fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
+  fetchPedidosCobrados, fetchBaixasVendedor,
   type RevendedorSaldo, type RevendedorComprovante, type RevendedorMovimento,
   type ComprovanteStatus,
 } from '@/lib/revendedorSaldo';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { fetchVendedoresList } from '@/components/financeiro/financeiroHelpers';
 import { DetalhesRevendedorDrawer } from './DetalhesRevendedorDrawer';
 import { ComprovantesRevendedorPendentes } from './ComprovantesRevendedorPendentes';
@@ -35,6 +37,7 @@ const FinanceiroSaldoRevendedor = () => {
   const [vendedoresLista, setVendedoresLista] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
+  const [pendencias, setPendencias] = useState<Record<string, { qtd: number; valor: number }>>({});
 
   // Filtros padronizados
   const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
@@ -54,6 +57,26 @@ const FinanceiroSaldoRevendedor = () => {
       setComprovantes(c);
       setMovimentos(m);
       setVendedoresLista(vs);
+
+      // Carrega pendências (pedidos cobrados sem baixa) por vendedor
+      const vendedoresUnicos = [...new Set(s.map(x => x.vendedor).filter(Boolean))];
+      const results = await Promise.all(vendedoresUnicos.map(async (v) => {
+        try {
+          const [pedidos, baixas] = await Promise.all([
+            fetchPedidosCobrados(v),
+            fetchBaixasVendedor(v),
+          ]);
+          const baixasSet = new Set(baixas.map(b => b.order_id));
+          const pend = pedidos.filter(p => !baixasSet.has(p.id));
+          const valor = pend.reduce((sum, p) => sum + (p.preco || 0) * (p.quantidade || 1), 0);
+          return [v, { qtd: pend.length, valor }] as const;
+        } catch {
+          return [v, { qtd: 0, valor: 0 }] as const;
+        }
+      }));
+      const map: Record<string, { qtd: number; valor: number }> = {};
+      results.forEach(([v, val]) => { map[v] = val; });
+      setPendencias(map);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -143,6 +166,26 @@ const FinanceiroSaldoRevendedor = () => {
     ? 'mês atual'
     : filterPeriodo === '30d' ? 'últimos 30 dias' : 'todos os períodos';
 
+  /** Pendência agregada conforme filtro de vendedor (independente de período). */
+  const aviso = useMemo(() => {
+    const list = saldos || [];
+    const escopo = filterVendedor === 'todos' ? list : list.filter(s => s.vendedor === filterVendedor);
+    let qtdPedidos = 0;
+    let valorBruto = 0;
+    let saldoTotal = 0;
+    let vendedoresPend = 0;
+    escopo.forEach(s => {
+      const p = pendencias[s.vendedor];
+      if (!p || p.qtd === 0) return;
+      qtdPedidos += p.qtd;
+      valorBruto += p.valor;
+      saldoTotal += Number(s.saldo_disponivel || 0);
+      vendedoresPend += 1;
+    });
+    const aQuitar = Math.max(0, valorBruto - saldoTotal);
+    return { qtdPedidos, vendedoresPend, aQuitar };
+  }, [saldos, pendencias, filterVendedor]);
+
   return (
     <div className="space-y-6">
       {/* Toolbar de filtros (padrão A Receber) */}
@@ -183,6 +226,31 @@ const FinanceiroSaldoRevendedor = () => {
           </Select>
         </div>
       </div>
+
+      {aviso.qtdPedidos > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Faltam pedidos para dar baixa</AlertTitle>
+          <AlertDescription>
+            {filterVendedor === 'todos' ? (
+              <>
+                <strong>{aviso.qtdPedidos}</strong> pedido(s) cobrado(s) sem baixa em{' '}
+                <strong>{aviso.vendedoresPend}</strong> vendedor(es).
+                {aviso.aQuitar > 0
+                  ? <> Total a quitar: <strong>{formatCurrency(aviso.aQuitar)}</strong>.</>
+                  : <> O saldo já cobre todos os valores — basta registrar a baixa.</>}
+              </>
+            ) : (
+              <>
+                <strong>{filterVendedor}</strong>: <strong>{aviso.qtdPedidos}</strong> pedido(s) cobrado(s) sem baixa.
+                {aviso.aQuitar > 0
+                  ? <> Falta <strong>{formatCurrency(aviso.aQuitar)}</strong> para quitar.</>
+                  : <> O saldo já cobre o valor — basta registrar a baixa.</>}
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Cards de resumo (atualizam conforme filtros) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
