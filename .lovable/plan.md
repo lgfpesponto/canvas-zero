@@ -1,19 +1,11 @@
-## Remover Montserrat do PDF
+## Ajustes no PDF "Resumo Baixa Bordado"
 
-A fonte Montserrat está causando erro no jsPDF (`Cannot read properties of undefined (reading '0')` no `addFont`, seguido de `widths` no `text`). Vamos abandonar a fonte customizada e voltar para Helvetica (padrão built-in do jsPDF, sempre funciona).
+**Arquivo:** `src/lib/pdfGenerators.ts` (função `generateBordadoBaixaResumoPDF`, ~linha 802-818)
 
-### Mudanças
+### 1. Coluna Qtd → numeração sequencial
+Trocar o `'1'` fixo por contador `seq` que incrementa por linha dentro de cada grupo de data (1, 2, 3...).
 
-**1. `src/lib/pdfGenerators.ts`**
-- Remover o `await import('./pdfFonts')` e a chamada `registerMontserrat(doc)` da função `generateBordadoBaixaResumoPDF`.
-- Deixar `FONT = 'helvetica'` fixo (já é o default).
-- Remover o try/catch relacionado, simplificando o código.
+### 2. Qualidade do código de barras
+Aumentar resolução do canvas usado para gerar o CODE128: de `width: 2, height: 40` para `width: 3, height: 80`. O tamanho impresso no PDF (`barcodeW × barcodeH`) continua igual, mas com mais pixels-por-barra a leitura por scanner fica nítida.
 
-**2. `src/lib/pdfFonts.ts`**
-- Deletar o arquivo (não será mais usado).
-
-**3. `src/assets/fonts/Montserrat-Regular.ttf` e `Montserrat-Bold.ttf`**
-- Deletar os arquivos para limpar o repositório.
-
-### Resultado
-PDF do resumo do bordado volta a gerar normalmente usando Helvetica, sem erros.
+Sem outras mudanças.
