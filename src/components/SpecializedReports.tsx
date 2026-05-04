@@ -1688,7 +1688,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         return idx >= baixaIdx && o.status !== 'Cancelado';
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
-      await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin');
+      await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin', filterBordadoUsuarios.size > 0 ? [...filterBordadoUsuarios] : undefined);
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     }
