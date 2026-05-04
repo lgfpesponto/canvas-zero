@@ -1,27 +1,71 @@
-## Objetivo
+## Organizador de estoque — Regata Pronta Entrega
 
-Hoje o texto "PRAZO X DIAS ÚTEIS" exibido no detalhe do pedido (e em algumas telas de criação) ainda usa fórmulas antigas (`cinto = 5`, extra = `1`, bota = `15`). Os novos prazos foram movidos para `getTotalBizDays()` em `src/lib/orderDeadline.ts`. Falta sincronizar a UI e a gravação inicial em `diasRestantes` para usarem a mesma fonte.
+Replicar o padrão do organizador da Gravata Pronta Entrega para Regata PE, agora com **três campos combinados**: Cor do tecido, Cor do bordado, Desenho bordado. As variações já cadastradas viram sugestões para os próximos cadastros (estilo combobox: digita "Marrom" + Enter para criar; depois disso aparece em uma lista para selecionar).
 
-## Mudanças
+### 1. Banco — adicionar campo `cor_bordado`
 
-1. **`src/pages/OrderDetailPage.tsx`** (linha 161)
-   - Trocar a fórmula local por `getTotalBizDays(order)`, importado de `@/lib/orderDeadline`.
-   - Resultado: o cabeçalho "PRAZO X DIAS ÚTEIS" passa a refletir 20du (bota/cinto), 1/2/4/5/7/20du (extras conforme tipo) e Bota PE 1du+maior extra.
+Migration na tabela `regata_stock`:
+- Adicionar coluna `cor_bordado text not null default ''`.
+- A unicidade da combinação passa a ser `(cor_tecido, cor_bordado, desenho_bordado)`.
 
-2. **`src/contexts/AuthContext.tsx`** (linha 492)
-   - Substituir `const totalBizDays = rest.tipoExtra === 'cinto' ? 5 : rest.tipoExtra ? 1 : 15;` por `getTotalBizDays(rest)`.
-   - Garante que `diasRestantes` salvo em novos pedidos reflita o lead time correto desde a criação.
+As sugestões serão derivadas dos valores distintos já presentes em `regata_stock` (não cria tabela auxiliar). Como exclusão é sempre manual e admin, valores criados continuam disponíveis até o admin remover a última linha que os usa.
 
-3. **`src/pages/OrderPage.tsx`** (linha 1572) e **`src/pages/EditOrderPage.tsx`** (linha 736)
-   - Texto fixo "Prazo de Produção: 15 dias úteis" — atualizar para "20 dias úteis" (bota encomenda).
+### 2. Diálogo "Organizar Estoque — Regata Pronta Entrega"
 
-## Detalhes técnicos
+Layout idêntico ao da Gravata (lista atual + form para adicionar):
 
-- `getTotalBizDays` já retorna 20 para `cinto` e bota, e cobre todos os extras inclusive `bota_pronta_entrega` (1 + max extra embutido).
-- Não há mudança em RLS, banco ou cálculos de prazo restante — só está sendo unificada a fonte do "lead time total" exibido.
-- O label "Aguardando bota" do carimbo vinculado continua independente (já funciona via `getOrderDeadlineInfo`).
+**Estoque atual** — cada linha: `Cor tecido + Cor bordado + Desenho bordado` com qtd, lápis (editar quantidade) e lixeira (remover).
 
-## Fora do escopo
+**Adicionar ao estoque** — três campos combobox (input com sugestões existentes) + quantidade:
+- Cor do tecido *
+- Cor do bordado *
+- Desenho bordado *
+- Quantidade *
 
-- Não alterar PDFs (já usam `getOrderDeadlineInfo` ou não exibem lead time fixo).
-- Não retroativar `diasRestantes` em pedidos antigos (campo é apenas snapshot inicial; cálculo dinâmico é feito por `getOrderDeadlineInfo`).
+Comportamento dos comboboxes:
+- Lista as opções já cadastradas (distintas, ordenadas alfabeticamente).
+- Permite digitar livre; ao pressionar Enter ou ao salvar, o valor é capitalizado/trimado e salvo.
+- Se a combinação `(cor_tecido + cor_bordado + desenho_bordado)` já existir, soma na linha existente (mesma lógica da gravata).
+
+### 3. Form de compra "Regata Pronta Entrega"
+
+Atualizar a label da variação selecionada para mostrar os 3 campos:
+`{cor_tecido} + {cor_bordado} + {desenho_bordado} (X disponíveis)`
+
+A pesquisa do `regataSearch` passa a considerar os 3 campos.
+
+### 4. Estado e tipos
+
+- `RegataStockItem` ganha `cor_bordado: string`.
+- Estados novos: `regataStockCorBordado` (input controlado).
+- Atualizar `src/integrations/supabase/types.ts` (Row/Insert/Update) com `cor_bordado`.
+- Onde a variação for serializada para `extra_detalhes` (handleSubmit do regata_pronta_entrega), incluir também `corBordadoRegata`.
+
+### 5. Exibição em pedidos existentes
+
+- `EditExtrasPage.tsx`: bloco read-only do `regata_pronta_entrega` passa a mostrar `Cor tecido / Cor bordado / Desenho`.
+- Pedidos antigos (sem `corBordadoRegata`) exibem só os campos preenchidos, sem quebrar.
+
+### Arquivos alterados
+
+- `supabase/migrations/<timestamp>_regata_stock_cor_bordado.sql` (nova migration)
+- `src/integrations/supabase/types.ts`
+- `src/pages/ExtrasPage.tsx` (estados, fetch/save, dialog organizador, form de compra, label)
+- `src/pages/EditExtrasPage.tsx` (bloco read-only)
+
+### Componente combobox
+
+Para evitar nova dependência, uso um `<Input>` com um `<datalist>` HTML nativo ligado aos valores distintos do campo. Funciona como dropdown de sugestões + entrada livre, sem nenhum lib extra. Ex.:
+
+```tsx
+<Input list="regata-cor-tecido-options" value={...} onChange={...} />
+<datalist id="regata-cor-tecido-options">
+  {distinctCorTecido.map(v => <option key={v} value={v} />)}
+</datalist>
+```
+
+### Não faz parte
+
+- Não altera preço (segue R$ 50 fixo já memorizado).
+- Não mexe em prazos.
+- Não cria tabela separada de sugestões — sugestões derivam de `regata_stock`.
