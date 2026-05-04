@@ -258,7 +258,11 @@ const ExtrasPage = () => {
         if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
       } else if (productId === 'regata_pronta_entrega') {
         const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId)!;
-        detalhes = { corTecidoRegata: stockItem.cor_tecido, desenhoBordadoRegata: stockItem.desenho_bordado };
+        detalhes = {
+          corTecidoRegata: stockItem.cor_tecido,
+          corBordadoRegata: stockItem.cor_bordado,
+          desenhoBordadoRegata: stockItem.desenho_bordado,
+        };
       } else {
         const relevantKeys = PRODUCT_FIELDS[productId] || [];
         for (const key of relevantKeys) {
