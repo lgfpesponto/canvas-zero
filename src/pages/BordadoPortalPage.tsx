@@ -5,13 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
-import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
-
-const PAGE_SIZE = 20;
 
 function formatDataCriacao(s?: string): string {
   if (!s) return '';
@@ -67,13 +65,9 @@ const BordadoPortalPage = () => {
   // Per-column search
   const [searchEntrada, setSearchEntrada] = useState('');
   const [searchBaixa, setSearchBaixa] = useState('');
-  const [pageEntrada, setPageEntrada] = useState(1);
-  const [pageBaixa, setPageBaixa] = useState(1);
 
   // Justificativa para retroceder Baixa → Entrada
   const [pendingRetrocesso, setPendingRetrocesso] = useState<Order | null>(null);
-  useEffect(() => { setPageEntrada(1); }, [searchEntrada]);
-  useEffect(() => { setPageBaixa(1); }, [searchBaixa]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -229,7 +223,7 @@ const BordadoPortalPage = () => {
         return idx >= baixaIdx && o.status !== 'Cancelado';
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
-      generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
+      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
@@ -412,8 +406,6 @@ const BordadoPortalPage = () => {
               showQuickBaixa
               onQuickBaixa={handleQuickBaixa}
               quickBaixaIds={quickBaixaIds}
-              page={pageEntrada}
-              onPageChange={setPageEntrada}
             />
             <BordadoColumn
               title="Baixa Bordado 7Estrivos"
@@ -427,8 +419,6 @@ const BordadoPortalPage = () => {
               showQuickEntrada
               onQuickEntrada={handleQuickEntrada}
               quickBaixaIds={quickBaixaIds}
-              page={pageBaixa}
-              onPageChange={setPageBaixa}
             />
           </div>
         )}
@@ -567,20 +557,12 @@ interface BordadoColumnProps {
   showQuickEntrada?: boolean;
   onQuickEntrada?: (o: Order, e: React.MouseEvent) => void;
   quickBaixaIds?: Set<string>;
-  page: number;
-  onPageChange: (p: number) => void;
 }
 
 const BordadoColumn = ({
   title, color, inputBorder, orders, onClick, search, onSearchChange, onSearchSubmit,
   showQuickBaixa, onQuickBaixa, showQuickEntrada, onQuickEntrada, quickBaixaIds,
-  page, onPageChange,
 }: BordadoColumnProps) => {
-  const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * PAGE_SIZE;
-  const visible = orders.slice(start, start + PAGE_SIZE);
-
   return (
     <div className={`rounded-xl border-2 p-3 ${color}`}>
       <div className="flex items-center justify-between mb-2">
@@ -603,7 +585,7 @@ const BordadoColumn = ({
       </form>
       <div className="space-y-2 max-h-[60vh] overflow-y-auto">
         {orders.length === 0 && <div className="text-xs opacity-70 text-center py-4">Nenhum pedido</div>}
-        {visible.map(o => {
+        {orders.map(o => {
           const loading = quickBaixaIds?.has(o.id);
           return (
             <div
@@ -643,27 +625,6 @@ const BordadoColumn = ({
           );
         })}
       </div>
-      {totalPages > 1 && (
-        <div className="mt-3 flex items-center justify-between gap-2 text-xs">
-          <button
-            type="button"
-            onClick={() => onPageChange(Math.max(1, safePage - 1))}
-            disabled={safePage <= 1}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-white/70 hover:bg-white border border-current/20 disabled:opacity-40"
-          >
-            <ChevronLeft size={14} /> Anterior
-          </button>
-          <span className="font-semibold opacity-80">Página {safePage} de {totalPages}</span>
-          <button
-            type="button"
-            onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
-            disabled={safePage >= totalPages}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-white/70 hover:bg-white border border-current/20 disabled:opacity-40"
-          >
-            Próxima <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 };
