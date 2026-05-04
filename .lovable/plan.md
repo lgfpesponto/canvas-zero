@@ -1,40 +1,85 @@
-## Reorganização visual do Portal Bordado
+## Ajustes no Portal Bordado
 
-### 1. Cabeçalho-bloco unificado (scanners + PDF)
-Envolver os elementos atuais num card branco com borda/sombra, separado por uma linha sutil do conteúdo abaixo. Layout:
+### 1. Botão de "voltar para entrada" nos cards da coluna Baixa
+No `BordadoColumn`, espelhar o padrão do botão verde de baixa-rápida, mas para a coluna **Baixa Bordado 7Estrivos**:
+- Ícone `RotateCcw` (rodinha de voltar) dentro de um botão circular âmbar (mesma cor da coluna Entrada).
+- Tooltip: "Voltar para Entrada Bordado 7Estrivos".
+- Ao clicar, chama `aplicarStatus(o.id, 'Entrada Bordado 7Estrivos')` (mesmo RPC `bordado_baixar_pedido` já usado), com atualização otimista movendo o card de Baixa → Entrada.
+- Reaproveitar o estado `quickBaixaIds` (renomear conceitualmente para "loading rápido" via segundo prop) — adicionar nova prop `showQuickEntrada` + handler `onQuickEntrada` no `BordadoColumn`.
+
+### 2. Cores dos botões de scan alinhadas às colunas
+- "ESCANEAR PARA DAR ENTRADA" passa a usar **âmbar** (`bg-amber-500 hover:bg-amber-600`, texto branco) — igual ao bloco "Entrada Bordado 7Estrivos".
+- "ESCANEAR PARA DAR BAIXA" passa a usar **emerald** (`bg-emerald-600 hover:bg-emerald-700`) — igual ao bloco "Baixa Bordado 7Estrivos".
+- Modal scanner (`scannerMode === 'entrada'`) muda accent de `sky` para `amber`: borda do modal, ícones, banner de progresso, botão de submit, foco do input.
+- `scannerMode === 'baixa'` permanece emerald.
+
+### 3. Reformulação completa do PDF "Resumo de baixas" (comissão do bordado)
+
+**Regras de comissão**:
+- Bota (tipo_extra IS NULL): **R$ 1,00 / par**.
+- Cinto (tipo_extra = 'cinto'): **R$ 0,50 / unidade**.
+- Outros extras: ignorados no resumo.
+- Considerar somente baixas em **dias úteis (seg–sex)** com base na **data da baixa**. Sábado/domingo são filtrados fora.
+
+**Layout do PDF (A4 retrato)**:
 
 ```text
-┌─ Cabeçalho de operações ──────────────────────────────────┐
-│  [ ESCANEAR PARA DAR ENTRADA ]   ┌─ Resumo de baixas ──┐  │
-│  (verde, grande)                  │ De [__] Até [__] PDF│  │
-│  [ ESCANEAR PARA DAR BAIXA  ]    └─────────────────────┘  │
-│  (laranja/primário, grande)                                │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Resumo Comissão Bordado 7Estrivos          Período / Página  │
+├──────────────────────────────────────────────────────────────┤
+│ Total geral: X itens • R$ Y,YY     Gerado por: <nome>        │
+│                                                              │
+│ ── Baixa: 02/05/2026 (sex) ──────────────────────────────── │
+│ Qtd | Nº Pedido (cód.barras) | Tipo  | Comissão | Entrada    │
+│  1  | 30040  (177421...)     | Bota  | R$ 1,00  | 30/04/2026 │
+│  1  | 60358  (...)           | Cinto | R$ 0,50  | 01/05/2026 │
+│ Subtotal do dia: 2 itens • R$ 1,50                           │
+│                                                              │
+│ ── Baixa: 03/05/2026 (sáb) — IGNORADO (fim de semana) ───── │
+│                                                              │
+│ ── Totais ──                                                 │
+│ Botas:   N pares  • R$ N,00                                  │
+│ Cintos:  M unid.  • R$ M,50                                  │
+│ TOTAL:   X itens  • R$ Y,YY                                  │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-- Coluna esquerda (≈60%): dois botões grandes empilhados.
-  - **Novo**: "ESCANEAR PARA DAR ENTRADA" — verde — abre modal igual ao de baixa, mas o RPC aplica `Entrada Bordado 7Estrivos` (status anterior do pedido qualquer; se já estiver em Entrada/Baixa avisa e ignora).
-  - Existente: "ESCANEAR PARA DAR BAIXA" — primário — sem mudança de comportamento.
-- Coluna direita (≈40%): card do PDF com título **"Resumo de baixas"** acima dos campos De/Até/PDF.
+**Colunas da tabela** (cabeçalho cinza repetido em cada quebra de página):
+1. **Qtd** — sempre 1 por linha; total acumulado no rodapé do dia e geral.
+2. **Nº Pedido** — número grande em negrito + código de barras (UUID hex 12 caracteres) em cinza menor abaixo.
+3. **Tipo** — "Bota" ou "Cinto".
+4. **Valor comissão** — R$ formatado.
+5. **Data entrada bordado** — extraída do histórico (primeira entrada `local === 'Entrada Bordado 7Estrivos'`).
+6. **Data baixa bordado** — exibida como **cabeçalho de grupo** (não coluna), pois agrupamos por dia.
 
-### 2. Modal de scan — clareza
-- Título muda conforme a ação: "Dar entrada por scan" ou "Dar baixa por scan".
-- Subtítulo destaca o progresso aplicado (já existe).
-- Botão **"Concluir"** vira **"Fechar"** (era confuso — apenas fecha o modal e atualiza a lista; o scan já é aplicado a cada leitura). Mantém o "Dar baixa"/"Dar entrada" como submit explícito do que está digitado.
-- Pequena legenda abaixo dos botões: *"Cada leitura aplica o progresso automaticamente. Use Fechar quando terminar."*
+**Construção das linhas**:
+- Para cada pedido: pegar do `historico` a primeira entrada `Entrada Bordado` (data) e a baixa dentro do período (`Baixa Bordado 7Estrivos`).
+- Filtrar: dia da semana da baixa entre 1 e 5 (seg-sex). Sábado/domingo descartados (sem comissão).
+- Agrupar linhas por data de baixa, ordenado cronologicamente.
 
-### 3. Campos de busca das colunas — cara de leitor de código
-- Aumentar altura (`h-11`), texto maior (`text-sm`/`text-base`), borda mais grossa (`border-2`) e cor da coluna, fundo branco sólido, ícone de barcode (não lupa) à esquerda.
-- Placeholder: **"Digite o nº do pedido ou escaneie..."**
-- Visual semelhante ao input do modal de scan, ocupando largura total da coluna.
+**Correção do espaçamento**: cada linha terá altura `7mm` (atualmente 5.5mm é colado). Texto base `9pt`, código de barras `7pt`. `y += 8` mínimo entre linhas; quebra de página em `y > 275`. Linha separadora `setDrawColor(230)` posicionada em `y - 2` para não tocar o texto.
 
-### 4. Botão verde de baixa rápida no card
-Confirmar/explicitar comportamento: ao clicar no botão verde (`ArrowDownToLine`) de um pedido na coluna **Entrada Bordado 7Estrivos**, o pedido é movido imediatamente para **Baixa Bordado 7Estrivos** (RPC `bordado_baixar_pedido`), atualização otimista o tira da Entrada e adiciona na Baixa. É exatamente isso que já faz — apenas adicionar `title="Mover para Baixa Bordado 7Estrivos"` para deixar claro no hover.
+**Rodapés**:
+- Subtotal por dia logo após o último item daquele dia (negrito, fundo bem claro).
+- Bloco final "Totais" com:
+  - Botas: pares + valor.
+  - Cintos: unidades + valor.
+  - Total geral: itens + valor.
+- Listar explicitamente as datas de baixa cobertas (uma linha: "Datas de baixa: 02/05, 05/05, 06/05...").
+
+**Nome do arquivo**: `Comissao-Bordado-{de}_a_{ate}.pdf`.
 
 ### Detalhes técnicos
-- Arquivo único: `src/pages/BordadoPortalPage.tsx`.
-- Generalizar o modal scanner: novo state `scannerMode: 'entrada' | 'baixa' | null` substituindo `showScanner`. `aplicarBaixa` vira `aplicarStatus(orderId, novoStatus)`. Validação no `processScan`:
-  - modo `entrada`: aceita qualquer pedido cujo status atual **não** seja `Entrada Bordado 7Estrivos` nem `Cancelado`; bloqueia se já em Entrada (mensagem) ou Baixa (mensagem informando que precisa ser movido manualmente).
-  - modo `baixa`: comportamento atual (apenas pedidos em Entrada).
-- Cores/ícones do botão "Entrada": verde-600 + ícone `ArrowUpToLine` ou `LogIn`.
-- Sem mudanças em RPCs, PDF, ou outras telas.
+- Arquivos: `src/pages/BordadoPortalPage.tsx`, `src/lib/pdfGenerators.ts`.
+- Em `BordadoPortalPage.tsx`:
+  - Adicionar import `RotateCcw` de `lucide-react`.
+  - Novo handler `handleQuickEntrada` análogo a `handleQuickBaixa`.
+  - Compartilhar `quickBaixaIds` para ambos botões (loading visual).
+  - Trocar classes Tailwind dos botões e do modal conforme item 2.
+- Em `pdfGenerators.ts`:
+  - Reescrever `generateBordadoBaixaResumoPDF` mantendo a assinatura atual.
+  - Helper local: `comissaoFor(o)` retorna `{ tipo: 'Bota'|'Cinto'|null, valor: number }`.
+  - Helper local: `isDiaUtil(yyyyMmDd)` — `new Date(y,m-1,d).getDay()` ∈ [1..5].
+  - Reusar `formatDateBR`, `stampPageNumbers`.
+  - Para o código de barras: usar últimos 12 hex do `id` (mesma lógica de `orderBarcodeValueLegacy`/UUID suffix). Não precisa renderizar barras gráficas, só o texto do código abaixo do número.
+- Sem alterações em RPCs, Supabase ou demais telas.

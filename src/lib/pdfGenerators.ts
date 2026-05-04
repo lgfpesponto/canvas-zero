@@ -656,81 +656,222 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
   const periodoLabel = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
+  const fmtBRL = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+  const isDiaUtil = (yyyyMmDd: string) => {
+    if (!yyyyMmDd || yyyyMmDd.length < 10) return false;
+    const [y, m, d] = yyyyMmDd.split('-').map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    return dow >= 1 && dow <= 5;
+  };
+  const diaSemana = (yyyyMmDd: string) => {
+    const [y, m, d] = yyyyMmDd.split('-').map(Number);
+    return ['dom','seg','ter','qua','qui','sex','sáb'][new Date(y, m - 1, d).getDay()];
+  };
+  const barcodeOf = (id: string) => (id || '').replace(/-/g, '').slice(-12).toUpperCase();
+  const comissaoFor = (o: any): { tipo: 'Bota' | 'Cinto' | null; valor: number } => {
+    if (!o.tipo_extra) return { tipo: 'Bota', valor: 1.0 };
+    if (o.tipo_extra === 'cinto') return { tipo: 'Cinto', valor: 0.5 };
+    return { tipo: null, valor: 0 };
+  };
 
-  // Header
-  doc.setFillColor(245, 158, 11);
-  doc.rect(0, 0, pageW, 18, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('Resumo Baixa Bordado 7Estrivos', margin, 11);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(periodoLabel, pageW - margin, 11, { align: 'right' });
-  doc.setTextColor(0, 0, 0);
+  type Linha = {
+    numero: string;
+    barcode: string;
+    tipo: 'Bota' | 'Cinto';
+    comissao: number;
+    dataEntrada: string;
+    dataBaixa: string;
+  };
 
-  // Build linhas: uma por baixa dentro do período
-  type Linha = { numero: string; modelo: string; tamanho: string; vendedor: string; data: string; hora: string };
   const linhas: Linha[] = [];
   for (const o of orders) {
+    const c = comissaoFor(o);
+    if (!c.tipo) continue;
     const hist = Array.isArray(o.historico) ? o.historico : [];
     const baixaEntries = hist.filter((h: any) =>
-      h?.local === 'Baixa Bordado 7Estrivos' && typeof h?.data === 'string' && h.data >= dataDe && h.data <= dataAte
+      h?.local === 'Baixa Bordado 7Estrivos' && typeof h?.data === 'string' && h.data >= dataDe && h.data <= dataAte && isDiaUtil(h.data)
     );
+    if (baixaEntries.length === 0) continue;
+    const entradaEntry = hist.find((h: any) => h?.local === 'Entrada Bordado 7Estrivos' && typeof h?.data === 'string');
+    const dataEntrada = entradaEntry?.data || '';
     for (const e of baixaEntries) {
       linhas.push({
         numero: String(o.numero || ''),
-        modelo: String(o.modelo || ''),
-        tamanho: String(o.tamanho || ''),
-        vendedor: String(o.vendedor || ''),
-        data: String(e.data || ''),
-        hora: String(e.hora || '—'),
+        barcode: barcodeOf(String(o.id || '')),
+        tipo: c.tipo,
+        comissao: c.valor,
+        dataEntrada,
+        dataBaixa: String(e.data || ''),
       });
     }
   }
-  linhas.sort((a, b) => (a.data + a.hora + a.numero).localeCompare(b.data + b.hora + b.numero));
 
-  let y = 26;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(`Total de baixas: ${linhas.length}`, margin, y);
-  doc.text(`Gerado por: ${userName}`, pageW - margin, y, { align: 'right' });
-  y += 6;
-
-  // Table header
-  doc.setFillColor(230, 230, 230);
-  doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('Nº Pedido', margin + 2, y + 5);
-  doc.text('Modelo', margin + 32, y + 5);
-  doc.text('Tam.', margin + 82, y + 5);
-  doc.text('Vendedor', margin + 95, y + 5);
-  doc.text('Data', pageW - margin - 22, y + 5, { align: 'right' });
-  doc.text('Hora', pageW - margin - 2, y + 5, { align: 'right' });
-  y += 9;
-
-  doc.setFont('helvetica', 'normal');
+  // Agrupa por data de baixa
+  const grupos = new Map<string, Linha[]>();
   for (const l of linhas) {
-    if (y > 285) {
-      doc.addPage();
-      y = 18;
-    }
-    doc.setFontSize(9);
-    doc.text(l.numero, margin + 2, y);
-    doc.text(l.modelo.slice(0, 28), margin + 32, y);
-    doc.text(l.tamanho, margin + 82, y);
-    doc.text(l.vendedor.slice(0, 20), margin + 95, y);
-    doc.text(formatDateBR(l.data), pageW - margin - 22, y, { align: 'right' });
-    doc.text(l.hora, pageW - margin - 2, y, { align: 'right' });
-    y += 5.5;
-    doc.setDrawColor(220, 220, 220);
-    doc.line(margin, y - 1.5, pageW - margin, y - 1.5);
+    if (!grupos.has(l.dataBaixa)) grupos.set(l.dataBaixa, []);
+    grupos.get(l.dataBaixa)!.push(l);
   }
+  const datasOrdenadas = [...grupos.keys()].sort();
+
+  // Totais
+  const totBotas = linhas.filter(l => l.tipo === 'Bota');
+  const totCintos = linhas.filter(l => l.tipo === 'Cinto');
+  const valBotas = totBotas.reduce((s, l) => s + l.comissao, 0);
+  const valCintos = totCintos.reduce((s, l) => s + l.comissao, 0);
+  const valTotal = valBotas + valCintos;
+
+  // Header
+  const drawHeader = () => {
+    doc.setFillColor(245, 158, 11);
+    doc.rect(0, 0, pageW, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Resumo Comissão Bordado 7Estrivos', margin, 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(periodoLabel, pageW - margin, 11, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+  };
+  drawHeader();
+
+  let y = 24;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Total geral: ${linhas.length} ${linhas.length === 1 ? 'item' : 'itens'} • ${fmtBRL(valTotal)}`, margin, y);
+  doc.text(`Gerado por: ${userName}`, pageW - margin, y, { align: 'right' });
+  y += 7;
+
+  if (linhas.length === 0) {
+    doc.setFontSize(11);
+    doc.text('Nenhuma baixa elegível no período (apenas seg–sex contam comissão).', margin, y + 8);
+    stampPageNumbers(doc);
+    const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
+    doc.save(`Comissao-Bordado-${fileSuffix}.pdf`);
+    return;
+  }
+
+  // Layout colunas
+  const colQtd = margin + 2;
+  const colNum = margin + 14;
+  const colTipo = margin + 78;
+  const colCom = margin + 105;
+  const colEntrada = pageW - margin - 2;
+  const rowH = 9;
+
+  const drawTableHeader = () => {
+    doc.setFillColor(235, 235, 235);
+    doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text('Qtd', colQtd, y + 5);
+    doc.text('Nº Pedido / Código', colNum, y + 5);
+    doc.text('Tipo', colTipo, y + 5);
+    doc.text('Comissão', colCom, y + 5);
+    doc.text('Entrada bordado', colEntrada, y + 5, { align: 'right' });
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+  };
+
+  const ensureSpace = (need: number) => {
+    if (y + need > pageH - 14) {
+      doc.addPage();
+      drawHeader();
+      y = 24;
+      drawTableHeader();
+    }
+  };
+
+  for (const data of datasOrdenadas) {
+    const itens = grupos.get(data)!;
+    ensureSpace(14);
+    // Cabeçalho do dia
+    doc.setFillColor(254, 243, 199); // amber-100
+    doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(120, 53, 15);
+    doc.text(`Baixa: ${formatDateBR(data)} (${diaSemana(data)})`, margin + 2, y + 5);
+    doc.setTextColor(0, 0, 0);
+    y += 8;
+    drawTableHeader();
+
+    let qtdDia = 0;
+    let valDia = 0;
+    for (const l of itens) {
+      ensureSpace(rowH + 2);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text('1', colQtd, y + 4);
+      // Número (negrito) + barcode (cinza menor) abaixo
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(l.numero, colNum, y + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(120, 120, 120);
+      doc.text(l.barcode, colNum, y + 8);
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      doc.text(l.tipo, colTipo, y + 4);
+      doc.text(fmtBRL(l.comissao), colCom, y + 4);
+      doc.text(l.dataEntrada ? formatDateBR(l.dataEntrada) : '—', colEntrada, y + 4, { align: 'right' });
+      y += rowH;
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, y, pageW - margin, y);
+      qtdDia++;
+      valDia += l.comissao;
+    }
+    // Subtotal do dia
+    ensureSpace(8);
+    doc.setFillColor(248, 248, 248);
+    doc.rect(margin, y, pageW - 2 * margin, 6, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(`Subtotal ${formatDateBR(data)}: ${qtdDia} ${qtdDia === 1 ? 'item' : 'itens'} • ${fmtBRL(valDia)}`, pageW - margin - 2, y + 4, { align: 'right' });
+    y += 10;
+  }
+
+  // Totais finais
+  ensureSpace(40);
+  y += 2;
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Totais', margin, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.text(`Botas: ${totBotas.length} ${totBotas.length === 1 ? 'par' : 'pares'} • ${fmtBRL(valBotas)}`, margin, y);
+  y += 5.5;
+  doc.text(`Cintos: ${totCintos.length} ${totCintos.length === 1 ? 'unidade' : 'unidades'} • ${fmtBRL(valCintos)}`, margin, y);
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(`TOTAL GERAL: ${linhas.length} ${linhas.length === 1 ? 'item' : 'itens'} • ${fmtBRL(valTotal)}`, margin, y);
+  y += 8;
+
+  // Datas de baixa cobertas
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(90, 90, 90);
+  const datasFmt = datasOrdenadas.map(d => `${formatDateBR(d)} (${diaSemana(d)})`).join(' • ');
+  const datasLines = doc.splitTextToSize(`Datas de baixa: ${datasFmt}`, pageW - 2 * margin);
+  for (const line of datasLines) {
+    ensureSpace(5);
+    doc.text(line, margin, y);
+    y += 4.5;
+  }
+  doc.setTextColor(0, 0, 0);
 
   stampPageNumbers(doc);
   const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
-  doc.save(`Baixa-Bordado-${fileSuffix}.pdf`);
+  doc.save(`Comissao-Bordado-${fileSuffix}.pdf`);
 }
