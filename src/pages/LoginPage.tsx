@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, WifiOff } from 'lucide-react';
+import { Eye, EyeOff, WifiOff, Loader2 } from 'lucide-react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const LoginPage = () => {
@@ -129,8 +129,9 @@ const LoginPage = () => {
               </div>
             )}
 
-            <button type="submit" disabled={loading} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50">
-              {loading ? 'ENTRANDO...' : 'ENTRAR'}
+            <button type="submit" disabled={loading} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'CARREGANDO...' : 'ENTRAR'}
             </button>
           </form>
 

@@ -33,6 +33,7 @@ import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
+import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 import NotFound from "./pages/NotFound.tsx";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -68,6 +69,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <GlobalLoadingIndicator />
       <BrowserRouter>
         <AuthProvider>
           <SelectedOrdersProvider>
