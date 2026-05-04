@@ -69,6 +69,19 @@ const BordadoPortalPage = () => {
   // Justificativa para retroceder Baixa → Entrada
   const [pendingRetrocesso, setPendingRetrocesso] = useState<Order | null>(null);
 
+  // Nomes dos usuários com role 'bordado' (Neto, Débora) — usado para isolar
+  // quadro de Baixa e PDF do portal das baixas feitas por outros usuários (admin).
+  const [bordadoNames, setBordadoNames] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('list_bordado_usuarios' as any);
+      if (!error && Array.isArray(data)) {
+        setBordadoNames(new Set((data as string[]).map(s => (s || '').trim()).filter(Boolean)));
+      }
+    })();
+  }, []);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -220,7 +233,9 @@ const BordadoPortalPage = () => {
         return idx >= baixaIdx && o.status !== 'Cancelado';
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
-      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
+      // PDF do portal: só lista baixas feitas por usuários do setor bordado (Neto/Débora).
+      const filtroNomes = bordadoNames.size > 0 ? [...bordadoNames] : undefined;
+      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado', filtroNomes);
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
@@ -287,11 +302,19 @@ const BordadoPortalPage = () => {
   }, [orders, searchEntrada]);
 
   const baixa = useMemo(() => {
-    const list = orders.filter(o => o.status === 'Baixa Bordado 7Estrivos');
+    const list = orders.filter(o => {
+      if (o.status !== 'Baixa Bordado 7Estrivos') return false;
+      // Só mostrar se a última baixa foi feita por usuário do setor bordado
+      const hist = Array.isArray((o as any).historico) ? (o as any).historico : [];
+      const baixas = hist.filter((h: any) => h?.local === 'Baixa Bordado 7Estrivos');
+      const ultima = baixas[baixas.length - 1];
+      const autor = (ultima?.usuario || '').trim();
+      return bordadoNames.has(autor);
+    });
     if (!searchBaixa.trim()) return list;
     const q = searchBaixa.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));
-  }, [orders, searchBaixa]);
+  }, [orders, searchBaixa, bordadoNames]);
 
   if (authLoading) return <div className="min-h-screen bg-background" />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
