@@ -217,19 +217,21 @@ const BordadoPortalPage = () => {
     } finally { setPdfLoading(false); }
   };
 
-  const handleQuickBaixa = async (o: Order, e: React.MouseEvent) => {
+  const handleQuickStatus = async (o: Order, novoStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (quickBaixaIds.has(o.id)) return;
     setQuickBaixaIds(prev => new Set(prev).add(o.id));
-    const r = await aplicarStatus(o.id, 'Baixa Bordado 7Estrivos');
+    const r = await aplicarStatus(o.id, novoStatus);
     if (r.ok) {
-      toast.success(`Pedido ${o.numero} → Baixa Bordado`);
-      setOrders(prev => prev.map(p => p.id === o.id ? { ...p, status: 'Baixa Bordado 7Estrivos' } as Order : p));
+      toast.success(`Pedido ${o.numero} → ${novoStatus.replace(' 7Estrivos', '')}`);
+      setOrders(prev => prev.map(p => p.id === o.id ? { ...p, status: novoStatus } as Order : p));
     } else {
-      toast.error(r.msg || 'Falha ao dar baixa');
+      toast.error(r.msg || 'Falha ao mover pedido');
     }
     setQuickBaixaIds(prev => { const n = new Set(prev); n.delete(o.id); return n; });
   };
+  const handleQuickBaixa = (o: Order, e: React.MouseEvent) => handleQuickStatus(o, 'Baixa Bordado 7Estrivos', e);
+  const handleQuickEntrada = (o: Order, e: React.MouseEvent) => handleQuickStatus(o, 'Entrada Bordado 7Estrivos', e);
 
   const handleColumnSearch = async (
     raw: string,
