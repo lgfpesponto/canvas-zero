@@ -300,11 +300,19 @@ const BordadoPortalPage = () => {
   }, [orders, searchEntrada]);
 
   const baixa = useMemo(() => {
-    const list = orders.filter(o => o.status === 'Baixa Bordado 7Estrivos');
+    const list = orders.filter(o => {
+      if (o.status !== 'Baixa Bordado 7Estrivos') return false;
+      // Só mostrar se a última baixa foi feita por usuário do setor bordado
+      const hist = Array.isArray((o as any).historico) ? (o as any).historico : [];
+      const baixas = hist.filter((h: any) => h?.local === 'Baixa Bordado 7Estrivos');
+      const ultima = baixas[baixas.length - 1];
+      const autor = (ultima?.usuario || '').trim();
+      return bordadoNames.has(autor);
+    });
     if (!searchBaixa.trim()) return list;
     const q = searchBaixa.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));
-  }, [orders, searchBaixa]);
+  }, [orders, searchBaixa, bordadoNames]);
 
   if (authLoading) return <div className="min-h-screen bg-background" />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
