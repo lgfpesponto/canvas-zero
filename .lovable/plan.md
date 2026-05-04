@@ -1,81 +1,53 @@
-Diagnóstico
+## Objetivo
 
-Não: tirar o salvamento dos comprovantes no financeiro não deve resolver o problema principal do portal carregando infinitamente.
+Reduzir drasticamente o uso de Storage do Supabase (causa provável da instabilidade), parando de salvar **PDFs/fotos de comprovantes** no bucket `financeiro`. A IA continua lendo o arquivo no envio, extrai os dados (valor, data, pagador, documento, tipo) e salva **apenas os dados estruturados + hash** no banco. O arquivo em si é descartado após a leitura.
 
-Por quê:
-- O erro acontece já na rota `/login`, antes de o módulo financeiro entrar em cena.
-- As últimas requisições mostram falha em autenticação e API do Supabase, não em Storage:
-  - `POST /auth/v1/token?grant_type=refresh_token` → 504 `upstream request timeout`
-  - `GET /rest/v1/revendedor_saldo_visibilidade` → 503 `Could not query the database for the schema cache`
-- No console apareceu também erro de sessão concorrente:
-  - `Lock "lock:sb-...-auth-token" was released because another request stole it`
-- O volume atual de anexos é baixo, então não parece ser gargalo de storage:
-  - `revendedor_comprovantes`: 64 registros
-  - `financeiro_a_receber`: 64 registros
-  - `storage.objects` no bucket `financeiro`: 64 arquivos
+Tudo o que **não** é comprovante (pedidos, baixas, saldo, movimentos, histórico, alterações, fotos de pedidos, notas fiscais a pagar) **continua salvando normalmente** — nenhuma mudança de comportamento ali.
 
-Então a hipótese mais forte hoje é:
-1. sessão antiga/token inválido ou disputa de refresh no cliente, somado a
-2. instabilidade do Auth/PostgREST do Supabase.
+## Escopo da mudança
 
-O que eu proponho implementar
+Três fluxos hoje fazem upload no bucket `financeiro`:
 
-1. Blindar o bootstrap de autenticação
-- Ajustar `AuthContext` para evitar disputa entre `onAuthStateChange`, `getSession()` e refresh automático.
-- Tratar explicitamente refresh token inválido/expirado: limpar a sessão local e mandar para login, em vez de deixar a app “carregando”.
-- Garantir que nenhum wrapper global de `fetch` continue interferindo no auth.
+1. **`EnviarComprovanteDialog.tsx`** (revendedor envia comprovante de pagamento) — vai parar de subir o arquivo.
+2. **`FinanceiroAReceber.tsx`** (admin registra recebimento com comprovante) — vai parar de subir o arquivo.
+3. **`FinanceiroAPagar.tsx`** (admin anexa comprovante de pagamento de nota) — vai parar de subir o arquivo.
 
-2. Fazer fallback seguro quando o Supabase estiver instável
-- Se `getSession()` ou refresh falhar por timeout/lock, encerrar o loading inicial e mostrar a tela de login normalmente.
-- Exibir mensagem clara de indisponibilidade temporária, em vez de travar a interface.
-- Evitar loops de retry que roubam o lock da sessão.
+A nota fiscal (`nota_url`) em `financeiro_a_pagar` **continua sendo salva** no Storage, porque é documento fiscal que precisa ser auditável. Só os **comprovantes de pagamento** deixam de ser armazenados.
 
-3. Só depois disso, revisar o financeiro opcionalmente
-- Posso sim refatorar o fluxo dos comprovantes para “ler com IA e salvar só os dados”, sem manter o arquivo no Storage.
-- Mas isso seria uma melhoria de produto/privacidade, não a correção do travamento principal.
+## O que muda no comportamento
 
-Impacto da opção “não salvar comprovante”
+**Antes:** usuário envia arquivo → IA lê → arquivo vai pro Storage → linha no banco aponta pro arquivo via `comprovante_url` → admin pode reabrir e ver o PDF.
 
-Se você quiser mesmo essa mudança, eu adapto:
-- `EnviarComprovanteDialog.tsx`
-- `revendedorSaldo.ts`
-- `ComprovanteViewer.tsx`
-- telas de pendentes / histórico do financeiro
-- RPCs e triggers que hoje assumem `comprovante_url`
+**Depois:** usuário envia arquivo → IA lê → arquivo é descartado → linha no banco salva só os dados extraídos (valor, data, pagador, hash para deduplicação) → **botão "Ver comprovante" some** das telas (substituído por um indicador "Comprovante não armazenado — dados extraídos por IA").
 
-Comportamento novo:
-- IA extrai data, valor, destinatário e tipo
-- o sistema grava apenas os campos estruturados + hash do arquivo
-- não guarda PDF/imagem no bucket
-- a conferência do admin passa a ser sem anexo visual
+A coluna `comprovante_url` continua existindo no banco para os registros antigos (mantém histórico), mas novos registros entram com `comprovante_url = null`.
 
-Trade-off importante:
-- perde auditoria visual do comprovante
-- perde possibilidade de reabrir e conferir o arquivo depois
-- aumenta risco operacional se a IA extrair algo errado e não houver anexo para validar
+## Arquivos a alterar
 
-Detalhes técnicos
+```text
+src/components/financeiro/saldo/EnviarComprovanteDialog.tsx
+  └ remove uploadPdf(), envia insert com comprovante_url=null
+src/components/financeiro/FinanceiroAReceber.tsx
+  └ remove uploadPdf no fluxo de criar/editar/replace; UI esconde botão "Ver" quando url é null
+src/components/financeiro/FinanceiroAPagar.tsx
+  └ remove upload do comprovante de pagamento (mantém nota_url da NF)
+src/components/financeiro/saldo/ComprovantesPorRevendedor.tsx
+  └ esconde botão "Ver" quando comprovante_url é null
+src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx
+  └ esconde botão "Ver" quando comprovante_url é null
+```
 
-Arquivos envolvidos no conserto principal:
-- `src/contexts/AuthContext.tsx`
-- `src/integrations/supabase/client.ts`
-- `src/main.tsx`
-- `src/lib/globalLoading.ts`
-- possivelmente `src/pages/LoginPage.tsx`
+A IA de extração e a deduplicação por `comprovante_hash` continuam funcionando — o hash é calculado em memória antes do arquivo ser descartado.
 
-Arquivos envolvidos na mudança opcional do financeiro sem anexo:
-- `src/components/financeiro/saldo/EnviarComprovanteDialog.tsx`
-- `src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx`
-- `src/components/financeiro/ComprovanteViewer.tsx`
-- `src/pages/RevendedorSaldoPage.tsx`
-- `src/components/financeiro/FinanceiroAReceber.tsx`
-- `src/lib/revendedorSaldo.ts`
-- migrations para remover dependência funcional de `comprovante_url`
+## O que NÃO muda
 
-Ordem recomendada
+- Pedidos (`orders`), histórico, alterações, fotos de pedidos, conferência, baixas automáticas em saldo, movimentos de saldo, notificações, templates — tudo intacto.
+- Notas fiscais (`nota_url` em `financeiro_a_pagar`) continuam salvas.
+- Dados de comprovantes antigos já no Storage permanecem acessíveis (não vamos deletar nada retroativamente).
+- RLS, roles, deduplicação, fluxo de aprovação — todos preservados.
 
-1. Corrigir o travamento de autenticação
-2. Validar que login e carregamento voltaram
-3. Se você ainda quiser, refatorar o financeiro para não armazenar anexos
+## Aviso
 
-Se aprovar, eu sigo nessa ordem para atacar a causa real primeiro e só depois faço a simplificação dos comprovantes.
+O admin **perde a capacidade de reabrir o PDF/foto** dos novos comprovantes para auditoria visual. A confiança passa a ser nos dados extraídos pela IA + hash de deduplicação. Se quiser preservar auditoria visual, o caminho alternativo é manter o upload e investigar o problema do Supabase por outro lado.
+
+Confirmando que pode prosseguir, eu implemento as mudanças nos 5 arquivos acima.
