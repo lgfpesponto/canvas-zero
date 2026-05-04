@@ -594,6 +594,39 @@ const ExtrasPage = () => {
           </>
         )}
 
+        {productId === 'regata_pronta_entrega' && (
+          <>
+            {(() => {
+              const available = regataStockItems.filter(s => s.quantidade > 0);
+              const filtered = regataSearch
+                ? available.filter(s => `${s.cor_tecido} ${s.desenho_bordado}`.toLowerCase().includes(regataSearch.toLowerCase()))
+                : available;
+              if (available.length === 0) {
+                return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
+              }
+              return (
+                <div>
+                  <Label>Selecione a variação *</Label>
+                  <div className="relative mt-1 mb-2">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={regataSearch} onChange={e => setRegataSearch(e.target.value)} placeholder="Pesquisar regata..." className="pl-8 h-8 text-xs" />
+                  </div>
+                  <RadioGroup value={selectedRegataStockId} onValueChange={setSelectedRegataStockId} className="space-y-2">
+                    {filtered.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
+                        <RadioGroupItem value={item.id} id={`regata-${item.id}`} />
+                        <Label htmlFor={`regata-${item.id}`} className="flex-1 cursor-pointer font-normal">
+                          {item.cor_tecido} + {item.desenho_bordado} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              );
+            })()}
+          </>
+        )}
+
         {productId === 'adicionar_metais' && (
           <>
             <div className="space-y-2">
