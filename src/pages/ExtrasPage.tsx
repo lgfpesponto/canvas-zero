@@ -368,6 +368,34 @@ const ExtrasPage = () => {
     toast({ title: 'Estoque atualizado com sucesso!' });
   };
 
+  const handleSaveRegataStock = async () => {
+    const cap = (s: string) => s.trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const corTecido = cap(regataStockCorTecido);
+    const corBordado = cap(regataStockCorBordado);
+    const desenho = cap(regataStockDesenho);
+    const qty = parseInt(regataStockQtd) || 0;
+    if (!corTecido || !corBordado || !desenho || qty <= 0) {
+      toast({ title: 'Preencha todos os campos do estoque', variant: 'destructive' });
+      return;
+    }
+    const existing = regataStockItems.find(s =>
+      s.cor_tecido === corTecido && (s.cor_bordado || '') === corBordado && s.desenho_bordado === desenho
+    );
+    if (existing) {
+      const { error } = await (supabase as any).from('regata_stock').update({ quantidade: existing.quantidade + qty }).eq('id', existing.id);
+      if (error) { toast({ title: 'Erro ao atualizar estoque', description: error.message, variant: 'destructive' }); return; }
+    } else {
+      const { error } = await (supabase as any).from('regata_stock').insert({ cor_tecido: corTecido, cor_bordado: corBordado, desenho_bordado: desenho, quantidade: qty });
+      if (error) { toast({ title: 'Erro ao criar estoque', description: error.message, variant: 'destructive' }); return; }
+    }
+    setRegataStockCorTecido('');
+    setRegataStockCorBordado('');
+    setRegataStockDesenho('');
+    setRegataStockQtd('');
+    await fetchRegataStock();
+    toast({ title: 'Estoque atualizado com sucesso!' });
+  };
+
   const renderForm = (productId: string) => {
     const price = calcPrice(productId);
 
