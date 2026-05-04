@@ -24,7 +24,6 @@ import { recordPrintHistory } from '@/lib/printHistory';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
-import { PRODUCTION_STATUSES } from '@/contexts/AuthContext';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -41,7 +40,7 @@ function barcodeDataUrl(value: string, opts?: { width?: number; height?: number 
   } catch { return ''; }
 }
 
-type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'forma' | 'pesponto' | 'metais' | 'bordados' | 'corte' | 'expedicao' | 'cobranca' | 'extras_cintos';
+type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'forma' | 'pesponto' | 'metais' | 'bordados' | 'corte' | 'expedicao' | 'cobranca' | 'extras_cintos' | 'comissao_bordado';
 
 interface SpecializedReportsProps {
   reports: ReportType[];
@@ -60,6 +59,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   expedicao: 'Expedição',
   cobranca: 'Cobrança',
   extras_cintos: 'Extras / Cintos',
+  comissao_bordado: 'Comissão Bordado',
 };
 
 const PESPONTO_STATUSES = ['Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton', 'Pespontando'];
