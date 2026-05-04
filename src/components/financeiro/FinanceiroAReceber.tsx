@@ -442,10 +442,8 @@ const FinanceiroAReceber = () => {
 
     setEditSaving(true);
     try {
-      let comprovante_url = e.row.comprovante_url;
       let comprovante_hash: string | null | undefined = undefined;
       if (e.newFile) {
-        comprovante_url = await replaceUploadedFile(e.row.comprovante_url, e.newFile, 'a-receber');
         comprovante_hash = await fileHash(e.newFile);
       }
 
@@ -458,7 +456,8 @@ const FinanceiroAReceber = () => {
         descricao: e.descricao.trim() || null,
       };
       if (e.newFile) {
-        patch.comprovante_url = comprovante_url;
+        // Novo anexo apenas re-extrai dados; o arquivo não é armazenado
+        patch.comprovante_url = null;
         patch.comprovante_hash = comprovante_hash;
       }
       const { error } = await supabase.from('financeiro_a_receber').update(patch).eq('id', e.row.id);
