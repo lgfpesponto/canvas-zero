@@ -57,6 +57,26 @@ const FinanceiroSaldoRevendedor = () => {
       setComprovantes(c);
       setMovimentos(m);
       setVendedoresLista(vs);
+
+      // Carrega pendências (pedidos cobrados sem baixa) por vendedor
+      const vendedoresUnicos = [...new Set(s.map(x => x.vendedor).filter(Boolean))];
+      const results = await Promise.all(vendedoresUnicos.map(async (v) => {
+        try {
+          const [pedidos, baixas] = await Promise.all([
+            fetchPedidosCobrados(v),
+            fetchBaixasVendedor(v),
+          ]);
+          const baixasSet = new Set(baixas.map(b => b.order_id));
+          const pend = pedidos.filter(p => !baixasSet.has(p.id));
+          const valor = pend.reduce((sum, p) => sum + (p.preco || 0) * (p.quantidade || 1), 0);
+          return [v, { qtd: pend.length, valor }] as const;
+        } catch {
+          return [v, { qtd: 0, valor: 0 }] as const;
+        }
+      }));
+      const map: Record<string, { qtd: number; valor: number }> = {};
+      results.forEach(([v, val]) => { map[v] = val; });
+      setPendencias(map);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
