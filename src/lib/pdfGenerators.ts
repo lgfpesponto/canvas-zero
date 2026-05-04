@@ -653,8 +653,11 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 }
 
 /* ─────────── Resumo Baixa Bordado 7Estrivos ─────────── */
-export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
+export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
+  const { registerMontserrat } = await import('./pdfFonts');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  await registerMontserrat(doc);
+  const FONT = 'Montserrat';
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
@@ -709,7 +712,6 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
     }
   }
 
-  // Agrupa por data de baixa
   const grupos = new Map<string, Linha[]>();
   for (const l of linhas) {
     if (!grupos.has(l.dataBaixa)) grupos.set(l.dataBaixa, []);
@@ -717,22 +719,20 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
   }
   const datasOrdenadas = [...grupos.keys()].sort();
 
-  // Totais
   const totBotas = linhas.filter(l => l.tipo === 'Bota');
   const totCintos = linhas.filter(l => l.tipo === 'Cinto');
   const valBotas = totBotas.reduce((s, l) => s + l.comissao, 0);
   const valCintos = totCintos.reduce((s, l) => s + l.comissao, 0);
   const valTotal = valBotas + valCintos;
 
-  // Header
   const drawHeader = () => {
     doc.setFillColor(245, 158, 11);
     doc.rect(0, 0, pageW, 18, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(13);
     doc.text('Resumo Comissão Bordado 7Estrivos', margin, 11);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(9);
     doc.text(periodoLabel, pageW - margin, 11, { align: 'right' });
     doc.setTextColor(0, 0, 0);
@@ -740,7 +740,7 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
   drawHeader();
 
   let y = 24;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(9);
   doc.text(`Total geral: ${linhas.length} ${linhas.length === 1 ? 'item' : 'itens'} • ${fmtBRL(valTotal)}`, margin, y);
   doc.text(`Gerado por: ${userName}`, pageW - margin, y, { align: 'right' });
@@ -755,18 +755,20 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
     return;
   }
 
-  // Layout colunas
+  // Layout colunas — barras embaixo do número
   const colQtd = margin + 2;
-  const colNum = margin + 14;
+  const colNum = margin + 12;
   const colTipo = margin + 78;
-  const colCom = margin + 105;
+  const colCom = margin + 100;
   const colEntrada = pageW - margin - 2;
-  const rowH = 9;
+  const barcodeW = 55;
+  const barcodeH = 9;
+  const rowH = 18; // espaço para número + barras
 
   const drawTableHeader = () => {
     doc.setFillColor(235, 235, 235);
     doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(8.5);
     doc.text('Qtd', colQtd, y + 5);
     doc.text('Nº Pedido / Código', colNum, y + 5);
@@ -774,7 +776,7 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
     doc.text('Comissão', colCom, y + 5);
     doc.text('Entrada bordado', colEntrada, y + 5, { align: 'right' });
     y += 8;
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
   };
 
   const ensureSpace = (need: number) => {
@@ -789,10 +791,9 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
   for (const data of datasOrdenadas) {
     const itens = grupos.get(data)!;
     ensureSpace(14);
-    // Cabeçalho do dia
-    doc.setFillColor(254, 243, 199); // amber-100
+    doc.setFillColor(254, 243, 199);
     doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(9.5);
     doc.setTextColor(120, 53, 15);
     doc.text(`Baixa: ${formatDateBR(data)} (${diaSemana(data)})`, margin + 2, y + 5);
@@ -804,62 +805,61 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dat
     let valDia = 0;
     for (const l of itens) {
       ensureSpace(rowH + 2);
-      doc.setFont('helvetica', 'normal');
+      const midY = y + rowH / 2 + 1;
+      doc.setFont(FONT, 'normal');
       doc.setFontSize(9);
-      doc.text('1', colQtd, y + 4);
-      // Número (negrito) + barcode (cinza menor) abaixo
-      doc.setFont('helvetica', 'bold');
+      doc.text('1', colQtd, midY);
+      // Número (negrito) + barras CODE128 abaixo
+      doc.setFont(FONT, 'bold');
       doc.setFontSize(10);
       doc.text(l.numero, colNum, y + 4);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(120, 120, 120);
-      doc.text(l.barcode, colNum, y + 8);
-      doc.setTextColor(0, 0, 0);
+      const bcVal = l.numero || l.barcode;
+      try {
+        const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
+        doc.addImage(bcUrl, 'PNG', colNum, y + 5.5, barcodeW, barcodeH);
+      } catch { /* skip */ }
+      doc.setFont(FONT, 'normal');
       doc.setFontSize(9);
-      doc.text(l.tipo, colTipo, y + 4);
-      doc.text(fmtBRL(l.comissao), colCom, y + 4);
-      doc.text(l.dataEntrada ? formatDateBR(l.dataEntrada) : '—', colEntrada, y + 4, { align: 'right' });
+      doc.text(l.tipo, colTipo, midY);
+      doc.text(fmtBRL(l.comissao), colCom, midY);
+      doc.text(l.dataEntrada ? formatDateBR(l.dataEntrada) : '—', colEntrada, midY, { align: 'right' });
       y += rowH;
       doc.setDrawColor(230, 230, 230);
       doc.line(margin, y, pageW - margin, y);
       qtdDia++;
       valDia += l.comissao;
     }
-    // Subtotal do dia
     ensureSpace(8);
     doc.setFillColor(248, 248, 248);
     doc.rect(margin, y, pageW - 2 * margin, 6, 'F');
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(8.5);
     doc.text(`Subtotal ${formatDateBR(data)}: ${qtdDia} ${qtdDia === 1 ? 'item' : 'itens'} • ${fmtBRL(valDia)}`, pageW - margin - 2, y + 4, { align: 'right' });
     y += 10;
   }
 
-  // Totais finais
   ensureSpace(40);
   y += 2;
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.4);
   doc.line(margin, y, pageW - margin, y);
   y += 6;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(FONT, 'bold');
   doc.setFontSize(11);
   doc.text('Totais', margin, y);
   y += 6;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(9.5);
   doc.text(`Botas: ${totBotas.length} ${totBotas.length === 1 ? 'par' : 'pares'} • ${fmtBRL(valBotas)}`, margin, y);
   y += 5.5;
   doc.text(`Cintos: ${totCintos.length} ${totCintos.length === 1 ? 'unidade' : 'unidades'} • ${fmtBRL(valCintos)}`, margin, y);
   y += 6;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(FONT, 'bold');
   doc.setFontSize(11);
   doc.text(`TOTAL GERAL: ${linhas.length} ${linhas.length === 1 ? 'item' : 'itens'} • ${fmtBRL(valTotal)}`, margin, y);
   y += 8;
 
-  // Datas de baixa cobertas
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(90, 90, 90);
   const datasFmt = datasOrdenadas.map(d => `${formatDateBR(d)} (${diaSemana(d)})`).join(' • ');
