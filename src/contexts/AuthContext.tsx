@@ -489,7 +489,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { numeroPedido, ...rest } = orderData;
       const dataHoje = formatBrasiliaDate();
       const horaAgora = formatBrasiliaTime();
-      const totalBizDays = rest.tipoExtra === 'cinto' ? 5 : rest.tipoExtra ? 1 : 15;
+      // Lead time inicial — espelha getTotalBizDays() de @/lib/orderDeadline.
+      // Inline aqui para evitar ciclo de import (orderDeadline importa deste arquivo).
+      const EXTRA_LEAD_TIMES_INIT: Record<string, number> = {
+        tiras_laterais: 2, desmanchar: 7, gravata_country: 7, kit_canivete: 4, kit_faca: 4,
+        carimbo_fogo: 5, revitalizador: 1, kit_revitalizador: 1, adicionar_metais: 7,
+        chaveiro_carimbo: 5, bainha_cartao: 7, regata: 20, regata_pronta_entrega: 1,
+        bota_pronta_entrega: 1, gravata_pronta_entrega: 1,
+      };
+      let totalBizDays: number;
+      if (!rest.tipoExtra || rest.tipoExtra === 'cinto') {
+        totalBizDays = 20;
+      } else if (rest.tipoExtra === 'bota_pronta_entrega') {
+        const det: any = rest.extraDetalhes || {};
+        const botas: any[] = Array.isArray(det.botas) ? det.botas : [];
+        let maxExtra = 0;
+        for (const b of botas) {
+          const extras: any[] = Array.isArray(b?.extras) ? b.extras : [];
+          for (const ex of extras) {
+            const lt = EXTRA_LEAD_TIMES_INIT[ex?.tipo || ''] ?? 1;
+            if (lt > maxExtra) maxExtra = lt;
+          }
+        }
+        totalBizDays = 1 + maxExtra;
+      } else {
+        totalBizDays = EXTRA_LEAD_TIMES_INIT[rest.tipoExtra] ?? 1;
+      }
 
       const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
       const numero = numeroPedido || `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;

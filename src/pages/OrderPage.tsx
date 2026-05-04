@@ -1569,7 +1569,7 @@ const OrderPage = () => {
 
               {/* Prazo */}
               <div className="bg-muted rounded-lg p-3">
-                <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 15 dias úteis</p>
+                <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 20 dias úteis</p>
               </div>
 
               {/* Valor Total */}
