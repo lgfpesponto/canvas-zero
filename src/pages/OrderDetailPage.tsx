@@ -1376,6 +1376,13 @@ const OrderDetailPage = () => {
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={() => setFotoOpen(false)} />
         )}
       </div>
+      <BulkBlockedDialog
+        open={bulkBlocked.open}
+        destino={bulkBlocked.destino}
+        blocked={bulkBlocked.blocked}
+        movedCount={bulkBlocked.movedCount}
+        onClose={() => setBulkBlocked(s => ({ ...s, open: false }))}
+      />
     </div>
   );
 };
