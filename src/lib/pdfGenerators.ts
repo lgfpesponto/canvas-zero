@@ -772,8 +772,9 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
     doc.setFontSize(11);
     doc.text('Nenhuma baixa elegível no período (apenas seg–sex contam comissão).', margin, y + 8);
     stampPageNumbers(doc);
-    const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
-    doc.save(`Comissao-Bordado-${fileSuffix}.pdf`);
+    const baseSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
+    const userSuffix = filtroUsuariosSet ? `_${[...filtroUsuariosSet].join('-').replace(/\s+/g, '-')}` : '';
+    doc.save(`Comissao-Bordado-${baseSuffix}${userSuffix}.pdf`);
     return;
   }
 
