@@ -650,7 +650,7 @@ const ExtrasPage = () => {
                       <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
                         <RadioGroupItem value={item.id} id={`regata-${item.id}`} />
                         <Label htmlFor={`regata-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                          {item.cor_tecido} + {item.desenho_bordado} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          {[item.cor_tecido, item.cor_bordado, item.desenho_bordado].filter(Boolean).join(' + ')} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
                         </Label>
                       </div>
                     ))}
