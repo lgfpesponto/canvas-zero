@@ -58,11 +58,36 @@ export const ALWAYS_AVAILABLE = ['Aguardando', 'Cancelado'];
 /** Status a partir dos quais qualquer destino é permitido (sem checagem de fluxo). */
 const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
 
+/**
+ * Fluxo dos extras (qualquer `tipoExtra` diferente de 'cinto').
+ * - Em aberto / Produzindo / Expedição = trio livre (qualquer ordem entre eles).
+ * - A partir de Expedição → Entregue → Conferido → Cobrado → Pago em sequência estrita.
+ */
+const EXTRAS_FLOW: Record<string, string[]> = {
+  'Em aberto': ['Produzindo', 'Expedição'],
+  'Produzindo': ['Em aberto', 'Expedição'],
+  'Expedição': ['Entregue'],
+  'Entregue': ['Conferido'],
+  'Conferido': ['Cobrado'],
+  'Cobrado': ['Pago'],
+  'Pago': [],
+};
+
 export interface TransitionContext {
   /** Vendedor do pedido — usado para Baixa Estoque/Site. */
   vendedor?: string;
   /** Role do usuário que está tentando — usado para futuras restrições. */
   role?: string;
+  /** Tipo de produto extra (`'cinto'`, `'bota_pronta_entrega'`, etc.). Vazio/undefined = bota normal. */
+  tipoExtra?: string | null;
+}
+
+function isPureExtra(ctx?: TransitionContext): boolean {
+  return !!ctx?.tipoExtra && ctx.tipoExtra !== 'cinto';
+}
+
+function pickFlow(ctx?: TransitionContext): Record<string, string[]> {
+  return isPureExtra(ctx) ? EXTRAS_FLOW : FLOW;
 }
 
 function applyContextFilter(targets: string[], ctx?: TransitionContext): string[] {
@@ -77,9 +102,10 @@ function applyContextFilter(targets: string[], ctx?: TransitionContext): string[
 /** Lista todos os destinos válidos a partir de `current`. Inclui Aguardando/Cancelado. */
 export function getAllowedNextStatuses(current: string | null | undefined, ctx?: TransitionContext): string[] {
   if (!current) return [];
+  const flow = pickFlow(ctx);
   const base = FREE_FROM.has(current)
-    ? Object.keys(FLOW) // qualquer etapa
-    : (FLOW[current] || []);
+    ? Object.keys(flow) // qualquer etapa do fluxo aplicável
+    : (flow[current] || []);
   const merged = Array.from(new Set([...base, ...ALWAYS_AVAILABLE]));
   return applyContextFilter(merged, ctx);
 }
@@ -97,12 +123,13 @@ export function isTransitionAllowed(
     return applyContextFilter([next], ctx).length > 0
       || ALWAYS_AVAILABLE.includes(next); // sempre disponível
   }
+  const flow = pickFlow(ctx);
   if (FREE_FROM.has(current)) {
-    // pode voltar para qualquer etapa válida
+    // pode voltar para qualquer etapa válida do fluxo aplicável
     return applyContextFilter([next], ctx).length > 0
-      && (Object.prototype.hasOwnProperty.call(FLOW, next) || ALWAYS_AVAILABLE.includes(next));
+      && (Object.prototype.hasOwnProperty.call(flow, next) || ALWAYS_AVAILABLE.includes(next));
   }
-  const allowed = applyContextFilter(FLOW[current] || [], ctx);
+  const allowed = applyContextFilter(flow[current] || [], ctx);
   return allowed.includes(next);
 }
 
