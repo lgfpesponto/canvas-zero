@@ -1213,7 +1213,9 @@ const ReportsPage = () => {
           <div className="mb-6">
             <SpecializedReports
               reports={isAdmin
-                ? ['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']
+                ? (user?.role === 'admin_master'
+                    ? ['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos', 'comissao_bordado']
+                    : ['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos'])
                 : ['expedicao', 'cobranca']
               }
               showTitle={true}
