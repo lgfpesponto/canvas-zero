@@ -313,9 +313,9 @@ const FinanceiroAReceber = () => {
     for (const it of toSave) {
       updateItem(it.id, { status: 'saving' });
       try {
-        const path = await uploadPdf(it.file, 'a-receber');
         const valorNum = parseFloat(it.valor.replace(',', '.'));
         const destinatario = it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim();
+        // Não armazenamos mais o arquivo no Storage — só os dados extraídos + hash
         const { error } = await supabase.from('financeiro_a_receber').insert({
           vendedor: fVendedor,
           data_pagamento: it.data_pagamento,
@@ -323,7 +323,7 @@ const FinanceiroAReceber = () => {
           destinatario,
           tipo: it.tipo,
           descricao: it.descricao.trim() || null,
-          comprovante_url: path,
+          comprovante_url: null,
           comprovante_hash: it.hash,
           created_by: user?.id,
         });
