@@ -1,11 +1,34 @@
-## Ajustes no PDF "Resumo Baixa Bordado"
+## Foto aberta por padrão na visão de pedido detalhado (todos os portais)
 
-**Arquivo:** `src/lib/pdfGenerators.ts` (função `generateBordadoBaixaResumoPDF`, ~linha 802-818)
+Aplicar a mesma mudança em **todas as telas de visualização detalhada** que possuem o botão de foto.
 
-### 1. Coluna Qtd → numeração sequencial
-Trocar o `'1'` fixo por contador `seq` que incrementa por linha dentro de cada grupo de data (1, 2, 3...).
+### Arquivos afetados
 
-### 2. Qualidade do código de barras
-Aumentar resolução do canvas usado para gerar o CODE128: de `width: 2, height: 40` para `width: 3, height: 80`. O tamanho impresso no PDF (`barcodeW × barcodeH`) continua igual, mas com mais pixels-por-barra a leitura por scanner fica nítida.
+1. `src/pages/OrderDetailPage.tsx` (admin / vendedores)
+2. `src/components/BordadoOrderView.tsx` (portal bordado)
 
-Sem outras mudanças.
+> Telas de criação/edição (`OrderPage.tsx`, `BeltOrderPage.tsx`, `EditOrderPage.tsx`, etc.) não fazem parte — o pedido é "visão detalhada" só nas duas acima.
+
+### Mudanças (idênticas em cada arquivo)
+
+**A. Estado inicial** — começa aberto:
+```tsx
+const [fotoOpen, setFotoOpen] = useState(true);
+```
+O `showFotoPanel` continua exigindo `fotoUrlAtual`, então pedidos sem foto não mostram nada.
+
+**B. Botão vira toggle** com texto dinâmico:
+```tsx
+<button
+  type="button"
+  onClick={() => setFotoOpen(o => !o)}
+  className="..."
+>
+  <ImageIcon className="h-4 w-4" />
+  {fotoOpen
+    ? 'Recolher foto'
+    : (fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto')}
+</button>
+```
+
+No `BordadoOrderView.tsx` há **dois botões** (linhas 242 e 302) que abrem a foto — ambos viram toggles com o mesmo padrão. O `onClose` do `FotoPedidoSidePanel` continua chamando `setFotoOpen(false)` para fechar pelo X.

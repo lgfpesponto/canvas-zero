@@ -31,7 +31,7 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [fotoOpen, setFotoOpen] = useState(false);
+  const [fotoOpen, setFotoOpen] = useState(true);
   const [bulkStatus, setBulkStatus] = useState<'' | BordadoStatus>('');
   const [justifyOpen, setJustifyOpen] = useState(false);
   const [bulkJustifyOpen, setBulkJustifyOpen] = useState(false);
@@ -239,9 +239,9 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Foto</span>
                     {temFoto ? (
-                      <button type="button" onClick={() => setFotoOpen(true)} className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-semibold">
+                      <button type="button" onClick={() => setFotoOpen(o => !o)} className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-semibold">
                         <ImageIcon className="h-4 w-4" />
-                        {fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto'}
+                        {fotoOpen ? 'Recolher foto' : (fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto')}
                       </button>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
@@ -299,8 +299,8 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
                       {!temFoto ? (
                         <p className="text-muted-foreground italic text-[11px]">Sem foto</p>
                       ) : (
-                        <button type="button" onClick={() => setFotoOpen(true)} className="text-primary hover:underline font-semibold">
-                          ver foto ↗
+                        <button type="button" onClick={() => setFotoOpen(o => !o)} className="text-primary hover:underline font-semibold">
+                          {fotoOpen ? 'recolher foto' : 'ver foto ↗'}
                         </button>
                       )}
                     </div>
