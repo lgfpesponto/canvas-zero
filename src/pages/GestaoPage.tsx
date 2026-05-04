@@ -56,7 +56,7 @@ function durationSince(iso: string): string {
   return `${h}h ${m}min`;
 }
 
-export default function GestaoPage() {
+function GestaoPage() {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
   const presence = usePresenceState();
@@ -254,4 +254,5 @@ export default function GestaoPage() {
   );
 }
 
-export { default as GestaoInner } from "./GestaoPage";
+export { GestaoPage as GestaoInner };
+export default GestaoPage;
