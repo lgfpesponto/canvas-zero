@@ -5,13 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
-import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
-
-const PAGE_SIZE = 20;
 
 function formatDataCriacao(s?: string): string {
   if (!s) return '';
@@ -67,13 +65,9 @@ const BordadoPortalPage = () => {
   // Per-column search
   const [searchEntrada, setSearchEntrada] = useState('');
   const [searchBaixa, setSearchBaixa] = useState('');
-  const [pageEntrada, setPageEntrada] = useState(1);
-  const [pageBaixa, setPageBaixa] = useState(1);
 
   // Justificativa para retroceder Baixa → Entrada
   const [pendingRetrocesso, setPendingRetrocesso] = useState<Order | null>(null);
-  useEffect(() => { setPageEntrada(1); }, [searchEntrada]);
-  useEffect(() => { setPageBaixa(1); }, [searchBaixa]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -229,7 +223,7 @@ const BordadoPortalPage = () => {
         return idx >= baixaIdx && o.status !== 'Cancelado';
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
-      generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
+      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
@@ -412,8 +406,6 @@ const BordadoPortalPage = () => {
               showQuickBaixa
               onQuickBaixa={handleQuickBaixa}
               quickBaixaIds={quickBaixaIds}
-              page={pageEntrada}
-              onPageChange={setPageEntrada}
             />
             <BordadoColumn
               title="Baixa Bordado 7Estrivos"
@@ -427,8 +419,6 @@ const BordadoPortalPage = () => {
               showQuickEntrada
               onQuickEntrada={handleQuickEntrada}
               quickBaixaIds={quickBaixaIds}
-              page={pageBaixa}
-              onPageChange={setPageBaixa}
             />
           </div>
         )}
