@@ -2,11 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity } from 'lucide-react';
+import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UsersManagementInner } from './UsersManagementPage';
+import { GestaoInner } from './GestaoPage';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -69,6 +71,16 @@ export default function AdminConfigPage() {
             <TabsTrigger value="relatorios" className="gap-1.5 lowercase">
               <BarChart3 className="h-4 w-4" /> relatórios
             </TabsTrigger>
+            {user.role === 'admin_master' && (
+              <>
+                <TabsTrigger value="usuarios" className="gap-1.5 lowercase">
+                  <Users className="h-4 w-4" /> usuários
+                </TabsTrigger>
+                <TabsTrigger value="gestao" className="gap-1.5 lowercase">
+                  <Activity className="h-4 w-4" /> gestão
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* ─── Fichas de Produção ─── */}
@@ -142,6 +154,17 @@ export default function AdminConfigPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {user.role === 'admin_master' && (
+            <>
+              <TabsContent value="usuarios">
+                <UsersManagementInner />
+              </TabsContent>
+              <TabsContent value="gestao">
+                <GestaoInner />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </motion.div>
 

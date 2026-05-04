@@ -36,8 +36,9 @@ const Header = () => {
         { label: 'FAÇA SEU PEDIDO', path: '/pedido' },
         { label: 'EXTRAS', path: '/extras' },
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
-        ...(isAdmin ? [{ label: 'USUÁRIOS', path: '/usuarios' }, { label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
-        ...(isJuliana ? [{ label: 'FINANCEIRO', path: '/financeiro' }, { label: 'GESTÃO', path: '/admin/gestao' }] : []),
+        ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
+        ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
+        ...(isJuliana ? [{ label: 'FINANCEIRO', path: '/financeiro' }] : []),
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'MEU SALDO', path: '/financeiro/saldo' }] : []),
         { label: 'MEU PERFIL', path: '/perfil' },
       ]

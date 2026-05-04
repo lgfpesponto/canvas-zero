@@ -1,27 +1,36 @@
-## Mudanças
+## Objetivo
 
-### 1. Subtítulo dos cards de extras = prazo de entrega
+Para o **admin_master**, mover "Usuários" e "Gestão" para dentro de **Configurações** (`/admin/configuracoes`) como abas, junto com "ficha de produção", "extras", "progresso de produção" e "relatórios". Remover esses dois itens do header (somente para admin_master).
 
-No grid de cards em `src/pages/ExtrasPage.tsx` (linha 877), trocar o texto repetitivo `{product.descricao}` por uma label de prazo derivada de `EXTRA_LEAD_TIMES` em `src/lib/orderDeadline.ts`.
+## Alterações
 
-- Adicionar helper exportado `getExtraLeadTime(productId)` (já existe) e usar em `ExtrasPage.tsx`.
-- Formato exibido:
-  - `1` dia útil → `"Pronta entrega (1 dia útil)"`
-  - `n` dias → `"Prazo: n dias úteis"`
-- Para `bota_pronta_entrega`, mostrar `"Pronta entrega (1 dia útil)"` mesmo quando recebe extras embutidos (texto do card é estático).
-- Mantém o `precoLabel` na linha de baixo intacto.
+### 1. `src/pages/AdminConfigPage.tsx`
+- Adicionar 2 novas abas no `<TabsList>`, **visíveis apenas para `role === 'admin_master'`**:
+  - `usuarios` (ícone `Users`)
+  - `gestao` (ícone `Activity` — já importado)
+- Adicionar `<TabsContent value="usuarios">` que renderiza `<UsersManagementInner />` e `<TabsContent value="gestao">` que renderiza `<GestaoInner />`.
+- Manter as abas existentes (fichas, extras, progresso, relatórios) inalteradas.
 
-### 2. Variações da Regata Pronta Entrega em lista (estilo Gravata)
+### 2. Refatorar páginas em componentes embutidos
+- `src/pages/UsersManagementPage.tsx`: extrair o conteúdo (toda a UI a partir do `return`) para um componente exportado `UsersManagementInner` no mesmo arquivo. A página continua existindo (renderiza o inner com o mesmo guard de auth) para retrocompatibilidade da rota `/usuarios`.
+- `src/pages/GestaoPage.tsx`: idem — exportar `GestaoInner`. Página `/admin/gestao` continua funcionando.
+- Remover do inner os wrappers `min-h-screen px-... py-...` redundantes (o AdminConfigPage já provê padding) e o título principal duplicado, mantendo apenas o conteúdo funcional.
 
-Em `src/pages/ExtrasPage.tsx`, dentro do diálogo "Organizar Estoque — Regata Pronta Entrega" (linhas 1075-1089), trocar os três `<Input list>` (datalist) por `<select>` nativos no mesmo estilo visual da Gravata (linhas 981-984), populados pelas variações já salvas (`distinct('cor_tecido' | 'cor_bordado' | 'desenho_bordado')`) acrescidas de uma opção final `"+ Adicionar nova"`.
+### 3. `src/components/Header.tsx`
+- Quando `role === 'admin_master'`, **remover** os links "USUÁRIOS" e "GESTÃO" do menu (eles passam a viver dentro de "CONFIGURAÇÕES").
+- Para `admin_producao`, manter "USUÁRIOS" como hoje (ele não tem acesso a Gestão e continua sem ver a aba dentro de Configurações).
+- "CONFIGURAÇÕES" continua aparecendo para ambos admins.
 
-Comportamento por campo:
-- Selecionar valor existente → preenche o state.
-- Selecionar `"+ Adicionar nova"` → o `<select>` é substituído por um `<Input>` com botão "voltar" (X) ao lado, para digitar o novo valor.
-- Após "Salvar" do estoque, o novo valor passa a aparecer automaticamente na lista das próximas aberturas (via `distinct` do `regataStockItems`).
+### 4. Rotas
+- Manter `/usuarios` e `/admin/gestao` no `App.tsx` (sem mudança) — apenas deixam de estar no menu do admin_master, mas continuam acessíveis via deep link e via as novas abas (que internamente apenas renderizam o conteúdo, sem navegar).
 
-Sem alterações em banco, RPC, preço (R$ 50) ou prazo (1 du).
+## Notas técnicas
+- `AdminConfigPage` já tem guard que permite `admin_master` e `admin_producao`. As novas abas serão renderizadas condicionalmente: `{user.role === 'admin_master' && <TabsTrigger value="usuarios">…}`.
+- `TabsList` usa `overflow-x-auto`, então 6 abas cabem bem.
+- Não há mudanças de banco, RLS, RPC ou edge functions.
 
-### Arquivos
-- `src/pages/ExtrasPage.tsx` — subtítulo do card + redesign dos 3 selects do diálogo Regata.
-- (sem migrations, sem novas dependências)
+## Arquivos alterados
+- `src/pages/AdminConfigPage.tsx`
+- `src/pages/UsersManagementPage.tsx` (export adicional `UsersManagementInner`)
+- `src/pages/GestaoPage.tsx` (export adicional `GestaoInner`)
+- `src/components/Header.tsx`
