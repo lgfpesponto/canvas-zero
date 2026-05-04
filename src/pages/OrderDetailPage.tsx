@@ -8,6 +8,8 @@ import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
+import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
+
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
 import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
@@ -66,6 +68,7 @@ const OrderDetailPage = () => {
   const [scanning, setScanning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkCancelReason, setBulkCancelReason] = useState('');
+  const [bulkBlocked, setBulkBlocked] = useState<{ open: boolean; destino: string; blocked: BlockedItem[]; movedCount: number }>({ open: false, destino: '', blocked: [], movedCount: 0 });
   const [fotoOpen, setFotoOpen] = useState(false);
   const [expProducao, setExpProducao] = useState(false);
   const [expAlteracoes, setExpAlteracoes] = useState(false);
@@ -567,18 +570,25 @@ const OrderDetailPage = () => {
                   }
                   const ids = Array.from(selectedIds);
                   const observacao = bulkStatus === 'Cancelado' ? bulkCancelReason.trim() : undefined;
+                  // Pré-busca numero+status de cada pedido para o relatório de bloqueados
+                  const { data: rows } = await supabase.from('orders').select('id, numero, status').in('id', ids);
+                  const meta = new Map<string, { numero: string; status: string }>();
+                  (rows || []).forEach(r => meta.set(r.id, { numero: r.numero, status: r.status }));
                   let updated = 0;
-                  let blocked = 0;
+                  const blockedItems: BlockedItem[] = [];
                   for (const oid of ids) {
                     try {
                       await updateOrderStatus(oid, bulkStatus, observacao);
                       updated++;
                     } catch {
-                      blocked++;
+                      const m = meta.get(oid);
+                      if (m) blockedItems.push({ numero: m.numero, statusAtual: m.status });
                     }
                   }
                   if (updated > 0) toast.success(`${updated} pedido${updated > 1 ? 's' : ''} atualizado${updated > 1 ? 's' : ''} para "${bulkStatus}"`);
-                  if (blocked > 0) toast.error(`${blocked} pedido(s) bloqueado(s) por ordem de produção.`);
+                  if (blockedItems.length > 0) {
+                    setBulkBlocked({ open: true, destino: bulkStatus, blocked: blockedItems, movedCount: updated });
+                  }
                   clear();
                   setBulkStatus('');
                   setBulkCancelReason('');
@@ -1366,6 +1376,13 @@ const OrderDetailPage = () => {
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={() => setFotoOpen(false)} />
         )}
       </div>
+      <BulkBlockedDialog
+        open={bulkBlocked.open}
+        destino={bulkBlocked.destino}
+        blocked={bulkBlocked.blocked}
+        movedCount={bulkBlocked.movedCount}
+        onClose={() => setBulkBlocked(s => ({ ...s, open: false }))}
+      />
     </div>
   );
 };

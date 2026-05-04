@@ -15,6 +15,7 @@ import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { isTransitionAllowed } from '@/lib/statusTransitions';
+import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 import { LoadingValue } from '@/components/ui/LoadingValue';
 import { getOrderDeadlineInfo, FINAL_STAGES, isAlertOrder } from '@/lib/orderDeadline';
 import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
@@ -127,6 +128,7 @@ const ReportsPage = () => {
   const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string; kind: JustificationKind }[]>([]);
   const [normalIds, setNormalIds] = useState<string[]>([]);
   const [regressionReason, setRegressionReason] = useState('');
+  const [blockedDialog, setBlockedDialog] = useState<{ open: boolean; destino: string; blocked: BlockedItem[]; movedCount: number }>({ open: false, destino: '', blocked: [], movedCount: 0 });
 
   // Barcode scanner
   const [showScanner, setShowScanner] = useState(false);
@@ -464,15 +466,16 @@ const ReportsPage = () => {
 
     // Aplica imediatamente os pedidos sem trava (não esperam o modal de justificativa)
     const baseObs = progressObservacao.trim();
-    let blockedCount = 0;
+    const blockedItems: BlockedItem[] = [];
     if (normals.length > 0) {
       const appliedIds: string[] = [];
       for (const id of normals) {
+        const ord = mergedOrdersMap.get(id);
         try {
           await updateOrderStatus(id, selectedProgress, baseObs || undefined);
           appliedIds.push(id);
         } catch {
-          blockedCount++;
+          if (ord) blockedItems.push({ numero: ord.numero, statusAtual: ord.status });
         }
       }
       // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
@@ -481,13 +484,17 @@ const ReportsPage = () => {
         appliedIds.forEach(id => next.delete(id));
         return next;
       });
-      if (blockedCount > 0) {
-        toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
-      }
       if (regressions.length === 0) {
-        if (appliedIds.length > 0) toast.success(`${appliedIds.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+        if (blockedItems.length > 0) {
+          setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: appliedIds.length });
+        } else if (appliedIds.length > 0) {
+          toast.success(`${appliedIds.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+        }
       } else if (appliedIds.length > 0) {
         toast.success(`${appliedIds.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
+        if (blockedItems.length > 0) {
+          setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: appliedIds.length });
+        }
       }
     }
 
@@ -499,7 +506,7 @@ const ReportsPage = () => {
       return;
     }
 
-    finalizeBulkUpdate(normals.length - blockedCount);
+    finalizeBulkUpdate(normals.length - blockedItems.length);
   };
 
   const handleConfirmRegression = async () => {
@@ -513,17 +520,19 @@ const ReportsPage = () => {
       k === 'cancel' ? '[CANCELAMENTO]' : k === 'pause' ? '[PAUSA]' : '[RETROCESSO]';
 
     let okCount = 0;
-    let blockedCount = 0;
+    const blockedItems: BlockedItem[] = [];
     for (const item of regressionItems) {
       const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
       try {
         await updateOrderStatus(item.id, selectedProgress, obs);
         okCount++;
       } catch {
-        blockedCount++;
+        blockedItems.push({ numero: item.numero, statusAtual: item.current });
       }
     }
-    if (blockedCount > 0) toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
+    if (blockedItems.length > 0) {
+      setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: okCount });
+    }
     finalizeBulkUpdate(okCount);
   };
 
@@ -1276,16 +1285,15 @@ const ReportsPage = () => {
             const hasBelts = selectedOrders.some(o => o.tipoExtra === 'cinto');
             const hasExtras = selectedOrders.some(o => o.tipoExtra && o.tipoExtra !== 'cinto');
             const hasBotas = selectedOrders.some(o => !o.tipoExtra);
-            const statusList = hasBelts && !hasExtras && !hasBotas ? BELT_STATUSES
+            let statusList = hasBelts && !hasExtras && !hasBotas ? BELT_STATUSES
               : hasExtras && !hasBelts && !hasBotas ? EXTRAS_STATUSES
               : hasBotas && !hasBelts && !hasExtras ? PRODUCTION_STATUSES
               : [...new Set([...PRODUCTION_STATUSES, ...BELT_STATUSES, ...EXTRAS_STATUSES])];
-            // Marca como inválido status que NENHUM dos pedidos selecionados pode atingir
-            const isInvalidForAll = (status: string): boolean => {
-              const botas = selectedOrders.filter(o => !o.tipoExtra);
-              if (botas.length === 0) return false; // só validamos transições para botas
-              return !botas.some(o => isTransitionAllowed(o.status, status, { vendedor: o.vendedor }));
-            };
+            // Se exatamente 1 pedido selecionado (e é bota), filtra para mostrar apenas etapas válidas
+            if (selectedOrders.length === 1 && !selectedOrders[0].tipoExtra) {
+              const o = selectedOrders[0];
+              statusList = statusList.filter(s => isTransitionAllowed(o.status, s, { vendedor: o.vendedor }));
+            }
             return (
               <select
                 value={selectedProgress}
@@ -1293,7 +1301,7 @@ const ReportsPage = () => {
                 className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary outline-none"
               >
                 <option value="">Selecione a etapa...</option>
-                {statusList.map(s => <option key={s} value={s} disabled={isInvalidForAll(s)}>{s}{isInvalidForAll(s) ? ' (indisponível)' : ''}</option>)}
+                {statusList.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             );
           })()}
@@ -1320,6 +1328,14 @@ const ReportsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkBlockedDialog
+        open={blockedDialog.open}
+        destino={blockedDialog.destino}
+        blocked={blockedDialog.blocked}
+        movedCount={blockedDialog.movedCount}
+        onClose={() => setBlockedDialog(s => ({ ...s, open: false }))}
+      />
 
       {/* Step 1 — Confirmação humana antes da justificativa */}
       {(() => {

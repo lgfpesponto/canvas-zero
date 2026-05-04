@@ -15,8 +15,8 @@ export const PESPONTOS = [
 ];
 
 const BAIXA_CORTE_NEXT = [
-  'Entrada Laser Dinei', 'Estampa', 'Sem bordado',
-  'Bordado Dinei', 'Bordado Sandro', 'Entrada Bordado 7Estrivos',
+  'Entrada Laser Dinei', 'Entrada Laser Ferreni', 'Estampa', 'Sem bordado',
+  'Bordado Sandro', 'Entrada Bordado 7Estrivos',
 ];
 
 const FLOW: Record<string, string[]> = {
@@ -27,9 +27,10 @@ const FLOW: Record<string, string[]> = {
   'Baixa Corte': BAIXA_CORTE_NEXT,
   'Entrada Laser Dinei': ['Baixa Laser Dinei'],
   'Baixa Laser Dinei': PESPONTOS,
-  'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Dinei', 'Bordado Sandro', ...PESPONTOS],
+  'Entrada Laser Ferreni': ['Baixa Laser Ferreni'],
+  'Baixa Laser Ferreni': PESPONTOS,
+  'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Sandro', ...PESPONTOS],
   'Sem bordado': PESPONTOS,
-  'Bordado Dinei': PESPONTOS,
   'Bordado Sandro': PESPONTOS,
   'Entrada Bordado 7Estrivos': ['Baixa Bordado 7Estrivos'],
   'Baixa Bordado 7Estrivos': PESPONTOS,
