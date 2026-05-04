@@ -90,6 +90,7 @@ const ExtrasPage = () => {
   const [selectedRegataStockId, setSelectedRegataStockId] = useState('');
   const [showRegataStockManager, setShowRegataStockManager] = useState(false);
   const [regataStockCorTecido, setRegataStockCorTecido] = useState('');
+  const [regataStockCorBordado, setRegataStockCorBordado] = useState('');
   const [regataStockDesenho, setRegataStockDesenho] = useState('');
   const [regataStockQtd, setRegataStockQtd] = useState('');
   const [editingRegataStockId, setEditingRegataStockId] = useState<string | null>(null);
