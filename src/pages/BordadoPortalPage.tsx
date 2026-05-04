@@ -235,11 +235,11 @@ const BordadoPortalPage = () => {
     } finally { setPdfLoading(false); }
   };
 
-  const handleQuickStatus = async (o: Order, novoStatus: string, e: React.MouseEvent) => {
+  const handleQuickStatus = async (o: Order, novoStatus: string, e: React.MouseEvent, justificativa?: string) => {
     e.stopPropagation();
     if (quickBaixaIds.has(o.id)) return;
     setQuickBaixaIds(prev => new Set(prev).add(o.id));
-    const r = await aplicarStatus(o.id, novoStatus);
+    const r = await aplicarStatus(o.id, novoStatus, justificativa);
     if (r.ok) {
       toast.success(`Pedido ${o.numero} → ${novoStatus.replace(' 7Estrivos', '')}`);
       setOrders(prev => prev.map(p => p.id === o.id ? { ...p, status: novoStatus } as Order : p));
@@ -249,7 +249,16 @@ const BordadoPortalPage = () => {
     setQuickBaixaIds(prev => { const n = new Set(prev); n.delete(o.id); return n; });
   };
   const handleQuickBaixa = (o: Order, e: React.MouseEvent) => handleQuickStatus(o, 'Baixa Bordado 7Estrivos', e);
-  const handleQuickEntrada = (o: Order, e: React.MouseEvent) => handleQuickStatus(o, 'Entrada Bordado 7Estrivos', e);
+  const handleQuickEntrada = (o: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPendingRetrocesso(o);
+  };
+  const confirmarRetrocesso = async (motivo: string) => {
+    const o = pendingRetrocesso;
+    if (!o) return;
+    setPendingRetrocesso(null);
+    await handleQuickStatus(o, 'Entrada Bordado 7Estrivos', { stopPropagation: () => {} } as React.MouseEvent, motivo);
+  };
 
   const handleColumnSearch = async (
     raw: string,
