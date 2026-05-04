@@ -1,34 +1,36 @@
-## Foto aberta por padrão na visão de pedido detalhado (todos os portais)
+## Canhoto da ficha na visão de pedido detalhado
 
-Aplicar a mesma mudança em **todas as telas de visualização detalhada** que possuem o botão de foto.
+Replicar exatamente o canhoto/stub que aparece no PDF da Ficha de Produção (`generateProductionSheetPDF`) dentro do bloco "Detalhes da Bota" da visão de pedido detalhado, em **todos os portais** (admin/vendedores e bordado).
 
-### Arquivos afetados
+### Visual alvo (igual ao PDF)
+- Linha tracejada superior separando do conteúdo
+- Lado esquerdo: código de barras CODE128 grande + número do pedido embaixo
+- Divisória vertical
+- Lado direito: "Nº pedido", linha de tamanho/solado/cor (e forma se houver), linha de bico/vira, e **QR Code da URL da foto** (escaneie para ver a foto)
 
-1. `src/pages/OrderDetailPage.tsx` (admin / vendedores)
-2. `src/components/BordadoOrderView.tsx` (portal bordado)
+Aparece **apenas para pedidos de bota** (sem `tipoExtra`). Extras/cinto não recebem stub.
 
-> Telas de criação/edição (`OrderPage.tsx`, `BeltOrderPage.tsx`, `EditOrderPage.tsx`, etc.) não fazem parte — o pedido é "visão detalhada" só nas duas acima.
+### 1) Novo componente compartilhado: `src/components/FichaStub.tsx`
 
-### Mudanças (idênticas em cada arquivo)
+Componente único reutilizável que recebe `order: Order` e renderiza o canhoto. Internamente:
+- Gera o código de barras com `JsBarcode` em um `<canvas>` → `toDataURL()` → `<img>`.
+- Gera o QR com `qrcode.toDataURL(fotoUrl)` se houver foto válida (`isHttpUrl`).
+- Usa exatamente as mesmas regras de texto do PDF (`orderBarcodeValue`, `tamanho`, `solado`, `corSola`, `forma`, `formatoBico` com `fino → BF`, `corVira` ignorando Bege/Neutra).
+- Retorna `null` se `order.tipoExtra` (não-bota).
 
-**A. Estado inicial** — começa aberto:
+### 2) Inserir nas duas visões detalhadas
+
+**`src/pages/OrderDetailPage.tsx`** (linha ~1192, dentro do `border border-border rounded-lg ... bg-background`, depois do bloco `columns-1 ... columns-3`):
 ```tsx
-const [fotoOpen, setFotoOpen] = useState(true);
-```
-O `showFotoPanel` continua exigindo `fotoUrlAtual`, então pedidos sem foto não mostram nada.
-
-**B. Botão vira toggle** com texto dinâmico:
-```tsx
-<button
-  type="button"
-  onClick={() => setFotoOpen(o => !o)}
-  className="..."
->
-  <ImageIcon className="h-4 w-4" />
-  {fotoOpen
-    ? 'Recolher foto'
-    : (fotosValidas.length > 1 ? `Ver fotos (${fotosValidas.length})` : 'Ver foto')}
-</button>
+<FichaStub order={order} />
 ```
 
-No `BordadoOrderView.tsx` há **dois botões** (linhas 242 e 302) que abrem a foto — ambos viram toggles com o mesmo padrão. O `onClose` do `FotoPedidoSidePanel` continua chamando `setFotoOpen(false)` para fechar pelo X.
+**`src/components/BordadoOrderView.tsx`** (linha ~325, no mesmo lugar — depois do bloco de categorias, antes de fechar a div com borda):
+```tsx
+<FichaStub order={order} />
+```
+
+Adicionar o import `import { FichaStub } from '@/components/FichaStub';` em ambos.
+
+### Resultado
+Ao abrir qualquer pedido de bota em qualquer portal, o bloco "Detalhes da Bota" passa a terminar com um canhoto visualmente igual ao da ficha impressa: barras + número à esquerda, info de montagem + QR da foto à direita.
