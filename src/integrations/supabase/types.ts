@@ -834,6 +834,27 @@ export type Database = {
         }
         Relationships: []
       }
+      regata_stock: {
+        Row: {
+          cor_tecido: string
+          desenho_bordado: string
+          id: string
+          quantidade: number
+        }
+        Insert: {
+          cor_tecido: string
+          desenho_bordado: string
+          id?: string
+          quantidade?: number
+        }
+        Update: {
+          cor_tecido?: string
+          desenho_bordado?: string
+          id?: string
+          quantidade?: number
+        }
+        Relationships: []
+      }
       revendedor_baixas_pedido: {
         Row: {
           created_at: string
@@ -1133,6 +1154,7 @@ export type Database = {
             Returns: Json
           }
       current_user_nome_completo: { Args: never; Returns: string }
+      decrement_regata_stock: { Args: { stock_id: string }; Returns: undefined }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
       descartar_comprovantes_historico: {
         Args: { _ids: string[]; _motivo: string }
