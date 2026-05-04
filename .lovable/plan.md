@@ -1,39 +1,69 @@
-## Mudanças no Portal Bordado (`src/pages/BordadoPortalPage.tsx`)
+## Ajustes Portal Bordado
 
-### 1. Diálogo de justificativa ao retroceder Baixa → Entrada
+### 1. Lista — remover paginação, usar scroll contínuo (`BordadoPortalPage.tsx`)
 
-- Reusar o componente existente `JustificativaDialog` (`src/components/JustificativaDialog.tsx`).
-- Adicionar estado `pendingRetrocesso: Order | null`.
-- O botão `RotateCcw` no card da coluna **Baixa Bordado 7Estrivos** passa a abrir o diálogo (não chama mais a RPC direto).
-- Ao confirmar com motivo, chamar a RPC `bordado_baixar_pedido` enviando `_justificativa: motivo` (a função já exige justificativa para esse retrocesso e registra no histórico). Em sucesso, atualização otimista do card movendo de Baixa → Entrada.
-- Cancelar fecha o diálogo sem alterar nada.
-- Refatorar `aplicarStatus` para aceitar um parâmetro opcional `justificativa` e propagá-lo na RPC.
+- Remover `PAGE_SIZE`, estados `pageEntrada`/`pageBaixa`, props `page`/`onPageChange` em `BordadoColumn` e o bloco de paginação no rodapé da coluna.
+- Substituir `visible = orders.slice(...)` por `visible = orders` (renderiza todos).
+- Manter o `max-h-[60vh] overflow-y-auto` que já existe — o scroll vertical continua sendo feito dentro da própria coluna.
+- A ordenação já vem por `data_criacao asc, hora_criacao asc` na query (mantida).
 
-### 2. Card do pedido: mostrar data de criação + vendedor
+### 2. Navegação ◀ ▶ na visão de pedido detalhado quando vier do Portal Bordado (`useOrderNeighbors.ts`)
 
-No subcomponente `BordadoColumn`, substituir as duas linhas atuais (`modelo • tamanho` e `vendedor`) por uma única linha:
+Hoje, ao abrir um pedido a partir do Portal Bordado, os botões de prev/next usam o escopo geral do usuário ordenado por `created_at DESC`. O usuário `bordado` precisa que a sequência siga **a mesma lista mostrada no portal** (status em `Entrada Bordado 7Estrivos` ou `Baixa Bordado 7Estrivos`, ordenado por `data_criacao asc, hora_criacao asc, id asc`).
 
-```
-<numero negrito>
-DD/MM/AAAA • <vendedor>
-```
+Mudança em `src/hooks/useOrderNeighbors.ts`:
+- Após `buildFiltersFromParams`, verificar `role === 'bordado'`. Se sim e não houver filtros na URL, montar uma query dedicada:
+  ```
+  supabase.from('orders').select('id')
+    .in('status', ['Entrada Bordado 7Estrivos','Baixa Bordado 7Estrivos'])
+    .order('data_criacao', { ascending: true })
+    .order('hora_criacao', { ascending: true })
+    .order('id', { ascending: true })
+  ```
+  paginando em batches de 1000.
+- Setar `ids` com o resultado. O resto do hook (cálculo de `prevId`/`nextId` por `indexOf`) já funciona.
+- Adicionar `role` à dependência do `useEffect`.
 
-Formatar `o.dataCriacao` como `dd/MM/yyyy` (curto, sem hora) usando split simples da string ISO já presente no Order, mantendo padrão usado em outras telas.
+Resultado: na visão detalhada, ▶ avança para o próximo pedido da lista do bordado (ordem cronológica antiga → recente), respeitando exatamente o que aparece no portal.
 
-### 3. Ordenação por data de criação (mais antiga → mais atual)
+### 3. PDF Resumo Comissão — incluir código de barras escaneável (`pdfGenerators.ts`, função `generateBordadoBaixaResumoPDF`)
 
-A query já ordena por `data_criacao asc, hora_criacao asc`. Garantir o mesmo comportamento nos `useMemo` `entrada` e `baixa` após filtros de busca (ordenação estável já vem do array pai, então não precisa reordenar; apenas confirmar que `filter` mantém a ordem).
+Hoje o "código" mostrado abaixo do número é apenas texto (`barcodeOf` = últimos 12 chars do UUID em hex). Precisa de **barras reais** como nos outros PDFs.
 
-### 4. Paginação por coluna
+- Reusar o helper `barcodeDataUrl(value, { width, height })` já existente.
+- Para cada linha, renderizar o número do pedido em negrito + a imagem de barras logo abaixo (CODE128 do mesmo valor usado no scanner — usar `o.numero` ou o UUID curto, alinhado com `fetchOrderByScan`).
+- Aumentar a altura da linha (`rowH`) de 9 para ~18 mm para acomodar barras (~10 mm) + número. Largura ~45 mm a partir de `colNum`.
+- Realinhar `colTipo`/`colCom`/`colEntrada` para começarem após a área das barras e centralizar verticalmente o texto.
+- Ajustar `ensureSpace(rowH + 2)` para o novo `rowH`.
+- Manter cabeçalhos por dia, subtotal, totais finais e datas.
 
-- Adicionar paginação independente para cada coluna (`Entrada` e `Baixa`), 20 itens por página (mesmo padrão da lista principal de pedidos).
-- Estado: `pageEntrada` e `pageBaixa` (resetam para 1 quando o termo de busca muda).
-- Na `BordadoColumn`, receber novas props `page`, `pageSize`, `onPageChange` e renderizar somente a fatia da página atual.
-- Renderizar controle de paginação compacto abaixo da lista usando os componentes existentes em `src/components/ui/pagination.tsx` (Anterior / números / Próxima). Esconder se houver apenas 1 página.
-- A rolagem interna (`max-h-[60vh] overflow-y-auto`) é mantida; a paginação corta antes de gerar excesso de itens.
+### 4. Trocar fonte do PDF para Montserrat
+
+jsPDF usa Helvetica por padrão (built-in). Para usar Montserrat é necessário **embutir o TTF** via `doc.addFileToVFS` + `doc.addFont`.
+
+- Adicionar arquivos `Montserrat-Regular.ttf` e `Montserrat-Bold.ttf` em `src/assets/fonts/` (download em google fonts; Apache 2.0 — peso ~400 KB combinado).
+- Criar helper `src/lib/pdfFonts.ts` que importa os arquivos como base64 (via `?url` + fetch ou `?raw` em build) e registra a fonte no `doc`:
+  ```ts
+  export function registerMontserrat(doc: jsPDF) {
+    doc.addFileToVFS('Montserrat-Regular.ttf', regularBase64);
+    doc.addFont('Montserrat-Regular.ttf', 'Montserrat', 'normal');
+    doc.addFileToVFS('Montserrat-Bold.ttf', boldBase64);
+    doc.addFont('Montserrat-Bold.ttf', 'Montserrat', 'bold');
+    doc.setFont('Montserrat', 'normal');
+  }
+  ```
+  (carregamento via `import url from '@/assets/fonts/...?url'` + `fetch` → `arrayBuffer` → base64; função se torna `async` e o registro acontece uma única vez por `doc`).
+- Em `generateBordadoBaixaResumoPDF`:
+  - Tornar a função `async`.
+  - Chamar `await registerMontserrat(doc)` antes de qualquer `setFont`.
+  - Substituir todos os `doc.setFont('helvetica', ...)` por `doc.setFont('Montserrat', ...)`.
+- Atualizar o `await` em `BordadoPortalPage.gerarPDF` (já dentro de `async` — basta `await`).
+- **Escopo**: aplicar Montserrat **apenas** neste PDF agora (é o que o usuário pediu para testar). Se ficar bom, depois propagamos para os demais.
 
 ### Arquivos tocados
 
-- `src/pages/BordadoPortalPage.tsx` (única alteração)
-
-Sem mudanças de banco, RPC ou em outras telas — a RPC `bordado_baixar_pedido` já aceita `_justificativa` e implementa a regra.
+- `src/pages/BordadoPortalPage.tsx` — remover paginação.
+- `src/hooks/useOrderNeighbors.ts` — branch para `role === 'bordado'`.
+- `src/lib/pdfGenerators.ts` — barcode + Montserrat na função do resumo.
+- `src/lib/pdfFonts.ts` (novo) — registro do Montserrat.
+- `src/assets/fonts/Montserrat-Regular.ttf` e `Montserrat-Bold.ttf` (novos).
