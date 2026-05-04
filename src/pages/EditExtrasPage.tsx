@@ -342,6 +342,16 @@ const EditExtrasPage = () => {
                 <Label>Onde será aplicado *</Label>
                 <Input value={form.ondeAplicado || ''} onChange={e => set('ondeAplicado', e.target.value)} placeholder="Ex: Cano direito" />
               </div>
+              <div className="flex items-center gap-2 pt-2">
+                <Checkbox
+                  checked={!!form.vinculadoBota}
+                  onCheckedChange={(c) => set('vinculadoBota', !!c)}
+                  id="vinculadoBotaEdit"
+                />
+                <Label htmlFor="vinculadoBotaEdit" className="cursor-pointer text-sm">
+                  Vai com bota por encomenda? (prazo conta a partir da bota chegar em Revisão)
+                </Label>
+              </div>
             </>
           )}
 
