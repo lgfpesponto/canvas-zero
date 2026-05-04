@@ -520,17 +520,19 @@ const ReportsPage = () => {
       k === 'cancel' ? '[CANCELAMENTO]' : k === 'pause' ? '[PAUSA]' : '[RETROCESSO]';
 
     let okCount = 0;
-    let blockedCount = 0;
+    const blockedItems: BlockedItem[] = [];
     for (const item of regressionItems) {
       const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
       try {
         await updateOrderStatus(item.id, selectedProgress, obs);
         okCount++;
       } catch {
-        blockedCount++;
+        blockedItems.push({ numero: item.numero, statusAtual: item.current });
       }
     }
-    if (blockedCount > 0) toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
+    if (blockedItems.length > 0) {
+      setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: okCount });
+    }
     finalizeBulkUpdate(okCount);
   };
 
