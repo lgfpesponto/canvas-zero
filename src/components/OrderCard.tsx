@@ -56,7 +56,7 @@ const OrderCard = React.memo(({
               // Valor final já considera desconto (se houver) — centralizado em getOrderFinalValue.
               const valor = getOrderFinalValue(order);
               const temDesconto = order.desconto && order.desconto > 0;
-              const deadline = getOrderDeadlineInfo(order);
+              const deadline = getOrderDeadlineInfo(order, linkedBoot);
               const deadlineClass = deadline.tone === 'danger'
                 ? 'text-destructive font-bold'
                 : deadline.tone === 'success'
