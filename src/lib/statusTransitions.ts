@@ -99,18 +99,34 @@ function applyContextFilter(targets: string[], ctx?: TransitionContext): string[
   });
 }
 
-/** Lista todos os destinos válidos a partir de `current`. Inclui Aguardando/Cancelado. */
+/**
+ * Lista todos os destinos válidos a partir de `current`.
+ *
+ * Inclui:
+ * - Avanços diretos definidos no fluxo aplicável
+ * - Quaisquer outras etapas do mesmo fluxo (retrocessos / laterais) — a
+ *   justificativa para retrocesso é tratada por `statusRegression.ts` /
+ *   modal no consumer (ex.: ReportsPage)
+ * - Aguardando / Cancelado (sempre disponíveis)
+ *
+ * Restrições de contexto (`Baixa Estoque` / `Baixa Site`) continuam aplicadas.
+ */
 export function getAllowedNextStatuses(current: string | null | undefined, ctx?: TransitionContext): string[] {
   if (!current) return [];
   const flow = pickFlow(ctx);
-  const base = FREE_FROM.has(current)
-    ? Object.keys(flow) // qualquer etapa do fluxo aplicável
-    : (flow[current] || []);
-  const merged = Array.from(new Set([...base, ...ALWAYS_AVAILABLE]));
+  const allFlowKeys = Object.keys(flow);
+  const merged = Array.from(new Set([...allFlowKeys, ...ALWAYS_AVAILABLE]));
   return applyContextFilter(merged, ctx);
 }
 
-/** Verifica se ir de current → next é permitido. */
+/**
+ * Verifica se ir de current → next é permitido.
+ *
+ * Permite qualquer etapa do mesmo fluxo (avanços e retrocessos).
+ * Retrocessos disparam o modal de justificativa via `requiresJustification`
+ * antes de chegar aqui — esta função apenas garante que o destino faz parte
+ * do fluxo aplicável e respeita as restrições de contexto.
+ */
 export function isTransitionAllowed(
   current: string | null | undefined,
   next: string,
@@ -118,19 +134,10 @@ export function isTransitionAllowed(
 ): boolean {
   if (!current || !next) return false;
   if (current === next) return true;
-  if (ALWAYS_AVAILABLE.includes(next)) {
-    // Aguardando/Cancelado têm restrição de contexto
-    return applyContextFilter([next], ctx).length > 0
-      || ALWAYS_AVAILABLE.includes(next); // sempre disponível
-  }
+  if (ALWAYS_AVAILABLE.includes(next)) return true;
   const flow = pickFlow(ctx);
-  if (FREE_FROM.has(current)) {
-    // pode voltar para qualquer etapa válida do fluxo aplicável
-    return applyContextFilter([next], ctx).length > 0
-      && (Object.prototype.hasOwnProperty.call(flow, next) || ALWAYS_AVAILABLE.includes(next));
-  }
-  const allowed = applyContextFilter(flow[current] || [], ctx);
-  return allowed.includes(next);
+  if (!Object.prototype.hasOwnProperty.call(flow, next)) return false;
+  return applyContextFilter([next], ctx).length > 0;
 }
 
 export const TRANSITION_BLOCKED_MESSAGE =
