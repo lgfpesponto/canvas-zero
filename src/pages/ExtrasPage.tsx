@@ -155,6 +155,7 @@ const ExtrasPage = () => {
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
       case 'regata': return 50;
+      case 'regata_pronta_entrega': return 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       default: return 0;
     }
