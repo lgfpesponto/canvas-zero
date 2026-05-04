@@ -16,10 +16,12 @@ export const EXTRAS_STATUS_ORDER: string[] = [
 ];
 
 /**
- * Trio livre dos extras: Em aberto / Produzindo / Expedição podem ser
- * trocados em qualquer direção sem justificativa (regra de negócio).
+ * Par livre dos extras: Em aberto ↔ Produzindo podem ser trocados em
+ * qualquer direção sem justificativa. Avançar de Em aberto/Produzindo →
+ * Expedição também é livre. Já voltar de Expedição → Em aberto/Produzindo
+ * é retrocesso e exige justificativa.
  */
-const EXTRAS_FREE_TRIO = new Set(['Em aberto', 'Produzindo', 'Expedição']);
+const EXTRAS_FREE_PAIR = new Set(['Em aberto', 'Produzindo']);
 
 /** Status que representam pausa (fora da ordem linear). */
 export const PAUSE_STATUSES: string[] = ['Aguardando'];
@@ -46,7 +48,10 @@ export function isStatusRegression(
 
   if (isPureExtra(tipoExtra)) {
     // Trio livre: nenhuma transição entre eles é regressão
-    if (EXTRAS_FREE_TRIO.has(current) && EXTRAS_FREE_TRIO.has(next)) return false;
+    // Em aberto ↔ Produzindo: livre nos dois sentidos
+    if (EXTRAS_FREE_PAIR.has(current) && EXTRAS_FREE_PAIR.has(next)) return false;
+    // Avanço de Em aberto/Produzindo → Expedição: livre
+    if (EXTRAS_FREE_PAIR.has(current) && next === 'Expedição') return false;
     const cIdx = EXTRAS_STATUS_ORDER.indexOf(current);
     const nIdx = EXTRAS_STATUS_ORDER.indexOf(next);
     if (cIdx === -1 || nIdx === -1) return false;
