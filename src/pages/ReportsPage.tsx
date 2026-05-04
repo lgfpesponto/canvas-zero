@@ -466,15 +466,16 @@ const ReportsPage = () => {
 
     // Aplica imediatamente os pedidos sem trava (não esperam o modal de justificativa)
     const baseObs = progressObservacao.trim();
-    let blockedCount = 0;
+    const blockedItems: BlockedItem[] = [];
     if (normals.length > 0) {
       const appliedIds: string[] = [];
       for (const id of normals) {
+        const ord = mergedOrdersMap.get(id);
         try {
           await updateOrderStatus(id, selectedProgress, baseObs || undefined);
           appliedIds.push(id);
         } catch {
-          blockedCount++;
+          if (ord) blockedItems.push({ numero: ord.numero, statusAtual: ord.status });
         }
       }
       // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
@@ -483,13 +484,17 @@ const ReportsPage = () => {
         appliedIds.forEach(id => next.delete(id));
         return next;
       });
-      if (blockedCount > 0) {
-        toast.error(`${blockedCount} pedido(s) bloqueado(s) — siga a ordem de produção.`);
-      }
       if (regressions.length === 0) {
-        if (appliedIds.length > 0) toast.success(`${appliedIds.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+        if (blockedItems.length > 0) {
+          setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: appliedIds.length });
+        } else if (appliedIds.length > 0) {
+          toast.success(`${appliedIds.length} pedido(s) atualizado(s) para "${selectedProgress}".`);
+        }
       } else if (appliedIds.length > 0) {
         toast.success(`${appliedIds.length} pedido(s) sem trava já atualizados. Resolva os ${regressions.length} travado(s).`);
+        if (blockedItems.length > 0) {
+          setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: appliedIds.length });
+        }
       }
     }
 
@@ -501,7 +506,7 @@ const ReportsPage = () => {
       return;
     }
 
-    finalizeBulkUpdate(normals.length - blockedCount);
+    finalizeBulkUpdate(normals.length - blockedItems.length);
   };
 
   const handleConfirmRegression = async () => {
