@@ -149,7 +149,7 @@ const EditExtrasPage = () => {
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
-    regata_pronta_entrega: ['corTecidoRegata', 'desenhoBordadoRegata'],
+    regata_pronta_entrega: ['corTecidoRegata', 'corBordadoRegata', 'desenhoBordadoRegata'],
     bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
   };
 
