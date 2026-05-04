@@ -836,18 +836,21 @@ export type Database = {
       }
       regata_stock: {
         Row: {
+          cor_bordado: string
           cor_tecido: string
           desenho_bordado: string
           id: string
           quantidade: number
         }
         Insert: {
+          cor_bordado?: string
           cor_tecido: string
           desenho_bordado: string
           id?: string
           quantidade?: number
         }
         Update: {
+          cor_bordado?: string
           cor_tecido?: string
           desenho_bordado?: string
           id?: string
