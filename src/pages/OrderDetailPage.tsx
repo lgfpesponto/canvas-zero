@@ -158,7 +158,7 @@ const OrderDetailPage = () => {
 
   // Calculate days remaining
   const createdDate = new Date(order.dataCriacao + 'T00:00:00');
-  const totalBizDays = order.tipoExtra === 'cinto' ? 5 : order.tipoExtra ? 1 : 15;
+  const totalBizDays = getTotalBizDays(order);
   const daysLeft = businessDaysRemaining(createdDate, totalBizDays);
 
   // Build grouped details list (only filled fields per group)
