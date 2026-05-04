@@ -55,10 +55,10 @@ const RevendedorSaldoPage = () => {
       setSaldo(s);
       setComprovantes(c);
       const baixasSet = new Set(b.map(x => x.order_id));
-      const pendente = p
-        .filter(x => !baixasSet.has(x.id))
-        .reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
+      const pendentesArr = p.filter(x => !baixasSet.has(x.id));
+      const pendente = pendentesArr.reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
       const saldoDisp = Number(s?.saldo_disponivel || 0);
+      setQtdPendente(pendentesArr.length);
       setTotalPendente(Math.max(0, pendente - saldoDisp));
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
