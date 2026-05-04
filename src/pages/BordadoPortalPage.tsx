@@ -95,16 +95,23 @@ const BordadoPortalPage = () => {
     try {
       const { data: ids, error } = await supabase.rpc('find_orders_by_status_change' as any, {
         _status: ['Baixa Bordado 7Estrivos'],
-        _de: pdfDate,
-        _ate: pdfDate,
+        _de: pdfDe,
+        _ate: pdfAte,
       });
       if (error) throw error;
       const idList = (ids || []).map((r: any) => r.id ?? r);
-      if (idList.length === 0) { toast.info('Nenhum pedido baixado nessa data.'); return; }
+      if (idList.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
       const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
       if (fErr) throw fErr;
       const list = (rows || []).map(dbRowToOrder) as Order[];
-      generateBordadoBaixaResumoPDF(list, pdfDate, user?.nomeCompleto || 'Bordado');
+      // Excluir pedidos que regrediram para etapa anterior à Baixa Bordado 7Estrivos
+      const baixaIdx = PRODUCTION_STATUSES.indexOf('Baixa Bordado 7Estrivos');
+      const valid = list.filter(o => {
+        const idx = PRODUCTION_STATUSES.indexOf(o.status);
+        return idx >= baixaIdx && o.status !== 'Cancelado';
+      });
+      if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
+      generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
@@ -139,14 +146,25 @@ const BordadoPortalPage = () => {
             <ScanBarcode size={28} /> ESCANEAR / BUSCAR PEDIDO
           </button>
           <div className="flex items-stretch gap-2 bg-card rounded-xl p-3 shadow border">
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">PDF resumo (Baixa do dia)</label>
-              <input
-                type="date"
-                value={pdfDate}
-                onChange={e => setPdfDate(e.target.value)}
-                className="w-full h-10 px-2 rounded border-2 border-primary/30 bg-background text-sm font-semibold"
-              />
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">De</label>
+                <input
+                  type="date"
+                  value={pdfDe}
+                  onChange={e => setPdfDe(e.target.value)}
+                  className="w-full h-10 px-2 rounded border-2 border-primary/30 bg-background text-sm font-semibold"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Até</label>
+                <input
+                  type="date"
+                  value={pdfAte}
+                  onChange={e => setPdfAte(e.target.value)}
+                  className="w-full h-10 px-2 rounded border-2 border-primary/30 bg-background text-sm font-semibold"
+                />
+              </div>
             </div>
             <button
               onClick={gerarPDF}
