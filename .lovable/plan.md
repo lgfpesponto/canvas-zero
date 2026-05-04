@@ -1,36 +1,24 @@
 ## Problema
 
-Hoje, quando um pedido está numa etapa avançada (ex.: Montagem, Expedição), o dropdown "Mudar Progresso de Produção" só lista as etapas **seguintes** do fluxo. As etapas anteriores não aparecem como opção, então o usuário não consegue retroceder mesmo quando a regra de negócio permite (com justificativa registrada).
+Voltar uma bota pronta entrega de **Expedição → Em aberto** (ou Expedição → Produzindo) está sendo permitido sem pedir justificativa. Causa: hoje as três etapas formam um "trio livre" (`EXTRAS_FREE_TRIO = {Em aberto, Produzindo, Expedição}`) em `src/lib/statusRegression.ts`, então qualquer transição entre elas — inclusive retrocessos — é considerada não-regressão.
 
-A causa: `getAllowedNextStatuses` / `isTransitionAllowed` só consideram avanços definidos no `FLOW`/`EXTRAS_FLOW`. O retrocesso é bloqueado antes de chegar em `requiresJustification`, que já saberia pedir o motivo.
+## Regra correta
 
-## Solução
-
-Permitir que qualquer status anterior do fluxo aplicável seja um destino válido. A justificativa (já implementada em `statusRegression.ts` + modal no `ReportsPage`) cuida do alerta e do registro do motivo no histórico.
-
-### Regras mantidas
-- "Aguardando" e "Cancelado" continuam disponíveis em qualquer etapa.
-- Restrições de contexto continuam: `Baixa Estoque` só p/ vendedor "Estoque"; `Baixa Site (Despachado)` só p/ não-Estoque.
-- Trio livre dos extras (Em aberto / Produzindo / Expedição) continua sem justificativa.
-- Retrocesso entre etapas de bota / dentro do bloco sequencial dos extras (Expedição → Em aberto, Pago → Cobrado, etc.) → **abre modal de justificativa**.
+- **Livres (sem justificativa)**: Em aberto ↔ Produzindo, e avanços Em aberto/Produzindo → Expedição.
+- **Retrocesso (exige justificativa)**: Expedição → Em aberto, Expedição → Produzindo, e qualquer outro retrocesso já existente (Entregue → Expedição, Cobrado → Entregue, Pago → Cobrado, etc.).
 
 ## Arquivos alterados
 
-### `src/lib/statusTransitions.ts`
-- Em `getAllowedNextStatuses`: além dos destinos do `FLOW`/`EXTRAS_FLOW`, incluir **todas as outras chaves do mesmo flow** (etapas anteriores e laterais), dedupadas. Continua aplicando `applyContextFilter`.
-- Em `isTransitionAllowed`: se `next` for uma chave válida do flow aplicável (mesmo que não esteja na lista de avanços de `current`), permitir — desde que passe no `applyContextFilter`. Mantém o bloqueio de `Baixa Estoque` / `Baixa Site (Despachado)` por vendedor.
-- `TRANSITION_BLOCKED_MESSAGE` continua existindo para os casos remanescentes (vendedor errado em Baixa Estoque/Site).
-
-### `src/pages/ReportsPage.tsx`
-- Nenhuma mudança lógica: o filtro existente `statusList.filter(s => isTransitionAllowed(...))` passará a incluir os retrocessos automaticamente.
-- O fluxo `requiresJustification` → `JustificationModal` já existente cuida de pedir o motivo.
-
-### `src/contexts/AuthContext.tsx`
-- Sem mudança: `updateOrderStatus` continuará chamando `isTransitionAllowed`; agora aceitará retrocessos. O modal de justificativa em `ReportsPage` é responsável por exigir o motivo antes de chamar `updateOrderStatus`.
+### `src/lib/statusRegression.ts`
+- Substituir `EXTRAS_FREE_TRIO` por `EXTRAS_FREE_PAIR = {Em aberto, Produzindo}`.
+- Em `isStatusRegression` (ramo `isPureExtra`):
+  - Se ambos current/next ∈ `EXTRAS_FREE_PAIR` → não é regressão.
+  - Se current ∈ `EXTRAS_FREE_PAIR` e next === 'Expedição' → não é regressão (avanço).
+  - Caso contrário → comparar índices em `EXTRAS_STATUS_ORDER` (Expedição → Em aberto/Produzindo passa a ser regressão).
 
 ### `mem://features/orders/status-transitions-flow`
-- Atualizar nota: "Qualquer etapa do mesmo fluxo é destino válido; retrocesso exige justificativa registrada no histórico via modal."
+- Atualizar a seção Extras: trocar "trio livre" por "par livre Em aberto ↔ Produzindo + avanço livre p/ Expedição; voltar de Expedição exige justificativa".
 
-## Resultado esperado
+## Resultado
 
-No modal "Mudar Progresso de Produção", para um pedido em Montagem (bota) o dropdown passa a listar Em aberto, Impresso, Corte, Baixa Corte, Pesponto X, Revisão, Expedição, etc. Selecionar uma anterior abre o modal de justificativa antes de salvar; a observação fica registrada no histórico do pedido. Para extras, o mesmo vale para sair de Pago/Cobrado/Conferido/Entregue de volta a etapas anteriores.
+Selecionar "Em aberto" ou "Produzindo" para um pedido extra que está em "Expedição" passa a abrir o modal de justificativa antes de salvar, e o motivo fica registrado no histórico. Cintos e botas não são afetados.
