@@ -75,6 +75,7 @@ const EditExtrasPage = () => {
       vinculadoBota: det.vinculadoBota === true,
       corTecidoRegata: det.corTecidoRegata || '',
       desenhoBordadoRegata: det.desenhoBordadoRegata || '',
+      corBrilho: det.corBrilho || '',
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
