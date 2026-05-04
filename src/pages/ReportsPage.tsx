@@ -1291,10 +1291,10 @@ const ReportsPage = () => {
               : hasExtras && !hasBelts && !hasBotas ? EXTRAS_STATUSES
               : hasBotas && !hasBelts && !hasExtras ? PRODUCTION_STATUSES
               : [...new Set([...PRODUCTION_STATUSES, ...BELT_STATUSES, ...EXTRAS_STATUSES])];
-            // Se exatamente 1 pedido selecionado (e é bota), filtra para mostrar apenas etapas válidas
-            if (selectedOrders.length === 1 && !selectedOrders[0].tipoExtra) {
+            // Se exatamente 1 pedido selecionado (bota OU extra puro), filtra para mostrar apenas etapas válidas
+            if (selectedOrders.length === 1 && selectedOrders[0].tipoExtra !== 'cinto') {
               const o = selectedOrders[0];
-              statusList = statusList.filter(s => isTransitionAllowed(o.status, s, { vendedor: o.vendedor }));
+              statusList = statusList.filter(s => isTransitionAllowed(o.status, s, { vendedor: o.vendedor, tipoExtra: o.tipoExtra }));
             }
             return (
               <select
