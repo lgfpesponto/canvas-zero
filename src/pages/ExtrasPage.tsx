@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
+import { getExtraLeadTime } from '@/lib/orderDeadline';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
