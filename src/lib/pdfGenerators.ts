@@ -653,13 +653,16 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 }
 
 /* ─────────── Resumo Baixa Bordado 7Estrivos ─────────── */
-export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
+export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string, usuariosFiltro?: string[]) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const FONT = 'helvetica';
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
-  const periodoLabel = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
+  const filtroUsuariosSet = usuariosFiltro && usuariosFiltro.length > 0 ? new Set(usuariosFiltro.map(u => u.trim())) : null;
+  const filtroLabel = filtroUsuariosSet ? ` • Filtrado por: ${[...filtroUsuariosSet].join(', ')}` : '';
+  const periodoBase = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
+  const periodoLabel = `${periodoBase}${filtroLabel}`;
   const fmtBRL = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
   const isDiaUtil = (yyyyMmDd: string) => {
     if (!yyyyMmDd || yyyyMmDd.length < 10) return false;
@@ -709,6 +712,10 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
     const baixasValidas = sorted.filter((h: any, idx: number) => {
       if (h?.local !== 'Baixa Bordado 7Estrivos') return false;
       if (h.data < dataDe || h.data > dataAte || !isDiaUtil(h.data)) return false;
+      if (filtroUsuariosSet) {
+        const u = typeof h?.usuario === 'string' ? h.usuario.trim() : '';
+        if (!filtroUsuariosSet.has(u)) return false;
+      }
       for (let i = idx + 1; i < sorted.length; i++) {
         if (ETAPAS_ANTES_BAIXA.has(sorted[i]?.local)) return false;
       }
@@ -765,8 +772,9 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
     doc.setFontSize(11);
     doc.text('Nenhuma baixa elegível no período (apenas seg–sex contam comissão).', margin, y + 8);
     stampPageNumbers(doc);
-    const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
-    doc.save(`Comissao-Bordado-${fileSuffix}.pdf`);
+    const baseSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
+    const userSuffix = filtroUsuariosSet ? `_${[...filtroUsuariosSet].join('-').replace(/\s+/g, '-')}` : '';
+    doc.save(`Comissao-Bordado-${baseSuffix}${userSuffix}.pdf`);
     return;
   }
 
@@ -889,6 +897,7 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
   doc.setTextColor(0, 0, 0);
 
   stampPageNumbers(doc);
-  const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
-  doc.save(`Comissao-Bordado-${fileSuffix}.pdf`);
+  const baseSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
+  const userSuffix = filtroUsuariosSet ? `_${[...filtroUsuariosSet].join('-').replace(/\s+/g, '-')}` : '';
+  doc.save(`Comissao-Bordado-${baseSuffix}${userSuffix}.pdf`);
 }
