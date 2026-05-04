@@ -412,6 +412,8 @@ const BordadoPortalPage = () => {
               showQuickBaixa
               onQuickBaixa={handleQuickBaixa}
               quickBaixaIds={quickBaixaIds}
+              page={pageEntrada}
+              onPageChange={setPageEntrada}
             />
             <BordadoColumn
               title="Baixa Bordado 7Estrivos"
@@ -425,10 +427,21 @@ const BordadoPortalPage = () => {
               showQuickEntrada
               onQuickEntrada={handleQuickEntrada}
               quickBaixaIds={quickBaixaIds}
+              page={pageBaixa}
+              onPageChange={setPageBaixa}
             />
           </div>
         )}
       </main>
+
+      <JustificativaDialog
+        open={!!pendingRetrocesso}
+        title="Retroceder Baixa → Entrada Bordado"
+        description={pendingRetrocesso ? `Informe o motivo para devolver o pedido ${pendingRetrocesso.numero} para "Entrada Bordado 7Estrivos". A justificativa ficará registrada no histórico.` : ''}
+        onConfirm={confirmarRetrocesso}
+        onCancel={() => setPendingRetrocesso(null)}
+      />
+
 
       {scannerMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={closeScanner}>
