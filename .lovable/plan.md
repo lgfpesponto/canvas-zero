@@ -1,60 +1,40 @@
-## Objetivo
+## Reorganização visual do Portal Bordado
 
-Tornar o Portal Bordado mais claro e rápido: o botão grande passa a ser um scanner em massa que dá baixa direta em "Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos" (sem precisar escolher progresso). Cada coluna ganha sua própria busca, e cada card de Entrada ganha um botão de baixa rápida com 1 clique.
+### 1. Cabeçalho-bloco unificado (scanners + PDF)
+Envolver os elementos atuais num card branco com borda/sombra, separado por uma linha sutil do conteúdo abaixo. Layout:
 
-## Mudanças
+```text
+┌─ Cabeçalho de operações ──────────────────────────────────┐
+│  [ ESCANEAR PARA DAR ENTRADA ]   ┌─ Resumo de baixas ──┐  │
+│  (verde, grande)                  │ De [__] Até [__] PDF│  │
+│  [ ESCANEAR PARA DAR BAIXA  ]    └─────────────────────┘  │
+│  (laranja/primário, grande)                                │
+└────────────────────────────────────────────────────────────┘
+```
 
-### 1. Botão principal "ESCANEAR / BUSCAR PEDIDO" → "ESCANEAR ENTRADA → BAIXA"
-- Renomear o botão grande laranja para deixar claro a função: dar baixa em pedidos da Entrada.
-- Texto: **"ESCANEAR PARA DAR BAIXA"** com sub-texto pequeno *"Entrada Bordado → Baixa Bordado"*.
-- Ao clicar, abre o **modal de scanner em massa** estilo admin (igual ao usado em `ReportsPage.tsx` linhas 724-860):
-  - Painel escuro centralizado com input grande sticky-focus (refoco automático após cada leitura).
-  - Mostra "Último pedido lido: ✅ N°" + contador "X pedidos baixados".
-  - Lista expansível "Visualizar pedidos lidos" com X para remover.
-  - Fila de scans para suportar leituras rápidas em sequência (mesmo padrão do `scanQueueRef`).
-- **Diferença chave vs. admin**: não há seletor de progresso. Cada scan que retornar um pedido em `Entrada Bordado 7Estrivos` chama imediatamente o RPC `bordado_baixar_pedido` com `_novo_status: 'Baixa Bordado 7Estrivos'`. Beep verde + atualização da lista. Pedidos fora da entrada → beep vermelho + toast "Pedido não está em Entrada Bordado".
-- Botões do modal: **"Concluir"** (fecha + refetch) e **"Limpar"**.
+- Coluna esquerda (≈60%): dois botões grandes empilhados.
+  - **Novo**: "ESCANEAR PARA DAR ENTRADA" — verde — abre modal igual ao de baixa, mas o RPC aplica `Entrada Bordado 7Estrivos` (status anterior do pedido qualquer; se já estiver em Entrada/Baixa avisa e ignora).
+  - Existente: "ESCANEAR PARA DAR BAIXA" — primário — sem mudança de comportamento.
+- Coluna direita (≈40%): card do PDF com título **"Resumo de baixas"** acima dos campos De/Até/PDF.
 
-### 2. Busca individual em cada coluna (Entrada e Baixa)
-- Dentro de cada `BordadoColumn` (`Entrada Bordado 7Estrivos` e `Baixa Bordado 7Estrivos`), adicionar um campo `<input>` no topo com ícone de lupa/scanner.
-- Comportamento:
-  - **Digitação manual** (sem Enter): filtra a lista da coluna em tempo real por `numero` contendo o texto.
-  - **Enter ou scan completo** (heurística: input recebeu valor longo de uma vez ou Enter pressionado): chama `fetchOrderByScan` e, se o pedido pertence à coluna, navega para `/pedido/<id>`. Se não pertence, mostra toast claro.
-- Campo persiste o valor digitado para feedback visual (filtro continua aplicado até limpar).
-- Cada coluna tem seu próprio estado de busca (independentes).
+### 2. Modal de scan — clareza
+- Título muda conforme a ação: "Dar entrada por scan" ou "Dar baixa por scan".
+- Subtítulo destaca o progresso aplicado (já existe).
+- Botão **"Concluir"** vira **"Fechar"** (era confuso — apenas fecha o modal e atualiza a lista; o scan já é aplicado a cada leitura). Mantém o "Dar baixa"/"Dar entrada" como submit explícito do que está digitado.
+- Pequena legenda abaixo dos botões: *"Cada leitura aplica o progresso automaticamente. Use Fechar quando terminar."*
 
-### 3. Botão de baixa rápida em cada card da coluna "Entrada Bordado 7Estrivos"
-- Adicionar um botão pequeno no canto direito de cada card (ícone `Check` ou `ArrowRight` verde) com tooltip "Dar baixa".
-- Ao clicar (com `e.stopPropagation()` para não abrir o detalhe):
-  - Confirmação leve via toast com botão "Desfazer" *ou* simplesmente executa direto e mostra toast de sucesso (mais ágil — recomendado).
-  - Chama `supabase.rpc('bordado_baixar_pedido', { _order_id: o.id, _novo_status: 'Baixa Bordado 7Estrivos' })`.
-  - Em sucesso: remove o card da Entrada e adiciona à Baixa via update otimista; toast verde "Pedido N° → Baixa Bordado".
-  - Em erro: toast vermelho com a mensagem.
-- Cards da coluna **Baixa** não recebem esse botão (só Entrada).
+### 3. Campos de busca das colunas — cara de leitor de código
+- Aumentar altura (`h-11`), texto maior (`text-sm`/`text-base`), borda mais grossa (`border-2`) e cor da coluna, fundo branco sólido, ícone de barcode (não lupa) à esquerda.
+- Placeholder: **"Digite o nº do pedido ou escaneie..."**
+- Visual semelhante ao input do modal de scan, ocupando largura total da coluna.
 
-### 4. Layout mais clean
-- Card do PDF reduzido visualmente (já está ok, manter).
-- Botão principal vira card laranja com ícone grande + título + subtítulo, ocupando ~60% da largura no grid; PDF fica em ~40%.
-- Espaçamento e tipografia ajustados para leitura rápida em tablet/celular do setor.
+### 4. Botão verde de baixa rápida no card
+Confirmar/explicitar comportamento: ao clicar no botão verde (`ArrowDownToLine`) de um pedido na coluna **Entrada Bordado 7Estrivos**, o pedido é movido imediatamente para **Baixa Bordado 7Estrivos** (RPC `bordado_baixar_pedido`), atualização otimista o tira da Entrada e adiciona na Baixa. É exatamente isso que já faz — apenas adicionar `title="Mover para Baixa Bordado 7Estrivos"` para deixar claro no hover.
 
-## Arquivos afetados
-
-- `src/pages/BordadoPortalPage.tsx` — UI principal: novo modal de scan em massa, busca por coluna, botão de baixa nos cards, novo layout.
-- *(Sem mudanças)* `src/components/BordadoOrderView.tsx`, `src/lib/pdfGenerators.ts`, RPCs ou migrações.
-
-## Detalhes técnicos
-
-- Reutilizar `fetchOrderByScan` e `playBeep` já existentes.
-- RPC já existe e é usada pelo `BordadoOrderView.tsx`: `bordado_baixar_pedido(_order_id, _novo_status, _justificativa)`. Sem justificativa para baixa em massa (não é retrocesso).
-- Estado novo no componente:
-  - `scanQueueRef`, `scanProcessingRef` (igual ReportsPage).
-  - `baixadosMap: Map<id, {numero, at}>` para mostrar histórico no modal.
-  - `lastScanned: string | null`.
-  - `searchEntrada: string`, `searchBaixa: string`.
-- Após fechar o modal, executar `fetchOrders()` para garantir consistência.
-- `useEffect` de sticky-focus no input do modal (padrão `requestAnimationFrame` do ReportsPage).
-
-## Fora de escopo
-
-- Não mexer na lógica de retrocesso (Baixa → Entrada continua exigindo justificativa via página de detalhe).
-- PDF resumo, filtros de período e mensagem do scanner já implementados em iteração anterior — manter como está.
+### Detalhes técnicos
+- Arquivo único: `src/pages/BordadoPortalPage.tsx`.
+- Generalizar o modal scanner: novo state `scannerMode: 'entrada' | 'baixa' | null` substituindo `showScanner`. `aplicarBaixa` vira `aplicarStatus(orderId, novoStatus)`. Validação no `processScan`:
+  - modo `entrada`: aceita qualquer pedido cujo status atual **não** seja `Entrada Bordado 7Estrivos` nem `Cancelado`; bloqueia se já em Entrada (mensagem) ou Baixa (mensagem informando que precisa ser movido manualmente).
+  - modo `baixa`: comportamento atual (apenas pedidos em Entrada).
+- Cores/ícones do botão "Entrada": verde-600 + ícone `ArrowUpToLine` ou `LogIn`.
+- Sem mudanças em RPCs, PDF, ou outras telas.
