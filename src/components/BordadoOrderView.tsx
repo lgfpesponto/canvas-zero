@@ -11,6 +11,7 @@ import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
+import { FichaStub } from '@/components/FichaStub';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
