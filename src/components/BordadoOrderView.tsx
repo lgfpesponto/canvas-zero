@@ -31,7 +31,7 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
   const [showScanner, setShowScanner] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [fotoOpen, setFotoOpen] = useState(false);
+  const [fotoOpen, setFotoOpen] = useState(true);
   const [bulkStatus, setBulkStatus] = useState<'' | BordadoStatus>('');
   const [justifyOpen, setJustifyOpen] = useState(false);
   const [bulkJustifyOpen, setBulkJustifyOpen] = useState(false);
