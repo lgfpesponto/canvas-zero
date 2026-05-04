@@ -712,6 +712,10 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
     const baixasValidas = sorted.filter((h: any, idx: number) => {
       if (h?.local !== 'Baixa Bordado 7Estrivos') return false;
       if (h.data < dataDe || h.data > dataAte || !isDiaUtil(h.data)) return false;
+      if (filtroUsuariosSet) {
+        const u = typeof h?.usuario === 'string' ? h.usuario.trim() : '';
+        if (!filtroUsuariosSet.has(u)) return false;
+      }
       for (let i = idx + 1; i < sorted.length; i++) {
         if (ETAPAS_ANTES_BAIXA.has(sorted[i]?.local)) return false;
       }
