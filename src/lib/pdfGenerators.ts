@@ -653,13 +653,16 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 }
 
 /* ─────────── Resumo Baixa Bordado 7Estrivos ─────────── */
-export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
+export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string, usuariosFiltro?: string[]) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const FONT = 'helvetica';
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
-  const periodoLabel = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
+  const filtroUsuariosSet = usuariosFiltro && usuariosFiltro.length > 0 ? new Set(usuariosFiltro.map(u => u.trim())) : null;
+  const filtroLabel = filtroUsuariosSet ? ` • Filtrado por: ${[...filtroUsuariosSet].join(', ')}` : '';
+  const periodoBase = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
+  const periodoLabel = `${periodoBase}${filtroLabel}`;
   const fmtBRL = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
   const isDiaUtil = (yyyyMmDd: string) => {
     if (!yyyyMmDd || yyyyMmDd.length < 10) return false;
