@@ -109,6 +109,24 @@ const RevendedorSaldoPage = () => {
         </Button>
       </div>
 
+      {qtdPendente > 0 && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Faltam pedidos para dar baixa</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Você tem <strong>{qtdPendente}</strong> pedido(s) cobrado(s) sem baixa.
+              {totalPendente > 0
+                ? <> Falta <strong>{formatCurrency(totalPendente)}</strong> para quitar.</>
+                : <> Seu saldo já cobre o valor — envie um comprovante para registrar a baixa.</>}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => setEnviarOpen(true)}>
+              <Upload size={14} /> Enviar comprovante
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
