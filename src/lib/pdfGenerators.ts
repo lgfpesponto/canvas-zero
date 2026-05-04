@@ -897,6 +897,7 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
   doc.setTextColor(0, 0, 0);
 
   stampPageNumbers(doc);
-  const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
-  doc.save(`Comissao-Bordado-${fileSuffix}.pdf`);
+  const baseSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
+  const userSuffix = filtroUsuariosSet ? `_${[...filtroUsuariosSet].join('-').replace(/\s+/g, '-')}` : '';
+  doc.save(`Comissao-Bordado-${baseSuffix}${userSuffix}.pdf`);
 }
