@@ -301,7 +301,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           )}
           <div className="text-sm bg-muted rounded p-3">
             Anexe um ou mais comprovantes (PDF ou foto). O sistema lê automaticamente
-            <strong> data, valor e quem recebeu</strong>. A administração confere antes de aprovar.
+            <strong> data, valor e quem recebeu</strong> e registra essas informações.
+            O arquivo em si <strong>não fica salvo</strong> — só os dados extraídos.
           </div>
 
           <div>
