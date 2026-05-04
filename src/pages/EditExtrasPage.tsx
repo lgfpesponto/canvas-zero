@@ -74,6 +74,7 @@ const EditExtrasPage = () => {
       numeroPedidoBotaVinculo: det.numeroPedidoBotaVinculo || '',
       vinculadoBota: det.vinculadoBota === true,
       corTecidoRegata: det.corTecidoRegata || '',
+      corBordadoRegata: det.corBordadoRegata || '',
       desenhoBordadoRegata: det.desenhoBordadoRegata || '',
       corBrilho: det.corBrilho || '',
     });
