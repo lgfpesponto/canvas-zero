@@ -301,16 +301,20 @@ const ExtrasPage = () => {
       });
 
       if (success) {
-        // Decrement stock for gravata_pronta_entrega
         if (productId === 'gravata_pronta_entrega') {
           await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
           fetchStock();
+        }
+        if (productId === 'regata_pronta_entrega') {
+          await (supabase as any).rpc('decrement_regata_stock', { stock_id: selectedRegataStockId });
+          fetchRegataStock();
         }
         const numeroSalvo = form.numeroPedidoBota.trim() || '(novo)';
         setOpenProduct(null);
         setForm(emptyForm());
         setBotasPE([emptyBotaPE()]);
         setSelectedStockId('');
+        setSelectedRegataStockId('');
         toast({ title: `${product.nome} ${numeroSalvo} lançado em Meus Pedidos!` });
       } else {
         toast({ title: 'Erro ao salvar o pedido. Faça login novamente e tente.', variant: 'destructive' });
