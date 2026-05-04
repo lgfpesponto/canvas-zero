@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
+import { getExtraLeadTime } from '@/lib/orderDeadline';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
@@ -874,7 +875,11 @@ const ExtrasPage = () => {
                   </div>
                   <h3 className="font-semibold text-foreground">{product.nome}</h3>
                 </div>
-                <p className="text-sm text-muted-foreground mb-2 flex-1">{product.descricao}</p>
+                {(() => {
+                  const lt = getExtraLeadTime(product.id);
+                  const txt = lt <= 1 ? 'Pronta entrega (1 dia útil)' : `Prazo: ${lt} dias úteis`;
+                  return <p className="text-sm text-muted-foreground mb-2 flex-1">{txt}</p>;
+                })()}
                 <p className="text-sm font-bold text-primary mb-4">{product.precoLabel}</p>
                 <div className="space-y-2">
                   <Button onClick={() => openModal(product.id)} className="w-full">
@@ -1071,22 +1076,33 @@ const ExtrasPage = () => {
 
                 <div className="pt-4 border-t border-border space-y-3">
                   <Label className="text-base font-semibold">Adicionar ao estoque</Label>
-                  <p className="text-xs text-muted-foreground">Digite e pressione Enter. As variações ficam salvas como sugestão para os próximos cadastros.</p>
-                  <div>
-                    <Label>Cor do tecido *</Label>
-                    <Input list="regata-cor-tecido-opts" value={regataStockCorTecido} onChange={e => setRegataStockCorTecido(e.target.value)} placeholder="Ex: Marrom" />
-                    <datalist id="regata-cor-tecido-opts">{corTecidoOpts.map(v => <option key={v} value={v} />)}</datalist>
-                  </div>
-                  <div>
-                    <Label>Cor do bordado *</Label>
-                    <Input list="regata-cor-bordado-opts" value={regataStockCorBordado} onChange={e => setRegataStockCorBordado(e.target.value)} placeholder="Ex: Branco" />
-                    <datalist id="regata-cor-bordado-opts">{corBordadoOpts.map(v => <option key={v} value={v} />)}</datalist>
-                  </div>
-                  <div>
-                    <Label>Desenho do bordado *</Label>
-                    <Input list="regata-desenho-opts" value={regataStockDesenho} onChange={e => setRegataStockDesenho(e.target.value)} placeholder="Ex: Cruz" />
-                    <datalist id="regata-desenho-opts">{desenhoOpts.map(v => <option key={v} value={v} />)}</datalist>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Selecione uma variação existente ou clique em "+ Adicionar nova" para cadastrar uma nova. Novas variações ficam disponíveis para os próximos cadastros.</p>
+                  {([
+                    { label: 'Cor do tecido', value: regataStockCorTecido, set: setRegataStockCorTecido, opts: corTecidoOpts, ph: 'Ex: Marrom' },
+                    { label: 'Cor do bordado', value: regataStockCorBordado, set: setRegataStockCorBordado, opts: corBordadoOpts, ph: 'Ex: Branco' },
+                    { label: 'Desenho do bordado', value: regataStockDesenho, set: setRegataStockDesenho, opts: desenhoOpts, ph: 'Ex: Cruz' },
+                  ] as const).map(({ label, value, set: setter, opts, ph }) => {
+                    const isNew = value === '__new__' || (value !== '' && !opts.includes(value));
+                    return (
+                      <div key={label}>
+                        <Label>{label} *</Label>
+                        {isNew ? (
+                          <div className="flex gap-2">
+                            <Input value={value === '__new__' ? '' : value} onChange={e => setter(e.target.value)} placeholder={ph} autoFocus />
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setter('')}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <select value={value} onChange={e => setter(e.target.value === '__new__' ? '__new__' : e.target.value)} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                            <option value="">Selecione</option>
+                            {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                            <option value="__new__">+ Adicionar nova</option>
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
                   <div>
                     <Label>Quantidade *</Label>
                     <Input type="number" min="1" value={regataStockQtd} onChange={e => setRegataStockQtd(e.target.value)} placeholder="Ex: 5" />
