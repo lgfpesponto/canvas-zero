@@ -1329,6 +1329,14 @@ const ReportsPage = () => {
         </DialogContent>
       </Dialog>
 
+      <BulkBlockedDialog
+        open={blockedDialog.open}
+        destino={blockedDialog.destino}
+        blocked={blockedDialog.blocked}
+        movedCount={blockedDialog.movedCount}
+        onClose={() => setBlockedDialog(s => ({ ...s, open: false }))}
+      />
+
       {/* Step 1 — Confirmação humana antes da justificativa */}
       {(() => {
         const kinds = new Set(regressionItems.map(i => i.kind));
