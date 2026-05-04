@@ -9,7 +9,7 @@ export interface RevendedorComprovante {
   valor: number;
   data_pagamento: string;
   observacao: string | null;
-  comprovante_url: string;
+  comprovante_url: string | null;
   comprovante_hash: string | null;
   status: ComprovanteStatus;
   motivo_reprovacao: string | null;

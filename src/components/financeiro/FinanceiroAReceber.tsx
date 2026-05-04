@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   checkDuplicates, deletePdf, fetchVendedoresList, fileHash, formatDateBR,
-  replaceUploadedFile, todayISO, uploadPdf, validateComprovante, type DupMatch,
+  todayISO, validateComprovante, type DupMatch,
 } from './financeiroHelpers';
 import { ComprovanteViewer } from './ComprovanteViewer';
 import { DuplicateConfirmDialog } from './DuplicateConfirmDialog';
@@ -313,9 +313,9 @@ const FinanceiroAReceber = () => {
     for (const it of toSave) {
       updateItem(it.id, { status: 'saving' });
       try {
-        const path = await uploadPdf(it.file, 'a-receber');
         const valorNum = parseFloat(it.valor.replace(',', '.'));
         const destinatario = it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim();
+        // Não armazenamos mais o arquivo no Storage — só os dados extraídos + hash
         const { error } = await supabase.from('financeiro_a_receber').insert({
           vendedor: fVendedor,
           data_pagamento: it.data_pagamento,
@@ -323,7 +323,7 @@ const FinanceiroAReceber = () => {
           destinatario,
           tipo: it.tipo,
           descricao: it.descricao.trim() || null,
-          comprovante_url: path,
+          comprovante_url: null,
           comprovante_hash: it.hash,
           created_by: user?.id,
         });
@@ -442,10 +442,8 @@ const FinanceiroAReceber = () => {
 
     setEditSaving(true);
     try {
-      let comprovante_url = e.row.comprovante_url;
       let comprovante_hash: string | null | undefined = undefined;
       if (e.newFile) {
-        comprovante_url = await replaceUploadedFile(e.row.comprovante_url, e.newFile, 'a-receber');
         comprovante_hash = await fileHash(e.newFile);
       }
 
@@ -458,7 +456,8 @@ const FinanceiroAReceber = () => {
         descricao: e.descricao.trim() || null,
       };
       if (e.newFile) {
-        patch.comprovante_url = comprovante_url;
+        // Novo anexo apenas re-extrai dados; o arquivo não é armazenado
+        patch.comprovante_url = null;
         patch.comprovante_hash = comprovante_hash;
       }
       const { error } = await supabase.from('financeiro_a_receber').update(patch).eq('id', e.row.id);
