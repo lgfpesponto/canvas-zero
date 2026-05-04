@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
-import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 import { getOrderFinalValue } from '@/lib/order-logic';
 import { useOrderById } from '@/hooks/useOrderById';
