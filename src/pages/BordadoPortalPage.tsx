@@ -5,10 +5,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
-import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw } from 'lucide-react';
+import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
+import { JustificativaDialog } from '@/components/JustificativaDialog';
+
+const PAGE_SIZE = 20;
+
+function formatDataCriacao(s?: string): string {
+  if (!s) return '';
+  // YYYY-MM-DD → DD/MM/YYYY
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return s;
+}
 
 const BORDADO_STATUSES = ['Entrada Bordado 7Estrivos', 'Baixa Bordado 7Estrivos'] as const;
 type ScannerMode = 'entrada' | 'baixa';
