@@ -395,6 +395,9 @@ const BordadoPortalPage = () => {
               search={searchBaixa}
               onSearchChange={setSearchBaixa}
               onSearchSubmit={(v) => handleColumnSearch(v, 'Baixa Bordado 7Estrivos', setSearchBaixa)}
+              showQuickEntrada
+              onQuickEntrada={handleQuickEntrada}
+              quickBaixaIds={quickBaixaIds}
             />
           </div>
         )}
