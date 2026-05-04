@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { dbRowToOrder } from '@/lib/order-logic';
+import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
 import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw } from 'lucide-react';
@@ -34,10 +34,12 @@ const BordadoPortalPage = () => {
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfDate, setPdfDate] = useState(() => {
+  const todayStr = (() => {
     const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  });
+  })();
+  const [pdfDe, setPdfDe] = useState(todayStr);
+  const [pdfAte, setPdfAte] = useState(todayStr);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchOrders = useCallback(async () => {
@@ -72,9 +74,10 @@ const BordadoPortalPage = () => {
     setScanning(true);
     try {
       const found = await fetchOrderByScan(v);
-      if (!found) { playBeep(false); toast.error('Pedido não encontrado'); }
-      else if (!BORDADO_STATUSES.includes(found.status as any)) { playBeep(false); toast.error(`Pedido em "${found.status}" — fora do bordado`); }
-      else {
+      if (!found || !BORDADO_STATUSES.includes(found.status as any)) {
+        playBeep(false);
+        toast.error('Pedido não está no bordado 7estrivos no momento');
+      } else {
         playBeep(true);
         setScanValue('');
         setShowScanner(false);
@@ -87,20 +90,28 @@ const BordadoPortalPage = () => {
   };
 
   const gerarPDF = async () => {
+    if (pdfDe > pdfAte) { toast.error('Data inicial maior que a final.'); return; }
     setPdfLoading(true);
     try {
       const { data: ids, error } = await supabase.rpc('find_orders_by_status_change' as any, {
         _status: ['Baixa Bordado 7Estrivos'],
-        _de: pdfDate,
-        _ate: pdfDate,
+        _de: pdfDe,
+        _ate: pdfAte,
       });
       if (error) throw error;
       const idList = (ids || []).map((r: any) => r.id ?? r);
-      if (idList.length === 0) { toast.info('Nenhum pedido baixado nessa data.'); return; }
+      if (idList.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
       const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
       if (fErr) throw fErr;
       const list = (rows || []).map(dbRowToOrder) as Order[];
-      generateBordadoBaixaResumoPDF(list, pdfDate, user?.nomeCompleto || 'Bordado');
+      // Excluir pedidos que regrediram para etapa anterior à Baixa Bordado 7Estrivos
+      const baixaIdx = PRODUCTION_STATUSES.indexOf('Baixa Bordado 7Estrivos');
+      const valid = list.filter(o => {
+        const idx = PRODUCTION_STATUSES.indexOf(o.status);
+        return idx >= baixaIdx && o.status !== 'Cancelado';
+      });
+      if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
+      generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
@@ -135,14 +146,25 @@ const BordadoPortalPage = () => {
             <ScanBarcode size={28} /> ESCANEAR / BUSCAR PEDIDO
           </button>
           <div className="flex items-stretch gap-2 bg-card rounded-xl p-3 shadow border">
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">PDF resumo (Baixa do dia)</label>
-              <input
-                type="date"
-                value={pdfDate}
-                onChange={e => setPdfDate(e.target.value)}
-                className="w-full h-10 px-2 rounded border-2 border-primary/30 bg-background text-sm font-semibold"
-              />
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">De</label>
+                <input
+                  type="date"
+                  value={pdfDe}
+                  onChange={e => setPdfDe(e.target.value)}
+                  className="w-full h-10 px-2 rounded border-2 border-primary/30 bg-background text-sm font-semibold"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Até</label>
+                <input
+                  type="date"
+                  value={pdfAte}
+                  onChange={e => setPdfAte(e.target.value)}
+                  className="w-full h-10 px-2 rounded border-2 border-primary/30 bg-background text-sm font-semibold"
+                />
+              </div>
             </div>
             <button
               onClick={gerarPDF}

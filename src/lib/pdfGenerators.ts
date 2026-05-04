@@ -653,10 +653,11 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 }
 
 /* ─────────── Resumo Baixa Bordado 7Estrivos ─────────── */
-export function generateBordadoBaixaResumoPDF(orders: any[], dataRef: string, userName: string) {
+export function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 12;
+  const periodoLabel = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
 
   // Header
   doc.setFillColor(245, 158, 11);
@@ -667,13 +668,34 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataRef: string, us
   doc.text('Resumo Baixa Bordado 7Estrivos', margin, 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(formatDateBR(dataRef), pageW - margin, 11, { align: 'right' });
+  doc.text(periodoLabel, pageW - margin, 11, { align: 'right' });
   doc.setTextColor(0, 0, 0);
+
+  // Build linhas: uma por baixa dentro do período
+  type Linha = { numero: string; modelo: string; tamanho: string; vendedor: string; data: string; hora: string };
+  const linhas: Linha[] = [];
+  for (const o of orders) {
+    const hist = Array.isArray(o.historico) ? o.historico : [];
+    const baixaEntries = hist.filter((h: any) =>
+      h?.local === 'Baixa Bordado 7Estrivos' && typeof h?.data === 'string' && h.data >= dataDe && h.data <= dataAte
+    );
+    for (const e of baixaEntries) {
+      linhas.push({
+        numero: String(o.numero || ''),
+        modelo: String(o.modelo || ''),
+        tamanho: String(o.tamanho || ''),
+        vendedor: String(o.vendedor || ''),
+        data: String(e.data || ''),
+        hora: String(e.hora || '—'),
+      });
+    }
+  }
+  linhas.sort((a, b) => (a.data + a.hora + a.numero).localeCompare(b.data + b.hora + b.numero));
 
   let y = 26;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(`Total de pedidos: ${orders.length}`, margin, y);
+  doc.text(`Total de baixas: ${linhas.length}`, margin, y);
   doc.text(`Gerado por: ${userName}`, pageW - margin, y, { align: 'right' });
   y += 6;
 
@@ -683,37 +705,32 @@ export function generateBordadoBaixaResumoPDF(orders: any[], dataRef: string, us
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.text('Nº Pedido', margin + 2, y + 5);
-  doc.text('Modelo', margin + 38, y + 5);
-  doc.text('Tamanho', margin + 95, y + 5);
-  doc.text('Vendedor', margin + 118, y + 5);
-  doc.text('Hora baixa', pageW - margin - 2, y + 5, { align: 'right' });
+  doc.text('Modelo', margin + 32, y + 5);
+  doc.text('Tam.', margin + 82, y + 5);
+  doc.text('Vendedor', margin + 95, y + 5);
+  doc.text('Data', pageW - margin - 22, y + 5, { align: 'right' });
+  doc.text('Hora', pageW - margin - 2, y + 5, { align: 'right' });
   y += 9;
 
   doc.setFont('helvetica', 'normal');
-  const sorted = [...orders].sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
-
-  for (const o of sorted) {
-    if (y > 280) {
+  for (const l of linhas) {
+    if (y > 285) {
       doc.addPage();
       y = 18;
     }
-    // Find hora baixa from historico
-    let hora = '—';
-    const hist = Array.isArray(o.historico) ? o.historico : [];
-    const baixaEntries = hist.filter((h: any) => h?.local === 'Baixa Bordado 7Estrivos' && h?.data === dataRef);
-    if (baixaEntries.length > 0) hora = baixaEntries[baixaEntries.length - 1].hora || '—';
-
     doc.setFontSize(9);
-    doc.text(String(o.numero || ''), margin + 2, y);
-    doc.text(String(o.modelo || '').slice(0, 32), margin + 38, y);
-    doc.text(String(o.tamanho || ''), margin + 95, y);
-    doc.text(String(o.vendedor || '').slice(0, 22), margin + 118, y);
-    doc.text(hora, pageW - margin - 2, y, { align: 'right' });
+    doc.text(l.numero, margin + 2, y);
+    doc.text(l.modelo.slice(0, 28), margin + 32, y);
+    doc.text(l.tamanho, margin + 82, y);
+    doc.text(l.vendedor.slice(0, 20), margin + 95, y);
+    doc.text(formatDateBR(l.data), pageW - margin - 22, y, { align: 'right' });
+    doc.text(l.hora, pageW - margin - 2, y, { align: 'right' });
     y += 5.5;
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, y - 1.5, pageW - margin, y - 1.5);
   }
 
   stampPageNumbers(doc);
-  doc.save(`Baixa-Bordado-${dataRef}.pdf`);
+  const fileSuffix = dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`;
+  doc.save(`Baixa-Bordado-${fileSuffix}.pdf`);
 }
