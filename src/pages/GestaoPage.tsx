@@ -253,3 +253,5 @@ export default function GestaoPage() {
     </div>
   );
 }
+
+export { default as GestaoInner } from "./GestaoPage";
