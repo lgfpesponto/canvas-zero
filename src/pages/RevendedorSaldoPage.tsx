@@ -29,6 +29,7 @@ const RevendedorSaldoPage = () => {
   const [saldo, setSaldo] = useState<RevendedorSaldo | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [totalPendente, setTotalPendente] = useState(0);
+  const [qtdPendente, setQtdPendente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
