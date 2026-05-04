@@ -73,6 +73,45 @@ const EXTRAS_FLOW: Record<string, string[]> = {
   'Pago': [],
 };
 
+/**
+ * Fluxo do cinto (`tipoExtra === 'cinto'`).
+ * Igual ao FLOW da bota, **sem a etapa "Montagem"**:
+ * - Pesponto 01..05 → Pespontando
+ * - Pesponto Ailton / Pespontando → Revisão | Expedição | Baixa Estoque | Baixa Site (Despachado)
+ */
+const BELT_FLOW: Record<string, string[]> = {
+  'Em aberto': ['Impresso'],
+  'Impresso': ['Corte'],
+  'Corte': ['Baixa Corte', 'Aguardando Couro'],
+  'Aguardando Couro': ['Corte'],
+  'Baixa Corte': BAIXA_CORTE_NEXT,
+  'Entrada Laser Dinei': ['Baixa Laser Dinei'],
+  'Baixa Laser Dinei': PESPONTOS,
+  'Entrada Laser Ferreni': ['Baixa Laser Ferreni'],
+  'Baixa Laser Ferreni': PESPONTOS,
+  'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Sandro', ...PESPONTOS],
+  'Sem bordado': PESPONTOS,
+  'Bordado Sandro': PESPONTOS,
+  'Entrada Bordado 7Estrivos': ['Baixa Bordado 7Estrivos'],
+  'Baixa Bordado 7Estrivos': PESPONTOS,
+  'Pesponto 01': ['Pespontando'],
+  'Pesponto 02': ['Pespontando'],
+  'Pesponto 03': ['Pespontando'],
+  'Pesponto 04': ['Pespontando'],
+  'Pesponto 05': ['Pespontando'],
+  'Pesponto Ailton': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque'],
+  'Pespontando': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque'],
+  'Revisão': ['Expedição'],
+  'Expedição': ['Entregue', 'Baixa Site (Despachado)', 'Baixa Estoque'],
+  'Baixa Estoque': ['Entregue'],
+  'Baixa Site (Despachado)': ['Entregue'],
+  'Entregue': ['Conferido'],
+  'Conferido': ['Cobrado'],
+  'Cobrado': ['Pago'],
+  'Pago': [],
+  'Emprestado': ['Corte', 'Em aberto'],
+};
+
 export interface TransitionContext {
   /** Vendedor do pedido — usado para Baixa Estoque/Site. */
   vendedor?: string;
@@ -86,8 +125,14 @@ function isPureExtra(ctx?: TransitionContext): boolean {
   return !!ctx?.tipoExtra && ctx.tipoExtra !== 'cinto';
 }
 
+function isCinto(ctx?: TransitionContext): boolean {
+  return ctx?.tipoExtra === 'cinto';
+}
+
 function pickFlow(ctx?: TransitionContext): Record<string, string[]> {
-  return isPureExtra(ctx) ? EXTRAS_FLOW : FLOW;
+  if (isCinto(ctx)) return BELT_FLOW;
+  if (isPureExtra(ctx)) return EXTRAS_FLOW;
+  return FLOW;
 }
 
 function applyContextFilter(targets: string[], ctx?: TransitionContext): string[] {

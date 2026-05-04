@@ -69,8 +69,17 @@ export const EXTRAS_STATUSES = [
 ];
 
 export const BELT_STATUSES = [
-  "Em aberto", "Aguardando", "Corte", "Bordado", "Pesponto",
-  "Expedição", "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
+  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Emprestado",
+  "Corte", "Baixa Corte",
+  "Entrada Laser Dinei", "Baixa Laser Dinei",
+  "Entrada Laser Ferreni", "Baixa Laser Ferreni",
+  "Estampa", "Sem bordado",
+  "Bordado Sandro", "Entrada Bordado 7Estrivos", "Baixa Bordado 7Estrivos",
+  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
+  "Pesponto Ailton", "Pespontando",
+  "Revisão", "Expedição",
+  "Baixa Estoque", "Baixa Site (Despachado)",
+  "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
 
 /** Status "Conferido" só pode ser definido por admin_master */
