@@ -1,63 +1,36 @@
-## Objetivo
+## Problema
 
-Tornar a movimentação de status dos **produtos extras** (bota pronta entrega, gravata pronta entrega, kit faca, regata, etc — qualquer pedido com `tipoExtra` definido **diferente de `'cinto'`**) flexível até "Expedição", mas **estrita** a partir dali.
+Hoje, quando um pedido está numa etapa avançada (ex.: Montagem, Expedição), o dropdown "Mudar Progresso de Produção" só lista as etapas **seguintes** do fluxo. As etapas anteriores não aparecem como opção, então o usuário não consegue retroceder mesmo quando a regra de negócio permite (com justificativa registrada).
 
-## Regras novas (apenas para `tipoExtra && tipoExtra !== 'cinto'`)
+A causa: `getAllowedNextStatuses` / `isTransitionAllowed` só consideram avanços definidos no `FLOW`/`EXTRAS_FLOW`. O retrocesso é bloqueado antes de chegar em `requiresJustification`, que já saberia pedir o motivo.
 
-**Avanço livre** (qualquer ordem, sem justificativa) entre:
-- Em aberto, Produzindo, Expedição
+## Solução
 
-**Avanço obrigatório em sequência** (sem pular etapas):
-- Expedição → Entregue → Conferido → Cobrado → Pago
+Permitir que qualquer status anterior do fluxo aplicável seja um destino válido. A justificativa (já implementada em `statusRegression.ts` + modal no `ReportsPage`) cuida do alerta e do registro do motivo no histórico.
 
-**Retrocesso** em qualquer ponto da régua extras (incluindo Expedição → Em aberto, Cobrado → Entregue, etc.):
-- Sempre permitido, mas exige **justificativa obrigatória** (mesmo modal já usado pelas botas).
+### Regras mantidas
+- "Aguardando" e "Cancelado" continuam disponíveis em qualquer etapa.
+- Restrições de contexto continuam: `Baixa Estoque` só p/ vendedor "Estoque"; `Baixa Site (Despachado)` só p/ não-Estoque.
+- Trio livre dos extras (Em aberto / Produzindo / Expedição) continua sem justificativa.
+- Retrocesso entre etapas de bota / dentro do bloco sequencial dos extras (Expedição → Em aberto, Pago → Cobrado, etc.) → **abre modal de justificativa**.
 
-**Aguardando / Cancelado**: continuam acessíveis de qualquer etapa (sem mudança).
+## Arquivos alterados
 
-## O que NÃO muda
+### `src/lib/statusTransitions.ts`
+- Em `getAllowedNextStatuses`: além dos destinos do `FLOW`/`EXTRAS_FLOW`, incluir **todas as outras chaves do mesmo flow** (etapas anteriores e laterais), dedupadas. Continua aplicando `applyContextFilter`.
+- Em `isTransitionAllowed`: se `next` for uma chave válida do flow aplicável (mesmo que não esteja na lista de avanços de `current`), permitir — desde que passe no `applyContextFilter`. Mantém o bloqueio de `Baixa Estoque` / `Baixa Site (Despachado)` por vendedor.
+- `TRANSITION_BLOCKED_MESSAGE` continua existindo para os casos remanescentes (vendedor errado em Baixa Estoque/Site).
 
-- **Botas** (`tipoExtra` ausente): fluxo canônico atual de `statusTransitions.ts` permanece intacto.
-- **Cintos** (`tipoExtra === 'cinto'`): comportamento atual permanece (BELT_STATUSES já é exibido na UI; transições não são restringidas via `FLOW`).
-- Modal de justificativa existente em `ReportsPage.tsx` (passos 1 e 2) já cobre regressão — vai funcionar automaticamente quando `requiresJustification` retornar `'regression'`.
+### `src/pages/ReportsPage.tsx`
+- Nenhuma mudança lógica: o filtro existente `statusList.filter(s => isTransitionAllowed(...))` passará a incluir os retrocessos automaticamente.
+- O fluxo `requiresJustification` → `JustificationModal` já existente cuida de pedir o motivo.
 
-## Arquivos
+### `src/contexts/AuthContext.tsx`
+- Sem mudança: `updateOrderStatus` continuará chamando `isTransitionAllowed`; agora aceitará retrocessos. O modal de justificativa em `ReportsPage` é responsável por exigir o motivo antes de chamar `updateOrderStatus`.
 
-### 1) `src/lib/statusTransitions.ts`
-- Estender `TransitionContext` com `tipoExtra?: string | null`.
-- Novo helper interno `isPureExtra(ctx)` = `!!ctx?.tipoExtra && ctx.tipoExtra !== 'cinto'`.
-- Definir mapa `EXTRAS_FLOW`:
-  ```
-  Em aberto:   [Produzindo, Expedição]
-  Produzindo:  [Em aberto, Expedição]
-  Expedição:   [Entregue]
-  Entregue:    [Conferido]
-  Conferido:   [Cobrado]
-  Cobrado:     [Pago]
-  Pago:        []
-  ```
-- Em `getAllowedNextStatuses` e `isTransitionAllowed`: se `isPureExtra`, usar `EXTRAS_FLOW` no lugar de `FLOW`.
-- Manter `ALWAYS_AVAILABLE` (Aguardando/Cancelado) e a regra "saindo de Aguardando/Cancelado, qualquer destino é válido" — tudo dentro do universo de extras (Em aberto, Produzindo, Expedição, Entregue, Conferido, Cobrado, Pago).
+### `mem://features/orders/status-transitions-flow`
+- Atualizar nota: "Qualquer etapa do mesmo fluxo é destino válido; retrocesso exige justificativa registrada no histórico via modal."
 
-### 2) `src/lib/statusRegression.ts`
-- Adicionar `EXTRAS_STATUS_ORDER = ['Em aberto','Produzindo','Expedição','Entregue','Conferido','Cobrado','Pago']`.
-- Estender `isStatusRegression` e `requiresJustification` para receber opcional `tipoExtra`. Quando `isPureExtra`, usar `EXTRAS_STATUS_ORDER` para detectar regressão. Trecho **Em aberto ↔ Produzindo ↔ Expedição** considera-se "lateral" (não regressão), pois o usuário liberou trânsito livre nesse trio.
-  - Implementação: definir `EXTRAS_FREE_TRIO = new Set(['Em aberto','Produzindo','Expedição'])`; se ambos estão no trio, **não é regressão**.
-  - Se `current` está em estágio posterior a `next` na ordem extras (ex.: Cobrado → Entregue, Expedição → Em aberto, Entregue → Expedição), é regressão e exige justificativa.
+## Resultado esperado
 
-### 3) `src/contexts/AuthContext.tsx`
-- No `updateOrderStatus`, incluir `tipo_extra` no select e passar `tipoExtra: currentRow.tipo_extra` no `ctx` de `isTransitionAllowed`.
-
-### 4) `src/pages/ReportsPage.tsx`
-- Passar `tipoExtra` para `isTransitionAllowed` e para `requiresJustification` em todos os call-sites (filtragem da lista quando 1 pedido extra puro selecionado, detecção de transições com trava).
-- Quando `selectedOrders.length === 1 && o.tipoExtra && o.tipoExtra !== 'cinto'`, filtrar `EXTRAS_STATUSES` por `isTransitionAllowed`.
-
-### 5) Memória
-- Atualizar `mem://features/orders/status-transitions-flow` adicionando seção "Extras" com a nova régua.
-
-## Resultado prático
-
-- Bota Pronta Entrega em "Em aberto" → pode ir direto para "Expedição" sem passar por "Produzindo".
-- Mesma bota em "Expedição" → só vai para "Entregue" (próxima sequencial). Se tentar pular pra "Cobrado", bloqueia com toast.
-- Voltar de "Expedição" para "Em aberto" → exige justificativa via modal.
-- Cintos e botas: zero impacto.
+No modal "Mudar Progresso de Produção", para um pedido em Montagem (bota) o dropdown passa a listar Em aberto, Impresso, Corte, Baixa Corte, Pesponto X, Revisão, Expedição, etc. Selecionar uma anterior abre o modal de justificativa antes de salvar; a observação fica registrada no histórico do pedido. Para extras, o mesmo vale para sair de Pago/Cobrado/Conferido/Entregue de volta a etapas anteriores.
