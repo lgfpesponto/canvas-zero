@@ -154,6 +154,17 @@ export default function AdminConfigPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {user.role === 'admin_master' && (
+            <>
+              <TabsContent value="usuarios">
+                <UsersManagementInner />
+              </TabsContent>
+              <TabsContent value="gestao">
+                <GestaoInner />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </motion.div>
 
