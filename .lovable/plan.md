@@ -1,53 +1,38 @@
 ## Objetivo
 
-Reduzir drasticamente o uso de Storage do Supabase (causa provável da instabilidade), parando de salvar **PDFs/fotos de comprovantes** no bucket `financeiro`. A IA continua lendo o arquivo no envio, extrai os dados (valor, data, pagador, documento, tipo) e salva **apenas os dados estruturados + hash** no banco. O arquivo em si é descartado após a leitura.
+Destravar a baixa de bordado dos **83 pedidos legados** que ainda estão com status antigo `Bordado` ou `Bordado 7Estrivos` — esses status não são aceitos pela RPC `bordado_baixar_pedido`, por isso a Mariana não consegue dar baixa neles pelo portal.
 
-Tudo o que **não** é comprovante (pedidos, baixas, saldo, movimentos, histórico, alterações, fotos de pedidos, notas fiscais a pagar) **continua salvando normalmente** — nenhuma mudança de comportamento ali.
+Os 6 pedidos que foram para "Aguardando" hoje **ficam como estão** (decisão do usuário). A questão da data retroativa de baixa fica para uma próxima rodada.
 
-## Escopo da mudança
+## O que muda
 
-Três fluxos hoje fazem upload no bucket `financeiro`:
+**Migration de dados (UPDATE):** para cada pedido com `status IN ('Bordado', 'Bordado 7Estrivos')`:
 
-1. **`EnviarComprovanteDialog.tsx`** (revendedor envia comprovante de pagamento) — vai parar de subir o arquivo.
-2. **`FinanceiroAReceber.tsx`** (admin registra recebimento com comprovante) — vai parar de subir o arquivo.
-3. **`FinanceiroAPagar.tsx`** (admin anexa comprovante de pagamento de nota) — vai parar de subir o arquivo.
+1. Atualiza `status = 'Entrada Bordado 7Estrivos'`.
+2. Anexa uma entrada no `historico` registrando a normalização:
+   - `local = 'Entrada Bordado 7Estrivos'`
+   - `data = data atual` (a normalização acontece hoje, mas a data ORIGINAL do bordado já está preservada no histórico anterior do pedido)
+   - `descricao = 'Migração automática: status legado "Bordado 7Estrivos" normalizado para "Entrada Bordado 7Estrivos"'`
+   - `usuario = 'Sistema'`
 
-A nota fiscal (`nota_url`) em `financeiro_a_pagar` **continua sendo salva** no Storage, porque é documento fiscal que precisa ser auditável. Só os **comprovantes de pagamento** deixam de ser armazenados.
-
-## O que muda no comportamento
-
-**Antes:** usuário envia arquivo → IA lê → arquivo vai pro Storage → linha no banco aponta pro arquivo via `comprovante_url` → admin pode reabrir e ver o PDF.
-
-**Depois:** usuário envia arquivo → IA lê → arquivo é descartado → linha no banco salva só os dados extraídos (valor, data, pagador, hash para deduplicação) → **botão "Ver comprovante" some** das telas (substituído por um indicador "Comprovante não armazenado — dados extraídos por IA").
-
-A coluna `comprovante_url` continua existindo no banco para os registros antigos (mantém histórico), mas novos registros entram com `comprovante_url = null`.
-
-## Arquivos a alterar
-
-```text
-src/components/financeiro/saldo/EnviarComprovanteDialog.tsx
-  └ remove uploadPdf(), envia insert com comprovante_url=null
-src/components/financeiro/FinanceiroAReceber.tsx
-  └ remove uploadPdf no fluxo de criar/editar/replace; UI esconde botão "Ver" quando url é null
-src/components/financeiro/FinanceiroAPagar.tsx
-  └ remove upload do comprovante de pagamento (mantém nota_url da NF)
-src/components/financeiro/saldo/ComprovantesPorRevendedor.tsx
-  └ esconde botão "Ver" quando comprovante_url é null
-src/components/financeiro/saldo/ComprovantesRevendedorPendentes.tsx
-  └ esconde botão "Ver" quando comprovante_url é null
-```
-
-A IA de extração e a deduplicação por `comprovante_hash` continuam funcionando — o hash é calculado em memória antes do arquivo ser descartado.
+Resultado: os 83 viram "Entrada Bordado 7Estrivos" e a Mariana passa a conseguir bipar/dar baixa pelo portal normalmente. Nenhum valor, vendedor, cliente ou outro campo é tocado.
 
 ## O que NÃO muda
 
-- Pedidos (`orders`), histórico, alterações, fotos de pedidos, conferência, baixas automáticas em saldo, movimentos de saldo, notificações, templates — tudo intacto.
-- Notas fiscais (`nota_url` em `financeiro_a_pagar`) continuam salvas.
-- Dados de comprovantes antigos já no Storage permanecem acessíveis (não vamos deletar nada retroativamente).
-- RLS, roles, deduplicação, fluxo de aprovação — todos preservados.
+- Código da aplicação: nada.
+- RPC `bordado_baixar_pedido`: nada.
+- Os 6 pedidos do "Aguardando": ficam como estão.
+- Comissão, RLS, notificações, fluxo de pesponto: tudo intacto.
+- Histórico antigo dos 83 pedidos: preservado integralmente; a entrada de migração é só **adicionada** no fim.
 
-## Aviso
+## Aviso sobre a comissão de bordado
 
-O admin **perde a capacidade de reabrir o PDF/foto** dos novos comprovantes para auditoria visual. A confiança passa a ser nos dados extraídos pela IA + hash de deduplicação. Se quiser preservar auditoria visual, o caminho alternativo é manter o upload e investigar o problema do Supabase por outro lado.
+Como a Mariana vai dar baixa nesses 83 pedidos hoje (ou nos próximos dias) pelo portal, a entrada `Baixa Bordado 7Estrivos` no histórico deles vai ficar com a data de hoje — então eles vão entrar na comissão de bordado de hoje, não do dia em que foram bordados de verdade. Isso é consequência conhecida e você decidiu resolver depois (etapa de baixa retroativa fica para outra rodada).
 
-Confirmando que pode prosseguir, eu implemento as mudanças nos 5 arquivos acima.
+## Arquivos / objetos afetados
+
+```
+Migration única (dados): UPDATE em ~83 orders + append no campo historico
+```
+
+Confirmando, eu rodo a migration.
