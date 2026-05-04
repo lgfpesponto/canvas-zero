@@ -166,6 +166,26 @@ const FinanceiroSaldoRevendedor = () => {
     ? 'mês atual'
     : filterPeriodo === '30d' ? 'últimos 30 dias' : 'todos os períodos';
 
+  /** Pendência agregada conforme filtro de vendedor (independente de período). */
+  const aviso = useMemo(() => {
+    const list = saldos || [];
+    const escopo = filterVendedor === 'todos' ? list : list.filter(s => s.vendedor === filterVendedor);
+    let qtdPedidos = 0;
+    let valorBruto = 0;
+    let saldoTotal = 0;
+    let vendedoresPend = 0;
+    escopo.forEach(s => {
+      const p = pendencias[s.vendedor];
+      if (!p || p.qtd === 0) return;
+      qtdPedidos += p.qtd;
+      valorBruto += p.valor;
+      saldoTotal += Number(s.saldo_disponivel || 0);
+      vendedoresPend += 1;
+    });
+    const aQuitar = Math.max(0, valorBruto - saldoTotal);
+    return { qtdPedidos, vendedoresPend, aQuitar };
+  }, [saldos, pendencias, filterVendedor]);
+
   return (
     <div className="space-y-6">
       {/* Toolbar de filtros (padrão A Receber) */}
