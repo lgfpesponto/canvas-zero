@@ -4,6 +4,7 @@ import { CheckCircle, Pencil, Trash2 } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { getOrderFinalValue } from '@/lib/order-logic';
+import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 
 interface OrderCardProps {
   order: any;
