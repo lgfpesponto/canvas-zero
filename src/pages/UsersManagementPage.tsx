@@ -253,7 +253,7 @@ const UsersManagementPage = () => {
   if (!isLoggedIn || !isAdmin) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="mx-auto max-w-6xl">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-primary">
@@ -443,4 +443,5 @@ const UsersManagementPage = () => {
   );
 };
 
+export const UsersManagementInner = UsersManagementPage;
 export default UsersManagementPage;

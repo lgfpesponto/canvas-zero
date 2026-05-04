@@ -103,18 +103,13 @@ export default function GestaoPage() {
   const handleManualRefresh = () => setTick(t => t + 1);
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 md:px-8">
+    <div className="mx-auto max-w-6xl">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-auto max-w-6xl"
       >
         <div className="mb-6 flex items-center gap-3">
-          <Activity className="h-6 w-6 text-primary" />
-          <h1 className="font-montserrat text-2xl font-bold text-foreground lowercase">
-            gestão
-          </h1>
-          <Badge variant="outline" className="ml-2 gap-1.5 text-xs">
+          <Badge variant="outline" className="gap-1.5 text-xs">
             <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 animate-pulse" />
             ao vivo
           </Badge>
