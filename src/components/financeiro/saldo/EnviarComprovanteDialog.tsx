@@ -226,13 +226,13 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           throw new Error('Esse comprovante já foi enviado anteriormente.');
         }
 
-        const path = await uploadComprovanteRevendedor(it.file);
+        // Não armazenamos mais o arquivo no Storage — só os dados extraídos + hash de deduplicação
         const { error } = await supabase.from('revendedor_comprovantes' as any).insert({
           vendedor: targetVendedor,
           valor: it.valor,
           data_pagamento: it.data_pagamento,
           observacao: it.observacao.trim() || null,
-          comprovante_url: path,
+          comprovante_url: null,
           comprovante_hash: it.hash,
           enviado_por: user?.id,
           status: 'pendente',
