@@ -477,6 +477,22 @@ const ExtrasPage = () => {
               <Label>Onde será aplicado *</Label>
               <Input value={form.ondeAplicado} onChange={e => set('ondeAplicado', e.target.value)} placeholder="Ex: Cano direito" />
             </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Checkbox
+                checked={!!form.vinculadoBota}
+                onCheckedChange={(c) => set('vinculadoBota', !!c)}
+                id="vinculadoBotaCarimbo"
+              />
+              <Label htmlFor="vinculadoBotaCarimbo" className="cursor-pointer text-sm">
+                Vai com bota por encomenda? (prazo conta a partir da bota chegar em Revisão)
+              </Label>
+            </div>
+            {form.vinculadoBota && (
+              <div>
+                <Label>Nº do pedido da bota vinculada *</Label>
+                <Input value={form.numeroPedidoBotaVinculo || ''} onChange={e => set('numeroPedidoBotaVinculo', e.target.value)} placeholder="Ex: 7E-20240010" />
+              </div>
+            )}
           </>
         )}
 
