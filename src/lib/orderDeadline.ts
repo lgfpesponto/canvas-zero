@@ -7,7 +7,7 @@
  */
 import { businessDaysRemaining, businessDaysOverdue } from '@/contexts/AuthContext';
 
-export const FINAL_STAGES = ['Baixa Site (Despachado)', 'Expedição', 'Entregue', 'Cobrado', 'Pago', 'Cancelado'];
+export const FINAL_STAGES = ['Baixa Site (Despachado)', 'Expedição', 'Entregue', 'Conferido', 'Cobrado', 'Pago', 'Cancelado'];
 
 /** Lead time padrão por tipo de produto (dias úteis). */
 export function getTotalBizDays(order: { tipoExtra?: string | null }): number {
