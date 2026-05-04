@@ -19,9 +19,11 @@ import {
   getForma, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
-import { getCouroSortKey, stampPageNumbers } from '@/lib/pdfGenerators';
+import { getCouroSortKey, stampPageNumbers, generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
+import { supabase } from '@/integrations/supabase/client';
+import { dbRowToOrder } from '@/lib/order-logic';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -38,7 +40,7 @@ function barcodeDataUrl(value: string, opts?: { width?: number; height?: number 
   } catch { return ''; }
 }
 
-type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'forma' | 'pesponto' | 'metais' | 'bordados' | 'corte' | 'expedicao' | 'cobranca' | 'extras_cintos';
+type ReportType = 'escalacao' | 'forro' | 'palmilha' | 'forma' | 'pesponto' | 'metais' | 'bordados' | 'corte' | 'expedicao' | 'cobranca' | 'extras_cintos' | 'comissao_bordado';
 
 interface SpecializedReportsProps {
   reports: ReportType[];
@@ -57,6 +59,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   expedicao: 'Expedição',
   cobranca: 'Cobrança',
   extras_cintos: 'Extras / Cintos',
+  comissao_bordado: 'Comissão Bordado',
 };
 
 const PESPONTO_STATUSES = ['Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton', 'Pespontando'];
@@ -1629,6 +1632,34 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.save(`relatorio-${filterTipoProduto}.pdf`);
   };
 
+  // ── Comissão Bordado: replicates BordadoPortalPage.gerarPDF ──
+  const generateComissaoBordadoPDF = async () => {
+    if (!filterDataDe || !filterDataAte) { toast.error('Informe o período (De e Até).'); return; }
+    if (filterDataDe > filterDataAte) { toast.error('Data inicial maior que a final.'); return; }
+    try {
+      const { data: ids, error } = await supabase.rpc('find_orders_by_status_change' as any, {
+        _status: ['Baixa Bordado 7Estrivos'],
+        _de: filterDataDe,
+        _ate: filterDataAte,
+      });
+      if (error) throw error;
+      const idList = (ids || []).map((r: any) => r.id ?? r);
+      if (idList.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
+      const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
+      if (fErr) throw fErr;
+      const list = (rows || []).map(dbRowToOrder) as Order[];
+      const baixaIdx = PRODUCTION_STATUSES.indexOf('Baixa Bordado 7Estrivos');
+      const valid = list.filter(o => {
+        const idx = PRODUCTION_STATUSES.indexOf(o.status);
+        return idx >= baixaIdx && o.status !== 'Cancelado';
+      });
+      if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
+      await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin');
+    } catch (err: any) {
+      toast.error('Erro ao gerar PDF: ' + (err?.message || err));
+    }
+  };
+
   const generateReport = () => {
     if (!activeReport) return;
     switch (activeReport) {
@@ -1643,12 +1674,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       case 'expedicao': generateExpedicaoPDF(); break;
       case 'cobranca': generateCobrancaPDF(); break;
       case 'extras_cintos': generateExtrasCintosPDF(); break;
+      case 'comissao_bordado': void generateComissaoBordadoPDF(); break;
     }
   };
 
   const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos' || activeReport === 'cobranca';
   const needsVendedorFilter = activeReport === 'expedicao' || activeReport === 'cobranca';
   const needsExtrasCintosFilter = activeReport === 'extras_cintos';
+  const needsComissaoBordadoFilter = activeReport === 'comissao_bordado';
 
   const progressOptions = useMemo(() => {
     if (activeReport === 'extras_cintos') return EXTRAS_STATUSES;
@@ -1759,6 +1792,35 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
                   </button>
                 )}
               </div>
+            </div>
+          )}
+
+          {needsComissaoBordadoFilter && (
+            <div>
+              <label className="block text-xs font-semibold mb-1">Período de baixa (obrigatório)</label>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">De</label>
+                  <input
+                    type="date"
+                    value={filterDataDe}
+                    onChange={(e) => setFilterDataDe(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Até</label>
+                  <input
+                    type="date"
+                    value={filterDataAte}
+                    onChange={(e) => setFilterDataAte(e.target.value)}
+                    className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Resumo das baixas válidas no período (mesmo PDF gerado pelo portal Bordado).
+              </p>
             </div>
           )}
 

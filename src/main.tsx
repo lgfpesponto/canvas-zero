@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { installConsoleErrorCapture } from "./lib/consoleErrorCapture";
+import "./lib/globalLoading"; // installs window.fetch wrapper for "Carregando" chip
 
 installConsoleErrorCapture();
 

@@ -466,7 +466,9 @@ const AdminDashboard = () => {
       {/* Specialized reports */}
       <div className="mt-8">
         <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={4}>
-          <SpecializedReports reports={['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']} />
+          <SpecializedReports reports={isAdminMaster
+            ? ['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos', 'comissao_bordado']
+            : ['escalacao', 'forro', 'palmilha', 'forma', 'pesponto', 'metais', 'bordados', 'corte', 'expedicao', 'cobranca', 'extras_cintos']} />
         </motion.div>
       </div>
 
