@@ -233,7 +233,9 @@ const BordadoPortalPage = () => {
         return idx >= baixaIdx && o.status !== 'Cancelado';
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
-      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado');
+      // PDF do portal: só lista baixas feitas por usuários do setor bordado (Neto/Débora).
+      const filtroNomes = bordadoNames.size > 0 ? [...bordadoNames] : undefined;
+      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado', filtroNomes);
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
