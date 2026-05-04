@@ -801,19 +801,21 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
 
     let qtdDia = 0;
     let valDia = 0;
+    let seq = 0;
     for (const l of itens) {
       ensureSpace(rowH + 2);
+      seq++;
       const midY = y + rowH / 2 + 1;
       doc.setFont(FONT, 'normal');
       doc.setFontSize(9);
-      doc.text('1', colQtd, midY);
+      doc.text(String(seq), colQtd, midY);
       // Número (negrito) + barras CODE128 abaixo
       doc.setFont(FONT, 'bold');
       doc.setFontSize(10);
       doc.text(l.numero, colNum, y + 4);
       const bcVal = l.numero || l.barcode;
       try {
-        const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
+        const bcUrl = barcodeDataUrl(bcVal, { width: 3, height: 80 });
         doc.addImage(bcUrl, 'PNG', colNum, y + 5.5, barcodeW, barcodeH);
       } catch { /* skip */ }
       doc.setFont(FONT, 'normal');
