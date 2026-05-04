@@ -44,6 +44,7 @@ const OrderDetailPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
+  const linkedBoot = useLinkedBoot(order);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
