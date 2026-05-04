@@ -633,7 +633,7 @@ const ExtrasPage = () => {
             {(() => {
               const available = regataStockItems.filter(s => s.quantidade > 0);
               const filtered = regataSearch
-                ? available.filter(s => `${s.cor_tecido} ${s.desenho_bordado}`.toLowerCase().includes(regataSearch.toLowerCase()))
+                ? available.filter(s => `${s.cor_tecido} ${s.cor_bordado || ''} ${s.desenho_bordado}`.toLowerCase().includes(regataSearch.toLowerCase()))
                 : available;
               if (available.length === 0) {
                 return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
