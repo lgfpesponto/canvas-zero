@@ -1010,6 +1010,94 @@ const ExtrasPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Regata Stock Manager Dialog */}
+      <Dialog open={showRegataStockManager} onOpenChange={setShowRegataStockManager}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Organizar Estoque — Regata Pronta Entrega</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const distinct = (key: 'cor_tecido' | 'cor_bordado' | 'desenho_bordado') =>
+              Array.from(new Set(regataStockItems.map(s => (s as any)[key]).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const corTecidoOpts = distinct('cor_tecido');
+            const corBordadoOpts = distinct('cor_bordado');
+            const desenhoOpts = distinct('desenho_bordado');
+            return (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {regataStockItems.length > 0 && (
+                  <div>
+                    <Label className="text-base font-semibold">Estoque atual</Label>
+                    <div className="mt-2 space-y-1">
+                      {regataStockItems.map(item => {
+                        const isEditing = editingRegataStockId === item.id;
+                        const labelStr = [item.cor_tecido, item.cor_bordado, item.desenho_bordado].filter(Boolean).join(' + ');
+                        return (
+                          <div key={item.id} className="flex justify-between items-center rounded-lg border border-border p-2 text-sm gap-2">
+                            <span className="flex-1">{labelStr}</span>
+                            {isEditing ? (
+                              <div className="flex items-center gap-1">
+                                <Input type="number" min="0" className="w-20 h-8" value={editingRegataStockQtd} onChange={e => setEditingRegataStockQtd(e.target.value)} />
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={async () => {
+                                  await (supabase as any).from('regata_stock').update({ quantidade: parseInt(editingRegataStockQtd) || 0 }).eq('id', item.id);
+                                  setEditingRegataStockId(null);
+                                  fetchRegataStock();
+                                }}><Check className="h-4 w-4 text-green-600" /></Button>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingRegataStockId(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <span className="font-bold">{item.quantidade} un</span>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingRegataStockId(item.id); setEditingRegataStockQtd(String(item.quantidade)); }}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={async () => {
+                                  await (supabase as any).from('regata_stock').delete().eq('id', item.id);
+                                  fetchRegataStock();
+                                }}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {regataStockItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhuma variação cadastrada.</p>
+                )}
+
+                <div className="pt-4 border-t border-border space-y-3">
+                  <Label className="text-base font-semibold">Adicionar ao estoque</Label>
+                  <p className="text-xs text-muted-foreground">Digite e pressione Enter. As variações ficam salvas como sugestão para os próximos cadastros.</p>
+                  <div>
+                    <Label>Cor do tecido *</Label>
+                    <Input list="regata-cor-tecido-opts" value={regataStockCorTecido} onChange={e => setRegataStockCorTecido(e.target.value)} placeholder="Ex: Marrom" />
+                    <datalist id="regata-cor-tecido-opts">{corTecidoOpts.map(v => <option key={v} value={v} />)}</datalist>
+                  </div>
+                  <div>
+                    <Label>Cor do bordado *</Label>
+                    <Input list="regata-cor-bordado-opts" value={regataStockCorBordado} onChange={e => setRegataStockCorBordado(e.target.value)} placeholder="Ex: Branco" />
+                    <datalist id="regata-cor-bordado-opts">{corBordadoOpts.map(v => <option key={v} value={v} />)}</datalist>
+                  </div>
+                  <div>
+                    <Label>Desenho do bordado *</Label>
+                    <Input list="regata-desenho-opts" value={regataStockDesenho} onChange={e => setRegataStockDesenho(e.target.value)} placeholder="Ex: Cruz" />
+                    <datalist id="regata-desenho-opts">{desenhoOpts.map(v => <option key={v} value={v} />)}</datalist>
+                  </div>
+                  <div>
+                    <Label>Quantidade *</Label>
+                    <Input type="number" min="1" value={regataStockQtd} onChange={e => setRegataStockQtd(e.target.value)} placeholder="Ex: 5" />
+                  </div>
+                  <Button className="w-full" onClick={handleSaveRegataStock}>Salvar</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
