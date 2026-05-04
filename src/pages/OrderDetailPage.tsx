@@ -569,18 +569,25 @@ const OrderDetailPage = () => {
                   }
                   const ids = Array.from(selectedIds);
                   const observacao = bulkStatus === 'Cancelado' ? bulkCancelReason.trim() : undefined;
+                  // Pré-busca numero+status de cada pedido para o relatório de bloqueados
+                  const { data: rows } = await supabase.from('orders').select('id, numero, status').in('id', ids);
+                  const meta = new Map<string, { numero: string; status: string }>();
+                  (rows || []).forEach(r => meta.set(r.id, { numero: r.numero, status: r.status }));
                   let updated = 0;
-                  let blocked = 0;
+                  const blockedItems: BlockedItem[] = [];
                   for (const oid of ids) {
                     try {
                       await updateOrderStatus(oid, bulkStatus, observacao);
                       updated++;
                     } catch {
-                      blocked++;
+                      const m = meta.get(oid);
+                      if (m) blockedItems.push({ numero: m.numero, statusAtual: m.status });
                     }
                   }
                   if (updated > 0) toast.success(`${updated} pedido${updated > 1 ? 's' : ''} atualizado${updated > 1 ? 's' : ''} para "${bulkStatus}"`);
-                  if (blocked > 0) toast.error(`${blocked} pedido(s) bloqueado(s) por ordem de produção.`);
+                  if (blockedItems.length > 0) {
+                    setBulkBlocked({ open: true, destino: bulkStatus, blocked: blockedItems, movedCount: updated });
+                  }
                   clear();
                   setBulkStatus('');
                   setBulkCancelReason('');
