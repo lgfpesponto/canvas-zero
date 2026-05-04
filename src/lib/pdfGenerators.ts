@@ -724,16 +724,16 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
   const valTotal = valBotas + valCintos;
 
   const drawHeader = () => {
-    doc.setFillColor(245, 158, 11);
-    doc.rect(0, 0, pageW, 18, 'F');
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(0, 0, 0);
     doc.setFont(FONT, 'bold');
     doc.setFontSize(13);
-    doc.text('Resumo Comissão Bordado 7Estrivos', margin, 11);
+    doc.text('Resumo Comissão Bordado 7Estrivos', margin, 10);
     doc.setFont(FONT, 'normal');
     doc.setFontSize(9);
-    doc.text(periodoLabel, pageW - margin, 11, { align: 'right' });
-    doc.setTextColor(0, 0, 0);
+    doc.text(periodoLabel, pageW - margin, 10, { align: 'right' });
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 14, pageW - margin, 14);
   };
   drawHeader();
 
