@@ -16,7 +16,6 @@ import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
-import { FichaStub } from '@/components/FichaStub';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -1191,9 +1190,6 @@ const OrderDetailPage = () => {
                       </div>
                     ))}
                   </div>
-
-                  {/* Canhoto da ficha (igual ao PDF impresso) */}
-                  <FichaStub order={order} />
                 </div>
               );
             })()
