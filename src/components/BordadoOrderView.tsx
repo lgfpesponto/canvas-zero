@@ -299,8 +299,8 @@ export function BordadoOrderView({ order: initialOrder, onBack }: { order: Order
                       {!temFoto ? (
                         <p className="text-muted-foreground italic text-[11px]">Sem foto</p>
                       ) : (
-                        <button type="button" onClick={() => setFotoOpen(true)} className="text-primary hover:underline font-semibold">
-                          ver foto ↗
+                        <button type="button" onClick={() => setFotoOpen(o => !o)} className="text-primary hover:underline font-semibold">
+                          {fotoOpen ? 'recolher foto' : 'ver foto ↗'}
                         </button>
                       )}
                     </div>
