@@ -37,6 +37,7 @@ const FinanceiroSaldoRevendedor = () => {
   const [vendedoresLista, setVendedoresLista] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
+  const [pendencias, setPendencias] = useState<Record<string, { qtd: number; valor: number }>>({});
 
   // Filtros padronizados
   const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
