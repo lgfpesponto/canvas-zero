@@ -655,14 +655,7 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 /* ─────────── Resumo Baixa Bordado 7Estrivos ─────────── */
 export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  let FONT = 'helvetica';
-  try {
-    const { registerMontserrat } = await import('./pdfFonts');
-    await registerMontserrat(doc);
-    FONT = 'Montserrat';
-  } catch (err) {
-    console.warn('Montserrat indisponível, usando Helvetica:', err);
-  }
+  const FONT = 'helvetica';
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;

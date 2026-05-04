@@ -1,38 +1,19 @@
-## Correção: erro ao gerar Resumo de Baixas
+## Remover Montserrat do PDF
 
-### Diagnóstico
+A fonte Montserrat está causando erro no jsPDF (`Cannot read properties of undefined (reading '0')` no `addFont`, seguido de `widths` no `text`). Vamos abandonar a fonte customizada e voltar para Helvetica (padrão built-in do jsPDF, sempre funciona).
 
-Os erros do console (`Cannot read properties of undefined (reading '0')` em `addFont` e `Cannot read properties of undefined (reading 'widths')` em `text`) acontecem dentro do `addFont`/`pdfEscape16` do jsPDF. Causa: o TTF do Montserrat não está chegando como base64 válido — `fetch(import.meta url)` em dev às vezes serve o arquivo com MIME/transformação errada, então o `addFont` engole sem lançar mas a fonte fica "meio registrada" e quebra o primeiro `doc.text`.
+### Mudanças
 
-Resultado: o PDF de baixas quebra logo no primeiro `drawHeader()`.
+**1. `src/lib/pdfGenerators.ts`**
+- Remover o `await import('./pdfFonts')` e a chamada `registerMontserrat(doc)` da função `generateBordadoBaixaResumoPDF`.
+- Deixar `FONT = 'helvetica'` fixo (já é o default).
+- Remover o try/catch relacionado, simplificando o código.
 
-### Correção
+**2. `src/lib/pdfFonts.ts`**
+- Deletar o arquivo (não será mais usado).
 
-Em `src/lib/pdfGenerators.ts`, na função `generateBordadoBaixaResumoPDF`:
-
-- Envolver a chamada `await registerMontserrat(doc)` em try/catch.
-- Se falhar, manter `FONT = 'helvetica'` (built-in, sempre disponível) e seguir gerando o PDF normalmente.
-- Logar o warning no console para diagnosticarmos depois.
-
-Em `src/lib/pdfFonts.ts`, fortalecer o carregamento:
-
-- Importar os TTF com `?arraybuffer` ao invés de `?url` + fetch — Vite resolve o binário direto, sem depender de MIME/transform do dev server.
-- Converter o ArrayBuffer para base64 com a mesma função em chunks (já existe).
-
-```ts
-// src/lib/pdfFonts.ts
-import regularBuf from '@/assets/fonts/Montserrat-Regular.ttf?arraybuffer';
-import boldBuf from '@/assets/fonts/Montserrat-Bold.ttf?arraybuffer';
-```
-
-(Vite suporta `?arraybuffer` nativamente para assets binários; cai num import síncrono já com os bytes — fica `registerMontserrat` síncrono e mais confiável.)
+**3. `src/assets/fonts/Montserrat-Regular.ttf` e `Montserrat-Bold.ttf`**
+- Deletar os arquivos para limpar o repositório.
 
 ### Resultado
-
-- Se o Montserrat carregar: PDF sai com Montserrat.
-- Se falhar por qualquer motivo (build, asset, etc.): PDF sai com Helvetica e o usuário consegue baixar o resumo normalmente, sem ficar travado.
-
-### Arquivos tocados
-
-- `src/lib/pdfFonts.ts` — trocar `?url` + fetch por `?arraybuffer`.
-- `src/lib/pdfGenerators.ts` — try/catch no `registerMontserrat` com fallback Helvetica.
+PDF do resumo do bordado volta a gerar normalmente usando Helvetica, sem erros.
