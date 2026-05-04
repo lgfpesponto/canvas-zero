@@ -54,8 +54,11 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   corRegata: 'Cor',
   corBrilho: 'Cor do Brilho',
   descBordadoRegata: 'Descrição do Bordado',
+  corTecidoRegata: 'Cor do Tecido',
+  desenhoBordadoRegata: 'Desenho do Bordado',
   descricaoProduto: 'Descrição do Produto',
   valorManual: 'Valor',
+  vinculadoBota: 'Vai com Bota por Encomenda',
   // Belt (cinto) fields
   tamanhoCinto: 'Tamanho',
   bordadoP: 'Bordado P',
