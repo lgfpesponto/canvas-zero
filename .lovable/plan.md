@@ -1,85 +1,39 @@
-## Ajustes no Portal Bordado
+## Mudanças no Portal Bordado (`src/pages/BordadoPortalPage.tsx`)
 
-### 1. Botão de "voltar para entrada" nos cards da coluna Baixa
-No `BordadoColumn`, espelhar o padrão do botão verde de baixa-rápida, mas para a coluna **Baixa Bordado 7Estrivos**:
-- Ícone `RotateCcw` (rodinha de voltar) dentro de um botão circular âmbar (mesma cor da coluna Entrada).
-- Tooltip: "Voltar para Entrada Bordado 7Estrivos".
-- Ao clicar, chama `aplicarStatus(o.id, 'Entrada Bordado 7Estrivos')` (mesmo RPC `bordado_baixar_pedido` já usado), com atualização otimista movendo o card de Baixa → Entrada.
-- Reaproveitar o estado `quickBaixaIds` (renomear conceitualmente para "loading rápido" via segundo prop) — adicionar nova prop `showQuickEntrada` + handler `onQuickEntrada` no `BordadoColumn`.
+### 1. Diálogo de justificativa ao retroceder Baixa → Entrada
 
-### 2. Cores dos botões de scan alinhadas às colunas
-- "ESCANEAR PARA DAR ENTRADA" passa a usar **âmbar** (`bg-amber-500 hover:bg-amber-600`, texto branco) — igual ao bloco "Entrada Bordado 7Estrivos".
-- "ESCANEAR PARA DAR BAIXA" passa a usar **emerald** (`bg-emerald-600 hover:bg-emerald-700`) — igual ao bloco "Baixa Bordado 7Estrivos".
-- Modal scanner (`scannerMode === 'entrada'`) muda accent de `sky` para `amber`: borda do modal, ícones, banner de progresso, botão de submit, foco do input.
-- `scannerMode === 'baixa'` permanece emerald.
+- Reusar o componente existente `JustificativaDialog` (`src/components/JustificativaDialog.tsx`).
+- Adicionar estado `pendingRetrocesso: Order | null`.
+- O botão `RotateCcw` no card da coluna **Baixa Bordado 7Estrivos** passa a abrir o diálogo (não chama mais a RPC direto).
+- Ao confirmar com motivo, chamar a RPC `bordado_baixar_pedido` enviando `_justificativa: motivo` (a função já exige justificativa para esse retrocesso e registra no histórico). Em sucesso, atualização otimista do card movendo de Baixa → Entrada.
+- Cancelar fecha o diálogo sem alterar nada.
+- Refatorar `aplicarStatus` para aceitar um parâmetro opcional `justificativa` e propagá-lo na RPC.
 
-### 3. Reformulação completa do PDF "Resumo de baixas" (comissão do bordado)
+### 2. Card do pedido: mostrar data de criação + vendedor
 
-**Regras de comissão**:
-- Bota (tipo_extra IS NULL): **R$ 1,00 / par**.
-- Cinto (tipo_extra = 'cinto'): **R$ 0,50 / unidade**.
-- Outros extras: ignorados no resumo.
-- Considerar somente baixas em **dias úteis (seg–sex)** com base na **data da baixa**. Sábado/domingo são filtrados fora.
+No subcomponente `BordadoColumn`, substituir as duas linhas atuais (`modelo • tamanho` e `vendedor`) por uma única linha:
 
-**Layout do PDF (A4 retrato)**:
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ Resumo Comissão Bordado 7Estrivos          Período / Página  │
-├──────────────────────────────────────────────────────────────┤
-│ Total geral: X itens • R$ Y,YY     Gerado por: <nome>        │
-│                                                              │
-│ ── Baixa: 02/05/2026 (sex) ──────────────────────────────── │
-│ Qtd | Nº Pedido (cód.barras) | Tipo  | Comissão | Entrada    │
-│  1  | 30040  (177421...)     | Bota  | R$ 1,00  | 30/04/2026 │
-│  1  | 60358  (...)           | Cinto | R$ 0,50  | 01/05/2026 │
-│ Subtotal do dia: 2 itens • R$ 1,50                           │
-│                                                              │
-│ ── Baixa: 03/05/2026 (sáb) — IGNORADO (fim de semana) ───── │
-│                                                              │
-│ ── Totais ──                                                 │
-│ Botas:   N pares  • R$ N,00                                  │
-│ Cintos:  M unid.  • R$ M,50                                  │
-│ TOTAL:   X itens  • R$ Y,YY                                  │
-└──────────────────────────────────────────────────────────────┘
+```
+<numero negrito>
+DD/MM/AAAA • <vendedor>
 ```
 
-**Colunas da tabela** (cabeçalho cinza repetido em cada quebra de página):
-1. **Qtd** — sempre 1 por linha; total acumulado no rodapé do dia e geral.
-2. **Nº Pedido** — número grande em negrito + código de barras (UUID hex 12 caracteres) em cinza menor abaixo.
-3. **Tipo** — "Bota" ou "Cinto".
-4. **Valor comissão** — R$ formatado.
-5. **Data entrada bordado** — extraída do histórico (primeira entrada `local === 'Entrada Bordado 7Estrivos'`).
-6. **Data baixa bordado** — exibida como **cabeçalho de grupo** (não coluna), pois agrupamos por dia.
+Formatar `o.dataCriacao` como `dd/MM/yyyy` (curto, sem hora) usando split simples da string ISO já presente no Order, mantendo padrão usado em outras telas.
 
-**Construção das linhas**:
-- Para cada pedido: pegar do `historico` a primeira entrada `Entrada Bordado` (data) e a baixa dentro do período (`Baixa Bordado 7Estrivos`).
-- Filtrar: dia da semana da baixa entre 1 e 5 (seg-sex). Sábado/domingo descartados (sem comissão).
-- Agrupar linhas por data de baixa, ordenado cronologicamente.
+### 3. Ordenação por data de criação (mais antiga → mais atual)
 
-**Correção do espaçamento**: cada linha terá altura `7mm` (atualmente 5.5mm é colado). Texto base `9pt`, código de barras `7pt`. `y += 8` mínimo entre linhas; quebra de página em `y > 275`. Linha separadora `setDrawColor(230)` posicionada em `y - 2` para não tocar o texto.
+A query já ordena por `data_criacao asc, hora_criacao asc`. Garantir o mesmo comportamento nos `useMemo` `entrada` e `baixa` após filtros de busca (ordenação estável já vem do array pai, então não precisa reordenar; apenas confirmar que `filter` mantém a ordem).
 
-**Rodapés**:
-- Subtotal por dia logo após o último item daquele dia (negrito, fundo bem claro).
-- Bloco final "Totais" com:
-  - Botas: pares + valor.
-  - Cintos: unidades + valor.
-  - Total geral: itens + valor.
-- Listar explicitamente as datas de baixa cobertas (uma linha: "Datas de baixa: 02/05, 05/05, 06/05...").
+### 4. Paginação por coluna
 
-**Nome do arquivo**: `Comissao-Bordado-{de}_a_{ate}.pdf`.
+- Adicionar paginação independente para cada coluna (`Entrada` e `Baixa`), 20 itens por página (mesmo padrão da lista principal de pedidos).
+- Estado: `pageEntrada` e `pageBaixa` (resetam para 1 quando o termo de busca muda).
+- Na `BordadoColumn`, receber novas props `page`, `pageSize`, `onPageChange` e renderizar somente a fatia da página atual.
+- Renderizar controle de paginação compacto abaixo da lista usando os componentes existentes em `src/components/ui/pagination.tsx` (Anterior / números / Próxima). Esconder se houver apenas 1 página.
+- A rolagem interna (`max-h-[60vh] overflow-y-auto`) é mantida; a paginação corta antes de gerar excesso de itens.
 
-### Detalhes técnicos
-- Arquivos: `src/pages/BordadoPortalPage.tsx`, `src/lib/pdfGenerators.ts`.
-- Em `BordadoPortalPage.tsx`:
-  - Adicionar import `RotateCcw` de `lucide-react`.
-  - Novo handler `handleQuickEntrada` análogo a `handleQuickBaixa`.
-  - Compartilhar `quickBaixaIds` para ambos botões (loading visual).
-  - Trocar classes Tailwind dos botões e do modal conforme item 2.
-- Em `pdfGenerators.ts`:
-  - Reescrever `generateBordadoBaixaResumoPDF` mantendo a assinatura atual.
-  - Helper local: `comissaoFor(o)` retorna `{ tipo: 'Bota'|'Cinto'|null, valor: number }`.
-  - Helper local: `isDiaUtil(yyyyMmDd)` — `new Date(y,m-1,d).getDay()` ∈ [1..5].
-  - Reusar `formatDateBR`, `stampPageNumbers`.
-  - Para o código de barras: usar últimos 12 hex do `id` (mesma lógica de `orderBarcodeValueLegacy`/UUID suffix). Não precisa renderizar barras gráficas, só o texto do código abaixo do número.
-- Sem alterações em RPCs, Supabase ou demais telas.
+### Arquivos tocados
+
+- `src/pages/BordadoPortalPage.tsx` (única alteração)
+
+Sem mudanças de banco, RPC ou em outras telas — a RPC `bordado_baixar_pedido` já aceita `_justificativa` e implementa a regra.
