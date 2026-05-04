@@ -1,62 +1,52 @@
-## Corrigir duplicação no Resumo Comissão Bordado
+## Comissão Bordado em Relatórios + Indicador Global de "Carregando"
 
-**Problema:** Ao mover Baixa Bordado → Entrada Bordado → Baixa Bordado, o pedido aparece 2x no relatório (uma para cada baixa do histórico).
+### Parte 1 — Novo relatório "Comissão Bordado" no admin_master
 
-**Regra:** uma baixa do bordado só conta se NÃO houver, depois dela, um evento de regressão (volta para "Entrada Bordado 7Estrivos" ou qualquer etapa anterior). Se houver regressão posterior àquela baixa, ela é ignorada. Avanços (Pesponto, Montagem, etc.) não invalidam — o pedido pode estar adiantado e a baixa ainda conta.
+**Arquivo:** `src/components/SpecializedReports.tsx`
 
-**Etapas consideradas "anteriores à baixa" (regressão):**
-`Em aberto`, `Impresso`, `Aguardando`, `Aguardando Couro`, `Corte`, `Sem bordado`, `Bordado Dinei`, `Bordado Sandro`, `Bordado 7Estrivos`, `Entrada Bordado 7Estrivos`.
+- Adicionar tipo `'comissao_bordado'` em `ReportType` e `REPORT_LABELS['comissao_bordado'] = 'Comissão Bordado'`.
+- Adicionar import: `generateBordadoBaixaResumoPDF` de `@/lib/pdfGenerators`, `supabase` de `@/integrations/supabase/client`, `dbRowToOrder, PRODUCTION_STATUSES` de `@/lib/order-logic`.
+- Criar estado de período (já existe `filterDataDe/filterDataAte` — reutilizar) e função `generateComissaoBordadoPDF` que replica a lógica do `BordadoPortalPage.gerarPDF`:
+  1. Validar `pdfDe ≤ pdfAte`.
+  2. RPC `find_orders_by_status_change` com `_status: ['Baixa Bordado 7Estrivos']`.
+  3. Buscar `orders` por `id` IN (lista), mapear via `dbRowToOrder`.
+  4. Filtrar status ≥ índice de "Baixa Bordado 7Estrivos" e `!== 'Cancelado'`.
+  5. Chamar `generateBordadoBaixaResumoPDF(valid, de, ate, userName)`.
+- No bloco de filtros, mostrar 2 inputs de data (De/Até) quando `activeReport === 'comissao_bordado'` (similar ao bloco do `corte`, mas obrigatório).
+- Atualizar `progressoFileLabel`/flags para o novo report não exigir filtro de progresso/vendedor.
+- No `switch` do `generateReport`, adicionar `case 'comissao_bordado': await generateComissaoBordadoPDF(); break;`.
 
-### Arquivo
+**Arquivo:** `src/components/dashboard/AdminDashboard.tsx`
+- Adicionar `'comissao_bordado'` no array de `reports` passado para `<SpecializedReports>`.
 
-`src/lib/pdfGenerators.ts` — função `generateBordadoBaixaResumoPDF` (linhas ~690-711).
+> Importante: o relatório aparece apenas no AdminDashboard (admin_master/admin_producao). FernandaDashboard e portal Bordado seguem inalterados.
 
-### Mudança
+### Parte 2 — Indicador global "Carregando" em todas as ações
 
-```ts
-const ETAPAS_ANTES_BAIXA = new Set([
-  'Em aberto','Impresso','Aguardando','Aguardando Couro','Corte',
-  'Sem bordado','Bordado Dinei','Bordado Sandro','Bordado 7Estrivos',
-  'Entrada Bordado 7Estrivos',
-]);
+**Estratégia:** intercepta `window.fetch` para contar requisições em voo. Funciona para Supabase (REST/Auth/Functions) sem precisar refatorar cada chamada — incluindo o login.
 
-const linhas: Linha[] = [];
-for (const o of orders) {
-  const c = comissaoFor(o);
-  if (!c.tipo) continue;
-  const hist = Array.isArray(o.historico) ? o.historico : [];
-  const sorted = [...hist]
-    .filter((h: any) => h && typeof h.data === 'string')
-    .sort((a: any, b: any) => {
-      const ka = `${a.data} ${a.hora || '00:00'}`;
-      const kb = `${b.data} ${b.hora || '00:00'}`;
-      return ka < kb ? -1 : ka > kb ? 1 : 0;
-    });
-  // Baixas válidas = "Baixa Bordado 7Estrivos" sem regressão posterior
-  const baixasValidas = sorted.filter((h: any, idx: number) => {
-    if (h?.local !== 'Baixa Bordado 7Estrivos') return false;
-    if (h.data < dataDe || h.data > dataAte || !isDiaUtil(h.data)) return false;
-    for (let i = idx + 1; i < sorted.length; i++) {
-      if (ETAPAS_ANTES_BAIXA.has(sorted[i]?.local)) return false;
-    }
-    return true;
-  });
-  if (baixasValidas.length === 0) continue;
-  // Uma única linha por pedido (a última baixa válida)
-  const baixa = baixasValidas[baixasValidas.length - 1];
-  const entradaEntry = sorted.find((h: any) => h?.local === 'Entrada Bordado 7Estrivos');
-  linhas.push({
-    numero: String(o.numero || ''),
-    barcode: barcodeOf(String(o.id || '')),
-    tipo: c.tipo,
-    comissao: c.valor,
-    dataEntrada: entradaEntry?.data || '',
-    dataBaixa: String(baixa.data || ''),
-  });
-}
-```
+**Arquivos novos:**
 
-**Resultado:**
-- Baixa → regressão → nova Baixa: 1 linha (apenas a baixa atual).
-- Baixa → avançou para Pesponto/Montagem: 1 linha (continua válida).
-- Baixa → regressão sem nova baixa: 0 linhas.
+1. `src/lib/globalLoading.ts`
+   - Exporta `subscribeLoading(listener)`, `startLoading()`, `endLoading()`.
+   - No carregamento do módulo, faz `window.fetch = wrappedFetch` que incrementa/decrementa um contador (try/finally garante decremento).
+   - Ignora chamadas realtime/WebSocket (fetch não é usado para WS, ok).
+
+2. `src/components/GlobalLoadingIndicator.tsx`
+   - Fixed bottom-right, z alto, fundo `bg-card/95` com borda + sombra.
+   - Mostra `<Loader2 className="animate-spin" />` + texto "Carregando".
+   - Usa `useSyncExternalStore` (ou `useState + useEffect`) com `subscribeLoading`. Aparece quando `count > 0` (com pequeno delay de ~150 ms para não piscar em requests rápidos).
+
+**Arquivo:** `src/main.tsx` (ou `src/App.tsx`)
+- Importar `'@/lib/globalLoading'` no topo (efeito colateral: instala o wrap).
+
+**Arquivo:** `src/App.tsx`
+- Montar `<GlobalLoadingIndicator />` dentro do `<TooltipProvider>` (fora do `<ChromeWrapper>` para aparecer também na tela de login).
+
+**Arquivo:** `src/pages/LoginPage.tsx`
+- Atualizar o botão "ENTRAR" para incluir `<Loader2 className="w-4 h-4 animate-spin" />` + "CARREGANDO..." quando `loading` (em vez de só "ENTRANDO..."). Mantém o overlay global também aparecendo.
+
+### Resultado
+
+- admin_master gera "Comissão Bordado" pelo painel admin sem precisar acessar o portal Bordado.
+- Qualquer ação que dispare requisição HTTP (login, salvar, gerar PDF, mover etapa, etc.) automaticamente mostra o chip "Carregando" no canto da tela.
