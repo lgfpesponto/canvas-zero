@@ -1,9 +1,13 @@
 /**
- * Global loading indicator: tracks any in-flight HTTP request by wrapping
- * window.fetch. Shows a small "Carregando" chip whenever count > 0.
+ * Global loading indicator: tracks any in-flight HTTP request.
  *
- * Works automatically for Supabase REST/Auth/Functions, edge functions and
- * any other fetch-based call (including the login flow).
+ * IMPORTANTE: o monkey-patch global de window.fetch foi REMOVIDO porque
+ * estava interferindo com Auth/Realtime do Supabase (locks, refresh, etc.)
+ * e causando travamento da tela de login.
+ *
+ * As funções startLoading/endLoading/subscribeLoading continuam disponíveis
+ * para quem quiser registrar manualmente, mas nada mais é instalado no
+ * window.fetch.
  */
 
 type Listener = (count: number) => void;
@@ -33,21 +37,6 @@ export function getLoadingCount() {
 
 export function subscribeLoading(listener: Listener): () => void {
   listeners.add(listener);
-  // Emit current value immediately so subscribers sync.
   try { listener(inflight); } catch { /* noop */ }
   return () => { listeners.delete(listener); };
-}
-
-// Install fetch wrapper once.
-if (typeof window !== 'undefined' && !(window as any).__globalLoadingInstalled) {
-  (window as any).__globalLoadingInstalled = true;
-  const original = window.fetch.bind(window);
-  window.fetch = async (...args: Parameters<typeof fetch>) => {
-    startLoading();
-    try {
-      return await original(...args);
-    } finally {
-      endLoading();
-    }
-  };
 }

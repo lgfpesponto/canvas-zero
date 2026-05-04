@@ -347,22 +347,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // 2) Then restore existing session — only finish initial loading after profile is hydrated
-    supabase.auth.getSession()
-      .then(async ({ data: { session }, error }) => {
+    // Adicionamos um timeout local para nunca ficar bloqueado por lock disputado /
+    // refresh travado do Supabase. Se falhar, a app vai pra tela de login normalmente.
+    const getSessionWithTimeout = () =>
+      Promise.race([
+        supabase.auth.getSession(),
+        new Promise<{ data: { session: null }, error: Error }>((resolve) =>
+          setTimeout(
+            () => resolve({ data: { session: null }, error: new Error('getSession timeout') }),
+            6000
+          )
+        ),
+      ]);
+
+    getSessionWithTimeout()
+      .then(async (res: any) => {
         if (!isMounted) return;
-        if (error) console.error('[Auth] getSession error:', error.message);
+        const session = res?.data?.session;
+        const error = res?.error;
+        if (error) {
+          const msg = (error?.message || '').toLowerCase();
+          console.warn('[Auth] getSession warn:', error.message);
+          // Se o refresh token sumiu / é inválido / lock foi disputado, limpa a sessão local
+          // pra app não ficar travada tentando refresh em loop.
+          if (
+            msg.includes('refresh token') ||
+            msg.includes('invalid') ||
+            msg.includes('lock') ||
+            msg.includes('timeout')
+          ) {
+            try { await supabase.auth.signOut({ scope: 'local' } as any); } catch { /* noop */ }
+          }
+        }
         if (session?.user) {
           await hydrate(session.user.id);
         }
         finishInitial();
       })
-      .catch((e) => {
+      .catch(async (e) => {
         console.error('[Auth] getSession exception:', e);
+        try { await supabase.auth.signOut({ scope: 'local' } as any); } catch { /* noop */ }
         finishInitial();
       });
 
     // Safety net: never leave the app stuck on "loading" forever
-    const safety = setTimeout(finishInitial, 8000);
+    const safety = setTimeout(finishInitial, 6000);
 
     return () => {
       isMounted = false;
