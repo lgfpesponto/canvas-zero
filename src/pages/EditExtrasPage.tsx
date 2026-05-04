@@ -138,14 +138,16 @@ const EditExtrasPage = () => {
     desmanchar: ['qualSola', 'trocaGaspea', 'numeroPedidoBotaVinculo'],
     kit_canivete: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
     kit_faca: ['tipoCouro', 'corCouro', 'vaiCanivete', 'numeroPedidoBotaVinculo'],
-    carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo'],
+    carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
     revitalizador: ['tipoRevitalizador', 'quantidade'],
     kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
     gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
+    gravata_pronta_entrega: ['corTira', 'tipoMetal', 'corBrilho'],
     adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
     regata: ['corRegata', 'descBordadoRegata'],
+    regata_pronta_entrega: ['corTecidoRegata', 'desenhoBordadoRegata'],
     bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
   };
 
