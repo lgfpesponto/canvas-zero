@@ -259,6 +259,8 @@ function GestaoPage() {
         <p className="mt-3 text-xs text-muted-foreground">
           A lista é atualizada em tempo real via Supabase Realtime. Usuários inativos são removidos automaticamente em até ~60s após fecharem a aba.
         </p>
+          </TabsContent>
+        </Tabs>
       </motion.div>
     </div>
   );
