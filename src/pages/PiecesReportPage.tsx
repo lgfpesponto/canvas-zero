@@ -119,7 +119,12 @@ const PiecesReportPage = () => {
           <>
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">{groupedData.length} combinações encontradas</p>
-              <button onClick={exportPDF} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <button onClick={() => askPrint({
+                title: 'Gerar Relatório por Peças?',
+                description: `Serão agrupadas ${groupedData.length} combinações em PDF para download.`,
+                confirmLabel: 'Gerar PDF',
+                run: exportPDF,
+              })} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
                 <Download size={16} /> EXPORTAR PDF
               </button>
             </div>
