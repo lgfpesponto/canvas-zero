@@ -7,7 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Plus, History, AlertTriangle, Trash2, X, Loader2 } from 'lucide-react';
 import AssistantMessage from './AssistantMessage';
 import { useAdminAssistant } from '@/hooks/useAdminAssistant';
-import { getRecentErrors } from '@/lib/consoleErrorCapture';
+import { getRecentErrorsFiltered, clearRecentErrors } from '@/lib/consoleErrorCapture';
+import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
