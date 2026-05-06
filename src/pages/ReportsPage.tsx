@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
@@ -648,10 +649,29 @@ const ReportsPage = () => {
     return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [showScanner]);
 
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
   const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
   const handleGenerateProductionSheetPDF = useCallback(async () => {
     await generateProductionSheetPDF(ordersToExport, { userName: user?.nomeCompleto || '' });
   }, [ordersToExport, user]);
+
+  const askGenerateReportPDF = useCallback(() => {
+    askPrint({
+      title: 'Gerar Relatório por Filtros?',
+      description: `Será gerado um PDF com ${ordersToExport.length} pedido${ordersToExport.length !== 1 ? 's' : ''} (conforme os filtros aplicados).`,
+      confirmLabel: 'Gerar PDF',
+      run: handleGenerateReportPDF,
+    });
+  }, [askPrint, ordersToExport.length, handleGenerateReportPDF]);
+
+  const askGenerateProductionSheetPDF = useCallback(() => {
+    askPrint({
+      title: 'Imprimir Fichas de Produção?',
+      description: `Serão geradas ${ordersToExport.length} ficha${ordersToExport.length !== 1 ? 's' : ''} em PDF para download.`,
+      confirmLabel: 'Imprimir',
+      run: () => { void handleGenerateProductionSheetPDF(); },
+    });
+  }, [askPrint, ordersToExport.length, handleGenerateProductionSheetPDF]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
@@ -1186,7 +1206,7 @@ const ReportsPage = () => {
               </button>
               {showReportOptions && (
                 <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg western-shadow p-2 z-20 min-w-[220px]">
-                  <button onClick={() => { handleGenerateReportPDF(); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
+                  <button onClick={() => { askGenerateReportPDF(); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
                     <Download size={14} /> Relatório por Filtros
                   </button>
                   {isAdmin && (
@@ -1202,7 +1222,7 @@ const ReportsPage = () => {
             </div>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-            <button onClick={handleGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <button onClick={askGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
               <Printer size={16} /> IMPRIMIR FICHAS
             </button>
           </div>
@@ -1569,6 +1589,7 @@ const ReportsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {confirmPrintDialog}
     </div>
   );
 };

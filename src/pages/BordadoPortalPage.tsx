@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 function formatDataCriacao(s?: string): string {
   if (!s) return '';
@@ -322,6 +323,7 @@ const BordadoPortalPage = () => {
 
   const isBaixaMode = scannerMode === 'baixa';
   const accent = isBaixaMode ? 'emerald' : 'sky';
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   return (
     <div className="min-h-screen bg-background">
@@ -394,7 +396,12 @@ const BordadoPortalPage = () => {
                 </div>
               </div>
               <button
-                onClick={gerarPDF}
+                onClick={() => askPrint({
+                  title: 'Gerar PDF de Baixas de Bordado?',
+                  description: `Período: ${pdfDe} a ${pdfAte}.`,
+                  confirmLabel: 'Gerar PDF',
+                  run: () => { void gerarPDF(); },
+                })}
                 disabled={pdfLoading}
                 className="mt-1 flex items-center justify-center gap-2 px-4 py-2 rounded bg-secondary text-secondary-foreground font-bold text-sm hover:bg-secondary/80 disabled:opacity-50"
               >
@@ -563,6 +570,7 @@ const BordadoPortalPage = () => {
           </div>
         </div>
       )}
+      {confirmPrintDialog}
     </div>
   );
 };

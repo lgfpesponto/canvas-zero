@@ -1,60 +1,68 @@
-# Plano de execução — 3 frentes
+# Confirmação antes de imprimir / gerar PDF
 
-## Frente 1 — Eliminar reescritas automáticas de `orders.preco`
+## Objetivo
+Quando o usuário clicar em qualquer botão que gere PDF ou ficha para impressão, abrir um diálogo confirmando ("Deseja gerar/imprimir [nome do documento]?") antes de disparar o download. Evita PDFs gerados por engano.
 
-Causa-raiz das oscilações de valor: dois pontos reescrevem `preco` no banco em background.
+## Pontos identificados que receberão a confirmação
 
-1. **GestaoPage.tsx** — remover render de `<RecalcPrecosRunner />` e qualquer auto-start via `localStorage`.
-2. **OrderDetailPage.tsx** (linhas ~107-128) — remover o `update({ preco: precoAlvo })` silencioso ao abrir o pedido. A página apenas exibe; nenhum efeito colateral em banco.
-3. **RecalcPrecosRunner.tsx** — remover do bundle (histórico fica no git).
-4. Manter `recomputeSubtotal` / `targetPrecoFromSubtotal` em `recomputeOrderPrice.ts` — continuam sendo chamados em **todo create/update** legítimo (form de novo pedido, edição manual, edição de extras), garantindo que o valor salvo já nasce correto.
-5. Auditar uma vez todos os `INSERT`/`UPDATE` de `orders` para confirmar que nenhum esquece de chamar `recomputeSubtotal` antes de gravar.
+| # | Local | Botão | Ação |
+|---|-------|-------|------|
+| 1 | `src/pages/ReportsPage.tsx` | **IMPRIMIR FICHAS** | `handleGenerateProductionSheetPDF` |
+| 2 | `src/pages/ReportsPage.tsx` | **Relatório por Filtros** (dentro do menu GERAR RELATÓRIO) | `handleGenerateReportPDF` |
+| 3 | `src/components/SpecializedReports.tsx` | **GERAR PDF** (Escalação, Forro, Palmilha, Forma, Pesponto, Metais, Bordados, Corte, Expedição, Cobrança, Extras Cintos, Comissão Bordado) | `generateReport` |
+| 4 | `src/pages/PiecesReportPage.tsx` | **PDF** (Relatório por Peças) | `exportPDF` |
+| 5 | `src/components/SoladoBoard.tsx` | **PDF** (board de solados no dashboard) | `exportPDF` |
+| 6 | `src/components/CommissionPanel.tsx` | **Gerar PDF Comissão** | `handleGeneratePDF` |
+| 7 | `src/pages/BordadoPortalPage.tsx` | **Gerar PDF resumo** | `gerarPDF` |
+| 8 | `src/components/gestao/AuditoriaTab.tsx` | **PDF** (export auditoria) | `exportPDF` |
 
-Resultado: o valor salvo é sempre o valor exibido. Nada muda sozinho entre uma sessão e outra.
+> Os diálogos da aba Financeiro (upload de comprovante PDF, anexos) não entram — não geram impressão, são apenas anexos.
 
-## Frente 2 — Auditoria global na aba Gestão
+## Como funcionará (UX)
 
-1. Criar view `vw_auditoria_alteracoes` em SQL que explode `orders.alteracoes` (jsonb array) em uma linha por alteração, com colunas:
-   - `order_id`, `numero`, `vendedor`, `cliente`, `status_atual`
-   - `data`, `hora`, `usuario`, `campo`, `valor_anterior`, `valor_novo`, `descricao`
-2. Nova aba "Auditoria" em `GestaoPage` (visível só para admin_master) com:
-   - Filtros: período (de/até), usuário que alterou, vendedor do pedido, número do pedido, campo alterado
-   - Tabela paginada (50 por página) ordenada por data desc
-   - Botões: exportar CSV e gerar PDF da página filtrada
-3. Eventos adicionais incluídos na mesma view (UNION ALL):
-   - `revendedor_saldo_movimentos` (ajustes de saldo, baixas, estornos)
-   - `deleted_orders` (exclusões)
-   - `system_announcements` (avisos publicados)
-   - `historico` de mudanças de status (extraído do `orders.historico`)
+Ao clicar em qualquer botão acima, abre um `AlertDialog` (shadcn) padronizado:
 
-## Frente 3 — Assistente IA (admin_master)
+```
+┌─────────────────────────────────────────┐
+│  Imprimir Ficha de Produção?            │
+│                                         │
+│  Serão geradas 12 fichas em PDF para    │
+│  download.                              │
+│                                         │
+│         [ Cancelar ]   [ Imprimir ]     │
+└─────────────────────────────────────────┘
+```
 
-Auditoria do `supabase/functions/admin-assistant/index.ts` mostrou tools faltando. Adicionar:
+- Título dinâmico conforme o documento ("Imprimir Ficha de Produção?", "Gerar Relatório por Filtros?", "Gerar PDF de Bordados?", etc.).
+- Descrição dinâmica mostrando, quando possível, **quantidade** de itens (ex.: pedidos selecionados, peças, registros).
+- Botão primário "Imprimir" / "Gerar PDF" + botão "Cancelar".
+- Confirmar dispara a função original; cancelar fecha o diálogo sem efeitos colaterais.
 
-1. **Novas tools**:
-   - `buscar_alteracoes_pedido(numero|order_id, periodo?)` — lê `alteracoes` + `historico`
-   - `listar_movimentos_saldo(vendedor, periodo?)` — lê `revendedor_saldo_movimentos`
-   - `listar_comprovantes(vendedor?, status?, periodo?)`
-   - `consultar_preco_vigente(categoria, variacao?)` — lê `ficha_variacoes` + `custom_options` com prioridade correta
-   - `listar_usuarios_e_roles()` — lê `profiles` + `user_roles`
-   - `consultar_business_rules(topico?)` — lê `docs/BUSINESS_RULES.md` (embutido no prompt do sistema)
-   - `pedidos_atrasados(vendedor?, dias?)` — usa `dias_restantes`
-   - `auditoria_global(filtros)` — usa a view nova da Frente 2
-2. **Limites**: subir corte de retorno de 8.000 → 20.000 chars para tools tabulares.
-3. **Erros**: logar stack completo e devolver mensagem instruindo a IA a tentar nova abordagem (não desistir).
-4. **System prompt**: incluir resumo de `BUSINESS_RULES.md`, lista atualizada de tools, exemplos ("quem alterou o preço do 23468 hoje?", "qual saldo da Stefany?", "lista pedidos atrasados do Rafael", "qual o preço do bordado X hoje?").
-5. **Teste**: rodar as 4 perguntas de exemplo e confirmar respostas corretas antes de fechar.
+## Implementação técnica
 
-## Ordem de execução
+1. **Criar componente reutilizável** `src/components/common/ConfirmPrintDialog.tsx`:
+   - Props: `open`, `onOpenChange`, `title`, `description`, `confirmLabel` (default "Imprimir"), `onConfirm`.
+   - Usa `AlertDialog` já existente em `src/components/ui/alert-dialog.tsx`.
+   - Botão de confirmação com ícone `Printer`.
 
-1. Frente 1 (parar reescritas automáticas) — resolve o sintoma "valor mudando sozinho"
-2. Frente 2 (Auditoria global) — substitui a necessidade do Recalculador
-3. Frente 3 (Assistente IA) — depende da view criada na Frente 2
+2. **Hook helper** `useConfirmPrint()` (opcional) que retorna `{ confirm(title, description, fn) }` para reduzir boilerplate em páginas com vários botões (caso de `SpecializedReports` que tem 12 tipos de relatório).
 
-## Detalhes técnicos
+3. **Em cada arquivo da tabela acima**:
+   - Adicionar estado `pendingPrint` (com título/descrição/callback) ou `useConfirmPrint`.
+   - Trocar `onClick={fn}` por `onClick={() => askConfirm(fn, meta)}`.
+   - Renderizar `<ConfirmPrintDialog ... />` no final do componente.
 
-- Migração SQL: criação da view `vw_auditoria_alteracoes` com `jsonb_array_elements` + UNION ALL dos demais eventos.
-- Frontend: nova aba em `src/pages/admin/GestaoPage.tsx` + componente `AuditoriaTab.tsx` + hook `useAuditoria.ts`.
-- PDF/CSV: reutilizar `jspdf` + `jspdf-autotable` (já no projeto).
-- Edge function: atualizar `supabase/functions/admin-assistant/index.ts` com novas tools, schemas Zod e tratamento de erro.
-- Remoções: `src/components/admin/RecalcPrecosRunner.tsx` e referências em `GestaoPage.tsx` + chaves de `localStorage` relacionadas.
+4. **Mensagens contextuais**:
+   - ReportsPage IMPRIMIR FICHAS → "Imprimir N fichas de produção?"
+   - ReportsPage Relatório por Filtros → "Gerar relatório com N pedidos?"
+   - SpecializedReports → "Gerar PDF do relatório de {tipo}?" (usa `selectedReport`)
+   - PiecesReportPage → "Gerar Relatório por Peças?"
+   - SoladoBoard → "Gerar PDF do board {nome}?"
+   - CommissionPanel → "Gerar PDF da comissão de {vendedor} ({mês})?"
+   - BordadoPortalPage → "Gerar PDF resumo das baixas de bordado?"
+   - AuditoriaTab → "Exportar N registros da auditoria em PDF?"
+
+## Não-objetivos
+- Não altera a geração do PDF em si (lib `pdfGenerators.ts`, `printHistory`, etc.).
+- Não muda exports CSV (apenas impressão/PDF, conforme pedido). Caso queira incluir CSV depois, é trivial.
+- Não toca em fluxos do Financeiro que apenas anexam arquivos.

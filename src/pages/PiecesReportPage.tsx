@@ -7,6 +7,7 @@ import { ArrowLeft, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 const PIECE_FIELDS = [
   { key: 'tamanho', label: 'Tamanho' },
@@ -29,6 +30,7 @@ const PiecesReportPage = () => {
   const { orders, loading } = useOrdersQuery({ enabled: isAdmin });
   const navigate = useNavigate();
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   const toggleField = (key: string) => {
     setSelectedFields(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
@@ -117,7 +119,12 @@ const PiecesReportPage = () => {
           <>
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">{groupedData.length} combinações encontradas</p>
-              <button onClick={exportPDF} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <button onClick={() => askPrint({
+                title: 'Gerar Relatório por Peças?',
+                description: `Serão agrupadas ${groupedData.length} combinações em PDF para download.`,
+                confirmLabel: 'Gerar PDF',
+                run: exportPDF,
+              })} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
                 <Download size={16} /> EXPORTAR PDF
               </button>
             </div>
@@ -143,6 +150,7 @@ const PiecesReportPage = () => {
           </>
         )}
       </motion.div>
+      {confirmPrintDialog}
     </div>
   );
 };

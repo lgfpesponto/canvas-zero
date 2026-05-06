@@ -24,6 +24,7 @@ import { recordPrintHistory } from '@/lib/printHistory';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -1694,7 +1695,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
-  const generateReport = () => {
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
+
+  const runReport = () => {
     if (!activeReport) return;
     switch (activeReport) {
       case 'escalacao': generateEscalacaoPDF(); break;
@@ -1710,6 +1713,16 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       case 'extras_cintos': generateExtrasCintosPDF(); break;
       case 'comissao_bordado': void generateComissaoBordadoPDF(); break;
     }
+  };
+
+  const generateReport = () => {
+    if (!activeReport) return;
+    askPrint({
+      title: `Gerar PDF — ${REPORT_LABELS[activeReport]}?`,
+      description: 'O PDF será gerado e baixado conforme os filtros selecionados.',
+      confirmLabel: 'Gerar PDF',
+      run: runReport,
+    });
   };
 
   const needsProgressFilter = activeReport === 'escalacao' || activeReport === 'forro' || activeReport === 'palmilha' || activeReport === 'forma' || activeReport === 'pesponto' || activeReport === 'metais' || activeReport === 'bordados' || activeReport === 'corte' || activeReport === 'extras_cintos' || activeReport === 'cobranca';
@@ -1960,6 +1973,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
           </button>
         </div>
       )}
+      {confirmPrintDialog}
     </div>
   );
 };

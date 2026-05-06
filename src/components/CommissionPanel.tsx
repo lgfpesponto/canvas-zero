@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { generateCommissionPDF } from '@/lib/pdfGenerators';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -83,8 +84,14 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
   const handleGeneratePDF = () => {
-    generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth), { userName: user?.nomeCompleto || '' });
+    askPrint({
+      title: 'Gerar Relatório de Comissão?',
+      description: `Comissão de ${formatMonthLabel(selectedMonth)} — ${qualifyingOrders.length} venda${qualifyingOrders.length !== 1 ? 's' : ''} contabilizadas.`,
+      confirmLabel: 'Gerar PDF',
+      run: () => generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth), { userName: user?.nomeCompleto || '' }),
+    });
   };
 
   return (
@@ -137,6 +144,7 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
       <Button onClick={handleGeneratePDF} variant="outline" className="mt-4 w-full flex items-center gap-2">
         <FileText size={16} /> Gerar relatório de comissão
       </Button>
+      {confirmPrintDialog}
     </motion.div>
   );
 };

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Loader2, Search, Download, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -85,6 +86,7 @@ export default function AuditoriaTab() {
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   const filtros = useMemo(() => ({
     _de: de || null,
@@ -257,7 +259,12 @@ export default function AuditoriaTab() {
             <Button variant="outline" onClick={exportCSV} className="gap-1.5">
               <Download className="h-4 w-4" /> CSV
             </Button>
-            <Button variant="outline" onClick={exportPDF} className="gap-1.5">
+            <Button variant="outline" onClick={() => askPrint({
+              title: 'Exportar Auditoria em PDF?',
+              description: `Período: ${de} a ${ate}. Total atual em tela: ${total} eventos. Os filtros aplicados serão respeitados.`,
+              confirmLabel: 'Gerar PDF',
+              run: () => { void exportPDF(); },
+            })} className="gap-1.5">
               <FileText className="h-4 w-4" /> PDF
             </Button>
           </div>
@@ -331,6 +338,7 @@ export default function AuditoriaTab() {
           </Button>
         </div>
       </div>
+      {confirmPrintDialog}
     </div>
   );
 }
