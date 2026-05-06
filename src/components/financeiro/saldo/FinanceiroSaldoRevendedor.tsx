@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Eye, Filter, AlertTriangle } from 'lucide-react';
+import { Loader2, Eye, Filter, AlertTriangle, Zap, ZapOff } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSystemFlag } from '@/hooks/useSystemFlag';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
