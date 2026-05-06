@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary } from '@/components/common/ReportConfirmSummary';
 
 const PIECE_FIELDS = [
   { key: 'tamanho', label: 'Tamanho' },
