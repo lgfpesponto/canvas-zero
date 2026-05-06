@@ -161,16 +161,25 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
         </ScrollArea>
 
         {/* Botão reportar problema */}
-        <div className="px-3 py-2 border-t border-b">
+        <div className="px-3 py-2 border-t border-b flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 text-xs"
+            className="flex-1 justify-start gap-2 text-xs"
             onClick={handleReportProblem}
             disabled={sending}
           >
             <AlertTriangle className="h-3 w-3 text-amber-600" />
             Reportar problema desta página
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={handleClearErrors}
+            title="Limpar erros capturados"
+          >
+            Limpar
           </Button>
         </div>
 
