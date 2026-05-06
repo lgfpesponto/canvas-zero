@@ -801,6 +801,48 @@ export type Database = {
         }
         Relationships: []
       }
+      pdf_snapshots: {
+        Row: {
+          arquivo_kb: number | null
+          filtros: Json
+          gerado_em: string
+          gerado_por: string | null
+          gerado_por_nome: string | null
+          id: string
+          nome_arquivo: string | null
+          order_ids: string[]
+          storage_path: string | null
+          tipo: string
+          totais: Json
+        }
+        Insert: {
+          arquivo_kb?: number | null
+          filtros?: Json
+          gerado_em?: string
+          gerado_por?: string | null
+          gerado_por_nome?: string | null
+          id?: string
+          nome_arquivo?: string | null
+          order_ids?: string[]
+          storage_path?: string | null
+          tipo: string
+          totais?: Json
+        }
+        Update: {
+          arquivo_kb?: number | null
+          filtros?: Json
+          gerado_em?: string
+          gerado_por?: string | null
+          gerado_por_nome?: string | null
+          id?: string
+          nome_arquivo?: string | null
+          order_ids?: string[]
+          storage_path?: string | null
+          tipo?: string
+          totais?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf_cnpj: string
