@@ -22,8 +22,9 @@ const BAIXA_CORTE_NEXT = [
 const FLOW: Record<string, string[]> = {
   'Em aberto': ['Impresso'],
   'Impresso': ['Corte'],
-  'Corte': ['Baixa Corte', 'Aguardando Couro'],
+  'Corte': ['Baixa Corte', 'Aguardando Couro', 'Aguardando Sola'],
   'Aguardando Couro': ['Corte'],
+  'Aguardando Sola': ['Corte'],
   'Baixa Corte': BAIXA_CORTE_NEXT,
   'Entrada Laser Dinei': ['Baixa Laser Dinei'],
   'Baixa Laser Dinei': PESPONTOS,
