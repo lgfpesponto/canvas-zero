@@ -15,6 +15,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import DeployAnnouncementCard from '@/components/gestao/DeployAnnouncementCard';
+import AuditoriaTab from '@/components/gestao/AuditoriaTab';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface PresenceUser extends PresencePayload {
   presence_ref?: string;
@@ -107,12 +109,24 @@ function GestaoPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="mb-6 flex items-center gap-3">
-          <Badge variant="outline" className="gap-1.5 text-xs">
-            <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 animate-pulse" />
-            ao vivo
-          </Badge>
-        </div>
+        {/* Aviso de nova versão (deploy) */}
+        <DeployAnnouncementCard />
+
+        <Tabs defaultValue="online" className="mt-2">
+          <TabsList>
+            <TabsTrigger value="online">Usuários online</TabsTrigger>
+            <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
+          </TabsList>
+          <TabsContent value="auditoria" className="mt-4">
+            <AuditoriaTab />
+          </TabsContent>
+          <TabsContent value="online" className="mt-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="gap-1.5 text-xs">
+                <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 animate-pulse" />
+                ao vivo
+              </Badge>
+            </div>
 
         {/* Aviso de nova versão (deploy) */}
         <DeployAnnouncementCard />
@@ -245,6 +259,8 @@ function GestaoPage() {
         <p className="mt-3 text-xs text-muted-foreground">
           A lista é atualizada em tempo real via Supabase Realtime. Usuários inativos são removidos automaticamente em até ~60s após fecharem a aba.
         </p>
+          </TabsContent>
+        </Tabs>
       </motion.div>
     </div>
   );

@@ -1,5 +1,5 @@
 // Admin Assistant - Chat IA exclusivo para admin_master
-// Streaming SSE + Tool calling (consultas read-only ao banco)
+// Tool calling expandido (consultas read-only ao banco)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -7,101 +7,94 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Você é o "Assistente 7Estrivos", uma IA especializada no portal interno de gestão de pedidos da fábrica de botas, cintos e acessórios 7ESTRIVOS. Você conversa **apenas com a Juliana (admin_master)** ou outras admins master da empresa.
+const TOOL_RESULT_LIMIT = 20000;
+const MAX_TOOL_ITER = 8;
+
+const SYSTEM_PROMPT = `Você é o "Assistente 7Estrivos", uma IA especializada no portal interno de gestão de pedidos da fábrica de botas, cintos e acessórios 7ESTRIVOS. Você conversa apenas com a Juliana (admin_master) ou outras admins master da empresa.
 
 # Sua função
 Ajudar a admin a:
-- Investigar problemas (pedidos travados, saldos errados, erros do sistema, dúvidas de regra de negócio).
-- Consultar dados reais do banco quando perguntada (use as **tools** disponíveis — não invente dados).
-- Sugerir planos de ação para resolver problemas. **Você NUNCA executa ações destrutivas** — só consulta e sugere. Toda mudança real é feita manualmente pela admin nas telas do portal.
-- Explicar regras do sistema com clareza e em português brasileiro.
+- Investigar problemas (pedidos travados, saldos errados, alterações suspeitas, dúvidas de regra de negócio)
+- Consultar dados reais do banco usando as tools disponíveis (NUNCA invente dados)
+- Sugerir planos de ação. Você só CONSULTA — quem executa mudanças é a admin
+- Explicar regras do sistema com clareza em português brasileiro
 
 # Estilo
-- Responda em **português brasileiro**, direto e prático.
-- Use **markdown** (listas, negrito, código, tabelas quando útil).
-- Quando consultar dados via tool, **mostre o resultado de forma legível** (não cole JSON cru — sumarize).
-- Quando sugerir plano de ação, use lista numerada.
-- Se faltar dado, **peça pra admin** ou **use uma tool** pra buscar.
+- Português brasileiro, direto e prático
+- Markdown (listas, negrito, tabelas quando útil)
+- Sumarize resultados das tools (não cole JSON cru)
+- Se uma tool retornar erro, tente uma abordagem diferente (outra tool, parâmetros diferentes) antes de desistir
+- Se faltar dado, peça à admin ou use uma tool
 
-# Regras de negócio principais (7ESTRIVOS)
+# Regras de negócio principais
 
 ## Roles
-- **admin_master** (Juliana, login \`7estrivos\`): acesso total. Única que pode apagar registros.
-- **admin_producao** (Fernanda): admin sem acesso a vendas e sem permissão de apagar. NÃO pode ser vendedora.
-- **vendedor**: revendedor padrão.
-- **vendedor_comissao**: revendedor com regras especiais de comissão (ex: Rancho Chique / Site).
+- admin_master (Juliana, login \`7estrivos\`): acesso total. Única que pode apagar
+- admin_producao (Fernanda): admin sem vendas e sem delete
+- vendedor / vendedor_comissao: revendedores
+- bordado: portal restrito do setor bordado
 
-## Pedidos (tabela \`orders\`)
-- Numeração: padrão \`7E-AAAA0001\` (ano + sequencial).
-- Tipos: bota (default, sem \`tipo_extra\`) ou extras (\`tipo_extra\` = 'cinto', 'kit_faca', 'tiras_laterais', 'revitalizador', 'bota_pronta_entrega', 'gravata_pronta_entrega', etc).
-- Status do fluxo: Em aberto → Impresso → Aguardando → Aguardando Couro → Corte → Baixa Corte → Sem bordado / Bordado (Dinei/Sandro/7Estrivos) → Pesponto 01-05 / Pesponto Ailton → Montagem → Revisão → Expedição → Entregue → Cobrado → Pago.
-- Status especiais: **Cancelado** (excluído de vendas/comissão, exige motivo).
-- Prefixos excluídos de métricas de venda: TROCA, REFAZENDO, ERRO, INFLUENCER.
-- Vendedor "Estoque" = pedidos internos (não conta como venda real).
-- Clientes da Juliana são **vendedores virtuais** (filtrados por \`cliente\` quando vendedor='Juliana Cristina Ribeiro').
+## Pedidos (\`orders\`)
+- Numeração: \`7E-AAAA0001\`
+- Tipos: bota (sem \`tipo_extra\`) ou extras (cinto, kit_faca, tiras_laterais, revitalizador, bota_pronta_entrega, gravata_pronta_entrega, etc)
+- Fluxo: Em aberto → Impresso → Aguardando → Aguardando Couro → Corte → Baixa Corte → Sem bordado/Bordado → Pesponto → Montagem → Revisão → Expedição → Entregue → Cobrado → Pago
+- Cancelado: excluído de vendas/comissão
+- Prefixos excluídos de métricas: TROCA, REFAZENDO, ERRO, INFLUENCER
+- Vendedor "Estoque" = pedido interno
+- Clientes da Juliana = vendedores virtuais
 
-## Prazos (dias úteis, descontando feriados)
-- Bota: 15 dias úteis.
-- Cinto: 5 dias úteis.
-- Demais extras: 1 dia útil.
+## Preços
+- Cascata: \`ficha_variacoes\` → \`custom_options\` → fallback hardcoded
+- Modelo e Bordado exigem preço > 0 (exceto "Sem bordado")
+- Cor da Sola é contextual (modelo+solado+bico, PVC = R$ 0)
+- Laser: R$ 50 fixo
+- Valor final = preco × quantidade − desconto
 
-## Saldo do revendedor (módulo Financeiro / Saldo)
-- Tabelas: \`revendedor_comprovantes\` (entradas), \`revendedor_saldo_movimentos\` (todos movimentos), \`revendedor_baixas_pedido\` (baixas em pedidos cobrados).
-- View útil: \`vw_revendedor_saldo\`.
-- Função RPC: \`saldo_atual_revendedor(_vendedor)\`.
-- Baixa automática: quando admin aprova comprovante, sistema tenta baixa integral em pedidos com status 'Cobrado' (FIFO).
+## Saldo do revendedor
+- Tabelas: \`revendedor_comprovantes\`, \`revendedor_saldo_movimentos\`, \`revendedor_baixas_pedido\`
+- View: \`vw_revendedor_saldo\`. RPC: \`saldo_atual_revendedor\`
+- Aprovar comprovante → tenta baixa automática FIFO em pedidos Cobrados
 
-## Pedidos em alerta (atrasados)
-- Pedido está atrasado quando passou do prazo e ainda NÃO chegou em status de conclusão (Entregue/Cobrado/Pago) — ou chegou e regrediu.
+## Auditoria
+- \`orders.alteracoes\` (jsonb): cada edição de campo no detalhe vira um item
+- \`orders.historico\` (jsonb): cada mudança de status
+- View consolidada: \`vw_auditoria_alteracoes\` + RPC \`get_auditoria_alteracoes\`
+- Use a tool \`buscar_alteracoes\` para investigar quem mudou o quê
 
-## Notificações ao vendedor
-- Tabela \`order_notificacoes\`. RPC: \`registrar_alteracoes_pos_entrega\`. Sino do header notifica quando pedido entregue/cobrado/pago é alterado.
-
-# Tools disponíveis
-Você tem 7 tools pra consultar o banco (sempre que precisar de dado real, USE as tools — não chute):
-- \`consultar_pedido\` — busca um pedido por número (\`7E-AAAA0001\`) ou ID parcial.
-- \`listar_pedidos\` — lista pedidos com filtros (vendedor, status, tipo, período).
-- \`consultar_vendedor\` — resumo de um vendedor: total de pedidos, status, valores.
-- \`consultar_saldo_revendedor\` — saldo atual + últimos movimentos de um revendedor.
-- \`consultar_estatisticas\` — totais de produção e vendas.
-- \`consultar_pedidos_em_alerta\` — lista pedidos atrasados ou regredidos.
-- \`consultar_logs_recentes\` — últimos erros de uma edge function (debug).
+## Prazos
+- Bota: 15 dias úteis. Cinto: 5. Demais extras: 1.
 
 # IMPORTANTE
-- **Nunca invente** dados de pedidos, vendedores ou saldos. Sempre use a tool correspondente.
-- **Nunca afirme que executou uma ação** — você só consulta. Quando sugerir mudança, oriente onde a admin deve clicar no portal.
-- Se a admin descrever um erro do console/sistema, peça (ou consulte via tool) os dados relacionados antes de diagnosticar.
-- Mantenha respostas focadas e curtas quando possível. Detalhe quando o problema for complexo.`;
+- Use as tools sempre que precisar de dado real
+- Nunca afirme que executou uma ação — você só consulta
+- Se a admin perguntar "quem alterou X" ou "por que mudou", use \`buscar_alteracoes\`
+- Para preços vigentes, use \`consultar_preco_vigente\`
+- Para investigar valores estranhos em pedidos, combine \`consultar_pedido\` + \`buscar_alteracoes\`
+`;
 
 const TOOLS = [
   {
     type: "function",
     function: {
       name: "consultar_pedido",
-      description: "Busca um pedido específico pelo número (formato 7E-AAAA0001) ou pelos últimos caracteres do ID. Retorna todos os dados do pedido.",
-      parameters: {
-        type: "object",
-        properties: {
-          identificador: { type: "string", description: "Número do pedido (ex: 7E-AAAA0123) ou últimos 6+ caracteres do UUID" },
-        },
-        required: ["identificador"],
-      },
+      description: "Busca um pedido por número (7E-AAAA0001) ou últimos chars do UUID. Retorna todos os campos.",
+      parameters: { type: "object", properties: { identificador: { type: "string" } }, required: ["identificador"] },
     },
   },
   {
     type: "function",
     function: {
       name: "listar_pedidos",
-      description: "Lista pedidos com filtros opcionais. Retorna no máximo 50 pedidos ordenados por data desc.",
+      description: "Lista pedidos com filtros. Máx 50 por chamada.",
       parameters: {
         type: "object",
         properties: {
-          vendedor: { type: "string", description: "Nome completo do vendedor" },
-          status: { type: "string", description: "Status exato do pedido" },
-          tipo_extra: { type: "string", description: "Tipo extra (cinto, kit_faca, etc) ou 'bota' para botas" },
-          data_de: { type: "string", description: "Data inicial YYYY-MM-DD" },
-          data_ate: { type: "string", description: "Data final YYYY-MM-DD" },
-          limite: { type: "number", description: "Máximo de pedidos (default 20, máx 50)" },
+          vendedor: { type: "string" },
+          status: { type: "string" },
+          tipo_extra: { type: "string", description: "ex: cinto, kit_faca, ou 'bota'" },
+          data_de: { type: "string", description: "YYYY-MM-DD" },
+          data_ate: { type: "string", description: "YYYY-MM-DD" },
+          limite: { type: "number" },
         },
       },
     },
@@ -110,50 +103,50 @@ const TOOLS = [
     type: "function",
     function: {
       name: "consultar_vendedor",
-      description: "Retorna um resumo de um vendedor: total de pedidos por status, valor em aberto, últimos pedidos.",
-      parameters: {
-        type: "object",
-        properties: {
-          nome: { type: "string", description: "Nome completo do vendedor" },
-        },
-        required: ["nome"],
-      },
+      description: "Resumo de um vendedor: pedidos por status, valores, últimos 10.",
+      parameters: { type: "object", properties: { nome: { type: "string" } }, required: ["nome"] },
     },
   },
   {
     type: "function",
     function: {
       name: "consultar_saldo_revendedor",
-      description: "Retorna o saldo atual e os últimos 20 movimentos de saldo de um revendedor.",
-      parameters: {
-        type: "object",
-        properties: {
-          nome: { type: "string", description: "Nome completo do revendedor" },
-        },
-        required: ["nome"],
-      },
+      description: "Saldo atual + últimos 30 movimentos de saldo de um revendedor.",
+      parameters: { type: "object", properties: { nome: { type: "string" } }, required: ["nome"] },
     },
   },
   {
     type: "function",
     function: {
       name: "consultar_estatisticas",
-      description: "Retorna estatísticas gerais do sistema: total de pedidos, em produção, atrasados, valor total.",
-      parameters: {
-        type: "object",
-        properties: {},
-      },
+      description: "Totais gerais: produção, vendas, atrasados.",
+      parameters: { type: "object", properties: {} },
     },
   },
   {
     type: "function",
     function: {
       name: "consultar_pedidos_em_alerta",
-      description: "Lista pedidos que estão atrasados (passaram do prazo) ou que regrediram após status de conclusão.",
+      description: "Pedidos atrasados (dias_restantes <= 0 e fora de conclusão).",
+      parameters: { type: "object", properties: { vendedor: { type: "string" }, limite: { type: "number" } } },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "buscar_alteracoes",
+      description: "Auditoria global: lista alterações em pedidos, mudanças de status, movimentos de saldo, exclusões e avisos. Use para 'quem alterou', 'o que mudou', 'por que mudou de status'.",
       parameters: {
         type: "object",
         properties: {
-          limite: { type: "number", description: "Máximo de pedidos (default 30, máx 100)" },
+          numero: { type: "string", description: "Filtrar por número do pedido (ex: 23468)" },
+          usuario: { type: "string", description: "Filtrar por quem fez a alteração" },
+          vendedor: { type: "string", description: "Vendedor do pedido" },
+          tipo: { type: "string", description: "alteracao_pedido | mudanca_status | saldo_baixa_pedido | saldo_entrada_comprovante | saldo_estorno | saldo_ajuste_admin | pedido_excluido | aviso_sistema" },
+          de: { type: "string", description: "YYYY-MM-DD" },
+          ate: { type: "string", description: "YYYY-MM-DD" },
+          busca: { type: "string", description: "Texto livre na descrição/justificativa" },
+          limite: { type: "number" },
         },
       },
     },
@@ -161,21 +154,71 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "consultar_logs_recentes",
-      description: "Busca os últimos logs de erro de uma edge function específica para debug.",
+      name: "listar_movimentos_saldo",
+      description: "Movimentos de saldo de um revendedor com filtro de período/tipo.",
       parameters: {
         type: "object",
         properties: {
-          funcao: { type: "string", description: "Nome da edge function (ex: create-user, extract-comprovante)" },
-          limite: { type: "number", description: "Máximo de logs (default 10, máx 30)" },
+          vendedor: { type: "string" },
+          tipo: { type: "string" },
+          de: { type: "string" },
+          ate: { type: "string" },
+          limite: { type: "number" },
         },
-        required: ["funcao"],
+        required: ["vendedor"],
       },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_comprovantes",
+      description: "Lista comprovantes enviados (pendente/aprovado/reprovado/utilizado).",
+      parameters: {
+        type: "object",
+        properties: {
+          vendedor: { type: "string" },
+          status: { type: "string" },
+          de: { type: "string" },
+          ate: { type: "string" },
+          limite: { type: "number" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_preco_vigente",
+      description: "Consulta o preço atual configurado de uma variação em ficha_variacoes ou custom_options.",
+      parameters: {
+        type: "object",
+        properties: {
+          categoria: { type: "string", description: "ex: bordado, modelo, solado, cor_sola..." },
+          busca: { type: "string", description: "Parte do nome da variação" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_usuarios_e_roles",
+      description: "Lista todos os usuários do portal com seus roles.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_pedidos_excluidos",
+      description: "Lista pedidos excluídos recentemente (deleted_orders).",
+      parameters: { type: "object", properties: { limite: { type: "number" } } },
     },
   },
 ];
 
-// ───────── Tool implementations (admin client - bypassa RLS) ─────────
+// ───────── Admin client ─────────
 function makeAdminClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -184,19 +227,23 @@ function makeAdminClient() {
   );
 }
 
+// ───────── Tool implementations ─────────
 async function tool_consultar_pedido(args: any) {
   const admin = makeAdminClient();
   const id = String(args.identificador || "").trim();
   if (!id) return { erro: "identificador vazio" };
 
-  // Tenta por número primeiro
   if (id.toUpperCase().startsWith("7E-")) {
     const { data, error } = await admin.from("orders").select("*").eq("numero", id).maybeSingle();
     if (error) return { erro: error.message };
     if (data) return { pedido: data };
   }
-
-  // Tenta por sufixo do UUID
+  // Tenta como número simples (23468)
+  if (/^\d+$/.test(id)) {
+    const { data } = await admin.from("orders").select("*").ilike("numero", `%${id}%`).limit(5);
+    if (data && data.length === 1) return { pedido: data[0] };
+    if (data && data.length > 1) return { multiplos: data.map(p => ({ id: p.id, numero: p.numero, vendedor: p.vendedor, status: p.status })) };
+  }
   const { data, error } = await admin.rpc("find_order_by_id_suffix", { suffix: id.toLowerCase() });
   if (error) return { erro: error.message };
   if (Array.isArray(data) && data.length > 0) return { pedido: data[0] };
@@ -206,7 +253,10 @@ async function tool_consultar_pedido(args: any) {
 async function tool_listar_pedidos(args: any) {
   const admin = makeAdminClient();
   const limite = Math.min(Number(args.limite) || 20, 50);
-  let q = admin.from("orders").select("id, numero, vendedor, cliente, status, tipo_extra, modelo, preco, quantidade, data_criacao, dias_restantes").order("created_at", { ascending: false }).limit(limite);
+  let q = admin.from("orders")
+    .select("id, numero, vendedor, cliente, status, tipo_extra, modelo, preco, quantidade, desconto, data_criacao, dias_restantes")
+    .order("created_at", { ascending: false })
+    .limit(limite);
 
   if (args.vendedor) q = q.eq("vendedor", args.vendedor);
   if (args.status) q = q.eq("status", args.status);
@@ -229,7 +279,7 @@ async function tool_consultar_vendedor(args: any) {
 
   const { data: pedidos, error } = await admin
     .from("orders")
-    .select("id, numero, status, preco, quantidade, data_criacao, tipo_extra")
+    .select("id, numero, status, preco, quantidade, desconto, data_criacao, tipo_extra")
     .or(`vendedor.eq.${nome},and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${nome})`)
     .order("created_at", { ascending: false })
     .limit(500);
@@ -241,7 +291,7 @@ async function tool_consultar_vendedor(args: any) {
   let valorEmAberto = 0;
   for (const p of pedidos || []) {
     porStatus[p.status] = (porStatus[p.status] || 0) + 1;
-    const v = Number(p.preco || 0) * Number(p.quantidade || 1);
+    const v = Number(p.preco || 0) * Number(p.quantidade || 1) - Number(p.desconto || 0);
     valorTotal += v;
     if (!["Pago", "Cancelado"].includes(p.status)) valorEmAberto += v;
   }
@@ -269,7 +319,7 @@ async function tool_consultar_saldo_revendedor(args: any) {
     .select("*")
     .eq("vendedor", nome)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(30);
   if (mErr) return { erro: mErr.message };
 
   return { vendedor: nome, saldo_atual: saldo, ultimos_movimentos: movs || [] };
@@ -279,45 +329,129 @@ async function tool_consultar_estatisticas() {
   const admin = makeAdminClient();
   const { data: prod } = await admin.rpc("get_production_counts");
   const { data: tot } = await admin.rpc("get_orders_totals");
-
-  // Pedidos atrasados (heurística: dias_restantes <= 0 e status fora de conclusão)
   const { count: atrasados } = await admin
     .from("orders")
     .select("*", { count: "exact", head: true })
     .lte("dias_restantes", 0)
     .not("status", "in", '("Entregue","Cobrado","Pago","Cancelado")');
-
-  return {
-    producao: prod?.[0] || null,
-    totais_geral: tot?.[0] || null,
-    pedidos_atrasados_aprox: atrasados || 0,
-  };
+  return { producao: prod?.[0] || null, totais_geral: tot?.[0] || null, pedidos_atrasados_aprox: atrasados || 0 };
 }
 
 async function tool_consultar_pedidos_em_alerta(args: any) {
   const admin = makeAdminClient();
   const limite = Math.min(Number(args.limite) || 30, 100);
-
-  const { data, error } = await admin
-    .from("orders")
+  let q = admin.from("orders")
     .select("id, numero, vendedor, cliente, status, modelo, tipo_extra, dias_restantes, data_criacao")
     .lte("dias_restantes", 0)
     .not("status", "in", '("Entregue","Cobrado","Pago","Cancelado")')
     .order("dias_restantes", { ascending: true })
     .limit(limite);
-
+  if (args.vendedor) q = q.eq("vendedor", args.vendedor);
+  const { data, error } = await q;
   if (error) return { erro: error.message };
   return { total: data?.length || 0, pedidos: data || [] };
 }
 
-async function tool_consultar_logs_recentes(args: any) {
-  // Tool informativa - logs reais ficam no dashboard Supabase
-  const funcao = String(args.funcao || "").trim();
-  if (!funcao) return { erro: "funcao vazia" };
+async function tool_buscar_alteracoes(args: any) {
+  const admin = makeAdminClient();
+  const limite = Math.min(Number(args.limite) || 100, 500);
+  const { data, error } = await admin.rpc("get_auditoria_alteracoes", {
+    _de: args.de || null,
+    _ate: args.ate || null,
+    _usuario: args.usuario || null,
+    _vendedor: args.vendedor || null,
+    _numero: args.numero || null,
+    _tipos: args.tipo ? [args.tipo] : null,
+    _busca: args.busca || null,
+    _limit: limite,
+    _offset: 0,
+  });
+  if (error) return { erro: error.message };
+  return { total: data?.length || 0, eventos: data || [] };
+}
+
+async function tool_listar_movimentos_saldo(args: any) {
+  const admin = makeAdminClient();
+  const limite = Math.min(Number(args.limite) || 50, 200);
+  let q = admin.from("revendedor_saldo_movimentos")
+    .select("*")
+    .eq("vendedor", args.vendedor)
+    .order("created_at", { ascending: false })
+    .limit(limite);
+  if (args.tipo) q = q.eq("tipo", args.tipo);
+  if (args.de) q = q.gte("created_at", args.de);
+  if (args.ate) q = q.lte("created_at", args.ate + "T23:59:59");
+  const { data, error } = await q;
+  if (error) return { erro: error.message };
+  return { total: data?.length || 0, movimentos: data || [] };
+}
+
+async function tool_listar_comprovantes(args: any) {
+  const admin = makeAdminClient();
+  const limite = Math.min(Number(args.limite) || 50, 200);
+  let q = admin.from("revendedor_comprovantes")
+    .select("id, vendedor, valor, data_pagamento, status, observacao, motivo_reprovacao, created_at, pagador_nome, tipo_detectado")
+    .order("created_at", { ascending: false })
+    .limit(limite);
+  if (args.vendedor) q = q.eq("vendedor", args.vendedor);
+  if (args.status) q = q.eq("status", args.status);
+  if (args.de) q = q.gte("data_pagamento", args.de);
+  if (args.ate) q = q.lte("data_pagamento", args.ate);
+  const { data, error } = await q;
+  if (error) return { erro: error.message };
+  return { total: data?.length || 0, comprovantes: data || [] };
+}
+
+async function tool_consultar_preco_vigente(args: any) {
+  const admin = makeAdminClient();
+  const busca = String(args.busca || "").trim();
+  const out: any = { ficha_variacoes: [], custom_options: [] };
+
+  // ficha_variacoes (com nome da categoria)
+  let q1 = admin.from("ficha_variacoes")
+    .select("nome, preco_adicional, ativo, categoria_id, ficha_categorias!inner(nome, slug)")
+    .eq("ativo", true)
+    .order("nome")
+    .limit(50);
+  if (busca) q1 = q1.ilike("nome", `%${busca}%`);
+  if (args.categoria) q1 = q1.ilike("ficha_categorias.slug" as any, `%${args.categoria}%`);
+  const { data: v1 } = await q1;
+  out.ficha_variacoes = v1 || [];
+
+  // custom_options
+  let q2 = admin.from("custom_options").select("categoria, label, preco").order("categoria").limit(100);
+  if (args.categoria) q2 = q2.ilike("categoria", `%${args.categoria}%`);
+  if (busca) q2 = q2.ilike("label", `%${busca}%`);
+  const { data: v2 } = await q2;
+  out.custom_options = v2 || [];
+
+  return out;
+}
+
+async function tool_listar_usuarios_e_roles() {
+  const admin = makeAdminClient();
+  const { data: profiles } = await admin.from("profiles").select("id, nome_completo, nome_usuario, email, telefone");
+  const { data: roles } = await admin.from("user_roles").select("user_id, role");
+  const rolesByUser: Record<string, string[]> = {};
+  for (const r of roles || []) {
+    rolesByUser[r.user_id] = rolesByUser[r.user_id] || [];
+    rolesByUser[r.user_id].push(r.role);
+  }
   return {
-    aviso: `Para ver logs em tempo real da função "${funcao}", acesse o dashboard Supabase em: https://supabase.com/dashboard/project/uxpcqqxlypshickabeyq/functions/${funcao}/logs`,
-    sugestao: "Cole os logs específicos aqui no chat que eu analiso pra você.",
+    total: profiles?.length || 0,
+    usuarios: (profiles || []).map(p => ({ ...p, roles: rolesByUser[p.id] || [] })),
   };
+}
+
+async function tool_consultar_pedidos_excluidos(args: any) {
+  const admin = makeAdminClient();
+  const limite = Math.min(Number(args.limite) || 30, 100);
+  const { data, error } = await admin.from("deleted_orders")
+    .select("id, order_id, deleted_at, deleted_by, order_data")
+    .order("deleted_at", { ascending: false })
+    .limit(limite);
+  if (error) return { erro: error.message };
+  return { total: data?.length || 0, excluidos: data || [] };
 }
 
 async function executeTool(name: string, args: any): Promise<any> {
@@ -329,11 +463,17 @@ async function executeTool(name: string, args: any): Promise<any> {
       case "consultar_saldo_revendedor": return await tool_consultar_saldo_revendedor(args);
       case "consultar_estatisticas": return await tool_consultar_estatisticas();
       case "consultar_pedidos_em_alerta": return await tool_consultar_pedidos_em_alerta(args);
-      case "consultar_logs_recentes": return await tool_consultar_logs_recentes(args);
+      case "buscar_alteracoes": return await tool_buscar_alteracoes(args);
+      case "listar_movimentos_saldo": return await tool_listar_movimentos_saldo(args);
+      case "listar_comprovantes": return await tool_listar_comprovantes(args);
+      case "consultar_preco_vigente": return await tool_consultar_preco_vigente(args);
+      case "listar_usuarios_e_roles": return await tool_listar_usuarios_e_roles();
+      case "consultar_pedidos_excluidos": return await tool_consultar_pedidos_excluidos(args);
       default: return { erro: `Tool desconhecida: ${name}` };
     }
   } catch (e: any) {
-    return { erro: `Erro ao executar tool: ${e?.message || String(e)}` };
+    console.error(`Tool ${name} failed:`, e?.stack || e);
+    return { erro: `Falha ao executar ${name}: ${e?.message || String(e)}. Tente outra abordagem ou ajuste os parâmetros.` };
   }
 }
 
@@ -342,7 +482,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // 1. Autenticação
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -365,7 +504,6 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    // 2. Verifica role admin_master
     const adminClient = makeAdminClient();
     const { data: hasMaster, error: roleErr } = await adminClient.rpc("has_role", {
       _user_id: userId,
@@ -377,12 +515,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Body
     const body = await req.json();
     const messages = Array.isArray(body.messages) ? body.messages : [];
     const model = body.model || "google/gemini-3-flash-preview";
 
-    // 4. Loop de tool calling (até 5 iterações para evitar loops infinitos)
     const conversation: any[] = [
       { role: "system", content: SYSTEM_PROMPT },
       ...messages,
@@ -395,20 +531,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    for (let iter = 0; iter < 5; iter++) {
-      // Chamada NÃO-streaming para detectar tool calls
+    for (let iter = 0; iter < MAX_TOOL_ITER; iter++) {
       const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: conversation,
-          tools: TOOLS,
-          tool_choice: "auto",
-        }),
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages: conversation, tools: TOOLS, tool_choice: "auto" }),
       });
 
       if (!aiResp.ok) {
@@ -440,37 +567,29 @@ Deno.serve(async (req) => {
       }
 
       const toolCalls = msg.tool_calls;
-
       if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-        // Adiciona a mensagem da IA com as tool_calls
-        conversation.push({
-          role: "assistant",
-          content: msg.content || "",
-          tool_calls: toolCalls,
-        });
-
-        // Executa cada tool e adiciona o resultado
+        conversation.push({ role: "assistant", content: msg.content || "", tool_calls: toolCalls });
         for (const tc of toolCalls) {
           let parsedArgs: any = {};
           try { parsedArgs = JSON.parse(tc.function?.arguments || "{}"); } catch { parsedArgs = {}; }
+          console.log(`[tool] ${tc.function?.name}`, JSON.stringify(parsedArgs).slice(0, 200));
           const result = await executeTool(tc.function?.name, parsedArgs);
+          const serialized = JSON.stringify(result);
           conversation.push({
             role: "tool",
             tool_call_id: tc.id,
-            content: JSON.stringify(result).slice(0, 8000), // limita tamanho
+            content: serialized.length > TOOL_RESULT_LIMIT
+              ? serialized.slice(0, TOOL_RESULT_LIMIT) + `\n[TRUNCADO — resultado original tinha ${serialized.length} chars. Refine os filtros para ver menos resultados.]`
+              : serialized,
           });
         }
-        // Continua o loop pra IA processar os resultados
         continue;
       }
 
-      // Sem tool calls - resposta final
       return new Response(JSON.stringify({
         content: msg.content || "",
         finish_reason: choice.finish_reason,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({
@@ -478,7 +597,7 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e: any) {
-    console.error("admin-assistant error:", e);
+    console.error("admin-assistant error:", e?.stack || e);
     return new Response(JSON.stringify({ error: e?.message || "Erro desconhecido" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
