@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES } from '@/contexts/AuthContext';
 import { useOrdersQuery } from '@/hooks/useOrdersQuery';
