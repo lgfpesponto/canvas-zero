@@ -1580,8 +1580,17 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
+    const cobrancaNome = `Cobrança - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`;
     void recordPrintHistory(filtered.map(o => o.id), 'Cobrança', userName);
-    doc.save(`Cobrança - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
+    void registrarPdfSnapshot({
+      tipo: 'cobranca',
+      filtros: { vendedor: filterVendedor, status: selecionados, gerado_em: geradoEm },
+      orderIds: filtered.map(o => o.id),
+      totais: { qtd_pedidos: filtered.length, qtd_produtos: totalQtd, valor_total: totalValor },
+      doc,
+      nomeArquivo: cobrancaNome,
+    });
+    doc.save(cobrancaNome);
   };
 
   // ── Extras / Cintos: grouping report ──
