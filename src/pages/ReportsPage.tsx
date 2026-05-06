@@ -12,6 +12,7 @@ import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, T
 import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtSet, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
