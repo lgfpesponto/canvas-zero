@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { generateCommissionPDF } from '@/lib/pdfGenerators';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
