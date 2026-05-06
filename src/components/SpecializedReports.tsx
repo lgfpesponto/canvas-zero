@@ -1711,6 +1711,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
       await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin', filterBordadoUsuarios.size > 0 ? [...filterBordadoUsuarios] : undefined);
+      void registrarPdfSnapshot({ tipo: 'comissao_bordado', filtros: { data_de: filterDataDe, data_ate: filterDataAte, usuarios: [...filterBordadoUsuarios] }, orderIds: valid.map(o => o.id), totais: { qtd_pedidos: valid.length } });
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     }
