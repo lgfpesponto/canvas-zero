@@ -7,7 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Plus, History, AlertTriangle, Trash2, X, Loader2 } from 'lucide-react';
 import AssistantMessage from './AssistantMessage';
 import { useAdminAssistant } from '@/hooks/useAdminAssistant';
-import { getRecentErrors } from '@/lib/consoleErrorCapture';
+import { getRecentErrorsFiltered, clearRecentErrors } from '@/lib/consoleErrorCapture';
+import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -41,12 +42,21 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
   };
 
   const handleReportProblem = () => {
-    const errors = getRecentErrors().slice(-5);
+    const errors = getRecentErrorsFiltered(5 * 60 * 1000).slice(-5);
     const errorBlock = errors.length
-      ? errors.map(e => `- [${e.type}] ${e.message}`).join('\n')
-      : '(nenhum erro recente capturado)';
-    const template = `Estou na página \`${location.pathname}${location.search}\` e aconteceu o seguinte problema:\n\n[descreva o que aconteceu]\n\n**Últimos erros do console:**\n${errorBlock}`;
+      ? errors.map(e => {
+          const hhmm = (() => { try { return new Date(e.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch { return '--:--'; } })();
+          return `- [${hhmm}] [${e.type}] ${e.message}`;
+        }).join('\n')
+      : '(nenhum erro recente capturado nos últimos 5 minutos)';
+    const template = `Estou na página \`${location.pathname}${location.search}\` e aconteceu o seguinte problema:\n\n[descreva o que aconteceu]\n\n**Últimos erros do console (últimos 5 min):**\n${errorBlock}`;
     setInput(template);
+    clearRecentErrors();
+  };
+
+  const handleClearErrors = () => {
+    clearRecentErrors();
+    toast.success('Erros capturados foram limpos');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -151,16 +161,25 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
         </ScrollArea>
 
         {/* Botão reportar problema */}
-        <div className="px-3 py-2 border-t border-b">
+        <div className="px-3 py-2 border-t border-b flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 text-xs"
+            className="flex-1 justify-start gap-2 text-xs"
             onClick={handleReportProblem}
             disabled={sending}
           >
             <AlertTriangle className="h-3 w-3 text-amber-600" />
             Reportar problema desta página
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={handleClearErrors}
+            title="Limpar erros capturados"
+          >
+            Limpar
           </Button>
         </div>
 

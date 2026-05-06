@@ -1,39 +1,36 @@
-# Corrigir Assistente IA — erro `userClient.auth.getClaims is not a function`
+# Limpar erros antigos do "Reportar problema"
 
-## Problema
-A edge function `admin-assistant` está retornando 500 em **toda** mensagem enviada ao Assistente. A IA nunca responde — o erro aparece como balão cinza no chat:
+## Diagnóstico
+- O botão "Reportar problema desta página" não chama a edge function. Ele só preenche o campo de texto com os últimos erros capturados pela sessão atual do navegador (`getRecentErrors`).
+- O buffer guarda até 20 erros desde que a aba foi aberta, sem timestamp visível e sem expiração.
+- O erro `userClient.auth.getClaims is not a function` foi gerado antes da correção da função `admin-assistant`. A função já está corrigida e respondendo `200`, mas o erro continua "vivo" no buffer da aba — então toda vez que clica em "Reportar problema", ele aparece de novo no template.
 
-> `userClient.auth.getClaims is not a function`
+## Objetivo
+Fazer o "Reportar problema" mostrar apenas erros recentes e reais, e dar controle para descartar lixo antigo.
 
-## Causa
-Em `supabase/functions/admin-assistant/index.ts` (linha 499) o código chama:
+## Mudanças propostas
 
-```ts
-userClient.auth.getClaims(token)
-```
+1. **Filtrar erros por janela de tempo**
+   - Mostrar no template só os erros dos últimos 5 minutos.
+   - Se não houver nada recente, escrever "(nenhum erro recente capturado)".
 
-Esse método **não existe** no `@supabase/supabase-js@2.45.0` usado pela função. Foi provavelmente confundido com `getUser(jwt)`. Resultado: a função quebra antes mesmo de chamar a IA.
+2. **Mostrar horário de cada erro no template**
+   - Cada linha vira algo como `- [HH:mm] [tipo] mensagem` para a admin saber se é fresco ou antigo.
 
-## Correção
-Trocar a validação do token para `auth.getUser(token)`, que é o método oficial da SDK e devolve `data.user.id` (equivalente ao `sub` do JWT).
+3. **Limpar buffer após reportar**
+   - Ao clicar em "Reportar problema", após preencher o template, limpar o buffer (`clearRecentErrors`) para evitar que o mesmo erro reapareça em reports futuros.
 
-```ts
-const { data: userData, error: userErr } = await userClient.auth.getUser(token);
-if (userErr || !userData?.user) {
-  return 401 "Token inválido";
-}
-const userId = userData.user.id;
-```
+4. **Botão "Limpar erros capturados"**
+   - Pequeno botão ao lado do "Reportar problema" para a admin descartar manualmente o buffer quando souber que foi corrigido.
 
-O restante do fluxo (checagem de `has_role` admin_master, chamada ao Lovable AI Gateway, tools) continua igual.
+5. **Ignorar erros conhecidos como ruído**
+   - Filtrar fora mensagens irrelevantes do Radix UI (`DialogContent requires a DialogTitle`, "Missing Description or aria-describedby") que poluem o relatório.
 
-## Arquivos alterados
-- `supabase/functions/admin-assistant/index.ts` — apenas o bloco de validação de token (linhas ~498-505).
+## Detalhes técnicos
+- `src/lib/consoleErrorCapture.ts`: já guarda `ts` em ISO. Aproveitar para filtrar por janela e expor utilitário de filtragem.
+- `src/components/admin/AdminAssistantPanel.tsx`: ajustar `handleReportProblem` para usar a janela de tempo, formatar horário, limpar buffer no fim e renderizar o novo botão "Limpar erros".
+- Nenhuma mudança em edge function ou banco.
 
-## Validação
-1. Após deploy automático, abrir o chat do assistente em `/financeiro?tab=saldo`.
-2. Enviar uma pergunta simples ("oi").
-3. Confirmar que a IA responde normalmente (sem balão de erro cinza).
-4. Conferir os logs da edge function para garantir que não há mais 500.
-
-Sem mudanças de banco, RLS ou frontend.
+## Resultado esperado
+- O botão "Reportar problema" deixa de mostrar o erro antigo de `getClaims`.
+- A admin vê só erros realmente recentes e pode esvaziar o histórico de erros quando quiser.
