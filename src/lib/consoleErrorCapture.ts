@@ -36,8 +36,28 @@ export function installConsoleErrorCapture() {
   });
 }
 
+const NOISE_PATTERNS = [
+  /DialogContent.*requires.*DialogTitle/i,
+  /Missing `Description` or `aria-describedby/i,
+  /Unknown message type: RESET_BLANK_CHECK/i,
+];
+
+function isNoise(message: string) {
+  return NOISE_PATTERNS.some(rx => rx.test(message));
+}
+
 export function getRecentErrors(): { ts: string; type: string; message: string }[] {
   return [...captured];
+}
+
+export function getRecentErrorsFiltered(windowMs = 5 * 60 * 1000): { ts: string; type: string; message: string }[] {
+  const cutoff = Date.now() - windowMs;
+  return captured.filter(e => {
+    const t = Date.parse(e.ts);
+    if (isFinite(t) && t < cutoff) return false;
+    if (isNoise(e.message)) return false;
+    return true;
+  });
 }
 
 export function clearRecentErrors() {
