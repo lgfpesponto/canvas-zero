@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 function formatDataCriacao(s?: string): string {
   if (!s) return '';
