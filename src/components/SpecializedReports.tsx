@@ -780,6 +780,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Pesponto', userName);
+    void registrarPdfSnapshot({ tipo: 'pesponto', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Pesponto - ${progressoFile} - ${dateFile}.pdf`);
   };
 
