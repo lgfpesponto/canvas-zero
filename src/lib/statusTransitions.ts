@@ -66,7 +66,9 @@ const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
 const EXTRAS_FLOW: Record<string, string[]> = {
   'Em aberto': ['Produzindo', 'Expedição'],
   'Produzindo': ['Em aberto', 'Expedição'],
-  'Expedição': ['Entregue'],
+  'Expedição': ['Baixa Site (Despachado)', 'Baixa Estoque'],
+  'Baixa Site (Despachado)': ['Entregue'],
+  'Baixa Estoque': ['Entregue'],
   'Entregue': ['Conferido'],
   'Conferido': ['Cobrado'],
   'Cobrado': ['Pago'],
