@@ -144,6 +144,7 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
       <Button onClick={handleGeneratePDF} variant="outline" className="mt-4 w-full flex items-center gap-2">
         <FileText size={16} /> Gerar relatório de comissão
       </Button>
+      {confirmPrintDialog}
     </motion.div>
   );
 };
