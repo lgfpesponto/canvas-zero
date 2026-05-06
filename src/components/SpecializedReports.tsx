@@ -1239,8 +1239,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
+    const expedicaoNome = `Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`;
     void recordPrintHistory(filtered.map(o => o.id), 'Expedição', userName);
-    doc.save(`Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
+    void registrarPdfSnapshot({ tipo: 'expedicao', filtros: { vendedor: filterVendedor, progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length, qtd_produtos: totalQtd, valor_total: totalValor }, nomeArquivo: expedicaoNome });
+    doc.save(expedicaoNome);
   };
 
   // ── Cobrança: tabular A4 layout ──
