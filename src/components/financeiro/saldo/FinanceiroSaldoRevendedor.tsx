@@ -46,6 +46,25 @@ const FinanceiroSaldoRevendedor = () => {
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
   const [pendencias, setPendencias] = useState<Record<string, { qtd: number; valor: number }>>({});
+  const { role } = useAuth();
+  const isAdminMaster = role === 'admin_master';
+  const baixaAuto = useSystemFlag('baixa_automatica_ativa', true);
+  const [confirmToggle, setConfirmToggle] = useState<null | boolean>(null);
+
+  const handleToggleBaixaAuto = async (next: boolean) => {
+    const r = await baixaAuto.update(next);
+    if (r.ok) {
+      toast({
+        title: next ? 'Baixa automática ligada' : 'Baixa automática desligada',
+        description: next
+          ? 'Pedidos cobrados voltam a ser pagos automaticamente quando o saldo cobrir.'
+          : 'Nenhum pedido cobrado será pago automaticamente até religar.',
+      });
+    } else {
+      toast({ title: 'Erro ao atualizar', description: r.error, variant: 'destructive' });
+    }
+    setConfirmToggle(null);
+  };
 
   // Filtros padronizados
   const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
