@@ -570,6 +570,7 @@ const BordadoPortalPage = () => {
           </div>
         </div>
       )}
+      {confirmPrintDialog}
     </div>
   );
 };
