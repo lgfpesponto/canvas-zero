@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Loader2, Search, Download, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
