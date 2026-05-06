@@ -323,6 +323,7 @@ const BordadoPortalPage = () => {
 
   const isBaixaMode = scannerMode === 'baixa';
   const accent = isBaixaMode ? 'emerald' : 'sky';
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   return (
     <div className="min-h-screen bg-background">
