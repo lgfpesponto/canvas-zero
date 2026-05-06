@@ -100,6 +100,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify([...dismissedIds]));
