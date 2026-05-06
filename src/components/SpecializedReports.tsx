@@ -1014,6 +1014,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Bordados', userName);
+    void registrarPdfSnapshot({ tipo: 'bordados', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save('relatorio-bordados.pdf');
   };
 
