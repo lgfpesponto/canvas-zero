@@ -83,6 +83,12 @@ const OrderDetailPage = () => {
   const [expImpressao, setExpImpressao] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
+  // Edição de data do pedido — restrito ao vendedor Rancho Chique
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [newDate, setNewDate] = useState<Date | undefined>(undefined);
+  const [dateJustificativa, setDateJustificativa] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
+
   const handleScanSubmit = useCallback(async () => {
     if (!scanValue.trim()) return;
     if (scanning) return;
