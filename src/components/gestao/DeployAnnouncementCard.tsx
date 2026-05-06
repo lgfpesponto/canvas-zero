@@ -72,14 +72,13 @@ export default function DeployAnnouncementCard() {
 
   useEffect(() => {
     load();
-    const channel = supabase
-      .channel('system-announcements-admin')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'system_announcements' },
-        () => load()
-      )
-      .subscribe();
+    const channel = supabase.channel(`system-announcements-admin-${Math.random().toString(36).slice(2)}`);
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'system_announcements' },
+      () => load()
+    );
+    channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
