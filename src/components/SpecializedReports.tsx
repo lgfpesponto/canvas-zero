@@ -641,6 +641,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Palmilha', userName);
+    void registrarPdfSnapshot({ tipo: 'palmilha', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Palmilha - ${progressoFile} - ${dateFile}.pdf`);
   };
 
