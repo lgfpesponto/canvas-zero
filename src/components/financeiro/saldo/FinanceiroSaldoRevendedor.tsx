@@ -252,7 +252,66 @@ const FinanceiroSaldoRevendedor = () => {
             </SelectContent>
           </Select>
         </div>
+
+        {isAdminMaster && (
+          <div className="ml-auto flex items-end">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`flex items-center gap-2 rounded-md border px-3 py-2 ${baixaAuto.value ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'}`}>
+                    {baixaAuto.value
+                      ? <Zap size={16} className="text-emerald-600" />
+                      : <ZapOff size={16} className="text-amber-600" />}
+                    <Label className="text-xs font-medium cursor-pointer">Baixa automática</Label>
+                    <Switch
+                      checked={baixaAuto.value}
+                      disabled={baixaAuto.loading}
+                      onCheckedChange={(next) => setConfirmToggle(next)}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Quando ligado, pedidos no status Cobrado são pagos automaticamente assim que o
+                  saldo do revendedor cobre o valor. Desligar pausa apenas as baixas — saldos
+                  continuam entrando normalmente.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
+
+      {!baixaAuto.value && (
+        <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800">
+          <ZapOff className="h-4 w-4" />
+          <AlertTitle>Baixa automática desligada</AlertTitle>
+          <AlertDescription>
+            Pedidos no status <strong>Cobrado</strong> não estão sendo pagos automaticamente.
+            Saldos continuam entrando normalmente. Religue o botão acima para retomar.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <AlertDialog open={confirmToggle !== null} onOpenChange={(o) => !o && setConfirmToggle(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmToggle ? 'Ligar baixa automática?' : 'Desligar baixa automática?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmToggle
+                ? 'Pedidos cobrados de todos os revendedores voltarão a ser pagos automaticamente assim que o saldo cobrir. Baixas pendentes vão acontecer na próxima entrada de saldo.'
+                : 'Nenhum pedido cobrado será movido para Pago automaticamente. Saldos continuam entrando normalmente. Você poderá religar a qualquer momento.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmToggle !== null && handleToggleBaixaAuto(confirmToggle)}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {aviso.qtdPedidos > 0 && (
         <Alert variant="destructive">
