@@ -663,10 +663,12 @@ const ReportsPage = () => {
       description: (
         <ReportConfirmSummary
           intro="Será gerado um PDF respeitando exatamente os filtros aplicados nesta tela."
-          destaque={{ label: 'Pedidos no relatório', value: `${qtd} pedido${qtd !== 1 ? 's' : ''}` }}
-          linhas={[
+          destaques={[
+            { label: 'Pedidos', value: qtd.toLocaleString('pt-BR') },
+            { label: 'Produtos', value: Number(displayTotalProdutos || 0).toLocaleString('pt-BR') },
             { label: 'Valor total', value: formatCurrency(displayTotalValue) },
-            { label: 'Total de produtos', value: displayTotalProdutos },
+          ]}
+          linhas={[
             { label: 'Vendedor', value: fmtSet(filterVendedor) },
             { label: 'Status', value: fmtSet(filterStatus) },
             { label: 'Período', value: fmtPeriodo(filterDate, filterDateEnd) },

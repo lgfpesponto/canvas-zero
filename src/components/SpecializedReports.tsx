@@ -1738,6 +1738,53 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
   };
 
+  // Aplica os mesmos filtros do generate*PDF correspondente, só para mostrar
+  // os totais (qtd pedidos, qtd produtos, valor) no modal de confirmação.
+  const previewFiltered = (): Order[] => {
+    if (!activeReport) return [];
+    switch (activeReport) {
+      case 'escalacao':
+        return sourceOrders.filter(o => progressoMatches(o.status) && !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-');
+      case 'forro':
+      case 'forma':
+      case 'palmilha':
+        return sourceOrders.filter(o => progressoMatches(o.status) && !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-');
+      case 'pesponto':
+        return sourceOrders.filter(o => progressoMatches(o.status) && !o.tipoExtra);
+      case 'metais':
+      case 'bordados':
+      case 'corte':
+        return sourceOrders.filter(o => progressoMatches(o.status) && (!o.tipoExtra || o.tipoExtra === 'cinto'));
+      case 'expedicao':
+        return sourceOrders.filter(o => o.status.toLowerCase() === 'expedição' && (filterVendedor === 'todos' || o.vendedor === filterVendedor));
+      case 'cobranca': {
+        const DEFAULT_COBRANCA = ['Entregue', 'Conferido', 'Cobrado', 'Pago'];
+        const selecionados = filterProgresso.size === 0 ? DEFAULT_COBRANCA : [...filterProgresso];
+        const statusSetLower = new Set(selecionados.map(s => s.trim().toLowerCase()));
+        return sourceOrders.filter(o =>
+          statusSetLower.has((o.status || '').trim().toLowerCase()) &&
+          (filterVendedor === 'todos' || o.vendedor === filterVendedor)
+        );
+      }
+      case 'extras_cintos':
+        return sourceOrders.filter(o => o.tipoExtra === filterTipoProduto && o.extraDetalhes && progressoMatches(o.status));
+      default:
+        return [];
+    }
+  };
+
+  const computeTotais = (list: Order[]) => {
+    let qtdProdutos = 0;
+    let valor = 0;
+    for (const o of list) {
+      const det = (o.extraDetalhes || {}) as any;
+      const isBotaPE = o.tipoExtra === 'bota_pronta_entrega';
+      qtdProdutos += isBotaPE && Array.isArray(det.botas) ? det.botas.length : (o.quantidade || 0);
+      valor += getOrderFinalValue(o);
+    }
+    return { qtdPedidos: list.length, qtdProdutos, valor };
+  };
+
   const generateReport = () => {
     if (!activeReport) return;
     const isComissao = activeReport === 'comissao_bordado';
@@ -1751,13 +1798,28 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     }
     if (isComissao) linhas.push({ label: 'Quem deu baixa', value: fmtSet(filterBordadoUsuarios) });
 
+    // Destaques numéricos: pedidos / produtos / valor (valor só nos financeiros).
+    const destaques: { label: string; value: ReactNode }[] = [];
+    let nota: ReactNode = 'O PDF respeita exatamente os filtros acima.';
+    if (isComissao) {
+      nota = 'Os totais serão calculados ao gerar o PDF (consulta no servidor).';
+    } else {
+      const { qtdPedidos, qtdProdutos, valor } = computeTotais(previewFiltered());
+      const mostrarValor = activeReport === 'cobranca' || activeReport === 'expedicao' || activeReport === 'extras_cintos';
+      destaques.push({ label: 'Pedidos', value: qtdPedidos.toLocaleString('pt-BR') });
+      destaques.push({ label: 'Produtos', value: qtdProdutos.toLocaleString('pt-BR') });
+      if (mostrarValor) destaques.push({ label: 'Valor total', value: formatCurrency(valor) });
+      if (qtdPedidos === 0) nota = 'Nenhum pedido encontrado para os filtros — o PDF sairá vazio.';
+    }
+
     askPrint({
       title: `Gerar PDF — ${REPORT_LABELS[activeReport]}?`,
       description: (
         <ReportConfirmSummary
           intro={`Relatório especializado: ${REPORT_LABELS[activeReport]}.`}
+          destaques={destaques}
           linhas={linhas}
-          nota="O PDF respeita exatamente os filtros acima."
+          nota={nota}
         />
       ),
       confirmLabel: 'Gerar PDF',

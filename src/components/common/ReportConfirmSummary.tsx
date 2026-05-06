@@ -5,11 +5,15 @@ export interface SummaryLine {
   value: ReactNode;
 }
 
+interface Destaque { label: string; value: ReactNode }
+
 interface Props {
   /** Frase introdutória curta (ex: "Será gerado o relatório de Cobrança."). */
   intro?: ReactNode;
   /** Destaque grande no topo (ex: qtd de pedidos). */
-  destaque?: { label: string; value: ReactNode };
+  destaque?: Destaque;
+  /** Vários destaques numéricos (Pedidos / Produtos / Valor). */
+  destaques?: Destaque[];
   linhas?: SummaryLine[];
   nota?: ReactNode;
 }
@@ -18,17 +22,25 @@ interface Props {
  * Bloco de resumo padrão exibido dentro do ConfirmPrintDialog antes de gerar PDFs.
  * Mantém visual consistente em todos os pontos do sistema.
  */
-export function ReportConfirmSummary({ intro, destaque, linhas = [], nota }: Props) {
+export function ReportConfirmSummary({ intro, destaque, destaques, linhas = [], nota }: Props) {
   const visiveis = linhas.filter(l => l.value !== undefined && l.value !== null && l.value !== '');
+  const todosDestaques: Destaque[] = [
+    ...(destaque ? [destaque] : []),
+    ...(destaques || []),
+  ];
   return (
     <div className="space-y-3 text-sm">
       {intro && <p className="text-muted-foreground">{intro}</p>}
-      {destaque && (
-        <div className="rounded-md border bg-muted/50 px-3 py-2 flex items-baseline justify-between gap-3">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-            {destaque.label}
-          </span>
-          <span className="text-xl font-bold text-foreground">{destaque.value}</span>
+      {todosDestaques.length > 0 && (
+        <div className={`grid gap-2 ${todosDestaques.length === 1 ? 'grid-cols-1' : todosDestaques.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {todosDestaques.map((d, i) => (
+            <div key={i} className="rounded-md border bg-muted/50 px-3 py-2 flex flex-col items-start gap-0.5">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                {d.label}
+              </span>
+              <span className="text-lg font-bold text-foreground leading-tight break-all">{d.value}</span>
+            </div>
+          ))}
         </div>
       )}
       {visiveis.length > 0 && (
