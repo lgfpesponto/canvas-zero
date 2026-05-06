@@ -1125,6 +1125,26 @@ export type Database = {
       }
     }
     Views: {
+      vw_auditoria_alteracoes: {
+        Row: {
+          afetou_valor: boolean | null
+          cliente: string | null
+          data: string | null
+          descricao: string | null
+          detalhes: Json | null
+          hora: string | null
+          id: string | null
+          justificativa: string | null
+          numero: string | null
+          order_id: string | null
+          status_atual: string | null
+          tipo: string | null
+          ts: string | null
+          usuario: string | null
+          vendedor: string | null
+        }
+        Relationships: []
+      }
       vw_revendedor_saldo: {
         Row: {
           saldo_disponivel: number | null
@@ -1271,6 +1291,54 @@ export type Database = {
       find_orders_by_status_change: {
         Args: { _ate: string; _de: string; _status: string[] }
         Returns: string[]
+      }
+      get_auditoria_alteracoes: {
+        Args: {
+          _ate?: string
+          _busca?: string
+          _de?: string
+          _limit?: number
+          _numero?: string
+          _offset?: number
+          _tipos?: string[]
+          _usuario?: string
+          _vendedor?: string
+        }
+        Returns: {
+          afetou_valor: boolean | null
+          cliente: string | null
+          data: string | null
+          descricao: string | null
+          detalhes: Json | null
+          hora: string | null
+          id: string | null
+          justificativa: string | null
+          numero: string | null
+          order_id: string | null
+          status_atual: string | null
+          tipo: string | null
+          ts: string | null
+          usuario: string | null
+          vendedor: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "vw_auditoria_alteracoes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_auditoria_alteracoes_count: {
+        Args: {
+          _ate?: string
+          _busca?: string
+          _de?: string
+          _numero?: string
+          _tipos?: string[]
+          _usuario?: string
+          _vendedor?: string
+        }
+        Returns: number
       }
       get_orders_totals:
         | {
