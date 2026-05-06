@@ -11,6 +11,7 @@ import logo from '@/assets/logo-7estrivos.png';
 import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 
 function formatDataCriacao(s?: string): string {
   if (!s) return '';
