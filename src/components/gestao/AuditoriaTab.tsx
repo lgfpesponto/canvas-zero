@@ -262,7 +262,20 @@ export default function AuditoriaTab() {
             </Button>
             <Button variant="outline" onClick={() => askPrint({
               title: 'Exportar Auditoria em PDF?',
-              description: `Período: ${de} a ${ate}. Total atual em tela: ${total} eventos. Os filtros aplicados serão respeitados.`,
+              description: (
+                <ReportConfirmSummary
+                  intro="PDF dos eventos de auditoria conforme os filtros aplicados."
+                  destaque={{ label: 'Eventos em tela', value: total }}
+                  linhas={[
+                    { label: 'Período', value: fmtPeriodo(de, ate) },
+                    { label: 'Tipo', value: tipo === 'todos' ? 'Todos' : tipo },
+                    { label: 'Número do pedido', value: numero || '—' },
+                    { label: 'Usuário', value: usuario || '—' },
+                    { label: 'Vendedor', value: vendedor || '—' },
+                    { label: 'Busca', value: busca || '—' },
+                  ]}
+                />
+              ),
               confirmLabel: 'Gerar PDF',
               run: () => { void exportPDF(); },
             })} className="gap-1.5">
