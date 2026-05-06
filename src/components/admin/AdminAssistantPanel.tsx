@@ -42,12 +42,21 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
   };
 
   const handleReportProblem = () => {
-    const errors = getRecentErrors().slice(-5);
+    const errors = getRecentErrorsFiltered(5 * 60 * 1000).slice(-5);
     const errorBlock = errors.length
-      ? errors.map(e => `- [${e.type}] ${e.message}`).join('\n')
-      : '(nenhum erro recente capturado)';
-    const template = `Estou na página \`${location.pathname}${location.search}\` e aconteceu o seguinte problema:\n\n[descreva o que aconteceu]\n\n**Últimos erros do console:**\n${errorBlock}`;
+      ? errors.map(e => {
+          const hhmm = (() => { try { return new Date(e.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch { return '--:--'; } })();
+          return `- [${hhmm}] [${e.type}] ${e.message}`;
+        }).join('\n')
+      : '(nenhum erro recente capturado nos últimos 5 minutos)';
+    const template = `Estou na página \`${location.pathname}${location.search}\` e aconteceu o seguinte problema:\n\n[descreva o que aconteceu]\n\n**Últimos erros do console (últimos 5 min):**\n${errorBlock}`;
     setInput(template);
+    clearRecentErrors();
+  };
+
+  const handleClearErrors = () => {
+    clearRecentErrors();
+    toast.success('Erros capturados foram limpos');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
