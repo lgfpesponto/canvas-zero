@@ -13,6 +13,7 @@ import {
 import { Loader2, Search, Download, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
