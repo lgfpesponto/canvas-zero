@@ -1,146 +1,56 @@
-
 ## Objetivo
 
-Resolver o problema "não saber o valor real do PDF do dia 03/05" sem encher o storage:
+Botão (switch) no Financeiro que liga/desliga globalmente a **baixa automática** de pedidos "Cobrado" contra o saldo do revendedor. Quando OFF, nenhuma baixa nova acontece automaticamente — saldo continua entrando normalmente, só não abate pedidos sozinho.
 
-1. **PDFs de Cobrança**: arquivo PDF salvo + snapshot leve (sempre).
-2. **Outros PDFs** (cortes, bordados, expedição, etc.): só snapshot leve (sem o arquivo).
-3. **Retenção 90 dias** (pruner automático).
-4. **Acesso restrito** ao admin_master.
-5. **UI** integrada na aba `/admin/configuracoes` → tela Gestão.
+## Como funciona hoje
 
----
+A função `tentar_baixa_automatica(_vendedor, _admin_id)` é chamada em 4 lugares:
+1. `aprovar_comprovante_revendedor` (admin aprova comprovante)
+2. `ajustar_saldo_revendedor` (admin faz ajuste +)
+3. Trigger `espelhar_a_receber_em_saldo` (admin lança em A Receber)
+4. Trigger `trg_orders_retentar_baixa_apos_estorno` (depois de estorno automático)
 
-## Reorganização da página Gestão
+Em todos os pontos, ela varre os pedidos Cobrado do vendedor (FIFO) e move pra Pago se tem saldo.
 
-Hoje a página tem 2 banners e 2 abas. A nova estrutura, conforme pediu:
+## Solução
 
-```
-[ Banner deploy/aviso ]               ← topo, fixo
-[ Aba: Ao vivo | Auditoria | Histórico de PDFs ]
-```
+### 1. Tabela `system_flags` (banco)
+Tabela genérica chave/valor pra esse e futuros toggles globais.
 
-- **Ao vivo**: o atual "Usuários online" (renomeado).
-- **Auditoria**: encolhida em formato `<Collapsible>` (já existe, só ganha um wrapper que começa fechado, com botão "Mostrar/Ocultar auditoria").
-- **Histórico de PDFs** (nova aba): vide abaixo.
-
-Também removo o `<DeployAnnouncementCard />` duplicado dentro do `TabsContent value="online"` (hoje aparece 2x).
-
----
-
-## Banco de dados
-
-### Tabela `pdf_snapshots` (snapshot leve para QUALQUER PDF gerado)
-
-```
-id              uuid PK
-tipo            text       -- 'cobranca', 'corte', 'bordados', 'expedicao', 'forro', 'palmilha', 'comissao', etc.
-gerado_em       timestamptz default now()
-gerado_por      uuid       -- auth.uid()
-gerado_por_nome text       -- snapshot do nome
-filtros         jsonb      -- { vendedor, status, data_de, data_ate, produtos, ... }
-order_ids       uuid[]     -- ids dos pedidos que entraram no PDF
-totais          jsonb      -- { qtd_pedidos, qtd_produtos, valor_total, ... }
-storage_path    text NULL  -- caminho no bucket (só preenchido p/ Cobrança)
-arquivo_kb      int  NULL  -- tamanho do arquivo (só Cobrança)
+```text
+system_flags
+  key text PK            ex: 'baixa_automatica_ativa'
+  value boolean          true/false
+  updated_at, updated_by
 ```
 
-RLS: SELECT/INSERT/DELETE apenas `admin_master` (INSERT também permite admins via trigger se preferir). Cliente insere via `supabase.from('pdf_snapshots').insert(...)` chamado pelo admin que clicou em "Gerar PDF".
+RLS: SELECT pra qualquer autenticado, UPDATE/INSERT só `admin_master`.
 
-### Storage
+Seed inicial: `('baixa_automatica_ativa', true)` — mantém comportamento atual.
 
-Reutiliza o bucket `financeiro` (já existe, privado), em pasta `pdf-historico/cobranca/{yyyy-mm-dd}/{snapshot_id}.pdf`. Políticas: leitura/insert/delete só para `admin_master`.
-
-### Pruner (90 dias)
-
-Edge function `pdf-historico-prune` rodando via cron diário:
-- `DELETE FROM pdf_snapshots WHERE gerado_em < now() - interval '90 days' RETURNING storage_path` → para cada path não nulo, remove o arquivo do Storage.
-
----
-
-## Geração: o que muda no código
-
-### `SpecializedReports.tsx`
-
-Após cada `doc.save(...)` adicionar uma chamada `await registrarPdfSnapshot({ tipo, filtros, orderIds, totais, doc? })`.
-
-Helper novo `src/lib/pdfHistorico.ts`:
-
-```ts
-export async function registrarPdfSnapshot(args: {
-  tipo: string;
-  filtros: Record<string, unknown>;
-  orderIds: string[];
-  totais: Record<string, number>;
-  doc?: jsPDF; // se vier, faz upload no Storage (Cobrança)
-}) { ... }
+### 2. Modificar `tentar_baixa_automatica`
+Logo no início:
 ```
-
-- Para `tipo === 'cobranca'`: `doc.output('blob')` → upload no bucket → grava `storage_path` + `arquivo_kb`.
-- Para os demais tipos: só insere a linha (snapshot leve, ~5-20 KB no banco).
-
-Falha silenciosa (try/catch + console.warn) — nunca quebra o "Gerar PDF" do usuário.
-
-### Onde plugar inicialmente (12 PDFs do `SpecializedReports.tsx`)
-
-Todos os `generateXxxPDF()` ganham 1 linha antes do `doc.save`. O ID dos pedidos vem de `filtered`/equivalente já presente em cada função.
-
----
-
-## Nova aba "Histórico de PDFs"
-
-Componente: `src/components/gestao/HistoricoPdfTab.tsx`.
-
-**UI**:
-
-- Filtros topo: período (default últimos 30 dias), tipo (multi-select), vendedor (texto), busca.
-- Tabela:
-
+IF NOT (SELECT value FROM system_flags WHERE key='baixa_automatica_ativa') THEN
+  RETURN 0;
+END IF;
 ```
-Data/Hora | Tipo | Vendedor (filtro) | Status (filtro) | Qtd pedidos | Valor total | Gerado por | Ações
-```
+Não quebra nenhuma chamada existente — comprovantes ainda são aprovados, saldo entra, só não baixa pedidos.
 
-- Para linhas com `storage_path`:
-  - botão **Baixar PDF** (signed URL 60 s).
-- Para todas as linhas:
-  - botão **Ver snapshot** → modal com a lista dos pedidos (numero, cliente, vendedor, status, valor) — usa `order_ids` + um `select` em `orders` no momento da abertura. Permite copiar a lista, ver "naquele momento" vs "hoje" (diff de status / valor) e exportar CSV.
-- Aviso no topo: "Histórico mantido por 90 dias. Apenas PDFs de Cobrança guardam o arquivo; os demais guardam só o resumo."
+### 3. UI — Switch no Financeiro
+No cabeçalho da aba **Saldo Revendedor** (`FinanceiroSaldoRevendedor.tsx`), ao lado dos filtros:
 
-Paginação: 50 por página.
+- `Switch` com label **"Baixa automática"**
+- Estado verde ON / cinza OFF
+- Tooltip explicativo: *"Quando ligado, pedidos no status Cobrado são pagos automaticamente assim que o saldo do revendedor cobre o valor. Desligar pausa apenas as baixas — saldos continuam entrando normalmente."*
+- Visível apenas para `admin_master`
+- Ao alternar: confirmação ("Tem certeza? Isso afeta todos os revendedores") → update na tabela → toast de sucesso
+- Quando OFF, mostrar pequeno alerta amarelo no topo da aba: *"Baixa automática desligada — pedidos Cobrado não estão sendo pagos automaticamente."*
 
----
+### 4. Hook + helper
+- `useSystemFlag('baixa_automatica_ativa')` → retorna `{ value, loading, setValue }` com Realtime subscription pra refletir mudança em todas as abas abertas.
 
-## Auditoria recolhida
-
-Envolver o `<AuditoriaTab />` em um `<Collapsible defaultOpen={false}>` com header "Auditoria de alterações" + chevron. Sem mexer no conteúdo dela.
-
----
-
-## Detalhes técnicos
-
-- **Sem migração para `auth.users`**; só `pdf_snapshots` e políticas no Storage.
-- Bucket reaproveitado (`financeiro`) → não cria bucket novo.
-- Ratelimit / dedupe: opcional; se mesmo admin clicar "Gerar PDF" 2x em < 30s com mesmos filtros, deduplico no helper (UPDATE em vez de INSERT) para não inflar histórico — configurável.
-- Edge function pruner: 1 cron diário (`0 4 * * *` Brasília via UTC). Pode ser disparado manualmente por botão "Limpar agora" no header da aba (admin_master).
-- Estimativa de storage: 10 PDFs Cobrança/dia × ~300 KB × 90 dias ≈ **270 MB** estáveis. Snapshots leves: ~50 PDFs/dia × 5 KB × 90 dias ≈ **22 MB** no banco.
-
----
-
-## Entregáveis (ordem de implementação)
-
-1. Migração SQL: tabela `pdf_snapshots` + RLS + policies de Storage para `financeiro/pdf-historico/*`.
-2. `src/lib/pdfHistorico.ts` (helper).
-3. Plug nos 12 geradores de `SpecializedReports.tsx` (sempre snapshot; upload só p/ cobrança).
-4. `src/components/gestao/HistoricoPdfTab.tsx` + modal de detalhes.
-5. Reorganização do `GestaoPage.tsx` (3 abas + Auditoria collapsible + remover banner duplicado).
-6. Edge function `pdf-historico-prune` + cron + botão manual.
-7. Memória: novo arquivo `mem://features/admin/pdf-historico` + entrada no índice.
-
----
-
-## Como isto resolve o caso do dia 03/05
-
-Quando você quiser saber "quanto valia a Cobrança da Stefany no dia 03/05":
-- abre **Gestão → Histórico de PDFs**, filtra Tipo = Cobrança, Vendedor = Stefany, dia 03/05.
-- vê o PDF original (download) **e** o snapshot — com a lista exata de IDs de pedido daquele momento.
-- abre o modal e compara automaticamente: pedidos que mudaram de status, pedidos que sumiram, diferença de valor → resposta auditável em 30 segundos.
+## Fora de escopo
+- Não mexe no fluxo de aprovação de comprovante nem em A Receber.
+- Não cria botão "rodar baixa agora" — quando religar, a próxima entrada de saldo (ou aprovação) já vai disparar a baixa retroativa naturalmente.
+- Sem auditoria detalhada de quem ligou/desligou nesta versão (fica registrado em `updated_by` mas sem tela própria).
