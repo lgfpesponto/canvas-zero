@@ -144,6 +144,31 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
         )}
       </div>
 
+      {isRanchoChique && qualifyingOrders.length > 0 && (
+        <div className="mt-4 border border-border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 px-3 py-2 bg-muted text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span>#</span>
+            <span>Pedido</span>
+            <span>Cliente</span>
+            <span>Data</span>
+          </div>
+          <div className="max-h-64 overflow-y-auto divide-y divide-border">
+            {qualifyingOrders.map((o, i) => {
+              const [y, m, d] = (o.dataCriacao || '').split('-');
+              const dataBR = y && m && d ? `${d}/${m}/${y.slice(2)}` : o.dataCriacao;
+              return (
+                <div key={o.id} className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 px-3 py-1.5 text-xs items-center">
+                  <span className="text-muted-foreground">{i + 1}</span>
+                  <span className="font-mono">{o.numero}</span>
+                  <span className="truncate" title={o.cliente || ''}>{o.cliente || '—'}</span>
+                  <span className="text-muted-foreground tabular-nums">{dataBR}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <Button onClick={handleGeneratePDF} variant="outline" className="mt-4 w-full flex items-center gap-2">
         <FileText size={16} /> Gerar relatório de comissão
       </Button>
