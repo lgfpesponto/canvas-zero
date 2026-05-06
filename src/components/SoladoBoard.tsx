@@ -11,6 +11,7 @@ import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtSet } from '@/components/common/ReportConfirmSummary';
 
 interface SoladoBoardProps {
   title: string;
