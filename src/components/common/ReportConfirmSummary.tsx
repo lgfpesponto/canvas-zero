@@ -5,11 +5,15 @@ export interface SummaryLine {
   value: ReactNode;
 }
 
+interface Destaque { label: string; value: ReactNode }
+
 interface Props {
   /** Frase introdutória curta (ex: "Será gerado o relatório de Cobrança."). */
   intro?: ReactNode;
   /** Destaque grande no topo (ex: qtd de pedidos). */
-  destaque?: { label: string; value: ReactNode };
+  destaque?: Destaque;
+  /** Vários destaques numéricos (Pedidos / Produtos / Valor). */
+  destaques?: Destaque[];
   linhas?: SummaryLine[];
   nota?: ReactNode;
 }

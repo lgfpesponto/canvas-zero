@@ -1,50 +1,70 @@
-# Confirmação detalhada antes de gerar qualquer relatório
-
-## Diagnóstico
-Todos os botões de gerar relatório/PDF do sistema já passam pelo diálogo de confirmação `useConfirmPrint` / `ConfirmPrintDialog`. O que falta é o **resumo do que vai sair** dentro do diálogo — hoje a maioria mostra só uma frase genérica como "O PDF será gerado conforme os filtros selecionados".
-
 ## Objetivo
-Em todo "Gerar PDF/Relatório", o modal de confirmação passa a exibir:
-- Tipo do relatório
-- Quantidade de pedidos/itens que entrarão
-- Filtros aplicados (período, vendedor, status, modelo, etc.)
-- Valor total quando fizer sentido (financeiro, comissão)
-- Botões Cancelar / Gerar PDF (mantém o atual)
 
-## Telas/botões a ajustar
+Mostrar no diálogo de confirmação dos **Relatórios Especializados** (e demais pontos onde fizer sentido) os totais reais antes de gerar o PDF: **quantidade de pedidos**, **quantidade de produtos/pares** e, quando aplicável, **valor total**.
 
-1. **`/relatorios` — Relatório por Filtros** (`ReportsPage.tsx`)
-   - Mostrar: qtd de pedidos, valor total, vendedor, status, período, busca aplicada.
+Hoje o modal só lista os filtros — falta o destaque numérico.
 
-2. **`/relatorios` — Imprimir Fichas de Produção** (`ReportsPage.tsx`)
-   - Mostrar: qtd de fichas, vendedor, status, período.
+## O que muda
 
-3. **`/relatorios` — Relatórios Especializados** (`SpecializedReports.tsx`)
-   - Para cada tipo (Escalação, Forro, Palmilha, Forma, Pesponto, Metais, Bordados, Corte, Expedição, Cobrança, Extras/Cintos, Comissão Bordado): mostrar progresso de produção selecionado, vendedor, período, tipo de produto e — quando o cálculo for barato — quantidade prevista de pedidos.
+### 1. `src/components/SpecializedReports.tsx`
 
-4. **`/relatorio-pecas`** (`PiecesReportPage.tsx`)
-   - Mostrar: campos de agrupamento, qtd de combinações, qtd de pedidos cobertos.
+Em `generateReport()` (linha ~1741), antes de chamar `askPrint`, calcular a prévia aplicando exatamente o mesmo filtro que cada `generate*PDF` usa:
 
-5. **Portal Bordado — Gerar PDF de Baixas** (`BordadoPortalPage.tsx`)
-   - Mostrar: período, qtd de baixas, usuários filtrados.
+- **escalacao / forro / palmilha / forma / pesponto / metais / bordados / corte / cobranca**: filtra `sourceOrders` por `progressoMatches` (e demais critérios do relatório). Calcula:
+  - `qtdPedidos = filtered.length`
+  - `qtdProdutos = soma de quantidade real` (considerando `bota_pronta_entrega` → `botas.length`, igual à Expedição)
+  - `valorTotal = soma de getOrderFinalValue(o)` — exibido em **cobranca**, **expedicao**, **extras_cintos** (relatórios financeiros). Para os de produção (escalação, forro, etc.) mostrar só pedidos+produtos.
+- **expedicao**: filtra por status "Expedição" + vendedor → pedidos, pares e valor.
+- **extras_cintos**: filtra por `tipoExtra` → pedidos e valor.
+- **comissao_bordado**: precisa do RPC `find_orders_by_status_change` (assíncrono). Para não atrasar o modal, mostrar só os filtros (como hoje) + nota "Totais calculados na geração".
 
-6. **Quadros de Solado (`SoladoBoard.tsx`)**
-   - Mostrar: nome do quadro, qtd de pedidos visíveis, status incluídos.
+Passar os números via `destaque` e `linhas` extras do `ReportConfirmSummary`:
 
-7. **Comissão Mensal (`CommissionPanel.tsx`)**
-   - Mostrar: mês, qtd de vendas qualificadas, total de vendas, comissão calculada, status da meta.
+```text
+[ TOTAL DE PEDIDOS               137 ]   <- destaque
+- Produtos (pares):             412
+- Valor total:                  R$ 78.430,00   (só relatórios financeiros)
+- Progresso: Entregue
+- Vendedor: Rafael Silva
+```
 
-8. **Auditoria — Exportar PDF (`AuditoriaTab.tsx`)**
-   - Mostrar: período, total de eventos, filtros (tipo, número, usuário, busca).
+### 2. `src/components/common/ReportConfirmSummary.tsx`
+
+Pequena melhoria: aceitar **múltiplos destaques** (array) para mostrar, lado a lado/empilhados, "Pedidos", "Produtos" e "Valor".
+
+```ts
+destaques?: { label: string; value: ReactNode }[]
+```
+
+Mantém compatibilidade com a prop `destaque` atual.
+
+### 3. Outros pontos já com modal — reforçar números faltantes
+
+Revisar e adicionar `destaques` onde faltarem:
+
+- `src/pages/ReportsPage.tsx` (lista filtrada principal): já tem qtd e valor → migrar para o novo `destaques` (visual mais claro).
+- `src/pages/PiecesReportPage.tsx`: pedidos + combinações.
+- `src/components/SoladoBoard.tsx`: qtd visível.
+- `src/components/CommissionPanel.tsx`: vendas + valor + comissão.
+- `src/components/gestao/AuditoriaTab.tsx`: qtd eventos.
+- `src/pages/BordadoPortalPage.tsx`: qtd registros.
+
+Sem mudar lógica de geração — só o resumo visual.
 
 ## Detalhes técnicos
 
-- O `description` do `useConfirmPrint` aceita `ReactNode`. Vou padronizar como uma lista compacta (rótulo + valor) reutilizável.
-- Criar um componente leve `ReportConfirmSummary` em `src/components/common/ReportConfirmSummary.tsx` com:
-  - props: `qtdPedidos?`, `valorTotal?`, `linhas: { label: string; value: ReactNode }[]`, `nota?: string`.
-  - layout: bloco com qtd em destaque + tabela de "rótulo: valor" + nota opcional em cinza.
-- Ajustar cada chamada `askPrint(...)` para montar essas linhas a partir do estado de filtros do componente.
-- Sem mudanças em PDFs, regras de negócio, banco ou edge functions.
+- Usar `getOrderFinalValue` (já importado) para somar valores — mantém consistência com lista, detalhe e demais PDFs.
+- Cálculo de `qtdProdutos` segue a mesma regra da Expedição (linhas 1215-1217): se `tipoExtra === 'bota_pronta_entrega'` usar `extraDetalhes.botas.length`, senão `o.quantidade`.
+- Cálculo é **memoizável** mas como roda só no clique do botão "Gerar PDF" (não a cada render), basta computar inline dentro de `generateReport`.
+- Nada muda nos PDFs gerados nem nos filtros — só na UI do modal.
 
-## Resultado esperado
-Antes de qualquer PDF sair, a admin vê um modal claro com "isto é o que vai ser gerado" e confirma — evitando relatórios disparados por engano.
+## Arquivos editados
+
+- `src/components/common/ReportConfirmSummary.tsx`
+- `src/components/SpecializedReports.tsx`
+- `src/pages/ReportsPage.tsx`
+- `src/pages/PiecesReportPage.tsx`
+- `src/components/SoladoBoard.tsx`
+- `src/components/CommissionPanel.tsx`
+- `src/components/gestao/AuditoriaTab.tsx`
+- `src/pages/BordadoPortalPage.tsx`
