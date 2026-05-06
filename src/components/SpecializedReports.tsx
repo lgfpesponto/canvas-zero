@@ -26,6 +26,7 @@ import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtSet, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
