@@ -396,7 +396,12 @@ const BordadoPortalPage = () => {
                 </div>
               </div>
               <button
-                onClick={gerarPDF}
+                onClick={() => askPrint({
+                  title: 'Gerar PDF de Baixas de Bordado?',
+                  description: `Período: ${pdfDe} a ${pdfAte}.`,
+                  confirmLabel: 'Gerar PDF',
+                  run: () => { void gerarPDF(); },
+                })}
                 disabled={pdfLoading}
                 className="mt-1 flex items-center justify-center gap-2 px-4 py-2 rounded bg-secondary text-secondary-foreground font-bold text-sm hover:bg-secondary/80 disabled:opacity-50"
               >
