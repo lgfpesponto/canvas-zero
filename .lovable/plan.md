@@ -1,14 +1,39 @@
-Gerar um PDF a partir do CSV `Rafael_Alteracoes_03-05_para_06-05.csv` (64 pedidos) com o mesmo conteúdo: Pedido, Valor 03/05, Valor 06/05, Diferença e Justificativas.
+# Corrigir Assistente IA — erro `userClient.auth.getClaims is not a function`
 
-**Layout**
-- A4 retrato, fonte Helvetica
-- Cabeçalho: "Relação de Alterações de Valores — 03/05 → 06/05"
-- Subtítulo com totais: 03/05 R$ 53.816,40 → 06/05 R$ 52.586,40 (Diferença −R$ 1.230,00)
-- Tabela com cabeçalho repetido a cada página (reportlab `LongTable`)
-- Diferenças negativas em vermelho, positivas em verde
-- Linha final TOTAL
-- Rodapé com numeração de páginas
+## Problema
+A edge function `admin-assistant` está retornando 500 em **toda** mensagem enviada ao Assistente. A IA nunca responde — o erro aparece como balão cinza no chat:
 
-**Saída**
-- `/mnt/documents/Rafael_Alteracoes_03-05_para_06-05.pdf`
-- QA visual com pdftoppm antes de entregar
+> `userClient.auth.getClaims is not a function`
+
+## Causa
+Em `supabase/functions/admin-assistant/index.ts` (linha 499) o código chama:
+
+```ts
+userClient.auth.getClaims(token)
+```
+
+Esse método **não existe** no `@supabase/supabase-js@2.45.0` usado pela função. Foi provavelmente confundido com `getUser(jwt)`. Resultado: a função quebra antes mesmo de chamar a IA.
+
+## Correção
+Trocar a validação do token para `auth.getUser(token)`, que é o método oficial da SDK e devolve `data.user.id` (equivalente ao `sub` do JWT).
+
+```ts
+const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+if (userErr || !userData?.user) {
+  return 401 "Token inválido";
+}
+const userId = userData.user.id;
+```
+
+O restante do fluxo (checagem de `has_role` admin_master, chamada ao Lovable AI Gateway, tools) continua igual.
+
+## Arquivos alterados
+- `supabase/functions/admin-assistant/index.ts` — apenas o bloco de validação de token (linhas ~498-505).
+
+## Validação
+1. Após deploy automático, abrir o chat do assistente em `/financeiro?tab=saldo`.
+2. Enviar uma pergunta simples ("oi").
+3. Confirmar que a IA responde normalmente (sem balão de erro cinza).
+4. Conferir os logs da edge function para garantir que não há mais 500.
+
+Sem mudanças de banco, RLS ou frontend.
