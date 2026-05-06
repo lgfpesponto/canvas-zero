@@ -1117,6 +1117,27 @@ export type Database = {
         }
         Relationships: []
       }
+      system_flags: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: boolean
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: boolean
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: boolean
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

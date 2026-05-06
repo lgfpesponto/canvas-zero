@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Eye, Filter, AlertTriangle } from 'lucide-react';
+import { Loader2, Eye, Filter, AlertTriangle, Zap, ZapOff } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSystemFlag } from '@/hooks/useSystemFlag';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -38,6 +46,25 @@ const FinanceiroSaldoRevendedor = () => {
   const [loading, setLoading] = useState(true);
   const [detalheVendedor, setDetalheVendedor] = useState<RevendedorSaldo | null>(null);
   const [pendencias, setPendencias] = useState<Record<string, { qtd: number; valor: number }>>({});
+  const { role } = useAuth();
+  const isAdminMaster = role === 'admin_master';
+  const baixaAuto = useSystemFlag('baixa_automatica_ativa', true);
+  const [confirmToggle, setConfirmToggle] = useState<null | boolean>(null);
+
+  const handleToggleBaixaAuto = async (next: boolean) => {
+    const r = await baixaAuto.update(next);
+    if (r.ok) {
+      toast({
+        title: next ? 'Baixa automática ligada' : 'Baixa automática desligada',
+        description: next
+          ? 'Pedidos cobrados voltam a ser pagos automaticamente quando o saldo cobrir.'
+          : 'Nenhum pedido cobrado será pago automaticamente até religar.',
+      });
+    } else {
+      toast({ title: 'Erro ao atualizar', description: r.error, variant: 'destructive' });
+    }
+    setConfirmToggle(null);
+  };
 
   // Filtros padronizados
   const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
@@ -225,7 +252,66 @@ const FinanceiroSaldoRevendedor = () => {
             </SelectContent>
           </Select>
         </div>
+
+        {isAdminMaster && (
+          <div className="ml-auto flex items-end">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`flex items-center gap-2 rounded-md border px-3 py-2 ${baixaAuto.value ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'}`}>
+                    {baixaAuto.value
+                      ? <Zap size={16} className="text-emerald-600" />
+                      : <ZapOff size={16} className="text-amber-600" />}
+                    <Label className="text-xs font-medium cursor-pointer">Baixa automática</Label>
+                    <Switch
+                      checked={baixaAuto.value}
+                      disabled={baixaAuto.loading}
+                      onCheckedChange={(next) => setConfirmToggle(next)}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Quando ligado, pedidos no status Cobrado são pagos automaticamente assim que o
+                  saldo do revendedor cobre o valor. Desligar pausa apenas as baixas — saldos
+                  continuam entrando normalmente.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
+
+      {!baixaAuto.value && (
+        <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800">
+          <ZapOff className="h-4 w-4" />
+          <AlertTitle>Baixa automática desligada</AlertTitle>
+          <AlertDescription>
+            Pedidos no status <strong>Cobrado</strong> não estão sendo pagos automaticamente.
+            Saldos continuam entrando normalmente. Religue o botão acima para retomar.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <AlertDialog open={confirmToggle !== null} onOpenChange={(o) => !o && setConfirmToggle(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmToggle ? 'Ligar baixa automática?' : 'Desligar baixa automática?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmToggle
+                ? 'Pedidos cobrados de todos os revendedores voltarão a ser pagos automaticamente assim que o saldo cobrir. Baixas pendentes vão acontecer na próxima entrada de saldo.'
+                : 'Nenhum pedido cobrado será movido para Pago automaticamente. Saldos continuam entrando normalmente. Você poderá religar a qualquer momento.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmToggle !== null && handleToggleBaixaAuto(confirmToggle)}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {aviso.qtdPedidos > 0 && (
         <Alert variant="destructive">
