@@ -15,7 +15,6 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import DeployAnnouncementCard from '@/components/gestao/DeployAnnouncementCard';
-import RecalcPrecosRunner from '@/components/gestao/RecalcPrecosRunner';
 
 interface PresenceUser extends PresencePayload {
   presence_ref?: string;
@@ -117,9 +116,6 @@ function GestaoPage() {
 
         {/* Aviso de nova versão (deploy) */}
         <DeployAnnouncementCard />
-
-        {/* Varredura retroativa de preços (auto-roda 1× por admin) */}
-        <RecalcPrecosRunner />
 
         {/* Cards de resumo */}
         <div className="mb-4 grid gap-3 sm:grid-cols-2">

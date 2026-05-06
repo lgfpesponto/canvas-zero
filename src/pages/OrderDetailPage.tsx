@@ -98,34 +98,9 @@ const OrderDetailPage = () => {
     }
   }, [scanValue, navigate, order, isSelected, toggle, scanning, location.search]);
 
-  // Ref que carrega o último subtotal real recalculado nesta renderização.
-  // Usado pelo efeito de auto-correção logo abaixo, sem precisar duplicar a lógica
-  // de breakdown de preço (que depende de hooks como findFichaPrice/getByCategoria
-  // e só pode ser chamado após order existir).
-  const subtotalRealRef = useRef<number>(0);
-
-  // ─── Auto-correção de order.preco ───
-  // Quando o subtotal recalculado a partir dos itens da composição diverge do valor
-  // salvo em order.preco (bug histórico, ex.: PVC Marrom + R$ 20), atualiza silenciosamente
-  // o banco — assim listagens, dashboards, expedição/cobrança (que leem via
-  // getOrderFinalValue sobre order.preco) refletem o Total correto.
-  useEffect(() => {
-    if (!order || orderLoading) return;
-    const subtotalReal = subtotalRealRef.current;
-    if (!subtotalReal || subtotalReal <= 0) return;
-    const precoAlvo = order.tipoExtra
-      ? subtotalReal
-      : subtotalReal / Math.max(1, order.quantidade || 1);
-    const precoAtual = Number(order.preco) || 0;
-    if (Math.abs(precoAtual - precoAlvo) > 0.01) {
-      supabase
-        .from('orders')
-        .update({ preco: precoAlvo })
-        .eq('id', order.id)
-        .then(() => { /* silencioso — UI já mostra valor correto */ });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order?.id, order?.preco]);
+  // Auto-correção de order.preco REMOVIDA: o preço agora é responsabilidade
+  // exclusiva dos fluxos de criação/edição (que chamam recomputeSubtotal
+  // antes de gravar). Visualizar um pedido nunca mais altera o banco.
 
   if (orderLoading) {
     return (
@@ -456,8 +431,6 @@ const OrderDetailPage = () => {
   const displayTotalBruto = subtotalReal;
   const displayTotal = getOrderFinalValue(order, subtotalReal);
 
-  // Mantém a ref sincronizada para o efeito de auto-correção declarado no topo.
-  subtotalRealRef.current = subtotalReal;
 
   const alteracoes = order.alteracoes || [];
 
