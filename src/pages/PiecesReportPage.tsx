@@ -150,6 +150,7 @@ const PiecesReportPage = () => {
           </>
         )}
       </motion.div>
+      {confirmPrintDialog}
     </div>
   );
 };
