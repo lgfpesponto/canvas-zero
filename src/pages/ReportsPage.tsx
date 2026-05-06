@@ -649,10 +649,29 @@ const ReportsPage = () => {
     return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [showScanner]);
 
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
   const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
   const handleGenerateProductionSheetPDF = useCallback(async () => {
     await generateProductionSheetPDF(ordersToExport, { userName: user?.nomeCompleto || '' });
   }, [ordersToExport, user]);
+
+  const askGenerateReportPDF = useCallback(() => {
+    askPrint({
+      title: 'Gerar Relatório por Filtros?',
+      description: `Será gerado um PDF com ${ordersToExport.length} pedido${ordersToExport.length !== 1 ? 's' : ''} (conforme os filtros aplicados).`,
+      confirmLabel: 'Gerar PDF',
+      run: handleGenerateReportPDF,
+    });
+  }, [askPrint, ordersToExport.length, handleGenerateReportPDF]);
+
+  const askGenerateProductionSheetPDF = useCallback(() => {
+    askPrint({
+      title: 'Imprimir Fichas de Produção?',
+      description: `Serão geradas ${ordersToExport.length} ficha${ordersToExport.length !== 1 ? 's' : ''} em PDF para download.`,
+      confirmLabel: 'Imprimir',
+      run: () => { void handleGenerateProductionSheetPDF(); },
+    });
+  }, [askPrint, ordersToExport.length, handleGenerateProductionSheetPDF]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
