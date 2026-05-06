@@ -84,8 +84,14 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
   const handleGeneratePDF = () => {
-    generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth), { userName: user?.nomeCompleto || '' });
+    askPrint({
+      title: 'Gerar Relatório de Comissão?',
+      description: `Comissão de ${formatMonthLabel(selectedMonth)} — ${qualifyingOrders.length} venda${qualifyingOrders.length !== 1 ? 's' : ''} contabilizadas.`,
+      confirmLabel: 'Gerar PDF',
+      run: () => generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth), { userName: user?.nomeCompleto || '' }),
+    });
   };
 
   return (
