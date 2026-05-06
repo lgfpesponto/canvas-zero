@@ -1589,6 +1589,7 @@ const ReportsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {confirmPrintDialog}
     </div>
   );
 };
