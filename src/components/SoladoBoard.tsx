@@ -356,6 +356,7 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
           <p className="text-xs text-muted-foreground">{visibleOrders.length} pedido{visibleOrders.length !== 1 ? 's' : ''}</p>
         </DialogContent>
       </Dialog>
+      {confirmPrintDialog}
     </motion.div>
   );
 };
