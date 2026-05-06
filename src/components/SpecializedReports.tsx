@@ -21,6 +21,7 @@ import {
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
 import { getCouroSortKey, stampPageNumbers, generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
+import { registrarPdfSnapshot } from '@/lib/pdfHistorico';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
@@ -514,6 +515,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Escalação', userName);
+    void registrarPdfSnapshot({ tipo: 'escalacao', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Escalação - ${progressoFile} - ${dateFile}.pdf`);
   };
 
@@ -592,6 +594,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Forro', userName);
+    void registrarPdfSnapshot({ tipo: 'forro', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Forro - ${progressoFile} - ${dateFile}.pdf`);
   };
 
@@ -638,6 +641,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Palmilha', userName);
+    void registrarPdfSnapshot({ tipo: 'palmilha', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Palmilha - ${progressoFile} - ${dateFile}.pdf`);
   };
 
@@ -684,6 +688,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Forma', userName);
+    void registrarPdfSnapshot({ tipo: 'forma', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Forma - ${progressoFile} - ${dateFile}.pdf`);
   };
 
@@ -775,6 +780,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Pesponto', userName);
+    void registrarPdfSnapshot({ tipo: 'pesponto', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`Pesponto - ${progressoFile} - ${dateFile}.pdf`);
   };
 
@@ -844,6 +850,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Metais', userName);
+    void registrarPdfSnapshot({ tipo: 'metais', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save('relatorio-metais.pdf');
   };
 
@@ -1007,6 +1014,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Bordados', userName);
+    void registrarPdfSnapshot({ tipo: 'bordados', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save('relatorio-bordados.pdf');
   };
 
@@ -1136,6 +1144,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Corte', userName);
+    void registrarPdfSnapshot({ tipo: 'corte', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save('relatorio-corte.pdf');
   };
 
@@ -1230,8 +1239,10 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
+    const expedicaoNome = `Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`;
     void recordPrintHistory(filtered.map(o => o.id), 'Expedição', userName);
-    doc.save(`Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
+    void registrarPdfSnapshot({ tipo: 'expedicao', filtros: { vendedor: filterVendedor, progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length, qtd_produtos: totalQtd, valor_total: totalValor }, nomeArquivo: expedicaoNome });
+    doc.save(expedicaoNome);
   };
 
   // ── Cobrança: tabular A4 layout ──
@@ -1569,8 +1580,17 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = geradoEm.replace(/\//g, '-');
     const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
+    const cobrancaNome = `Cobrança - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`;
     void recordPrintHistory(filtered.map(o => o.id), 'Cobrança', userName);
-    doc.save(`Cobrança - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`);
+    void registrarPdfSnapshot({
+      tipo: 'cobranca',
+      filtros: { vendedor: filterVendedor, status: selecionados, gerado_em: geradoEm },
+      orderIds: filtered.map(o => o.id),
+      totais: { qtd_pedidos: filtered.length, qtd_produtos: totalQtd, valor_total: totalValor },
+      doc,
+      nomeArquivo: cobrancaNome,
+    });
+    doc.save(cobrancaNome);
   };
 
   // ── Extras / Cintos: grouping report ──
@@ -1664,6 +1684,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Extras/Cintos', userName);
+    void registrarPdfSnapshot({ tipo: 'extras_cintos', filtros: { tipo_produto: filterTipoProduto, campos: [...filterCampos] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`relatorio-${filterTipoProduto}.pdf`);
   };
 
@@ -1690,6 +1711,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       });
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
       await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin', filterBordadoUsuarios.size > 0 ? [...filterBordadoUsuarios] : undefined);
+      void registrarPdfSnapshot({ tipo: 'comissao_bordado', filtros: { data_de: filterDataDe, data_ate: filterDataAte, usuarios: [...filterBordadoUsuarios] }, orderIds: valid.map(o => o.id), totais: { qtd_pedidos: valid.length } });
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     }
