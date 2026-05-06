@@ -21,7 +21,7 @@ import {
 import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EXTRA_DETAIL_LABELS } from '@/lib/extrasConfig';
 import { getCouroSortKey, stampPageNumbers, generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
-import { registrarPdfSnapshot, type PdfHistTipo } from '@/lib/pdfHistorico';
+import { registrarPdfSnapshot } from '@/lib/pdfHistorico';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
