@@ -15,6 +15,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import DeployAnnouncementCard from '@/components/gestao/DeployAnnouncementCard';
+import AuditoriaTab from '@/components/gestao/AuditoriaTab';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface PresenceUser extends PresencePayload {
   presence_ref?: string;
