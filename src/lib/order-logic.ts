@@ -383,5 +383,5 @@ export const FIELD_LABELS: Record<string, string> = {
   corSola: 'Cor Sola', costuraAtras: 'Costura Atrás', carimbo: 'Carimbo',
   carimboDesc: 'Descrição Carimbo', adicionalDesc: 'Adicional', formatoBico: 'Formato Bico',
   preco: 'Valor total', desconto: 'Desconto', descontoJustificativa: 'Justificativa do Desconto',
-  vendedor: 'Vendedor',
+  vendedor: 'Vendedor', dataCriacao: 'Data do Pedido',
 };

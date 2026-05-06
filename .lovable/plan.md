@@ -1,46 +1,43 @@
-## Objetivo
+# Comissão Rancho Chique — Coluna Cliente + Edição de data do pedido
 
-Permitir que **todos os extras** (qualquer `tipoExtra`, incluindo `cinto`) sigam pelo caminho de **Baixa Site (Despachado)** após Expedição, em vez de ir direto para Entregue. Hoje só botas normais têm essa opção.
+Duas mudanças, ambas restritas ao vendedor **Rancho Chique** (Mariana):
 
-## Mudança no fluxo
+## 1. Coluna "Cliente" no painel e PDF de comissão
 
-**Extras puros** (`EXTRAS_FLOW` em `src/lib/statusTransitions.ts`):
-- Hoje: `Expedição → Entregue`
-- Novo: `Expedição → Baixa Site (Despachado)` → `Entregue → Conferido → Cobrado → Pago`
-- Adicionar entrada nova `'Baixa Site (Despachado)': ['Entregue']`
+**Onde:** `src/components/CommissionPanel.tsx` e `src/lib/pdfGenerators.ts` (`generateCommissionPDF`).
 
-**Cinto** (`BELT_FLOW`):
-- Hoje em Expedição já existe `Baixa Site (Despachado)` e `Baixa Estoque` como destinos, **mas** o filtro `applyContextFilter` esconde "Baixa Site" quando `vendedor === 'Estoque'` e esconde "Baixa Estoque" caso contrário — esse comportamento será mantido (igual bota).
-- Não precisa alterar o BELT_FLOW em si, só confirmar que continua funcionando.
+- Painel de comissão (tela): quando o vendedor logado é Rancho Chique, exibir lista resumida com Nº do pedido, Data e **Cliente** (campo `order.cliente` já existe na tabela `orders`).
+- PDF: adicionar coluna **Cliente** entre "Nº do Pedido" e "Código de Barras" (ou ao lado da data — cabe melhor ali). Layout reajustado para A4 retrato, fonte 9 se necessário, com truncamento.
+- Passar `cliente` no array enviado ao `generateCommissionPDF` (hoje só passa `id`, `numero`, `dataCriacao`).
 
-**Botas pronta entrega** caem na regra de extras (tipoExtra = `bota_pronta_entrega`), então a mudança em EXTRAS_FLOW já cobre.
+## 2. Editar data do pedido (só Rancho Chique)
 
-## Detalhes técnicos
+**Cenário:** ela fechou o mês dia 30, mas só conseguiu lançar pedidos dia 4. Precisa retroceder a data para o mês anterior e ele entrar na comissão correta.
 
-Arquivo único: `src/lib/statusTransitions.ts`
+**Onde habilitar a edição:**
+- `src/pages/OrderDetailPage.tsx` — adicionar, próximo ao bloco de "Data do pedido", um botão **"Editar data"** visível apenas quando `order.vendedor === 'Rancho Chique'` E o usuário logado é admin_master OU o próprio Rancho Chique.
+- Abre um popover com `Calendar` (shadcn datepicker) + campo de **justificativa obrigatória** (textarea).
+- Ao salvar:
+  - `UPDATE orders SET data_criacao = 'YYYY-MM-DD' WHERE id = ...`
+  - Inserir entrada em `alteracoes` (JSONB já existente) com:
+    ```json
+    { "campo": "dataCriacao", "valorAntigo": "...", "valorNovo": "...",
+      "justificativa": "...", "usuario": "...", "data": "ISO", "afetouValor": false }
+    ```
+  - Adicionar `'dataCriacao': 'Data do Pedido'` em `FIELD_LABELS` (`src/lib/order-logic.ts`) para aparecer formatado no histórico.
 
-```text
-EXTRAS_FLOW = {
-  'Em aberto': ['Produzindo', 'Expedição'],
-  'Produzindo': ['Em aberto', 'Expedição'],
-  'Expedição': ['Baixa Site (Despachado)', 'Baixa Estoque'],   // antes: ['Entregue']
-  'Baixa Site (Despachado)': ['Entregue'],                      // NOVO
-  'Baixa Estoque': ['Entregue'],                                // NOVO (cobre vendedor Estoque)
-  'Entregue': ['Conferido'],
-  'Conferido': ['Cobrado'],
-  'Cobrado': ['Pago'],
-  'Pago': [],
-}
-```
-
-O `applyContextFilter` já garante que:
-- "Baixa Estoque" só aparece quando `vendedor === 'Estoque'`
-- "Baixa Site (Despachado)" só aparece quando `vendedor !== 'Estoque'`
-
-Logo um extra do `Estoque` vai por `Expedição → Baixa Estoque → Entregue`, e qualquer extra de revendedor/Rancho Chique vai por `Expedição → Baixa Site (Despachado) → Entregue`.
+**Restrição dura:** validar no front (botão só aparece) — sem migration de RLS, pois admin_master e o próprio dono do pedido já podem dar `UPDATE` em `orders` pelas policies existentes.
 
 ## Fora de escopo
 
-- Sem mudança em PDFs, relatórios, comissão ou regras financeiras.
-- Sem mudança no fluxo de bota normal nem no BELT_FLOW.
-- Sem migração de banco — só lógica frontend de transições.
+- Sem mudança no cálculo de comissão por mês (continua agrupando por `dataCriacao.startsWith('YYYY-MM')` — basta a Mariana editar a data dos pedidos atrasados).
+- Sem mudança em outros vendedores.
+- Sem migration de banco.
+
+## Detalhes técnicos
+
+Arquivos tocados:
+- `src/components/CommissionPanel.tsx` — passa `cliente`, mostra coluna quando vendedor = Rancho Chique.
+- `src/lib/pdfGenerators.ts` — coluna Cliente no PDF.
+- `src/pages/OrderDetailPage.tsx` — botão + dialog de edição de data.
+- `src/lib/order-logic.ts` — label `dataCriacao` em FIELD_LABELS.

@@ -22,6 +22,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -76,6 +82,12 @@ const OrderDetailPage = () => {
   const [expAlteracoes, setExpAlteracoes] = useState(false);
   const [expImpressao, setExpImpressao] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  // Edição de data do pedido — restrito ao vendedor Rancho Chique
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [newDate, setNewDate] = useState<Date | undefined>(undefined);
+  const [dateJustificativa, setDateJustificativa] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
 
   const handleScanSubmit = useCallback(async () => {
     if (!scanValue.trim()) return;
@@ -645,7 +657,24 @@ const OrderDetailPage = () => {
                   {/* Célula 3: Data e hora */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data e hora</span>
-                    <span className="text-sm font-semibold text-right">{dataHora}</span>
+                    <span className="text-sm font-semibold text-right inline-flex items-center gap-2">
+                      {dataHora}
+                      {order.vendedor === 'Rancho Chique' && (isAdmin || user?.nomeCompleto === 'Rancho Chique') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const [y, m, d] = (order.dataCriacao || '').split('-').map(Number);
+                            if (y && m && d) setNewDate(new Date(y, m - 1, d));
+                            setDateJustificativa('');
+                            setDateDialogOpen(true);
+                          }}
+                          title="Editar data do pedido"
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </span>
                   </div>
 
                   {/* Célula 4: Foto */}
@@ -1358,6 +1387,81 @@ const OrderDetailPage = () => {
         movedCount={bulkBlocked.movedCount}
         onClose={() => setBulkBlocked(s => ({ ...s, open: false }))}
       />
+
+      <Dialog open={dateDialogOpen} onOpenChange={(o) => { if (!savingDate) setDateDialogOpen(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar data do pedido</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Restrito ao vendedor Rancho Chique. A alteração será registrada no histórico do pedido.
+            </p>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nova data</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal mt-1", !newDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {newDate ? format(newDate, "dd/MM/yyyy") : <span>Selecionar data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newDate}
+                    onSelect={setNewDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Justificativa</label>
+              <Textarea
+                value={dateJustificativa}
+                onChange={(e) => setDateJustificativa(e.target.value)}
+                placeholder="Motivo da alteração da data"
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateDialogOpen(false)} disabled={savingDate}>Cancelar</Button>
+            <Button
+              disabled={savingDate || !newDate || !dateJustificativa.trim() || !order}
+              onClick={async () => {
+                if (!newDate || !order) return;
+                if (!dateJustificativa.trim()) { toast.error('Justificativa obrigatória'); return; }
+                const yyyy = newDate.getFullYear();
+                const mm = String(newDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(newDate.getDate()).padStart(2, '0');
+                const novaData = `${yyyy}-${mm}-${dd}`;
+                if (novaData === order.dataCriacao) { toast.info('Nenhuma alteração'); return; }
+                setSavingDate(true);
+                try {
+                  await updateOrder(order.id, { dataCriacao: novaData } as any, dateJustificativa.trim());
+                  toast.success('Data atualizada');
+                  setDateDialogOpen(false);
+                  await refetchOrder();
+                } catch (e) {
+                  console.error(e);
+                  toast.error('Erro ao atualizar data');
+                } finally {
+                  setSavingDate(false);
+                }
+              }}
+            >
+              {savingDate ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

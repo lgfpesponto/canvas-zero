@@ -585,7 +585,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
   doc.save(`Fichas de Produção - ${dd}-${mm}-${yyyy} - ${hh}h${min}.pdf`);
 }
 
-export function generateCommissionPDF(orders: { id: string; numero: string; dataCriacao: string }[], monthLabel: string, meta?: { userName: string }) {
+export function generateCommissionPDF(orders: { id: string; numero: string; dataCriacao: string; cliente?: string }[], monthLabel: string, meta?: { userName: string }) {
   const doc = new jsPDF();
   const COMMISSION_PER_SALE = 10;
 
@@ -599,17 +599,18 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
 
   // Table header
   let y = 46;
-  const colX = { seq: 14, numero: 34, barcode: 75, data: 155 };
+  const colX = { seq: 14, numero: 24, cliente: 64, barcode: 110, data: 172 };
   const rowH = 18;
 
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setFillColor(240, 240, 240);
   doc.rect(12, y - 5, 186, 8, 'F');
   doc.text('Qtd', colX.seq, y);
   doc.text('Nº do Pedido', colX.numero, y);
-  doc.text('Código de Barras', colX.barcode, y);
-  doc.text('Data do Pedido', colX.data, y);
+  doc.text('Cliente', colX.cliente, y);
+  doc.text('Cód. Barras', colX.barcode, y);
+  doc.text('Data', colX.data, y);
   y += 10;
 
   doc.setFont('helvetica', 'normal');
@@ -619,10 +620,15 @@ export function generateCommissionPDF(orders: { id: string; numero: string; data
     const dataFormatted = formatDateBR(o.dataCriacao);
     const textY = y + 5;
     doc.text(seq, colX.seq, textY);
-    const numWidth = colX.barcode - colX.numero - 2;
+    const numWidth = colX.cliente - colX.numero - 2;
     const numLinesComm = doc.splitTextToSize(o.numero, numWidth);
     numLinesComm.forEach((line: string, li: number) => {
       doc.text(line, colX.numero, textY + li * 4);
+    });
+    const cliWidth = colX.barcode - colX.cliente - 2;
+    const cliLines = doc.splitTextToSize(o.cliente || '—', cliWidth);
+    cliLines.slice(0, 2).forEach((line: string, li: number) => {
+      doc.text(line, colX.cliente, textY + li * 4);
     });
     doc.text(dataFormatted, colX.data, textY);
 
