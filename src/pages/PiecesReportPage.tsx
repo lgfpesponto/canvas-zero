@@ -122,7 +122,16 @@ const PiecesReportPage = () => {
               <p className="text-sm text-muted-foreground">{groupedData.length} combinações encontradas</p>
               <button onClick={() => askPrint({
                 title: 'Gerar Relatório por Peças?',
-                description: `Serão agrupadas ${groupedData.length} combinações em PDF para download.`,
+                description: (
+                  <ReportConfirmSummary
+                    intro="Agrupa os pedidos pelos campos selecionados e exporta em PDF."
+                    destaque={{ label: 'Combinações', value: groupedData.length }}
+                    linhas={[
+                      { label: 'Pedidos cobertos', value: orders.length },
+                      { label: 'Campos agrupados', value: selectedFields.map(k => PIECE_FIELDS.find(f => f.key === k)?.label).filter(Boolean).join(', ') || '—' },
+                    ]}
+                  />
+                ),
                 confirmLabel: 'Gerar PDF',
                 run: exportPDF,
               })} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
