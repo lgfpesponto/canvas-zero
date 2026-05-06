@@ -7,6 +7,7 @@ import { ArrowLeft, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 const PIECE_FIELDS = [
   { key: 'tamanho', label: 'Tamanho' },
