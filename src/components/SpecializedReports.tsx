@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES } from '@/contexts/AuthContext';
 import { useOrdersQuery } from '@/hooks/useOrdersQuery';
@@ -26,6 +26,7 @@ import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtSet, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
@@ -1739,9 +1740,26 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   const generateReport = () => {
     if (!activeReport) return;
+    const isComissao = activeReport === 'comissao_bordado';
+    const linhas: { label: string; value: ReactNode }[] = [];
+    if (needsProgressFilter) linhas.push({ label: 'Progresso', value: fmtSet(filterProgresso) });
+    if (needsVendedorFilter) linhas.push({ label: 'Vendedor', value: filterVendedor === 'todos' ? 'Todos' : filterVendedor });
+    if (needsExtrasCintosFilter) linhas.push({ label: 'Tipo de produto', value: filterTipoProduto || 'Todos' });
+    if (filterTipoProduto && filterCampos.size > 0) linhas.push({ label: 'Campos agrupados', value: fmtSet(filterCampos) });
+    if (activeReport === 'corte' || isComissao) {
+      linhas.push({ label: isComissao ? 'Período de baixa' : 'Período de criação', value: fmtPeriodo(filterDataDe, filterDataAte) });
+    }
+    if (isComissao) linhas.push({ label: 'Quem deu baixa', value: fmtSet(filterBordadoUsuarios) });
+
     askPrint({
       title: `Gerar PDF — ${REPORT_LABELS[activeReport]}?`,
-      description: 'O PDF será gerado e baixado conforme os filtros selecionados.',
+      description: (
+        <ReportConfirmSummary
+          intro={`Relatório especializado: ${REPORT_LABELS[activeReport]}.`}
+          linhas={linhas}
+          nota="O PDF respeita exatamente os filtros acima."
+        />
+      ),
       confirmLabel: 'Gerar PDF',
       run: runReport,
     });

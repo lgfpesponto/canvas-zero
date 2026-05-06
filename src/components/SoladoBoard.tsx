@@ -11,6 +11,7 @@ import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtSet } from '@/components/common/ReportConfirmSummary';
 
 interface SoladoBoardProps {
   title: string;
@@ -288,7 +289,17 @@ const SoladoBoard = ({ title, orders, storageKey }: SoladoBoardProps) => {
         <div className="flex items-center gap-2">
           <button onClick={() => askPrint({
             title: `Gerar PDF — ${title}?`,
-            description: `Será gerado um relatório com ${visibleOrders.length} pedido${visibleOrders.length !== 1 ? 's' : ''} visíveis no quadro.`,
+            description: (
+              <ReportConfirmSummary
+                intro={`Quadro de monitoramento "${title}".`}
+                destaque={{ label: 'Pedidos visíveis', value: visibleOrders.length }}
+                linhas={[
+                  { label: 'Status filtrados', value: fmtSet(statusFilter) },
+                  { label: 'Pedidos dispensados', value: dismissedIds.size },
+                ]}
+                nota="Apenas pedidos visíveis no quadro entram no PDF."
+              />
+            ),
             confirmLabel: 'Gerar PDF',
             run: exportPDF,
           })} className="px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1">

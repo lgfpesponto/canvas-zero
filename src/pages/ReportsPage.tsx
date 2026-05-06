@@ -12,6 +12,7 @@ import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, T
 import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary, fmtSet, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 import OrderCard from '@/components/OrderCard';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
@@ -656,22 +657,48 @@ const ReportsPage = () => {
   }, [ordersToExport, user]);
 
   const askGenerateReportPDF = useCallback(() => {
+    const qtd = ordersToExport.length;
     askPrint({
       title: 'Gerar Relatório por Filtros?',
-      description: `Será gerado um PDF com ${ordersToExport.length} pedido${ordersToExport.length !== 1 ? 's' : ''} (conforme os filtros aplicados).`,
+      description: (
+        <ReportConfirmSummary
+          intro="Será gerado um PDF respeitando exatamente os filtros aplicados nesta tela."
+          destaque={{ label: 'Pedidos no relatório', value: `${qtd} pedido${qtd !== 1 ? 's' : ''}` }}
+          linhas={[
+            { label: 'Valor total', value: formatCurrency(displayTotalValue) },
+            { label: 'Total de produtos', value: displayTotalProdutos },
+            { label: 'Vendedor', value: fmtSet(filterVendedor) },
+            { label: 'Status', value: fmtSet(filterStatus) },
+            { label: 'Período', value: fmtPeriodo(filterDate, filterDateEnd) },
+            { label: 'Busca', value: searchQuery || '—' },
+            { label: 'Apenas atrasados', value: onlyOverdue ? 'Sim' : 'Não' },
+          ]}
+        />
+      ),
       confirmLabel: 'Gerar PDF',
       run: handleGenerateReportPDF,
     });
-  }, [askPrint, ordersToExport.length, handleGenerateReportPDF]);
+  }, [askPrint, ordersToExport.length, handleGenerateReportPDF, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
 
   const askGenerateProductionSheetPDF = useCallback(() => {
+    const qtd = ordersToExport.length;
     askPrint({
       title: 'Imprimir Fichas de Produção?',
-      description: `Serão geradas ${ordersToExport.length} ficha${ordersToExport.length !== 1 ? 's' : ''} em PDF para download.`,
+      description: (
+        <ReportConfirmSummary
+          intro="Cada pedido vira uma ficha A5 para a fábrica."
+          destaque={{ label: 'Fichas a imprimir', value: `${qtd} ficha${qtd !== 1 ? 's' : ''}` }}
+          linhas={[
+            { label: 'Vendedor', value: fmtSet(filterVendedor) },
+            { label: 'Status', value: fmtSet(filterStatus) },
+            { label: 'Período', value: fmtPeriodo(filterDate, filterDateEnd) },
+          ]}
+        />
+      ),
       confirmLabel: 'Imprimir',
       run: () => { void handleGenerateProductionSheetPDF(); },
     });
-  }, [askPrint, ordersToExport.length, handleGenerateProductionSheetPDF]);
+  }, [askPrint, ordersToExport.length, handleGenerateProductionSheetPDF, filterVendedor, filterStatus, filterDate, filterDateEnd]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);

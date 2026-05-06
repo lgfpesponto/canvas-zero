@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { generateCommissionPDF } from '@/lib/pdfGenerators';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
+import { ReportConfirmSummary } from '@/components/common/ReportConfirmSummary';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -91,7 +92,18 @@ const CommissionPanel = ({ orders }: CommissionPanelProps) => {
   const handleGeneratePDF = () => {
     askPrint({
       title: 'Gerar Relatório de Comissão?',
-      description: `Comissão de ${formatMonthLabel(selectedMonth)} — ${qualifyingOrders.length} venda${qualifyingOrders.length !== 1 ? 's' : ''} contabilizadas.`,
+      description: (
+        <ReportConfirmSummary
+          intro={`Resumo de comissão de ${formatMonthLabel(selectedMonth)}.`}
+          destaque={{ label: 'Vendas qualificadas', value: qualifyingOrders.length }}
+          linhas={[
+            { label: 'Meta mensal', value: `${MONTHLY_GOAL} vendas` }, 
+            { label: 'Meta atingida', value: metaBatida ? 'Sim' : 'Não' },
+            { label: 'Comissão calculada', value: formatCurrency(comissao) },
+          ]}
+          nota={metaBatida ? undefined : 'Sem meta batida, comissão será R$ 0 mas o PDF lista as vendas do mês.'}
+        />
+      ),
       confirmLabel: 'Gerar PDF',
       run: () => generateCommissionPDF(qualifyingOrders, formatMonthLabel(selectedMonth), { userName: user?.nomeCompleto || '' }),
     });
