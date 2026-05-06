@@ -431,8 +431,6 @@ const OrderDetailPage = () => {
   const displayTotalBruto = subtotalReal;
   const displayTotal = getOrderFinalValue(order, subtotalReal);
 
-  // Mantém a ref sincronizada para o efeito de auto-correção declarado no topo.
-  subtotalRealRef.current = subtotalReal;
 
   const alteracoes = order.alteracoes || [];
 
