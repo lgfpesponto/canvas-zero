@@ -657,7 +657,24 @@ const OrderDetailPage = () => {
                   {/* Célula 3: Data e hora */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data e hora</span>
-                    <span className="text-sm font-semibold text-right">{dataHora}</span>
+                    <span className="text-sm font-semibold text-right inline-flex items-center gap-2">
+                      {dataHora}
+                      {order.vendedor === 'Rancho Chique' && (isAdmin || user?.nomeCompleto === 'Rancho Chique') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const [y, m, d] = (order.dataCriacao || '').split('-').map(Number);
+                            if (y && m && d) setNewDate(new Date(y, m - 1, d));
+                            setDateJustificativa('');
+                            setDateDialogOpen(true);
+                          }}
+                          title="Editar data do pedido"
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </span>
                   </div>
 
                   {/* Célula 4: Foto */}
