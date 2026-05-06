@@ -399,7 +399,15 @@ const BordadoPortalPage = () => {
               <button
                 onClick={() => askPrint({
                   title: 'Gerar PDF de Baixas de Bordado?',
-                  description: `Período: ${pdfDe} a ${pdfAte}.`,
+                  description: (
+                    <ReportConfirmSummary
+                      intro="Resumo das baixas de bordado feitas no período informado."
+                      linhas={[
+                        { label: 'Período de baixa', value: fmtPeriodo(pdfDe, pdfAte, 'Sem período definido') },
+                      ]}
+                      nota="Apenas baixas válidas (status >= Baixa Bordado, exceto Cancelado) entram no relatório."
+                    />
+                  ),
                   confirmLabel: 'Gerar PDF',
                   run: () => { void gerarPDF(); },
                 })}
