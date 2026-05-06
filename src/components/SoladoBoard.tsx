@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 interface SoladoBoardProps {
   title: string;
