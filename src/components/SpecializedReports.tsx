@@ -24,6 +24,7 @@ import { recordPrintHistory } from '@/lib/printHistory';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
+import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 
 const formatDateBR = (date: string) => {
   const [y, m, d] = date.split('-');
