@@ -1,36 +1,50 @@
-# Limpar erros antigos do "Reportar problema"
+# Confirmação detalhada antes de gerar qualquer relatório
 
 ## Diagnóstico
-- O botão "Reportar problema desta página" não chama a edge function. Ele só preenche o campo de texto com os últimos erros capturados pela sessão atual do navegador (`getRecentErrors`).
-- O buffer guarda até 20 erros desde que a aba foi aberta, sem timestamp visível e sem expiração.
-- O erro `userClient.auth.getClaims is not a function` foi gerado antes da correção da função `admin-assistant`. A função já está corrigida e respondendo `200`, mas o erro continua "vivo" no buffer da aba — então toda vez que clica em "Reportar problema", ele aparece de novo no template.
+Todos os botões de gerar relatório/PDF do sistema já passam pelo diálogo de confirmação `useConfirmPrint` / `ConfirmPrintDialog`. O que falta é o **resumo do que vai sair** dentro do diálogo — hoje a maioria mostra só uma frase genérica como "O PDF será gerado conforme os filtros selecionados".
 
 ## Objetivo
-Fazer o "Reportar problema" mostrar apenas erros recentes e reais, e dar controle para descartar lixo antigo.
+Em todo "Gerar PDF/Relatório", o modal de confirmação passa a exibir:
+- Tipo do relatório
+- Quantidade de pedidos/itens que entrarão
+- Filtros aplicados (período, vendedor, status, modelo, etc.)
+- Valor total quando fizer sentido (financeiro, comissão)
+- Botões Cancelar / Gerar PDF (mantém o atual)
 
-## Mudanças propostas
+## Telas/botões a ajustar
 
-1. **Filtrar erros por janela de tempo**
-   - Mostrar no template só os erros dos últimos 5 minutos.
-   - Se não houver nada recente, escrever "(nenhum erro recente capturado)".
+1. **`/relatorios` — Relatório por Filtros** (`ReportsPage.tsx`)
+   - Mostrar: qtd de pedidos, valor total, vendedor, status, período, busca aplicada.
 
-2. **Mostrar horário de cada erro no template**
-   - Cada linha vira algo como `- [HH:mm] [tipo] mensagem` para a admin saber se é fresco ou antigo.
+2. **`/relatorios` — Imprimir Fichas de Produção** (`ReportsPage.tsx`)
+   - Mostrar: qtd de fichas, vendedor, status, período.
 
-3. **Limpar buffer após reportar**
-   - Ao clicar em "Reportar problema", após preencher o template, limpar o buffer (`clearRecentErrors`) para evitar que o mesmo erro reapareça em reports futuros.
+3. **`/relatorios` — Relatórios Especializados** (`SpecializedReports.tsx`)
+   - Para cada tipo (Escalação, Forro, Palmilha, Forma, Pesponto, Metais, Bordados, Corte, Expedição, Cobrança, Extras/Cintos, Comissão Bordado): mostrar progresso de produção selecionado, vendedor, período, tipo de produto e — quando o cálculo for barato — quantidade prevista de pedidos.
 
-4. **Botão "Limpar erros capturados"**
-   - Pequeno botão ao lado do "Reportar problema" para a admin descartar manualmente o buffer quando souber que foi corrigido.
+4. **`/relatorio-pecas`** (`PiecesReportPage.tsx`)
+   - Mostrar: campos de agrupamento, qtd de combinações, qtd de pedidos cobertos.
 
-5. **Ignorar erros conhecidos como ruído**
-   - Filtrar fora mensagens irrelevantes do Radix UI (`DialogContent requires a DialogTitle`, "Missing Description or aria-describedby") que poluem o relatório.
+5. **Portal Bordado — Gerar PDF de Baixas** (`BordadoPortalPage.tsx`)
+   - Mostrar: período, qtd de baixas, usuários filtrados.
+
+6. **Quadros de Solado (`SoladoBoard.tsx`)**
+   - Mostrar: nome do quadro, qtd de pedidos visíveis, status incluídos.
+
+7. **Comissão Mensal (`CommissionPanel.tsx`)**
+   - Mostrar: mês, qtd de vendas qualificadas, total de vendas, comissão calculada, status da meta.
+
+8. **Auditoria — Exportar PDF (`AuditoriaTab.tsx`)**
+   - Mostrar: período, total de eventos, filtros (tipo, número, usuário, busca).
 
 ## Detalhes técnicos
-- `src/lib/consoleErrorCapture.ts`: já guarda `ts` em ISO. Aproveitar para filtrar por janela e expor utilitário de filtragem.
-- `src/components/admin/AdminAssistantPanel.tsx`: ajustar `handleReportProblem` para usar a janela de tempo, formatar horário, limpar buffer no fim e renderizar o novo botão "Limpar erros".
-- Nenhuma mudança em edge function ou banco.
+
+- O `description` do `useConfirmPrint` aceita `ReactNode`. Vou padronizar como uma lista compacta (rótulo + valor) reutilizável.
+- Criar um componente leve `ReportConfirmSummary` em `src/components/common/ReportConfirmSummary.tsx` com:
+  - props: `qtdPedidos?`, `valorTotal?`, `linhas: { label: string; value: ReactNode }[]`, `nota?: string`.
+  - layout: bloco com qtd em destaque + tabela de "rótulo: valor" + nota opcional em cinza.
+- Ajustar cada chamada `askPrint(...)` para montar essas linhas a partir do estado de filtros do componente.
+- Sem mudanças em PDFs, regras de negócio, banco ou edge functions.
 
 ## Resultado esperado
-- O botão "Reportar problema" deixa de mostrar o erro antigo de `getClaims`.
-- A admin vê só erros realmente recentes e pode esvaziar o histórico de erros quando quiser.
+Antes de qualquer PDF sair, a admin vê um modal claro com "isto é o que vai ser gerado" e confirma — evitando relatórios disparados por engano.
