@@ -86,6 +86,7 @@ export default function AuditoriaTab() {
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   const filtros = useMemo(() => ({
     _de: de || null,
