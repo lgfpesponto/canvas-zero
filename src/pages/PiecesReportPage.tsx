@@ -30,6 +30,7 @@ const PiecesReportPage = () => {
   const { orders, loading } = useOrdersQuery({ enabled: isAdmin });
   const navigate = useNavigate();
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
   const toggleField = (key: string) => {
     setSelectedFields(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
