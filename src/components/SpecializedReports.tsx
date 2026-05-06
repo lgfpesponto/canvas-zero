@@ -1741,7 +1741,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateReport = () => {
     if (!activeReport) return;
     const isComissao = activeReport === 'comissao_bordado';
-    const linhas: { label: string; value: React.ReactNode }[] = [];
+    const linhas: { label: string; value: ReactNode }[] = [];
     if (needsProgressFilter) linhas.push({ label: 'Progresso', value: fmtSet(filterProgresso) });
     if (needsVendedorFilter) linhas.push({ label: 'Vendedor', value: filterVendedor === 'todos' ? 'Todos' : filterVendedor });
     if (needsExtrasCintosFilter) linhas.push({ label: 'Tipo de produto', value: filterTipoProduto || 'Todos' });
