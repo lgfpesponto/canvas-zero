@@ -259,7 +259,12 @@ export default function AuditoriaTab() {
             <Button variant="outline" onClick={exportCSV} className="gap-1.5">
               <Download className="h-4 w-4" /> CSV
             </Button>
-            <Button variant="outline" onClick={exportPDF} className="gap-1.5">
+            <Button variant="outline" onClick={() => askPrint({
+              title: 'Exportar Auditoria em PDF?',
+              description: `Período: ${de} a ${ate}. Total atual em tela: ${total} eventos. Os filtros aplicados serão respeitados.`,
+              confirmLabel: 'Gerar PDF',
+              run: () => { void exportPDF(); },
+            })} className="gap-1.5">
               <FileText className="h-4 w-4" /> PDF
             </Button>
           </div>
