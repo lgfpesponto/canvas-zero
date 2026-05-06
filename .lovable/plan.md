@@ -1,43 +1,28 @@
-# Comissão Rancho Chique — Coluna Cliente + Edição de data do pedido
+# Novo status: "Aguardando Sola"
 
-Duas mudanças, ambas restritas ao vendedor **Rancho Chique** (Mariana):
+Adicionar status "Aguardando Sola" no fluxo de produção de **botas**, espelhando o comportamento de "Aguardando Couro".
 
-## 1. Coluna "Cliente" no painel e PDF de comissão
+## Comportamento
 
-**Onde:** `src/components/CommissionPanel.tsx` e `src/lib/pdfGenerators.ts` (`generateCommissionPDF`).
+- **Posição**: próxima do Corte. Pode-se entrar a partir de **Corte** (mesmo lugar de onde se entra em "Aguardando Couro") e voltar para **Corte**.
+- **Escopo**: somente botas (`PRODUCTION_STATUSES` / `PRODUCTION_STATUSES_USER`). Cinto e extras não recebem.
+- **Contagem em produção**: NÃO entra em `PRODUCTION_STATUSES_IN_PROD` (fica parado, igual "Aguardando").
 
-- Painel de comissão (tela): quando o vendedor logado é Rancho Chique, exibir lista resumida com Nº do pedido, Data e **Cliente** (campo `order.cliente` já existe na tabela `orders`).
-- PDF: adicionar coluna **Cliente** entre "Nº do Pedido" e "Código de Barras" (ou ao lado da data — cabe melhor ali). Layout reajustado para A4 retrato, fonte 9 se necessário, com truncamento.
-- Passar `cliente` no array enviado ao `generateCommissionPDF` (hoje só passa `id`, `numero`, `dataCriacao`).
+## Arquivos a alterar
 
-## 2. Editar data do pedido (só Rancho Chique)
+1. **`src/lib/order-logic.ts`**
+   - Adicionar `"Aguardando Sola"` em `PRODUCTION_STATUSES` e `PRODUCTION_STATUSES_USER`, logo após `"Aguardando Couro"`.
+   - **NÃO** adicionar em `PRODUCTION_STATUSES_IN_PROD`.
 
-**Cenário:** ela fechou o mês dia 30, mas só conseguiu lançar pedidos dia 4. Precisa retroceder a data para o mês anterior e ele entrar na comissão correta.
+2. **`src/lib/statusTransitions.ts`**
+   - Em `PRODUCTION_FLOW`: incluir `'Aguardando Sola'` como destino válido a partir de `'Corte'` e adicionar entrada `'Aguardando Sola': ['Corte']`.
+   - Repetir o mesmo nos blocos secundários (linhas ~87-88) onde existe a duplicata para botas.
 
-**Onde habilitar a edição:**
-- `src/pages/OrderDetailPage.tsx` — adicionar, próximo ao bloco de "Data do pedido", um botão **"Editar data"** visível apenas quando `order.vendedor === 'Rancho Chique'` E o usuário logado é admin_master OU o próprio Rancho Chique.
-- Abre um popover com `Calendar` (shadcn datepicker) + campo de **justificativa obrigatória** (textarea).
-- Ao salvar:
-  - `UPDATE orders SET data_criacao = 'YYYY-MM-DD' WHERE id = ...`
-  - Inserir entrada em `alteracoes` (JSONB já existente) com:
-    ```json
-    { "campo": "dataCriacao", "valorAntigo": "...", "valorNovo": "...",
-      "justificativa": "...", "usuario": "...", "data": "ISO", "afetouValor": false }
-    ```
-  - Adicionar `'dataCriacao': 'Data do Pedido'` em `FIELD_LABELS` (`src/lib/order-logic.ts`) para aparecer formatado no histórico.
-
-**Restrição dura:** validar no front (botão só aparece) — sem migration de RLS, pois admin_master e o próprio dono do pedido já podem dar `UPDATE` em `orders` pelas policies existentes.
+3. **`src/lib/pdfGenerators.ts`** (linha 700, ordem do filtro de status no PDF de produção)
+   - Inserir `'Aguardando Sola'` após `'Aguardando Couro'` para manter ordenação.
 
 ## Fora de escopo
 
-- Sem mudança no cálculo de comissão por mês (continua agrupando por `dataCriacao.startsWith('YYYY-MM')` — basta a Mariana editar a data dos pedidos atrasados).
-- Sem mudança em outros vendedores.
-- Sem migration de banco.
-
-## Detalhes técnicos
-
-Arquivos tocados:
-- `src/components/CommissionPanel.tsx` — passa `cliente`, mostra coluna quando vendedor = Rancho Chique.
-- `src/lib/pdfGenerators.ts` — coluna Cliente no PDF.
-- `src/pages/OrderDetailPage.tsx` — botão + dialog de edição de data.
-- `src/lib/order-logic.ts` — label `dataCriacao` em FIELD_LABELS.
+- Sem mudança em RLS / banco (status é texto livre na coluna `orders.status`).
+- Sem alteração em cinto, extras, comissão ou financeiro.
+- Sem novo relatório/board específico — aparece nas listagens existentes filtrando por status.

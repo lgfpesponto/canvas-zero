@@ -38,7 +38,7 @@ export function getOrderFinalValue(
 /* ───── Production statuses ───── */
 
 export const PRODUCTION_STATUSES = [
-  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Emprestado",
+  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Aguardando Sola", "Emprestado",
   "Corte", "Baixa Corte",
   "Entrada Laser Dinei", "Baixa Laser Dinei",
   "Entrada Laser Ferreni", "Baixa Laser Ferreni",
@@ -52,7 +52,7 @@ export const PRODUCTION_STATUSES = [
 ];
 
 export const PRODUCTION_STATUSES_USER = [
-  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Emprestado",
+  "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Aguardando Sola", "Emprestado",
   "Corte", "Baixa Corte",
   "Entrada Laser Dinei", "Baixa Laser Dinei",
   "Entrada Laser Ferreni", "Baixa Laser Ferreni",
