@@ -1684,6 +1684,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Extras/Cintos', userName);
+    void registrarPdfSnapshot({ tipo: 'extras_cintos', filtros: { tipo_produto: filterTipoProduto, campos: [...filterCampos] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
     doc.save(`relatorio-${filterTipoProduto}.pdf`);
   };
 
