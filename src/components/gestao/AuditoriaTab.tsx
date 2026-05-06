@@ -338,6 +338,7 @@ export default function AuditoriaTab() {
           </Button>
         </div>
       </div>
+      {confirmPrintDialog}
     </div>
   );
 }
