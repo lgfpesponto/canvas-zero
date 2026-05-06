@@ -117,9 +117,6 @@ function GestaoPage() {
         {/* Aviso de nova versão (deploy) */}
         <DeployAnnouncementCard />
 
-        {/* Varredura retroativa de preços (auto-roda 1× por admin) */}
-        <RecalcPrecosRunner />
-
         {/* Cards de resumo */}
         <div className="mb-4 grid gap-3 sm:grid-cols-2">
           <Card>
