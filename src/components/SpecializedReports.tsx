@@ -1973,6 +1973,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
           </button>
         </div>
       )}
+      {confirmPrintDialog}
     </div>
   );
 };
