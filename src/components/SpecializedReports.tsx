@@ -1740,9 +1740,26 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   const generateReport = () => {
     if (!activeReport) return;
+    const isComissao = activeReport === 'comissao_bordado';
+    const linhas: { label: string; value: React.ReactNode }[] = [];
+    if (needsProgressFilter) linhas.push({ label: 'Progresso', value: fmtSet(filterProgresso) });
+    if (needsVendedorFilter) linhas.push({ label: 'Vendedor', value: filterVendedor === 'todos' ? 'Todos' : filterVendedor });
+    if (needsExtrasCintosFilter) linhas.push({ label: 'Tipo de produto', value: filterTipoProduto || 'Todos' });
+    if (filterTipoProduto && filterCampos.size > 0) linhas.push({ label: 'Campos agrupados', value: fmtSet(filterCampos) });
+    if (activeReport === 'corte' || isComissao) {
+      linhas.push({ label: isComissao ? 'Período de baixa' : 'Período de criação', value: fmtPeriodo(filterDataDe, filterDataAte) });
+    }
+    if (isComissao) linhas.push({ label: 'Quem deu baixa', value: fmtSet(filterBordadoUsuarios) });
+
     askPrint({
       title: `Gerar PDF — ${REPORT_LABELS[activeReport]}?`,
-      description: 'O PDF será gerado e baixado conforme os filtros selecionados.',
+      description: (
+        <ReportConfirmSummary
+          intro={`Relatório especializado: ${REPORT_LABELS[activeReport]}.`}
+          linhas={linhas}
+          nota="O PDF respeita exatamente os filtros acima."
+        />
+      ),
       confirmLabel: 'Gerar PDF',
       run: runReport,
     });
