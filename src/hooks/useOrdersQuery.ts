@@ -81,5 +81,7 @@ export function useOrdersQuery(options: QueryOptions) {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+  usePrecoBackfillBackground(orders);
+
   return { orders, loading, refetch: fetchOrders };
 }
