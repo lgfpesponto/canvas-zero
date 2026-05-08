@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import type { Order } from '@/contexts/AuthContext';
+import { usePrecoBackfillBackground } from '@/hooks/usePrecoBackfillBackground';
 
 export function useOrderById(id: string | undefined) {
   const [order, setOrder] = useState<Order | null>(null);
