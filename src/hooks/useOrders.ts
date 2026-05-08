@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import type { Order } from '@/contexts/AuthContext';
 import { orderBarcodeValueLegacy } from '@/contexts/AuthContext';
+import { usePrecoBackfillBackground } from '@/hooks/usePrecoBackfillBackground';
 
 export interface OrderFilters {
   searchQuery?: string;
@@ -158,6 +159,8 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
   }, [filters, page, enabled]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  usePrecoBackfillBackground(orders);
 
   const totalPages = Math.ceil(count / PAGE_SIZE);
 

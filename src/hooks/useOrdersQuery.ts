@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import type { Order } from '@/contexts/AuthContext';
+import { usePrecoBackfillBackground } from '@/hooks/usePrecoBackfillBackground';
 
 interface QueryOptions {
   /** Filter by status list */
@@ -79,6 +80,8 @@ export function useOrdersQuery(options: QueryOptions) {
   }, [options.statuses?.join(','), options.tipoExtra, options.onlyBotas, options.soladoValues?.join(','), options.corViraValues?.join(','), options.limit, options.enabled]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  usePrecoBackfillBackground(orders);
 
   return { orders, loading, refetch: fetchOrders };
 }
