@@ -146,12 +146,37 @@ function computeExtraTotal(order: Order): number {
 }
 
 /**
- * A partir do subtotal real, devolve o `preco` que deve ser gravado em `order.preco`
- * para que listagens/PDFs (que fazem `preco × quantidade` ou `preco` direto para extras)
- * resultem no mesmo total.
+ * @deprecated Mantido só para compat. Modelo v2 grava o TOTAL FINAL em `order.preco` direto.
+ * Use `computeTotalToSave` para obter o valor que deve ir pro banco.
  */
 export function targetPrecoFromSubtotal(order: Order, subtotal: number): number {
-  if (order.tipoExtra === 'bota_pronta_entrega') return Number(order.preco) || 0; // mantido
-  if (order.tipoExtra) return subtotal; // extras: preço unitário = total do extra (qtd=1)
+  if (order.tipoExtra === 'bota_pronta_entrega') return Number(order.preco) || 0;
+  if (order.tipoExtra) return subtotal;
   return subtotal / Math.max(1, order.quantidade || 1);
+}
+
+/**
+ * Calcula o TOTAL FINAL que deve ser gravado em `order.preco` (modelo v2).
+ *
+ *   total = (subtotal × quantidade) - desconto
+ *
+ * - `desconto > 0` → abate do total final
+ * - `desconto < 0` → acréscimo (soma ao total final)
+ * - Bota Pronta Entrega: `preco` já é o total cheio do bloco (preservado).
+ * - Extras (cinto, kits, revitalizador, etc.): subtotal já considera quantidade
+ *   internamente, então não multiplica de novo.
+ */
+export function computeTotalToSave(
+  order: Order,
+  findFichaPrice: FindFichaPrice = noFicha,
+  getByCategoria: GetByCategoria = noCategoria,
+): number {
+  if (order.tipoExtra === 'bota_pronta_entrega') {
+    return Math.max(0, (Number(order.preco) || 0) - (Number(order.desconto) || 0));
+  }
+  const subtotal = recomputeSubtotal(order, findFichaPrice, getByCategoria);
+  const isExtra = !!order.tipoExtra;
+  const qtd = isExtra ? 1 : Math.max(1, Number(order.quantidade) || 1);
+  const ajuste = Number(order.desconto) || 0;
+  return Math.max(0, subtotal * qtd - ajuste);
 }
