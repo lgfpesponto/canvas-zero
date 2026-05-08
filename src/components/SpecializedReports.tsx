@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useAuth, Order, orderBarcodeValue, PRODUCTION_STATUSES, EXTRAS_STATUSES } from '@/contexts/AuthContext';
 import { useOrdersQuery } from '@/hooks/useOrdersQuery';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useCustomOptions } from '@/hooks/useCustomOptions';
+import { recomputePricesBatch } from '@/lib/recomputePricesBatch';
 import { FileText, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -379,6 +382,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const userName = user?.nomeCompleto || '';
   // Fetch all orders from DB (no limit)
   const { orders: sourceOrders, loading: ordersLoading } = useOrdersQuery({ enabled: true });
+  const { findFichaPrice } = useFichaVariacoesLookup();
+  const { getByCategoria: getCustomByCategoria } = useCustomOptions();
 
   // Pré-carrega o cache de preços (variações cadastradas no admin) para que o
   // breakdown dos PDFs use os preços REAIS do banco — e não as constantes hardcoded.
@@ -1720,8 +1725,37 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
 
-  const runReport = () => {
+  const runReport = async () => {
     if (!activeReport) return;
+    // Para relatórios financeiros, recomputa o preço de cada pedido filtrado
+    // ANTES de gerar o PDF — garante que o valor esteja sempre atualizado,
+    // sem depender da fila passiva (precoBackfillQueue).
+    const isFinanceiro = activeReport === 'cobranca'
+      || activeReport === 'expedicao'
+      || activeReport === 'extras_cintos';
+    if (isFinanceiro) {
+      const lista = previewFiltered();
+      if (lista.length > 0) {
+        const tid = toast.loading(`Atualizando preços… (0 de ${lista.length})`);
+        try {
+          const { updated } = await recomputePricesBatch(
+            lista,
+            findFichaPrice,
+            (cat) => getCustomByCategoria(cat).map(o => ({ label: o.label, preco: o.preco })),
+            ({ done, total }) => {
+              toast.loading(`Atualizando preços… (${done} de ${total})`, { id: tid });
+            },
+          );
+          if (updated > 0) {
+            toast.success(`Preços atualizados: ${updated} pedido(s) corrigido(s)`, { id: tid });
+          } else {
+            toast.success('Preços já estavam atualizados', { id: tid });
+          }
+        } catch (e) {
+          toast.error('Falha ao atualizar preços; gerando PDF com valores atuais', { id: tid });
+        }
+      }
+    }
     switch (activeReport) {
       case 'escalacao': generateEscalacaoPDF(); break;
       case 'forro': generateForroPDF(); break;
