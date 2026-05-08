@@ -201,6 +201,7 @@ export function dbRowToOrder(row: any): Order {
     quantidade: row.quantidade,
     preco: Number(row.preco),
     precoMigradoV2: !!row.preco_migrado_v2,
+    precoRegraVersao: row.preco_regra_versao != null ? Number(row.preco_regra_versao) : undefined,
     status: row.status,
     dataCriacao: row.data_criacao,
     horaCriacao: row.hora_criacao,
