@@ -995,9 +995,13 @@ const OrderDetailPage = () => {
                     const acaoLabel = tipoAjuste === 'desconto' ? 'Desconto aplicado' : 'Acréscimo aplicado';
                     // updateOrder detecta a mudança em `desconto` automaticamente e grava
                     // a alteração com justificativa + afetouValor=true. Não duplicamos aqui.
+                    // Modelo v2: gravar TOTAL FINAL em `preco` já com novo ajuste aplicado.
+                    const novoTotal = Math.max(0, displayTotalBruto - novoAjuste);
                     await updateOrder(order.id, {
                       desconto: novoAjuste,
                       descontoJustificativa: justificativaInput.trim(),
+                      preco: novoTotal,
+                      precoMigradoV2: true,
                     }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
                     setDescontoInput('');
                     setJustificativaInput('');
