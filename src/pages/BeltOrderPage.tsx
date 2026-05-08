@@ -388,7 +388,9 @@ const BeltOrderPage = () => {
         sobMedida: false,
         observacao,
         quantidade: 1,
+        // Modelo v2: preco gravado é o TOTAL FINAL.
         preco: total,
+        preco_migrado_v2: true,
         adicionalValor: adicionalPreco || null,
         adicionalDesc: adicionalDesc.trim() || null,
         temLaser: false,

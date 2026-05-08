@@ -186,7 +186,9 @@ const EditBeltPage = () => {
         numero: numeroPedido.trim(),
         cliente: cliente.trim(),
         vendedor,
-        preco: total,
+        // Modelo v2: preco gravado é o TOTAL FINAL (− desconto, se houver).
+        preco: Math.max(0, total - (Number(order.desconto) || 0)),
+        preco_migrado_v2: true,
         quantidade: 1,
         observacao,
         adicionalValor: adicionalPreco > 0 ? adicionalPreco : null,
