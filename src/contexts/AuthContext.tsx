@@ -88,6 +88,8 @@ export interface Order {
   observacao: string;
   quantidade: number;
   preco: number;
+  /** Modelo v2: TRUE quando `preco` já é o total final (subtotal × qty − desconto/+acréscimo). */
+  precoMigradoV2?: boolean;
   status: string;
   dataCriacao: string;
   horaCriacao: string;
