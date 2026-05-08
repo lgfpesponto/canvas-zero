@@ -445,20 +445,7 @@ const OrderDetailPage = () => {
   const displayTotalBruto = subtotalReal;
   const displayTotal = getOrderFinalValue(order, subtotalReal);
 
-  // Auto-correção silenciosa (modelo v2): grava preco correto no banco se divergir.
-  useEffect(() => {
-    if (!order || autoFixedRef.current) return;
-    const expected = computeTotalToSave(order, findFichaPrice, getByCategoria);
-    const diff = Math.abs(expected - (Number(order.preco) || 0));
-    if (diff < 1 && order.precoMigradoV2) return;
-    autoFixedRef.current = true;
-    const patch: any = { preco_migrado_v2: true };
-    if (diff >= 1) patch.preco = expected;
-    supabase.from('orders').update(patch).eq('id', order.id).then(({ error }) => {
-      if (error) console.error('auto-fix preco falhou:', error);
-      else if (diff >= 1) refetchOrder();
-    });
-  }, [order?.id, subtotalReal, ajusteValor]);
+  // Auto-correção movida para antes dos early returns (ver acima de `if (orderLoading)`).
 
 
   const alteracoes = order.alteracoes || [];
