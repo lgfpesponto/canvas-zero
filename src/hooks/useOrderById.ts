@@ -33,5 +33,7 @@ export function useOrderById(id: string | undefined) {
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
+  usePrecoBackfillBackground(order);
+
   return { order, loading, error, refetch: fetchOrder };
 }
