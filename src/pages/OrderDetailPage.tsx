@@ -110,9 +110,10 @@ const OrderDetailPage = () => {
     }
   }, [scanValue, navigate, order, isSelected, toggle, scanning, location.search]);
 
-  // Auto-correção de order.preco REMOVIDA: o preço agora é responsabilidade
-  // exclusiva dos fluxos de criação/edição (que chamam recomputeSubtotal
-  // antes de gravar). Visualizar um pedido nunca mais altera o banco.
+  // Modelo v2: auto-correção silenciosa do preço gravado.
+  // Se a composição calculada divergir do `preco` em DB (>= R$ 1), grava o total correto
+  // e marca preco_migrado_v2=true. Roda UMA vez por sessão de detalhe — depois fica estável.
+  const autoFixedRef = useRef(false);
 
   if (orderLoading) {
     return (
