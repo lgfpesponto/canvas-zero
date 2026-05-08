@@ -591,6 +591,7 @@ export type Database = {
           preco: number
           preco_anterior: number | null
           preco_migrado_v2: boolean
+          preco_regra_versao: number | null
           quantidade: number
           quantidade_anterior: number | null
           recorte_cano: string | null
@@ -686,6 +687,7 @@ export type Database = {
           preco?: number
           preco_anterior?: number | null
           preco_migrado_v2?: boolean
+          preco_regra_versao?: number | null
           quantidade?: number
           quantidade_anterior?: number | null
           recorte_cano?: string | null
@@ -781,6 +783,7 @@ export type Database = {
           preco?: number
           preco_anterior?: number | null
           preco_migrado_v2?: boolean
+          preco_regra_versao?: number | null
           quantidade?: number
           quantidade_anterior?: number | null
           recorte_cano?: string | null
@@ -1120,6 +1123,24 @@ export type Database = {
         }
         Relationships: []
       }
+      system_counters: {
+        Row: {
+          key: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
       system_flags: {
         Row: {
           key: string
@@ -1240,6 +1261,7 @@ export type Database = {
         }
         Returns: Json
       }
+      bump_preco_regra_versao: { Args: never; Returns: number }
       current_user_nome_completo: { Args: never; Returns: string }
       decrement_regata_stock: { Args: { stock_id: string }; Returns: undefined }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
@@ -1327,6 +1349,7 @@ export type Database = {
           preco: number
           preco_anterior: number | null
           preco_migrado_v2: boolean
+          preco_regra_versao: number | null
           quantidade: number
           quantidade_anterior: number | null
           recorte_cano: string | null
@@ -1425,6 +1448,7 @@ export type Database = {
         }[]
       }
       get_pending_value: { Args: { vendor?: string }; Returns: number }
+      get_preco_regra_versao: { Args: never; Returns: number }
       get_production_counts: {
         Args: { product_types?: string[]; vendors?: string[] }
         Returns: {
