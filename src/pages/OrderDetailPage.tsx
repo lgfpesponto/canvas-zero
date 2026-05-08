@@ -4,6 +4,7 @@ import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime,
 import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 import { getOrderFinalValue } from '@/lib/order-logic';
+import { computeTotalToSave } from '@/lib/recomputeOrderPrice';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
@@ -447,11 +448,11 @@ const OrderDetailPage = () => {
   // Auto-correção silenciosa (modelo v2): grava preco correto no banco se divergir.
   useEffect(() => {
     if (!order || autoFixedRef.current) return;
-    const expected = Math.max(0, subtotalReal - ajusteValor);
+    const expected = computeTotalToSave(order, findFichaPrice, getByCategoria);
     const diff = Math.abs(expected - (Number(order.preco) || 0));
     if (diff < 1 && order.precoMigradoV2) return;
     autoFixedRef.current = true;
-    const patch: Record<string, any> = { preco_migrado_v2: true };
+    const patch: any = { preco_migrado_v2: true };
     if (diff >= 1) patch.preco = expected;
     supabase.from('orders').update(patch).eq('id', order.id).then(({ error }) => {
       if (error) console.error('auto-fix preco falhou:', error);
