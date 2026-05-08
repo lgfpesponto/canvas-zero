@@ -160,6 +160,8 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+  usePrecoBackfillBackground(orders);
+
   const totalPages = Math.ceil(count / PAGE_SIZE);
 
   return { orders, count, totalPages, loading, totalValue, totalProdutos, refetch: fetchOrders, pageSize: PAGE_SIZE };
