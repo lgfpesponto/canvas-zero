@@ -128,7 +128,9 @@ export default function DynamicOrderPage() {
         vendedor: vendedor || user.nomeCompleto,
         cliente,
         quantidade,
-        preco: totalPreco / quantidade, // unit price
+        // Modelo v2: preco gravado é o TOTAL FINAL.
+        preco: totalPreco,
+        preco_migrado_v2: true,
         data_criacao: dataHoje,
         hora_criacao: horaAgora,
         dias_restantes: 5,

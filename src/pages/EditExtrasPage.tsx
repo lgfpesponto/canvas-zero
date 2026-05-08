@@ -204,7 +204,9 @@ const EditExtrasPage = () => {
       numero: form.numeroPedidoBota.trim(),
       numeroPedidoBota: form.numeroPedidoBota.trim(),
       vendedor: form.vendedorSelecionado || order.vendedor,
-      preco: price,
+      // Modelo v2: preco gravado é o TOTAL FINAL (− desconto se houver).
+      preco: Math.max(0, price - (Number(order.desconto) || 0)),
+      precoMigradoV2: true,
       quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
       extraDetalhes: detalhes,
     };

@@ -844,7 +844,10 @@ const OrderPage = () => {
     cliente: cliente.trim(),
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
     genero, modelo, sobMedida, sobMedidaDesc,
-    solado, formatoBico, quantidade: 1, preco: total, temLaser: hasAnyLaser, fotos,
+    solado, formatoBico, quantidade: 1,
+    // Modelo v2: preco gravado é o TOTAL FINAL (sem desconto na criação — desconto vem depois pelo detalhe).
+    preco: total, precoMigradoV2: true,
+    temLaser: hasAnyLaser, fotos,
     couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
     corCouroGaspea, corCouroCano, corCouroTaloneira,
     bordadoCano: bordadoCano.join(', '), bordadoGaspea: bordadoGaspea.join(', '),

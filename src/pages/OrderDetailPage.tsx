@@ -110,9 +110,10 @@ const OrderDetailPage = () => {
     }
   }, [scanValue, navigate, order, isSelected, toggle, scanning, location.search]);
 
-  // Auto-correção de order.preco REMOVIDA: o preço agora é responsabilidade
-  // exclusiva dos fluxos de criação/edição (que chamam recomputeSubtotal
-  // antes de gravar). Visualizar um pedido nunca mais altera o banco.
+  // Modelo v2: auto-correção silenciosa do preço gravado.
+  // Se a composição calculada divergir do `preco` em DB (>= R$ 1), grava o total correto
+  // e marca preco_migrado_v2=true. Roda UMA vez por sessão de detalhe — depois fica estável.
+  const autoFixedRef = useRef(false);
 
   if (orderLoading) {
     return (
@@ -442,6 +443,21 @@ const OrderDetailPage = () => {
   const ajusteValor = Number(order.desconto) || 0; // >0 desconto, <0 acréscimo
   const displayTotalBruto = subtotalReal;
   const displayTotal = getOrderFinalValue(order, subtotalReal);
+
+  // Auto-correção silenciosa (modelo v2): grava preco correto no banco se divergir.
+  useEffect(() => {
+    if (!order || autoFixedRef.current) return;
+    const expected = Math.max(0, subtotalReal - ajusteValor);
+    const diff = Math.abs(expected - (Number(order.preco) || 0));
+    if (diff < 1 && order.precoMigradoV2) return;
+    autoFixedRef.current = true;
+    const patch: Record<string, any> = { preco_migrado_v2: true };
+    if (diff >= 1) patch.preco = expected;
+    supabase.from('orders').update(patch).eq('id', order.id).then(({ error }) => {
+      if (error) console.error('auto-fix preco falhou:', error);
+      else if (diff >= 1) refetchOrder();
+    });
+  }, [order?.id, subtotalReal, ajusteValor]);
 
 
   const alteracoes = order.alteracoes || [];
@@ -995,9 +1011,13 @@ const OrderDetailPage = () => {
                     const acaoLabel = tipoAjuste === 'desconto' ? 'Desconto aplicado' : 'Acréscimo aplicado';
                     // updateOrder detecta a mudança em `desconto` automaticamente e grava
                     // a alteração com justificativa + afetouValor=true. Não duplicamos aqui.
+                    // Modelo v2: gravar TOTAL FINAL em `preco` já com novo ajuste aplicado.
+                    const novoTotal = Math.max(0, displayTotalBruto - novoAjuste);
                     await updateOrder(order.id, {
                       desconto: novoAjuste,
                       descontoJustificativa: justificativaInput.trim(),
+                      preco: novoTotal,
+                      precoMigradoV2: true,
                     }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
                     setDescontoInput('');
                     setJustificativaInput('');

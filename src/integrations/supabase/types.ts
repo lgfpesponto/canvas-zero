@@ -590,6 +590,7 @@ export type Database = {
           pintura_desc: string | null
           preco: number
           preco_anterior: number | null
+          preco_migrado_v2: boolean
           quantidade: number
           quantidade_anterior: number | null
           recorte_cano: string | null
@@ -684,6 +685,7 @@ export type Database = {
           pintura_desc?: string | null
           preco?: number
           preco_anterior?: number | null
+          preco_migrado_v2?: boolean
           quantidade?: number
           quantidade_anterior?: number | null
           recorte_cano?: string | null
@@ -778,6 +780,7 @@ export type Database = {
           pintura_desc?: string | null
           preco?: number
           preco_anterior?: number | null
+          preco_migrado_v2?: boolean
           quantidade?: number
           quantidade_anterior?: number | null
           recorte_cano?: string | null
@@ -1323,6 +1326,7 @@ export type Database = {
           pintura_desc: string | null
           preco: number
           preco_anterior: number | null
+          preco_migrado_v2: boolean
           quantidade: number
           quantidade_anterior: number | null
           recorte_cano: string | null
@@ -1403,40 +1407,23 @@ export type Database = {
         }
         Returns: number
       }
-      get_orders_totals:
-        | {
-            Args: {
-              _date_from?: string
-              _date_to?: string
-              _ids_mudou?: string[]
-              _produtos?: string[]
-              _search?: string
-              _status?: string[]
-              _vendedores?: string[]
-            }
-            Returns: {
-              total_pedidos: number
-              total_produtos: number
-              valor_total: number
-            }[]
-          }
-        | {
-            Args: {
-              _conferido?: string
-              _date_from?: string
-              _date_to?: string
-              _ids_mudou?: string[]
-              _produtos?: string[]
-              _search?: string
-              _status?: string[]
-              _vendedores?: string[]
-            }
-            Returns: {
-              total_pedidos: number
-              total_produtos: number
-              valor_total: number
-            }[]
-          }
+      get_orders_totals: {
+        Args: {
+          _conferido?: string
+          _date_from?: string
+          _date_to?: string
+          _ids_mudou?: string[]
+          _produtos?: string[]
+          _search?: string
+          _status?: string[]
+          _vendedores?: string[]
+        }
+        Returns: {
+          total_pedidos: number
+          total_produtos: number
+          valor_total: number
+        }[]
+      }
       get_pending_value: { Args: { vendor?: string }; Returns: number }
       get_production_counts: {
         Args: { product_types?: string[]; vendors?: string[] }

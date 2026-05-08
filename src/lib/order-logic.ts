@@ -3,36 +3,30 @@ import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
 import type { AppRole } from '@/contexts/AuthContext';
 import type { Order, OrderAlteracao } from '@/contexts/AuthContext';
 
-/* ───── Order value helpers (preço final c/ desconto OU acréscimo) ─────
- * Centraliza o cálculo do valor exibido em listagens, detalhe e PDFs.
- * Regras (espelham OrderCard / OrderDetailPage):
- *  - Bota normal (sem tipoExtra): preco × quantidade
- *  - Bota Pronta Entrega: preco já é o total
- *  - Revitalizador / kit_revitalizador: preco × quantidade
- *  - Demais extras: preco unitário (quantidade geralmente 1)
- *  - Campo `desconto`:
- *      > 0  → desconto (subtrai do total final, mín. 0)
- *      < 0  → acréscimo (soma ao total final)
- *      = 0/null → sem ajuste
+/* ───── Order value helpers (TOTAL FINAL gravado em order.preco) ─────
+ * Modelo v2: `orders.preco` JÁ É o total final do pedido —
+ * inclui (subtotal × quantidade) ± desconto/acréscimo.
+ * Listagens, "Meus Pedidos", relatórios e PDFs leem `preco` direto.
+ *
+ * O campo `desconto` continua existindo apenas como REGISTRO/AUDITORIA
+ * (tag visual "DESC" / "ACRÉSC" e linha no detalhe). Ele NÃO é mais
+ * aplicado em runtime — se fosse, descontaria duas vezes.
+ *
+ * O cálculo do total acontece UMA vez, na hora de salvar/editar o pedido,
+ * via `computeTotalToSave` (em recomputeOrderPrice.ts). Pedidos antigos
+ * (preco_migrado_v2 = false) são corrigidos pelo runner de backfill ou
+ * pela auto-correção silenciosa do detalhe.
  */
-export function getOrderBaseValue(order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra'>): number {
-  const preco = Number(order.preco) || 0;
-  const qtd = Number(order.quantidade) || 1;
-  const isBotaPE = order.tipoExtra === 'bota_pronta_entrega';
-  const isRevit = order.tipoExtra === 'revitalizador' || order.tipoExtra === 'kit_revitalizador';
-  if (!order.tipoExtra) return preco * qtd;
-  if (isBotaPE) return preco;
-  if (isRevit) return preco * qtd;
-  return preco;
+export function getOrderBaseValue(order: Pick<Order, 'preco'>): number {
+  return Number(order.preco) || 0;
 }
 
 export function getOrderFinalValue(
-  order: Pick<Order, 'preco' | 'quantidade' | 'tipoExtra' | 'desconto'>,
+  order: Pick<Order, 'preco'>,
   subtotalOverride?: number,
 ): number {
-  const base = subtotalOverride != null ? subtotalOverride : getOrderBaseValue(order);
-  const ajuste = Number(order.desconto) || 0; // positivo = desconto, negativo = acréscimo
-  return Math.max(0, base - ajuste);
+  if (subtotalOverride != null) return Math.max(0, subtotalOverride);
+  return Number(order.preco) || 0;
 }
 
 /* ───── Production statuses ───── */
@@ -206,6 +200,7 @@ export function dbRowToOrder(row: any): Order {
     observacao: row.observacao,
     quantidade: row.quantidade,
     preco: Number(row.preco),
+    precoMigradoV2: !!row.preco_migrado_v2,
     status: row.status,
     dataCriacao: row.data_criacao,
     horaCriacao: row.hora_criacao,
@@ -300,6 +295,7 @@ export function orderToDbRow(order: any, userId: string) {
     observacao: order.observacao || '',
     quantidade: order.quantidade ?? 1,
     preco: order.preco ?? 0,
+    preco_migrado_v2: order.precoMigradoV2 ?? false,
     status: order.status || 'Em aberto',
     data_criacao: order.dataCriacao,
     hora_criacao: order.horaCriacao,
