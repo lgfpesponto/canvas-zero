@@ -34,7 +34,7 @@ import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
-import PrecoAutoBackfill from "@/components/PrecoAutoBackfill";
+import PrecoReconciler from "@/components/PrecoReconciler";
 import NotFound from "./pages/NotFound.tsx";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
