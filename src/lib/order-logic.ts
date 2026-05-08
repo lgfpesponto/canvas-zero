@@ -297,6 +297,7 @@ export function orderToDbRow(order: any, userId: string) {
     quantidade: order.quantidade ?? 1,
     preco: order.preco ?? 0,
     preco_migrado_v2: order.precoMigradoV2 ?? false,
+    preco_regra_versao: order.precoRegraVersao ?? null,
     status: order.status || 'Em aberto',
     data_criacao: order.dataCriacao,
     hora_criacao: order.horaCriacao,
