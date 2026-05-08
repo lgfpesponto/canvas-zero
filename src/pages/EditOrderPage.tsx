@@ -462,7 +462,7 @@ const EditOrderPage = () => {
       solado, formatoBico, quantidade: 1,
       // Modelo v2: preco gravado é o TOTAL FINAL (subtotal − desconto/+acréscimo aplicado).
       preco: Math.max(0, total - (Number(order.desconto) || 0)),
-      preco_migrado_v2: true,
+      precoMigradoV2: true,
       temLaser: hasAnyLaser, fotos,
       couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
       corCouroGaspea, corCouroCano, corCouroTaloneira,

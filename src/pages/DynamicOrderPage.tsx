@@ -130,7 +130,7 @@ export default function DynamicOrderPage() {
         quantidade,
         // Modelo v2: preco gravado é o TOTAL FINAL.
         preco: totalPreco,
-        preco_migrado_v2: true,
+        precoMigradoV2: true,
         data_criacao: dataHoje,
         hora_criacao: horaAgora,
         dias_restantes: 5,

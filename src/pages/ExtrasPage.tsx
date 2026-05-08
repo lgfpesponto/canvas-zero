@@ -300,7 +300,7 @@ const ExtrasPage = () => {
         quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
         // Modelo v2: preco já é o TOTAL FINAL (calcPrice retorna total cheio incl. quantidade).
         preco: price,
-        preco_migrado_v2: true,
+        precoMigradoV2: true,
         temLaser: false,
         fotos: [],
         tipoExtra: productId,

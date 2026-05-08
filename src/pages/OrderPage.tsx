@@ -846,7 +846,7 @@ const OrderPage = () => {
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
     // Modelo v2: preco gravado é o TOTAL FINAL (sem desconto na criação — desconto vem depois pelo detalhe).
-    preco: total, preco_migrado_v2: true,
+    preco: total, precoMigradoV2: true,
     temLaser: hasAnyLaser, fotos,
     couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
     corCouroGaspea, corCouroCano, corCouroTaloneira,
