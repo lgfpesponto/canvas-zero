@@ -1,38 +1,40 @@
 ## Objetivo
 
-Garantir que o PDF (Cobrança, Expedição, Extras/Cintos — qualquer relatório que mostre **valor**) **nunca** seja gerado com preço desatualizado da fila passiva. Antes de desenhar o PDF, recomputamos o preço de cada pedido filtrado e gravamos o valor novo no banco se for diferente.
+Recálculo automático e contínuo dos preços antigos, sem precisar clicar em nada. Roda em background sempre que qualquer usuário estiver logado, até zerar a fila de pedidos com `preco_migrado_v2 = false`.
 
 ## Como vai funcionar
 
-1. Quando o usuário clicar em **Gerar PDF** num relatório financeiro:
-   - Primeiro mostra um pequeno indicador "Atualizando preços… (X de N)".
-   - Para cada pedido do filtro, roda `computeTotalToSave` (mesma função que o detalhe usa).
-   - Se o valor calculado ≠ `preco` salvo, faz um `UPDATE` no Supabase com o valor correto + `preco_migrado_v2 = true`.
-   - Atualiza o objeto em memória com o novo `preco`.
-2. Só depois disso o PDF é gerado, usando os preços já corrigidos.
-3. O nome do arquivo e o snapshot em `pdf_snapshots` saem com o valor certo.
+Hoje já existe a `precoBackfillQueue` (fila passiva), mas ela só processa pedidos que aparecem na tela. Vou adicionar um **drenador global** que busca direto no banco os pedidos pendentes e enfileira automaticamente, sem depender de listagem.
 
-## Onde aplicar
+### Comportamento
 
-- `src/components/SpecializedReports.tsx` — função utilitária local `recomputePricesBeforePDF(orders)` chamada no início de:
-  - `generateCobrancaPDF` (Cobrança)
-  - `generateExpedicaoPDF` (Expedição)
-  - `generateExtrasCintosPDF` (Extras/Cintos)
-- A função usa `useFichaVariacoesLookup` + `useCustomOptions` (já carregados pelo componente) e `computeTotalToSave` de `src/lib/recomputeOrderPrice.ts`.
+1. Ao logar (qualquer role, exceto `bordado`), monta um componente invisível `<PrecoAutoBackfill />` dentro do `ChromeWrapper`.
+2. Esse componente:
+   - Espera os hooks de preço (`useFichaVariacoesLookup`, `useCustomOptions`) carregarem.
+   - Faz `SELECT * FROM orders WHERE preco_migrado_v2 = false ORDER BY created_at LIMIT 200`.
+   - Empurra o lote pra fila existente (`enqueueBackfill`) — que já processa em ~5/s no cliente.
+   - Quando a fila esvazia, busca o próximo lote. Repete até não sobrar nada.
+   - Se der erro de rede ou aba ficar inativa, retoma quando voltar (listener `visibilitychange`).
+3. Roda 100% silencioso: sem toast, sem UI. O `RecalcPrecosRunner` manual continua existindo como fallback de emergência.
 
-## Ganhos colaterais
+### Garantias
 
-- Resolve definitivamente o problema do PDF "atrasado" em relação ao banco — independente de quanto a fila passiva já processou.
-- Se houver pedidos com `preco` ainda errado por bug (não só pela migração), o próprio relatório corrige no momento da geração.
-- Nada muda visualmente no PDF; só acrescenta um *loading* curto antes do download.
+- **Idempotente**: cada pedido é marcado `preco_migrado_v2 = true` assim que processado, então não roda duas vezes nem em sessões diferentes.
+- **Sem duplicação entre abas/usuários**: se 2 pessoas estão logadas, ambas processam, mas como o `update` marca a flag, a segunda só vê o que sobrou — no pior caso recalcula igual e grava o mesmo valor.
+- **Throttle**: mantém os 200ms entre updates da fila atual, então não estoura rate-limit do Supabase.
+- **Não bloqueia a UI**: tudo async em background.
 
-## Detalhes técnicos
+### Arquivos a alterar/criar
 
-- Concorrência: rodar em lotes de 10 pedidos em paralelo (Promise.all em chunks) — para 26 pedidos é instantâneo, para 500+ não trava.
-- Quem está com `preco_migrado_v2 = false` é prioridade; quem já está `true` também é checado, mas o UPDATE só acontece se o valor mudou (evita escrita à toa).
-- Erros silenciosos: se um pedido falhar no recompute (faltou catálogo etc.), mantém o preço antigo e segue.
-- A fila passiva (`precoBackfillQueue`) continua existindo como rede de segurança para quando o usuário só **visualiza** listas sem gerar PDF.
+```text
+src/hooks/usePrecoAutoBackfill.ts    [novo]   loop drenador global
+src/components/PrecoAutoBackfill.tsx [novo]   componente invisível que só usa o hook
+src/App.tsx                          [edit]   monta <PrecoAutoBackfill /> dentro do ChromeWrapper
+                                              (só quando logado e não-bordado)
+```
 
-## Pendência separada (não entra neste plano)
+Nada no banco muda. Nenhum PDF muda. O recompute imediato antes do PDF (já implementado) continua funcionando como rede de segurança.
 
-A diferença de **R$ 5** entre o banco (R$ 8.430) e o seu esperado (R$ 8.425) só vai aparecer depois que o recompute rodar — se o valor continuar 8.430, é diferença de regra de preço de algum item; abrimos uma investigação específica nesse caso.
+## Resultado esperado
+
+Em poucas horas após o deploy, com qualquer pessoa usando o portal normalmente, todos os pedidos antigos terão `preco_migrado_v2 = true` e o relatório de Cobrança vai bater sempre — sem nunca precisar clicar em "Iniciar recálculo".
