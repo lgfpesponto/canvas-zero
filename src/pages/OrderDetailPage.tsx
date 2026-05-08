@@ -116,6 +116,22 @@ const OrderDetailPage = () => {
   // e marca preco_migrado_v2=true. Roda UMA vez por sessão de detalhe — depois fica estável.
   const autoFixedRef = useRef(false);
 
+  // Auto-correção silenciosa (modelo v2): grava preco correto no banco se divergir.
+  // Precisa rodar ANTES dos early returns para manter ordem de hooks estável.
+  useEffect(() => {
+    if (!order || autoFixedRef.current) return;
+    const expected = computeTotalToSave(order, findFichaPrice, getByCategoria);
+    const diff = Math.abs(expected - (Number(order.preco) || 0));
+    if (diff < 1 && order.precoMigradoV2) return;
+    autoFixedRef.current = true;
+    const patch: any = { preco_migrado_v2: true };
+    if (diff >= 1) patch.preco = expected;
+    supabase.from('orders').update(patch).eq('id', order.id).then(({ error }) => {
+      if (error) console.error('auto-fix preco falhou:', error);
+      else if (diff >= 1) refetchOrder();
+    });
+  }, [order, findFichaPrice, getByCategoria, refetchOrder]);
+
   if (orderLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
