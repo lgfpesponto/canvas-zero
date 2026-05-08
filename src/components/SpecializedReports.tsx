@@ -382,6 +382,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const userName = user?.nomeCompleto || '';
   // Fetch all orders from DB (no limit)
   const { orders: sourceOrders, loading: ordersLoading } = useOrdersQuery({ enabled: true });
+  const { findFichaPrice } = useFichaVariacoesLookup();
+  const { getByCategoria: getCustomByCategoria } = useCustomOptions();
 
   // Pré-carrega o cache de preços (variações cadastradas no admin) para que o
   // breakdown dos PDFs use os preços REAIS do banco — e não as constantes hardcoded.
