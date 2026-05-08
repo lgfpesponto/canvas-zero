@@ -147,11 +147,12 @@ export default function AdminConfigPage() {
           </TabsContent>
 
           {/* ─── Relatórios (placeholder) ─── */}
-          <TabsContent value="relatorios">
+          <TabsContent value="relatorios" className="space-y-4">
+            {user.role === 'admin_master' && <RecalcPrecosRunner />}
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <BarChart3 className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                <p className="text-sm">Relatórios administrativos serão implementados em breve.</p>
+                <p className="text-sm">Mais relatórios administrativos em breve.</p>
               </CardContent>
             </Card>
           </TabsContent>
