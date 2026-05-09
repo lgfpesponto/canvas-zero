@@ -16,8 +16,8 @@ export function useFinanceiroSaldoAccess(): AccessInfo {
 
   const vendedorName = user?.nomeCompleto || '';
   const isAdminMaster = role === 'admin_master';
-  const isVendedor = role === 'vendedor' || role === 'vendedor_comissao';
-  const canSeeComprovantesView = !!isLoggedIn && !!vendedorName && isVendedor;
+  const isExcluded = role === 'admin_master' || role === 'admin_producao' || role === 'bordado';
+  const canSeeComprovantesView = !!isLoggedIn && !!vendedorName && !isExcluded;
 
   return {
     loading: authLoading,
