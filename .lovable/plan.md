@@ -1,80 +1,54 @@
-## Diagnóstico — por que a soma deu errado
+## Diagnóstico
 
-No pedido `a0c65fa4…` (Bota Pronta Entrega — florencia R$ 310, acréscimo de R$ 5):
+No pedido **#1951** (Bota normal): banco tem `preco = 290` (correto, já com desconto), mas a tela mostra **Subtotal R$ 295 / Desconto −R$ 5 / Total R$ 295** — o ajuste aparece na linha de auditoria, mas **não é subtraído do Total exibido**.
 
-- **Esperado**: `preco = 315`
-- **No banco hoje**: `preco = 325` (e a tela mostrou 320 entre as etapas)
-
-### Causa raiz (uma só, em dois lugares)
-
-Para `tipo_extra = 'bota_pronta_entrega'`, o "subtotal bruto" está sendo lido de `order.preco`, que **já é o total final pós-ajuste**. Ou seja, todo recálculo soma o ajuste em cima de um valor que já contém o ajuste anterior → o total cresce R$ 5 a cada save / cada execução do reconciliador.
-
-1. **`src/pages/OrderDetailPage.tsx` (linha ~451)** — em `computeExtraTotal` para `bota_pronta_entrega`:
-   ```ts
-   case 'bota_pronta_entrega': t += order.preco; break;  // ← usa total final como "bruto"
-   ```
-   Resultado: `displayTotalBruto = order.preco` (já com ajuste). Ao aplicar +R$ 5:
-   `novoTotal = 310 − (−5) = 315` ✓ na 1ª vez, mas `315 − (−5) = 320` na 2ª, `320 − (−5) = 325` na 3ª…
-
-2. **`src/lib/recomputeOrderPrice.ts` (linhas 174-175)** — em `computeTotalToSave`:
-   ```ts
-   if (order.tipoExtra === 'bota_pronta_entrega') {
-     return Math.max(0, (Number(order.preco) || 0) - (Number(order.desconto) || 0));
-   }
-   ```
-   Mesma armadilha: o `reconciliar-precos` (edge function) e o backfill rodam essa função e a cada execução adicionam o ajuste de novo. Como o reconciliador roda no login e a cada mudança de regra, ele "explode" o valor.
-
-A linha de auditoria que mostrou "310 → 315" foi da 1ª aplicação correta. Os R$ 10 a mais vieram de execuções subsequentes do reconciliador / segundo save.
-
----
-
-## Correção
-
-Tornar a "fonte da verdade" do bruto para Bota Pronta Entrega o `extra_detalhes.botas[].valorManual` (+ preços dos extras aninhados), nunca `order.preco`.
-
-### 1. `src/lib/recomputeOrderPrice.ts`
-
-Criar helper `computeBotaProntaEntregaBruto(order)` que soma:
-- `valorManual` de cada bota em `extra_detalhes.botas[]`
-- `extras[].preco` aninhados de cada bota
-- Fallback: se `extra_detalhes.botas` não existir (pedidos legados sem array), manter `order.preco` como bruto (comportamento atual para não quebrar os antigos).
-
-Trocar em `computeTotalToSave`:
+A causa é o helper `getOrderFinalValue(order, subtotalOverride)` em `src/lib/order-logic.ts`:
 ```ts
-if (order.tipoExtra === 'bota_pronta_entrega') {
-  const bruto = computeBotaProntaEntregaBruto(order);
-  return Math.max(0, bruto - (Number(order.desconto) || 0));
+if (subtotalOverride != null) return Math.max(0, subtotalOverride);
+```
+Ele devolve o **bruto puro** quando recebe override, ignorando o desconto. Como `OrderDetailPage` sempre passa `subtotalReal` como override (independente do tipo), o Total exibido fica igual ao Subtotal para qualquer tipo (bota, cinto, extras).
+
+E, agora que mudamos `subtotalReal` da Bota Pronta Entrega para o **bruto da composição** (correção anterior), o mesmo bug atinge ela também: se houver acréscimo de R$ 5 sobre R$ 310, a tela mostra Total = 310 em vez de 315 — o DB está certo (315), mas a UI não.
+
+Resumindo: bug é só de **exibição** e atinge **todos os tipos**.
+
+## Correção (uma linha de código + verificação cruzada)
+
+### 1. `src/lib/order-logic.ts` — `getOrderFinalValue`
+
+Mudar a semântica do override para que ele represente **bruto** e o helper aplique o ajuste:
+```ts
+export function getOrderFinalValue(order, subtotalOverride?) {
+  if (subtotalOverride != null) {
+    const ajuste = Number(order.desconto) || 0; // >0 desconto, <0 acréscimo
+    return Math.max(0, subtotalOverride - ajuste);
+  }
+  return Number(order.preco) || 0;
 }
 ```
+Isso conserta o Total exibido em **todos** os pontos que passam um override (detalhe do pedido) — bota, cinto, extras — incluindo a Bota Pronta Entrega após o fix anterior.
 
-### 2. `src/pages/OrderDetailPage.tsx`
+### 2. Verificar callers do override
 
-- Em `computeExtraTotal`, substituir `case 'bota_pronta_entrega': t += order.preco` por `t += computeBotaProntaEntregaBruto(order)`.
-- Assim `subtotalReal` / `displayTotalBruto` ficam = R$ 310 (independente de quantos ajustes existam), e a aplicação do +R$ 5 sempre gera 315.
+Buscar todos os usos de `getOrderFinalValue(order, X)` (apenas o detail page passa override hoje) e confirmar que `X` é sempre o **bruto** (sem ajuste):
+- `OrderDetailPage`: `subtotalReal` = breakdown do tipo (bota = `totalCalc`; extras = `extraTotalCalc`; bota_pronta_entrega = `computeBotaProntaEntregaBruto`). Todos são bruto. ✓
 
-### 3. `supabase/functions/reconciliar-precos/index.ts`
+### 3. Garantir que o `preco` persistido também siga a regra para todos os tipos
 
-Aplicar a mesma correção na lógica portada (Deno) — usar `extra_detalhes.botas` para calcular o bruto antes de subtrair `desconto`. Sem isso, o reconciliador continuará inflando os valores.
+`computeTotalToSave` em `src/lib/recomputeOrderPrice.ts` já cobre os 3 caminhos (bota normal, extras genéricos, bota_pronta_entrega) e é usado pelo runner/edge function. Após a correção da edge function (passo anterior) **todos os tipos** ficam com `preco = bruto − desconto` no banco. Sem alterações adicionais necessárias.
 
-### 4. Saneamento do pedido afetado
+### 4. Saneamento opcional
 
-Migration única para corrigir o pedido atual (e qualquer outro `bota_pronta_entrega` cujo `preco` esteja > soma de `valorManual` + extras − desconto):
-```sql
-UPDATE orders
-SET preco = <bruto_recalculado> - desconto
-WHERE tipo_extra = 'bota_pronta_entrega'
-  AND <preco diverge>;
-```
-Vou listar primeiro com `SELECT` para mostrar quais pedidos serão tocados antes de aplicar.
+Listar com `SELECT` se algum pedido **não** Bota Pronta Entrega tem `preco` divergente da regra `bruto − desconto` (varredura do reconciliador deve cobrir, mas vou conferir antes).
 
-### 5. Guarda contra regressão
+### 5. Memória
 
-Adicionar comentário-alerta nos dois pontos (`computeExtraTotal` e `computeTotalToSave`) explicando que **nunca** se deve usar `order.preco` como bruto quando `desconto !== 0`, para evitar que esse padrão volte. Registrar também na memória do projeto sob `mem://features/orders/bota-pronta-entrega-multi`.
+Adicionar nota curta em `mem://features/orders/order-final-value` (já existe) lembrando que `getOrderFinalValue(order, override)` agora **sempre subtrai o desconto** quando override é dado — quem chamar precisa passar **bruto**, nunca total final.
 
 ---
 
-## Como evito que aconteça de novo
+## Por que isso é seguro
 
-- **Regra geral**: em qualquer recálculo do total, o "bruto" precisa vir da composição (campos de origem), não de `order.preco`. `order.preco` é **resultado**, nunca **insumo** do cálculo de ajuste.
-- Comentários explícitos nos dois pontos.
-- Nota de memória persistente para futuras edições.
+- Listagens, PDFs, dashboards e relatórios chamam `getOrderFinalValue(order)` **sem** override → caem no `return order.preco` (caminho inalterado).
+- Apenas o detalhe do pedido passa override, e ele já passa bruto. Vai passar a refletir o ajuste corretamente.
+- Sem migração nem mudança de schema.

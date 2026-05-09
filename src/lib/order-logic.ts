@@ -22,10 +22,15 @@ export function getOrderBaseValue(order: Pick<Order, 'preco'>): number {
 }
 
 export function getOrderFinalValue(
-  order: Pick<Order, 'preco'>,
+  order: Pick<Order, 'preco' | 'desconto'>,
   subtotalOverride?: number,
 ): number {
-  if (subtotalOverride != null) return Math.max(0, subtotalOverride);
+  if (subtotalOverride != null) {
+    // Override = BRUTO da composição. Aplicamos o ajuste aqui.
+    // ⚠️ Quem chama precisa passar bruto (sem desconto/acréscimo aplicado).
+    const ajuste = Number((order as any).desconto) || 0; // >0 desconto, <0 acréscimo
+    return Math.max(0, subtotalOverride - ajuste);
+  }
   return Number(order.preco) || 0;
 }
 
