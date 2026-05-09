@@ -1,54 +1,81 @@
-## Diagnóstico
+## Objetivo
 
-No pedido **#1951** (Bota normal): banco tem `preco = 290` (correto, já com desconto), mas a tela mostra **Subtotal R$ 295 / Desconto −R$ 5 / Total R$ 295** — o ajuste aparece na linha de auditoria, mas **não é subtraído do Total exibido**.
+Liberar para **todos os vendedores** (não só Stefany) uma página simplificada chamada **"Comprovantes"**, onde eles podem:
+1. Enviar comprovante (com leitura automática pela IA, igual no admin master);
+2. Ver a lista dos comprovantes que enviaram (status pendente / aprovado / reprovado);
+3. Receber **notificação no sino** quando o admin master aprovar ou reprovar.
 
-A causa é o helper `getOrderFinalValue(order, subtotalOverride)` em `src/lib/order-logic.ts`:
+Nada de cálculo de saldo/utilizado/disponível para o vendedor por enquanto — só layout de envio + lista. O fluxo do admin master (aprovar/reprovar/baixa automática) **continua igual**.
+
+## Mudanças de frontend
+
+### 1. Acesso (`src/hooks/useFinanceiroSaldoAccess.ts`)
+- Trocar `canSeeRevendedorView` para liberar para **qualquer usuário logado que seja vendedor** (roles: `vendedor`, `vendedor_comissao`), independente da tabela `revendedor_visibilidade`.
+- Manter a tabela `revendedor_visibilidade` viva (admin ainda usa para outras telas), mas o hook não depende mais dela.
+- Renomear semântica: `canSeeRevendedorView` → `canSeeComprovantesView` (mantendo retro-compat se preciso).
+
+### 2. Header (`src/components/Header.tsx`)
+- Trocar item de menu **"MEU SALDO"** por **"COMPROVANTES"**, mesmo path `/financeiro/saldo` (não muda rota pra não quebrar links).
+
+### 3. Página (`src/pages/RevendedorSaldoPage.tsx`)
+Reescrever pra versão enxuta:
+- Título: **"Comprovantes"** (não "Meu Saldo").
+- Remover totalmente os cards de **Total enviado / Já utilizado / Saldo disponível / A pagar**.
+- Remover o alerta "Faltam pedidos para dar baixa".
+- Remover chamadas a `fetchSaldoVendedor`, `fetchPedidosCobrados`, `fetchBaixasVendedor` e o canal realtime de `revendedor_saldo_movimentos`.
+- Manter:
+  - Botão **"Enviar comprovante"** (abre `EnviarComprovanteDialog` já existente);
+  - Tabela **"Meus comprovantes enviados"** com data, valor, status, observação/motivo, anexo;
+  - Realtime apenas em `revendedor_comprovantes` filtrado por `vendedor=eq.${vendedorName}`.
+
+### 4. Dialog de envio (`EnviarComprovanteDialog.tsx`)
+- Já recebe `vendedor` por prop e usa `extract-comprovante` (mesma IA do admin). **Sem mudanças.** O "campo automático de acordo com login" já é o `vendedorName` que vem do hook.
+
+### 5. Sino (`src/hooks/useNotificacoes.ts` + `NotificacoesBell.tsx`)
+- Adicionar leitura/realtime de uma nova fonte de notificações de comprovantes para o vendedor logado (ver mudanças de banco abaixo). Mesclar com as notificações de pedido existentes (mesma lista do sino).
+
+## Mudanças de banco (migration)
+
+### Trigger de notificação ao aprovar/reprovar comprovante
+Como `order_notificacoes` exige `order_id NOT NULL` e é específica de pedidos, criar tabela nova **`comprovante_notificacoes`**:
+
+- Colunas: `id`, `comprovante_id` (FK), `vendedor`, `tipo` (`aprovado` | `reprovado`), `descricao`, `lida`, `lida_em`, `created_at`.
+- RLS: vendedor lê/atualiza só as próprias (`vendedor = profiles.nome_completo` do `auth.uid()`); admin_master full.
+- Trigger `AFTER UPDATE` em `revendedor_comprovantes`: quando `status` muda de `pendente` → `aprovado` ou `reprovado`, inserir uma linha na nova tabela (descrição inclui valor + data + motivo se reprovado).
+- RPC `marcar_comprovante_notificacao_lida(_id uuid)` e `marcar_todas_comprovante_notificacoes_lidas()`.
+
+### Hook do sino
+- `useNotificacoes` consulta as duas tabelas e devolve uma lista unificada (com campo `tipo` interno: `pedido` ou `comprovante`). Contagem de não lidas soma as duas.
+- Clique numa notificação de comprovante: leva para `/financeiro/saldo`.
+
+## O que NÃO muda
+- Fluxo do admin master (FinanceiroPage / `ComprovantesRevendedorPendentes` / `FinanceiroSaldoRevendedor`): intocado.
+- Edge function `extract-comprovante`: intocada (mesma IA pros vendedores).
+- Lógica de baixa automática quando o admin aprova: intocada.
+- Tabela `revendedor_visibilidade`: mantida (usada em outros lugares pro admin).
+
+## Detalhes técnicos
+
+### `useFinanceiroSaldoAccess` (novo critério)
 ```ts
-if (subtotalOverride != null) return Math.max(0, subtotalOverride);
+const isVendedor = role === 'vendedor' || role === 'vendedor_comissao';
+const canSeeComprovantesView = isLoggedIn && !!vendedorName && isVendedor;
 ```
-Ele devolve o **bruto puro** quando recebe override, ignorando o desconto. Como `OrderDetailPage` sempre passa `subtotalReal` como override (independente do tipo), o Total exibido fica igual ao Subtotal para qualquer tipo (bota, cinto, extras).
 
-E, agora que mudamos `subtotalReal` da Bota Pronta Entrega para o **bruto da composição** (correção anterior), o mesmo bug atinge ela também: se houver acréscimo de R$ 5 sobre R$ 310, a tela mostra Total = 310 em vez de 315 — o DB está certo (315), mas a UI não.
+### Roteamento
+- `/financeiro/saldo` mantido (mesmo arquivo, novo conteúdo).
+- Guard: `isAdminMaster || canSeeComprovantesView`.
 
-Resumindo: bug é só de **exibição** e atinge **todos os tipos**.
-
-## Correção (uma linha de código + verificação cruzada)
-
-### 1. `src/lib/order-logic.ts` — `getOrderFinalValue`
-
-Mudar a semântica do override para que ele represente **bruto** e o helper aplique o ajuste:
-```ts
-export function getOrderFinalValue(order, subtotalOverride?) {
-  if (subtotalOverride != null) {
-    const ajuste = Number(order.desconto) || 0; // >0 desconto, <0 acréscimo
-    return Math.max(0, subtotalOverride - ajuste);
-  }
-  return Number(order.preco) || 0;
-}
+### Migration (resumo)
+```text
+CREATE TABLE public.comprovante_notificacoes (...);
+ALTER TABLE ... ENABLE ROW LEVEL SECURITY;
+-- policies (vendedor vê as suas, admin_master vê todas)
+CREATE FUNCTION public.notify_comprovante_status_change() ...;
+CREATE TRIGGER trg_comprovante_notif AFTER UPDATE ON revendedor_comprovantes ...;
+CREATE FUNCTION public.marcar_comprovante_notificacao_lida(_id uuid) ...;
+CREATE FUNCTION public.marcar_todas_comprovante_notificacoes_lidas() ...;
 ```
-Isso conserta o Total exibido em **todos** os pontos que passam um override (detalhe do pedido) — bota, cinto, extras — incluindo a Bota Pronta Entrega após o fix anterior.
 
-### 2. Verificar callers do override
-
-Buscar todos os usos de `getOrderFinalValue(order, X)` (apenas o detail page passa override hoje) e confirmar que `X` é sempre o **bruto** (sem ajuste):
-- `OrderDetailPage`: `subtotalReal` = breakdown do tipo (bota = `totalCalc`; extras = `extraTotalCalc`; bota_pronta_entrega = `computeBotaProntaEntregaBruto`). Todos são bruto. ✓
-
-### 3. Garantir que o `preco` persistido também siga a regra para todos os tipos
-
-`computeTotalToSave` em `src/lib/recomputeOrderPrice.ts` já cobre os 3 caminhos (bota normal, extras genéricos, bota_pronta_entrega) e é usado pelo runner/edge function. Após a correção da edge function (passo anterior) **todos os tipos** ficam com `preco = bruto − desconto` no banco. Sem alterações adicionais necessárias.
-
-### 4. Saneamento opcional
-
-Listar com `SELECT` se algum pedido **não** Bota Pronta Entrega tem `preco` divergente da regra `bruto − desconto` (varredura do reconciliador deve cobrir, mas vou conferir antes).
-
-### 5. Memória
-
-Adicionar nota curta em `mem://features/orders/order-final-value` (já existe) lembrando que `getOrderFinalValue(order, override)` agora **sempre subtrai o desconto** quando override é dado — quem chamar precisa passar **bruto**, nunca total final.
-
----
-
-## Por que isso é seguro
-
-- Listagens, PDFs, dashboards e relatórios chamam `getOrderFinalValue(order)` **sem** override → caem no `return order.preco` (caminho inalterado).
-- Apenas o detalhe do pedido passa override, e ele já passa bruto. Vai passar a refletir o ajuste corretamente.
-- Sem migração nem mudança de schema.
+## Memória
+Ao final, atualizar `mem://features/financeiro/saldo-revendedor` para refletir que **todos os vendedores** veem a aba "Comprovantes" (somente envio + lista, sem cálculo de saldo) e adicionar `mem://features/notificacoes/comprovante-status` documentando o trigger de aprovação/reprovação.
