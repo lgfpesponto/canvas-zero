@@ -26,7 +26,7 @@ const RevendedorSaldoPage = () => {
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
-  const [viewerPath, setViewerPath] = useState<string | null>(null);
+  
   const reloadTimer = useRef<number | null>(null);
 
   useEffect(() => {
