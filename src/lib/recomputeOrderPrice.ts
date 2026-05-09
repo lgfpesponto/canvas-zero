@@ -140,9 +140,36 @@ function computeExtraTotal(order: Order): number {
     case 'chaveiro_carimbo': t += 50; break;
     case 'bainha_cartao': t += 15; break;
     case 'regata': t += 50; break;
-    case 'bota_pronta_entrega': t += Number(order.preco) || 0; break;
+    case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(order); break;
   }
   return t;
+}
+
+/**
+ * BRUTO de Bota Pronta Entrega — soma SOMENTE da composição em `extra_detalhes.botas`.
+ *
+ * ⚠️ NUNCA usar `order.preco` aqui: `preco` é o RESULTADO (já contém ajuste/desconto).
+ * Se usar `preco` como bruto, todo recálculo soma o ajuste em cima do total já ajustado
+ * → o valor cresce a cada save / cada execução do reconciliador.
+ */
+export function computeBotaProntaEntregaBruto(order: Order): number {
+  const det: any = order.extraDetalhes || {};
+  if (!Array.isArray(det.botas) || det.botas.length === 0) {
+    // Fallback p/ pedidos legados sem array de botas: usa o `valorManual` raiz se houver,
+    // senão recorre ao `preco` MENOS o ajuste registrado (melhor estimativa do bruto).
+    const raiz = parseFloat(det.valorManual);
+    if (Number.isFinite(raiz) && raiz > 0) return raiz;
+    return Math.max(0, (Number(order.preco) || 0) + (Number(order.desconto) || 0) * -1 + (Number(order.desconto) || 0));
+    // ↑ Equivale a `preco` (não temos como recuperar bruto puro) — mantido p/ compat.
+  }
+  let total = 0;
+  for (const b of det.botas) {
+    total += parseFloat(b?.valorManual) || 0;
+    if (Array.isArray(b?.extras)) {
+      for (const ex of b.extras) total += Number(ex?.preco) || 0;
+    }
+  }
+  return total;
 }
 
 /**
