@@ -4,7 +4,7 @@ import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime,
 import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 import { getOrderFinalValue } from '@/lib/order-logic';
-import { computeTotalToSave } from '@/lib/recomputeOrderPrice';
+import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recomputeOrderPrice';
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
