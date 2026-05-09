@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Upload, FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Loader2, Upload, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,6 @@ import {
   fetchComprovantes,
   type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
-import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from '@/components/financeiro/saldo/EnviarComprovanteDialog';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 import { supabase } from '@/integrations/supabase/client';
