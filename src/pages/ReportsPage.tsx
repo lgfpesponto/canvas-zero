@@ -1475,7 +1475,7 @@ const ReportsPage = () => {
             </Dialog>
 
             {/* Step 2 — Justificativa obrigatória */}
-            <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open) setShowRegressionModal(false); }}>
+            <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open && !bulkProgress) setShowRegressionModal(false); }}>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>
