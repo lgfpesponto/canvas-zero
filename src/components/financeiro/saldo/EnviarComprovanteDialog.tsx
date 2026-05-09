@@ -19,6 +19,7 @@ import {
   validateComprovante, fileHash, todayISO, formatDateBR,
 } from '@/components/financeiro/financeiroHelpers';
 import { formatCurrency } from '@/lib/order-logic';
+import { uploadComprovanteRevendedor } from '@/lib/revendedorSaldo';
 
 interface Props {
   open: boolean;

@@ -1,31 +1,29 @@
-## Comportamento atual
+## Problema
 
-- `tentar_baixa_automatica` no banco já mantém o pedido **não baixado** quando saldo < preço (faz `EXIT` do loop).
-- Na UI (`FinanceiroSaldoRevendedor`), a coluna **Saldo disponível** e o card **Saldo disponível total** mostram apenas `vw_revendedor_saldo.saldo_disponivel`, que nunca fica negativo. Existe hoje só um aviso lateral textual com "a quitar".
+Hoje quando o vendedor envia um comprovante, a IA lê os dados (valor, data, destinatário) mas **o arquivo em si não é mais salvo** no Storage. A coluna `comprovante_url` fica `null` e na tela "Comprovantes a entrar (vendedores)" do admin master aparece "só dados" no lugar do botão de visualizar — ou seja, a Juliana não consegue conferir o PDF/foto antes de aprovar.
 
-## Mudança (frontend only — nenhuma alteração de banco/baixa)
+## Solução
 
-Em `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx`:
+Voltar a fazer upload do arquivo no bucket `financeiro` (pasta `revendedor-saldo/`) durante o envio, salvando o caminho em `comprovante_url`. A tela de pendentes já tem o botão e o `ComprovanteViewer` prontos — basta o `comprovante_url` deixar de ser `null`.
 
-1. **Calcular saldo efetivo por vendedor** = `saldo_disponivel − pendencias[vendedor].valor` (pendências = pedidos `Cobrado` sem baixa, já carregadas em `pendencias`).
+## Mudanças
 
-2. **Card "Saldo disponível"** (topo, `totals.saldoSnapshot`):
-   - Somar `(saldo_disponivel − pendencias.valor)` no escopo filtrado em vez de só `saldo_disponivel`.
-   - Quando o resultado for negativo: aplicar classe `text-destructive` (vermelho) em vez de `text-primary`.
-   - Trocar a legenda "saldo atual (cumulativo)" por "negativo = falta para quitar pedidos cobrados" quando estiver negativo.
+### `src/components/financeiro/saldo/EnviarComprovanteDialog.tsx`
 
-3. **Tabela "Saldo por vendedor"**:
-   - Renomear coluna para **"Saldo"**.
-   - Mostrar `saldoEfetivo = saldo_disponivel − pendencias[vendedor].valor`.
-   - Estilizar negativo em `text-destructive`, positivo continua em `text-primary`.
-   - Reordenar a lista por `saldoEfetivo` decrescente.
+1. Importar `uploadComprovanteRevendedor` de `@/lib/revendedorSaldo` (já existe e usa o bucket correto).
+2. No loop de `handleSendAll`, antes do `insert` na tabela `revendedor_comprovantes`:
+   - Fazer `const path = await uploadComprovanteRevendedor(it.file);`
+   - Trocar `comprovante_url: null` por `comprovante_url: path`.
+   - Se o upload falhar, marcar o item como erro e seguir (sem inserir registro órfão).
+3. Manter todo o resto (deduplicação por hash, extração IA, validações) intacto.
 
-4. **`saldoFiltrado`** (passado para `ComprovantesPorRevendedor` como `saldoVendedor`): manter o objeto original do banco intacto (não mexer — esse componente usa o saldo bruto para outras contas).
+### Nada mais muda
 
-5. Manter o aviso amarelo já existente sobre pedidos a quitar — continua útil para detalhar quantos pedidos.
+- A tela do vendedor (`RevendedorSaldoPage`) continua sem coluna "Anexo" — o arquivo fica disponível só para o admin master.
+- `ComprovantesRevendedorPendentes.tsx` já abre o `ComprovanteViewer` quando `comprovante_url` existe; nenhuma alteração necessária.
+- RLS do bucket `financeiro` e da tabela já permitem o fluxo (vendedor faz upload em modo autenticado, admin master gera signed URL).
+- Comprovantes antigos (já enviados sem arquivo) continuam mostrando "só dados" — não há como recuperá-los.
 
-## Não muda
+## Observação
 
-- Banco, RPC `tentar_baixa_automatica`, view `vw_revendedor_saldo`, RLS — tudo igual.
-- Comprovantes, baixas, estornos — comportamento idêntico.
-- O pedido `Cobrado` continua **não recebendo baixa** automática enquanto faltar saldo (regra atual já atende isso).
+Isso vai consumir Storage de novo (havia sido removido para economizar). Os arquivos ficam no bucket `financeiro` indefinidamente; se quiser, depois posso adicionar um pruner para apagar PDFs de comprovantes já aprovados há mais de N dias.
