@@ -1018,12 +1018,18 @@ const OrderDetailPage = () => {
                     // a alteração com justificativa + afetouValor=true. Não duplicamos aqui.
                     // Modelo v2: gravar TOTAL FINAL em `preco` já com novo ajuste aplicado.
                     const novoTotal = Math.max(0, displayTotalBruto - novoAjuste);
-                    await updateOrder(order.id, {
+                    const versao = await getCurrentPrecoRegraVersao();
+                    const res = await updateOrder(order.id, {
                       desconto: novoAjuste,
                       descontoJustificativa: justificativaInput.trim(),
                       preco: novoTotal,
                       precoMigradoV2: true,
+                      precoRegraVersao: versao,
                     }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
+                    if (!res.ok) {
+                      toast.error(`Falha ao aplicar: ${res.error || 'erro desconhecido'}`);
+                      return;
+                    }
                     setDescontoInput('');
                     setJustificativaInput('');
                     await refetchOrder();
