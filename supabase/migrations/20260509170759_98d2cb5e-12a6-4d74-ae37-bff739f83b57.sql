@@ -1,0 +1,2 @@
+INSERT INTO public.revendedor_saldo_movimentos (vendedor, tipo, valor, descricao, order_id, saldo_anterior, saldo_posterior, created_at)
+VALUES ('Maria Gabriela', 'baixa_pedido', 81251.67, 'Utilizado em pedidos anteriores (backfill manual — saldo histórico já consumido)', NULL, 300251.32, 218999.65, now());
