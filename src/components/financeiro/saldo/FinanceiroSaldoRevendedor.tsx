@@ -367,19 +367,21 @@ const FinanceiroSaldoRevendedor = () => {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-primary border-2">
+        <Card className={`border-2 ${totals.saldoSnapshot < 0 ? 'border-destructive' : 'border-primary'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-primary">
+            <CardTitle className={`text-sm ${totals.saldoSnapshot < 0 ? 'text-destructive' : 'text-primary'}`}>
               {filterVendedor === 'todos' ? 'Saldo disponível total' : 'Saldo disponível'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">
+            <p className={`text-2xl font-bold ${totals.saldoSnapshot < 0 ? 'text-destructive' : 'text-primary'}`}>
               <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
                 {formatCurrency(totals.saldoSnapshot)}
               </LoadingValue>
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1">saldo atual (cumulativo)</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {totals.saldoSnapshot < 0 ? 'negativo = falta para quitar pedidos cobrados' : 'saldo atual menos pedidos cobrados'}
+            </p>
           </CardContent>
         </Card>
         <Card className={totals.pendentes > 0 ? 'border-destructive' : ''}>
