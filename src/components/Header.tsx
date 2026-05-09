@@ -39,7 +39,7 @@ const Header = () => {
         ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
         ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
         ...(isJuliana ? [{ label: 'FINANCEIRO', path: '/financeiro' }] : []),
-        ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'MEU SALDO', path: '/financeiro/saldo' }] : []),
+        ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
         { label: 'MEU PERFIL', path: '/perfil' },
       ]
     : [

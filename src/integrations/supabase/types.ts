@@ -70,6 +70,56 @@ export type Database = {
           },
         ]
       }
+      comprovante_notificacoes: {
+        Row: {
+          comprovante_id: string
+          created_at: string
+          data_pagamento: string | null
+          descricao: string
+          id: string
+          lida: boolean
+          lida_em: string | null
+          motivo: string | null
+          tipo: string
+          valor: number | null
+          vendedor: string
+        }
+        Insert: {
+          comprovante_id: string
+          created_at?: string
+          data_pagamento?: string | null
+          descricao: string
+          id?: string
+          lida?: boolean
+          lida_em?: string | null
+          motivo?: string | null
+          tipo: string
+          valor?: number | null
+          vendedor: string
+        }
+        Update: {
+          comprovante_id?: string
+          created_at?: string
+          data_pagamento?: string | null
+          descricao?: string
+          id?: string
+          lida?: boolean
+          lida_em?: string | null
+          motivo?: string | null
+          tipo?: string
+          valor?: number | null
+          vendedor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comprovante_notificacoes_comprovante_id_fkey"
+            columns: ["comprovante_id"]
+            isOneToOne: false
+            referencedRelation: "revendedor_comprovantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_options: {
         Row: {
           categoria: string
@@ -1484,11 +1534,19 @@ export type Database = {
           nome_usuario: string
         }[]
       }
+      marcar_comprovante_notificacao_lida: {
+        Args: { _id: string }
+        Returns: undefined
+      }
       marcar_comprovante_utilizado: {
         Args: { _comprovante_id: string; _motivo: string }
         Returns: Json
       }
       marcar_notificacao_lida: { Args: { _id: string }; Returns: undefined }
+      marcar_todas_comprovante_notificacoes_lidas: {
+        Args: never
+        Returns: undefined
+      }
       marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }

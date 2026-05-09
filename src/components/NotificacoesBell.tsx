@@ -29,7 +29,11 @@ const NotificacoesBell = () => {
   const handleClick = async (n: Notificacao) => {
     setOpen(false);
     if (!n.lida) marcarLida(n.id);
-    navigate(`/pedido/${n.order_id}`);
+    if (n.tipo === 'comprovante') {
+      navigate('/financeiro/saldo');
+    } else if (n.order_id) {
+      navigate(`/pedido/${n.order_id}`);
+    }
   };
 
   return (
@@ -84,7 +88,9 @@ const NotificacoesBell = () => {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-sm truncate">
-                          Pedido {n.numero}
+                          {n.tipo === 'comprovante'
+                            ? (n.subtipo === 'aprovado' ? 'Comprovante aprovado' : 'Comprovante reprovado')
+                            : `Pedido ${n.numero}`}
                         </span>
                         <span className="text-[10px] text-muted-foreground shrink-0">
                           {tempoRelativo(n.created_at)}
@@ -93,9 +99,11 @@ const NotificacoesBell = () => {
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                         {n.descricao}
                       </p>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                        Status: {n.status_no_momento}
-                      </p>
+                      {n.tipo === 'pedido' && n.status_no_momento && (
+                        <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                          Status: {n.status_no_momento}
+                        </p>
+                      )}
                     </div>
                   </button>
                 </li>

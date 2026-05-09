@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Upload, FileText, CheckCircle2, XCircle, Clock, Wallet, AlertTriangle } from 'lucide-react';
+import { Loader2, Upload, FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -12,24 +11,20 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
 import {
-  fetchSaldoVendedor, fetchComprovantes, fetchPedidosCobrados, fetchBaixasVendedor,
-  type RevendedorSaldo, type RevendedorComprovante,
+  fetchComprovantes,
+  type RevendedorComprovante,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from '@/components/financeiro/saldo/EnviarComprovanteDialog';
 import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
 import { supabase } from '@/integrations/supabase/client';
-import { LoadingValue } from '@/components/ui/LoadingValue';
 
 const RevendedorSaldoPage = () => {
-  const { loading: accessLoading, isAdminMaster, canSeeRevendedorView, vendedorName } = useFinanceiroSaldoAccess();
+  const { loading: accessLoading, isAdminMaster, canSeeComprovantesView, vendedorName } = useFinanceiroSaldoAccess();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [saldo, setSaldo] = useState<RevendedorSaldo | null>(null);
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
-  const [totalPendente, setTotalPendente] = useState(0);
-  const [qtdPendente, setQtdPendente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
   const [viewerPath, setViewerPath] = useState<string | null>(null);
@@ -37,29 +32,17 @@ const RevendedorSaldoPage = () => {
 
   useEffect(() => {
     if (accessLoading) return;
-    if (!isAdminMaster && !canSeeRevendedorView) {
+    if (!isAdminMaster && !canSeeComprovantesView) {
       navigate('/', { replace: true });
     }
-  }, [accessLoading, isAdminMaster, canSeeRevendedorView, navigate]);
+  }, [accessLoading, isAdminMaster, canSeeComprovantesView, navigate]);
 
   const reload = async () => {
     if (!vendedorName) return;
     setLoading(true);
     try {
-      const [s, c, p, b] = await Promise.all([
-        fetchSaldoVendedor(vendedorName),
-        fetchComprovantes(vendedorName),
-        fetchPedidosCobrados(vendedorName),
-        fetchBaixasVendedor(vendedorName),
-      ]);
-      setSaldo(s);
+      const c = await fetchComprovantes(vendedorName);
       setComprovantes(c);
-      const baixasSet = new Set(b.map(x => x.order_id));
-      const pendentesArr = p.filter(x => !baixasSet.has(x.id));
-      const pendente = pendentesArr.reduce((sum, x) => sum + (x.preco || 0) * (x.quantidade || 1), 0);
-      const saldoDisp = Number(s?.saldo_disponivel || 0);
-      setQtdPendente(pendentesArr.length);
-      setTotalPendente(Math.max(0, pendente - saldoDisp));
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -69,8 +52,7 @@ const RevendedorSaldoPage = () => {
 
   useEffect(() => { if (vendedorName) reload(); }, [vendedorName]);
 
-  // Realtime: atualiza assim que a Juliana enviar/aprovar/reprovar comprovante
-  // ou registrar movimento de saldo (entrada, baixa, ajuste, estorno).
+  // Realtime: atualiza a lista assim que a Juliana aprovar/reprovar
   useEffect(() => {
     if (!vendedorName) return;
     const scheduleReload = () => {
@@ -78,13 +60,9 @@ const RevendedorSaldoPage = () => {
       reloadTimer.current = window.setTimeout(() => { reload(); }, 400);
     };
     const channel = supabase
-      .channel(`revendedor_meu_saldo_${vendedorName}`)
+      .channel(`revendedor_comprovantes_${vendedorName}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'revendedor_comprovantes', filter: `vendedor=eq.${vendedorName}` },
-        () => scheduleReload()
-      )
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'revendedor_saldo_movimentos', filter: `vendedor=eq.${vendedorName}` },
         () => scheduleReload()
       )
       .subscribe();
@@ -95,13 +73,13 @@ const RevendedorSaldoPage = () => {
   }, [vendedorName]);
 
   if (accessLoading) return null;
-  if (!isAdminMaster && !canSeeRevendedorView) return null;
+  if (!isAdminMaster && !canSeeComprovantesView) return null;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Meu Saldo</h1>
+          <h1 className="text-3xl font-bold text-primary">Comprovantes</h1>
           <p className="text-sm text-muted-foreground mt-1">{vendedorName}</p>
         </div>
         <Button size="lg" onClick={() => setEnviarOpen(true)}>
@@ -109,80 +87,7 @@ const RevendedorSaldoPage = () => {
         </Button>
       </div>
 
-      {qtdPendente > 0 && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Faltam pedidos para dar baixa</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>
-              Você tem <strong>{qtdPendente}</strong> pedido(s) cobrado(s) sem baixa.
-              {totalPendente > 0
-                ? <> Falta <strong>{formatCurrency(totalPendente)}</strong> para quitar.</>
-                : <> Seu saldo já cobre o valor — envie um comprovante para registrar a baixa.</>}
-            </span>
-            <Button size="sm" variant="outline" onClick={() => setEnviarOpen(true)}>
-              <Upload size={14} /> Enviar comprovante
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Resumo */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total enviado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-primary">
-              <LoadingValue loading={loading} hasData={saldo !== null} size={20}>
-                {formatCurrency(saldo?.total_recebido || 0)}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Já utilizado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              <LoadingValue loading={loading} hasData={saldo !== null} size={20}>
-                {formatCurrency(saldo?.total_utilizado || 0)}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-primary border-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-primary flex items-center gap-1">
-              <Wallet size={14} /> Saldo disponível
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">
-              <LoadingValue loading={loading} hasData={saldo !== null} size={26}>
-                {formatCurrency(saldo?.saldo_disponivel || 0)}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={totalPendente > 0 ? 'border-destructive' : ''}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">A pagar (pedidos cobrados)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-destructive">
-              <LoadingValue loading={loading} hasData={saldo !== null} size={20}>
-                {formatCurrency(totalPendente)}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Meus comprovantes */}
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg">Meus comprovantes enviados</CardTitle>
         </CardHeader>
@@ -190,7 +95,9 @@ const RevendedorSaldoPage = () => {
           {loading ? (
             <div className="flex justify-center py-6"><Loader2 className="animate-spin" /></div>
           ) : comprovantes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Você ainda não enviou nenhum comprovante.</p>
+            <p className="text-sm text-muted-foreground py-4">
+              Você ainda não enviou nenhum comprovante. Clique em "Enviar comprovante" acima.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -206,7 +113,7 @@ const RevendedorSaldoPage = () => {
                 {comprovantes.map(c => (
                   <TableRow key={c.id}>
                     <TableCell>{formatDateBR(c.data_pagamento)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(c.valor)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(c.valor)}</TableCell>
                     <TableCell>
                       {c.status === 'pendente' && <Badge variant="outline" className="gap-1"><Clock size={12} /> Pendente</Badge>}
                       {c.status === 'aprovado' && <Badge className="bg-green-600 hover:bg-green-700 gap-1"><CheckCircle2 size={12} /> Aprovado</Badge>}
@@ -218,9 +125,13 @@ const RevendedorSaldoPage = () => {
                       ) : (c.observacao || '—')}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setViewerPath(c.comprovante_url)}>
-                        <FileText size={14} />
-                      </Button>
+                      {c.comprovante_url ? (
+                        <Button size="sm" variant="ghost" onClick={() => setViewerPath(c.comprovante_url)}>
+                          <FileText size={14} />
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
