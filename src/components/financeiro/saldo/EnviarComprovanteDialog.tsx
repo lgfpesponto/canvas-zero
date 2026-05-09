@@ -414,9 +414,9 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
             disabled={savingAll || readyCount === 0 || processingCount > 0}
           >
             {savingAll ? (
-              <><Loader2 size={14} className="animate-spin mr-1" /> Enviando...</>
+              <><Loader2 size={14} className="animate-spin mr-1" /> Salvando...</>
             ) : (
-              <><Upload size={14} className="mr-1" /> Enviar {readyCount} comprovante(s)</>
+              <>Salvar {readyCount} recebimento(s)</>
             )}
           </Button>
         </DialogFooter>
