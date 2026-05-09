@@ -168,10 +168,13 @@ const FinanceiroSaldoRevendedor = () => {
       .reduce((s, m) => s + Number(m.valor || 0), 0);
     const saldoSnapshot = (saldos || [])
       .filter(s => filterVendedor === 'todos' || s.vendedor === filterVendedor)
-      .reduce((acc, s) => acc + Number(s.saldo_disponivel || 0), 0);
+      .reduce((acc, s) => {
+        const pend = pendencias[s.vendedor]?.valor || 0;
+        return acc + Number(s.saldo_disponivel || 0) - pend;
+      }, 0);
     const pendentes = comprovantesFiltrados.filter(c => c.status === 'pendente').length;
     return { recebido, utilizado, saldoSnapshot, pendentes };
-  }, [movimentosFiltrados, comprovantesFiltrados, saldos, filterVendedor]);
+  }, [movimentosFiltrados, comprovantesFiltrados, saldos, filterVendedor, pendencias]);
 
   const saldoFiltrado = useMemo(
     () => (saldos || []).find(s => s.vendedor === filterVendedor) || null,
