@@ -689,7 +689,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const usuarioAtual = user?.nomeCompleto;
 
     const { data: currentRow } = await supabase.from('orders').select('*').eq('id', id).single();
-    if (!currentRow) return;
+    if (!currentRow) return { ok: false, error: 'Pedido não encontrado' };
     const current = dbRowToOrder(currentRow);
 
     const VALUE_KEYS = new Set(['preco', 'desconto', 'quantidade', 'extraDetalhes']);
@@ -749,7 +749,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (newUserId) dbUpdate.user_id = newUserId;
 
     const { error } = await supabase.from('orders').update(dbUpdate).eq('id', id);
-    if (error) { console.error('Error updating order:', error); return; }
+    if (error) {
+      console.error('Error updating order:', error);
+      return { ok: false, error: error.message };
+    }
 
     // Notifica vendedor de qualquer alteração no pedido (RPC ignora auto-edições e vendedor "Estoque")
     if (changes.length > 0) {
@@ -762,6 +765,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('Erro ao registrar notificações de alteração:', e);
       }
     }
+    return { ok: true };
   }, [user]);
 
   /* ───── Update Order Status ───── */
