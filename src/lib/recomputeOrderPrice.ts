@@ -155,12 +155,11 @@ function computeExtraTotal(order: Order): number {
 export function computeBotaProntaEntregaBruto(order: Order): number {
   const det: any = order.extraDetalhes || {};
   if (!Array.isArray(det.botas) || det.botas.length === 0) {
-    // Fallback p/ pedidos legados sem array de botas: usa o `valorManual` raiz se houver,
-    // senão recorre ao `preco` MENOS o ajuste registrado (melhor estimativa do bruto).
+    // Pedidos legados sem array `botas`: tenta `valorManual` raiz; senão reconstitui
+    // bruto = preco + desconto (preco = bruto − desconto, então bruto = preco + desconto).
     const raiz = parseFloat(det.valorManual);
     if (Number.isFinite(raiz) && raiz > 0) return raiz;
-    return Math.max(0, (Number(order.preco) || 0) + (Number(order.desconto) || 0) * -1 + (Number(order.desconto) || 0));
-    // ↑ Equivale a `preco` (não temos como recuperar bruto puro) — mantido p/ compat.
+    return Math.max(0, (Number(order.preco) || 0) + (Number(order.desconto) || 0));
   }
   let total = 0;
   for (const b of det.botas) {
