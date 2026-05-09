@@ -26,7 +26,6 @@ const RevendedorSaldoPage = () => {
   const [comprovantes, setComprovantes] = useState<RevendedorComprovante[]>([]);
   const [loading, setLoading] = useState(true);
   const [enviarOpen, setEnviarOpen] = useState(false);
-  
   const reloadTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -105,7 +104,6 @@ const RevendedorSaldoPage = () => {
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observação / Motivo</TableHead>
-                  <TableHead className="text-right">Anexo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -123,15 +121,6 @@ const RevendedorSaldoPage = () => {
                         <span className="text-destructive">Motivo: {c.motivo_reprovacao}</span>
                       ) : (c.observacao || '—')}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {c.comprovante_url ? (
-                        <Button size="sm" variant="ghost" onClick={() => setViewerPath(c.comprovante_url)}>
-                          <FileText size={14} />
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -145,11 +134,6 @@ const RevendedorSaldoPage = () => {
         onOpenChange={setEnviarOpen}
         vendedor={vendedorName}
         onSaved={reload}
-      />
-      <ComprovanteViewer
-        path={viewerPath}
-        open={!!viewerPath}
-        onOpenChange={(o) => { if (!o) setViewerPath(null); }}
       />
     </div>
   );
