@@ -333,14 +333,35 @@ function computeExtraTotal(o: any): number {
     case 'chaveiro_carimbo': t += 50; break;
     case 'bainha_cartao': t += 15; break;
     case 'regata': t += 50; break;
-    case 'bota_pronta_entrega': t += Number(o.preco) || 0; break;
+    case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(o); break;
   }
   return t;
 }
 
+// ⚠️ NUNCA usar `o.preco` como bruto: preco é o RESULTADO (já contém ajuste).
+// Bruto vem da composição em extra_detalhes.botas[].
+function computeBotaProntaEntregaBruto(o: any): number {
+  const det: any = o.extra_detalhes || {};
+  if (!Array.isArray(det.botas) || det.botas.length === 0) {
+    const raiz = parseFloat(det.valorManual);
+    if (Number.isFinite(raiz) && raiz > 0) return raiz;
+    // Pedidos legados: bruto = preco + desconto (preco = bruto − desconto).
+    return Math.max(0, (Number(o.preco) || 0) + (Number(o.desconto) || 0));
+  }
+  let total = 0;
+  for (const b of det.botas) {
+    total += parseFloat(b?.valorManual) || 0;
+    if (Array.isArray(b?.extras)) {
+      for (const ex of b.extras) total += Number(ex?.preco) || 0;
+    }
+  }
+  return total;
+}
+
 function computeTotalToSave(o: any, findFicha: any, getCustom: any): number {
   if (o.tipo_extra === 'bota_pronta_entrega') {
-    return Math.max(0, (Number(o.preco) || 0) - (Number(o.desconto) || 0));
+    const bruto = computeBotaProntaEntregaBruto(o);
+    return Math.max(0, bruto - (Number(o.desconto) || 0));
   }
   const sub = recomputeSubtotal(o, findFicha, getCustom);
   const isExtra = !!o.tipo_extra;

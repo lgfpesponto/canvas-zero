@@ -140,9 +140,35 @@ function computeExtraTotal(order: Order): number {
     case 'chaveiro_carimbo': t += 50; break;
     case 'bainha_cartao': t += 15; break;
     case 'regata': t += 50; break;
-    case 'bota_pronta_entrega': t += Number(order.preco) || 0; break;
+    case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(order); break;
   }
   return t;
+}
+
+/**
+ * BRUTO de Bota Pronta Entrega — soma SOMENTE da composição em `extra_detalhes.botas`.
+ *
+ * ⚠️ NUNCA usar `order.preco` aqui: `preco` é o RESULTADO (já contém ajuste/desconto).
+ * Se usar `preco` como bruto, todo recálculo soma o ajuste em cima do total já ajustado
+ * → o valor cresce a cada save / cada execução do reconciliador.
+ */
+export function computeBotaProntaEntregaBruto(order: Order): number {
+  const det: any = order.extraDetalhes || {};
+  if (!Array.isArray(det.botas) || det.botas.length === 0) {
+    // Pedidos legados sem array `botas`: tenta `valorManual` raiz; senão reconstitui
+    // bruto = preco + desconto (preco = bruto − desconto, então bruto = preco + desconto).
+    const raiz = parseFloat(det.valorManual);
+    if (Number.isFinite(raiz) && raiz > 0) return raiz;
+    return Math.max(0, (Number(order.preco) || 0) + (Number(order.desconto) || 0));
+  }
+  let total = 0;
+  for (const b of det.botas) {
+    total += parseFloat(b?.valorManual) || 0;
+    if (Array.isArray(b?.extras)) {
+      for (const ex of b.extras) total += Number(ex?.preco) || 0;
+    }
+  }
+  return total;
 }
 
 /**
@@ -172,7 +198,10 @@ export function computeTotalToSave(
   getByCategoria: GetByCategoria = noCategoria,
 ): number {
   if (order.tipoExtra === 'bota_pronta_entrega') {
-    return Math.max(0, (Number(order.preco) || 0) - (Number(order.desconto) || 0));
+    // ⚠️ Bruto vem da composição (botas[].valorManual + extras), NUNCA de `order.preco`
+    // (que já contém o ajuste). Se ler de `preco`, a cada save o ajuste seria somado de novo.
+    const bruto = computeBotaProntaEntregaBruto(order);
+    return Math.max(0, bruto - (Number(order.desconto) || 0));
   }
   const subtotal = recomputeSubtotal(order, findFichaPrice, getByCategoria);
   const isExtra = !!order.tipoExtra;
