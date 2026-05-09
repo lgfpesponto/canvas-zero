@@ -438,21 +438,22 @@ const FinanceiroSaldoRevendedor = () => {
                   <TableHead>Vendedor</TableHead>
                   <TableHead className="text-right">Recebido</TableHead>
                   <TableHead className="text-right">Utilizado</TableHead>
-                  <TableHead className="text-right">Saldo disponível</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {saldosTabela
                   .slice()
-                  .sort((a, b) => Number(b.saldo_disponivel) - Number(a.saldo_disponivel))
-                  .map(s => (
+                  .map(s => ({ s, efetivo: Number(s.saldo_disponivel) - (pendencias[s.vendedor]?.valor || 0) }))
+                  .sort((a, b) => b.efetivo - a.efetivo)
+                  .map(({ s, efetivo }) => (
                     <TableRow key={s.vendedor}>
                       <TableCell className="font-medium">{s.vendedor}</TableCell>
                       <TableCell className="text-right">{formatCurrency(Number(s.total_recebido))}</TableCell>
                       <TableCell className="text-right">{formatCurrency(Number(s.total_utilizado))}</TableCell>
-                      <TableCell className="text-right font-bold text-primary">
-                        {formatCurrency(Number(s.saldo_disponivel))}
+                      <TableCell className={`text-right font-bold ${efetivo < 0 ? 'text-destructive' : 'text-primary'}`}>
+                        {formatCurrency(efetivo)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={() => setDetalheVendedor(s)}>
