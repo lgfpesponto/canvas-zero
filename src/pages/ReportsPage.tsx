@@ -472,14 +472,20 @@ const ReportsPage = () => {
     const blockedItems: BlockedItem[] = [];
     if (normals.length > 0) {
       const appliedIds: string[] = [];
-      for (const id of normals) {
-        const ord = mergedOrdersMap.get(id);
-        try {
-          await updateOrderStatus(id, selectedProgress, baseObs || undefined);
-          appliedIds.push(id);
-        } catch {
-          if (ord) blockedItems.push({ numero: ord.numero, statusAtual: ord.status });
+      setBulkProgress({ current: 0, total: normals.length });
+      try {
+        for (const id of normals) {
+          const ord = mergedOrdersMap.get(id);
+          try {
+            await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+            appliedIds.push(id);
+          } catch {
+            if (ord) blockedItems.push({ numero: ord.numero, statusAtual: ord.status });
+          }
+          setBulkProgress(p => p ? { ...p, current: p.current + 1 } : p);
         }
+      } finally {
+        if (regressions.length === 0) setBulkProgress(null);
       }
       // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
       setSelectedIds(prev => {
