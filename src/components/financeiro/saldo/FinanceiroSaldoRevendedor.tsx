@@ -242,33 +242,34 @@ const FinanceiroSaldoRevendedor = () => {
             </SelectContent>
           </Select>
         </div>
-        {isAdminMaster && (
-          <div className="ml-auto flex items-end">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className={`flex items-center gap-2 rounded-md border px-3 py-2 ${baixaAuto.value ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'}`}>
-                    {baixaAuto.value
-                      ? <Zap size={16} className="text-emerald-600" />
-                      : <ZapOff size={16} className="text-amber-600" />}
-                    <Label className="text-xs font-medium cursor-pointer">Baixa automática</Label>
-                    <Switch
-                      checked={baixaAuto.value}
-                      disabled={baixaAuto.loading}
-                      onCheckedChange={(next) => setConfirmToggle(next)}
-                    />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Quando ligado, pedidos no status Cobrado são pagos automaticamente assim que o
-                  saldo do revendedor cobre o valor. Desligar pausa apenas as baixas — saldos
-                  continuam entrando normalmente.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
       </div>
+
+      {isAdminMaster && (
+        <div className="flex justify-start">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`flex items-center gap-2 rounded-md border px-3 py-2 ${baixaAuto.value ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'}`}>
+                  {baixaAuto.value
+                    ? <Zap size={16} className="text-emerald-600" />
+                    : <ZapOff size={16} className="text-amber-600" />}
+                  <Label className="text-xs font-medium cursor-pointer">Baixa automática</Label>
+                  <Switch
+                    checked={baixaAuto.value}
+                    disabled={baixaAuto.loading}
+                    onCheckedChange={(next) => setConfirmToggle(next)}
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Quando ligado, pedidos no status Cobrado são pagos automaticamente assim que o
+                saldo do revendedor cobre o valor. Desligar pausa apenas as baixas — saldos
+                continuam entrando normalmente.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
 
       {!baixaAuto.value && (
         <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800">
