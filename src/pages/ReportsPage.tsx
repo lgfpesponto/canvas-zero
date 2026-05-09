@@ -126,6 +126,7 @@ const ReportsPage = () => {
 
   // Justification confirmation modal (regressão / pausa / cancelamento)
   const [showRegressionConfirmModal, setShowRegressionConfirmModal] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const [showRegressionModal, setShowRegressionModal] = useState(false);
   const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string; kind: JustificationKind }[]>([]);
   const [normalIds, setNormalIds] = useState<string[]>([]);
