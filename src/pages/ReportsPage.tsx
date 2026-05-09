@@ -1381,13 +1381,18 @@ const ReportsPage = () => {
             />
           </div>
           <DialogFooter className="mt-4">
-            <button onClick={() => setShowProgressModal(false)} className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm">Cancelar</button>
+            <button onClick={() => setShowProgressModal(false)} disabled={!!bulkProgress} className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancelar</button>
             <button
               onClick={handleBulkProgressUpdate}
-              disabled={selectedProgress === 'Cancelado' && !progressObservacao.trim()}
-              className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!!bulkProgress || (selectedProgress === 'Cancelado' && !progressObservacao.trim())}
+              className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
             >
-              OK
+              {bulkProgress ? (
+                <span className="inline-flex items-center gap-2 justify-center">
+                  <Loader2 className="animate-spin" size={14} />
+                  {bulkProgress.current} / {bulkProgress.total}
+                </span>
+              ) : 'OK'}
             </button>
           </DialogFooter>
         </DialogContent>
