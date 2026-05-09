@@ -168,10 +168,13 @@ const FinanceiroSaldoRevendedor = () => {
       .reduce((s, m) => s + Number(m.valor || 0), 0);
     const saldoSnapshot = (saldos || [])
       .filter(s => filterVendedor === 'todos' || s.vendedor === filterVendedor)
-      .reduce((acc, s) => acc + Number(s.saldo_disponivel || 0), 0);
+      .reduce((acc, s) => {
+        const pend = pendencias[s.vendedor]?.valor || 0;
+        return acc + Number(s.saldo_disponivel || 0) - pend;
+      }, 0);
     const pendentes = comprovantesFiltrados.filter(c => c.status === 'pendente').length;
     return { recebido, utilizado, saldoSnapshot, pendentes };
-  }, [movimentosFiltrados, comprovantesFiltrados, saldos, filterVendedor]);
+  }, [movimentosFiltrados, comprovantesFiltrados, saldos, filterVendedor, pendencias]);
 
   const saldoFiltrado = useMemo(
     () => (saldos || []).find(s => s.vendedor === filterVendedor) || null,
@@ -364,19 +367,21 @@ const FinanceiroSaldoRevendedor = () => {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-primary border-2">
+        <Card className={`border-2 ${totals.saldoSnapshot < 0 ? 'border-destructive' : 'border-primary'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-primary">
+            <CardTitle className={`text-sm ${totals.saldoSnapshot < 0 ? 'text-destructive' : 'text-primary'}`}>
               {filterVendedor === 'todos' ? 'Saldo disponível total' : 'Saldo disponível'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">
+            <p className={`text-2xl font-bold ${totals.saldoSnapshot < 0 ? 'text-destructive' : 'text-primary'}`}>
               <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
                 {formatCurrency(totals.saldoSnapshot)}
               </LoadingValue>
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1">saldo atual (cumulativo)</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {totals.saldoSnapshot < 0 ? 'negativo = falta para quitar pedidos cobrados' : 'saldo atual menos pedidos cobrados'}
+            </p>
           </CardContent>
         </Card>
         <Card className={totals.pendentes > 0 ? 'border-destructive' : ''}>
@@ -433,21 +438,22 @@ const FinanceiroSaldoRevendedor = () => {
                   <TableHead>Vendedor</TableHead>
                   <TableHead className="text-right">Recebido</TableHead>
                   <TableHead className="text-right">Utilizado</TableHead>
-                  <TableHead className="text-right">Saldo disponível</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {saldosTabela
                   .slice()
-                  .sort((a, b) => Number(b.saldo_disponivel) - Number(a.saldo_disponivel))
-                  .map(s => (
+                  .map(s => ({ s, efetivo: Number(s.saldo_disponivel) - (pendencias[s.vendedor]?.valor || 0) }))
+                  .sort((a, b) => b.efetivo - a.efetivo)
+                  .map(({ s, efetivo }) => (
                     <TableRow key={s.vendedor}>
                       <TableCell className="font-medium">{s.vendedor}</TableCell>
                       <TableCell className="text-right">{formatCurrency(Number(s.total_recebido))}</TableCell>
                       <TableCell className="text-right">{formatCurrency(Number(s.total_utilizado))}</TableCell>
-                      <TableCell className="text-right font-bold text-primary">
-                        {formatCurrency(Number(s.saldo_disponivel))}
+                      <TableCell className={`text-right font-bold ${efetivo < 0 ? 'text-destructive' : 'text-primary'}`}>
+                        {formatCurrency(efetivo)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={() => setDetalheVendedor(s)}>
