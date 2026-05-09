@@ -19,6 +19,7 @@ import {
   validateComprovante, fileHash, todayISO, formatDateBR,
 } from '@/components/financeiro/financeiroHelpers';
 import { formatCurrency } from '@/lib/order-logic';
+import { uploadComprovanteRevendedor } from '@/lib/revendedorSaldo';
 
 interface Props {
   open: boolean;
@@ -226,13 +227,15 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           throw new Error('Esse comprovante já foi enviado anteriormente.');
         }
 
-        // Não armazenamos mais o arquivo no Storage — só os dados extraídos + hash de deduplicação
+        // Faz upload do arquivo no Storage para que o admin master possa conferir o PDF/foto na aprovação
+        const path = await uploadComprovanteRevendedor(it.file);
+
         const { error } = await supabase.from('revendedor_comprovantes' as any).insert({
           vendedor: targetVendedor,
           valor: it.valor,
           data_pagamento: it.data_pagamento,
           observacao: it.observacao.trim() || null,
-          comprovante_url: null,
+          comprovante_url: path,
           comprovante_hash: it.hash,
           enviado_por: user?.id,
           status: 'pendente',
