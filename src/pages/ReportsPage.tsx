@@ -126,6 +126,7 @@ const ReportsPage = () => {
 
   // Justification confirmation modal (regressão / pausa / cancelamento)
   const [showRegressionConfirmModal, setShowRegressionConfirmModal] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const [showRegressionModal, setShowRegressionModal] = useState(false);
   const [regressionItems, setRegressionItems] = useState<{ id: string; numero: string; current: string; next: string; desdeData: string; desdeHora: string; kind: JustificationKind }[]>([]);
   const [normalIds, setNormalIds] = useState<string[]>([]);
@@ -471,14 +472,20 @@ const ReportsPage = () => {
     const blockedItems: BlockedItem[] = [];
     if (normals.length > 0) {
       const appliedIds: string[] = [];
-      for (const id of normals) {
-        const ord = mergedOrdersMap.get(id);
-        try {
-          await updateOrderStatus(id, selectedProgress, baseObs || undefined);
-          appliedIds.push(id);
-        } catch {
-          if (ord) blockedItems.push({ numero: ord.numero, statusAtual: ord.status });
+      setBulkProgress({ current: 0, total: normals.length });
+      try {
+        for (const id of normals) {
+          const ord = mergedOrdersMap.get(id);
+          try {
+            await updateOrderStatus(id, selectedProgress, baseObs || undefined);
+            appliedIds.push(id);
+          } catch {
+            if (ord) blockedItems.push({ numero: ord.numero, statusAtual: ord.status });
+          }
+          setBulkProgress(p => p ? { ...p, current: p.current + 1 } : p);
         }
+      } finally {
+        if (regressions.length === 0) setBulkProgress(null);
       }
       // Remove os normais já aplicados da seleção, para que continuem visíveis apenas os travados
       setSelectedIds(prev => {
@@ -523,14 +530,20 @@ const ReportsPage = () => {
 
     let okCount = 0;
     const blockedItems: BlockedItem[] = [];
-    for (const item of regressionItems) {
-      const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
-      try {
-        await updateOrderStatus(item.id, selectedProgress, obs);
-        okCount++;
-      } catch {
-        blockedItems.push({ numero: item.numero, statusAtual: item.current });
+    setBulkProgress({ current: 0, total: regressionItems.length });
+    try {
+      for (const item of regressionItems) {
+        const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
+        try {
+          await updateOrderStatus(item.id, selectedProgress, obs);
+          okCount++;
+        } catch {
+          blockedItems.push({ numero: item.numero, statusAtual: item.current });
+        }
+        setBulkProgress(p => p ? { ...p, current: p.current + 1 } : p);
       }
+    } finally {
+      setBulkProgress(null);
     }
     if (blockedItems.length > 0) {
       setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: okCount });
@@ -1323,7 +1336,7 @@ const ReportsPage = () => {
       </motion.div>
 
       {/* Bulk Progress Modal */}
-      <Dialog open={showProgressModal} onOpenChange={setShowProgressModal}>
+      <Dialog open={showProgressModal} onOpenChange={(o) => { if (!bulkProgress) setShowProgressModal(o); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Mudar Progresso de Produção</DialogTitle>
@@ -1368,13 +1381,18 @@ const ReportsPage = () => {
             />
           </div>
           <DialogFooter className="mt-4">
-            <button onClick={() => setShowProgressModal(false)} className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm">Cancelar</button>
+            <button onClick={() => setShowProgressModal(false)} disabled={!!bulkProgress} className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancelar</button>
             <button
               onClick={handleBulkProgressUpdate}
-              disabled={selectedProgress === 'Cancelado' && !progressObservacao.trim()}
-              className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!!bulkProgress || (selectedProgress === 'Cancelado' && !progressObservacao.trim())}
+              className="px-4 py-2 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
             >
-              OK
+              {bulkProgress ? (
+                <span className="inline-flex items-center gap-2 justify-center">
+                  <Loader2 className="animate-spin" size={14} />
+                  {bulkProgress.current} / {bulkProgress.total}
+                </span>
+              ) : 'OK'}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -1457,7 +1475,7 @@ const ReportsPage = () => {
             </Dialog>
 
             {/* Step 2 — Justificativa obrigatória */}
-            <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open) setShowRegressionModal(false); }}>
+            <Dialog open={showRegressionModal} onOpenChange={(open) => { if (!open && !bulkProgress) setShowRegressionModal(false); }}>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>
@@ -1512,16 +1530,22 @@ const ReportsPage = () => {
                 <DialogFooter className="mt-4">
                   <button
                     onClick={() => setShowRegressionModal(false)}
-                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
+                    disabled={!!bulkProgress}
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleConfirmRegression}
-                    disabled={regressionReason.trim().length < 5}
-                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!!bulkProgress || regressionReason.trim().length < 5}
+                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[110px]"
                   >
-                    Confirmar
+                    {bulkProgress ? (
+                      <span className="inline-flex items-center gap-2 justify-center">
+                        <Loader2 className="animate-spin" size={14} />
+                        {bulkProgress.current} / {bulkProgress.total}
+                      </span>
+                    ) : 'Confirmar'}
                   </button>
                 </DialogFooter>
               </DialogContent>
