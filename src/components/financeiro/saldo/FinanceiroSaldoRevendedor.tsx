@@ -67,7 +67,7 @@ const FinanceiroSaldoRevendedor = () => {
   };
 
   // Filtros padronizados
-  const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
+  const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('todos');
   const [filterVendedor, setFilterVendedor] = useState<string>('todos');
   const [filterTipo, setFilterTipo] = useState<TipoOption>('todos');
 
