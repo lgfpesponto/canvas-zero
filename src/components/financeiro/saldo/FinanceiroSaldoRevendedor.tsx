@@ -67,7 +67,7 @@ const FinanceiroSaldoRevendedor = () => {
   };
 
   // Filtros padronizados
-  const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('mes');
+  const [filterPeriodo, setFilterPeriodo] = useState<PeriodoOption>('todos');
   const [filterVendedor, setFilterVendedor] = useState<string>('todos');
   const [filterTipo, setFilterTipo] = useState<TipoOption>('todos');
 
@@ -242,20 +242,6 @@ const FinanceiroSaldoRevendedor = () => {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">Tipo</Label>
-          <Select value={filterTipo} onValueChange={(v: any) => setFilterTipo(v)}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="aprovado">Aprovado</SelectItem>
-              <SelectItem value="reprovado">Reprovado</SelectItem>
-              <SelectItem value="utilizado">Utilizado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {isAdminMaster && (
           <div className="ml-auto flex items-end">
             <TooltipProvider>
@@ -432,38 +418,41 @@ const FinanceiroSaldoRevendedor = () => {
               Nenhum movimento no período selecionado.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead className="text-right">Recebido</TableHead>
-                  <TableHead className="text-right">Utilizado</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {saldosTabela
-                  .slice()
-                  .map(s => ({ s, efetivo: Number(s.saldo_disponivel) - (pendencias[s.vendedor]?.valor || 0) }))
-                  .sort((a, b) => b.efetivo - a.efetivo)
-                  .map(({ s, efetivo }) => (
-                    <TableRow key={s.vendedor}>
-                      <TableCell className="font-medium">{s.vendedor}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(s.total_recebido))}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(s.total_utilizado))}</TableCell>
-                      <TableCell className={`text-right font-bold ${efetivo < 0 ? 'text-destructive' : 'text-primary'}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {saldosTabela
+                .slice()
+                .map(s => ({ s, efetivo: Number(s.saldo_disponivel) - (pendencias[s.vendedor]?.valor || 0) }))
+                .sort((a, b) => b.efetivo - a.efetivo)
+                .map(({ s, efetivo }) => {
+                  const negativo = efetivo < 0;
+                  return (
+                    <button
+                      key={s.vendedor}
+                      type="button"
+                      onClick={() => setDetalheVendedor(s)}
+                      className={`text-left rounded-lg border-2 p-3 transition hover:shadow-md hover:-translate-y-0.5 ${
+                        negativo ? 'border-destructive/60 bg-destructive/5' : 'border-primary/40 bg-primary/5'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-sm leading-tight truncate" title={s.vendedor}>
+                          {s.vendedor}
+                        </p>
+                        <Eye size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                      </div>
+                      <p className={`text-2xl font-bold mt-2 ${negativo ? 'text-destructive' : 'text-primary'}`}>
                         {formatCurrency(efetivo)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => setDetalheVendedor(s)}>
-                          <Eye size={14} /> Detalhes
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
+                        <span>Recebido</span>
+                        <span className="text-right tabular-nums">{formatCurrency(Number(s.total_recebido))}</span>
+                        <span>Utilizado</span>
+                        <span className="text-right tabular-nums">{formatCurrency(Number(s.total_utilizado))}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
           )}
         </CardContent>
       </Card>
