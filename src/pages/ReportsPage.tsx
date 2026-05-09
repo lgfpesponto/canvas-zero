@@ -1336,7 +1336,7 @@ const ReportsPage = () => {
       </motion.div>
 
       {/* Bulk Progress Modal */}
-      <Dialog open={showProgressModal} onOpenChange={setShowProgressModal}>
+      <Dialog open={showProgressModal} onOpenChange={(o) => { if (!bulkProgress) setShowProgressModal(o); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Mudar Progresso de Produção</DialogTitle>
