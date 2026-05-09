@@ -1,0 +1,2 @@
+INSERT INTO public.revendedor_saldo_movimentos (vendedor, tipo, valor, descricao, saldo_anterior, saldo_posterior, created_at)
+VALUES ('Maria Gabriela', 'ajuste_admin', 36848.15, 'Ajuste histórico re-inserido (saldo anterior ao reset de 09/05)', 218999.65, 255847.80, now());
