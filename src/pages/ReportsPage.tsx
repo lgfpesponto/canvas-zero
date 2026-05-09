@@ -1530,16 +1530,22 @@ const ReportsPage = () => {
                 <DialogFooter className="mt-4">
                   <button
                     onClick={() => setShowRegressionModal(false)}
-                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm"
+                    disabled={!!bulkProgress}
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleConfirmRegression}
-                    disabled={regressionReason.trim().length < 5}
-                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!!bulkProgress || regressionReason.trim().length < 5}
+                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[110px]"
                   >
-                    Confirmar
+                    {bulkProgress ? (
+                      <span className="inline-flex items-center gap-2 justify-center">
+                        <Loader2 className="animate-spin" size={14} />
+                        {bulkProgress.current} / {bulkProgress.total}
+                      </span>
+                    ) : 'Confirmar'}
                   </button>
                 </DialogFooter>
               </DialogContent>
