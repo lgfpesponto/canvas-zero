@@ -530,14 +530,20 @@ const ReportsPage = () => {
 
     let okCount = 0;
     const blockedItems: BlockedItem[] = [];
-    for (const item of regressionItems) {
-      const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
-      try {
-        await updateOrderStatus(item.id, selectedProgress, obs);
-        okCount++;
-      } catch {
-        blockedItems.push({ numero: item.numero, statusAtual: item.current });
+    setBulkProgress({ current: 0, total: regressionItems.length });
+    try {
+      for (const item of regressionItems) {
+        const obs = `${prefixOf(item.kind)} ${motivo}${baseObs ? ` — ${baseObs}` : ''}`;
+        try {
+          await updateOrderStatus(item.id, selectedProgress, obs);
+          okCount++;
+        } catch {
+          blockedItems.push({ numero: item.numero, statusAtual: item.current });
+        }
+        setBulkProgress(p => p ? { ...p, current: p.current + 1 } : p);
       }
+    } finally {
+      setBulkProgress(null);
     }
     if (blockedItems.length > 0) {
       setBlockedDialog({ open: true, destino: selectedProgress, blocked: blockedItems, movedCount: okCount });
