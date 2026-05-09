@@ -242,20 +242,6 @@ const FinanceiroSaldoRevendedor = () => {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">Tipo</Label>
-          <Select value={filterTipo} onValueChange={(v: any) => setFilterTipo(v)}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="aprovado">Aprovado</SelectItem>
-              <SelectItem value="reprovado">Reprovado</SelectItem>
-              <SelectItem value="utilizado">Utilizado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {isAdminMaster && (
           <div className="ml-auto flex items-end">
             <TooltipProvider>
