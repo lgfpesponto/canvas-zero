@@ -198,7 +198,10 @@ export function computeTotalToSave(
   getByCategoria: GetByCategoria = noCategoria,
 ): number {
   if (order.tipoExtra === 'bota_pronta_entrega') {
-    return Math.max(0, (Number(order.preco) || 0) - (Number(order.desconto) || 0));
+    // ⚠️ Bruto vem da composição (botas[].valorManual + extras), NUNCA de `order.preco`
+    // (que já contém o ajuste). Se ler de `preco`, a cada save o ajuste seria somado de novo.
+    const bruto = computeBotaProntaEntregaBruto(order);
+    return Math.max(0, bruto - (Number(order.desconto) || 0));
   }
   const subtotal = recomputeSubtotal(order, findFichaPrice, getByCategoria);
   const isExtra = !!order.tipoExtra;
