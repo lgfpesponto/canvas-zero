@@ -1,43 +1,38 @@
-## Objetivo
+## Histórico do saldo da Maria Gabriela hoje
 
-Registrar **R$ 81.251,67** como **Utilizado** da Maria Gabriela (backfill), para que o painel mostre corretamente o que ela já consumiu de saldo. Os demais (Denise, Rafael) continuam com Utilizado zerado.
+| Momento | Recebido | Utilizado | Ajuste | Saldo |
+|---|---|---|---|---|
+| Antes do reset (16:59) | 300.251,32 | 81.251,67 | +36.848,15 | **255.847,80** |
+| Após o reset (17:02) | 300.251,32 | 0 | 0 | 300.251,32 |
+| Agora (17:08) | 300.251,32 | 81.251,67 | 0 | **218.999,65** |
 
-## Estado atual
+O "244 mil" que você lembra não existe registrado. O valor original mais próximo era **R$ 255.847,80**.
 
-| Vendedora | Recebido | Utilizado |
-|---|---|---|
-| Maria Gabriela | R$ 300.251,32 | R$ 0,00 |
-| Rafael Silva | R$ 11.400,00 | R$ 0,00 |
-| Denise Garcia Feliciano | R$ 3.415,00 | R$ 0,00 |
+## Proposta
 
-Saldo da Maria hoje: R$ 300.251,32 (errado — precisa cair para R$ 218.999,65 após registrar o utilizado).
+Re-inserir o **ajuste_admin de +R$ 36.848,15** que existia antes (foi removido no reset). Com o utilizado já em R$ 81.251,67, o saldo vai voltar para os **R$ 255.847,80** originais.
 
-## Mudança
+### Mudança
 
-Inserir **1 movimento** em `revendedor_saldo_movimentos` para Maria Gabriela:
+Inserir 1 movimento em `revendedor_saldo_movimentos`:
 
 - `vendedor`: "Maria Gabriela"
-- `tipo`: `baixa_pedido` (é como o painel calcula "Utilizado", linha 167 do `FinanceiroSaldoRevendedor.tsx`)
-- `valor`: 81251.67
-- `descricao`: "Utilizado em pedidos anteriores (backfill manual — saldo histórico já consumido)"
-- `order_id`: NULL (backfill agregado, sem pedido específico)
-- `saldo_anterior`: 300251.32
-- `saldo_posterior`: 218999.65
-- `created_at`: timestamp atual
+- `tipo`: `ajuste_admin`
+- `valor`: 36848.15
+- `descricao`: "Ajuste histórico re-inserido (saldo anterior ao reset de 09/05)"
+- `saldo_anterior`: 218999.65
+- `saldo_posterior`: 255847.80
 
-A inserção será feita via **migração SQL** (a tabela tem RLS bloqueando INSERT direto, então só passa por migração).
+Via migração (RLS bloqueia INSERT direto).
 
-## Resultado esperado no painel
+### Resultado esperado
 
-| Vendedora | Recebido | Utilizado | Saldo |
-|---|---|---|---|
-| Maria Gabriela | R$ 300.251,32 | **R$ 81.251,67** | R$ 218.999,65 |
-| Rafael Silva | R$ 11.400,00 | R$ 0,00 | R$ 11.400,00 |
-| Denise Garcia Feliciano | R$ 3.415,00 | R$ 0,00 | R$ 3.415,00 |
+| Vendedora | Recebido | Utilizado | Ajuste | Saldo |
+|---|---|---|---|---|
+| Maria Gabriela | 300.251,32 | 81.251,67 | +36.848,15 | **255.847,80** |
+| Rafael Silva | 11.400,00 | 0 | 0 | 11.400,00 |
+| Denise Garcia Feliciano | 3.415,00 | 0 | 0 | 3.415,00 |
 
-## Não muda
+### Importante
 
-- Nada em pedidos (`orders`).
-- Nada em comprovantes.
-- Toggle de baixa automática segue como está (desligado).
-- Recebido das outras revendedoras intacto.
+Se você quiser **outro valor exato** (244.000,00 ou outro), me diga — eu ajusto o valor do ajuste para chegar no número que você quer. Mas o registro histórico aponta R$ 255.847,80.
