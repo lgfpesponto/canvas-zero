@@ -362,6 +362,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   extraDetalhes: 'extra_detalhes', numeroPedidoBota: 'numero_pedido_bota',
   recorteCano: 'recorte_cano', recorteGaspea: 'recorte_gaspea', recorteTaloneira: 'recorte_taloneira',
   corRecorteCano: 'cor_recorte_cano', corRecorteGaspea: 'cor_recorte_gaspea', corRecorteTaloneira: 'cor_recorte_taloneira',
+  precoMigradoV2: 'preco_migrado_v2', precoRegraVersao: 'preco_regra_versao',
 };
 
 /** Field labels for change tracking */
