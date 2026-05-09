@@ -272,21 +272,19 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {isAdminMode ? 'Enviar comprovante em nome de vendedor' : 'Enviar comprovante(s) de pagamento'}
-          </DialogTitle>
+          <DialogTitle>Novo Recebimento (extração automática via IA)</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {isAdminMode && (
-            <div>
-              <Label>Vendedor</Label>
+          <div>
+            <Label>Vendedor (quem mandou)</Label>
+            {isAdminMode ? (
               <Select
                 value={selectedVendedor}
                 onValueChange={setSelectedVendedor}
                 disabled={savingAll || loadingVendedores}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={loadingVendedores ? 'Carregando...' : 'Selecione o vendedor'} />
+                  <SelectValue placeholder={loadingVendedores ? 'Carregando...' : 'Selecione...'} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {vendedoresList.map(v => (
@@ -294,19 +292,20 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                O comprovante será lançado em nome desse vendedor e ficará pendente para aprovação normal.
-              </p>
-            </div>
-          )}
-          <div className="text-sm bg-muted rounded p-3">
-            Anexe um ou mais comprovantes (PDF ou foto). O sistema lê automaticamente
-            <strong> data, valor e quem recebeu</strong> e registra essas informações.
-            O arquivo em si <strong>não fica salvo</strong> — só os dados extraídos.
+            ) : (
+              <Select value={vendedor} disabled>
+                <SelectTrigger className="mt-1">
+                  <SelectValue>{vendedor}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={vendedor || '__self__'}>{vendedor}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div>
-            <Label>Comprovantes (PDF ou foto — pode anexar vários)</Label>
+            <Label>Comprovantes (PDF ou foto — pode arrastar vários)</Label>
             <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mt-1">
               <Upload className="mx-auto mb-2 text-muted-foreground" size={28} />
               <Input
@@ -318,7 +317,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                 disabled={savingAll || (isAdminMode && !selectedVendedor)}
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Aceita PDF, JPG, PNG ou foto. Tamanho máximo: 10MB cada.
+                Aceita PDF, JPG, PNG ou foto da tela. A IA extrai data, valor e destinatário automaticamente.
               </p>
             </div>
           </div>
