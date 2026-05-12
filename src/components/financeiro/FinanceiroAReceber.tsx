@@ -315,7 +315,8 @@ const FinanceiroAReceber = () => {
       try {
         const valorNum = parseFloat(it.valor.replace(',', '.'));
         const destinatario = it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim();
-        // Não armazenamos mais o arquivo no Storage — só os dados extraídos + hash
+        // Faz upload do arquivo no bucket pra admin master conseguir conferir depois
+        const comprovantePath = await uploadPdf(it.file, 'a-receber');
         const { error } = await supabase.from('financeiro_a_receber').insert({
           vendedor: fVendedor,
           data_pagamento: it.data_pagamento,
@@ -323,11 +324,15 @@ const FinanceiroAReceber = () => {
           destinatario,
           tipo: it.tipo,
           descricao: it.descricao.trim() || null,
-          comprovante_url: null,
+          comprovante_url: comprovantePath,
           comprovante_hash: it.hash,
           created_by: user?.id,
         });
-        if (error) throw error;
+        if (error) {
+          // rollback do arquivo se o insert falhou
+          await deletePdf(comprovantePath).catch(() => {});
+          throw error;
+        }
         savedIds.push(it.id);
         okCount++;
       } catch (e: any) {
