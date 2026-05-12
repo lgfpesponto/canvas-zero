@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   checkDuplicates, deletePdf, fetchVendedoresList, fileHash, formatDateBR,
-  todayISO, validateComprovante, type DupMatch,
+  todayISO, uploadPdf, validateComprovante, type DupMatch,
 } from './financeiroHelpers';
 import { ComprovanteViewer } from './ComprovanteViewer';
 import { DuplicateConfirmDialog } from './DuplicateConfirmDialog';
@@ -315,7 +315,8 @@ const FinanceiroAReceber = () => {
       try {
         const valorNum = parseFloat(it.valor.replace(',', '.'));
         const destinatario = it.tipo === 'empresa' ? 'Empresa' : it.destinatario.trim();
-        // Não armazenamos mais o arquivo no Storage — só os dados extraídos + hash
+        // Faz upload do arquivo no bucket pra admin master conseguir conferir depois
+        const comprovantePath = await uploadPdf(it.file, 'a-receber');
         const { error } = await supabase.from('financeiro_a_receber').insert({
           vendedor: fVendedor,
           data_pagamento: it.data_pagamento,
@@ -323,11 +324,15 @@ const FinanceiroAReceber = () => {
           destinatario,
           tipo: it.tipo,
           descricao: it.descricao.trim() || null,
-          comprovante_url: null,
+          comprovante_url: comprovantePath,
           comprovante_hash: it.hash,
           created_by: user?.id,
         });
-        if (error) throw error;
+        if (error) {
+          // rollback do arquivo se o insert falhou
+          await deletePdf(comprovantePath).catch(() => {});
+          throw error;
+        }
         savedIds.push(it.id);
         okCount++;
       } catch (e: any) {
@@ -456,8 +461,12 @@ const FinanceiroAReceber = () => {
         descricao: e.descricao.trim() || null,
       };
       if (e.newFile) {
-        // Novo anexo apenas re-extrai dados; o arquivo não é armazenado
-        patch.comprovante_url = null;
+        // Sobe o novo arquivo e remove o anterior (se existia)
+        const newPath = await uploadPdf(e.newFile, 'a-receber');
+        if (e.row.comprovante_url) {
+          await deletePdf(e.row.comprovante_url).catch(() => {});
+        }
+        patch.comprovante_url = newPath;
         patch.comprovante_hash = comprovante_hash;
       }
       const { error } = await supabase.from('financeiro_a_receber').update(patch).eq('id', e.row.id);
