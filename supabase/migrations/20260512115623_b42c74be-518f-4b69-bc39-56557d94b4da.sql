@@ -1,0 +1,2 @@
+UPDATE public.custom_options SET label = 'Cassino / Baralho STE 91' WHERE id IN ('1e9ff0aa-1654-437c-80a2-0f51e80f7b23','496177d0-7b43-45cb-b39d-ad7c3efa4647');
+UPDATE public.custom_options SET label = 'Pintura Cavalo STE 62' WHERE id IN ('4f598317-39da-4702-ac7a-557e2fa7051f','3dfdabdb-67a1-41bb-888d-99b1fb4bbe48');
