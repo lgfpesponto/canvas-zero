@@ -1,26 +1,52 @@
 ## Problema
 
-O card "Total de Produtos" e "Valor Total" em `/relatorios` está mostrando o total **do sistema inteiro** para vendedores, em vez de mostrar só os pedidos no nome deles.
+O dialog de envio de comprovante (`EnviarComprovanteDialog`) já é o mesmo usado pelo admin e pelo vendedor (na página `/financeiro/saldo` → "Comprovantes"), e já aceita imagens + PDF + extração via IA (`extract-comprovante`).
 
-**Causa:** A função `get_orders_totals` do banco é `SECURITY DEFINER`, ou seja, ignora a RLS e soma todos os pedidos. A lista de pedidos abaixo está correta (essa respeita RLS), mas os cards de cima usam essa RPC que enxerga tudo.
+O motivo de não funcionar para o vendedor é que **o bucket `financeiro` do Storage só tem políticas de INSERT/SELECT para `admin_master`**. Quando o vendedor clica "Enviar", o `uploadComprovanteRevendedor` falha em `storage.objects` antes mesmo de gravar o comprovante — e o erro hoje aparece só como "Erro" no card, sem toast claro.
 
-## Correção
+## O que fazer
 
-Alterar a função `get_orders_totals` para que, quando o usuário **não for admin** (`admin_master` ou `admin_producao`), ela force o filtro pelo `nome_completo` do próprio usuário logado. Para `vendedor` e `vendedor_comissao` ela vai somar exclusivamente os pedidos onde `vendedor = nome do usuário logado` (mantendo também a regra da Juliana Cristina, que pode ter sub-clientes).
+### 1. Storage: liberar a pasta `revendedor-saldo/` do bucket `financeiro` para vendedores
 
-Para administradores nada muda — continuam vendo o total geral e podem filtrar por vendedor à vontade.
+Migration adicionando policies em `storage.objects` (bucket `financeiro`, prefixo `revendedor-saldo/`):
 
-## Comportamento esperado depois da correção
+- **INSERT**: usuário autenticado pode subir arquivo seu nessa pasta.
+- **SELECT**: usuário autenticado pode ver os arquivos que ele mesmo subiu (`owner = auth.uid()`); admins continuam vendo tudo via policy existente.
 
-- Vendedora Maria Gabriela entra em "Meus Pedidos": cards mostram **só os pedidos dela** (1.654 produtos, R$ 505.190,17 no exemplo).
-- Os filtros de data, status e produto continuam funcionando normalmente — somam só dentro dos pedidos dela.
-- Admin master/produção continua vendo o total do sistema.
-- **Nenhum preço é alterado**, só o cálculo dos cards de resumo.
+As policies de admin_master existentes continuam intactas (cobrem a aprovação/visualização pelo admin).
+
+### 2. UX no `EnviarComprovanteDialog`
+
+- Mostrar toast de **sucesso** já existe ("X comprovante(s) enviado(s)!") — manter.
+- Adicionar toast de **erro** quando algum item falhar no envio, com a mensagem real (ex.: "Falha ao enviar comprovante.pdf: <motivo>"). Hoje só marca o card como "Erro" silenciosamente.
+- Garantir que o erro do upload do Storage seja propagado com mensagem amigável (ex.: "Falha ao subir arquivo — tente novamente").
+
+### 3. Sem mudanças em
+
+- RLS de `revendedor_comprovantes` (já permite vendedor inserir os próprios).
+- Edge function `extract-comprovante` (`verify_jwt = false`, já funciona pra qualquer caller).
+- Layout / fluxo do dialog.
 
 ## Detalhes técnicos
 
-- Migration alterando `public.get_orders_totals` para, no início, detectar se o caller é admin via `is_any_admin(auth.uid())`. Se não for, sobrescreve `_vendedores` com `ARRAY[current_user_nome_completo()]` (ignorando qualquer valor passado pelo frontend, por segurança).
-- A cláusula de filtro existente já trata o caso Juliana → cliente, então funciona sem alteração adicional.
-- A `count` usada no botão "Selecionar todos" também vem dessa mesma RPC (linha 154 de `useOrders.ts`), então o número total de pedidos selecionáveis também passa a refletir só os do vendedor.
-- A query principal de listagem (`from('orders').select`) não muda — ela já é filtrada por RLS.
-- Sem mudança de UI nem de TypeScript.
+**Migration SQL (resumo):**
+
+```sql
+create policy "vendedor insert revendedor-saldo"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'financeiro'
+  and (storage.foldername(name))[1] = 'revendedor-saldo'
+  and owner = auth.uid()
+);
+
+create policy "vendedor select próprios revendedor-saldo"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'financeiro'
+  and (storage.foldername(name))[1] = 'revendedor-saldo'
+  and owner = auth.uid()
+);
+```
+
+**Frontend (`EnviarComprovanteDialog.tsx`):** dentro do `catch` do loop em `handleSendAll`, disparar `toast({ title: 'Falha ao enviar <arquivo>', description: e.message, variant: 'destructive' })` além de marcar o card.
