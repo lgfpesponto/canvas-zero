@@ -461,8 +461,12 @@ const FinanceiroAReceber = () => {
         descricao: e.descricao.trim() || null,
       };
       if (e.newFile) {
-        // Novo anexo apenas re-extrai dados; o arquivo não é armazenado
-        patch.comprovante_url = null;
+        // Sobe o novo arquivo e remove o anterior (se existia)
+        const newPath = await uploadPdf(e.newFile, 'a-receber');
+        if (e.row.comprovante_url) {
+          await deletePdf(e.row.comprovante_url).catch(() => {});
+        }
+        patch.comprovante_url = newPath;
         patch.comprovante_hash = comprovante_hash;
       }
       const { error } = await supabase.from('financeiro_a_receber').update(patch).eq('id', e.row.id);
