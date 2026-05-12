@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/order-logic';
 import {
   checkDuplicates, deletePdf, fetchVendedoresList, fileHash, formatDateBR,
-  todayISO, validateComprovante, type DupMatch,
+  todayISO, uploadPdf, validateComprovante, type DupMatch,
 } from './financeiroHelpers';
 import { ComprovanteViewer } from './ComprovanteViewer';
 import { DuplicateConfirmDialog } from './DuplicateConfirmDialog';
