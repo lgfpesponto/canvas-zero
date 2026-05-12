@@ -1,34 +1,26 @@
 ## Problema
 
-Hoje, na aba **Financeiro → A Receber**, quando o admin lança um recebimento (anexando PDF/imagem do comprovante), o sistema:
-1. Extrai os dados do arquivo (data, valor, destinatário) via IA.
-2. Salva os dados extraídos no banco.
-3. **Descarta o arquivo** — `comprovante_url` é gravado como `null` (ver `FinanceiroAReceber.tsx:318-326` e `:458-461`).
+O card "Total de Produtos" e "Valor Total" em `/relatorios` está mostrando o total **do sistema inteiro** para vendedores, em vez de mostrar só os pedidos no nome deles.
 
-Por isso a coluna "PDF" da tabela mostra "—" sem botão "Ver", e o admin master não consegue abrir/conferir o comprovante depois.
+**Causa:** A função `get_orders_totals` do banco é `SECURITY DEFINER`, ou seja, ignora a RLS e soma todos os pedidos. A lista de pedidos abaixo está correta (essa respeita RLS), mas os cards de cima usam essa RPC que enxerga tudo.
 
-O bucket `financeiro` já existe (privado), o helper `uploadPdf(file, 'a-receber')` já está pronto em `financeiroHelpers.ts`, e o `ComprovanteViewer` já sabe abrir arquivos desse bucket. Só falta plugar.
+## Correção
 
-## Mudanças
+Alterar a função `get_orders_totals` para que, quando o usuário **não for admin** (`admin_master` ou `admin_producao`), ela force o filtro pelo `nome_completo` do próprio usuário logado. Para `vendedor` e `vendedor_comissao` ela vai somar exclusivamente os pedidos onde `vendedor = nome do usuário logado` (mantendo também a regra da Juliana Cristina, que pode ter sub-clientes).
 
-### 1. `proceedSave` (criação em massa) — `FinanceiroAReceber.tsx`
-- Antes do `insert`, chamar `await uploadPdf(it.file, 'a-receber')` e usar o path retornado em `comprovante_url`.
-- Se o upload falhar para um item, marcar como erro (sem abortar os outros).
-- Manter o `comprovante_hash` como hoje (deduplicação).
+Para administradores nada muda — continuam vendo o total geral e podem filtrar por vendedor à vontade.
 
-### 2. `handleSaveEdit` (edição com novo anexo)
-- Se `e.newFile` foi escolhido:
-  - Fazer `uploadPdf` do novo arquivo.
-  - Apagar o arquivo antigo via `deletePdf(editState.row.comprovante_url)` se existir.
-  - Gravar o novo path em `comprovante_url` (em vez de `null`).
+## Comportamento esperado depois da correção
 
-### 3. Sem mudanças na UI da tabela
-A coluna "PDF" e o `ComprovanteViewer` (linha 746-750 e 896) já funcionam — assim que `comprovante_url` deixar de ser `null`, o botão "Ver" aparece automaticamente para o admin master.
+- Vendedora Maria Gabriela entra em "Meus Pedidos": cards mostram **só os pedidos dela** (1.654 produtos, R$ 505.190,17 no exemplo).
+- Os filtros de data, status e produto continuam funcionando normalmente — somam só dentro dos pedidos dela.
+- Admin master/produção continua vendo o total do sistema.
+- **Nenhum preço é alterado**, só o cálculo dos cards de resumo.
 
-### 4. Sem mudanças no banco
-- A coluna `comprovante_url` já existe na tabela `financeiro_a_receber`.
-- O bucket `financeiro` já está criado e tem políticas RLS funcionando (já é usado pelos comprovantes de revendedor).
+## Detalhes técnicos
 
-## Fora de escopo
-- Lançamentos antigos que já foram salvos com `comprovante_url = null` continuarão sem arquivo (o original não foi guardado). Só novos lançamentos a partir de agora terão o PDF/imagem visível.
-- Aba "A Pagar" não foi mencionada — não vou mexer nela agora. Se quiser que aplique a mesma lógica lá, é só pedir.
+- Migration alterando `public.get_orders_totals` para, no início, detectar se o caller é admin via `is_any_admin(auth.uid())`. Se não for, sobrescreve `_vendedores` com `ARRAY[current_user_nome_completo()]` (ignorando qualquer valor passado pelo frontend, por segurança).
+- A cláusula de filtro existente já trata o caso Juliana → cliente, então funciona sem alteração adicional.
+- A `count` usada no botão "Selecionar todos" também vem dessa mesma RPC (linha 154 de `useOrders.ts`), então o número total de pedidos selecionáveis também passa a refletir só os do vendedor.
+- A query principal de listagem (`from('orders').select`) não muda — ela já é filtrada por RLS.
+- Sem mudança de UI nem de TypeScript.
