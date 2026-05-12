@@ -247,16 +247,22 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         savedIds.push(it.id);
         okCount++;
       } catch (e: any) {
+        const msg = e?.message || 'Erro desconhecido';
         setItems(prev => prev.map(i => i.id === it.id ? {
-          ...i, status: 'error', error: e.message,
+          ...i, status: 'error', error: msg,
         } : i));
+        toast({
+          title: `Falha ao enviar ${it.file.name}`,
+          description: msg,
+          variant: 'destructive',
+        });
       }
     }
     setSavingAll(false);
 
     if (okCount > 0) {
       toast({
-        title: `${okCount} comprovante(s) enviado(s)!`,
+        title: `${okCount} comprovante(s) enviado(s) com sucesso!`,
         description: 'A administração vai conferir e aprovar.',
       });
       const remaining = items.filter(i => !savedIds.includes(i.id));
