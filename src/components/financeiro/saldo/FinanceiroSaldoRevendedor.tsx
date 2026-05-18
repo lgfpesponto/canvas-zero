@@ -365,10 +365,15 @@ const FinanceiroSaldoRevendedor = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {saldosTabela
                 .slice()
-                .map(s => ({ s, efetivo: Number(s.saldo_disponivel) - (pendencias[s.vendedor]?.valor || 0) }))
-                .sort((a, b) => b.efetivo - a.efetivo)
-                .map(({ s, efetivo }) => {
-                  const negativo = efetivo < 0;
+                .map(s => ({
+                  s,
+                  saldo: Number(s.saldo_disponivel),
+                  pendValor: pendencias[s.vendedor]?.valor || 0,
+                  pendQtd: pendencias[s.vendedor]?.qtd || 0,
+                }))
+                .sort((a, b) => b.saldo - a.saldo)
+                .map(({ s, saldo, pendValor, pendQtd }) => {
+                  const negativo = saldo < 0;
                   return (
                     <button
                       key={s.vendedor}
@@ -385,7 +390,7 @@ const FinanceiroSaldoRevendedor = () => {
                         <Eye size={14} className="text-muted-foreground shrink-0 mt-0.5" />
                       </div>
                       <p className={`text-2xl font-bold mt-2 ${negativo ? 'text-destructive' : 'text-primary'}`}>
-                        {formatCurrency(efetivo)}
+                        {formatCurrency(saldo)}
                       </p>
                       <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
                         <span>Recebido</span>
@@ -393,6 +398,14 @@ const FinanceiroSaldoRevendedor = () => {
                         <span>Utilizado</span>
                         <span className="text-right tabular-nums">{formatCurrency(Number(s.total_utilizado))}</span>
                       </div>
+                      {pendQtd > 0 && (
+                        <div className="mt-2 pt-2 border-t border-amber-300/40 text-[11px] text-amber-700 dark:text-amber-400 flex items-center justify-between gap-1">
+                          <span className="inline-flex items-center gap-1">
+                            <AlertTriangle size={11} /> {pendQtd} pedido(s) sem baixa
+                          </span>
+                          <span className="tabular-nums font-medium">{formatCurrency(pendValor)}</span>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
