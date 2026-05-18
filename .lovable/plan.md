@@ -1,28 +1,31 @@
-## Remover ajuste_admin de R$ 36.848,15 da Maria Gabriela
+## Inserir comprovante histórico de 27/04/2026 — Maria Gabriela
 
-**Alvo único:** movimento `ajuste_admin` de 09/05/2026 17:17, descrição "Ajuste histórico re-inserido (saldo anterior ao reset de 09/05)", valor R$ 36.848,15, vendedor Maria Gabriela.
+**Alvo único:** 1 comprovante aprovado, sem arquivo, valor R$ 11.492,60, data 27/04/2026, vendedor Maria Gabriela.
 
 ### O que será feito
 
-Migration SQL com um único `DELETE` em `revendedor_saldo_movimentos`, filtrando por:
-- `vendedor = 'Maria Gabriela ...'` (nome completo exato)
-- `tipo = 'ajuste_admin'`
-- `valor = 36848.15`
-- `descricao ILIKE '%Ajuste histórico re-inserido%'`
+Migration SQL com:
+1. `INSERT` em `revendedor_comprovantes` com:
+   - `vendedor` = nome completo exato da Maria Gabriela
+   - `valor` = 11492.60
+   - `data_pagamento` = 2026-04-27
+   - `status` = 'aprovado'
+   - `comprovante_url` = '' (histórico, sem arquivo)
+   - `observacao` = 'Lançamento histórico — comprovante a ser anexado depois'
+   - `enviado_por` / `aprovado_por` = uid da Juliana (admin_master)
+   - `aprovado_em` = now()
+2. `INSERT` em `revendedor_saldo_movimentos` (tipo `entrada_comprovante`) com saldo_anterior/posterior recalculados a partir do saldo atual da Maria Gabriela, vinculando ao comprovante criado.
 
-Uso de `LIMIT 1` via subquery por `id` para garantir que só 1 linha é removida (proteção contra duplicidade).
-
-### O que NÃO será tocado
-
-- Nenhum pedido em `orders`
-- Nenhum comprovante em `revendedor_comprovantes`
-- Nenhuma baixa em `revendedor_baixas_pedido`
-- Nenhum outro movimento de saldo
+Tudo dentro de uma transação para garantir consistência.
 
 ### Efeito esperado
 
-Saldo da Maria Gabriela cai exatamente R$ 36.848,15 (passa a refletir somente entradas reais de comprovantes que sobraram após sua limpeza manual).
+- Saldo da Maria Gabriela sobe R$ 11.492,60.
+- Total de comprovantes aprovados passa a refletir esse lançamento.
+- Combinado com os 3 que você já adicionou (10.000 + 12.937,20 + 10.269,40 = R$ 33.206,60), o saldo fecha exatamente em R$ 386.344,40, batendo com sua planilha.
 
-### Detalhe técnico
+### O que NÃO será tocado
 
-A tabela tem policy que bloqueia `INSERT` direto, mas `DELETE` não tem policy (logo bloqueado por padrão para usuários). A migration roda com privilégios de owner, então o `DELETE` passa normalmente sem precisar alterar RLS.
+- Nenhum pedido em `orders`.
+- Nenhuma baixa existente em `revendedor_baixas_pedido`.
+- Nenhum outro comprovante ou movimento.
