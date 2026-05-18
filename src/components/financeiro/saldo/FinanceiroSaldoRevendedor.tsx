@@ -328,63 +328,6 @@ const FinanceiroSaldoRevendedor = () => {
         </Alert>
       )}
 
-      {/* Cards de resumo (atualizam conforme filtros) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Recebido ({periodoLabel})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-primary">
-              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
-                {formatCurrency(totals.recebido)}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Utilizado ({periodoLabel})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
-                {formatCurrency(totals.utilizado)}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={`border-2 ${totals.saldoSnapshot < 0 ? 'border-destructive' : 'border-primary'}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className={`text-sm ${totals.saldoSnapshot < 0 ? 'text-destructive' : 'text-primary'}`}>
-              {filterVendedor === 'todos' ? 'Saldo disponível total' : 'Saldo disponível'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-bold ${totals.saldoSnapshot < 0 ? 'text-destructive' : 'text-primary'}`}>
-              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
-                {formatCurrency(totals.saldoSnapshot)}
-              </LoadingValue>
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {totals.saldoSnapshot < 0 ? 'negativo = falta para quitar pedidos cobrados' : 'saldo atual menos pedidos cobrados'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={totals.pendentes > 0 ? 'border-destructive' : ''}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Comprovantes pendentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-destructive">
-              <LoadingValue loading={loading} hasData={saldos !== null} size={20}>
-                {totals.pendentes}
-              </LoadingValue>
-            </p>
-          </CardContent>
-        </Card>
-        <PedidosAbatidosCard vendedoresOptions={vendedoresOptions} />
-      </div>
 
       {/* Comprovantes pendentes (geral, não filtrado) */}
       <ComprovantesRevendedorPendentes
