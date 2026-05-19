@@ -1548,6 +1548,7 @@ export type Database = {
         Returns: undefined
       }
       marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
+      processar_baixas_automaticas_geral: { Args: never; Returns: Json }
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }
         Returns: Json
