@@ -91,6 +91,8 @@ export interface Order {
   /** Modelo v2: TRUE quando `preco` já é o total final (subtotal × qty − desconto/+acréscimo). */
   precoMigradoV2?: boolean;
   precoRegraVersao?: number;
+  /** Quando TRUE, nenhuma rotina de recálculo automático toca em `preco`. Usado para travar preços de pedidos antigos quando a tabela muda. */
+  precoCongelado?: boolean;
   status: string;
   dataCriacao: string;
   horaCriacao: string;

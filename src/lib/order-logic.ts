@@ -207,6 +207,7 @@ export function dbRowToOrder(row: any): Order {
     preco: Number(row.preco),
     precoMigradoV2: !!row.preco_migrado_v2,
     precoRegraVersao: row.preco_regra_versao != null ? Number(row.preco_regra_versao) : undefined,
+    precoCongelado: !!row.preco_congelado,
     status: row.status,
     dataCriacao: row.data_criacao,
     horaCriacao: row.hora_criacao,
@@ -303,6 +304,7 @@ export function orderToDbRow(order: any, userId: string) {
     preco: order.preco ?? 0,
     preco_migrado_v2: order.precoMigradoV2 ?? false,
     preco_regra_versao: order.precoRegraVersao ?? null,
+    preco_congelado: order.precoCongelado ?? false,
     status: order.status || 'Em aberto',
     data_criacao: order.dataCriacao,
     hora_criacao: order.horaCriacao,
@@ -367,7 +369,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   extraDetalhes: 'extra_detalhes', numeroPedidoBota: 'numero_pedido_bota',
   recorteCano: 'recorte_cano', recorteGaspea: 'recorte_gaspea', recorteTaloneira: 'recorte_taloneira',
   corRecorteCano: 'cor_recorte_cano', corRecorteGaspea: 'cor_recorte_gaspea', corRecorteTaloneira: 'cor_recorte_taloneira',
-  precoMigradoV2: 'preco_migrado_v2', precoRegraVersao: 'preco_regra_versao',
+  precoMigradoV2: 'preco_migrado_v2', precoRegraVersao: 'preco_regra_versao', precoCongelado: 'preco_congelado',
 };
 
 /** Field labels for change tracking */
