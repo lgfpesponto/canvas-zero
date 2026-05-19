@@ -44,6 +44,7 @@ export default function PrecoAutoBackfill() {
           .from('orders')
           .select('*')
           .eq('preco_migrado_v2', false)
+          .eq('preco_congelado', false)
           .order('created_at', { ascending: true })
           .limit(BATCH);
 
