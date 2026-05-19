@@ -1,31 +1,41 @@
-## Inserir comprovante histórico de 27/04/2026 — Maria Gabriela
+## Objetivo
 
-**Alvo único:** 1 comprovante aprovado, sem arquivo, valor R$ 11.492,60, data 27/04/2026, vendedor Maria Gabriela.
+Quando o admin ligar o switch **Baixa automática**, processar imediatamente as baixas pendentes — sem precisar esperar uma nova entrada de saldo ou edição de pedido para o trigger disparar.
 
-### O que será feito
+## Comportamento hoje
 
-Migration SQL com:
-1. `INSERT` em `revendedor_comprovantes` com:
-   - `vendedor` = nome completo exato da Maria Gabriela
-   - `valor` = 11492.60
-   - `data_pagamento` = 2026-04-27
-   - `status` = 'aprovado'
-   - `comprovante_url` = '' (histórico, sem arquivo)
-   - `observacao` = 'Lançamento histórico — comprovante a ser anexado depois'
-   - `enviado_por` / `aprovado_por` = uid da Juliana (admin_master)
-   - `aprovado_em` = now()
-2. `INSERT` em `revendedor_saldo_movimentos` (tipo `entrada_comprovante`) com saldo_anterior/posterior recalculados a partir do saldo atual da Maria Gabriela, vinculando ao comprovante criado.
+- Ligar a flag `baixa_automatica_ativa` apenas salva o valor em `system_flags`.
+- A função `tentar_baixa_automatica(vendedor)` só é chamada quando: um novo comprovante é aprovado, um pedido vira "Cobrado", ou um estorno acontece.
+- Resultado: vendedores que já estavam com pedidos Cobrado e saldo suficiente continuam pendentes até algum evento disparar o trigger.
 
-Tudo dentro de uma transação para garantir consistência.
+## Mudança proposta
 
-### Efeito esperado
+### 1. Nova RPC `processar_baixas_automaticas_geral()` (migration)
 
-- Saldo da Maria Gabriela sobe R$ 11.492,60.
-- Total de comprovantes aprovados passa a refletir esse lançamento.
-- Combinado com os 3 que você já adicionou (10.000 + 12.937,20 + 10.269,40 = R$ 33.206,60), o saldo fecha exatamente em R$ 386.344,40, batendo com sua planilha.
+- `SECURITY DEFINER`, restrita a `admin_master` (raise se não for).
+- Verifica se a flag está ligada; se não, retorna 0.
+- Seleciona vendedores distintos que tenham pelo menos um pedido `Cobrado` sem baixa (`orders.status = 'Cobrado'` e sem registro em `revendedor_baixas_pedido`).
+- Para cada vendedor, chama `tentar_baixa_automatica(vendedor, auth.uid())`.
+- Retorna JSON: `{ vendedores_processados, pedidos_baixados }`.
 
-### O que NÃO será tocado
+### 2. Frontend — `FinanceiroSaldoRevendedor.tsx`
 
-- Nenhum pedido em `orders`.
-- Nenhuma baixa existente em `revendedor_baixas_pedido`.
-- Nenhum outro comprovante ou movimento.
+- Em `handleToggleBaixaAuto(next)`, depois de `baixaAuto.update(next)`:
+  - Se `next === true` e `r.ok`: chamar a nova RPC, mostrar toast com `pedidos_baixados` e disparar `load()` para atualizar saldos/pendências.
+  - Se zero baixadas: toast neutro ("Nenhum pedido elegível no momento").
+
+### 3. Helper em `src/lib/revendedorSaldo.ts`
+
+- `processarBaixasAutomaticasGeral()` que invoca a RPC e retorna o JSON tipado.
+
+## Detalhes técnicos
+
+- Não altera a função `tentar_baixa_automatica` existente — ela já respeita a flag e a ordem cronológica dos pedidos.
+- A RPC global é só um "kick" manual disparado ao religar o switch (e poderia ser reaproveitada por um botão futuro tipo "Processar agora").
+- Como `tentar_baixa_automatica` faz INSERT em `revendedor_saldo_movimentos`, os triggers de notificação ao vendedor (sino) continuam funcionando.
+
+## Resumo do diff
+
+- `supabase/migrations/<timestamp>_processar_baixas_automaticas_geral.sql` — nova função.
+- `src/lib/revendedorSaldo.ts` — novo helper.
+- `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx` — chamar helper ao ligar a flag + toast com resultado.
