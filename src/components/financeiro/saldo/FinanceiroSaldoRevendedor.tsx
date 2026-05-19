@@ -23,6 +23,7 @@ import {
   fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
   fetchPedidosCobrados, fetchBaixasVendedor,
+  processarBaixasAutomaticasGeral,
   type RevendedorSaldo, type RevendedorComprovante, type RevendedorMovimento,
   type ComprovanteStatus,
 } from '@/lib/revendedorSaldo';
