@@ -1,54 +1,48 @@
+# Limpeza dos estornos automáticos + blindagem futura
+
 ## Contexto
 
-O preço do bordado **Florência** (cano) foi alterado de **R$ 25 → R$ 30**. Como o sistema recalcula `orders.preco` automaticamente (frontend + edge `reconciliar-precos` + `recomputePricesBatch`) sempre que a regra muda, **1.037 pedidos antigos** (criados antes de 18/05/2026) que tinham Florência no cano já foram (ou serão) inflados em R$ 5 por unidade — gerando divergência com os PDFs/cobranças já fechados.
+Hoje (19/05) o trigger `trg_orders_estorno_baixa_on_value_change` disparou **107 estornos automáticos** em 4 revendedoras (Denise 14, Fabiana 4, Larissa 4, Rafael 85) porque a alteração da regra Florência (R$ 25→30) mexeu no `preco` de pedidos já baixados. À noite, na baixa automática (22:36), os mesmos pedidos foram rebaixados com o valor inflado. Depois congelei o preço, então hoje os pedidos voltaram ao valor antigo no banco — mas as baixas no histórico ficaram com R$ 5 a mais cada, gerando o buraco no saldo.
 
-A regra é: pedidos antes de 18/05 ficam com o preço antigo; só os novos seguem a nova tabela.
+## O que será feito
 
-## Solução
+### 1. Migration — limpar e reescrever os movimentos de hoje
 
-Criar um mecanismo de **congelamento de preço por pedido** (genérico, serve para qualquer mudança futura), e aplicá-lo retroativamente nos pedidos afetados.
+Para cada estorno automático criado hoje (`tipo='estorno'` + descrição `Estorno automático: valor/vendedor do pedido alterado`):
 
-### 1. Migration: nova coluna `preco_congelado`
+1. Localizar a baixa correspondente criada às 22:36 (mesmo `order_id`, `tipo='baixa_pedido'`, descrição `Baixa automática de pedido cobrado`).
+2. Ajustar `valor_pedido` em `revendedor_baixas_pedido` e `valor`/`saldo_posterior` do movimento de baixa para o valor atual do pedido (já congelado).
+3. Apagar o movimento de estorno.
+4. Recalcular `saldo_anterior` e `saldo_posterior` de **todos** os movimentos de cada revendedora afetada (em ordem cronológica) para manter consistência da sequência.
+
+Resultado: histórico fica como se a alteração de preço nunca tivesse mexido na baixa. Saldo final bate.
+
+### 2. Blindar o trigger para pedidos congelados
+
+Atualizar `trg_orders_estorno_baixa_on_value_change`:
 
 ```sql
-ALTER TABLE orders ADD COLUMN preco_congelado boolean NOT NULL DEFAULT false;
-CREATE INDEX idx_orders_preco_congelado ON orders(preco_congelado) WHERE preco_congelado = true;
+IF NEW.preco_congelado = true THEN
+  RETURN NEW;  -- pedido travado, não estorna por mudança de preço
+END IF;
 ```
 
-Quando `preco_congelado = true`, nenhuma rotina de recálculo toca em `preco`.
+Pedidos com `preco_congelado=true` ficam imunes a estornos automáticos por alteração de regra. Mudança manual de vendedor continua disparando (essa é legítima).
 
-### 2. Ajustar o recálculo para respeitar o flag
+### 3. Sem mudança de UI ou de código frontend
 
-Três pontos:
+Operação puramente de banco. Nenhum arquivo do app precisa ser tocado.
 
-- **`src/lib/recomputePricesBatch.ts`** — pular o update se `o.precoCongelado === true`.
-- **`supabase/functions/reconciliar-precos/index.ts`** — no SELECT filtrar `preco_congelado = false`, e mesmo nos que entrarem, não escrever `preco` se o flag for true (apenas atualizar `preco_regra_versao` para sair da fila).
-- **`src/lib/recomputeOrderPrice.ts` / `priceCache.ts`** — quando o pedido está congelado, exibição do detalhe continua mostrando `order.preco` armazenado em vez de recomputar (evita o card "Preço unit." piscar 30 quando o gravado é 25).
-- Tipagem em `AuthContext` (`Order.precoCongelado?: boolean`).
+## Detalhes técnicos
 
-### 3. Correção retroativa (script único)
+- Os 107 estornos têm timestamp entre `2026-05-19 12:18:11` e `12:18:21` e descrição exata `Estorno automático: valor/vendedor do pedido alterado` — fácil de filtrar com segurança.
+- As baixas correspondentes têm `created_at='2026-05-19 22:36:14.346789+00'`. O par é casado por `(vendedor, order_id)`.
+- Revendedoras afetadas: Denise, Fabiana, Larissa, Rafael. O recálculo de saldo é feito apenas para essas 4.
+- Idempotência: query filtra por descrição exata e data, não há risco de mexer em estornos manuais ou de outros dias.
+- A função `trg_orders_estorno_baixa_on_value_change` recebe um `CREATE OR REPLACE` adicionando só a guarda do flag no início.
 
-Para todo pedido com `created_at < '2026-05-18'` E `bordado_cano ILIKE '%Florência%'`:
+## Riscos / mitigação
 
-```
-novo_preco = preco_atual − (5 × quantidade × ocorrências_florencia_no_cano)
-preco_congelado = true
-preco_regra_versao = 6
-```
-
-Executado via migration (UPDATE em massa, idempotente — se já estiver congelado, pula). Afeta ~1.037 pedidos.
-
-Pedidos criados a partir de 18/05 ficam intocados (seguem regra nova R$ 30).
-
-### 4. UI (mínima)
-
-No detalhe do pedido, mostrar um badge discreto **"Preço congelado"** quando o flag estiver ativo, para o admin entender por que aquele pedido não acompanha a tabela atual. (Sem ação de toggle por enquanto — congelamento é só via correção.)
-
-## Pontos para confirmar antes de implementar
-
-1. **Corte exato**: pedidos `created_at < '2026-05-18 00:00 BRT'` (ou seja, ≤ 17/05 23:59) — confirma?
-2. **Só cano**: a alteração foi só em **Florência cano** (R$ 25→30)? Florência gáspea (R$15) e taloneira (R$10) ficam fora?
-3. **Outros bordados/itens alterados na mesma leva**: foi só Florência ou tem mais variações que precisam do mesmo tratamento?
-4. **Pedidos cancelados/deletados**: aplicar o congelamento neles também (para histórico bater) ou ignorar?
-
-Assim que confirmar, executo migration + edits.
+- **Risco**: recalcular saldo_anterior/posterior em série pode entrar em conflito com novos movimentos chegando no mesmo segundo. **Mitigação**: tudo em uma única transação com `LOCK TABLE revendedor_saldo_movimentos IN EXCLUSIVE MODE`.
+- **Risco**: pedido que foi estornado mas ainda não foi rebaixado (sem par em 22:36). **Mitigação**: nesse caso só apaga o estorno e mantém a `revendedor_baixas_pedido` original — mas vou verificar antes de rodar se isso acontece, e se sim, recriar a baixa com valor antigo.
+- Sem migrations destrutivas em schema; apenas DML + replace da função.
