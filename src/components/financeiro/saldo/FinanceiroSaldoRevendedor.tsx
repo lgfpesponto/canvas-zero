@@ -61,6 +61,25 @@ const FinanceiroSaldoRevendedor = () => {
           ? 'Pedidos cobrados voltam a ser pagos automaticamente quando o saldo cobrir.'
           : 'Nenhum pedido cobrado será pago automaticamente até religar.',
       });
+      if (next) {
+        try {
+          const res = await processarBaixasAutomaticasGeral();
+          if (res.pedidos_baixados > 0) {
+            toast({
+              title: 'Baixas processadas',
+              description: `${res.pedidos_baixados} pedido(s) cobrado(s) em ${res.vendedores_processados} vendedor(es) foram pagos com o saldo disponível.`,
+            });
+          } else {
+            toast({
+              title: 'Nada para processar',
+              description: 'Nenhum pedido cobrado tinha saldo suficiente no momento.',
+            });
+          }
+          load();
+        } catch (e: any) {
+          toast({ title: 'Erro ao processar baixas', description: e.message, variant: 'destructive' });
+        }
+      }
     } else {
       toast({ title: 'Erro ao atualizar', description: r.error, variant: 'destructive' });
     }
