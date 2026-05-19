@@ -419,12 +419,20 @@ const FinanceiroSaldoRevendedor = () => {
                         <span className="text-right tabular-nums">{formatCurrency(Number(s.total_utilizado))}</span>
                       </div>
                       {pendQtd > 0 && (
-                        <div className="mt-2 pt-2 border-t border-amber-300/40 text-[11px] text-amber-700 dark:text-amber-400 flex items-center justify-between gap-1">
-                          <span className="inline-flex items-center gap-1">
-                            <AlertTriangle size={11} /> {pendQtd} pedido(s) sem baixa
-                          </span>
-                          <span className="tabular-nums font-medium">{formatCurrency(pendValor)}</span>
-                        </div>
+                        <>
+                          <div className="mt-2 pt-2 border-t border-amber-300/40 text-[11px] text-amber-700 dark:text-amber-400 flex items-center justify-between gap-1">
+                            <span className="inline-flex items-center gap-1">
+                              <AlertTriangle size={11} /> {pendQtd} pedido(s) sem baixa
+                            </span>
+                            <span className="tabular-nums font-medium">{formatCurrency(pendValor)}</span>
+                          </div>
+                          {saldo - pendValor < 0 && (
+                            <div className="mt-1 text-[11px] text-destructive flex items-center justify-between gap-1 font-semibold">
+                              <span>Falta</span>
+                              <span className="tabular-nums">{formatCurrency(saldo - pendValor)}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </button>
                   );
