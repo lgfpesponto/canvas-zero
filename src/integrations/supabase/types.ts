@@ -640,6 +640,7 @@ export type Database = {
           pintura_desc: string | null
           preco: number
           preco_anterior: number | null
+          preco_congelado: boolean
           preco_migrado_v2: boolean
           preco_regra_versao: number | null
           quantidade: number
@@ -736,6 +737,7 @@ export type Database = {
           pintura_desc?: string | null
           preco?: number
           preco_anterior?: number | null
+          preco_congelado?: boolean
           preco_migrado_v2?: boolean
           preco_regra_versao?: number | null
           quantidade?: number
@@ -832,6 +834,7 @@ export type Database = {
           pintura_desc?: string | null
           preco?: number
           preco_anterior?: number | null
+          preco_congelado?: boolean
           preco_migrado_v2?: boolean
           preco_regra_versao?: number | null
           quantidade?: number
@@ -1398,6 +1401,7 @@ export type Database = {
           pintura_desc: string | null
           preco: number
           preco_anterior: number | null
+          preco_congelado: boolean
           preco_migrado_v2: boolean
           preco_regra_versao: number | null
           quantidade: number
