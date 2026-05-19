@@ -239,6 +239,12 @@ export async function marcarComprovanteUtilizado(comprovanteId: string, motivo: 
   return data as { ok: boolean; saldo_anterior: number; saldo_posterior: number };
 }
 
+export async function processarBaixasAutomaticasGeral() {
+  const { data, error } = await supabase.rpc('processar_baixas_automaticas_geral' as any);
+  if (error) throw error;
+  return data as { vendedores_processados: number; pedidos_baixados: number; flag_ativa: boolean };
+}
+
 /** Lista o nome_completo de todos os usuários cadastrados como vendedores
  *  (roles 'vendedor' ou 'vendedor_comissao'), ordenado A→Z. */
 export async function fetchVendedoresUsuarios(): Promise<string[]> {
