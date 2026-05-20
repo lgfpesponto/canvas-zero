@@ -1,51 +1,47 @@
+## Entendi o ponto
 
-## Objetivo
-1. **Congelar histórico de preços**: pedido nasce com o valor da régua atual e nunca mais muda quando o admin editar preços em /admin/configurações. Só pedidos **novos** (a partir da data da alteração) usam a nova régua.
-2. **Prazo de bota = 25 dias úteis** para botas criadas a partir de **segunda 18/05/2026**. Botas anteriores continuam com 20du.
+`preco_congelado` **não pode** travar o valor do pedido para sempre. Ele só serve para impedir que mudanças na régua de preços (admin/configurações) "vazem" para pedidos antigos via processos automáticos em background.
 
----
+Qualquer edição **manual** no próprio pedido (mudar bordado, trocar modelo, aplicar desconto, mudar quantidade, etc.) tem que recalcular normalmente e gravar o novo `preco` — destravando o valor para refletir o que realmente está sendo cobrado.
 
-## Parte 1 — Congelar preço por pedido
+## O que já está certo no código atual
 
-### Comportamento alvo
-- Pedido novo: calcula com a régua atual → grava `preco`, `preco_regra_versao = atual`, **`preco_congelado = true`**.
-- Pedido existente: nunca mais é tocado por reconciliador, backfill ou trigger.
-- Admin editar preço no painel: só impacta novos pedidos daqui pra frente. Comissão, saldo, relatórios históricos ficam estáveis.
-- Edição manual de um pedido (mudar modelo, bordado, qtd…): recalcula normalmente o `preco` daquele pedido com a régua **atual** (essa é a única forma de "destravar" — editar o próprio pedido). O valor segue congelado depois.
+- `EditOrderPage` (linha 464): no Salvar grava `preco = total - desconto` recalculado pela régua atual. **Ignora** `preco_congelado` ✓
+- `OrderDetailPage` aplicação de desconto (linha 1036): grava `novoTotal` direto ✓
+- `EditExtrasPage` / `EditBeltPage`: mesmo padrão (recalculam no save)
 
-### Mudanças
-1. **Migração SQL** — `UPDATE orders SET preco_congelado = true` em TODOS os pedidos existentes (one-shot).
-2. **Default da coluna** — `ALTER COLUMN preco_congelado SET DEFAULT true` para que toda nova linha já nasça congelada.
-3. **Trigger `trg_orders_estorno_baixa_on_value_change`** — já respeita `preco_congelado`, ok. Confirmar que demais triggers de recálculo (se houver) também respeitam.
-4. **Frontend**:
-   - `precoBackfillQueue.enqueueBackfill`: já pula congelados ✓.
-   - `PrecoAutoBackfill`: filtro `.eq('preco_congelado', false)` já existe ✓ — vira efetivamente no-op.
-   - `PrecoReconciler` (edge `reconciliar-precos`): adicionar filtro `preco_congelado = false` na query do edge function para nunca tocar pedidos congelados.
-   - Criação/edição de pedido (OrderPage, EditOrderPage, ExtrasPage, BeltOrderPage, EditExtrasPage): no payload de insert/update já grava `preco_congelado: true` explicitamente (cinto de segurança caso o default não pegue).
+Ou seja: abrir o pedido, mudar qualquer coisa e clicar Salvar **já** atualiza o preço com a régua atual de hoje.
 
-### Impacto colateral
-- O sistema atual de "régua versionada" (`preco_regra_versao` + `system_counters`) continua existindo, mas perde função prática — todo pedido fica congelado. Mantido para não quebrar nada.
-- Pedidos criados de hoje em diante são congelados igual. Se quiser ajustar valor de um pedido específico, basta abrir e salvar (recálculo manual).
+## O que `preco_congelado = true` bloqueia (e deve continuar bloqueando)
 
----
+| Processo | O que faz | Bloqueado? |
+|---|---|---|
+| `PrecoReconciler` (edge `reconciliar-precos`) | Varredura quando admin muda preços na régua | ✅ Sim |
+| `PrecoAutoBackfill` | Drenador silencioso em background | ✅ Sim |
+| `precoBackfillQueue` | Fila passiva ao carregar listas | ✅ Sim |
+| Auto-fix do `OrderDetailPage` (useEffect linha 122) | Conserta preço ao abrir o pedido | ✅ Sim |
+| **Save manual do EditOrderPage / desconto / edit extras** | Edição humana | ❌ **NÃO bloqueia** — recalcula sempre |
 
-## Parte 2 — Lead time de bota 25du a partir de 18/05/2026
+## Ajuste único necessário
 
-### Mudança em `src/lib/orderDeadline.ts`
-Função `getTotalBizDays`: para botas (sem `tipoExtra`) e cintos, retornar:
-```ts
-const created = parseCreatedDateRaw(order);
-const CUTOFF = new Date('2026-05-18T00:00:00');
-if (!order.tipoExtra) return created >= CUTOFF ? 25 : 20;
-if (order.tipoExtra === 'cinto') return 20;  // cinto fica 20du
-```
-Cinto fica como está (20du). Apenas **bota (ficha)** muda para 25du a partir de 18/05/2026.
+Garantir que **toda** rota de save manual force `preco_migrado_v2 = true` e mantenha `preco_congelado = true` no payload (cinto de segurança), para que:
 
-Pedidos anteriores a 18/05 continuam calculando com 20du; pedidos de 18/05 em diante já entram com 25du automaticamente — sem migração de dados, é cálculo dinâmico.
+1. O pedido sempre reflita o último valor manual editado.
+2. O reconciler nunca mais reverta esse valor automaticamente quando o admin mexer na régua depois.
 
----
+Nenhuma mudança de comportamento adicional — só revisar os payloads de save em:
+- `src/pages/EditOrderPage.tsx` (save final)
+- `src/pages/EditExtrasPage.tsx` (save final)
+- `src/pages/EditBeltPage.tsx` (save final)
+- `src/pages/OrderDetailPage.tsx` (aplicar desconto, mudar quantidade)
 
-## Confirmações
-1. **Congelar TODOS os pedidos existentes** (inclusive os criados hoje e ontem) está ok? 
-2. **25du vale só para bota** (cinto continua 20du), correto?
-3. Se um admin abrir um pedido antigo congelado e clicar "Salvar" sem mudar nada, ele **recalcula com a régua atual** (e segue congelado no novo valor). Confirma que esse comportamento está ok ou prefere que mesmo editar manualmente NÃO recalcule?
+para confirmarem o `preco_congelado: true` explícito junto do novo `preco`.
+
+## Confirmação
+
+O comportamento que você quer:
+- Bota custa 300, admin muda preço do bordado na configuração → **continua 300** ✓
+- Bota custa 300, você abre e troca o bordado / aplica desconto / muda qtd → **recalcula para 290 (ou o que for)** ✓
+- Quer "destravar" e recobrar pela régua atual → basta abrir o pedido e clicar Salvar sem mudar nada (o auto-recalc do save grava o valor novo)
+
+Posso aplicar essa revisão dos payloads de save?
