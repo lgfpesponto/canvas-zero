@@ -1,47 +1,61 @@
-## Entendi o ponto
+## Objetivo
+Corrigir definitivamente o saldo dos revendedores para que:
+- o resumo nunca mostre números incoerentes;
+- o saldo reflita o livro-razão real;
+- pedidos em `Cobrado` sem saldo suficiente apareçam como déficit (ex.: `-R$ 10,00`);
+- a regra fique correta para todos os vendedores, não só para a Denise.
 
-`preco_congelado` **não pode** travar o valor do pedido para sempre. Ele só serve para impedir que mudanças na régua de preços (admin/configurações) "vazem" para pedidos antigos via processos automáticos em background.
+## O que vou implementar
 
-Qualquer edição **manual** no próprio pedido (mudar bordado, trocar modelo, aplicar desconto, mudar quantidade, etc.) tem que recalcular normalmente e gravar o novo `preco` — destravando o valor para refletir o que realmente está sendo cobrado.
+### 1. Auditoria e correção do saldo histórico no banco
+Criar uma migração para recalcular o livro-razão dos revendedores a partir dos movimentos reais e eliminar inconsistências de saldo acumulado.
 
-## O que já está certo no código atual
+Isso vai incluir:
+- recalcular `saldo_anterior` e `saldo_posterior` de todos os movimentos por vendedor em ordem cronológica;
+- tratar corretamente movimentos que não devem alterar saldo, como quitação histórica;
+- validar e corrigir movimentos antigos que deixaram saldo negativo indevido durante baixas automáticas;
+- preservar o histórico, sem apagar pedidos nem comprovantes.
 
-- `EditOrderPage` (linha 464): no Salvar grava `preco = total - desconto` recalculado pela régua atual. **Ignora** `preco_congelado` ✓
-- `OrderDetailPage` aplicação de desconto (linha 1036): grava `novoTotal` direto ✓
-- `EditExtrasPage` / `EditBeltPage`: mesmo padrão (recalculam no save)
+### 2. Blindagem da baixa automática
+Ajustar a função de baixa automática para garantir que:
+- nenhuma baixa seja registrada se o saldo atual não cobrir o pedido naquele momento;
+- o processamento FIFO pare no primeiro pedido que não couber no saldo;
+- não seja possível gerar sequência de movimentos com `saldo_anterior` já negativo por erro de reprocessamento.
 
-Ou seja: abrir o pedido, mudar qualquer coisa e clicar Salvar **já** atualiza o preço com a régua atual de hoje.
+### 3. Revisão das rotinas que distorcem o saldo
+Revisar e corrigir funções relacionadas para que não inflem `utilizado` ou `saldo` indevidamente:
+- estorno automático por alteração de pedido;
+- reprocessamento em massa de baixas automáticas;
+- quitação histórica sem impacto em saldo;
+- ajuste manual negativo/positivo.
 
-## O que `preco_congelado = true` bloqueia (e deve continuar bloqueando)
+### 4. Correção da UI do Financeiro
+Atualizar a tela `/financeiro?tab=saldo` para que:
+- os cards usem os números corrigidos do banco;
+- o cartão do vendedor destaque claramente quando há pedidos cobrados sem cobertura;
+- quando faltar saldo para o próximo pedido, o visor mostre o déficit em negativo (ex.: `-R$ 10,00`), em vez de esconder ou mostrar como valor positivo “faltante”;
+- a lista FIFO do drawer siga a mesma lógica visual.
 
-| Processo | O que faz | Bloqueado? |
-|---|---|---|
-| `PrecoReconciler` (edge `reconciliar-precos`) | Varredura quando admin muda preços na régua | ✅ Sim |
-| `PrecoAutoBackfill` | Drenador silencioso em background | ✅ Sim |
-| `precoBackfillQueue` | Fila passiva ao carregar listas | ✅ Sim |
-| Auto-fix do `OrderDetailPage` (useEffect linha 122) | Conserta preço ao abrir o pedido | ✅ Sim |
-| **Save manual do EditOrderPage / desconto / edit extras** | Edição humana | ❌ **NÃO bloqueia** — recalcula sempre |
+### 5. Validação com dados reais
+Validar a correção com consulta real no banco, incluindo:
+- Denise Garcia Feliciano;
+- conferência amostral dos demais vendedores;
+- comparação entre recebido, utilizado, estornos, saldo atual e pedidos cobrados pendentes.
 
-## Ajuste único necessário
+## Resultado esperado
+Depois disso:
+- `Recebido - Utilizado + Estornos/Ajustes = Saldo` ficará consistente;
+- não haverá vendedor com “mais utilizado do que recebido e ainda saldo positivo” sem justificativa contábil real;
+- pedidos em `Cobrado` sem cobertura aparecerão como saldo negativo necessário para baixa;
+- o comportamento ficará correto para todos os vendedores.
 
-Garantir que **toda** rota de save manual force `preco_migrado_v2 = true` e mantenha `preco_congelado = true` no payload (cinto de segurança), para que:
-
-1. O pedido sempre reflita o último valor manual editado.
-2. O reconciler nunca mais reverta esse valor automaticamente quando o admin mexer na régua depois.
-
-Nenhuma mudança de comportamento adicional — só revisar os payloads de save em:
-- `src/pages/EditOrderPage.tsx` (save final)
-- `src/pages/EditExtrasPage.tsx` (save final)
-- `src/pages/EditBeltPage.tsx` (save final)
-- `src/pages/OrderDetailPage.tsx` (aplicar desconto, mudar quantidade)
-
-para confirmarem o `preco_congelado: true` explícito junto do novo `preco`.
-
-## Confirmação
-
-O comportamento que você quer:
-- Bota custa 300, admin muda preço do bordado na configuração → **continua 300** ✓
-- Bota custa 300, você abre e troca o bordado / aplica desconto / muda qtd → **recalcula para 290 (ou o que for)** ✓
-- Quer "destravar" e recobrar pela régua atual → basta abrir o pedido e clicar Salvar sem mudar nada (o auto-recalc do save grava o valor novo)
-
-Posso aplicar essa revisão dos payloads de save?
+## Detalhes técnicos
+- Vou mexer principalmente nas migrations do Supabase que definem:
+  - `vw_revendedor_saldo`
+  - `saldo_atual_revendedor(...)`
+  - `tentar_baixa_automatica(...)`
+  - triggers/funções de estorno e reprocessamento
+- E na UI:
+  - `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx`
+  - `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx`
+- Não vou alterar regras de preço de pedidos; só a lógica financeira/saldo e a exibição do déficit.
