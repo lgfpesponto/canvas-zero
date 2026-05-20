@@ -1035,6 +1035,7 @@ const OrderDetailPage = () => {
                       descontoJustificativa: justificativaInput.trim(),
                       preco: novoTotal,
                       precoMigradoV2: true,
+                      precoCongelado: true,
                       precoRegraVersao: versao,
                     }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
                     if (!res.ok) {
