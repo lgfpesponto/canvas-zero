@@ -461,8 +461,11 @@ const EditOrderPage = () => {
       ...(isAdmin ? { vendedor } : {}),
       solado, formatoBico, quantidade: 1,
       // Modelo v2: preco gravado é o TOTAL FINAL (subtotal − desconto/+acréscimo aplicado).
+      // Edição manual sempre recalcula com a régua atual e mantém o pedido congelado
+      // (preco_congelado=true) para que reconciler/backfill não revertam esse valor depois.
       preco: Math.max(0, total - (Number(order.desconto) || 0)),
       precoMigradoV2: true,
+      precoCongelado: true,
       temLaser: hasAnyLaser, fotos,
       couroGaspea: tipoCouroGaspea, couroCano: tipoCouroCano, couroTaloneira: tipoCouroTaloneira,
       corCouroGaspea, corCouroCano, corCouroTaloneira,
