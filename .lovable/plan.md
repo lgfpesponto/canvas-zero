@@ -1,61 +1,25 @@
-## Objetivo
-Corrigir definitivamente o saldo dos revendedores para que:
-- o resumo nunca mostre números incoerentes;
-- o saldo reflita o livro-razão real;
-- pedidos em `Cobrado` sem saldo suficiente apareçam como déficit (ex.: `-R$ 10,00`);
-- a regra fique correta para todos os vendedores, não só para a Denise.
+## Adicionar filtro de Vendedor ao relatório de Escalação
 
-## O que vou implementar
+Hoje o filtro "Vendedor" aparece apenas para os relatórios de Expedição e Cobrança. Vou habilitá-lo também para Escalação, mantendo o comportamento padrão (`Todos vendedores`) e refletindo a escolha no PDF.
 
-### 1. Auditoria e correção do saldo histórico no banco
-Criar uma migração para recalcular o livro-razão dos revendedores a partir dos movimentos reais e eliminar inconsistências de saldo acumulado.
+### Alterações em `src/components/SpecializedReports.tsx`
 
-Isso vai incluir:
-- recalcular `saldo_anterior` e `saldo_posterior` de todos os movimentos por vendedor em ordem cronológica;
-- tratar corretamente movimentos que não devem alterar saldo, como quitação histórica;
-- validar e corrigir movimentos antigos que deixaram saldo negativo indevido durante baixas automáticas;
-- preservar o histórico, sem apagar pedidos nem comprovantes.
+1. **Mostrar o seletor de Vendedor na Escalação**
+   - Incluir `'escalacao'` em `needsVendedorFilter` (linha 1865), para que o `<Select>` de vendedor apareça na UI do relatório.
 
-### 2. Blindagem da baixa automática
-Ajustar a função de baixa automática para garantir que:
-- nenhuma baixa seja registrada se o saldo atual não cobrir o pedido naquele momento;
-- o processamento FIFO pare no primeiro pedido que não couber no saldo;
-- não seja possível gerar sequência de movimentos com `saldo_anterior` já negativo por erro de reprocessamento.
+2. **Aplicar o filtro em `generateEscalacaoPDF` (linhas 481–526)**
+   - No `sourceOrders.filter`, somar a condição `(filterVendedor === 'todos' || o.vendedor === filterVendedor)`.
+   - No cabeçalho do PDF, acrescentar o vendedor escolhido junto da data/progresso (ex.: `ESCALAÇÃO — BAIXA CORTE — TODOS VENDEDORES — 20/05/2026`).
+   - Incluir o vendedor no nome do arquivo: `Escalação - {progresso} - {vendedor} - {data}.pdf`.
+   - Registrar no snapshot (`registrarPdfSnapshot`) o filtro `vendedor` junto de `progresso`.
 
-### 3. Revisão das rotinas que distorcem o saldo
-Revisar e corrigir funções relacionadas para que não inflem `utilizado` ou `saldo` indevidamente:
-- estorno automático por alteração de pedido;
-- reprocessamento em massa de baixas automáticas;
-- quitação histórica sem impacto em saldo;
-- ajuste manual negativo/positivo.
+3. **Confirmação antes de imprimir**
+   - O bloco que monta o `ReportConfirmSummary` já inclui automaticamente a linha de Vendedor quando `needsVendedorFilter` é true (linha 1827), então nada muda além do passo 1.
 
-### 4. Correção da UI do Financeiro
-Atualizar a tela `/financeiro?tab=saldo` para que:
-- os cards usem os números corrigidos do banco;
-- o cartão do vendedor destaque claramente quando há pedidos cobrados sem cobertura;
-- quando faltar saldo para o próximo pedido, o visor mostre o déficit em negativo (ex.: `-R$ 10,00`), em vez de esconder ou mostrar como valor positivo “faltante”;
-- a lista FIFO do drawer siga a mesma lógica visual.
+### Comportamento esperado
 
-### 5. Validação com dados reais
-Validar a correção com consulta real no banco, incluindo:
-- Denise Garcia Feliciano;
-- conferência amostral dos demais vendedores;
-- comparação entre recebido, utilizado, estornos, saldo atual e pedidos cobrados pendentes.
+- Ao abrir Escalação, o usuário verá o seletor de Vendedor logo abaixo do filtro de Progresso.
+- Selecionar um vendedor filtra os pedidos antes do agrupamento por solado/bico/cor, sem alterar a lógica de blocos atual.
+- Manter "Todos vendedores" preserva o relatório como é hoje.
 
-## Resultado esperado
-Depois disso:
-- `Recebido - Utilizado + Estornos/Ajustes = Saldo` ficará consistente;
-- não haverá vendedor com “mais utilizado do que recebido e ainda saldo positivo” sem justificativa contábil real;
-- pedidos em `Cobrado` sem cobertura aparecerão como saldo negativo necessário para baixa;
-- o comportamento ficará correto para todos os vendedores.
-
-## Detalhes técnicos
-- Vou mexer principalmente nas migrations do Supabase que definem:
-  - `vw_revendedor_saldo`
-  - `saldo_atual_revendedor(...)`
-  - `tentar_baixa_automatica(...)`
-  - triggers/funções de estorno e reprocessamento
-- E na UI:
-  - `src/components/financeiro/saldo/FinanceiroSaldoRevendedor.tsx`
-  - `src/components/financeiro/saldo/DetalhesRevendedorDrawer.tsx`
-- Não vou alterar regras de preço de pedidos; só a lógica financeira/saldo e a exibição do déficit.
+Nenhuma mudança em backend, schema ou outras telas.
