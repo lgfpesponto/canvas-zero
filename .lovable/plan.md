@@ -1,34 +1,51 @@
 
 ## Objetivo
-Definir R$ 30 como valor base de **Gravata Pronta Entrega** e corrigir TODOS os pedidos existentes que estão zerados.
+1. **Congelar histórico de preços**: pedido nasce com o valor da régua atual e nunca mais muda quando o admin editar preços em /admin/configurações. Só pedidos **novos** (a partir da data da alteração) usam a nova régua.
+2. **Prazo de bota = 25 dias úteis** para botas criadas a partir de **segunda 18/05/2026**. Botas anteriores continuam com 20du.
 
-## Mudanças
+---
 
-### 1. Backfill retroativo (migração SQL)
-Atualizar todos os pedidos com `tipo_extra = 'gravata_pronta_entrega'` que estão com `preco = 0`:
-- `preco = 30`
-- `preco_migrado_v2 = true`
-- `preco_congelado = true` (para travar o valor e não ser mexido por reconciliadores futuros)
-- Registrar entrada em `historico` com motivo "Ajuste retroativo: Gravata Pronta Entrega padronizada em R$ 30".
+## Parte 1 — Congelar preço por pedido
 
-Impacto colateral esperado (intencional):
-- Comissão histórica desses pedidos passa a contar R$ 30 cada.
-- Saldo de revendedor: o trigger de mudança de preço vai gerar baixa/estorno automaticamente para os pedidos já cobrados. Como agora têm `preco_congelado = true`, não geram estorno futuro.
-- Relatórios de vendas/dashboard refletem o novo valor.
+### Comportamento alvo
+- Pedido novo: calcula com a régua atual → grava `preco`, `preco_regra_versao = atual`, **`preco_congelado = true`**.
+- Pedido existente: nunca mais é tocado por reconciliador, backfill ou trigger.
+- Admin editar preço no painel: só impacta novos pedidos daqui pra frente. Comissão, saldo, relatórios históricos ficam estáveis.
+- Edição manual de um pedido (mudar modelo, bordado, qtd…): recalcula normalmente o `preco` daquele pedido com a régua **atual** (essa é a única forma de "destravar" — editar o próprio pedido). O valor segue congelado depois.
 
-### 2. Cálculo no frontend (`recomputeOrderPrice.ts`)
-Adicionar case no `computeExtraTotal`:
+### Mudanças
+1. **Migração SQL** — `UPDATE orders SET preco_congelado = true` em TODOS os pedidos existentes (one-shot).
+2. **Default da coluna** — `ALTER COLUMN preco_congelado SET DEFAULT true` para que toda nova linha já nasça congelada.
+3. **Trigger `trg_orders_estorno_baixa_on_value_change`** — já respeita `preco_congelado`, ok. Confirmar que demais triggers de recálculo (se houver) também respeitam.
+4. **Frontend**:
+   - `precoBackfillQueue.enqueueBackfill`: já pula congelados ✓.
+   - `PrecoAutoBackfill`: filtro `.eq('preco_congelado', false)` já existe ✓ — vira efetivamente no-op.
+   - `PrecoReconciler` (edge `reconciliar-precos`): adicionar filtro `preco_congelado = false` na query do edge function para nunca tocar pedidos congelados.
+   - Criação/edição de pedido (OrderPage, EditOrderPage, ExtrasPage, BeltOrderPage, EditExtrasPage): no payload de insert/update já grava `preco_congelado: true` explicitamente (cinto de segurança caso o default não pegue).
+
+### Impacto colateral
+- O sistema atual de "régua versionada" (`preco_regra_versao` + `system_counters`) continua existindo, mas perde função prática — todo pedido fica congelado. Mantido para não quebrar nada.
+- Pedidos criados de hoje em diante são congelados igual. Se quiser ajustar valor de um pedido específico, basta abrir e salvar (recálculo manual).
+
+---
+
+## Parte 2 — Lead time de bota 25du a partir de 18/05/2026
+
+### Mudança em `src/lib/orderDeadline.ts`
+Função `getTotalBizDays`: para botas (sem `tipoExtra`) e cintos, retornar:
 ```ts
-case 'gravata_pronta_entrega': t += 30; break;
+const created = parseCreatedDateRaw(order);
+const CUTOFF = new Date('2026-05-18T00:00:00');
+if (!order.tipoExtra) return created >= CUTOFF ? 25 : 20;
+if (order.tipoExtra === 'cinto') return 20;  // cinto fica 20du
 ```
-Garante que pedidos novos/editados gravem R$ 30 automaticamente, igual ao `gravata_country`.
+Cinto fica como está (20du). Apenas **bota (ficha)** muda para 25du a partir de 18/05/2026.
 
-### 3. (Opcional) Sem alteração em `extrasConfig.ts`
-O `EXTRA_PRODUCTS` já tem `gravata_pronta_entrega` com `precoBase: 30` — nada a mudar.
+Pedidos anteriores a 18/05 continuam calculando com 20du; pedidos de 18/05 em diante já entram com 25du automaticamente — sem migração de dados, é cálculo dinâmico.
 
-## Confirmação necessária
-Confirma que:
-1. **TODOS** os pedidos `gravata_pronta_entrega` zerados devem ir para R$ 30 (mesmo os bem antigos, já entregues/pagos)?
-2. Pode impactar comissão histórica e gerar movimentos automáticos de saldo nos revendedores afetados?
+---
 
-Se sim, executo a migração + ajuste no frontend.
+## Confirmações
+1. **Congelar TODOS os pedidos existentes** (inclusive os criados hoje e ontem) está ok? 
+2. **25du vale só para bota** (cinto continua 20du), correto?
+3. Se um admin abrir um pedido antigo congelado e clicar "Salvar" sem mudar nada, ele **recalcula com a régua atual** (e segue congelado no novo valor). Confirma que esse comportamento está ok ou prefere que mesmo editar manualmente NÃO recalcule?
