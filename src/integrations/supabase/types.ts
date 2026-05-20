@@ -1292,6 +1292,7 @@ export type Database = {
           total_estornos: number | null
           total_recebido: number | null
           total_utilizado: number | null
+          total_utilizado_bruto: number | null
           vendedor: string | null
         }
         Relationships: []

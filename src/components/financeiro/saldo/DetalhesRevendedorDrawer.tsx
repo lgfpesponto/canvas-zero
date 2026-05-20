@@ -185,20 +185,41 @@ export const DetalhesRevendedorDrawer = ({ open, onOpenChange, saldo, onChanged 
           </SheetHeader>
 
           {/* Resumo */}
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <Card><CardContent className="p-3">
-              <p className="text-xs text-muted-foreground">Recebido</p>
-              <p className="font-bold">{formatCurrency(saldo?.total_recebido || 0)}</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-3">
-              <p className="text-xs text-muted-foreground">Utilizado</p>
-              <p className="font-bold">{formatCurrency(saldo?.total_utilizado || 0)}</p>
-            </CardContent></Card>
-            <Card className="border-primary border-2"><CardContent className="p-3">
-              <p className="text-xs text-primary">Saldo</p>
-              <p className="font-bold text-primary">{formatCurrency(saldo?.saldo_disponivel || 0)}</p>
-            </CardContent></Card>
-          </div>
+          {(() => {
+            const saldoAtual = Number(saldo?.saldo_disponivel || 0);
+            const pendValor = filaPedidos.reduce((s, p) => s + p.valorTotal, 0);
+            const saldoLiquido = saldoAtual - pendValor;
+            const negativo = saldoLiquido < 0;
+            return (
+              <>
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <Card><CardContent className="p-3">
+                    <p className="text-xs text-muted-foreground">Recebido</p>
+                    <p className="font-bold">{formatCurrency(saldo?.total_recebido || 0)}</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-3">
+                    <p className="text-xs text-muted-foreground">Utilizado</p>
+                    <p className="font-bold">{formatCurrency(saldo?.total_utilizado || 0)}</p>
+                  </CardContent></Card>
+                  <Card className={`border-2 ${negativo ? 'border-destructive' : 'border-primary'}`}>
+                    <CardContent className="p-3">
+                      <p className={`text-xs ${negativo ? 'text-destructive' : 'text-primary'}`}>
+                        {pendValor > 0 ? 'Saldo (após pendências)' : 'Saldo'}
+                      </p>
+                      <p className={`font-bold ${negativo ? 'text-destructive' : 'text-primary'}`}>
+                        {formatCurrency(saldoLiquido)}
+                      </p>
+                      {pendValor > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Disponível {formatCurrency(saldoAtual)} − pendente {formatCurrency(pendValor)}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            );
+          })()}
 
           <div className="mt-4 flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setAjusteOpen(true)}>
