@@ -131,6 +131,7 @@ function computeExtraTotal(order: Order): number {
     case 'revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
     case 'kit_revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 26 * qty; break; }
     case 'gravata_country': t += 30; break;
+    case 'gravata_pronta_entrega': t += 30; break;
     case 'adicionar_metais': {
       const sel = (det.metaisSelecionados as string[]) || [];
       if (sel.includes('Bola grande')) { const qty = parseInt(det.qtdBolaGrande) || 1; t += 0.60 * qty; }
