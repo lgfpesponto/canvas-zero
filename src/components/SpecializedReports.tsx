@@ -482,7 +482,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const generateEscalacaoPDF = () => {
     const filtered = sourceOrders.filter(o =>
       progressoMatches(o.status) &&
-      !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-'
+      !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-' &&
+      (filterVendedor === 'todos' || o.vendedor === filterVendedor)
     );
     // Group by solado+formatoBico+corSola+corVira
     const groups: Record<string, { solado: string; formatoBico: string; corSola: string; corVira: string; sizes: Record<string, number> }> = {};
@@ -501,12 +502,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const progressoLabel = progressoLabelText();
     const progressoFile = progressoFileLabel();
+    const vendedorLabel = filterVendedor === 'todos' ? 'Todos vendedores' : filterVendedor;
 
     const doc = new jsPDF();
     const mx = 14;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`ESCALAÇÃO — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
+    doc.text(`ESCALAÇÃO — ${progressoLabel.toUpperCase()} — ${vendedorLabel.toUpperCase()} — ${dataBR}`, mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
@@ -521,8 +523,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Escalação', userName);
-    void registrarPdfSnapshot({ tipo: 'escalacao', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
-    doc.save(`Escalação - ${progressoFile} - ${dateFile}.pdf`);
+    void registrarPdfSnapshot({ tipo: 'escalacao', filtros: { progresso: [...filterProgresso], vendedor: filterVendedor }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
+    doc.save(`Escalação - ${progressoFile} - ${vendedorLabel} - ${dateFile}.pdf`);
   };
 
   // ── Forro: compact block layout ──
