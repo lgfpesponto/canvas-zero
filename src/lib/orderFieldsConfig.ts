@@ -104,7 +104,7 @@ export function getCoresCouroFiltradas(tipoCouro: string): string[] {
 
 // ==================== BORDADOS (legacy – kept for backward compatibility) ====================
 export const BORDADOS: { label: string; preco: number }[] = [
-  { label: 'Florência', preco: 25 },
+  { label: 'Florência', preco: 30 },
   { label: 'Linhas', preco: 25 },
   { label: 'Peão Elite G', preco: 35 },
   { label: 'Velho Barreiro', preco: 70 },
@@ -135,7 +135,7 @@ export const BORDADOS: { label: string; preco: number }[] = [
 
 // ==================== BORDADOS POR REGIÃO ====================
 export const BORDADOS_CANO: { label: string; preco: number }[] = [
-  { label: 'Florência', preco: 25 },
+  { label: 'Florência', preco: 30 },
   { label: 'Linhas', preco: 25 },
   { label: 'Peão Elite G', preco: 35 },
   { label: 'Velho Barreiro', preco: 70 },
