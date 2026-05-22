@@ -84,6 +84,9 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
             <Button variant="ghost" size="icon" title="Nova conversa" onClick={() => { newConversation(); setShowHistory(false); }}>
               <Plus className="h-4 w-4" />
             </Button>
+            <Button variant="ghost" size="icon" title="Planos salvos" onClick={() => setPlanosOpen(true)}>
+              <FileText className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" title="Histórico" onClick={() => setShowHistory(v => !v)}>
               <History className="h-4 w-4" />
             </Button>
