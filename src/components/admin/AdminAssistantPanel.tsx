@@ -203,6 +203,11 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
           </Button>
         </div>
       </SheetContent>
+      <AdminAssistantPlanosDialog
+        open={planosOpen}
+        onOpenChange={setPlanosOpen}
+        onSendToChat={(content) => setInput(content)}
+      />
     </Sheet>
   );
 }
