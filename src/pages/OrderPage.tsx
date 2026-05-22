@@ -1065,6 +1065,19 @@ const OrderPage = () => {
     if (corGlitterGaspea) items.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
     if (laserTaloneira.length) items.push(['Laser Taloneira', laserTaloneiraPreco || LASER_TALONEIRA_PRECO]);
     if (corGlitterTaloneira) items.push(['Glitter/Tecido Taloneira', GLITTER_TALONEIRA_PRECO]);
+    // Recortes (preço configurável via admin — ficha_variacoes)
+    if (recorteCano) {
+      const p = findPrice(recorteCano, 'recorte_cano', []);
+      if (p) items.push(['Recorte Cano: ' + recorteCano, p]);
+    }
+    if (recorteGaspea) {
+      const p = findPrice(recorteGaspea, 'recorte_gaspea', []);
+      if (p) items.push(['Recorte Gáspea: ' + recorteGaspea, p]);
+    }
+    if (recorteTaloneira) {
+      const p = findPrice(recorteTaloneira, 'recorte_taloneira', []);
+      if (p) items.push(['Recorte Taloneira: ' + recorteTaloneira, p]);
+    }
     if (pintura) items.push(['Pintura', PINTURA_PRECO]);
     if (estampa) items.push(['Estampa', ESTAMPA_PRECO]);
     if (areaMetalPreco) items.push(['Área Metal: ' + areaMetal, areaMetalPreco]);
