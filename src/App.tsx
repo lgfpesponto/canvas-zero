@@ -31,6 +31,7 @@ import RevendedorSaldoPage from "./pages/RevendedorSaldoPage";
 import GestaoPage from "./pages/GestaoPage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
+import PriceChangeDialog from "@/components/admin/PriceChangeDialog";
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
@@ -60,6 +61,7 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
       {!hideChrome && <DeployNoticeBanner />}
       {!hideChrome && <Header />}
       {!hideChrome && <AdminAssistantFab />}
+      {!hideChrome && <PriceChangeDialog />}
       {!hideChrome && <PrecoReconciler />}
       {children}
     </>

@@ -192,11 +192,51 @@ export function useUpdateVariacao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (v: { id: string; nome?: string; preco_adicional?: number; ativo?: boolean; ordem?: number; relacionamento?: any }) => {
-      const { id, ...rest } = v;
-      const { error } = await supabase.from('ficha_variacoes').update(rest).eq('id', id);
+      const { id, preco_adicional, ...rest } = v;
+
+      // Se está mudando preço, consulta guard antes de salvar
+      if (preco_adicional !== undefined) {
+        const { data: current } = await supabase
+          .from('ficha_variacoes')
+          .select('nome, preco_adicional')
+          .eq('id', id)
+          .maybeSingle();
+        const precoAntes = Number(current?.preco_adicional || 0);
+        const precoDepois = Number(preco_adicional) || 0;
+        if (current && precoAntes !== precoDepois) {
+          const { requestPriceChange } = await import('@/lib/priceChangeGuard');
+          const result = await requestPriceChange({
+            tipo: 'ficha_variacao',
+            target_id: id,
+            label: (rest.nome as string) || current.nome,
+            preco_antes: precoAntes,
+            preco_depois: precoDepois,
+          });
+          if (result === null) {
+            // Cancelado: salva apenas nome/ativo/ordem, mantém preço antigo
+            if (Object.keys(rest).length > 0) {
+              const { error } = await supabase.from('ficha_variacoes').update(rest).eq('id', id);
+              if (error) throw error;
+            }
+            return;
+          }
+          // RPC já atualizou o preço. Salva o resto.
+          if (Object.keys(rest).length > 0) {
+            const { error } = await supabase.from('ficha_variacoes').update(rest).eq('id', id);
+            if (error) throw error;
+          }
+          return;
+        }
+      }
+
+      const payload = preco_adicional !== undefined ? { ...rest, preco_adicional } : rest;
+      const { error } = await supabase.from('ficha_variacoes').update(payload).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_variacoes'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
+    },
   });
 }
 

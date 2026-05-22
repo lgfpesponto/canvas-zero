@@ -81,6 +81,35 @@ export function useCustomOptions() {
       toast.error(PRICE_REQUIRED_MESSAGE);
       return;
     }
+
+    const precoAntes = Number(current?.preco || 0);
+    const precoDepois = Number(preco) || 0;
+
+    if (current && precoAntes !== precoDepois) {
+      const { requestPriceChange } = await import('@/lib/priceChangeGuard');
+      const result = await requestPriceChange({
+        tipo: 'custom_option',
+        target_id: id,
+        label,
+        preco_antes: precoAntes,
+        preco_depois: precoDepois,
+      });
+      if (result === null) {
+        // Cancelado: salva só o label
+        if (label !== current.label) {
+          await supabase.from('custom_options').update({ label }).eq('id', id);
+          setOptions(prev => prev.map(o => o.id === id ? { ...o, label } : o));
+        }
+        return;
+      }
+      // RPC já atualizou o preço. Atualiza label se mudou também.
+      if (label !== current.label) {
+        await supabase.from('custom_options').update({ label }).eq('id', id);
+      }
+      setOptions(prev => prev.map(o => o.id === id ? { ...o, label, preco: precoDepois } : o));
+      return;
+    }
+
     const { error } = await supabase
       .from('custom_options')
       .update({ label, preco })
