@@ -527,6 +527,22 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     renderCats(colCats[1], col2X);
     renderCats(colCats[2], col3X);
 
+    // ─── CÓDIGO DE BARRAS SUPERIOR (área livre acima do canhoto, lado direito) ───
+    {
+      const bcValTop = orderBarcodeValue(order.numero, order.id);
+      const bcUrlTop = barcodeDataUrl(bcValTop, { width: 2, height: 40 });
+      if (bcUrlTop) {
+        const topBcW = 60;
+        const topBcH = 14;
+        const topBcX = pw - m - topBcW - 2;
+        const topBcY = (ph - 34) - topBcH - 6; // 6mm de respiro acima do tracejado
+        try { doc.addImage(bcUrlTop, 'PNG', topBcX, topBcY, topBcW, topBcH); } catch {}
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(orderNumClean, topBcX + topBcW / 2, topBcY + topBcH + 3, { align: 'center' });
+      }
+    }
+
     // ─── STUB ÚNICO (montagem/sola + código de barras) ───
     const stubTop = ph - 34;
     doc.setLineWidth(0.3);
