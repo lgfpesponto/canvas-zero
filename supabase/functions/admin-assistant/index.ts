@@ -935,7 +935,7 @@ Deno.serve(async (req) => {
           let parsedArgs: any = {};
           try { parsedArgs = JSON.parse(tc.function?.arguments || "{}"); } catch { parsedArgs = {}; }
           console.log(`[tool] ${tc.function?.name}`, JSON.stringify(parsedArgs).slice(0, 200));
-          const result = await executeTool(tc.function?.name, parsedArgs);
+          const result = await executeTool(tc.function?.name, parsedArgs, userId);
           const serialized = JSON.stringify(result);
           conversation.push({
             role: "tool",
