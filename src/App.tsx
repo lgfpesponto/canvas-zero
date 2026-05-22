@@ -61,6 +61,7 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
       {!hideChrome && <DeployNoticeBanner />}
       {!hideChrome && <Header />}
       {!hideChrome && <AdminAssistantFab />}
+      {!hideChrome && <PriceChangeDialog />}
       {!hideChrome && <PrecoReconciler />}
       {children}
     </>
