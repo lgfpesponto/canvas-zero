@@ -304,7 +304,7 @@ export function orderToDbRow(order: any, userId: string) {
     preco: order.preco ?? 0,
     preco_migrado_v2: order.precoMigradoV2 ?? true,
     preco_regra_versao: order.precoRegraVersao ?? null,
-    preco_congelado: order.precoCongelado ?? true,
+    preco_congelado: order.precoCongelado ?? false,
     status: order.status || 'Em aberto',
     data_criacao: order.dataCriacao,
     hora_criacao: order.horaCriacao,

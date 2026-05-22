@@ -121,7 +121,6 @@ const OrderDetailPage = () => {
   // Precisa rodar ANTES dos early returns para manter ordem de hooks estável.
   useEffect(() => {
     if (!order || autoFixedRef.current) return;
-    if (order.precoCongelado) return; // preço travado: não auto-corrige
     const expected = computeTotalToSave(order, findFichaPrice, getByCategoria);
     const diff = Math.abs(expected - (Number(order.preco) || 0));
     if (diff < 1 && order.precoMigradoV2) return;
@@ -387,6 +386,22 @@ const OrderDetailPage = () => {
   if (order.corGlitterCano) priceItems.push(['Glitter/Tecido Cano', GLITTER_CANO_PRECO]);
   if (order.laserGaspea) priceItems.push(['Laser Gáspea', LASER_GASPEA_PRECO]);
   if (order.corGlitterGaspea) priceItems.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
+  // Recortes (preço configurável via admin — ficha_variacoes)
+  const recCano = (order as any).recorteCano as string | undefined;
+  const recGas = (order as any).recorteGaspea as string | undefined;
+  const recTal = (order as any).recorteTaloneira as string | undefined;
+  if (recCano) {
+    const p = findFichaPrice(recCano, 'recorte_cano') ?? 0;
+    if (p) priceItems.push(['Recorte Cano: ' + recCano, p]);
+  }
+  if (recGas) {
+    const p = findFichaPrice(recGas, 'recorte_gaspea') ?? 0;
+    if (p) priceItems.push(['Recorte Gáspea: ' + recGas, p]);
+  }
+  if (recTal) {
+    const p = findFichaPrice(recTal, 'recorte_taloneira') ?? 0;
+    if (p) priceItems.push(['Recorte Taloneira: ' + recTal, p]);
+  }
   if (order.pintura === 'Sim') priceItems.push(['Pintura', PINTURA_PRECO]);
   if (order.estampa === 'Sim') priceItems.push(['Estampa', ESTAMPA_PRECO]);
   const areaP = AREA_METAL.find(a => a.label === order.metais)?.preco;
@@ -734,14 +749,6 @@ const OrderDetailPage = () => {
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-display font-bold">Composição do Pedido</h2>
-              {order.precoCongelado && (
-                <span
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                  title="Este pedido tem o preço travado e não é recalculado quando a tabela de preços muda."
-                >
-                  Preço congelado
-                </span>
-              )}
             </div>
             {role === 'admin_master' && (
               <label
@@ -1035,7 +1042,7 @@ const OrderDetailPage = () => {
                       descontoJustificativa: justificativaInput.trim(),
                       preco: novoTotal,
                       precoMigradoV2: true,
-                      precoCongelado: true,
+                      precoCongelado: false,
                       precoRegraVersao: versao,
                     }, `${acaoLabel}: ${formatCurrency(val)} — ${justificativaInput.trim()}`);
                     if (!res.ok) {

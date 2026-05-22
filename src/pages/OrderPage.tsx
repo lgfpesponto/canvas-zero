@@ -1065,6 +1065,19 @@ const OrderPage = () => {
     if (corGlitterGaspea) items.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
     if (laserTaloneira.length) items.push(['Laser Taloneira', laserTaloneiraPreco || LASER_TALONEIRA_PRECO]);
     if (corGlitterTaloneira) items.push(['Glitter/Tecido Taloneira', GLITTER_TALONEIRA_PRECO]);
+    // Recortes (preço configurável via admin — ficha_variacoes)
+    if (recorteCano) {
+      const p = findPrice(recorteCano, 'recorte_cano', []);
+      if (p) items.push(['Recorte Cano: ' + recorteCano, p]);
+    }
+    if (recorteGaspea) {
+      const p = findPrice(recorteGaspea, 'recorte_gaspea', []);
+      if (p) items.push(['Recorte Gáspea: ' + recorteGaspea, p]);
+    }
+    if (recorteTaloneira) {
+      const p = findPrice(recorteTaloneira, 'recorte_taloneira', []);
+      if (p) items.push(['Recorte Taloneira: ' + recorteTaloneira, p]);
+    }
     if (pintura) items.push(['Pintura', PINTURA_PRECO]);
     if (estampa) items.push(['Estampa', ESTAMPA_PRECO]);
     if (areaMetalPreco) items.push(['Área Metal: ' + areaMetal, areaMetalPreco]);
@@ -1132,10 +1145,16 @@ const OrderPage = () => {
       itens: filterRows([
         ['Laser Cano', laserCano.join(', ')],
         ['Cor Glitter/Tecido Cano', corGlitterCano],
+        ['Recorte Cano', recorteCano],
+        ['Cor do Recorte Cano', recorteCano ? corRecorteCano : ''],
         ['Laser Gáspea', laserGaspea.join(', ')],
         ['Cor Glitter/Tecido Gáspea', corGlitterGaspea],
+        ['Recorte Gáspea', recorteGaspea],
+        ['Cor do Recorte Gáspea', recorteGaspea ? corRecorteGaspea : ''],
         ['Laser Taloneira', laserTaloneira.join(', ')],
         ['Cor Glitter/Tecido Taloneira', corGlitterTaloneira],
+        ['Recorte Taloneira', recorteTaloneira],
+        ['Cor do Recorte Taloneira', recorteTaloneira ? corRecorteTaloneira : ''],
         ['Cor Bordado Laser Cano', corBordadoLaserCano],
         ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
         ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],

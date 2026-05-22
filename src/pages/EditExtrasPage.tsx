@@ -207,7 +207,7 @@ const EditExtrasPage = () => {
       // Modelo v2: preco gravado é o TOTAL FINAL (− desconto se houver).
       preco: Math.max(0, price - (Number(order.desconto) || 0)),
       precoMigradoV2: true,
-      precoCongelado: true,
+      precoCongelado: false,
       quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
       extraDetalhes: detalhes,
     };
