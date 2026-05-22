@@ -749,14 +749,6 @@ const OrderDetailPage = () => {
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-display font-bold">Composição do Pedido</h2>
-              {order.precoCongelado && (
-                <span
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                  title="Este pedido tem o preço travado e não é recalculado quando a tabela de preços muda."
-                >
-                  Preço congelado
-                </span>
-              )}
             </div>
             {role === 'admin_master' && (
               <label
