@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_assistant_planos: {
+        Row: {
+          conteudo: string
+          created_at: string
+          created_by: string | null
+          id: string
+          tags: string[]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          conteudo?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tags?: string[]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tags?: string[]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_chat_conversations: {
         Row: {
           created_at: string
