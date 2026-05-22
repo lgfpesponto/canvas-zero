@@ -932,6 +932,126 @@ export type Database = {
         }
         Relationships: []
       }
+      preco_mudanca_aplicacoes: {
+        Row: {
+          created_at: string
+          id: string
+          mudanca_id: string
+          order_id: string
+          preco_antes_pedido: number | null
+          preco_depois_pedido: number | null
+          qtd_aplicada: number
+          valor_total_delta: number
+          valor_unit_delta: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mudanca_id: string
+          order_id: string
+          preco_antes_pedido?: number | null
+          preco_depois_pedido?: number | null
+          qtd_aplicada?: number
+          valor_total_delta?: number
+          valor_unit_delta?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mudanca_id?: string
+          order_id?: string
+          preco_antes_pedido?: number | null
+          preco_depois_pedido?: number | null
+          qtd_aplicada?: number
+          valor_total_delta?: number
+          valor_unit_delta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preco_mudanca_aplicacoes_mudanca_id_fkey"
+            columns: ["mudanca_id"]
+            isOneToOne: false
+            referencedRelation: "preco_mudancas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preco_mudanca_aplicacoes_mudanca_id_fkey"
+            columns: ["mudanca_id"]
+            isOneToOne: false
+            referencedRelation: "vw_preco_mudancas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preco_mudancas: {
+        Row: {
+          aplicar_em: string | null
+          applied_at: string | null
+          campo_slug: string | null
+          categoria_slug: string | null
+          created_at: string
+          created_by: string | null
+          data_corte: string
+          delta: number
+          error_message: string | null
+          escopo: string
+          id: string
+          observacao: string | null
+          pedidos_ajustados: number
+          preco_antes: number
+          preco_depois: number
+          status: string
+          target_id: string
+          target_label: string
+          tipo: string
+          valor_total_compensado: number
+        }
+        Insert: {
+          aplicar_em?: string | null
+          applied_at?: string | null
+          campo_slug?: string | null
+          categoria_slug?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_corte?: string
+          delta?: number
+          error_message?: string | null
+          escopo: string
+          id?: string
+          observacao?: string | null
+          pedidos_ajustados?: number
+          preco_antes?: number
+          preco_depois?: number
+          status?: string
+          target_id: string
+          target_label?: string
+          tipo: string
+          valor_total_compensado?: number
+        }
+        Update: {
+          aplicar_em?: string | null
+          applied_at?: string | null
+          campo_slug?: string | null
+          categoria_slug?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_corte?: string
+          delta?: number
+          error_message?: string | null
+          escopo?: string
+          id?: string
+          observacao?: string | null
+          pedidos_ajustados?: number
+          preco_antes?: number
+          preco_depois?: number
+          status?: string
+          target_id?: string
+          target_label?: string
+          tipo?: string
+          valor_total_compensado?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf_cnpj: string
@@ -1315,6 +1435,32 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_preco_mudancas: {
+        Row: {
+          aplicar_em: string | null
+          applied_at: string | null
+          campo_slug: string | null
+          categoria_slug: string | null
+          created_at: string | null
+          created_by: string | null
+          criado_por_nome: string | null
+          data_corte: string | null
+          delta: number | null
+          error_message: string | null
+          escopo: string | null
+          id: string | null
+          observacao: string | null
+          pedidos_ajustados: number | null
+          preco_antes: number | null
+          preco_depois: number | null
+          status: string | null
+          target_id: string | null
+          target_label: string | null
+          tipo: string | null
+          valor_total_compensado: number | null
+        }
+        Relationships: []
+      }
       vw_revendedor_saldo: {
         Row: {
           saldo_disponivel: number | null
@@ -1333,6 +1479,19 @@ export type Database = {
         Args: { _delta: number; _descricao: string; _vendedor: string }
         Returns: Json
       }
+      aplicar_mudanca_preco: {
+        Args: {
+          _aplicar_em?: string
+          _data_corte?: string
+          _escopo: string
+          _observacao?: string
+          _preco_depois: number
+          _target_id: string
+          _tipo: string
+        }
+        Returns: Json
+      }
+      aplicar_mudancas_futuras_pendentes: { Args: never; Returns: number }
       aprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string }
         Returns: Json
