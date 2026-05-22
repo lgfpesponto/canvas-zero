@@ -867,6 +867,12 @@ const OrderDetailPage = () => {
                     case 'gravata_country':
                       extraPriceItems.push(['Gravata Country', 30]);
                       break;
+                    case 'gravata_pronta_entrega':
+                      extraPriceItems.push(['Gravata Pronta Entrega', 30]);
+                      break;
+                    case 'regata_pronta_entrega':
+                      extraPriceItems.push(['Regata Pronta Entrega', 50]);
+                      break;
                     case 'adicionar_metais': {
                       const sel = (det.metaisSelecionados as string[]) || [];
                       if (sel.includes('Bola grande')) {
