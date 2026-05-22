@@ -1,63 +1,53 @@
-# Plano: Recortes na composição/espelho + Fim do "preço congelado" + Ajuste Florência
+# Corrigir preço das Gravatas Pronta Entrega (R$ 30)
 
-## 1. Mostrar Recortes na Composição e no Espelho
+## Diagnóstico
 
-Hoje o valor dos recortes (ficha_variacoes em `recorte_cano/gaspea/taloneira`) entra no **total** do pedido, mas não aparece como linha na Composição do Pedido nem no Espelho da Ficha.
+As gravatas tipo "Pronta Entrega" estão indo para o banco com `preco = 0`. Confirmado: das 16 gravatas Pronta Entrega cadastradas, 15 estão com R$ 0 (incluindo as 3 mais recentes — GRAVATA93/94/95 de 21/05).
 
-- **`src/pages/OrderDetailPage.tsx`** (priceItems da Composição): adicionar 3 linhas após Glitter/Laser, usando `findFichaPrice('recorte_cano', recorteCano)` etc., exibindo `"Recorte Cano: <nome>"` quando preço > 0.
-- **`src/pages/OrderPage.tsx`** (mirrorPriceItems do Espelho): mesmas 3 linhas usando `findPrice(..., 'recorte_cano', [])`.
-- **`src/pages/OrderPage.tsx`** (mirrorGrouped, categoria "Laser e Recortes"): incluir labels `Recorte Cano/Gáspea/Taloneira` + `Cor do Recorte`.
+Causa raiz: o `OrderDetailPage.tsx` tem um `switch` **local** de extras (`computeExtraTotal` na linha ~432 e `extraPriceItems` na linha ~830) que **não tem o `case 'gravata_pronta_entrega'`** (nem `'regata_pronta_entrega'`). Como o detalhe mostra R$ 0 na composição e o cálculo local é usado para validações de exibição, o pedido sai com preço errado e o ajuste do banco não acontece para esses casos.
 
-Nenhuma mudança no cálculo do total — só exibição.
+A biblioteca canônica (`src/lib/recomputeOrderPrice.ts`) já tem a regra certa (`gravata_pronta_entrega → 30`). Por isso a auto-correção do detalhe **funcionaria** se rodasse — mas como esses pedidos são lançados e movidos direto para Entregue, ninguém abre o detalhe.
 
-## 2. Ajuste de R$5 nos pedidos antigos com Florência (cano)
+## O que vai mudar
 
-A virada Florência R$25 → R$30 foi em **19/05/2026**. Pedidos com `bordado_cano = 'Florência'` criados **antes** dessa data ficarão com `desconto = 5` e justificativa registrada, para que o total final caia em R$5 e fique alinhado com o que seria o preço novo.
+### 1. `src/pages/OrderDetailPage.tsx` (frontend)
+Adicionar os 2 cases que faltam nos dois `switch` locais:
+- `computeExtraTotal` (~ linha 457): `case 'gravata_pronta_entrega': t += 30; break;` e `case 'regata_pronta_entrega': t += 50; break;`
+- `extraPriceItems` (~ linha 865): `['Gravata Pronta Entrega', 30]` e `['Regata Pronta Entrega', 50]`
 
-Migration:
-- Atualiza `orders` onde:
-  - `bordado_cano = 'Florência'`
-  - `data_criacao < '2026-05-19'`
-  - `COALESCE(desconto, 0) = 0` (não sobrescreve descontos existentes)
-  - `status <> 'Cancelado'`
-- Seta `desconto = 5`, `desconto_justificativa = 'Preço da Florência alterado em 19/05/2026 — ajuste de R$5'` e adiciona entrada em `alteracoes` para rastreabilidade.
+Resultado: composição passa a mostrar R$ 30 (gravata) / R$ 50 (regata), e a auto-correção do preço grava o valor certo automaticamente quando alguém abre o detalhe.
 
-## 3. Fim do sistema "Preço Congelado"
+### 2. Backfill SQL (migration)
+Corrigir os pedidos antigos para não precisar abrir um a um:
 
-Hoje pedidos têm `preco_congelado = true` por padrão, o que impede o recompute automático quando regras mudam — gerando inconsistência entre Composição (regras atuais) e Total/Relatório (preço travado).
+```sql
+UPDATE public.orders
+SET preco = 30,
+    preco_migrado_v2 = true,
+    alteracoes = COALESCE(alteracoes, '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+      'data', to_char(now() AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD'),
+      'hora', to_char(now() AT TIME ZONE 'America/Sao_Paulo','HH24:MI'),
+      'usuario','Sistema',
+      'descricao','Correção automática: Gravata Pronta Entrega = R$ 30',
+      'afetouValor', true
+    ))
+WHERE tipo_extra = 'gravata_pronta_entrega' AND COALESCE(preco,0) = 0;
 
-Mudanças:
-- **Migration**:
-  - `UPDATE orders SET preco_congelado = false` em todos os pedidos não cancelados.
-  - `ALTER COLUMN preco_congelado SET DEFAULT false`.
-  - Marcar `preco_regra_versao = NULL` em todos pedidos descongelados para entrar na fila de reconciliação.
-- **Código**: remover badge/aviso "Preço congelado de R$X" da Composição (OrderDetailPage), tirar o gate `if (preco_congelado) return` do trigger `trg_orders_estorno_baixa_on_value_change` (DB) e do `recomputePricesBatch` / `recomputeOrderPrice` no client. Remover botões/toggle de congelar.
-- Coluna **permanece no schema** (segurança/auditoria), mas inerte.
-
-## 4. Detalhes técnicos
-
-```text
-Arquivos tocados (código):
-  src/pages/OrderDetailPage.tsx   — priceItems + remover badge "preço congelado"
-  src/pages/OrderPage.tsx         — mirrorPriceItems + mirrorGrouped recortes
-  src/pages/EditOrderPage.tsx     — remover lógica/UI de preco_congelado
-  src/pages/EditExtrasPage.tsx    — idem
-  src/pages/EditBeltPage.tsx      — idem
-  src/lib/recomputeOrderPrice.ts  — remover gate preco_congelado
-  src/lib/recomputePricesBatch.ts — idem
-  src/lib/precoBackfillQueue.ts   — idem
-  src/components/PrecoAutoBackfill.tsx — idem
-  src/contexts/AuthContext.tsx    — limpar flags se houver
-
-Migrations (2):
-  1) Desconto Florência (UPDATE em orders).
-  2) Descongelar pedidos + alterar DEFAULT + ajustar trigger.
-
-Sem mudanças em RLS ou em outros relatórios.
+UPDATE public.orders
+SET preco = 50, preco_migrado_v2 = true, alteracoes = ... (mesmo padrão)
+WHERE tipo_extra = 'regata_pronta_entrega' AND COALESCE(preco,0) = 0;
 ```
 
-## 5. Validação
+15 pedidos de gravata serão atualizados. Regatas serão verificadas no mesmo passo.
 
-- Pedido **23614** após migração: Composição deve listar todos os itens (incluindo Florência cano R$30 e Florão Trad R$5) somando R$330; subtotal R$335 − desconto R$5 = total R$330. Sem badge "preço congelado".
-- Pedido **E0123614** (novo, 20/05): já está em R$310, não recebe desconto.
-- Pedidos com recorte preenchido: linha do recorte aparece tanto na Composição quanto no Espelho.
+## Validação
+
+- GRAVATA93, GRAVATA94, GRAVATA95 e todas as anteriores (GRAVATA2-9, 30025, 30027, 30033) ficam com `preco = 30`.
+- Abrir o detalhe de uma gravata mostra "Gravata Pronta Entrega — R$ 30,00" na composição.
+- Novas vendas continuam saindo a R$ 30 (já está certo no `ExtrasPage`).
+- Relatórios financeiros (Cobrança) passam a somar corretamente as gravatas pronta entrega.
+
+## Fora de escopo
+
+- Não mexer no `ExtrasPage` (já calcula 30 corretamente no `calcPrice`).
+- Não mexer na lib `recomputeOrderPrice` (já está certa).
