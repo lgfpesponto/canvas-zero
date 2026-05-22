@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const TOOL_RESULT_LIMIT = 20000;
-const MAX_TOOL_ITER = 8;
+const MAX_TOOL_ITER = 12;
 
 const SYSTEM_PROMPT = `Você é o "Assistente 7Estrivos", uma IA especializada no portal interno de gestão de pedidos da fábrica de botas, cintos e acessórios 7ESTRIVOS. Você conversa apenas com a Juliana (admin_master) ou outras admins master da empresa.
 
@@ -69,7 +69,12 @@ Ajudar a admin a:
 - Nunca afirme que executou uma ação — você só consulta
 - Se a admin perguntar "quem alterou X" ou "por que mudou", use \`buscar_alteracoes\`
 - Para preços vigentes, use \`consultar_preco_vigente\`
-- Para investigar valores estranhos em pedidos, combine \`consultar_pedido\` + \`buscar_alteracoes\`
+- Para investigar valores estranhos em pedidos, combine \`consultar_pedido\` + \`buscar_alteracoes\` + \`verificar_preco_pedido\`
+- Para "financeiro do X não bate", "como está a baixa do X", "quanto X enviou de comprovante", use \`conciliacao_financeira_revendedor\` (passa o período se a admin mencionar)
+- Para "PDF não bate com portal", "valor do PDF diferente", "cobrança que mandei estava em R$ X mas agora dá Y", use \`comparar_pdf_snapshot\`
+- Para "por que o preço do pedido 7E-XXXX está errado", use \`verificar_preco_pedido\`
+- Quando a admin pedir para "salvar", "guardar", "anotar este plano/roteiro/checklist", chame \`salvar_plano\` com um título curto e descritivo. Confirme depois o ID retornado.
+- Quando a admin perguntar "quais planos tenho salvos" ou "abre o plano X", use \`listar_planos\` ou \`obter_plano\`.
 `;
 
 const TOOLS = [
@@ -214,6 +219,84 @@ const TOOLS = [
       name: "consultar_pedidos_excluidos",
       description: "Lista pedidos excluídos recentemente (deleted_orders).",
       parameters: { type: "object", properties: { limite: { type: "number" } } },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "conciliacao_financeira_revendedor",
+      description: "Pacote completo de conciliação financeira de um revendedor: saldo atual, comprovantes do período (com status), baixas geradas, pedidos Cobrados/Pago/Entregue, totais enviado vs baixado vs em aberto. Use para 'financeiro não bate', 'como está a baixa do X', 'quanto X enviou'.",
+      parameters: {
+        type: "object",
+        properties: {
+          vendedor: { type: "string" },
+          de: { type: "string", description: "YYYY-MM-DD (opcional)" },
+          ate: { type: "string", description: "YYYY-MM-DD (opcional)" },
+        },
+        required: ["vendedor"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "comparar_pdf_snapshot",
+      description: "Compara um PDF gerado (pdf_snapshots) com o estado ATUAL dos pedidos. Mostra pedidos cujo preço/quantidade mudou desde a geração do PDF e a diferença total. Use para 'PDF não bate com portal'.",
+      parameters: {
+        type: "object",
+        properties: {
+          snapshot_id: { type: "string", description: "UUID do snapshot (opcional)" },
+          tipo: { type: "string", description: "Filtra por tipo do PDF (ex: cobranca)" },
+          vendedor: { type: "string", description: "Filtra pelo vendedor dos pedidos do snapshot" },
+          de: { type: "string", description: "YYYY-MM-DD geração (opcional)" },
+          ate: { type: "string", description: "YYYY-MM-DD geração (opcional)" },
+          limite_snapshots: { type: "number", description: "Quantos snapshots recentes considerar (padrão 5)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "verificar_preco_pedido",
+      description: "Diagnóstico de preço de um pedido: mostra preco gravado, breakdown dos campos selecionados, preço atual de cada variação em ficha_variacoes/custom_options, desconto, alteracoes recentes de preço/qtd. NÃO recalcula automaticamente — apresenta os dados para você raciocinar sobre divergências.",
+      parameters: {
+        type: "object",
+        properties: { numero: { type: "string", description: "Número (7E-AAAA0001) ou apenas dígitos" } },
+        required: ["numero"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "salvar_plano",
+      description: "Salva um plano/roteiro/checklist em markdown para reuso futuro. Retorna o id criado.",
+      parameters: {
+        type: "object",
+        properties: {
+          titulo: { type: "string" },
+          conteudo: { type: "string", description: "Markdown do plano" },
+          tags: { type: "array", items: { type: "string" } },
+        },
+        required: ["titulo", "conteudo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_planos",
+      description: "Lista planos salvos. Opcionalmente filtra por busca em título/tag.",
+      parameters: { type: "object", properties: { busca: { type: "string" }, limite: { type: "number" } } },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "obter_plano",
+      description: "Abre um plano salvo pelo id.",
+      parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
     },
   },
 ];
@@ -454,7 +537,280 @@ async function tool_consultar_pedidos_excluidos(args: any) {
   return { total: data?.length || 0, excluidos: data || [] };
 }
 
-async function executeTool(name: string, args: any): Promise<any> {
+// ───────── Conciliação financeira ─────────
+async function tool_conciliacao_financeira_revendedor(args: any) {
+  const admin = makeAdminClient();
+  const vendedor = String(args.vendedor || "").trim();
+  if (!vendedor) return { erro: "vendedor vazio" };
+  const de = args.de || null;
+  const ate = args.ate || null;
+
+  const { data: saldo } = await admin.rpc("saldo_atual_revendedor", { _vendedor: vendedor });
+
+  let qComp = admin.from("revendedor_comprovantes")
+    .select("id, valor, data_pagamento, status, observacao, motivo_reprovacao, created_at, pagador_nome, tipo_detectado, aprovado_em")
+    .eq("vendedor", vendedor)
+    .order("data_pagamento", { ascending: false })
+    .limit(200);
+  if (de) qComp = qComp.gte("data_pagamento", de);
+  if (ate) qComp = qComp.lte("data_pagamento", ate);
+  const { data: comprovantes } = await qComp;
+
+  let qMov = admin.from("revendedor_saldo_movimentos")
+    .select("id, tipo, valor, descricao, order_id, comprovante_id, saldo_anterior, saldo_posterior, created_at")
+    .eq("vendedor", vendedor)
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (de) qMov = qMov.gte("created_at", de);
+  if (ate) qMov = qMov.lte("created_at", ate + "T23:59:59");
+  const { data: movimentos } = await qMov;
+
+  let qBaixas = admin.from("revendedor_baixas_pedido")
+    .select("id, order_id, valor_pedido, created_at")
+    .eq("vendedor", vendedor)
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (de) qBaixas = qBaixas.gte("created_at", de);
+  if (ate) qBaixas = qBaixas.lte("created_at", ate + "T23:59:59");
+  const { data: baixas } = await qBaixas;
+
+  // Pedidos do vendedor por status (Cobrado/Pago/Entregue)
+  let qPed = admin.from("orders")
+    .select("id, numero, status, preco, quantidade, desconto, data_criacao, tipo_extra")
+    .or(`vendedor.eq.${vendedor},and(vendedor.eq.Juliana Cristina Ribeiro,cliente.eq.${vendedor})`)
+    .in("status", ["Cobrado", "Pago", "Entregue"])
+    .order("data_criacao", { ascending: false })
+    .limit(500);
+  if (de) qPed = qPed.gte("data_criacao", de);
+  if (ate) qPed = qPed.lte("data_criacao", ate);
+  const { data: pedidos } = await qPed;
+
+  const totalEnviadoAprovado = (comprovantes || [])
+    .filter(c => c.status === "aprovado" || c.status === "utilizado")
+    .reduce((s, c) => s + Number(c.valor || 0), 0);
+  const totalEnviadoPendente = (comprovantes || [])
+    .filter(c => c.status === "pendente")
+    .reduce((s, c) => s + Number(c.valor || 0), 0);
+  const totalEnviadoReprovado = (comprovantes || [])
+    .filter(c => c.status === "reprovado")
+    .reduce((s, c) => s + Number(c.valor || 0), 0);
+  const totalBaixado = (baixas || []).reduce((s, b) => s + Number(b.valor_pedido || 0), 0);
+  const totalCobrado = (pedidos || []).filter(p => p.status === "Cobrado").reduce((s, p) => s + Number(p.preco || 0), 0);
+  const totalPago = (pedidos || []).filter(p => p.status === "Pago").reduce((s, p) => s + Number(p.preco || 0), 0);
+  const totalEntregue = (pedidos || []).filter(p => p.status === "Entregue").reduce((s, p) => s + Number(p.preco || 0), 0);
+
+  return {
+    vendedor,
+    periodo: { de, ate },
+    saldo_atual: saldo,
+    totais: {
+      comprovantes_aprovados: totalEnviadoAprovado,
+      comprovantes_pendentes: totalEnviadoPendente,
+      comprovantes_reprovados: totalEnviadoReprovado,
+      baixas_em_pedidos: totalBaixado,
+      pedidos_cobrado_em_aberto: totalCobrado,
+      pedidos_pago: totalPago,
+      pedidos_entregue_nao_cobrado: totalEntregue,
+    },
+    contagens: {
+      comprovantes: comprovantes?.length || 0,
+      movimentos: movimentos?.length || 0,
+      baixas: baixas?.length || 0,
+      pedidos: pedidos?.length || 0,
+    },
+    comprovantes: comprovantes || [],
+    movimentos: movimentos || [],
+    baixas: baixas || [],
+    pedidos_aberto_cobrado: (pedidos || []).filter(p => p.status === "Cobrado"),
+  };
+}
+
+// ───────── Comparar PDF snapshot vs estado atual ─────────
+async function tool_comparar_pdf_snapshot(args: any) {
+  const admin = makeAdminClient();
+  const limiteSnap = Math.min(Number(args.limite_snapshots) || 5, 20);
+
+  let qSnap = admin.from("pdf_snapshots")
+    .select("id, tipo, gerado_em, gerado_por_nome, filtros, order_ids, totais, nome_arquivo")
+    .order("gerado_em", { ascending: false })
+    .limit(limiteSnap);
+  if (args.snapshot_id) qSnap = qSnap.eq("id", args.snapshot_id).limit(1);
+  if (args.tipo) qSnap = qSnap.eq("tipo", args.tipo);
+  if (args.de) qSnap = qSnap.gte("gerado_em", args.de);
+  if (args.ate) qSnap = qSnap.lte("gerado_em", args.ate + "T23:59:59");
+  const { data: snaps, error } = await qSnap;
+  if (error) return { erro: error.message };
+  if (!snaps || snaps.length === 0) return { erro: "Nenhum PDF snapshot encontrado com esses filtros" };
+
+  const resultado: any[] = [];
+  for (const snap of snaps) {
+    if (args.vendedor && snap.filtros?.vendedor && snap.filtros.vendedor !== args.vendedor) continue;
+
+    const ids: string[] = Array.isArray(snap.order_ids) ? snap.order_ids : [];
+    if (ids.length === 0) {
+      resultado.push({ snapshot: snap, divergencias: [], total_snapshot: snap.totais, total_atual: null, observacao: "Snapshot sem order_ids" });
+      continue;
+    }
+
+    const { data: atuais } = await admin
+      .from("orders")
+      .select("id, numero, vendedor, status, preco, quantidade, desconto")
+      .in("id", ids);
+
+    const atualMap = new Map((atuais || []).map(o => [o.id, o]));
+    const divergencias: any[] = [];
+    let totalAtual = 0;
+    let totalAtualEm = 0;
+    for (const id of ids) {
+      const at = atualMap.get(id);
+      if (!at) {
+        divergencias.push({ id, motivo: "Pedido não existe mais (apagado?)" });
+        continue;
+      }
+      totalAtual += Number(at.preco || 0);
+    }
+    const totalSnap = Number(snap.totais?.valor_total || snap.totais?.total || 0);
+    const diff = totalAtual - totalSnap;
+
+    // Detalhe por pedido com mudança de preço se snapshot guardou preços individuais
+    const precosSnap = snap.totais?.precos_por_id || {};
+    for (const at of atuais || []) {
+      const precoAntigo = Number(precosSnap[at.id] ?? NaN);
+      if (!isNaN(precoAntigo) && Math.abs(precoAntigo - Number(at.preco || 0)) > 0.01) {
+        divergencias.push({
+          numero: at.numero,
+          id: at.id,
+          preco_no_pdf: precoAntigo,
+          preco_atual: at.preco,
+          diferenca: Number(at.preco || 0) - precoAntigo,
+          status_atual: at.status,
+        });
+      }
+    }
+
+    resultado.push({
+      snapshot: { id: snap.id, tipo: snap.tipo, gerado_em: snap.gerado_em, gerado_por: snap.gerado_por_nome, filtros: snap.filtros, nome_arquivo: snap.nome_arquivo },
+      qtd_pedidos_snapshot: ids.length,
+      qtd_pedidos_existentes: atuais?.length || 0,
+      total_snapshot: totalSnap,
+      total_atual: totalAtual,
+      diferenca: diff,
+      divergencias,
+    });
+  }
+
+  return { total_snapshots: resultado.length, resultados: resultado };
+}
+
+// ───────── Verificar preço de um pedido (raw data, sem recalcular) ─────────
+async function tool_verificar_preco_pedido(args: any) {
+  const admin = makeAdminClient();
+  const id = String(args.numero || "").trim();
+  if (!id) return { erro: "numero vazio" };
+
+  let pedido: any = null;
+  if (id.toUpperCase().startsWith("7E-")) {
+    const { data } = await admin.from("orders").select("*").eq("numero", id).maybeSingle();
+    pedido = data;
+  } else if (/^\d+$/.test(id)) {
+    const { data } = await admin.from("orders").select("*").ilike("numero", `%${id}%`).limit(1);
+    pedido = data?.[0];
+  }
+  if (!pedido) return { erro: "Pedido não encontrado", buscado: id };
+
+  // Coleta valores selecionados nas categorias chave para buscar preços vigentes
+  const camposChave = [
+    "modelo", "solado", "formato_bico", "cor_vira", "cor_sola",
+    "couro_cano", "couro_gaspea", "couro_taloneira",
+    "bordado_cano", "bordado_gaspea", "bordado_taloneira",
+    "laser_cano", "laser_gaspea", "laser_taloneira",
+    "recorte_cano", "recorte_gaspea", "recorte_taloneira",
+    "estampa", "pintura", "carimbo", "personalizacao_nome", "personalizacao_bordado",
+  ];
+  const selecionados: Record<string, string> = {};
+  for (const k of camposChave) if (pedido[k]) selecionados[k] = pedido[k];
+
+  // Busca preços vigentes
+  const nomes = [...new Set(Object.values(selecionados).filter(Boolean))];
+  const precosVigentes: any[] = [];
+  if (nomes.length > 0) {
+    const { data: variacoes } = await admin
+      .from("ficha_variacoes")
+      .select("nome, preco_adicional, ativo, categoria_id, ficha_categorias!inner(nome, slug)")
+      .in("nome", nomes);
+    for (const v of variacoes || []) precosVigentes.push({ fonte: "ficha_variacoes", ...v });
+
+    const { data: customs } = await admin
+      .from("custom_options")
+      .select("categoria, label, preco")
+      .in("label", nomes);
+    for (const c of customs || []) precosVigentes.push({ fonte: "custom_options", ...c });
+  }
+
+  // Alterações de preço/qtd do pedido
+  const alteracoes = Array.isArray(pedido.alteracoes) ? pedido.alteracoes : [];
+  const altPrecoQtd = alteracoes.filter((a: any) =>
+    String(a?.campo || "").match(/preco|quantidade|desconto/i)
+  ).slice(-30);
+
+  return {
+    pedido: {
+      id: pedido.id, numero: pedido.numero, vendedor: pedido.vendedor, cliente: pedido.cliente,
+      status: pedido.status, tipo_extra: pedido.tipo_extra,
+      preco: pedido.preco, quantidade: pedido.quantidade, desconto: pedido.desconto,
+      preco_anterior: pedido.preco_anterior, quantidade_anterior: pedido.quantidade_anterior,
+      preco_migrado_v2: pedido.preco_migrado_v2, preco_regra_versao: pedido.preco_regra_versao,
+    },
+    valor_final_calculado: Number(pedido.preco || 0) * Number(pedido.quantidade || 1) - Number(pedido.desconto || 0),
+    campos_selecionados: selecionados,
+    precos_vigentes: precosVigentes,
+    alteracoes_preco_qtd: altPrecoQtd,
+    extra_detalhes: pedido.extra_detalhes,
+    adicional: { valor: pedido.adicional_valor, desc: pedido.adicional_desc },
+  };
+}
+
+// ───────── Planos salvos ─────────
+async function tool_salvar_plano(args: any, userId: string) {
+  const admin = makeAdminClient();
+  const titulo = String(args.titulo || "").trim();
+  const conteudo = String(args.conteudo || "").trim();
+  if (!titulo || !conteudo) return { erro: "titulo e conteudo são obrigatórios" };
+  const tags = Array.isArray(args.tags) ? args.tags.map(String) : [];
+
+  const { data, error } = await admin.from("admin_assistant_planos")
+    .insert({ titulo, conteudo, tags, created_by: userId })
+    .select("id, titulo, created_at")
+    .single();
+  if (error) return { erro: error.message };
+  return { ok: true, plano: data, mensagem: `Plano "${data.titulo}" salvo com sucesso (id ${data.id}).` };
+}
+
+async function tool_listar_planos(args: any) {
+  const admin = makeAdminClient();
+  const limite = Math.min(Number(args.limite) || 30, 100);
+  let q = admin.from("admin_assistant_planos")
+    .select("id, titulo, tags, created_at, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(limite);
+  if (args.busca) q = q.ilike("titulo", `%${args.busca}%`);
+  const { data, error } = await q;
+  if (error) return { erro: error.message };
+  return { total: data?.length || 0, planos: data || [] };
+}
+
+async function tool_obter_plano(args: any) {
+  const admin = makeAdminClient();
+  const { data, error } = await admin.from("admin_assistant_planos")
+    .select("*")
+    .eq("id", args.id)
+    .maybeSingle();
+  if (error) return { erro: error.message };
+  if (!data) return { erro: "Plano não encontrado" };
+  return { plano: data };
+}
+
+async function executeTool(name: string, args: any, userId: string): Promise<any> {
   try {
     switch (name) {
       case "consultar_pedido": return await tool_consultar_pedido(args);
@@ -469,6 +825,12 @@ async function executeTool(name: string, args: any): Promise<any> {
       case "consultar_preco_vigente": return await tool_consultar_preco_vigente(args);
       case "listar_usuarios_e_roles": return await tool_listar_usuarios_e_roles();
       case "consultar_pedidos_excluidos": return await tool_consultar_pedidos_excluidos(args);
+      case "conciliacao_financeira_revendedor": return await tool_conciliacao_financeira_revendedor(args);
+      case "comparar_pdf_snapshot": return await tool_comparar_pdf_snapshot(args);
+      case "verificar_preco_pedido": return await tool_verificar_preco_pedido(args);
+      case "salvar_plano": return await tool_salvar_plano(args, userId);
+      case "listar_planos": return await tool_listar_planos(args);
+      case "obter_plano": return await tool_obter_plano(args);
       default: return { erro: `Tool desconhecida: ${name}` };
     }
   } catch (e: any) {
@@ -573,7 +935,7 @@ Deno.serve(async (req) => {
           let parsedArgs: any = {};
           try { parsedArgs = JSON.parse(tc.function?.arguments || "{}"); } catch { parsedArgs = {}; }
           console.log(`[tool] ${tc.function?.name}`, JSON.stringify(parsedArgs).slice(0, 200));
-          const result = await executeTool(tc.function?.name, parsedArgs);
+          const result = await executeTool(tc.function?.name, parsedArgs, userId);
           const serialized = JSON.stringify(result);
           conversation.push({
             role: "tool",

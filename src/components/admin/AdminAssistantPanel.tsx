@@ -4,8 +4,9 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Plus, History, AlertTriangle, Trash2, X, Loader2 } from 'lucide-react';
+import { Send, Plus, History, AlertTriangle, Trash2, X, Loader2, FileText } from 'lucide-react';
 import AssistantMessage from './AssistantMessage';
+import AdminAssistantPlanosDialog from './AdminAssistantPlanosDialog';
 import { useAdminAssistant } from '@/hooks/useAdminAssistant';
 import { getRecentErrorsFiltered, clearRecentErrors } from '@/lib/consoleErrorCapture';
 import { toast } from 'sonner';
@@ -25,6 +26,7 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
 
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [planosOpen, setPlanosOpen] = useState(false);
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +83,9 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" title="Nova conversa" onClick={() => { newConversation(); setShowHistory(false); }}>
               <Plus className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" title="Planos salvos" onClick={() => setPlanosOpen(true)}>
+              <FileText className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" title="Histórico" onClick={() => setShowHistory(v => !v)}>
               <History className="h-4 w-4" />
@@ -198,6 +203,11 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
           </Button>
         </div>
       </SheetContent>
+      <AdminAssistantPlanosDialog
+        open={planosOpen}
+        onOpenChange={setPlanosOpen}
+        onSendToChat={(content) => setInput(content)}
+      />
     </Sheet>
   );
 }
