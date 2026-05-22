@@ -221,6 +221,84 @@ const TOOLS = [
       parameters: { type: "object", properties: { limite: { type: "number" } } },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "conciliacao_financeira_revendedor",
+      description: "Pacote completo de conciliação financeira de um revendedor: saldo atual, comprovantes do período (com status), baixas geradas, pedidos Cobrados/Pago/Entregue, totais enviado vs baixado vs em aberto. Use para 'financeiro não bate', 'como está a baixa do X', 'quanto X enviou'.",
+      parameters: {
+        type: "object",
+        properties: {
+          vendedor: { type: "string" },
+          de: { type: "string", description: "YYYY-MM-DD (opcional)" },
+          ate: { type: "string", description: "YYYY-MM-DD (opcional)" },
+        },
+        required: ["vendedor"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "comparar_pdf_snapshot",
+      description: "Compara um PDF gerado (pdf_snapshots) com o estado ATUAL dos pedidos. Mostra pedidos cujo preço/quantidade mudou desde a geração do PDF e a diferença total. Use para 'PDF não bate com portal'.",
+      parameters: {
+        type: "object",
+        properties: {
+          snapshot_id: { type: "string", description: "UUID do snapshot (opcional)" },
+          tipo: { type: "string", description: "Filtra por tipo do PDF (ex: cobranca)" },
+          vendedor: { type: "string", description: "Filtra pelo vendedor dos pedidos do snapshot" },
+          de: { type: "string", description: "YYYY-MM-DD geração (opcional)" },
+          ate: { type: "string", description: "YYYY-MM-DD geração (opcional)" },
+          limite_snapshots: { type: "number", description: "Quantos snapshots recentes considerar (padrão 5)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "verificar_preco_pedido",
+      description: "Diagnóstico de preço de um pedido: mostra preco gravado, breakdown dos campos selecionados, preço atual de cada variação em ficha_variacoes/custom_options, desconto, alteracoes recentes de preço/qtd. NÃO recalcula automaticamente — apresenta os dados para você raciocinar sobre divergências.",
+      parameters: {
+        type: "object",
+        properties: { numero: { type: "string", description: "Número (7E-AAAA0001) ou apenas dígitos" } },
+        required: ["numero"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "salvar_plano",
+      description: "Salva um plano/roteiro/checklist em markdown para reuso futuro. Retorna o id criado.",
+      parameters: {
+        type: "object",
+        properties: {
+          titulo: { type: "string" },
+          conteudo: { type: "string", description: "Markdown do plano" },
+          tags: { type: "array", items: { type: "string" } },
+        },
+        required: ["titulo", "conteudo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_planos",
+      description: "Lista planos salvos. Opcionalmente filtra por busca em título/tag.",
+      parameters: { type: "object", properties: { busca: { type: "string" }, limite: { type: "number" } } },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "obter_plano",
+      description: "Abre um plano salvo pelo id.",
+      parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+    },
+  },
 ];
 
 // ───────── Admin client ─────────
