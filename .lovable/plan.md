@@ -1,27 +1,33 @@
-## Adicionar código de barras na área superior da ficha (boot layout)
+## Reemitir Cobrança Maria Gabriela 19-05-2026 com valores atualizados
 
-Atualmente o código de barras só aparece no canhoto (parte de baixo, abaixo do tracejado). Adicionar uma segunda ocorrência na área vazia que o usuário circulou — canto inferior direito da metade superior da ficha, acima do tracejado.
+Pegar o snapshot original (`pdf_snapshots` id `03bb791d-47fa-40a6-aae7-de2ea5c670cd`, 1016 pedidos / 1191 pares / R$ 354.376,80) e gerar um novo relatório com a situação atual de cada pedido. Esse trabalho é uma **análise + geração de artefatos** (não muda código do portal).
 
-### Onde alterar
-- Arquivo: `src/lib/pdfGenerators.ts`
-- Função: gerador de ficha A5 landscape (layout BOOT, a partir da linha ~285). O layout CINTO (linha 156) já tem outra estrutura — fora de escopo, a menos que o usuário peça depois.
+### O que entrego (dois arquivos em `/mnt/documents/`)
 
-### O que adicionar
-Logo após desenhar as categorias do corpo (COUROS / PESPONTO / SOLADOS / BORDADOS), antes do bloco do canhoto (`stubTop = ph - 34`), renderizar:
+1. **PDF** `Cobrança ATUALIZADA - Maria Gabriela - 22-05-2026.pdf`
+   - Mesmo cabeçalho/estilo dos PDFs de cobrança (cliente, data, totais).
+   - Tabela por pedido: `Nº`, `Vendedor`, `Modelo`, `Tam`, `Status atual`, `Qtd`, `Valor final atual`.
+   - Total atualizado no rodapé + comparação com o snapshot (Δ vs R$ 354.376,80).
+   - Pedidos agrupados por vendedor (subtotal por vendedor).
 
-1. Código de barras (mesmo valor de `orderBarcodeValue(order.numero, order.id)` usado no canhoto).
-2. Texto do número (`orderNumClean`) centralizado abaixo do código.
+2. **Planilha** `Cobrança ATUALIZADA - Maria Gabriela - 22-05-2026.xlsx`
+   - Colunas: `numero`, `vendedor`, `cliente`, `modelo`, `tamanho`, `status_atual`, `qtd`, `valor_snapshot`, `valor_atual`, `delta`, `link_portal` (https://portal.7estrivos.com.br/pedido/{id}).
+   - Aba extra "Resumo" com total snapshot, total atual, Δ, qtd por status, top 20 maiores deltas.
 
-Posicionamento aproximado:
-- Área-alvo: lado direito, entre o fim da coluna SOLADOS/BORDADOS e a linha tracejada do canhoto.
-- `x` ~ `pw - m - 70`, largura ~ 60 mm, altura ~ 14 mm.
-- `y` calculado a partir de `descBottom - 18` para encostar logo acima do tracejado sem invadir o canhoto.
-- Usar `barcodeDataUrl(bcVal, { width: 2, height: 40 })` (mesma chamada já existente).
-- Não desenhar se o conteúdo das categorias chegou a `truncated = true` naquela posição (para evitar sobreposição) — neste caso simplesmente pular.
+### Como vou gerar
 
-### Não muda
-- Canhoto inferior continua igual (barcode + número).
-- Layout do CINTO, demais PDFs (relatórios, listas) e QR code permanecem intactos.
+- Ler `order_ids` do snapshot.
+- `SELECT` em `orders` trazendo numero, vendedor, cliente, modelo, tamanho, status, preco, quantidade, desconto, extra_detalhes (para detectar bota-pronta-entrega com nested botas[]).
+- Valor final = `preco*quantidade - desconto` (mesma fórmula usada pelos relatórios; bota pronta entrega segue `extra_detalhes.botas[]` se aplicável).
+- Gerar PDF com `pdf-lib`/`reportlab` Python (mais simples para tabela longa de 1016 linhas com paginação) e XLSX com `openpyxl`.
+- QA visual: converter o PDF em imagens e checar páginas iniciais/médias/finais antes de entregar.
 
-### Validação
-- Gerar a ficha de um pedido de bota e conferir visualmente que o barcode aparece nos dois locais e não colide com a seção BORDADOS nem com o tracejado.
+### Resposta no chat
+
+- Resumo dos números (snapshot vs atual, Δ, quebra por status, top vendedores).
+- Lista clicável dos N pedidos com maior divergência (com link `https://portal.7estrivos.com.br/pedido/{id}`) direto no chat.
+- Anexo dos dois arquivos via `<presentation-artifact>`.
+
+### Observação importante já levantada
+
+Rodando uma checagem rápida: dos 1016 pedidos do snapshot, **0 estão hoje como "Cobrado" ou "Cancelado"** — todos seguem em status ativos. A soma bruta atual deu R$ 357.438,80 (Δ ≈ +R$ 3.062,00 vs snapshot). Vou validar pedido a pedido no relatório.
