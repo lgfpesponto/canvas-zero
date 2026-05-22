@@ -1513,10 +1513,15 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
         ...divergLines,
         ...justifLines,
-      ].join('\n');
+      ]
+        .join('\n')
+        // Helvetica do jsPDF não tem glifo para setas/travessões: substitui
+        // por ASCII pra não estourar a largura calculada do splitTextToSize.
+        .replace(/→/g, '->').replace(/←/g, '<-')
+        .replace(/—|–/g, '-');
 
       doc.setFontSize(6);
-      const lines = doc.splitTextToSize(compText, cols[2] - 4);
+      const lines = doc.splitTextToSize(compText, cols[2] - 6);
       // Altura mínima precisa abraçar a bolinha (centro em y+17, raio 2 → vai até y+19)
       // quando o pedido tem desconto/acréscimo. Sem isso, em linhas curtas a bolinha
       // estouraria o quadro e apareceria dentro do pedido de baixo.
