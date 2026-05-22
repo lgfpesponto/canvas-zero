@@ -386,6 +386,22 @@ const OrderDetailPage = () => {
   if (order.corGlitterCano) priceItems.push(['Glitter/Tecido Cano', GLITTER_CANO_PRECO]);
   if (order.laserGaspea) priceItems.push(['Laser Gáspea', LASER_GASPEA_PRECO]);
   if (order.corGlitterGaspea) priceItems.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
+  // Recortes (preço configurável via admin — ficha_variacoes)
+  const recCano = (order as any).recorteCano as string | undefined;
+  const recGas = (order as any).recorteGaspea as string | undefined;
+  const recTal = (order as any).recorteTaloneira as string | undefined;
+  if (recCano) {
+    const p = findFichaPrice(recCano, 'recorte_cano') ?? 0;
+    if (p) priceItems.push(['Recorte Cano: ' + recCano, p]);
+  }
+  if (recGas) {
+    const p = findFichaPrice(recGas, 'recorte_gaspea') ?? 0;
+    if (p) priceItems.push(['Recorte Gáspea: ' + recGas, p]);
+  }
+  if (recTal) {
+    const p = findFichaPrice(recTal, 'recorte_taloneira') ?? 0;
+    if (p) priceItems.push(['Recorte Taloneira: ' + recTal, p]);
+  }
   if (order.pintura === 'Sim') priceItems.push(['Pintura', PINTURA_PRECO]);
   if (order.estampa === 'Sim') priceItems.push(['Estampa', ESTAMPA_PRECO]);
   const areaP = AREA_METAL.find(a => a.label === order.metais)?.preco;
