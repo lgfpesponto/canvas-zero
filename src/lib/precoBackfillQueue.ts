@@ -33,7 +33,6 @@ export function enqueueBackfill(
 
   for (const o of orders) {
     if (!o || o.precoMigradoV2) continue;
-    if (o.precoCongelado) continue; // não recalcula preços travados
     if (inFlight.has(o.id) || pending.has(o.id)) continue;
     if (pending.size >= MAX_QUEUE) break;
     pending.set(o.id, o);
