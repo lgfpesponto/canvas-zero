@@ -26,6 +26,7 @@ export default function AdminAssistantPanel({ open, onOpenChange }: Props) {
 
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [planosOpen, setPlanosOpen] = useState(false);
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
