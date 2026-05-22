@@ -121,7 +121,6 @@ const OrderDetailPage = () => {
   // Precisa rodar ANTES dos early returns para manter ordem de hooks estável.
   useEffect(() => {
     if (!order || autoFixedRef.current) return;
-    if (order.precoCongelado) return; // preço travado: não auto-corrige
     const expected = computeTotalToSave(order, findFichaPrice, getByCategoria);
     const diff = Math.abs(expected - (Number(order.preco) || 0));
     if (diff < 1 && order.precoMigradoV2) return;
