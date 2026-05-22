@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const TOOL_RESULT_LIMIT = 20000;
-const MAX_TOOL_ITER = 8;
+const MAX_TOOL_ITER = 12;
 
 const SYSTEM_PROMPT = `Você é o "Assistente 7Estrivos", uma IA especializada no portal interno de gestão de pedidos da fábrica de botas, cintos e acessórios 7ESTRIVOS. Você conversa apenas com a Juliana (admin_master) ou outras admins master da empresa.
 
