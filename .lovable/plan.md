@@ -1,49 +1,120 @@
-# Turbinar a IA admin_master: conciliação financeira, PDF×portal e planos salvos
+# Ajuste retroativo de preço em alterações de variações
 
 ## Objetivo
 
-Hoje o chat do admin_master já consulta pedidos, vendedores, alterações, saldos e preços. Falta o que a Juliana realmente precisa: **conciliar financeiro de um revendedor**, **explicar diferença entre PDF de cobrança e portal** e **salvar planos** para reusar depois.
+Quando o admin alterar o `preco_adicional` de uma variação já existente (`ficha_variacoes`) ou o `preco` de uma opção (`custom_options`), abrir um diálogo perguntando:
 
-## O que vai mudar
+1. Se é aumento ou desconto (calculado automaticamente, só confirma).
+2. A partir de qual data essa mudança vale:
+   - Desde o início do portal (afeta todos os pedidos passados).
+   - A partir de uma data específica do passado.
+   - A partir de uma data no futuro (não mexe em pedido nenhum agora, apenas registra a regra).
+3. Confirmar — então o sistema gera um ajuste automático nos pedidos afetados de forma que o **valor final cobrado do cliente não mude**: se a Joaquina foi de R$ 30 para R$ 35, pedidos antigos ganham um desconto de R$ 5 por unidade da Joaquina; se foi de R$ 35 para R$ 30, ganham um adicional de R$ 5. Pedidos novos (após a data escolhida) usam o preço novo.
 
-### 1. Novas tools na edge function `admin-assistant`
+Assim o relatório nunca infla nem encolhe pedidos já fechados, e o histórico fica coerente.
 
-**`conciliacao_financeira_revendedor(vendedor, de?, ate?)`**
-Retorna num único pacote: saldo atual, todos comprovantes do período (com status), todas baixas geradas, pedidos Cobrados/Pago/Entregue do vendedor no período, total enviado vs total baixado vs em aberto. É a tool para responder "por que o financeiro do Rafael não está batendo".
+## Fluxo no admin
 
-**`comparar_pdf_snapshot(snapshot_id?, tipo?, de?, ate?)`**
-Lê `pdf_snapshots` (já existe), pega o snapshot mais recente ou por id, e compara `totais` gravados no snapshot com a soma ATUAL dos `order_ids` no banco. Lista pedidos cujo `preco` mudou desde a geração do PDF, com diferença. É a tool para "por que o PDF não bate com o portal".
+```text
+[Admin edita preço da Joaquina: 30 -> 35] -> Salvar
+        |
+        v
+[Dialog "Mudança de preço detectada"]
+  - Variação: Joaquina (Modelo)
+  - Antes: R$ 30,00   Depois: R$ 35,00   Diferença: +R$ 5,00
+  - Vale a partir de:
+      ( ) Início do portal (todos os pedidos)
+      ( ) Data específica:  [____/____/____]
+      ( ) Só pedidos futuros (a partir de hoje / data futura)
+  - Observação (opcional)
+  [Cancelar]  [Confirmar e ajustar pedidos]
+        |
+        v
+[Edge function aplica ajuste compensatório nos pedidos elegíveis]
+```
 
-**`verificar_preco_pedido(numero)`**
-Recalcula o subtotal esperado do pedido pelas regras vigentes (mesma lógica de `recomputeSubtotal`/`computeTotalToSave` embutida server-side via lookup em `ficha_variacoes` + `custom_options` + fallbacks) e compara com `orders.preco`. Mostra o breakdown item a item e marca itens que caem no fallback hardcoded. Pega bugs como o da Florência.
+Regras de elegibilidade do pedido:
+- `created_at < data_corte` (se "início do portal", sem limite inferior).
+- Pedido contém a variação alterada (Joaquina no campo Modelo, por exemplo).
+- Status diferente de `Cancelado` (cancelado não recebe ajuste, mas fica marcado no histórico).
+- Pedido não está em status pós-faturamento bloqueado? Confirmar com você se quer travar algum status (ex.: Entregue/Cobrado já pagos).
 
-**`salvar_plano(titulo, conteudo, tags?)` + `listar_planos(busca?)` + `obter_plano(id)` + `apagar_plano(id)`**
-Persiste planos de investigação/ação que a IA gera ou que a admin pede pra guardar. Markdown livre.
+Efeito no pedido:
+- Acrescenta uma linha em `extra_detalhes.ajustes_retroativos[]` com `{ regra_id, variacao, qtd_aplicada, valor_unit, valor_total, sinal }`.
+- Recalcula `desconto`/`adicional_valor` (ou cria coluna dedicada — ver técnico) para neutralizar a diferença.
+- Registra no `historico` do pedido: "Ajuste retroativo automático: preço da Joaquina mudou de R$ 30 → R$ 35 em DD/MM. Desconto de R$ 5,00 aplicado para preservar o valor final."
 
-### 2. Nova tabela `admin_assistant_planos`
-Colunas: `id`, `titulo`, `conteudo` (texto markdown), `tags` (text[]), `created_by`, `created_at`, `updated_at`. RLS: só admin_master vê/edita/apaga os próprios.
+## Histórico e auditoria
 
-### 3. UI no `AdminAssistantPanel`
-- Nova aba/botão **"Planos salvos"** ao lado de "Histórico", abrindo lista de planos com busca por título/tag.
-- Clique no plano → abre em modal markdown com botões "Copiar", "Mandar pro chat" (cola o conteúdo no input) e "Apagar".
-- Quando a IA usa a tool `salvar_plano`, a mensagem mostra um chip clicável "Plano salvo: <título>" que abre o modal.
+Nova aba em Configurações → "Histórico de mudanças de preço":
+- Lista cada alteração: variação, antes, depois, data de corte, quem fez, quantos pedidos foram ajustados, valor total compensado.
+- Botão "Ver pedidos afetados" abre a lista filtrada.
+- Botão "Reverter" só para admin_master, desfaz o ajuste (remove a entrada de `ajustes_retroativos` e reverte o desconto).
 
-### 4. Atualização no `SYSTEM_PROMPT`
-- Instruir a IA a usar `conciliacao_financeira_revendedor` quando perguntarem sobre financeiro/baixas/diferença de saldo.
-- Usar `comparar_pdf_snapshot` quando falarem em PDF, cobrança impressa, ou "valor não bate".
-- Usar `verificar_preco_pedido` quando suspeitarem de preço errado em pedido individual.
-- Quando a admin pedir "salva isso como plano", "guarda esse roteiro", chamar `salvar_plano` automaticamente com um título curto.
+## Casos de borda
 
-## Resultado esperado
+- Variação nova (não existia antes) → sem dialog, salva direto.
+- Preço passou de 0 para X (variação que era grátis) → mesmo fluxo: pedidos antigos ganham desconto X para não inflar.
+- Preço passou de X para 0 → pedidos antigos ganham adicional X para não encolher.
+- Variação deletada → fora do escopo desta tarefa (continua bloqueada por admin_master).
+- Mesma variação editada várias vezes → cada mudança gera sua própria regra com data própria; o pedido pode acumular várias linhas de ajuste, sempre cobrindo apenas o intervalo entre a sua criação e a data de corte da regra correspondente.
+- "Data no futuro" → cria a regra com `aplicar_em > now()`; um job (pg_cron) executa o ajuste na data marcada. Até lá, ninguém é tocado e novos pedidos usam o preço antigo.
 
-Juliana abre o chat e pergunta:
-- *"Por que o financeiro do Rafael Silva não bate em maio?"* → IA chama `conciliacao_financeira_revendedor("Rafael Silva", "2026-05-01", "2026-05-31")` e responde com saldo, comprovantes, baixas, em aberto, divergências.
-- *"Por que o PDF de cobrança do Rafael deu R$ 24.451 e o portal mostra R$ 24.446?"* → IA chama `comparar_pdf_snapshot` e identifica os pedidos que mudaram de preço entre a geração e agora.
-- *"Salva esse roteiro pra eu rodar toda semana"* → IA chama `salvar_plano`, plano aparece na aba "Planos salvos".
+## Itens técnicos (para o dev)
 
-## Detalhes técnicos
+### Banco
 
-- Migração cria tabela + RLS (`USING has_role(auth.uid(), 'admin_master')`).
-- Tools server-side usam service role (já é o padrão da edge function).
-- `verificar_preco_pedido` precisa portar a lógica de `recomputeOrderPrice.ts` para Deno. Vai ficar embutida na edge function (cópia da função, não import — runtime separado).
-- Limite de iterações de tool (`MAX_TOOL_ITER = 8`) sobe para 12 para investigações encadeadas.
+Nova tabela `preco_mudancas`:
+- `id`, `created_at`, `created_by`
+- `tipo` enum: `ficha_variacao` | `custom_option`
+- `target_id` uuid (id da variação ou opção)
+- `target_label` text (snapshot do nome no momento)
+- `categoria_slug` text, `campo_slug` text (snapshot p/ matching nos pedidos)
+- `preco_antes` numeric, `preco_depois` numeric, `delta` numeric (depois - antes)
+- `data_corte` timestamptz (pedidos com `created_at < data_corte` são ajustados)
+- `aplicar_em` timestamptz null (se futuro, job roda nessa data)
+- `escopo` text: `desde_inicio` | `data_especifica` | `futuro`
+- `status` text: `pendente` | `aplicada` | `revertida`
+- `pedidos_ajustados` integer, `valor_total_compensado` numeric
+- `observacao` text
+
+Nova tabela `preco_mudanca_aplicacoes` (1-para-N com pedidos):
+- `id`, `mudanca_id`, `order_id`, `qtd_aplicada`, `valor_unit_delta`, `valor_total`, `created_at`
+
+RLS: só `admin_master` lê/insere/atualiza/reverte.
+
+Em `orders`, usar `extra_detalhes.ajustes_retroativos[]` (jsonb já existe) — sem nova coluna. O recálculo do total considera essa lista.
+
+### Edge function `aplicar-mudanca-preco`
+
+Input: `mudanca_id`.
+- Busca pedidos elegíveis (criados antes de `data_corte`, contendo a variação no campo certo).
+- Para cada pedido, conta `qtd_aplicada` (quantas vezes essa variação aparece × `quantidade` do pedido / botas no extra), calcula `valor_total_delta = -delta × qtd_aplicada` (negativo para preservar total quando preço sobe).
+- Insere linha em `extra_detalhes.ajustes_retroativos`.
+- Insere row em `preco_mudanca_aplicacoes`.
+- Atualiza `pedidos_ajustados` e `valor_total_compensado` na `preco_mudancas`.
+- Loga no `historico` do pedido.
+
+### Job de futuro
+
+`pg_cron` a cada hora roda função `aplicar_mudancas_futuras_pendentes()` que pega `preco_mudancas` com `escopo='futuro'`, `status='pendente'`, `aplicar_em <= now()` e chama a edge function (ou faz inline).
+
+### Cálculo do total do pedido
+
+`getOrderFinalValue` / `getOrderBaseValue` (já centralizado em mem) passa a somar `extra_detalhes.ajustes_retroativos[].valor_total`. Mesma coisa nos PDFs e na listagem. **Single source of truth** — sem duplicar lógica.
+
+### Pontos de captura no UI
+
+Toda chamada a `updateVariacao` (em `AdminConfigFichaPage.tsx` linhas 253, 1183, 1693 e similares) e a updates de `custom_options` deve passar por um wrapper `withPriceChangeGuard(oldPreco, newPreco, ctx)` que, se houver diferença, abre o dialog antes de fazer o update real. Só persiste depois da confirmação.
+
+Bulk save (`AdminConfigFichaPage` "salvar todas") deve agrupar todas as diferenças num único dialog com lista, e gerar uma `preco_mudancas` por variação alterada (mesma `data_corte`).
+
+### Memória
+
+Salvar nova memory `features/admin/retroactive-price-change` descrevendo a regra: toda mudança de preço de variação/opção dispara dialog de escopo temporal + ajuste compensatório automático para preservar valor final dos pedidos já existentes.
+
+## Perguntas antes de implementar
+
+1. Quer travar algum status para não receber ajuste? Sugestão: `Cancelado` (não ajusta) e talvez `Entregue` se já foi cobrado. Ou ajustamos tudo e você controla pelo histórico?
+2. Quando o pedido já tem desconto manual (`desconto` + `desconto_justificativa`), preferimos **somar** o ajuste retroativo ao desconto existente, ou **manter separado** em `extra_detalhes.ajustes_retroativos` e só somar no cálculo final (mantendo o desconto manual intacto para auditoria)? Recomendo separado.
+3. Pedidos com status `Cobrado` / saldo já baixado do revendedor — também recalcular o saldo do revendedor para refletir o novo valor, ou congelar o financeiro e só ajustar pedidos ainda não cobrados?
