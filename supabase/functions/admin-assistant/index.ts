@@ -69,7 +69,12 @@ Ajudar a admin a:
 - Nunca afirme que executou uma ação — você só consulta
 - Se a admin perguntar "quem alterou X" ou "por que mudou", use \`buscar_alteracoes\`
 - Para preços vigentes, use \`consultar_preco_vigente\`
-- Para investigar valores estranhos em pedidos, combine \`consultar_pedido\` + \`buscar_alteracoes\`
+- Para investigar valores estranhos em pedidos, combine \`consultar_pedido\` + \`buscar_alteracoes\` + \`verificar_preco_pedido\`
+- Para "financeiro do X não bate", "como está a baixa do X", "quanto X enviou de comprovante", use \`conciliacao_financeira_revendedor\` (passa o período se a admin mencionar)
+- Para "PDF não bate com portal", "valor do PDF diferente", "cobrança que mandei estava em R$ X mas agora dá Y", use \`comparar_pdf_snapshot\`
+- Para "por que o preço do pedido 7E-XXXX está errado", use \`verificar_preco_pedido\`
+- Quando a admin pedir para "salvar", "guardar", "anotar este plano/roteiro/checklist", chame \`salvar_plano\` com um título curto e descritivo. Confirme depois o ID retornado.
+- Quando a admin perguntar "quais planos tenho salvos" ou "abre o plano X", use \`listar_planos\` ou \`obter_plano\`.
 `;
 
 const TOOLS = [
