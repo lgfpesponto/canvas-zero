@@ -481,10 +481,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   // ── Escalação: compact block layout ──
   const generateEscalacaoPDF = () => {
+    const estoquePrefix = filterNumeroEstoque.trim().toLowerCase();
     const filtered = sourceOrders.filter(o =>
       progressoMatches(o.status) &&
       !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-' &&
-      (filterVendedor === 'todos' || o.vendedor === filterVendedor)
+      (filterVendedor === 'todos' || o.vendedor === filterVendedor) &&
+      (!estoquePrefix || (o.numero || '').toLowerCase().startsWith(estoquePrefix))
     );
     // Group by solado+formatoBico+corSola+corVira
     const groups: Record<string, { solado: string; formatoBico: string; corSola: string; corVira: string; sizes: Record<string, number> }> = {};
@@ -504,12 +506,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const progressoLabel = progressoLabelText();
     const progressoFile = progressoFileLabel();
     const vendedorLabel = filterVendedor === 'todos' ? 'Todos vendedores' : filterVendedor;
+    const estoqueLabel = filterNumeroEstoque.trim().toUpperCase();
 
     const doc = new jsPDF();
     const mx = 14;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`ESCALAÇÃO — ${progressoLabel.toUpperCase()} — ${vendedorLabel.toUpperCase()} — ${dataBR}`, mx, 18);
+    const headerExtra = estoqueLabel ? ` — ESTOQUE ${estoqueLabel}` : '';
+    doc.text(`ESCALAÇÃO — ${progressoLabel.toUpperCase()}${headerExtra} — ${vendedorLabel.toUpperCase()} — ${dataBR}`, mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
@@ -524,8 +528,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Escalação', userName);
-    void registrarPdfSnapshot({ tipo: 'escalacao', filtros: { progresso: [...filterProgresso], vendedor: filterVendedor }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
-    doc.save(`Escalação - ${progressoFile} - ${vendedorLabel} - ${dateFile}.pdf`);
+    void registrarPdfSnapshot({ tipo: 'escalacao', filtros: { progresso: [...filterProgresso], vendedor: filterVendedor, numeroEstoque: estoqueLabel || null }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
+    const fileExtra = estoqueLabel ? ` - ${estoqueLabel}` : '';
+    doc.save(`Escalação${fileExtra} - ${progressoFile} - ${vendedorLabel} - ${dateFile}.pdf`);
   };
 
   // ── Forro: compact block layout ──
