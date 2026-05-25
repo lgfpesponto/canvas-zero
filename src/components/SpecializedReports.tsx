@@ -2085,6 +2085,22 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             </div>
           )}
 
+          {activeReport === 'escalacao' && (
+            <div>
+              <label className="block text-xs font-semibold mb-1">Número do estoque (opcional)</label>
+              <input
+                type="text"
+                value={filterNumeroEstoque}
+                onChange={e => setFilterNumeroEstoque(e.target.value)}
+                placeholder="Ex: E009"
+                className="w-64 bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none uppercase"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Filtra apenas pedidos cujo número começa com esse prefixo (ex: estoques).
+              </p>
+            </div>
+          )}
+
           {needsExtrasCintosFilter && (
             <div className="space-y-3">
               <div>
