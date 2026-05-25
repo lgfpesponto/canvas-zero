@@ -392,6 +392,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [filterVendedor, setFilterVendedor] = useState('todos');
   const [filterProgresso, setFilterProgresso] = useState<Set<string>>(new Set());
+  const [filterNumeroEstoque, setFilterNumeroEstoque] = useState('');
   // Filtro de período por data de criação — usado apenas no relatório de Corte
   const [filterDataDe, setFilterDataDe] = useState('');
   const [filterDataAte, setFilterDataAte] = useState('');
