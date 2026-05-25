@@ -1,33 +1,45 @@
-## Reemitir Cobrança Maria Gabriela 19-05-2026 com valores atualizados
+## Corrigir Relatório Comissão Bordado — erro de parse de data
 
-Pegar o snapshot original (`pdf_snapshots` id `03bb791d-47fa-40a6-aae7-de2ea5c670cd`, 1016 pedidos / 1191 pares / R$ 354.376,80) e gerar um novo relatório com a situação atual de cada pedido. Esse trabalho é uma **análise + geração de artefatos** (não muda código do portal).
+### Causa raiz
+A RPC `find_orders_by_status_change` recebe `_status=['Baixa Bordado 7Estrivos']` e `_de/_ate` (datas) corretamente. O erro **"date/time field value out of range: '20/05/2026 08:52'"** vem do cast `(h->>'data')::date` sobre `orders.historico`: entradas antigas/recentes estão gravadas em **formato BR com hora** (`DD/MM/YYYY HH:MI`), que o Postgres não consegue converter implicitamente para `date`.
 
-### O que entrego (dois arquivos em `/mnt/documents/`)
+Outros relatórios que usam essa mesma RPC funcionam por sorte (status onde nenhum pedido tem histórico em formato BR). O Bordado pega entradas dos scanners do portal Bordado, que gravam no padrão BR.
 
-1. **PDF** `Cobrança ATUALIZADA - Maria Gabriela - 22-05-2026.pdf`
-   - Mesmo cabeçalho/estilo dos PDFs de cobrança (cliente, data, totais).
-   - Tabela por pedido: `Nº`, `Vendedor`, `Modelo`, `Tam`, `Status atual`, `Qtd`, `Valor final atual`.
-   - Total atualizado no rodapé + comparação com o snapshot (Δ vs R$ 354.376,80).
-   - Pedidos agrupados por vendedor (subtotal por vendedor).
+### Correção
+Nova migration ajustando a RPC para aceitar os dois formatos:
 
-2. **Planilha** `Cobrança ATUALIZADA - Maria Gabriela - 22-05-2026.xlsx`
-   - Colunas: `numero`, `vendedor`, `cliente`, `modelo`, `tamanho`, `status_atual`, `qtd`, `valor_snapshot`, `valor_atual`, `delta`, `link_portal` (https://portal.7estrivos.com.br/pedido/{id}).
-   - Aba extra "Resumo" com total snapshot, total atual, Δ, qtd por status, top 20 maiores deltas.
+```sql
+CREATE OR REPLACE FUNCTION public.find_orders_by_status_change(
+  _status text[], _de date, _ate date
+) RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT o.id
+  FROM public.orders o
+  WHERE EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(COALESCE(o.historico, '[]'::jsonb)) h
+    WHERE h->>'local' = ANY(_status)
+      AND (
+        CASE
+          WHEN h->>'data' ~ '^\d{4}-\d{2}-\d{2}'
+            THEN substring(h->>'data' from 1 for 10)::date
+          WHEN h->>'data' ~ '^\d{2}/\d{2}/\d{4}'
+            THEN to_date(substring(h->>'data' from 1 for 10), 'DD/MM/YYYY')
+          ELSE NULL
+        END
+      ) BETWEEN _de AND _ate
+  );
+$$;
+```
 
-### Como vou gerar
+- `substring(... 1 for 10)` corta a hora antes do cast, evitando erro mesmo em ISO com `T` ou espaço.
+- Regex distingue ISO (`yyyy-mm-dd…`) de BR (`dd/mm/yyyy…`).
+- `ELSE NULL` ignora entradas malformadas em vez de quebrar o relatório inteiro.
 
-- Ler `order_ids` do snapshot.
-- `SELECT` em `orders` trazendo numero, vendedor, cliente, modelo, tamanho, status, preco, quantidade, desconto, extra_detalhes (para detectar bota-pronta-entrega com nested botas[]).
-- Valor final = `preco*quantidade - desconto` (mesma fórmula usada pelos relatórios; bota pronta entrega segue `extra_detalhes.botas[]` se aplicável).
-- Gerar PDF com `pdf-lib`/`reportlab` Python (mais simples para tabela longa de 1016 linhas com paginação) e XLSX com `openpyxl`.
-- QA visual: converter o PDF em imagens e checar páginas iniciais/médias/finais antes de entregar.
+### Sem mudança no frontend
+A chamada em `SpecializedReports.tsx` continua igual. Só a função do banco passa a ser tolerante aos dois formatos — corrige Comissão Bordado e blinda também o "Filtro Mudou para Status" usado em outros relatórios.
 
-### Resposta no chat
-
-- Resumo dos números (snapshot vs atual, Δ, quebra por status, top vendedores).
-- Lista clicável dos N pedidos com maior divergência (com link `https://portal.7estrivos.com.br/pedido/{id}`) direto no chat.
-- Anexo dos dois arquivos via `<presentation-artifact>`.
-
-### Observação importante já levantada
-
-Rodando uma checagem rápida: dos 1016 pedidos do snapshot, **0 estão hoje como "Cobrado" ou "Cancelado"** — todos seguem em status ativos. A soma bruta atual deu R$ 357.438,80 (Δ ≈ +R$ 3.062,00 vs snapshot). Vou validar pedido a pedido no relatório.
+### Validação
+Depois de aplicar a migration, gerar o relatório Comissão Bordado para o período que estava quebrando. Conferir que retorna pedidos sem erro de toast.
