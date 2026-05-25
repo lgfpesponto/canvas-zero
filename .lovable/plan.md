@@ -1,45 +1,37 @@
-## Corrigir Relatório Comissão Bordado — erro de parse de data
+## Escalação do estoque E009 + filtro permanente
 
-### Causa raiz
-A RPC `find_orders_by_status_change` recebe `_status=['Baixa Bordado 7Estrivos']` e `_de/_ate` (datas) corretamente. O erro **"date/time field value out of range: '20/05/2026 08:52'"** vem do cast `(h->>'data')::date` sobre `orders.historico`: entradas antigas/recentes estão gravadas em **formato BR com hora** (`DD/MM/YYYY HH:MI`), que o Postgres não consegue converter implicitamente para `date`.
+Mesmo formato que fizemos para o E008 dia 20/05, agora para o E009 — e depois deixar isso reaproveitável no relatório oficial.
 
-Outros relatórios que usam essa mesma RPC funcionam por sorte (status onde nenhum pedido tem histórico em formato BR). O Bordado pega entradas dos scanners do portal Bordado, que gravam no padrão BR.
+### 1. PDF agora (E009)
 
-### Correção
-Nova migration ajustando a RPC para aceitar os dois formatos:
+Gerar um PDF Escalação aqui no chat com todos os pedidos cujo `numero` começa com `E009` (vendedor "Estoque").
 
-```sql
-CREATE OR REPLACE FUNCTION public.find_orders_by_status_change(
-  _status text[], _de date, _ate date
-) RETURNS SETOF uuid
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT o.id
-  FROM public.orders o
-  WHERE EXISTS (
-    SELECT 1
-    FROM jsonb_array_elements(COALESCE(o.historico, '[]'::jsonb)) h
-    WHERE h->>'local' = ANY(_status)
-      AND (
-        CASE
-          WHEN h->>'data' ~ '^\d{4}-\d{2}-\d{2}'
-            THEN substring(h->>'data' from 1 for 10)::date
-          WHEN h->>'data' ~ '^\d{2}/\d{2}/\d{4}'
-            THEN to_date(substring(h->>'data' from 1 for 10), 'DD/MM/YYYY')
-          ELSE NULL
-        END
-      ) BETWEEN _de AND _ate
-  );
-$$;
-```
+- Critério: `numero ILIKE 'E009%'` e `solado` preenchido (mesma regra do relatório de Escalação).
+- Sem filtro de etapa — pega todos os E009 que ainda existem na produção (hoje, da consulta, todos estão em "Pesponto Ailton").
+- Mesmo layout do PDF do E008: badge "SOLA", linha descritiva `solado bico {bico} cor {corSola} [vira {corVira}]`, tabela de tamanhos, total de pares e combinações no topo.
+- Script Python com `reportlab`, QA visual com `pdftoppm` antes de entregar.
+- Salvar em `/mnt/documents/Escalacao_E009_Estoque.pdf` e anexar como artifact.
 
-- `substring(... 1 for 10)` corta a hora antes do cast, evitando erro mesmo em ISO com `T` ou espaço.
-- Regex distingue ISO (`yyyy-mm-dd…`) de BR (`dd/mm/yyyy…`).
-- `ELSE NULL` ignora entradas malformadas em vez de quebrar o relatório inteiro.
+### 2. Filtro "Número do Estoque" no relatório de Escalação (app)
 
-### Sem mudança no frontend
-A chamada em `SpecializedReports.tsx` continua igual. Só a função do banco passa a ser tolerante aos dois formatos — corrige Comissão Bordado e blinda também o "Filtro Mudou para Status" usado em outros relatórios.
+Em `src/components/SpecializedReports.tsx`:
+
+- Adicionar um state `filterNumeroEstoque: string` (vazio = sem filtro).
+- Renderizar um `input` de texto no painel de filtros, **só aparece quando `activeReport === 'escalacao'`**, logo abaixo do filtro de Vendedor.
+  - Label: "Número do Estoque (opcional)"
+  - Placeholder: "Ex: E009"
+  - Helper: "Filtra apenas pedidos cujo número começa com esse prefixo (ex: estoques)."
+- Em `generateEscalacaoPDF`, aplicar mais um critério no `filtered`:
+  ```ts
+  (!filterNumeroEstoque || o.numero?.toLowerCase().startsWith(filterNumeroEstoque.toLowerCase()))
+  ```
+- Quando preenchido, sobrescrever o label/arquivo do PDF para incluir o prefixo (`Escalação - E009 - …pdf`) e mostrar no cabeçalho do PDF: `ESCALAÇÃO — E009 — …`.
+- Resetar o campo quando trocar de tipo de relatório (já que só o Escalação usa).
+
+Sem mudança em banco, RLS, ou outros relatórios. Apenas frontend.
 
 ### Validação
-Depois de aplicar a migration, gerar o relatório Comissão Bordado para o período que estava quebrando. Conferir que retorna pedidos sem erro de toast.
+
+- Conferir que com o campo vazio o relatório continua igual.
+- Conferir que com `E009` retorna só os pedidos do estoque E009 e o nome do arquivo reflete isso.
+- Confirmar que o snapshot em `pdf_snapshots.filtros` passa a registrar `numeroEstoque` também.
