@@ -1790,8 +1790,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const previewFiltered = (): Order[] => {
     if (!activeReport) return [];
     switch (activeReport) {
-      case 'escalacao':
-        return sourceOrders.filter(o => progressoMatches(o.status) && !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-');
+      case 'escalacao': {
+        const estoquePrefix = filterNumeroEstoque.trim().toLowerCase();
+        return sourceOrders.filter(o =>
+          progressoMatches(o.status) && !o.tipoExtra && o.solado && o.solado !== '' && o.solado !== '-' &&
+          (filterVendedor === 'todos' || o.vendedor === filterVendedor) &&
+          (!estoquePrefix || (o.numero || '').toLowerCase().startsWith(estoquePrefix))
+        );
+      }
       case 'forro':
       case 'forma':
       case 'palmilha':
