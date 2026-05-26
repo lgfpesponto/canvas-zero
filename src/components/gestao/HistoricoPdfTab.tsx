@@ -163,11 +163,8 @@ export default function HistoricoPdfTab() {
     if (!s.order_ids?.length) return;
     setRegerarLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, preco, quantidade, desconto, tipo_extra, extra_detalhes')
-        .in('id', s.order_ids);
-      if (error) throw error;
+      const data = await fetchOrdersByIds(s.order_ids, 'id, preco, quantidade, desconto, tipo_extra, extra_detalhes');
+
       let valorAtual = 0;
       let totalQtd = 0;
       (data || []).forEach((p: any) => {
