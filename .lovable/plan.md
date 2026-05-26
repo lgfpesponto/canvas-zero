@@ -1,48 +1,68 @@
-## O que está acontecendo
+## Objetivo
 
-Você tem 3 bugs conectados na tela de Solicitações de Ajuste e na FIFO de Cobrados:
+`admin_producao` deixa de ver QUALQUER valor em R$ na interface, exceto na área **Admin → Configurações** (onde edita preços de bordados, opções etc.) e nos **formulários de criação/edição de pedido** (mantém visível para conferir o que está escolhendo).
 
-1. **Erro "comprovante_notificacoes_tipo_check"** ao aprovar — o CHECK da tabela só aceita `aprovado`/`reprovado`, mas a função insere `ajuste_aprovado`/`ajuste_negado`.
-2. **Gravatas mostrando R$ 0,00 na FIFO** — confirmei no banco que todas as gravatas da Maria Gabriela estão com `preco = 0` na tabela (e já marcadas como migradas). A lista FIFO lê `preco` cru, por isso fica zero. O detalhe e PDF mostram R$ 30 porque recomputam em runtime.
-3. **Ajuste aprovado seria revertido** — mesmo se o erro acima não acontecesse, o aprovar não marca `preco_congelado = true`, então o recompute automático sobrescreveria o valor aprovado em poucos segundos.
+## O que vai ser escondido para admin_producao
 
-## Correção (1 migration SQL, sem mudança de código)
+1. **Listas de pedidos / extras / cintos**
+   - Coluna **Valor** / **Total**
+   - **Total selecionado** no rodapé quando marca vários
+   - Coluna **Desconto** (se houver)
 
-```sql
--- 1) Permitir os novos tipos de notificação
-ALTER TABLE public.comprovante_notificacoes
-  DROP CONSTRAINT IF EXISTS comprovante_notificacoes_tipo_check;
-ALTER TABLE public.comprovante_notificacoes
-  ADD CONSTRAINT comprovante_notificacoes_tipo_check
-  CHECK (tipo IN ('aprovado','reprovado','ajuste_aprovado','ajuste_negado'));
+2. **Detalhe do pedido**
+   - Bloco inteiro de **Composição de Preço**
+   - Linhas de **Desconto / Acréscimo / Ajuste**
+   - **Total final** no topo
+   - Botão **"Ajustar valor"** / "Solicitar ajuste" some
 
--- 2) Aprovar ajuste passa a CONGELAR o preço (não recalcula mais)
---    Atualiza decidir_ajuste_solicitacao para setar preco_congelado=true
---    no mesmo UPDATE de preco.
+3. **Dashboard**
+   - Cards de **Faturamento, Comissão, Saldo**
+   - Gráfico **Vendas por vendedor**
+   - Gráfico **Performance de vendas**
+   - (Mantém: produção, etapas, contadores de quantidade)
 
--- 3) One-off: corrigir as gravatas com preco=0 já no banco
---    Para tipo_extra IN ('gravata_pronta_entrega','gravata_country')
---    e preco = 0  →  preco = 30 * quantidade
---    (regra fixa confirmada por você)
-UPDATE public.orders
-   SET preco = 30 * GREATEST(quantidade,1)
- WHERE tipo_extra IN ('gravata_pronta_entrega','gravata_country')
-   AND COALESCE(preco,0) = 0;
+4. **Relatórios**
+   - Cards/coluna de R$ em qualquer relatório de produção que mostre valor
+   - PDFs de cobrança / financeiros somem do menu
+
+5. **Menu / navegação**
+   - Esconder toda a seção **Financeiro** (Saldo Revendedor, Comprovantes, A Pagar, A Receber, Histórico de PDFs de cobrança, Solicitações de Ajuste)
+   - Bloquear acesso por URL direta também (redirect para `/`)
+
+## O que CONTINUA visível para admin_producao
+
+- **Formulários** de criar/editar pedido: selects continuam mostrando "Bordado X — R$ 30" (precisa para escolher).
+- **Admin → Configurações** inteira: edição de preços de variações, custom_options, ficha, etc.
+- **PDFs de produção/corte/bordado**: não mexer, continuam iguais (não têm R$ mesmo).
+
+## Como implemento (técnico)
+
+Criar um hook simples `useCanSeeValues()` em `src/hooks/useCanSeeValues.ts`:
+
+```ts
+export function useCanSeeValues() {
+  const { role } = useAuth();
+  return role !== 'admin_producao';
+}
 ```
 
-## O que vai mudar no comportamento
+E aplico condicionalmente em cada ponto:
+- `{canSeeValues && <TableCell>{formatCurrency(...)}</TableCell>}`
+- `{canSeeValues && <ComposicaoPreco ... />}`
+- `{canSeeValues && <DashboardFinanceiroCards />}`
 
-- Aprovar/Negar ajuste de valor: passa a funcionar, sem erro.
-- Quando aprovado, o preço fica **congelado** naquele valor (não vai mais ser revertido pelo recálculo). Para mudar depois, só editando manualmente o pedido ou via novo ajuste retroativo.
-- As gravatas da FIFO vão aparecer com R$ 30,00 cada (em vez de R$ 0,00). O saldo "Utilizado" do dashboard automaticamente vai refletir o valor real cobrado dessas gravatas.
+Para o **menu lateral / rotas**: já existe lógica de role no `Header`/`Sidebar` e nas rotas. Adiciono `admin_producao` na lista de bloqueio para as rotas financeiras e redireciono para `/` se acessar por URL.
 
-## Resposta direta à sua pergunta
+## Arquivos que vou tocar
 
-> "o que acontece quando aceita essa mudança de valor do pedido solicitada pelo vendedor?"
+- **Novo**: `src/hooks/useCanSeeValues.ts`
+- **Listas/Detalhe**: `OrderPage.tsx`, `ExtrasPage.tsx`, `BeltOrderPage.tsx`, `OrderDetailPage.tsx`, `ReportsPage.tsx`
+- **Dashboard**: componentes de cards/gráficos financeiros em `src/components/dashboard/`
+- **Menu + rotas**: `Header.tsx`/`AppSidebar.tsx`, `App.tsx` (guards de rota financeira)
+- **Páginas financeiras**: adicionar redirect no topo de cada uma (Saldo, Comprovantes, A Pagar, A Receber, Solicitações de Ajuste, Histórico PDFs cobrança)
 
-Hoje (com o bug): dá erro e nada salva.
-Depois da correção: o `preco` do pedido vira o valor solicitado pelo vendedor, fica **congelado** (não será mais sobrescrito por recálculo), o histórico do pedido recebe um registro "Ajuste de valor aprovado: R$ X → R$ Y", a solicitação vira "aprovado" e o vendedor recebe notificação no sino.
+## Não muda no banco
 
-## Não precisa mudar nada no código TypeScript
+Nenhuma RLS, nenhuma migration. É 100% camada de UI — admin_producao continua podendo abrir pedido, mudar status, conferir, etc., só não vê valores.
 
-Apenas a migration acima. Confirma que pode aplicar?
+Confirma que pode implementar assim?

@@ -45,10 +45,17 @@ const queryClient = new QueryClient();
 
 const BORDADO_ALLOWED = new Set<string>(['/bordado', '/perfil']);
 
+// Rotas com valores em R$ — bloqueadas para admin_producao
+const VALUE_BLOCKED_PREFIXES = [
+  '/financeiro',
+  '/admin/solicitacoes-ajuste',
+];
+
 const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { role } = useAuth();
   const isBordado = role === 'bordado';
+  const isAdminProducao = role === 'admin_producao';
   const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
   const hideChrome = location.pathname === '/login' || isBordado;
 
@@ -56,6 +63,12 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   if (isBordado && !isBordadoRoute && !BORDADO_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
     return <Navigate to="/bordado" replace />;
   }
+
+  // admin_producao não pode acessar áreas financeiras / de valores
+  if (isAdminProducao && VALUE_BLOCKED_PREFIXES.some(p => location.pathname.startsWith(p))) {
+    return <Navigate to="/" replace />;
+  }
+
 
   return (
     <>

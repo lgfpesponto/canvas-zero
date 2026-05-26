@@ -11,6 +11,8 @@ import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
+import { useCanSeeValues } from '@/hooks/useCanSeeValues';
+
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 
 import { motion } from 'framer-motion';
@@ -49,6 +51,8 @@ import { AjusteValorSolicitacao } from '@/components/AjusteValorSolicitacao';
 const OrderDetailPage = () => {
   const { id } = useParams();
   const { isAdmin, user, updateOrder, updateOrderStatus, isFernanda, role } = useAuth();
+  const canSeeValues = useCanSeeValues();
+
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const location = useLocation();
@@ -748,6 +752,7 @@ const OrderDetailPage = () => {
           })()}
 
 
+          {canSeeValues && (<>
           {/* ═══ Composição do Pedido (acima dos Detalhes) ═══ */}
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
@@ -989,6 +994,8 @@ const OrderDetailPage = () => {
               </div>
             )}
           </div>
+          </>)}
+
 
           {/* Edição de Valor — admin_master only */}
           {role === 'admin_master' && (
