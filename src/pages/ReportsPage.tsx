@@ -19,6 +19,8 @@ import { requiresJustification, type JustificationKind } from '@/lib/statusRegre
 import { isTransitionAllowed } from '@/lib/statusTransitions';
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 import { LoadingValue } from '@/components/ui/LoadingValue';
+import { useCanSeeValues } from '@/hooks/useCanSeeValues';
+
 import { getOrderDeadlineInfo, FINAL_STAGES, isAlertOrder } from '@/lib/orderDeadline';
 import HolidayNoticeBanner from '@/components/HolidayNoticeBanner';
 import { Switch } from '@/components/ui/switch';
