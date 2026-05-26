@@ -232,7 +232,9 @@ export default function HistoricoPdfTab() {
     }
   };
 
+  return (
     <div className="space-y-4">
+
       <Card className="border-blue-500/30 bg-blue-500/5">
         <CardContent className="flex items-start gap-3 p-4">
           <FileText className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
