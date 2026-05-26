@@ -54,6 +54,36 @@ export const ComprovantesPorRevendedor = ({
   const [baixaTarget, setBaixaTarget] = useState<RevendedorComprovante | null>(null);
   const [baixaMotivo, setBaixaMotivo] = useState('');
   const [baixaSaving, setBaixaSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState<RevendedorComprovante | null>(null);
+  const [editValor, setEditValor] = useState<string>('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const handleSaveValor = async () => {
+    if (!editTarget) return;
+    const novo = Number(editValor.replace(',', '.'));
+    if (!Number.isFinite(novo) || novo <= 0) {
+      toast({ title: 'Valor inválido', variant: 'destructive' });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from('revendedor_comprovantes')
+        .update({ valor: novo })
+        .eq('id', editTarget.id);
+      if (error) throw error;
+      toast({ title: 'Valor atualizado', description: `Novo valor: ${formatCurrency(novo)}` });
+      setEditTarget(null);
+      setEditValor('');
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+
 
   const handleBaixaManual = async () => {
     if (!baixaTarget) return;
