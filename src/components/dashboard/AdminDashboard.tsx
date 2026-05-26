@@ -271,6 +271,23 @@ const AdminDashboard = () => {
           </div>
         </Link>
       )}
+      {isAdminMaster && ajustesPendentes > 0 && (
+        <Link to="/admin/solicitacoes-ajuste"
+          className="block mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <DollarSign className="text-amber-600" size={28} />
+              <div>
+                <div className="font-bold text-lg">Solicitações de ajuste de valor</div>
+                <div className="text-sm text-muted-foreground">
+                  {ajustesPendentes} {ajustesPendentes === 1 ? 'pedido aguardando' : 'pedidos aguardando'} sua decisão
+                </div>
+              </div>
+            </div>
+            <span className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-bold">Revisar →</span>
+          </div>
+        </Link>
+      )}
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left column */}
         <div className="space-y-6">
