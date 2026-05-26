@@ -752,6 +752,14 @@ const OrderDetailPage = () => {
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-display font-bold">Composição do Pedido</h2>
+              {!isAdmin && (
+                <AjusteValorSolicitacao
+                  orderId={order.id}
+                  orderStatus={order.status}
+                  valorAtual={Number(order.preco || 0)}
+                  isOwner={!!user?.nomeCompleto && user.nomeCompleto === order.vendedor}
+                />
+              )}
             </div>
             {role === 'admin_master' && (
               <label
