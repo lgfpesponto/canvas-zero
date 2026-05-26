@@ -107,6 +107,7 @@ const App = () => (
             <Route path="/financeiro" element={<FinanceiroPage />} />
             <Route path="/financeiro/saldo" element={<RevendedorSaldoPage />} />
             <Route path="/admin/gestao" element={<GestaoPage />} />
+            <Route path="/admin/solicitacoes-ajuste" element={<SolicitacoesAjustePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ChromeWrapper>
