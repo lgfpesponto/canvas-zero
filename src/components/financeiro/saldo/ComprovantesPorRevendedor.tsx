@@ -169,7 +169,23 @@ export const ComprovantesPorRevendedor = ({
                     <TableRow key={c.id}>
                       <TableCell className="text-xs">{new Date(c.created_at).toLocaleString('pt-BR')}</TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(Number(c.valor))}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <span>{formatCurrency(Number(c.valor))}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-muted-foreground hover:text-primary"
+                            title="Corrigir valor (IA pode ter errado)"
+                            onClick={() => {
+                              setEditTarget(c);
+                              setEditValor(String(Number(c.valor)));
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell><StatusBadge status={c.status} /></TableCell>
                       <TableCell className="text-xs max-w-[180px]">
                         <div className="font-medium truncate">
