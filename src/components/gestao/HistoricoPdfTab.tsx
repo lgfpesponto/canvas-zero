@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Download, Eye, FileText, Filter, RefreshCw } from 'lucide-react';
+import { Download, Eye, FileText, Filter, RefreshCw, RotateCcw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
+import { dbRowToOrder } from '@/lib/order-logic';
+import { ensurePriceCache } from '@/lib/priceCache';
+import { buildCobrancaPdfDoc, buildCobrancaFileName } from '@/lib/cobrancaPdf';
+import { registrarPdfSnapshot } from '@/lib/pdfHistorico';
 
 const TIPO_LABEL: Record<string, string> = {
   cobranca: 'Cobrança',
