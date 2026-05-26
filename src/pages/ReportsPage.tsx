@@ -82,6 +82,8 @@ const formatDateBR = (date: string, time?: string) => {
 
 const ReportsPage = () => {
   const { isLoggedIn, isAdmin, isFernanda, user, deleteOrder, deleteOrderBatch, updateOrderStatus, loading: authLoading } = useAuth();
+  const canSeeValues = useCanSeeValues();
+
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
