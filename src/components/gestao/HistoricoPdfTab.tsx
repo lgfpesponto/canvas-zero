@@ -326,6 +326,11 @@ export default function HistoricoPdfTab() {
                           <Download className="h-3.5 w-3.5" /> PDF
                         </Button>
                       )}
+                      {s.tipo === 'cobranca' && (
+                        <Button size="sm" variant="outline" onClick={() => abrirRegerar(s)} className="h-8 gap-1" title="Regerar com preços atuais">
+                          <RotateCcw className="h-3.5 w-3.5" /> regerar
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
