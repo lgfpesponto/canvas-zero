@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Clock, MinusCircle, Archive } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, Clock, MinusCircle, Archive, Pencil } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
