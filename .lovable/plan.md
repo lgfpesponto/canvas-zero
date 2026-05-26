@@ -1,22 +1,35 @@
-## Problema
+## Confirmação dos números
 
-O comprovante de Maria Gabriela do dia 19/05/2026 (id `c296258b…`) foi gravado no banco com `valor = 15.329` (quinze reais e trinta e três centavos) porque a IA extratora interpretou "15.329,00" usando ponto como separador decimal. Por isso a lista mostra **R$ 15,33** em vez de **R$ 15.329,00**.
+Snapshot **Cobrança - Maria Gabriela - 19-05-2026** (`03bb791d…`, 1016 pedidos, R$ 354.376,80, 1191 pares).
 
-## O que vou fazer
+Filtrando dentro desses 1016:
+- **235 pedidos com bordado Florência** (em qualquer campo: cano/gáspea/taloneira)
+- **218** com desconto exatamente **R$ 5,00** (migração indue)
+- **7** com desconto **> R$ 5,00** ← os "suspeitos" pedidos pra você revisar
+- 10 sem desconto
 
-### 1. Corrigir o registro específico (migration)
-`UPDATE revendedor_comprovantes SET valor = 15329.00 WHERE id = 'c296258b-d143-4ab7-a67c-fc03df8542c3'`
+## O que vou entregar (3 arquivos em `/mnt/documents/`)
 
-Isso já resolve a exibição na listagem de comprovantes da Maria Gabriela, no total "Aprovado (lista)" e em qualquer baixa futura.
+### 1. `Florencia_desconto_maior_5.xlsx`
+Os 7 pedidos Florência com desconto > R$5. Colunas:
+`número, cliente, modelo, bordado_cano, bordado_gaspea, bordado_taloneira, preco_unit, qtd, desconto, valor_final, valor_snapshot, delta, status, link_portal`
 
-### 2. Prevenir recorrência — botão "Editar valor" (admin_master)
-Na tabela de `ComprovantesPorRevendedor` (a que admin_master usa para revisar), adicionar um pequeno botão de lápis ao lado do valor que abre um dialog simples para corrigir o `valor` manualmente quando a IA errar. Restrito a `admin_master`, registrando no `audit_log` (motivo opcional).
+E no chat, lista clicável dos mesmos 7 com `https://portal.7estrivos.com.br/pedido/{id}`.
 
-Nada além disso muda: regras de saldo, baixa automática, layout, permissões dos demais perfis e o fluxo de envio do vendedor continuam idênticos.
+### 2. `Cobranca_FINAL_MariaGabriela_1016pedidos_26-05-2026.pdf`
+Mesmo layout do PDF de Cobrança original (header igual, agrupado por status, totais por status no rodapé, paginação), mas refletindo o **valor ATUAL de cada pedido**, com:
+- Coluna extra "Δ vs snapshot" (diferença em R$ vs o snapshot de 19/05)
+- Linha final de total geral + total de delta acumulado
+- Nota de rodapé explicando os 218 ajustes Florência (−R$ 1.090) + os 7 casos suspeitos
 
-### Detalhes técnicos
-- Migration: 1 UPDATE pontual.
-- Frontend: ajuste apenas em `src/components/financeiro/saldo/ComprovantesPorRevendedor.tsx` + novo `EditarValorComprovanteDialog.tsx`.
-- Sem alteração na edge `extract-comprovante` (a IA continua errando às vezes — o botão de correção cobre isso sem risco de regressão).
+### 3. `Cobranca_FINAL_MariaGabriela_1016pedidos_26-05-2026.xlsx`
+Planilha completa com os 1016 pedidos, mesmas colunas do PDF + colunas extras (`valor_snapshot`, `delta`, `link_portal`) e uma aba "Resumo" com:
+- Total snapshot vs total atual
+- Quantidade e valor por status
+- Quantidade de Florências (total, com desc=5, com desc>5, sem desc)
 
-Posso aplicar?
+## Importante (não muda nada no app)
+
+Nenhum pedido será alterado. Só leitura + geração de arquivos. Qualquer correção de desconto/preço você faz manualmente depois.
+
+Posso gerar?
