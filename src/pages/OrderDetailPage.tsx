@@ -994,6 +994,8 @@ const OrderDetailPage = () => {
               </div>
             )}
           </div>
+          </>)}
+
 
           {/* Edição de Valor — admin_master only */}
           {role === 'admin_master' && (
