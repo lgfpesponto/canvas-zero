@@ -153,6 +153,18 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchComprovantesPendentes(); }, [fetchComprovantesPendentes]);
 
+  // Solicitações de ajuste pendentes
+  useEffect(() => {
+    if (!isAdminMaster) return;
+    (async () => {
+      const { count } = await supabase
+        .from('order_ajuste_solicitacoes' as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pendente');
+      setAjustesPendentes(count || 0);
+    })();
+  }, [isAdminMaster]);
+
   // Solado board queries via useOrdersQuery
   const { orders: solaCouroOrders } = useOrdersQuery({
     onlyBotas: true,
