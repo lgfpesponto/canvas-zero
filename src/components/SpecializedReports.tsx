@@ -426,6 +426,27 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const [filterBordadoUsuarios, setFilterBordadoUsuarios] = useState<Set<string>>(new Set());
   const [bordadoUsuariosOptions, setBordadoUsuariosOptions] = useState<string[]>([]);
 
+  // Sugestão de marcar pedidos como "Cobrado" após gerar PDF de cobrança
+  const [marcarCobradoState, setMarcarCobradoState] = useState<{ ids: string[]; nomeArquivo: string; total: number } | null>(null);
+  const [marcandoCobrado, setMarcandoCobrado] = useState(false);
+
+  const confirmarMarcarCobrado = async () => {
+    if (!marcarCobradoState) return;
+    setMarcandoCobrado(true);
+    try {
+      const { error } = await supabase.rpc('marcar_pedidos_como_cobrado' as any, {
+        _order_ids: marcarCobradoState.ids,
+      });
+      if (error) throw error;
+      toast.success(`${marcarCobradoState.total} pedido(s) marcado(s) como Cobrado`);
+      setMarcarCobradoState(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao marcar pedidos como Cobrado');
+    } finally {
+      setMarcandoCobrado(false);
+    }
+  };
+
   const vendedores = useMemo(() => [...new Set(sourceOrders.map(o => o.vendedor))].sort(), [sourceOrders]);
 
   // Carrega usuários distintos que já deram baixa de bordado (para o multiselect)
