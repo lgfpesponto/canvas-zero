@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Clock, MinusCircle, Archive } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, Clock, MinusCircle, Archive, Pencil } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +54,36 @@ export const ComprovantesPorRevendedor = ({
   const [baixaTarget, setBaixaTarget] = useState<RevendedorComprovante | null>(null);
   const [baixaMotivo, setBaixaMotivo] = useState('');
   const [baixaSaving, setBaixaSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState<RevendedorComprovante | null>(null);
+  const [editValor, setEditValor] = useState<string>('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const handleSaveValor = async () => {
+    if (!editTarget) return;
+    const novo = Number(editValor.replace(',', '.'));
+    if (!Number.isFinite(novo) || novo <= 0) {
+      toast({ title: 'Valor inválido', variant: 'destructive' });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from('revendedor_comprovantes')
+        .update({ valor: novo })
+        .eq('id', editTarget.id);
+      if (error) throw error;
+      toast({ title: 'Valor atualizado', description: `Novo valor: ${formatCurrency(novo)}` });
+      setEditTarget(null);
+      setEditValor('');
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+
 
   const handleBaixaManual = async () => {
     if (!baixaTarget) return;
@@ -134,7 +169,23 @@ export const ComprovantesPorRevendedor = ({
                     <TableRow key={c.id}>
                       <TableCell className="text-xs">{new Date(c.created_at).toLocaleString('pt-BR')}</TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(Number(c.valor))}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <span>{formatCurrency(Number(c.valor))}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-muted-foreground hover:text-primary"
+                            title="Corrigir valor (IA pode ter errado)"
+                            onClick={() => {
+                              setEditTarget(c);
+                              setEditValor(String(Number(c.valor)));
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell><StatusBadge status={c.status} /></TableCell>
                       <TableCell className="text-xs max-w-[180px]">
                         <div className="font-medium truncate">
@@ -228,6 +279,44 @@ export const ComprovantesPorRevendedor = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={!!editTarget}
+        onOpenChange={(o) => { if (!o && !editSaving) { setEditTarget(null); setEditValor(''); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Corrigir valor do comprovante</DialogTitle>
+            <DialogDescription>
+              Use quando a IA leu o valor errado (ex.: confundiu separador de milhar com decimal).
+              {editTarget && (
+                <span className="block mt-2 text-xs">
+                  Valor atual: <strong>{formatCurrency(Number(editTarget.valor))}</strong> — vendedor: {editTarget.vendedor}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-sm">Novo valor (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={editValor}
+              onChange={(e) => setEditValor(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditTarget(null); setEditValor(''); }} disabled={editSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveValor} disabled={editSaving}>
+              {editSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Salvando...</> : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
