@@ -149,7 +149,89 @@ export default function HistoricoPdfTab() {
     }
   };
 
-  return (
+  const abrirRegerar = async (s: Snapshot) => {
+    setRegerarSnap(s);
+    setRegerarPreview(null);
+    if (!s.order_ids?.length) return;
+    setRegerarLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, preco, quantidade, desconto, tipo_extra, extra_detalhes')
+        .in('id', s.order_ids);
+      if (error) throw error;
+      let valorAtual = 0;
+      let totalQtd = 0;
+      (data || []).forEach((p: any) => {
+        const det = p.extra_detalhes || {};
+        const isBotaPE = p.tipo_extra === 'bota_pronta_entrega';
+        const qtd = isBotaPE && Array.isArray(det.botas) ? det.botas.length : (p.quantidade || 1);
+        const base = (Number(p.preco) || 0) * (qtd || 1);
+        const desc = Number(p.desconto) || 0;
+        valorAtual += Math.max(0, base - desc);
+        totalQtd += qtd;
+      });
+      setRegerarPreview({ valorAtual, totalQtd, pedidos: data?.length || 0 });
+    } catch (e: any) {
+      toast.error('Erro ao carregar preview: ' + (e?.message || e));
+    } finally {
+      setRegerarLoading(false);
+    }
+  };
+
+  const confirmarRegerar = async () => {
+    if (!regerarSnap) return;
+    setRegerarRunning(true);
+    try {
+      const { data: rowsDb, error } = await supabase
+        .from('orders').select('*').in('id', regerarSnap.order_ids);
+      if (error) throw error;
+      const orders = (rowsDb || []).map(dbRowToOrder);
+
+      await ensurePriceCache();
+
+      const f = regerarSnap.filtros || {};
+      const vendedorLabel = (typeof f.vendedor === 'string' && f.vendedor !== 'todos')
+        ? (f.vendedor as string) : 'Todos vendedores';
+      const statusLabel = Array.isArray(f.status) ? (f.status as string[]).join(' / ') : '—';
+      const geradoEm = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+      const { doc, totalValor, totalQtd } = buildCobrancaPdfDoc(orders, {
+        vendedorLabel, statusLabel, geradoEm,
+        tituloPrefixo: 'Cobrança (preços atuais)',
+      });
+      const nome = buildCobrancaFileName({
+        vendedorLabel, geradoEm, totalValor, totalQtd, sufixo: '(preços atuais)',
+      });
+
+      await registrarPdfSnapshot({
+        tipo: 'cobranca',
+        filtros: {
+          ...f,
+          gerado_em: geradoEm,
+          origem: 'regerada',
+          snapshot_origem: regerarSnap.id,
+          snapshot_origem_data: regerarSnap.gerado_em,
+          valor_original: regerarSnap.totais?.valor_total ?? null,
+        },
+        orderIds: regerarSnap.order_ids,
+        totais: { qtd_pedidos: orders.length, qtd_produtos: totalQtd, valor_total: totalValor },
+        doc,
+        nomeArquivo: nome,
+      });
+
+      doc.save(nome);
+      toast.success(`PDF regerado: ${nome}`);
+      setRegerarSnap(null);
+      setRegerarPreview(null);
+      void load();
+    } catch (e: any) {
+      toast.error('Erro ao regerar PDF: ' + (e?.message || e));
+    } finally {
+      setRegerarRunning(false);
+    }
+  };
+
     <div className="space-y-4">
       <Card className="border-blue-500/30 bg-blue-500/5">
         <CardContent className="flex items-start gap-3 p-4">
