@@ -752,6 +752,7 @@ const OrderDetailPage = () => {
           })()}
 
 
+          {canSeeValues && (<>
           {/* ═══ Composição do Pedido (acima dos Detalhes) ═══ */}
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
