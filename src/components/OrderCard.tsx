@@ -30,6 +30,8 @@ const OrderCard = React.memo(({
   const navigate = useNavigate();
   const location = useLocation();
   const linkedBoot = useLinkedBoot(order);
+  const canSeeValues = useCanSeeValues();
+
 
   return (
     <div className="bg-card rounded-xl p-4 western-shadow hover:shadow-xl transition-shadow flex items-center gap-3">
