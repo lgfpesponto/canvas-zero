@@ -70,14 +70,17 @@ const OrderCard = React.memo(({
                 <>
                   <span className="text-muted-foreground">{formatDateBR(order.dataCriacao, order.horaCriacao)}</span>
                   <span className="px-2 py-0.5 rounded-full bg-muted text-xs font-bold">{order.status}</span>
-                  <span className="font-bold text-primary inline-flex items-center gap-1">
-                    {formatCurrency(valor)}
-                    {temDesconto && (
-                      <span className="px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[9px] font-bold">
-                        DESC
-                      </span>
-                    )}
-                  </span>
+                  {canSeeValues && (
+                    <span className="font-bold text-primary inline-flex items-center gap-1">
+                      {formatCurrency(valor)}
+                      {temDesconto && (
+                        <span className="px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[9px] font-bold">
+                          DESC
+                        </span>
+                      )}
+                    </span>
+                  )}
+
                   <span className="text-xs text-muted-foreground">Qtd: {qtd}</span>
                   <span className={`text-xs ${deadlineClass}`}>{deadline.label}</span>
                 </>
