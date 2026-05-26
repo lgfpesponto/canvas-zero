@@ -56,6 +56,13 @@ const FLOW: Record<string, string[]> = {
 
 export const ALWAYS_AVAILABLE = ['Aguardando', 'Cancelado'];
 
+/**
+ * Status que NUNCA podem ser definidos manualmente pelo usuário (nem admin master).
+ * - "Cobrado": só via PDF de cobrança (RPC marcar_pedidos_como_cobrado)
+ * - "Pago": só via aprovação de comprovante / baixa automática
+ */
+export const MANUALLY_BLOCKED = new Set(['Cobrado', 'Pago']);
+
 /** Status a partir dos quais qualquer destino é permitido (sem checagem de fluxo). */
 const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
 
