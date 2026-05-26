@@ -56,6 +56,13 @@ const FLOW: Record<string, string[]> = {
 
 export const ALWAYS_AVAILABLE = ['Aguardando', 'Cancelado'];
 
+/**
+ * Status que NUNCA podem ser definidos manualmente pelo usuário (nem admin master).
+ * - "Cobrado": só via PDF de cobrança (RPC marcar_pedidos_como_cobrado)
+ * - "Pago": só via aprovação de comprovante / baixa automática
+ */
+export const MANUALLY_BLOCKED = new Set(['Cobrado', 'Pago']);
+
 /** Status a partir dos quais qualquer destino é permitido (sem checagem de fluxo). */
 const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
 
@@ -162,7 +169,7 @@ function applyContextFilter(targets: string[], ctx?: TransitionContext): string[
 export function getAllowedNextStatuses(current: string | null | undefined, ctx?: TransitionContext): string[] {
   if (!current) return [];
   const flow = pickFlow(ctx);
-  const allFlowKeys = Object.keys(flow);
+  const allFlowKeys = Object.keys(flow).filter(k => !MANUALLY_BLOCKED.has(k));
   const merged = Array.from(new Set([...allFlowKeys, ...ALWAYS_AVAILABLE]));
   return applyContextFilter(merged, ctx);
 }
@@ -182,6 +189,7 @@ export function isTransitionAllowed(
 ): boolean {
   if (!current || !next) return false;
   if (current === next) return true;
+  if (MANUALLY_BLOCKED.has(next)) return false;
   if (ALWAYS_AVAILABLE.includes(next)) return true;
   const flow = pickFlow(ctx);
   if (!Object.prototype.hasOwnProperty.call(flow, next)) return false;

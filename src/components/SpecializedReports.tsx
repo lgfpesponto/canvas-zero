@@ -1610,6 +1610,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       nomeArquivo: cobrancaNome,
     });
     doc.save(cobrancaNome);
+
+    // Sugerir marcar como Cobrado quando houver pedidos em Conferido/Entregue
+    const idsParaCobrar = filtered.filter(o => o.status === 'Conferido' || o.status === 'Entregue').map(o => o.id);
+    if (idsParaCobrar.length > 0) {
+      setMarcarCobradoState({ ids: idsParaCobrar, nomeArquivo: cobrancaNome, total: idsParaCobrar.length });
+    }
   };
 
   // ── Extras / Cintos: grouping report ──

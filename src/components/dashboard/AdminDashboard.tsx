@@ -61,6 +61,7 @@ const AdminDashboard = () => {
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number } | null>(null);
   const [comprovantesLoading, setComprovantesLoading] = useState(true);
+  const [ajustesPendentes, setAjustesPendentes] = useState<number>(0);
 
   // Fetch vendedores list
   useEffect(() => {
@@ -151,6 +152,18 @@ const AdminDashboard = () => {
   }, [isAdminMaster]);
 
   useEffect(() => { fetchComprovantesPendentes(); }, [fetchComprovantesPendentes]);
+
+  // Solicitações de ajuste pendentes
+  useEffect(() => {
+    if (!isAdminMaster) return;
+    (async () => {
+      const { count } = await supabase
+        .from('order_ajuste_solicitacoes' as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pendente');
+      setAjustesPendentes(count || 0);
+    })();
+  }, [isAdminMaster]);
 
   // Solado board queries via useOrdersQuery
   const { orders: solaCouroOrders } = useOrdersQuery({
@@ -255,6 +268,23 @@ const AdminDashboard = () => {
             <span className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-bold">
               Aprovar agora →
             </span>
+          </div>
+        </Link>
+      )}
+      {isAdminMaster && ajustesPendentes > 0 && (
+        <Link to="/admin/solicitacoes-ajuste"
+          className="block mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <DollarSign className="text-amber-600" size={28} />
+              <div>
+                <div className="font-bold text-lg">Solicitações de ajuste de valor</div>
+                <div className="text-sm text-muted-foreground">
+                  {ajustesPendentes} {ajustesPendentes === 1 ? 'pedido aguardando' : 'pedidos aguardando'} sua decisão
+                </div>
+              </div>
+            </div>
+            <span className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-bold">Revisar →</span>
           </div>
         </Link>
       )}
