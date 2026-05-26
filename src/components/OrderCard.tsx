@@ -5,6 +5,8 @@ import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { getOrderFinalValue } from '@/lib/order-logic';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
+import { useCanSeeValues } from '@/hooks/useCanSeeValues';
+
 
 interface OrderCardProps {
   order: any;
