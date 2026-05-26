@@ -130,17 +130,25 @@ export default function HistoricoPdfTab() {
     }
   };
 
+  const fetchOrdersByIds = async (ids: string[], columns: string) => {
+    const BATCH = 200;
+    const batches: string[][] = [];
+    for (let i = 0; i < ids.length; i += BATCH) batches.push(ids.slice(i, i + BATCH));
+    const results = await Promise.all(batches.map(async (batch) => {
+      const { data, error } = await supabase.from('orders').select(columns).in('id', batch);
+      if (error) throw error;
+      return data || [];
+    }));
+    return results.flat();
+  };
+
   const openDetalhes = async (s: Snapshot) => {
     setOpenSnap(s);
     setSnapDetalhes(null);
     if (!s.order_ids?.length) return;
     setLoadingSnap(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, numero, cliente, vendedor, status, preco, quantidade, desconto')
-        .in('id', s.order_ids);
-      if (error) throw error;
+      const data = await fetchOrdersByIds(s.order_ids, 'id, numero, cliente, vendedor, status, preco, quantidade, desconto');
       setSnapDetalhes(data || []);
     } catch (e: any) {
       toast.error('Erro ao carregar pedidos: ' + (e?.message || e));
@@ -155,11 +163,8 @@ export default function HistoricoPdfTab() {
     if (!s.order_ids?.length) return;
     setRegerarLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, preco, quantidade, desconto, tipo_extra, extra_detalhes')
-        .in('id', s.order_ids);
-      if (error) throw error;
+      const data = await fetchOrdersByIds(s.order_ids, 'id, preco, quantidade, desconto, tipo_extra, extra_detalhes');
+
       let valorAtual = 0;
       let totalQtd = 0;
       (data || []).forEach((p: any) => {
@@ -183,9 +188,7 @@ export default function HistoricoPdfTab() {
     if (!regerarSnap) return;
     setRegerarRunning(true);
     try {
-      const { data: rowsDb, error } = await supabase
-        .from('orders').select('*').in('id', regerarSnap.order_ids);
-      if (error) throw error;
+      const rowsDb = await fetchOrdersByIds(regerarSnap.order_ids, '*');
       const orders = (rowsDb || []).map(dbRowToOrder);
 
       await ensurePriceCache();
