@@ -189,6 +189,7 @@ export function isTransitionAllowed(
 ): boolean {
   if (!current || !next) return false;
   if (current === next) return true;
+  if (MANUALLY_BLOCKED.has(next)) return false;
   if (ALWAYS_AVAILABLE.includes(next)) return true;
   const flow = pickFlow(ctx);
   if (!Object.prototype.hasOwnProperty.call(flow, next)) return false;
