@@ -188,9 +188,7 @@ export default function HistoricoPdfTab() {
     if (!regerarSnap) return;
     setRegerarRunning(true);
     try {
-      const { data: rowsDb, error } = await supabase
-        .from('orders').select('*').in('id', regerarSnap.order_ids);
-      if (error) throw error;
+      const rowsDb = await fetchOrdersByIds(regerarSnap.order_ids, '*');
       const orders = (rowsDb || []).map(dbRowToOrder);
 
       await ensurePriceCache();
