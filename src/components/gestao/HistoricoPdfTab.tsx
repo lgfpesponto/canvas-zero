@@ -400,6 +400,47 @@ export default function HistoricoPdfTab() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!regerarSnap} onOpenChange={(o) => { if (!o && !regerarRunning) { setRegerarSnap(null); setRegerarPreview(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Regerar PDF com preços atuais</DialogTitle>
+            <DialogDescription>
+              Vai gerar um novo PDF de Cobrança usando exatamente os mesmos pedidos do snapshot original,
+              mas com os <strong>preços atuais</strong> de cada pedido. O snapshot original é mantido intacto.
+            </DialogDescription>
+          </DialogHeader>
+          {regerarSnap && (
+            <div className="space-y-2 text-sm">
+              <div><strong>Snapshot original:</strong> {formatDateTime(regerarSnap.gerado_em)}</div>
+              <div><strong>Pedidos:</strong> {regerarSnap.order_ids?.length || 0}</div>
+              <div><strong>Valor original:</strong> {typeof regerarSnap.totais?.valor_total === 'number' ? formatCurrency(regerarSnap.totais.valor_total) : '—'}</div>
+              {regerarLoading ? (
+                <div className="text-muted-foreground inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando valor atual…</div>
+              ) : regerarPreview ? (
+                <>
+                  <div><strong>Valor atual estimado:</strong> {formatCurrency(regerarPreview.valorAtual)}</div>
+                  {typeof regerarSnap.totais?.valor_total === 'number' && (() => {
+                    const delta = regerarPreview.valorAtual - (regerarSnap.totais.valor_total || 0);
+                    return (
+                      <div className={delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                        <strong>Δ vs snapshot:</strong> {delta >= 0 ? '+' : ''}{formatCurrency(delta)}
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : null}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRegerarSnap(null); setRegerarPreview(null); }} disabled={regerarRunning}>Cancelar</Button>
+            <Button onClick={confirmarRegerar} disabled={regerarRunning || regerarLoading}>
+              {regerarRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Gerar PDF atualizado
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
