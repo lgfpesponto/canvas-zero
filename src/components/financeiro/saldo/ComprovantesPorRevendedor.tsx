@@ -279,6 +279,44 @@ export const ComprovantesPorRevendedor = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={!!editTarget}
+        onOpenChange={(o) => { if (!o && !editSaving) { setEditTarget(null); setEditValor(''); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Corrigir valor do comprovante</DialogTitle>
+            <DialogDescription>
+              Use quando a IA leu o valor errado (ex.: confundiu separador de milhar com decimal).
+              {editTarget && (
+                <span className="block mt-2 text-xs">
+                  Valor atual: <strong>{formatCurrency(Number(editTarget.valor))}</strong> — vendedor: {editTarget.vendedor}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-sm">Novo valor (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={editValor}
+              onChange={(e) => setEditValor(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditTarget(null); setEditValor(''); }} disabled={editSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveValor} disabled={editSaving}>
+              {editSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Salvando...</> : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
