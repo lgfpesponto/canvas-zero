@@ -61,6 +61,7 @@ const AdminDashboard = () => {
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number } | null>(null);
   const [comprovantesLoading, setComprovantesLoading] = useState(true);
+  const [ajustesPendentes, setAjustesPendentes] = useState<number>(0);
 
   // Fetch vendedores list
   useEffect(() => {
