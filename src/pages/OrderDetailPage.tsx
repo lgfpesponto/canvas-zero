@@ -49,6 +49,8 @@ import { AjusteValorSolicitacao } from '@/components/AjusteValorSolicitacao';
 const OrderDetailPage = () => {
   const { id } = useParams();
   const { isAdmin, user, updateOrder, updateOrderStatus, isFernanda, role } = useAuth();
+  const canSeeValues = useCanSeeValues();
+
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const location = useLocation();
