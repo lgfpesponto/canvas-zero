@@ -756,7 +756,7 @@ const OrderDetailPage = () => {
                 <AjusteValorSolicitacao
                   orderId={order.id}
                   orderStatus={order.status}
-                  valorAtual={Number(order.preco || 0)}
+                  valorAtual={Number(displayTotal || 0)}
                   isOwner={!!user?.nomeCompleto && user.nomeCompleto === order.vendedor}
                 />
               )}
