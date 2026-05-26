@@ -426,6 +426,27 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   const [filterBordadoUsuarios, setFilterBordadoUsuarios] = useState<Set<string>>(new Set());
   const [bordadoUsuariosOptions, setBordadoUsuariosOptions] = useState<string[]>([]);
 
+  // Sugestão de marcar pedidos como "Cobrado" após gerar PDF de cobrança
+  const [marcarCobradoState, setMarcarCobradoState] = useState<{ ids: string[]; nomeArquivo: string; total: number } | null>(null);
+  const [marcandoCobrado, setMarcandoCobrado] = useState(false);
+
+  const confirmarMarcarCobrado = async () => {
+    if (!marcarCobradoState) return;
+    setMarcandoCobrado(true);
+    try {
+      const { error } = await supabase.rpc('marcar_pedidos_como_cobrado' as any, {
+        _order_ids: marcarCobradoState.ids,
+      });
+      if (error) throw error;
+      toast.success(`${marcarCobradoState.total} pedido(s) marcado(s) como Cobrado`);
+      setMarcarCobradoState(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao marcar pedidos como Cobrado');
+    } finally {
+      setMarcandoCobrado(false);
+    }
+  };
+
   const vendedores = useMemo(() => [...new Set(sourceOrders.map(o => o.vendedor))].sort(), [sourceOrders]);
 
   // Carrega usuários distintos que já deram baixa de bordado (para o multiselect)
@@ -2152,6 +2173,33 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
         </div>
       )}
       {confirmPrintDialog}
+      {marcarCobradoState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !marcandoCobrado && setMarcarCobradoState(null)}>
+          <div className="bg-card rounded-xl p-6 max-w-md w-full western-shadow" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-2">Marcar como Cobrado?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              O PDF <strong>{marcarCobradoState.nomeArquivo}</strong> foi gerado com sucesso.
+              Deseja marcar os <strong>{marcarCobradoState.total}</strong> pedido(s) incluídos como <strong>Cobrado</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setMarcarCobradoState(null)}
+                disabled={marcandoCobrado}
+                className="px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                Agora não
+              </button>
+              <button
+                onClick={confirmarMarcarCobrado}
+                disabled={marcandoCobrado}
+                className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50"
+              >
+                {marcandoCobrado ? 'Marcando…' : 'Sim, marcar como Cobrado'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
