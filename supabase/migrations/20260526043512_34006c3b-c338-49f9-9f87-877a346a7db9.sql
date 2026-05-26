@@ -1,0 +1,1 @@
+UPDATE public.revendedor_comprovantes SET valor = 15329.00 WHERE id = 'c296258b-d143-4ab7-a67c-fc03df8542c3';
