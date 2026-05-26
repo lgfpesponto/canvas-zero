@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Download, Eye, FileText, Filter, RefreshCw } from 'lucide-react';
+import { Download, Eye, FileText, Filter, RefreshCw, RotateCcw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
+import { dbRowToOrder } from '@/lib/order-logic';
+import { ensurePriceCache } from '@/lib/priceCache';
+import { buildCobrancaPdfDoc, buildCobrancaFileName } from '@/lib/cobrancaPdf';
+import { registrarPdfSnapshot } from '@/lib/pdfHistorico';
 
 const TIPO_LABEL: Record<string, string> = {
   cobranca: 'Cobrança',
@@ -73,6 +77,10 @@ export default function HistoricoPdfTab() {
   const [openSnap, setOpenSnap] = useState<Snapshot | null>(null);
   const [snapDetalhes, setSnapDetalhes] = useState<any[] | null>(null);
   const [loadingSnap, setLoadingSnap] = useState(false);
+  const [regerarSnap, setRegerarSnap] = useState<Snapshot | null>(null);
+  const [regerarPreview, setRegerarPreview] = useState<{ valorAtual: number; totalQtd: number; pedidos: number } | null>(null);
+  const [regerarLoading, setRegerarLoading] = useState(false);
+  const [regerarRunning, setRegerarRunning] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -141,8 +149,92 @@ export default function HistoricoPdfTab() {
     }
   };
 
+  const abrirRegerar = async (s: Snapshot) => {
+    setRegerarSnap(s);
+    setRegerarPreview(null);
+    if (!s.order_ids?.length) return;
+    setRegerarLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, preco, quantidade, desconto, tipo_extra, extra_detalhes')
+        .in('id', s.order_ids);
+      if (error) throw error;
+      let valorAtual = 0;
+      let totalQtd = 0;
+      (data || []).forEach((p: any) => {
+        const det = p.extra_detalhes || {};
+        const isBotaPE = p.tipo_extra === 'bota_pronta_entrega';
+        const qtd = isBotaPE && Array.isArray(det.botas) ? det.botas.length : (p.quantidade || 1);
+        const base = (Number(p.preco) || 0) * (qtd || 1);
+        const desc = Number(p.desconto) || 0;
+        valorAtual += Math.max(0, base - desc);
+        totalQtd += qtd;
+      });
+      setRegerarPreview({ valorAtual, totalQtd, pedidos: data?.length || 0 });
+    } catch (e: any) {
+      toast.error('Erro ao carregar preview: ' + (e?.message || e));
+    } finally {
+      setRegerarLoading(false);
+    }
+  };
+
+  const confirmarRegerar = async () => {
+    if (!regerarSnap) return;
+    setRegerarRunning(true);
+    try {
+      const { data: rowsDb, error } = await supabase
+        .from('orders').select('*').in('id', regerarSnap.order_ids);
+      if (error) throw error;
+      const orders = (rowsDb || []).map(dbRowToOrder);
+
+      await ensurePriceCache();
+
+      const f = regerarSnap.filtros || {};
+      const vendedorLabel = (typeof f.vendedor === 'string' && f.vendedor !== 'todos')
+        ? (f.vendedor as string) : 'Todos vendedores';
+      const statusLabel = Array.isArray(f.status) ? (f.status as string[]).join(' / ') : '—';
+      const geradoEm = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+      const { doc, totalValor, totalQtd } = buildCobrancaPdfDoc(orders, {
+        vendedorLabel, statusLabel, geradoEm,
+        tituloPrefixo: 'Cobrança (preços atuais)',
+      });
+      const nome = buildCobrancaFileName({
+        vendedorLabel, geradoEm, totalValor, totalQtd, sufixo: '(preços atuais)',
+      });
+
+      await registrarPdfSnapshot({
+        tipo: 'cobranca',
+        filtros: {
+          ...f,
+          gerado_em: geradoEm,
+          origem: 'regerada',
+          snapshot_origem: regerarSnap.id,
+          snapshot_origem_data: regerarSnap.gerado_em,
+          valor_original: regerarSnap.totais?.valor_total ?? null,
+        },
+        orderIds: regerarSnap.order_ids,
+        totais: { qtd_pedidos: orders.length, qtd_produtos: totalQtd, valor_total: totalValor },
+        doc,
+        nomeArquivo: nome,
+      });
+
+      doc.save(nome);
+      toast.success(`PDF regerado: ${nome}`);
+      setRegerarSnap(null);
+      setRegerarPreview(null);
+      void load();
+    } catch (e: any) {
+      toast.error('Erro ao regerar PDF: ' + (e?.message || e));
+    } finally {
+      setRegerarRunning(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+
       <Card className="border-blue-500/30 bg-blue-500/5">
         <CardContent className="flex items-start gap-3 p-4">
           <FileText className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
@@ -234,6 +326,11 @@ export default function HistoricoPdfTab() {
                           <Download className="h-3.5 w-3.5" /> PDF
                         </Button>
                       )}
+                      {s.tipo === 'cobranca' && (
+                        <Button size="sm" variant="outline" onClick={() => abrirRegerar(s)} className="h-8 gap-1" title="Regerar com preços atuais">
+                          <RotateCcw className="h-3.5 w-3.5" /> regerar
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -301,6 +398,47 @@ export default function HistoricoPdfTab() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!regerarSnap} onOpenChange={(o) => { if (!o && !regerarRunning) { setRegerarSnap(null); setRegerarPreview(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Regerar PDF com preços atuais</DialogTitle>
+            <DialogDescription>
+              Vai gerar um novo PDF de Cobrança usando exatamente os mesmos pedidos do snapshot original,
+              mas com os <strong>preços atuais</strong> de cada pedido. O snapshot original é mantido intacto.
+            </DialogDescription>
+          </DialogHeader>
+          {regerarSnap && (
+            <div className="space-y-2 text-sm">
+              <div><strong>Snapshot original:</strong> {formatDateTime(regerarSnap.gerado_em)}</div>
+              <div><strong>Pedidos:</strong> {regerarSnap.order_ids?.length || 0}</div>
+              <div><strong>Valor original:</strong> {typeof regerarSnap.totais?.valor_total === 'number' ? formatCurrency(regerarSnap.totais.valor_total) : '—'}</div>
+              {regerarLoading ? (
+                <div className="text-muted-foreground inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando valor atual…</div>
+              ) : regerarPreview ? (
+                <>
+                  <div><strong>Valor atual estimado:</strong> {formatCurrency(regerarPreview.valorAtual)}</div>
+                  {typeof regerarSnap.totais?.valor_total === 'number' && (() => {
+                    const delta = regerarPreview.valorAtual - (regerarSnap.totais.valor_total || 0);
+                    return (
+                      <div className={delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                        <strong>Δ vs snapshot:</strong> {delta >= 0 ? '+' : ''}{formatCurrency(delta)}
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : null}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRegerarSnap(null); setRegerarPreview(null); }} disabled={regerarRunning}>Cancelar</Button>
+            <Button onClick={confirmarRegerar} disabled={regerarRunning || regerarLoading}>
+              {regerarRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Gerar PDF atualizado
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
