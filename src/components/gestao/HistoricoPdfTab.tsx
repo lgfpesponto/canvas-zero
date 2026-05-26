@@ -77,6 +77,10 @@ export default function HistoricoPdfTab() {
   const [openSnap, setOpenSnap] = useState<Snapshot | null>(null);
   const [snapDetalhes, setSnapDetalhes] = useState<any[] | null>(null);
   const [loadingSnap, setLoadingSnap] = useState(false);
+  const [regerarSnap, setRegerarSnap] = useState<Snapshot | null>(null);
+  const [regerarPreview, setRegerarPreview] = useState<{ valorAtual: number; totalQtd: number; pedidos: number } | null>(null);
+  const [regerarLoading, setRegerarLoading] = useState(false);
+  const [regerarRunning, setRegerarRunning] = useState(false);
 
   const load = async () => {
     setLoading(true);
