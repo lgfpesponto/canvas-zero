@@ -1237,14 +1237,17 @@ const ReportsPage = () => {
               </LoadingValue>
             </p>
           </div>
-          <div className="bg-card rounded-xl p-4 western-shadow">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
-            <p className="text-2xl font-bold text-primary">
-              <LoadingValue loading={onlyOverdue ? overdueLoading : ordersLoading} hasData={visibleOrders.length > 0 || !(onlyOverdue ? overdueLoading : ordersLoading)} size={20}>
-                {formatCurrency(displayTotalValue)}
-              </LoadingValue>
-            </p>
-          </div>
+          {canSeeValues && (
+            <div className="bg-card rounded-xl p-4 western-shadow">
+              <p className="text-xs text-muted-foreground uppercase font-semibold">Valor Total</p>
+              <p className="text-2xl font-bold text-primary">
+                <LoadingValue loading={onlyOverdue ? overdueLoading : ordersLoading} hasData={visibleOrders.length > 0 || !(onlyOverdue ? overdueLoading : ordersLoading)} size={20}>
+                  {formatCurrency(displayTotalValue)}
+                </LoadingValue>
+              </p>
+            </div>
+          )}
+
           <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
             <div className="relative">
               <button onClick={() => setShowReportOptions(!showReportOptions)} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
