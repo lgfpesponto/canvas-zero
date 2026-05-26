@@ -1,36 +1,36 @@
-## Problema
+## O que vou gerar
 
-Ao abrir o snapshot de Cobrança da Maria Gabriela (19/05, 1.016 pedidos), a modal mostra "Sem pedidos" e dispara o toast **"Erro ao carregar pedidos: Bad Request"**.
+Uma planilha Excel `MariaGabriela_1016pedidos_atual_vs_snapshot_26-05-2026.xlsx` com **todos os 1016 pedidos** do snapshot do dia 19/05 07:33, comparando snapshot × estado atual.
 
-Causa: o código faz uma única chamada `supabase.from('orders').in('id', order_ids)` com os 1.016 UUIDs concatenados na URL. Isso ultrapassa o limite de tamanho de URL do PostgREST e a requisição volta 400. O mesmo problema afeta a regeração do PDF.
+### Colunas
 
-## Correção
+| Coluna | Conteúdo |
+|---|---|
+| Nº | `numero` do pedido |
+| Cliente | `cliente` |
+| Status atual | `status` |
+| Qtd atual | quantidade (ou nº de botas para Pronta Entrega) |
+| Valor atual | `preco × qtd − desconto` (mesma fórmula da modal) |
+| Desconto | `desconto` |
+| Justificativa desconto | `desconto_justificativa` (se houver bolinha vermelha/verde) |
+| Δ vs snapshot | diferença em R$ (positivo = aumentou, negativo = diminuiu) |
+| Editado depois do snapshot | sim/não (`created_at` vs gerado_em do snapshot, ou marcador no histórico) |
 
-Em `src/components/gestao/HistoricoPdfTab.tsx`, criar um helper local `fetchOrdersByIds(ids, columns)` que:
+### Abas
 
-1. Divide o array de IDs em lotes de **200** (margem segura abaixo do limite de URL).
-2. Faz `Promise.all` dos `.in('id', batch)` paralelos.
-3. Concatena os resultados e retorna como um array único.
-4. Se algum lote falhar, propaga o erro original.
+1. **Todos (1016)** — lista completa, ordenada por número.
+2. **Mudaram valor** — só os pedidos com Δ ≠ 0 (provavelmente uma dezena), para você identificar rápido o que somou os −R$ 1.638,00.
+3. **Resumo** — totais, contagem por status, soma do Δ.
 
-Substituir as três chamadas atuais por esse helper:
+### Como vou produzir
 
-- **linha 139-144** (`openDetalhes`) → lista da modal de detalhes
-- **linha 158-162** (`abrirRegerar`) → preview do regerar (valor atual)
-- **linha 186-188** (regeração efetiva do PDF)
+Script Python que:
+1. Lê `pdf_snapshots` id `03bb791d-…-c670cd` para obter os 1016 `order_ids` e os totais salvos.
+2. Lê `orders` (em lotes de 200, pelo motivo já discutido) com todos os campos relevantes.
+3. Calcula o valor atual com a mesma regra do `getOrderFinalValue` (bota Pronta Entrega usa `extra_detalhes.botas.length`; demais usam `quantidade`).
+4. Para o "valor no snapshot por pedido": o snapshot só guarda `order_ids` e o total geral (não guarda valor por pedido). Então o Δ por pedido será inferido como `valor_atual − valor_atual_sem_edicoes_recentes`. Se você quiser o Δ absoluto preciso por pedido, eu posso cruzar com `preco_mudanca_aplicacoes` (registra `valor_total_delta` do ajuste retroativo por pedido) — me confirme se quer essa coluna extra.
+5. Salva em `/mnt/documents/MariaGabriela_1016pedidos_atual_vs_snapshot_26-05-2026.xlsx`.
 
-## Por que 200 e não 1000
+### Não vou alterar nada no banco nem no código
 
-O limite real do PostgREST varia (~8 KB por URL). Cada UUID + vírgula custa ~37 caracteres. 200 IDs ≈ 7,4 KB, ainda com folga para os outros parâmetros (`select=`, `id=in.(...)`). Mais que isso começa a arriscar.
-
-## Validação
-
-Após o ajuste, reabrir o snapshot do dia 19/05 da Maria Gabriela:
-- A lista de 1.016 pedidos deve carregar (sem o toast de Bad Request).
-- O botão "Regerar com preços atuais" deve mostrar o preview correto e gerar o PDF.
-
-Sem alteração no esquema do banco nem na função RPC — é só client-side.
-
-## Arquivos afetados
-
-- `src/components/gestao/HistoricoPdfTab.tsx` (único arquivo)
+É só leitura + geração de arquivo Excel para download.
