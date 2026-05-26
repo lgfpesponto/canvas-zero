@@ -29,6 +29,7 @@ import AdminConfigVariacoesPage from "./pages/AdminConfigVariacoesPage";
 import FinanceiroPage from "./pages/FinanceiroPage";
 import RevendedorSaldoPage from "./pages/RevendedorSaldoPage";
 import GestaoPage from "./pages/GestaoPage";
+import SolicitacoesAjustePage from "./pages/SolicitacoesAjustePage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 import PriceChangeDialog from "@/components/admin/PriceChangeDialog";
