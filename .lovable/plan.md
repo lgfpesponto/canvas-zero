@@ -1,40 +1,48 @@
-Gerar um PDF com a lista dos 1016 pedidos da Maria Gabriela (snapshot 19/05), mostrando o valor atual de cada um calculado com `getOrderFinalValue`, e os totais no final.
+## O que está acontecendo
 
-## O que o PDF terá
+Você tem 3 bugs conectados na tela de Solicitações de Ajuste e na FIFO de Cobrados:
 
-**Cabeçalho**
-- Título: "Maria Gabriela — 1016 pedidos do snapshot 19/05/2026"
-- Data de geração
-- Totais resumidos:
-  - Valor snapshot (19/05): R$ 354.376,80
-  - Valor atual (26/05): R$ 352.738,80
-  - Δ real: −R$ 1.638,00
+1. **Erro "comprovante_notificacoes_tipo_check"** ao aprovar — o CHECK da tabela só aceita `aprovado`/`reprovado`, mas a função insere `ajuste_aprovado`/`ajuste_negado`.
+2. **Gravatas mostrando R$ 0,00 na FIFO** — confirmei no banco que todas as gravatas da Maria Gabriela estão com `preco = 0` na tabela (e já marcadas como migradas). A lista FIFO lê `preco` cru, por isso fica zero. O detalhe e PDF mostram R$ 30 porque recomputam em runtime.
+3. **Ajuste aprovado seria revertido** — mesmo se o erro acima não acontecesse, o aprovar não marca `preco_congelado = true`, então o recompute automático sobrescreveria o valor aprovado em poucos segundos.
 
-**Tabela (1 linha por pedido)**
-Colunas:
-1. Nº (numero_unico)
-2. Cliente
-3. Status atual
-4. Qtd
-5. Valor atual (R$)
+## Correção (1 migration SQL, sem mudança de código)
 
-Ordenação: por Nº crescente.
+```sql
+-- 1) Permitir os novos tipos de notificação
+ALTER TABLE public.comprovante_notificacoes
+  DROP CONSTRAINT IF EXISTS comprovante_notificacoes_tipo_check;
+ALTER TABLE public.comprovante_notificacoes
+  ADD CONSTRAINT comprovante_notificacoes_tipo_check
+  CHECK (tipo IN ('aprovado','reprovado','ajuste_aprovado','ajuste_negado'));
 
-**Rodapé de cada página**
-- Página X de Y
-- Subtotal corrente (opcional)
+-- 2) Aprovar ajuste passa a CONGELAR o preço (não recalcula mais)
+--    Atualiza decidir_ajuste_solicitacao para setar preco_congelado=true
+--    no mesmo UPDATE de preco.
 
-**Última página**
-- Totais finais (soma da coluna Valor atual deve bater com R$ 352.738,80)
-- Contagem por status
+-- 3) One-off: corrigir as gravatas com preco=0 já no banco
+--    Para tipo_extra IN ('gravata_pronta_entrega','gravata_country')
+--    e preco = 0  →  preco = 30 * quantidade
+--    (regra fixa confirmada por você)
+UPDATE public.orders
+   SET preco = 30 * GREATEST(quantidade,1)
+ WHERE tipo_extra IN ('gravata_pronta_entrega','gravata_country')
+   AND COALESCE(preco,0) = 0;
+```
 
-## Como será gerado
+## O que vai mudar no comportamento
 
-- Script Python usando reportlab (A4 retrato, fonte Helvetica 8pt para caber bem).
-- Lê os 1016 `order_ids` do snapshot `03bb791d-…-c670cd` em `pdf_snapshots`.
-- Busca os pedidos em `orders` em lotes de 200.
-- Calcula valor atual com a mesma lógica do `getOrderFinalValue` (Pronta Entrega usa `extra_detalhes.botas.length`, demais usam `quantidade`, aplica desconto).
-- Salva em `/mnt/documents/MariaGabriela_1016pedidos_valor_atual_26-05-2026.pdf`.
-- QA: converte páginas em imagens e inspeciona antes de entregar.
+- Aprovar/Negar ajuste de valor: passa a funcionar, sem erro.
+- Quando aprovado, o preço fica **congelado** naquele valor (não vai mais ser revertido pelo recálculo). Para mudar depois, só editando manualmente o pedido ou via novo ajuste retroativo.
+- As gravatas da FIFO vão aparecer com R$ 30,00 cada (em vez de R$ 0,00). O saldo "Utilizado" do dashboard automaticamente vai refletir o valor real cobrado dessas gravatas.
 
-Sem alterações em código do app nem no banco — só leitura + geração de PDF.
+## Resposta direta à sua pergunta
+
+> "o que acontece quando aceita essa mudança de valor do pedido solicitada pelo vendedor?"
+
+Hoje (com o bug): dá erro e nada salva.
+Depois da correção: o `preco` do pedido vira o valor solicitado pelo vendedor, fica **congelado** (não será mais sobrescrito por recálculo), o histórico do pedido recebe um registro "Ajuste de valor aprovado: R$ X → R$ Y", a solicitação vira "aprovado" e o vendedor recebe notificação no sino.
+
+## Não precisa mudar nada no código TypeScript
+
+Apenas a migration acima. Confirma que pode aplicar?
