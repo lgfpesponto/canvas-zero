@@ -1,37 +1,22 @@
-## Escalação do estoque E009 + filtro permanente
+## Problema
 
-Mesmo formato que fizemos para o E008 dia 20/05, agora para o E009 — e depois deixar isso reaproveitável no relatório oficial.
+O comprovante de Maria Gabriela do dia 19/05/2026 (id `c296258b…`) foi gravado no banco com `valor = 15.329` (quinze reais e trinta e três centavos) porque a IA extratora interpretou "15.329,00" usando ponto como separador decimal. Por isso a lista mostra **R$ 15,33** em vez de **R$ 15.329,00**.
 
-### 1. PDF agora (E009)
+## O que vou fazer
 
-Gerar um PDF Escalação aqui no chat com todos os pedidos cujo `numero` começa com `E009` (vendedor "Estoque").
+### 1. Corrigir o registro específico (migration)
+`UPDATE revendedor_comprovantes SET valor = 15329.00 WHERE id = 'c296258b-d143-4ab7-a67c-fc03df8542c3'`
 
-- Critério: `numero ILIKE 'E009%'` e `solado` preenchido (mesma regra do relatório de Escalação).
-- Sem filtro de etapa — pega todos os E009 que ainda existem na produção (hoje, da consulta, todos estão em "Pesponto Ailton").
-- Mesmo layout do PDF do E008: badge "SOLA", linha descritiva `solado bico {bico} cor {corSola} [vira {corVira}]`, tabela de tamanhos, total de pares e combinações no topo.
-- Script Python com `reportlab`, QA visual com `pdftoppm` antes de entregar.
-- Salvar em `/mnt/documents/Escalacao_E009_Estoque.pdf` e anexar como artifact.
+Isso já resolve a exibição na listagem de comprovantes da Maria Gabriela, no total "Aprovado (lista)" e em qualquer baixa futura.
 
-### 2. Filtro "Número do Estoque" no relatório de Escalação (app)
+### 2. Prevenir recorrência — botão "Editar valor" (admin_master)
+Na tabela de `ComprovantesPorRevendedor` (a que admin_master usa para revisar), adicionar um pequeno botão de lápis ao lado do valor que abre um dialog simples para corrigir o `valor` manualmente quando a IA errar. Restrito a `admin_master`, registrando no `audit_log` (motivo opcional).
 
-Em `src/components/SpecializedReports.tsx`:
+Nada além disso muda: regras de saldo, baixa automática, layout, permissões dos demais perfis e o fluxo de envio do vendedor continuam idênticos.
 
-- Adicionar um state `filterNumeroEstoque: string` (vazio = sem filtro).
-- Renderizar um `input` de texto no painel de filtros, **só aparece quando `activeReport === 'escalacao'`**, logo abaixo do filtro de Vendedor.
-  - Label: "Número do Estoque (opcional)"
-  - Placeholder: "Ex: E009"
-  - Helper: "Filtra apenas pedidos cujo número começa com esse prefixo (ex: estoques)."
-- Em `generateEscalacaoPDF`, aplicar mais um critério no `filtered`:
-  ```ts
-  (!filterNumeroEstoque || o.numero?.toLowerCase().startsWith(filterNumeroEstoque.toLowerCase()))
-  ```
-- Quando preenchido, sobrescrever o label/arquivo do PDF para incluir o prefixo (`Escalação - E009 - …pdf`) e mostrar no cabeçalho do PDF: `ESCALAÇÃO — E009 — …`.
-- Resetar o campo quando trocar de tipo de relatório (já que só o Escalação usa).
+### Detalhes técnicos
+- Migration: 1 UPDATE pontual.
+- Frontend: ajuste apenas em `src/components/financeiro/saldo/ComprovantesPorRevendedor.tsx` + novo `EditarValorComprovanteDialog.tsx`.
+- Sem alteração na edge `extract-comprovante` (a IA continua errando às vezes — o botão de correção cobre isso sem risco de regressão).
 
-Sem mudança em banco, RLS, ou outros relatórios. Apenas frontend.
-
-### Validação
-
-- Conferir que com o campo vazio o relatório continua igual.
-- Conferir que com `E009` retorna só os pedidos do estoque E009 e o nome do arquivo reflete isso.
-- Confirmar que o snapshot em `pdf_snapshots.filtros` passa a registrar `numeroEstoque` também.
+Posso aplicar?
