@@ -11,6 +11,8 @@ import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
+import { useCanSeeValues } from '@/hooks/useCanSeeValues';
+
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 
 import { motion } from 'framer-motion';
