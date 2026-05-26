@@ -524,6 +524,54 @@ export type Database = {
         }
         Relationships: []
       }
+      order_ajuste_solicitacoes: {
+        Row: {
+          created_at: string
+          created_by: string
+          decidido_em: string | null
+          decidido_por: string | null
+          id: string
+          motivo: string
+          numero: string
+          order_id: string
+          resposta_admin: string | null
+          status: string
+          valor_atual: number
+          valor_solicitado: number
+          vendedor: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          id?: string
+          motivo: string
+          numero: string
+          order_id: string
+          resposta_admin?: string | null
+          status?: string
+          valor_atual?: number
+          valor_solicitado: number
+          vendedor: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          id?: string
+          motivo?: string
+          numero?: string
+          order_id?: string
+          resposta_admin?: string | null
+          status?: string
+          valor_atual?: number
+          valor_solicitado?: number
+          vendedor?: string
+        }
+        Relationships: []
+      }
       order_notificacoes: {
         Row: {
           created_at: string
@@ -1505,7 +1553,15 @@ export type Database = {
         Returns: Json
       }
       bump_preco_regra_versao: { Args: never; Returns: number }
+      criar_ajuste_solicitacao: {
+        Args: { _motivo: string; _order_id: string; _valor_solicitado: number }
+        Returns: string
+      }
       current_user_nome_completo: { Args: never; Returns: string }
+      decidir_ajuste_solicitacao: {
+        Args: { _aprovar: boolean; _id: string; _resposta?: string }
+        Returns: Json
+      }
       decrement_regata_stock: { Args: { stock_id: string }; Returns: undefined }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
       descartar_comprovantes_historico: {
@@ -1737,6 +1793,10 @@ export type Database = {
         Returns: Json
       }
       marcar_notificacao_lida: { Args: { _id: string }; Returns: undefined }
+      marcar_pedidos_como_cobrado: {
+        Args: { _order_ids: string[]; _origem?: string }
+        Returns: Json
+      }
       marcar_todas_comprovante_notificacoes_lidas: {
         Args: never
         Returns: undefined
