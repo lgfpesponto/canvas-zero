@@ -1,68 +1,52 @@
 ## Objetivo
+Fazer o botão **Aprovar ajuste** funcionar novamente.
 
-`admin_producao` deixa de ver QUALQUER valor em R$ na interface, exceto na área **Admin → Configurações** (onde edita preços de bordados, opções etc.) e nos **formulários de criação/edição de pedido** (mantém visível para conferir o que está escolhendo).
+## Problema identificado
+A falha não é no botão nem no frontend.
+A RPC `decidir_ajuste_solicitacao` está quebrando ao tentar criar uma notificação em `comprovante_notificacoes` com:
+- `comprovante_id = sol.id`
 
-## O que vai ser escondido para admin_producao
+Só que `sol.id` é o ID de `order_ajuste_solicitacoes`, enquanto a tabela `comprovante_notificacoes` exige que `comprovante_id` exista em `revendedor_comprovantes`.
 
-1. **Listas de pedidos / extras / cintos**
-   - Coluna **Valor** / **Total**
-   - **Total selecionado** no rodapé quando marca vários
-   - Coluna **Desconto** (se houver)
+Por isso aparece o erro:
+`violates foreign key constraint comprovante_notificacoes_comprovante_id_fkey`
 
-2. **Detalhe do pedido**
-   - Bloco inteiro de **Composição de Preço**
-   - Linhas de **Desconto / Acréscimo / Ajuste**
-   - **Total final** no topo
-   - Botão **"Ajustar valor"** / "Solicitar ajuste" some
+## Correção proposta
+1. Ajustar a lógica do banco para a aprovação de ajuste não gravar um `comprovante_id` inválido.
+2. Manter a atualização do pedido normalmente quando aprovado:
+   - atualizar `orders.preco`
+   - marcar `preco_congelado = true`
+   - registrar histórico e alteração
+   - marcar a solicitação como `aprovado` ou `negado`
+3. Corrigir a notificação do vendedor com uma destas abordagens seguras:
+   - preferencial: usar uma notificação sem depender da FK de comprovante
+   - alternativa: adaptar a estrutura da notificação para aceitar eventos de ajuste sem vínculo com `revendedor_comprovantes`
+4. Validar o fluxo completo:
+   - aprovar ajuste
+   - negar ajuste
+   - confirmar que não aparece mais erro de FK
+   - confirmar que o status da solicitação muda corretamente
 
-3. **Dashboard**
-   - Cards de **Faturamento, Comissão, Saldo**
-   - Gráfico **Vendas por vendedor**
-   - Gráfico **Performance de vendas**
-   - (Mantém: produção, etapas, contadores de quantidade)
+## Implementação técnica
+### Opção recomendada
+Alterar a RPC `decidir_ajuste_solicitacao` para **não reutilizar incorretamente** `comprovante_notificacoes` com ID de outra tabela.
 
-4. **Relatórios**
-   - Cards/coluna de R$ em qualquer relatório de produção que mostre valor
-   - PDFs de cobrança / financeiros somem do menu
+A solução mais limpa é:
+- registrar a mensagem em um canal compatível com ajuste de pedido
+- ou permitir notificação sem FK obrigatória quando o evento não for comprovante
 
-5. **Menu / navegação**
-   - Esconder toda a seção **Financeiro** (Saldo Revendedor, Comprovantes, A Pagar, A Receber, Histórico de PDFs de cobrança, Solicitações de Ajuste)
-   - Bloquear acesso por URL direta também (redirect para `/`)
+### Arquivos/áreas que vou tocar
+- `supabase/migrations/...sql` para corrigir a função `decidir_ajuste_solicitacao`
+- possivelmente a estrutura/política da tabela `comprovante_notificacoes`, se necessário para suportar ajuste sem comprovante
+- validação rápida no frontend da página `SolicitacoesAjustePage.tsx`
 
-## O que CONTINUA visível para admin_producao
+## Resultado esperado
+Depois da correção:
+- o admin consegue aprovar o ajuste
+- o pedido recebe o novo valor corretamente
+- a solicitação sai de `pendente`
+- o vendedor continua sendo notificado
+- o erro de foreign key desaparece
 
-- **Formulários** de criar/editar pedido: selects continuam mostrando "Bordado X — R$ 30" (precisa para escolher).
-- **Admin → Configurações** inteira: edição de preços de variações, custom_options, ficha, etc.
-- **PDFs de produção/corte/bordado**: não mexer, continuam iguais (não têm R$ mesmo).
-
-## Como implemento (técnico)
-
-Criar um hook simples `useCanSeeValues()` em `src/hooks/useCanSeeValues.ts`:
-
-```ts
-export function useCanSeeValues() {
-  const { role } = useAuth();
-  return role !== 'admin_producao';
-}
-```
-
-E aplico condicionalmente em cada ponto:
-- `{canSeeValues && <TableCell>{formatCurrency(...)}</TableCell>}`
-- `{canSeeValues && <ComposicaoPreco ... />}`
-- `{canSeeValues && <DashboardFinanceiroCards />}`
-
-Para o **menu lateral / rotas**: já existe lógica de role no `Header`/`Sidebar` e nas rotas. Adiciono `admin_producao` na lista de bloqueio para as rotas financeiras e redireciono para `/` se acessar por URL.
-
-## Arquivos que vou tocar
-
-- **Novo**: `src/hooks/useCanSeeValues.ts`
-- **Listas/Detalhe**: `OrderPage.tsx`, `ExtrasPage.tsx`, `BeltOrderPage.tsx`, `OrderDetailPage.tsx`, `ReportsPage.tsx`
-- **Dashboard**: componentes de cards/gráficos financeiros em `src/components/dashboard/`
-- **Menu + rotas**: `Header.tsx`/`AppSidebar.tsx`, `App.tsx` (guards de rota financeira)
-- **Páginas financeiras**: adicionar redirect no topo de cada uma (Saldo, Comprovantes, A Pagar, A Receber, Solicitações de Ajuste, Histórico PDFs cobrança)
-
-## Não muda no banco
-
-Nenhuma RLS, nenhuma migration. É 100% camada de UI — admin_producao continua podendo abrir pedido, mudar status, conferir, etc., só não vê valores.
-
-Confirma que pode implementar assim?
+## Observação
+Os logs de refresh token que apareceram não são a causa desse bug; o bloqueio está mesmo na RPC de aprovação.
