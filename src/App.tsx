@@ -32,7 +32,7 @@ import GestaoPage from "./pages/GestaoPage";
 import SolicitacoesAjustePage from "./pages/SolicitacoesAjustePage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
-import PriceChangeDialog from "@/components/admin/PriceChangeDialog";
+// PriceChangeDialog removido — sem congelamento de preço.
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
@@ -75,7 +75,7 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
       {!hideChrome && <DeployNoticeBanner />}
       {!hideChrome && <Header />}
       {!hideChrome && <AdminAssistantFab />}
-      {!hideChrome && <PriceChangeDialog />}
+      {/* PriceChangeDialog removido — preço atualizado diretamente, reconciliador recalcula pedidos. */}
       {!hideChrome && <PrecoReconciler />}
       {children}
     </>
