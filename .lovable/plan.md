@@ -1,34 +1,47 @@
-# Bug: Gravata Pronta Entrega aparece com R$ 0,00
+## Objetivo
+Entregar um relatório (CSV + PDF) listando, dentro dos **1016 pedidos** do filtro atual (Maria Gabriela / Pago / Conferido=Sim), exatamente quais tiveram o preço alterado pelo destravamento — com o número do pedido, valor antigo, valor novo e a diferença.
 
-## Diagnóstico
+## Problema atual
+- O reconciliador rodou e atualizou `orders.preco`, mas não gravou o valor antigo em lugar nenhum.
+- `preco_anterior` está NULL em todos os 1016 pedidos.
+- O histórico `alteracoes` não recebeu entrada do reconciliador.
+- Resultado: hoje não dá para reconstruir a lista de "o que mudou".
 
-Confirmei no banco que pedidos recentes de **Gravata Pronta Entrega** (30131, 30132, 30133) estão com `preco = 0`, enquanto o 30134 está com `preco = 30`. Todos têm `preco_regra_versao = 11` (já reconciliados) e `preco_congelado = false`.
+## Solução em 2 etapas
 
-Causa raiz: o `computeExtraTotal` da **edge function `supabase/functions/reconciliar-precos/index.ts`** (linhas 301–339) está incompleto. O `switch` inclui `gravata_country` mas **não** `gravata_pronta_entrega` nem `regata_pronta_entrega`. Como o reconciliador roda em background depois do insert, ele lê o pedido, cai no `default` (retorna 0) e sobrescreve o `preco` do banco com 0.
+### Etapa 1 — Criar trilha de auditoria do reconciliador
+Criar tabela `preco_reconciliacoes` para registrar, a cada execução, todo pedido cujo preço foi recalculado:
 
-O frontend (`src/lib/recomputeOrderPrice.ts`) está correto — tem os dois cases retornando R$ 30 e R$ 50. A divergência é só na edge function.
+```
+preco_reconciliacoes
+- id, order_id, numero, vendedor
+- preco_antes, preco_depois, delta_unit
+- quantidade, delta_total
+- composicao_snapshot (jsonb opcional)
+- executado_em, executado_por
+```
 
-## Plano
+Ajustar `supabase/functions/reconciliar-precos/index.ts` para gravar uma linha aqui sempre que `preco_novo != preco_atual`.
 
-1. **Adicionar os cases faltantes** em `supabase/functions/reconciliar-precos/index.ts` (espelhar exatamente o frontend):
-   - `case 'gravata_pronta_entrega': t += 30; break;`
-   - `case 'regata_pronta_entrega': t += 50; break;`
+### Etapa 2 — Rodar o reconciliador em modo "auditoria" sobre os 1016 pedidos
+Disparar a edge function só nos pedidos do filtro (Maria Gabriela / Pago / Conferido=Sim). Como hoje todos já estão com o preço recalculado, vou rodar uma **segunda passada comparativa**: para cada pedido, recomputo a composição atual e comparo com o `preco` gravado — se houver delta, registro em `preco_reconciliacoes`.
 
-2. **Migration de reparo** — recalcular `preco` dos pedidos já zerados pelo bug:
-   ```sql
-   UPDATE public.orders
-   SET preco = 30, preco_regra_versao = NULL
-   WHERE tipo_extra = 'gravata_pronta_entrega' AND preco = 0;
+Em paralelo, posso fazer um "replay histórico": pegar o `alteracoes[]` de cada pedido e, quando houver entradas antigas com o preço daquela época, comparar com o preço atual. Isso me permite estimar quais pedidos provavelmente subiram com o destravamento. (Aproximado — só dá para confirmar 100% para alterações futuras.)
 
-   UPDATE public.orders
-   SET preco = 50, preco_regra_versao = NULL
-   WHERE tipo_extra = 'regata_pronta_entrega' AND preco = 0;
-   ```
-   Zerar `preco_regra_versao` força o reconciliador (já corrigido) a revisitar e confirmar.
+### Etapa 3 — Gerar o relatório
+Com os dados em `preco_reconciliacoes`, gero dois arquivos em `/mnt/documents/`:
+- `pedidos_alterados_maria_gabriela.csv` — colunas: número, data, modelo, qtd, valor antigo, valor novo, delta
+- `pedidos_alterados_maria_gabriela.pdf` — mesmo conteúdo formatado A4, totais no rodapé
 
-3. **Validar**: após deploy, conferir `SELECT numero, preco FROM orders WHERE numero IN ('30131','30132','30133','30134')` — todos devem ficar em 30.
+## Decisão necessária
+O **valor antigo exato** dos pedidos do filtro **se perdeu** quando o reconciliador rodou sem auditoria. Tenho duas alternativas honestas:
 
-## Escopo
+1. **Reconstrução aproximada via histórico `alteracoes`** — funciona para os ~551 pedidos que têm histórico salvo; nos demais o "valor antigo" virá marcado como "desconhecido".
+2. **Daqui pra frente** — implemento a auditoria e a partir da próxima alteração de tabela de preço, todo delta fica rastreado, com relatório fiel.
 
-- Arquivos: `supabase/functions/reconciliar-precos/index.ts` + 1 migration.
-- Sem mudanças de UI. Sem mexer em `recomputeOrderPrice.ts` (já está certo).
+Recomendo fazer **as duas**: implementar a auditoria (etapa 1) para nunca mais perder essa informação, e entregar o relatório aproximado com a coluna "fonte do valor antigo" indicando se veio do histórico ou se é desconhecido.
+
+## Arquivos que serão tocados
+- `supabase/migrations/<novo>.sql` — criar `preco_reconciliacoes` + GRANTs + RLS (só admin_master)
+- `supabase/functions/reconciliar-precos/index.ts` — gravar auditoria por pedido alterado
+- script único em `/tmp` para varrer os 1016 pedidos, reconstruir o "valor antigo" a partir de `alteracoes[]` e gerar CSV/PDF em `/mnt/documents/`
