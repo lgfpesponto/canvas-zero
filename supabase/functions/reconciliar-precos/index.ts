@@ -324,6 +324,8 @@ function computeExtraTotal(o: any): number {
     case 'revitalizador': t += 10 * (parseInt(det.quantidade) || 1); break;
     case 'kit_revitalizador': t += 26 * (parseInt(det.quantidade) || 1); break;
     case 'gravata_country': t += 30; break;
+    case 'gravata_pronta_entrega': t += 30; break;
+    case 'regata_pronta_entrega': t += 50; break;
     case 'adicionar_metais': {
       const sel = det.metaisSelecionados || [];
       if (sel.includes('Bola grande')) t += 0.60 * (parseInt(det.qtdBolaGrande) || 1);
