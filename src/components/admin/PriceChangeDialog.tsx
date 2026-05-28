@@ -217,6 +217,45 @@ export default function PriceChangeDialog() {
             </RadioGroup>
           </div>
 
+          {escopo !== 'futuro' && (
+            <div>
+              <Label className="text-sm font-semibold mb-2 block">O que fazer com pedidos antigos?</Label>
+              <RadioGroup value={modo} onValueChange={(v) => setModo(v as Modo)} className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="congelar" id="modo-congelar" className="mt-1" />
+                  <Label htmlFor="modo-congelar" className="font-normal cursor-pointer flex-1">
+                    <strong>Manter como estão</strong> (recomendado)
+                    <div className="text-xs text-muted-foreground">
+                      Os pedidos antigos ficam congelados no preço atual. Relatórios e
+                      financeiro NÃO mudam. Só pedidos novos usam o preço novo.
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="recalcular" id="modo-recalcular" className="mt-1" />
+                  <Label htmlFor="modo-recalcular" className="font-normal cursor-pointer flex-1">
+                    <strong className="text-destructive">Recalcular para o preço novo</strong>
+                    <div className="text-xs text-muted-foreground">
+                      O valor dos pedidos antigos elegíveis é alterado no banco
+                      (preco += Δ × quantidade). <strong>Afeta relatórios, comissão e
+                      financeiro</strong>. Use só quando quiser que o histórico passe
+                      a refletir o preço novo.
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+              {modo === 'recalcular' && (
+                <div className="mt-2 text-xs rounded border border-destructive/50 bg-destructive/10 text-destructive px-3 py-2">
+                  Atenção: essa operação altera o valor de pedidos já fechados.
+                  Δ unitário = R$ {delta.toFixed(2).replace('.', ',')} ×
+                  quantidade de cada pedido elegível.
+                </div>
+              )}
+            </div>
+          )}
+
+
+
           <div>
             <Label className="text-xs">Observação (opcional)</Label>
             <Textarea
