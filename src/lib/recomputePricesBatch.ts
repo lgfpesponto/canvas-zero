@@ -38,10 +38,6 @@ export async function recomputePricesBatch(
 
   const processOne = async (o: Order) => {
     try {
-      // Pedido com preço congelado (ajuste retroativo aplicado) NÃO recalcula.
-      if ((o as any).precoCongelado === true) {
-        return;
-      }
       const target = computeTotalToSave(o, findFichaPrice, getByCategoria);
       const current = Number(o.preco) || 0;
       const diff = Math.abs(target - current);
