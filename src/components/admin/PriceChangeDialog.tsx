@@ -45,6 +45,7 @@ export default function PriceChangeDialog() {
       return new Promise<PriceChangeResult | null>((resolve) => {
         // Reset state
         setEscopo('desde_inicio');
+        setModo('congelar');
         setDataEspecifica('');
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         setAplicarEm(tomorrow.toISOString().slice(0, 10));
