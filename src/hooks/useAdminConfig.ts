@@ -204,27 +204,11 @@ export function useUpdateVariacao() {
         const precoAntes = Number(current?.preco_adicional || 0);
         const precoDepois = Number(preco_adicional) || 0;
         if (current && precoAntes !== precoDepois) {
-          const { requestPriceChange } = await import('@/lib/priceChangeGuard');
-          const result = await requestPriceChange({
-            tipo: 'ficha_variacao',
-            target_id: id,
-            label: (rest.nome as string) || current.nome,
-            preco_antes: precoAntes,
-            preco_depois: precoDepois,
-          });
-          if (result === null) {
-            // Cancelado: salva apenas nome/ativo/ordem, mantém preço antigo
-            if (Object.keys(rest).length > 0) {
-              const { error } = await supabase.from('ficha_variacoes').update(rest).eq('id', id);
-              if (error) throw error;
-            }
-            return;
-          }
-          // RPC já atualizou o preço. Salva o resto.
-          if (Object.keys(rest).length > 0) {
-            const { error } = await supabase.from('ficha_variacoes').update(rest).eq('id', id);
-            if (error) throw error;
-          }
+          const { error } = await supabase
+            .from('ficha_variacoes')
+            .update({ ...rest, preco_adicional: precoDepois })
+            .eq('id', id);
+          if (error) throw error;
           return;
         }
       }
