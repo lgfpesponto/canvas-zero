@@ -33,15 +33,18 @@ export async function requestPriceChange(target: PriceChangeTarget): Promise<Pri
   if (Number(target.preco_antes) === Number(target.preco_depois)) {
     return { mudanca_id: '', pedidos_ajustados: 0, status: 'aplicada', modo: 'recalcular' };
   }
-  const table = target.tipo === 'custom_option' ? 'custom_options' : 'ficha_variacoes';
-  const column = target.tipo === 'custom_option' ? 'preco' : 'preco_adicional';
-  const { error } = await supabase
-    .from(table)
-    .update({ [column]: target.preco_depois })
-    .eq('id', target.target_id);
-  if (error) {
-    console.error('requestPriceChange UPDATE falhou', error);
-    return null;
+  if (target.tipo === 'custom_option') {
+    const { error } = await supabase
+      .from('custom_options')
+      .update({ preco: target.preco_depois })
+      .eq('id', target.target_id);
+    if (error) { console.error('requestPriceChange custom_options', error); return null; }
+  } else {
+    const { error } = await supabase
+      .from('ficha_variacoes')
+      .update({ preco_adicional: target.preco_depois })
+      .eq('id', target.target_id);
+    if (error) { console.error('requestPriceChange ficha_variacoes', error); return null; }
   }
   return { mudanca_id: '', pedidos_ajustados: 0, status: 'aplicada', modo: 'recalcular' };
 }
