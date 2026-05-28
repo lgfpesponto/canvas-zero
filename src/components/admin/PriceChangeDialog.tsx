@@ -91,6 +91,16 @@ export default function PriceChangeDialog() {
       aplicar_em = dt.toISOString();
     }
 
+    // Confirmação extra para modo recalcular (afeta financeiro/relatórios)
+    if (modo === 'recalcular' && escopo !== 'futuro') {
+      const ok = window.confirm(
+        'Modo RECALCULAR: o valor dos pedidos antigos elegíveis será alterado no banco ' +
+        '(preco += Δ × quantidade) e isso afeta relatórios, comissão e financeiro. ' +
+        'Tem certeza que quer continuar?'
+      );
+      if (!ok) return;
+    }
+
     setSaving(true);
     try {
       const { data, error } = await supabase.rpc('aplicar_mudanca_preco', {
@@ -101,11 +111,14 @@ export default function PriceChangeDialog() {
         _data_corte: data_corte,
         _aplicar_em: aplicar_em,
         _observacao: observacao || null,
+        _modo: modo,
       });
       if (error) throw error;
       const result = data as any as PriceChangeResult;
       if (escopo === 'futuro') {
         toast.success(`Mudança agendada para ${new Date(aplicar_em!).toLocaleDateString('pt-BR')}`);
+      } else if (modo === 'recalcular') {
+        toast.success(`Preço atualizado. ${result?.pedidos_ajustados || 0} pedido(s) RECALCULADO(s) com o novo valor.`);
       } else {
         toast.success(`Preço atualizado. ${result?.pedidos_ajustados || 0} pedido(s) congelado(s) no valor antigo.`);
       }
