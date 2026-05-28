@@ -229,11 +229,9 @@ const BordadoPortalPage = () => {
       const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
       if (fErr) throw fErr;
       const list = (rows || []).map(dbRowToOrder) as Order[];
-      const baixaIdx = PRODUCTION_STATUSES.indexOf('Baixa Bordado 7Estrivos');
-      const valid = list.filter(o => {
-        const idx = PRODUCTION_STATUSES.indexOf(o.status);
-        return idx >= baixaIdx && o.status !== 'Cancelado';
-      });
+      // Inclui TODOS que tiveram baixa de bordado no período, independente do status atual.
+      // Única exclusão: Cancelado (essa baixa não vale para comissão).
+      const valid = list.filter(o => o.status !== 'Cancelado');
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
       // PDF do portal: só lista baixas feitas por usuários do setor bordado (Neto/Débora).
       const filtroNomes = bordadoNames.size > 0 ? [...bordadoNames] : undefined;
