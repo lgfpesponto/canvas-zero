@@ -1,0 +1,2 @@
+UPDATE public.orders SET preco = 30, preco_regra_versao = NULL WHERE tipo_extra = 'gravata_pronta_entrega' AND preco = 0 AND status <> 'Cancelado';
+UPDATE public.orders SET preco = 50, preco_regra_versao = NULL WHERE tipo_extra = 'regata_pronta_entrega' AND preco = 0 AND status <> 'Cancelado';
