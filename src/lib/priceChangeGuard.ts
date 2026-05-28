@@ -23,6 +23,7 @@ export interface PriceChangeResult {
   pedidos_ajustados: number;
   valor_total_compensado?: number;
   status: 'aplicada' | 'pendente';
+  modo?: 'congelar' | 'recalcular';
 }
 
 type Requester = (target: PriceChangeTarget) => Promise<PriceChangeResult | null>;
