@@ -171,6 +171,10 @@ export function getAllowedNextStatuses(current: string | null | undefined, ctx?:
   const flow = pickFlow(ctx);
   const allFlowKeys = Object.keys(flow).filter(k => !MANUALLY_BLOCKED.has(k));
   const merged = Array.from(new Set([...allFlowKeys, ...ALWAYS_AVAILABLE]));
+  // Exceção: a partir de "Conferido", liberar manualmente "Cobrado".
+  if (current === 'Conferido' && !merged.includes('Cobrado')) {
+    merged.push('Cobrado');
+  }
   return applyContextFilter(merged, ctx);
 }
 
@@ -189,12 +193,15 @@ export function isTransitionAllowed(
 ): boolean {
   if (!current || !next) return false;
   if (current === next) return true;
+  // Exceção: Conferido → Cobrado é a única transição manual permitida para "Cobrado".
+  if (next === 'Cobrado') return current === 'Conferido';
   if (MANUALLY_BLOCKED.has(next)) return false;
   if (ALWAYS_AVAILABLE.includes(next)) return true;
   const flow = pickFlow(ctx);
   if (!Object.prototype.hasOwnProperty.call(flow, next)) return false;
   return applyContextFilter([next], ctx).length > 0;
 }
+
 
 export const TRANSITION_BLOCKED_MESSAGE =
   'Progresso indisponível para esse pedido, siga a ordem de produção';
