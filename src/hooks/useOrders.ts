@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder } from '@/lib/order-logic';
 import type { Order } from '@/contexts/AuthContext';
@@ -34,6 +35,8 @@ async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] 
   });
   if (error) {
     console.error('Erro find_orders_by_status_change:', error);
+    toast.error("Filtro 'Mudou para' demorou demais — tente um período menor ou menos status.");
+    // Sinaliza erro com array vazio mas o toast acima impede o usuário de achar que está só vazio.
     return [];
   }
   return (data as any[] | null)?.map((r: any) => (typeof r === 'string' ? r : r.id)) ?? [];

@@ -668,13 +668,35 @@ const ReportsPage = () => {
   }, [showScanner]);
 
   const { askPrint, dialog: confirmPrintDialog } = useConfirmPrint();
-  const handleGenerateReportPDF = useCallback(() => generateReportPDF(ordersToExport, { userName: user?.nomeCompleto || '' }), [ordersToExport, user]);
+
+  // Quando não há seleção manual, busca TODOS os pedidos do filtro (não só a página atual)
+  // para que o PDF inclua tudo, e não apenas os 50 visíveis. Quando há seleção, usa a seleção.
+  const resolveOrdersForExport = useCallback(async (): Promise<import('@/contexts/AuthContext').Order[]> => {
+    if (selectedIds.size > 0) return ordersToExport;
+    const expected = serverCount || 0;
+    if (expected <= serverOrders.length) return serverOrders;
+    const tid = toast.loading(`Carregando ${expected.toLocaleString('pt-BR')} pedidos…`);
+    try {
+      const all = await fetchAllFilteredOrders(appliedFilters);
+      toast.success(`${all.length.toLocaleString('pt-BR')} pedidos carregados`, { id: tid });
+      return all;
+    } catch (e: any) {
+      toast.error(`Erro ao carregar pedidos: ${e?.message || e}`, { id: tid });
+      return serverOrders;
+    }
+  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters]);
+
+  const handleGenerateReportPDF = useCallback(async () => {
+    const list = await resolveOrdersForExport();
+    return generateReportPDF(list, { userName: user?.nomeCompleto || '' });
+  }, [resolveOrdersForExport, user]);
   const handleGenerateProductionSheetPDF = useCallback(async () => {
-    await generateProductionSheetPDF(ordersToExport, { userName: user?.nomeCompleto || '' });
-  }, [ordersToExport, user]);
+    const list = await resolveOrdersForExport();
+    await generateProductionSheetPDF(list, { userName: user?.nomeCompleto || '' });
+  }, [resolveOrdersForExport, user]);
 
   const askGenerateReportPDF = useCallback(() => {
-    const qtd = ordersToExport.length;
+    const qtd = selectedIds.size > 0 ? ordersToExport.length : (serverCount || ordersToExport.length);
     askPrint({
       title: 'Gerar Relatório por Filtros?',
       description: (
@@ -695,12 +717,12 @@ const ReportsPage = () => {
         />
       ),
       confirmLabel: 'Gerar PDF',
-      run: handleGenerateReportPDF,
+      run: () => { void handleGenerateReportPDF(); },
     });
-  }, [askPrint, ordersToExport.length, handleGenerateReportPDF, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
+  }, [askPrint, selectedIds.size, ordersToExport.length, serverCount, handleGenerateReportPDF, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
 
   const askGenerateProductionSheetPDF = useCallback(() => {
-    const qtd = ordersToExport.length;
+    const qtd = selectedIds.size > 0 ? ordersToExport.length : (serverCount || ordersToExport.length);
     askPrint({
       title: 'Imprimir Fichas de Produção?',
       description: (
@@ -717,7 +739,7 @@ const ReportsPage = () => {
       confirmLabel: 'Imprimir',
       run: () => { void handleGenerateProductionSheetPDF(); },
     });
-  }, [askPrint, ordersToExport.length, handleGenerateProductionSheetPDF, filterVendedor, filterStatus, filterDate, filterDateEnd]);
+  }, [askPrint, selectedIds.size, ordersToExport.length, serverCount, handleGenerateProductionSheetPDF, filterVendedor, filterStatus, filterDate, filterDateEnd]);
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);

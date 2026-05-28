@@ -1430,11 +1430,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const { data: rows, error: fErr } = await supabase.from('orders').select('*').in('id', idList);
       if (fErr) throw fErr;
       const list = (rows || []).map(dbRowToOrder) as Order[];
-      const baixaIdx = PRODUCTION_STATUSES.indexOf('Baixa Bordado 7Estrivos');
-      const valid = list.filter(o => {
-        const idx = PRODUCTION_STATUSES.indexOf(o.status);
-        return idx >= baixaIdx && o.status !== 'Cancelado';
-      });
+      // Inclui TODOS que tiveram baixa de bordado no período, independente do status atual.
+      // Única exclusão: Cancelado (essa baixa não vale para comissão).
+      const valid = list.filter(o => o.status !== 'Cancelado');
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
       await generateBordadoBaixaResumoPDF(valid, filterDataDe, filterDataAte, userName || 'Admin', filterBordadoUsuarios.size > 0 ? [...filterBordadoUsuarios] : undefined);
       void registrarPdfSnapshot({ tipo: 'comissao_bordado', filtros: { data_de: filterDataDe, data_ate: filterDataAte, usuarios: [...filterBordadoUsuarios] }, orderIds: valid.map(o => o.id), totais: { qtd_pedidos: valid.length } });
