@@ -1,70 +1,54 @@
-# Por que o ajuste retroativo "não rodou" para Maria Gabriela
 
-## Diagnóstico
+## Problema 1 — Relatório "por Filtro" só exporta a página atual
 
-Investiguei o banco e o código. Encontrei dois fatos que, juntos, explicam tudo:
+**Causa raiz:** em `src/pages/ReportsPage.tsx` (linha 416), quando não há seleção manual, `ordersToExport` retorna `serverOrders` — que é só a página de 50 pedidos vinda do `useOrders`. O PDF então sai com no máx. 50 itens, mesmo que o filtro tenha 300.
 
-**1. Nenhuma mudança de preço foi efetivamente confirmada no diálogo.**
-- A tabela `preco_mudancas` está **vazia** — nunca um registro foi criado.
-- Os logs do Postgres não mostram nenhuma chamada à RPC `aplicar_mudanca_preco`.
-- Conclusão: ou você clicou em **Cancelar** no diálogo "Mudança de preço detectada", ou o valor que você digitou era igual ao anterior (o guard pula nesse caso). O preço da variação na `ficha_variacoes` pode ter sido alterado por outro caminho, mas a RPC retroativa nunca foi disparada.
+**Correção:**
+- Quando `selectedIds.size === 0`, ao clicar em "Gerar Relatório por Filtros" ou "Imprimir Fichas de Produção", buscar TODOS os pedidos do filtro via `fetchAllFilteredOrders(appliedFilters)` antes de gerar o PDF.
+- Mostrar um toast de loading enquanto baixa ("Carregando 213 pedidos…") porque pode demorar 1–3 s.
+- O destaque "Pedidos / Produtos / Valor total" no diálogo já usa `serverCount`/`totalProdutos`/`totalValue` (RPC `get_orders_totals`), que já contam tudo — só o PDF estava errado.
 
-**2. Mesmo se você tivesse confirmado, o total da Maria Gabriela NÃO diminuiria.**
+---
 
-Este é o ponto importante — é uma **diferença entre o que a ferramenta faz e o que você espera**.
+## Problema 2 — Filtro "Mudou para status" lento e retorna vazio com duas datas
 
-Lendo a função `aplicar_mudanca_preco` no banco e o texto do diálogo (`src/components/admin/PriceChangeDialog.tsx`), a regra atual em **"Desde o início do portal"** é, literalmente:
+**Causa raiz:** a RPC `find_orders_by_status_change` faz **sequential scan** em toda a tabela `orders`, explodindo `historico` (jsonb) com `jsonb_array_elements` em cada linha e ainda parseando string→date. Sem índice. Com a base atual, o scan ultrapassa o timeout do PostgREST → erro retorna array vazio no frontend (`return []` no `useOrders.ts:37`). É por isso que "com duas datas" parece "não retornar nada" — quanto maior o range, mais demorado, maior chance de timeout.
 
-> "Todos os pedidos anteriores ficam **congelados no preço atual**. Só pedidos novos a partir de agora usam o preço novo."
+**Correção em duas frentes:**
 
-Ou seja, a função:
-- Marca `preco_congelado = true` em todos os pedidos antigos.
-- Grava `extra_detalhes.ajustes_retroativos` (informativo).
-- Atualiza o preço da variação para o novo valor.
-- **NÃO mexe em `orders.preco`** dos pedidos antigos.
+1. **Reescrever a RPC para usar índice GIN:**
+   - Criar índice: `CREATE INDEX idx_orders_historico_gin ON orders USING gin (historico jsonb_path_ops);`
+   - Mudar o filtro inicial da RPC para pré-filtrar com `historico @> ANY (ARRAY[...])` (status), reduzindo drasticamente as linhas escaneadas antes do `jsonb_array_elements`.
+   - Manter o parse de data como hoje (compatível com ambos formatos), mas só rodando sobre as linhas pré-filtradas.
 
-Resultado: os 1.016 pedidos da Maria Gabriela continuam com o `preco` que tinham na hora em que foram criados. O relatório, que soma `orders.preco`, naturalmente mantém R$ 354.290,20.
+2. **Frontend (`useOrders.ts`):**
+   - Distinguir "RPC falhou" de "lista vazia": se houver erro, mostrar `toast.error("Filtro 'Mudou para' demorou demais — tente um período menor")` em vez de retornar `[]` silenciosamente.
 
-A queda de R$ 354.376,80 (snapshot 19/05) → R$ 354.290,20 (hoje) é só efeito de pedidos editados, cancelados ou trocados manualmente nesse intervalo.
+---
 
-## O que você provavelmente queria
+## Problema 3 — Relatório "Comissão Bordado" muda a quantidade entre execuções no mesmo período
 
-"Quero baixar o preço da variação X e que os pedidos antigos da Maria Gabriela passem a valer menos" — isso a ferramenta atual **não faz**. Hoje ela faz o oposto: protege os antigos contra mudança e só aplica para frente.
+**Causa raiz:** em `SpecializedReports.tsx` (linha 1418), depois de pegar os IDs via `find_orders_by_status_change`, o filtro `valid` exclui pedidos cujo **status atual** seja anterior a "Baixa Bordado 7Estrivos" ou seja "Cancelado". Resultado: um pedido baixado no sábado pode, na segunda, ter voltado de status (regressão com justificativa) ou ter sido cancelado — e some do relatório, mesmo a baixa tendo realmente ocorrido no período.
 
-## Proposta
+**Correção:**
+- Remover o filtro `idx >= baixaIdx` — a única exclusão que faz sentido é `status === 'Cancelado'`. Quem teve baixa dentro do período conta como baixa daquele período, independente do que aconteceu depois.
+- Replicar a mesma lógica em `BordadoPortalPage.tsx` (linha 240) para o portal de Bordado, garantindo que Neto/Débora e o admin vejam o mesmo número.
+- Adicionar nota no rodapé do PDF: "Inclui pedidos baixados no período mesmo se hoje estão em outra etapa. Excluídos apenas os Cancelados."
 
-Adicionar um modo "aplicar para trás de verdade" no diálogo, que recalcula `orders.preco` nos pedidos elegíveis em vez de só congelar.
+---
 
-### Mudanças
+## Arquivos a alterar
 
-**1. Banco — atualizar `aplicar_mudanca_preco`**
+```text
+supabase/migrations/<novo>.sql        Índice GIN + nova versão da find_orders_by_status_change
+src/hooks/useOrders.ts                Toast de erro na RPC + nada de mascarar como vazio
+src/pages/ReportsPage.tsx             ordersToExport busca tudo via fetchAllFilteredOrders
+src/components/SpecializedReports.tsx Remover filtro idx>=baixaIdx no Comissão Bordado
+src/pages/BordadoPortalPage.tsx       Mesma correção do filtro no PDF do portal
+```
 
-Adicionar parâmetro `_modo` com dois valores:
-- `'congelar'` (padrão atual) — mantém o comportamento de hoje.
-- `'recalcular'` (novo) — para cada pedido elegível, faz `preco = preco + (delta × quantidade)`, registra no `historico` e em `extra_detalhes.ajustes_retroativos`, e marca `preco_congelado = true` no valor NOVO.
+## Validações depois de aplicar
 
-Observação técnica: o cálculo `delta × quantidade` é uma aproximação simples — assume que a variação aparece uma vez por unidade do pedido. É a mesma aproximação que a função já usa em `v_valor_delta`. Para pedidos `bota_pronta_entrega` com múltiplas botas, multiplica pela quantidade de botas no `extra_detalhes`.
-
-**2. Frontend — `src/components/admin/PriceChangeDialog.tsx`**
-
-Adicionar um seletor "O que fazer com pedidos antigos?" com duas opções claras:
-- **Manter como estão** (congela no preço atual) — texto e comportamento de hoje.
-- **Recalcular para o preço novo** (atualiza `orders.preco`) — texto explicando que o valor dos pedidos antigos vai mudar e isso afeta relatórios, comissão e financeiro.
-
-O escopo temporal (desde início / data específica / futuro) continua igual; só o "modo" é novo.
-
-**3. Aviso visual**
-
-Quando o admin escolhe "Recalcular", mostrar um alerta vermelho com a contagem estimada de pedidos afetados e o impacto financeiro total (`delta × soma das quantidades`), pedindo confirmação extra.
-
-### Fora de escopo
-
-- Não vamos rodar um recálculo retroativo agora para os pedidos da Maria Gabriela. Primeiro a ferramenta precisa existir; depois você decide quando e em qual variação aplicar.
-- O relatório do portal continua somando `orders.preco` direto — está correto, é a verdade do banco.
-
-### Arquivos afetados
-
-- Nova migration: alterar função `public.aplicar_mudanca_preco`.
-- `src/components/admin/PriceChangeDialog.tsx` — UI do novo modo.
-- `src/lib/priceChangeGuard.ts` — tipos `PriceChangeTarget`/`PriceChangeResult` recebem campo `modo`.
-- `mem://features/admin/retroactive-price-change` — atualizar a memória com os dois modos.
+1. Filtrar 30 dias com "Mudou para = Baixa Bordado 7Estrivos" — deve voltar em < 2 s e listar todos.
+2. Gerar "Relatório por Filtros" sem selecionar nada num filtro com > 50 pedidos — PDF deve conter todos.
+3. Rodar "Comissão Bordado" no mesmo período em dois dias diferentes — contagem só pode mudar se algum pedido novo for baixado no intervalo.
