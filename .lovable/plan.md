@@ -1,54 +1,49 @@
+## Problema
 
-## Problema 1 — Relatório "por Filtro" só exporta a página atual
+Relatório mostra **R$ 354.290,20** (com preços congelados antigos), mas a soma real dos pedidos pela composição atual é **R$ 352.738,80**. Há R$ 1.551,40 de diferença vindos de pedidos marcados `preco_congelado = true` pelo Ajuste Retroativo, que ficam imunes ao recálculo.
 
-**Causa raiz:** em `src/pages/ReportsPage.tsx` (linha 416), quando não há seleção manual, `ordersToExport` retorna `serverOrders` — que é só a página de 50 pedidos vinda do `useOrders`. O PDF então sai com no máx. 50 itens, mesmo que o filtro tenha 300.
+Decisão: **desligar definitivamente o congelamento de preço**. Todo pedido deve sempre refletir o preço calculado a partir da composição atual (modelo + bordado + extras), exceto pedidos com status `Cancelado` (que já têm snapshot próprio).
 
-**Correção:**
-- Quando `selectedIds.size === 0`, ao clicar em "Gerar Relatório por Filtros" ou "Imprimir Fichas de Produção", buscar TODOS os pedidos do filtro via `fetchAllFilteredOrders(appliedFilters)` antes de gerar o PDF.
-- Mostrar um toast de loading enquanto baixa ("Carregando 213 pedidos…") porque pode demorar 1–3 s.
-- O destaque "Pedidos / Produtos / Valor total" no diálogo já usa `serverCount`/`totalProdutos`/`totalValue` (RPC `get_orders_totals`), que já contam tudo — só o PDF estava errado.
+## O que muda
 
----
+### 1. Descongelar todos os pedidos existentes (migration)
+- `UPDATE orders SET preco_congelado = false WHERE preco_congelado = true`
+- `ALTER COLUMN preco_congelado SET DEFAULT false`
+- Roda recálculo em massa via trigger existente (ou marca `preco_migrado_v2 = false` para forçar reprocessamento pelo runner do admin / reconciliar-precos).
 
-## Problema 2 — Filtro "Mudou para status" lento e retorna vazio com duas datas
+### 2. Remover guarda de congelamento no recálculo
+- `src/lib/recomputePricesBatch.ts` linha 41-44: remover o `if (precoCongelado === true) return;`.
+- `supabase/functions/reconciliar-precos/index.ts` linhas 398 e 439: remover `.eq('preco_congelado', false)` para que todos pedidos sejam reconciliados.
+- Trigger SQL `20260520022601` (estorno automático): remover o bloco `IF NEW.preco_congelado = true THEN RETURN;` para voltar a estornar normalmente.
 
-**Causa raiz:** a RPC `find_orders_by_status_change` faz **sequential scan** em toda a tabela `orders`, explodindo `historico` (jsonb) com `jsonb_array_elements` em cada linha e ainda parseando string→date. Sem índice. Com a base atual, o scan ultrapassa o timeout do PostgREST → erro retorna array vazio no frontend (`return []` no `useOrders.ts:37`). É por isso que "com duas datas" parece "não retornar nada" — quanto maior o range, mais demorado, maior chance de timeout.
+### 3. Remover UI do Ajuste Retroativo
+- `src/components/admin/PriceChangeDialog.tsx`: o dialog que pergunta "desde início / data / futuro" e chama `aplicar_mudanca_preco` deixa de fazer sentido. Substituir por aplicação direta da mudança (sempre futuro = recalcula tudo), ou simplesmente remover o dialog e salvar o preço sem confirmação extra.
+- `src/lib/priceChangeGuard.ts`: simplificar para apenas salvar a mudança de preço e disparar recálculo de todos pedidos afetados (sem opção "congelar antigos").
 
-**Correção em duas frentes:**
+### 4. Limpar flags no domínio
+- Manter coluna `preco_congelado` no banco (para histórico), mas sempre `false`. Não removo a coluna agora para evitar quebrar migrations antigas.
+- `src/lib/order-logic.ts`: manter mapeamento `precoCongelado` para não quebrar tipos, mas todos os call-sites já passam `false`.
 
-1. **Reescrever a RPC para usar índice GIN:**
-   - Criar índice: `CREATE INDEX idx_orders_historico_gin ON orders USING gin (historico jsonb_path_ops);`
-   - Mudar o filtro inicial da RPC para pré-filtrar com `historico @> ANY (ARRAY[...])` (status), reduzindo drasticamente as linhas escaneadas antes do `jsonb_array_elements`.
-   - Manter o parse de data como hoje (compatível com ambos formatos), mas só rodando sobre as linhas pré-filtradas.
+### 5. Atualizar memória
+- Reescrever `mem://features/admin/retroactive-price-change` marcando como REMOVIDO.
+- Reescrever `mem://features/orders/preco-congelado-removed` removendo o aviso de "DESATUALIZADO" — voltou a estar correto: não há mais congelamento.
 
-2. **Frontend (`useOrders.ts`):**
-   - Distinguir "RPC falhou" de "lista vazia": se houver erro, mostrar `toast.error("Filtro 'Mudou para' demorou demais — tente um período menor")` em vez de retornar `[]` silenciosamente.
+## Validação
 
----
+1. Após migration, `SELECT SUM(preco) FROM orders WHERE preco_congelado = true` retorna 0.
+2. Relatório com filtros atuais (1191 produtos, Conferido=Sim) bate com a soma manual da composição (≈ R$ 352.738,80).
+3. Salvar nova mudança de preço de uma variação não oferece mais a pergunta "desde quando" e recalcula todos pedidos abertos.
+4. Botão "Recalcular preços" no admin processa 100% dos pedidos (nenhum pulado por congelamento).
 
-## Problema 3 — Relatório "Comissão Bordado" muda a quantidade entre execuções no mesmo período
+## Arquivos alterados
 
-**Causa raiz:** em `SpecializedReports.tsx` (linha 1418), depois de pegar os IDs via `find_orders_by_status_change`, o filtro `valid` exclui pedidos cujo **status atual** seja anterior a "Baixa Bordado 7Estrivos" ou seja "Cancelado". Resultado: um pedido baixado no sábado pode, na segunda, ter voltado de status (regressão com justificativa) ou ter sido cancelado — e some do relatório, mesmo a baixa tendo realmente ocorrido no período.
+- Nova migration: descongelar + alterar default + forçar recálculo.
+- `src/lib/recomputePricesBatch.ts`
+- `supabase/functions/reconciliar-precos/index.ts`
+- `src/components/admin/PriceChangeDialog.tsx` (simplificar ou substituir)
+- `src/lib/priceChangeGuard.ts`
+- Memórias relacionadas
 
-**Correção:**
-- Remover o filtro `idx >= baixaIdx` — a única exclusão que faz sentido é `status === 'Cancelado'`. Quem teve baixa dentro do período conta como baixa daquele período, independente do que aconteceu depois.
-- Replicar a mesma lógica em `BordadoPortalPage.tsx` (linha 240) para o portal de Bordado, garantindo que Neto/Débora e o admin vejam o mesmo número.
-- Adicionar nota no rodapé do PDF: "Inclui pedidos baixados no período mesmo se hoje estão em outra etapa. Excluídos apenas os Cancelados."
+## Risco / Observação
 
----
-
-## Arquivos a alterar
-
-```text
-supabase/migrations/<novo>.sql        Índice GIN + nova versão da find_orders_by_status_change
-src/hooks/useOrders.ts                Toast de erro na RPC + nada de mascarar como vazio
-src/pages/ReportsPage.tsx             ordersToExport busca tudo via fetchAllFilteredOrders
-src/components/SpecializedReports.tsx Remover filtro idx>=baixaIdx no Comissão Bordado
-src/pages/BordadoPortalPage.tsx       Mesma correção do filtro no PDF do portal
-```
-
-## Validações depois de aplicar
-
-1. Filtrar 30 dias com "Mudou para = Baixa Bordado 7Estrivos" — deve voltar em < 2 s e listar todos.
-2. Gerar "Relatório por Filtros" sem selecionar nada num filtro com > 50 pedidos — PDF deve conter todos.
-3. Rodar "Comissão Bordado" no mesmo período em dois dias diferentes — contagem só pode mudar se algum pedido novo for baixado no intervalo.
+O Ajuste Retroativo foi reintroduzido em 22/05/2026 justamente para preservar pedidos antigos quando o preço de uma variação muda no meio do mês. Se a nova regra for "preço sempre = composição atual", qualquer mudança futura de tabela vai reescrever o histórico financeiro. Confirma que é isso mesmo que você quer? Se sim, sigo com o plano acima.

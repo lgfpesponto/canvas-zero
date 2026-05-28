@@ -390,12 +390,11 @@ Deno.serve(async (req) => {
       .from('system_counters').select('value').eq('key', 'preco_regra_versao').maybeSingle();
     const versaoAtual = Number(counterRow?.value) || 1;
 
-    // Pedidos pendentes (preco_regra_versao IS NULL OR < atual) — exclui congelados.
+    // Pedidos pendentes (preco_regra_versao IS NULL OR < atual).
     const { data: pedidos, error: selErr } = await supabase
       .from('orders')
       .select('*')
       .or(`preco_regra_versao.is.null,preco_regra_versao.lt.${versaoAtual}`)
-      .eq('preco_congelado', false)
       .order('created_at', { ascending: true })
       .limit(batchSize);
 
@@ -431,12 +430,11 @@ Deno.serve(async (req) => {
       }));
     }
 
-    // Conta restantes (ignora congelados — não vão ser processados nunca)
+    // Conta restantes.
     const { count: restantes } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .or(`preco_regra_versao.is.null,preco_regra_versao.lt.${versaoAtual}`)
-      .eq('preco_congelado', false);
+      .or(`preco_regra_versao.is.null,preco_regra_versao.lt.${versaoAtual}`);
 
     return new Response(JSON.stringify({
       ok: true,
