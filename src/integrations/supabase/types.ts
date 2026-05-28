@@ -1527,18 +1527,32 @@ export type Database = {
         Args: { _delta: number; _descricao: string; _vendedor: string }
         Returns: Json
       }
-      aplicar_mudanca_preco: {
-        Args: {
-          _aplicar_em?: string
-          _data_corte?: string
-          _escopo: string
-          _observacao?: string
-          _preco_depois: number
-          _target_id: string
-          _tipo: string
-        }
-        Returns: Json
-      }
+      aplicar_mudanca_preco:
+        | {
+            Args: {
+              _aplicar_em?: string
+              _data_corte?: string
+              _escopo: string
+              _observacao?: string
+              _preco_depois: number
+              _target_id: string
+              _tipo: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _aplicar_em?: string
+              _data_corte?: string
+              _escopo: string
+              _modo?: string
+              _observacao?: string
+              _preco_depois: number
+              _target_id: string
+              _tipo: string
+            }
+            Returns: Json
+          }
       aplicar_mudancas_futuras_pendentes: { Args: never; Returns: number }
       aprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string }

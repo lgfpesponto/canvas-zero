@@ -15,6 +15,7 @@ import {
 } from '@/lib/priceChangeGuard';
 
 type Escopo = 'desde_inicio' | 'data_especifica' | 'futuro';
+type Modo = 'congelar' | 'recalcular';
 
 interface PendingState {
   target: PriceChangeTarget;
@@ -28,6 +29,7 @@ interface PendingState {
 export default function PriceChangeDialog() {
   const [pending, setPending] = useState<PendingState | null>(null);
   const [escopo, setEscopo] = useState<Escopo>('desde_inicio');
+  const [modo, setModo] = useState<Modo>('congelar');
   const [dataEspecifica, setDataEspecifica] = useState<string>('');
   const [aplicarEm, setAplicarEm] = useState<string>('');
   const [observacao, setObservacao] = useState<string>('');
@@ -43,6 +45,7 @@ export default function PriceChangeDialog() {
       return new Promise<PriceChangeResult | null>((resolve) => {
         // Reset state
         setEscopo('desde_inicio');
+        setModo('congelar');
         setDataEspecifica('');
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         setAplicarEm(tomorrow.toISOString().slice(0, 10));
@@ -88,6 +91,16 @@ export default function PriceChangeDialog() {
       aplicar_em = dt.toISOString();
     }
 
+    // Confirmação extra para modo recalcular (afeta financeiro/relatórios)
+    if (modo === 'recalcular' && escopo !== 'futuro') {
+      const ok = window.confirm(
+        'Modo RECALCULAR: o valor dos pedidos antigos elegíveis será alterado no banco ' +
+        '(preco += Δ × quantidade) e isso afeta relatórios, comissão e financeiro. ' +
+        'Tem certeza que quer continuar?'
+      );
+      if (!ok) return;
+    }
+
     setSaving(true);
     try {
       const { data, error } = await supabase.rpc('aplicar_mudanca_preco', {
@@ -98,11 +111,14 @@ export default function PriceChangeDialog() {
         _data_corte: data_corte,
         _aplicar_em: aplicar_em,
         _observacao: observacao || null,
+        _modo: modo,
       });
       if (error) throw error;
       const result = data as any as PriceChangeResult;
       if (escopo === 'futuro') {
         toast.success(`Mudança agendada para ${new Date(aplicar_em!).toLocaleDateString('pt-BR')}`);
+      } else if (modo === 'recalcular') {
+        toast.success(`Preço atualizado. ${result?.pedidos_ajustados || 0} pedido(s) RECALCULADO(s) com o novo valor.`);
       } else {
         toast.success(`Preço atualizado. ${result?.pedidos_ajustados || 0} pedido(s) congelado(s) no valor antigo.`);
       }
@@ -200,6 +216,45 @@ export default function PriceChangeDialog() {
               </div>
             </RadioGroup>
           </div>
+
+          {escopo !== 'futuro' && (
+            <div>
+              <Label className="text-sm font-semibold mb-2 block">O que fazer com pedidos antigos?</Label>
+              <RadioGroup value={modo} onValueChange={(v) => setModo(v as Modo)} className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="congelar" id="modo-congelar" className="mt-1" />
+                  <Label htmlFor="modo-congelar" className="font-normal cursor-pointer flex-1">
+                    <strong>Manter como estão</strong> (recomendado)
+                    <div className="text-xs text-muted-foreground">
+                      Os pedidos antigos ficam congelados no preço atual. Relatórios e
+                      financeiro NÃO mudam. Só pedidos novos usam o preço novo.
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="recalcular" id="modo-recalcular" className="mt-1" />
+                  <Label htmlFor="modo-recalcular" className="font-normal cursor-pointer flex-1">
+                    <strong className="text-destructive">Recalcular para o preço novo</strong>
+                    <div className="text-xs text-muted-foreground">
+                      O valor dos pedidos antigos elegíveis é alterado no banco
+                      (preco += Δ × quantidade). <strong>Afeta relatórios, comissão e
+                      financeiro</strong>. Use só quando quiser que o histórico passe
+                      a refletir o preço novo.
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+              {modo === 'recalcular' && (
+                <div className="mt-2 text-xs rounded border border-destructive/50 bg-destructive/10 text-destructive px-3 py-2">
+                  Atenção: essa operação altera o valor de pedidos já fechados.
+                  Δ unitário = R$ {delta.toFixed(2).replace('.', ',')} ×
+                  quantidade de cada pedido elegível.
+                </div>
+              )}
+            </div>
+          )}
+
+
 
           <div>
             <Label className="text-xs">Observação (opcional)</Label>
