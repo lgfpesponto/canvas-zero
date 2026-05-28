@@ -29,6 +29,7 @@ interface PendingState {
 export default function PriceChangeDialog() {
   const [pending, setPending] = useState<PendingState | null>(null);
   const [escopo, setEscopo] = useState<Escopo>('desde_inicio');
+  const [modo, setModo] = useState<Modo>('congelar');
   const [dataEspecifica, setDataEspecifica] = useState<string>('');
   const [aplicarEm, setAplicarEm] = useState<string>('');
   const [observacao, setObservacao] = useState<string>('');
