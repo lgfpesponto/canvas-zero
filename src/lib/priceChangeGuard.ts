@@ -1,18 +1,16 @@
 /**
- * Guard global para alterações de preço de variações/opções.
+ * Atualização direta de preço de variações/opções (sem congelamento).
  *
- * Quando algum hook (useUpdateVariacao, updateOption de custom_options, etc.)
- * detecta que o preço de um item já existente mudou, chama `requestPriceChange`.
- * O componente <PriceChangeDialog /> mostra um modal perguntando o ESCOPO
- * temporal (desde o início / data específica / futuro) e, ao confirmar,
- * chama a RPC `aplicar_mudanca_preco` que:
- *   - cria a regra em `preco_mudancas`
- *   - congela o preço dos pedidos elegíveis (preco_congelado=true) e registra
- *     ajuste em extra_detalhes.ajustes_retroativos
- *   - atualiza o preço no banco
+ * HISTÓRICO: Antes este módulo abria um diálogo perguntando o escopo temporal
+ * (desde início / data específica / futuro) e chamava a RPC `aplicar_mudanca_preco`
+ * que CONGELAVA pedidos antigos (preco_congelado=true) para preservar histórico.
  *
- * O hook que chamou NÃO deve fazer o UPDATE direto — a RPC cuida disso.
+ * REGRA ATUAL: o preço de um pedido é SEMPRE a composição atual.
+ * Ao trocar o preço de uma variação/opção fazemos UPDATE direto na tabela e o
+ * reconciliador recalcula todos os pedidos afetados na próxima passagem.
+ * Sem diálogo, sem congelamento.
  */
+import { supabase } from '@/integrations/supabase/client';
 
 export type PriceChangeTarget =
   | { tipo: 'ficha_variacao'; target_id: string; label: string; preco_antes: number; preco_depois: number }
@@ -26,27 +24,24 @@ export interface PriceChangeResult {
   modo?: 'congelar' | 'recalcular';
 }
 
-type Requester = (target: PriceChangeTarget) => Promise<PriceChangeResult | null>;
-
-let handler: Requester | null = null;
-
-export function registerPriceChangeHandler(fn: Requester | null) {
-  handler = fn;
+// Mantido por compat — não usado mais.
+export function registerPriceChangeHandler(_fn: unknown) {
+  /* noop */
 }
 
-/**
- * Abre o diálogo. Retorna null se o usuário cancelou (NÃO aplicar a mudança).
- * Retorna PriceChangeResult se aplicou (o preço já foi atualizado pela RPC,
- * o chamador NÃO deve fazer UPDATE direto).
- */
 export async function requestPriceChange(target: PriceChangeTarget): Promise<PriceChangeResult | null> {
-  if (!handler) {
-    console.warn('priceChangeGuard: handler não registrado, ignorando mudança de preço');
+  if (Number(target.preco_antes) === Number(target.preco_depois)) {
+    return { mudanca_id: '', pedidos_ajustados: 0, status: 'aplicada', modo: 'recalcular' };
+  }
+  const table = target.tipo === 'custom_option' ? 'custom_options' : 'ficha_variacoes';
+  const column = target.tipo === 'custom_option' ? 'preco' : 'preco_adicional';
+  const { error } = await supabase
+    .from(table)
+    .update({ [column]: target.preco_depois })
+    .eq('id', target.target_id);
+  if (error) {
+    console.error('requestPriceChange UPDATE falhou', error);
     return null;
   }
-  // Sem mudança real: pula
-  if (Number(target.preco_antes) === Number(target.preco_depois)) {
-    return { mudanca_id: '', pedidos_ajustados: 0, status: 'aplicada' };
-  }
-  return handler(target);
+  return { mudanca_id: '', pedidos_ajustados: 0, status: 'aplicada', modo: 'recalcular' };
 }
