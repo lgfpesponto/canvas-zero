@@ -75,7 +75,7 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
       {!hideChrome && <DeployNoticeBanner />}
       {!hideChrome && <Header />}
       {!hideChrome && <AdminAssistantFab />}
-      {!hideChrome && <PriceChangeDialog />}
+      {/* PriceChangeDialog removido — preço atualizado diretamente, reconciliador recalcula pedidos. */}
       {!hideChrome && <PrecoReconciler />}
       {children}
     </>
