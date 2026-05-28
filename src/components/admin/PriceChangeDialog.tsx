@@ -15,6 +15,7 @@ import {
 } from '@/lib/priceChangeGuard';
 
 type Escopo = 'desde_inicio' | 'data_especifica' | 'futuro';
+type Modo = 'congelar' | 'recalcular';
 
 interface PendingState {
   target: PriceChangeTarget;
