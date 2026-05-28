@@ -1,47 +1,44 @@
-## Objetivo
-Entregar um relatório (CSV + PDF) listando, dentro dos **1016 pedidos** do filtro atual (Maria Gabriela / Pago / Conferido=Sim), exatamente quais tiveram o preço alterado pelo destravamento — com o número do pedido, valor antigo, valor novo e a diferença.
+## Problema
 
-## Problema atual
-- O reconciliador rodou e atualizou `orders.preco`, mas não gravou o valor antigo em lugar nenhum.
-- `preco_anterior` está NULL em todos os 1016 pedidos.
-- O histórico `alteracoes` não recebeu entrada do reconciliador.
-- Resultado: hoje não dá para reconstruir a lista de "o que mudou".
+O frontend já está liberado (editei `src/lib/statusTransitions.ts` no turno anterior), mas o banco tem um trigger `trg_orders_block_manual_pago_cobrado` que rejeita qualquer `UPDATE` em `orders.status` para `'Cobrado'` quando a flag de sessão `app.allow_status_cobrado` não está em `'1'`. Essa flag só é setada dentro da RPC `marcar_pedidos_como_cobrado` (usada pelo PDF de cobrança). Por isso a mudança manual via Progresso de Produção é bloqueada no DB e cai no diálogo "Pedidos não movidos".
 
-## Solução em 2 etapas
+## Mudança
 
-### Etapa 1 — Criar trilha de auditoria do reconciliador
-Criar tabela `preco_reconciliacoes` para registrar, a cada execução, todo pedido cujo preço foi recalculado:
+Atualizar a função do trigger `trg_orders_block_manual_pago_cobrado` para permitir **exclusivamente** a transição `Conferido → Cobrado`. Toda outra entrada manual em `Cobrado` (ex.: a partir de Entregue, Pesponto, etc.) continua bloqueada, e `Pago` segue 100% bloqueado.
 
+Lógica nova:
+- Se `NEW.status = 'Cobrado'` e `OLD.status = 'Conferido'` → permitido (sem precisar da flag).
+- Se `NEW.status = 'Cobrado'` com qualquer outro `OLD.status` → continua exigindo `app.allow_status_cobrado='1'`.
+- Regra de `Pago` inalterada.
+
+## Implementação
+
+Migration única que faz `CREATE OR REPLACE FUNCTION public.trg_orders_block_manual_pago_cobrado()` com a nova condição. Trigger em si não precisa ser recriado.
+
+```sql
+CREATE OR REPLACE FUNCTION public.trg_orders_block_manual_pago_cobrado()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.status IN ('Pago','Cobrado') AND OLD.status <> NEW.status THEN
+    IF NEW.status = 'Pago'
+       AND COALESCE(current_setting('app.allow_status_pago', true),'') <> '1' THEN
+      RAISE EXCEPTION 'Mudança manual para "Pago" não é permitida...';
+    END IF;
+    IF NEW.status = 'Cobrado'
+       AND OLD.status <> 'Conferido'
+       AND COALESCE(current_setting('app.allow_status_cobrado', true),'') <> '1' THEN
+      RAISE EXCEPTION 'Mudança manual para "Cobrado" só é permitida a partir de "Conferido"...';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
 ```
-preco_reconciliacoes
-- id, order_id, numero, vendedor
-- preco_antes, preco_depois, delta_unit
-- quantidade, delta_total
-- composicao_snapshot (jsonb opcional)
-- executado_em, executado_por
-```
 
-Ajustar `supabase/functions/reconciliar-precos/index.ts` para gravar uma linha aqui sempre que `preco_novo != preco_atual`.
+## Resultado esperado
 
-### Etapa 2 — Rodar o reconciliador em modo "auditoria" sobre os 1016 pedidos
-Disparar a edge function só nos pedidos do filtro (Maria Gabriela / Pago / Conferido=Sim). Como hoje todos já estão com o preço recalculado, vou rodar uma **segunda passada comparativa**: para cada pedido, recomputo a composição atual e comparo com o `preco` gravado — se houver delta, registro em `preco_reconciliacoes`.
-
-Em paralelo, posso fazer um "replay histórico": pegar o `alteracoes[]` de cada pedido e, quando houver entradas antigas com o preço daquela época, comparar com o preço atual. Isso me permite estimar quais pedidos provavelmente subiram com o destravamento. (Aproximado — só dá para confirmar 100% para alterações futuras.)
-
-### Etapa 3 — Gerar o relatório
-Com os dados em `preco_reconciliacoes`, gero dois arquivos em `/mnt/documents/`:
-- `pedidos_alterados_maria_gabriela.csv` — colunas: número, data, modelo, qtd, valor antigo, valor novo, delta
-- `pedidos_alterados_maria_gabriela.pdf` — mesmo conteúdo formatado A4, totais no rodapé
-
-## Decisão necessária
-O **valor antigo exato** dos pedidos do filtro **se perdeu** quando o reconciliador rodou sem auditoria. Tenho duas alternativas honestas:
-
-1. **Reconstrução aproximada via histórico `alteracoes`** — funciona para os ~551 pedidos que têm histórico salvo; nos demais o "valor antigo" virá marcado como "desconhecido".
-2. **Daqui pra frente** — implemento a auditoria e a partir da próxima alteração de tabela de preço, todo delta fica rastreado, com relatório fiel.
-
-Recomendo fazer **as duas**: implementar a auditoria (etapa 1) para nunca mais perder essa informação, e entregar o relatório aproximado com a coluna "fonte do valor antigo" indicando se veio do histórico ou se é desconhecido.
-
-## Arquivos que serão tocados
-- `supabase/migrations/<novo>.sql` — criar `preco_reconciliacoes` + GRANTs + RLS (só admin_master)
-- `supabase/functions/reconciliar-precos/index.ts` — gravar auditoria por pedido alterado
-- script único em `/tmp` para varrer os 1016 pedidos, reconstruir o "valor antigo" a partir de `alteracoes[]` e gerar CSV/PDF em `/mnt/documents/`
+No `/relatorios`, ao selecionar pedidos com status "Conferido" e escolher "Cobrado" no modal de Progresso de Produção, todos serão movidos com sucesso (sem cair no diálogo de bloqueio). Regras de auditoria (histórico, observação) continuam aplicadas pelo fluxo normal de `updateOrderStatus`.
