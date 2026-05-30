@@ -636,9 +636,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
   // ── Palmilha: same layout as Forro ──
   const generatePalmilhaPDF = () => {
+    const estoquePrefix = filterNumeroEstoque.trim().toLowerCase();
     const filtered = sourceOrders.filter(o =>
       progressoMatches(o.status) &&
-      !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-'
+      !o.tipoExtra && o.modelo && o.modelo !== '' && o.modelo !== '-' &&
+      (!estoquePrefix || (o.numero || '').toLowerCase().startsWith(estoquePrefix))
     );
     const groups: Record<string, { modelo: string; forma: string; sizes: Record<string, number> }> = {};
     filtered.forEach(o => {
@@ -657,12 +659,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dataBR = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const progressoLabel = progressoLabelText();
     const progressoFile = progressoFileLabel();
+    const estoqueLabel = filterNumeroEstoque.trim().toUpperCase();
 
     const doc = new jsPDF();
     const mx = 14;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`PALMILHA — ${progressoLabel.toUpperCase()} — ${dataBR}`, mx, 18);
+    const headerExtra = estoqueLabel ? ` — ESTOQUE ${estoqueLabel}` : '';
+    doc.text(`PALMILHA — ${progressoLabel.toUpperCase()}${headerExtra} — ${dataBR}`, mx, 18);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Total de pares: ${totalPares} | ${blocks.length} combinações`, mx, 25);
@@ -677,9 +681,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const dateFile = dataBR.replace(/\//g, '-');
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Palmilha', userName);
-    void registrarPdfSnapshot({ tipo: 'palmilha', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
-    doc.save(`Palmilha - ${progressoFile} - ${dateFile}.pdf`);
+    void registrarPdfSnapshot({ tipo: 'palmilha', filtros: { progresso: [...filterProgresso], numeroEstoque: estoqueLabel || null }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });
+    const fileExtra = estoqueLabel ? ` - ${estoqueLabel}` : '';
+    doc.save(`Palmilha${fileExtra} - ${progressoFile} - ${dateFile}.pdf`);
   };
+
 
   // ── Forma: same as Palmilha ──
   const generateFormaPDF = () => {
@@ -1545,7 +1551,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     if (activeReport === 'corte' || isComissao) {
       linhas.push({ label: isComissao ? 'Período de baixa' : 'Período de criação', value: fmtPeriodo(filterDataDe, filterDataAte) });
     }
-    if (activeReport === 'escalacao' && filterNumeroEstoque.trim()) linhas.push({ label: 'Número do estoque', value: filterNumeroEstoque.trim().toUpperCase() });
+    if ((activeReport === 'escalacao' || activeReport === 'palmilha') && filterNumeroEstoque.trim()) linhas.push({ label: 'Número do estoque', value: filterNumeroEstoque.trim().toUpperCase() });
     if (isComissao) linhas.push({ label: 'Quem deu baixa', value: fmtSet(filterBordadoUsuarios) });
 
     // Destaques numéricos: pedidos / produtos / valor (valor só nos financeiros).
@@ -1781,7 +1787,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             </div>
           )}
 
-          {activeReport === 'escalacao' && (
+          {(activeReport === 'escalacao' || activeReport === 'palmilha') && (
             <div>
               <label className="block text-xs font-semibold mb-1">Número do estoque (opcional)</label>
               <input
