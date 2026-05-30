@@ -1555,7 +1555,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       nota = 'Os totais serão calculados ao gerar o PDF (consulta no servidor).';
     } else {
       const { qtdPedidos, qtdProdutos, valor } = computeTotais(previewFiltered());
-      const mostrarValor = activeReport === 'cobranca' || activeReport === 'expedicao' || activeReport === 'extras_cintos';
+      const mostrarValor = activeReport === 'cobranca' || activeReport === 'extras_cintos';
       destaques.push({ label: 'Pedidos', value: qtdPedidos.toLocaleString('pt-BR') });
       destaques.push({ label: 'Produtos', value: qtdProdutos.toLocaleString('pt-BR') });
       if (mostrarValor) destaques.push({ label: 'Valor total', value: formatCurrency(valor) });
