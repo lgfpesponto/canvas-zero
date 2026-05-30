@@ -1202,8 +1202,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'bold');
     doc.text(`Expedição  [${geradoEm} — ${vendedorLabel}]`, mx, 20);
 
-    const cols = [25, 22, 60, 15, 30, cw - 25 - 22 - 60 - 15 - 30];
-    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3], mx + cols[0] + cols[1] + cols[2] + cols[3] + cols[4]];
+    const cols = [25, 22, 75, 15, cw - 25 - 22 - 75 - 15];
+    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3]];
 
     let y = 30;
 
@@ -1215,8 +1215,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text('DATA', cx[1] + 1, y + 5.5);
     doc.text('COMPOSIÇÃO', cx[2] + 1, y + 5.5);
     doc.text('QTD', cx[3] + 1, y + 5.5);
-    doc.text('PREÇO', cx[4] + 1, y + 5.5);
-    doc.text('ASSINATURA', cx[5] + 1, y + 5.5);
+    doc.text('ASSINATURA', cx[4] + 1, y + 5.5);
     y += 8;
 
     let totalValor = 0;
