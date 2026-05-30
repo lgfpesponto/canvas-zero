@@ -1787,7 +1787,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
             </div>
           )}
 
-          {activeReport === 'escalacao' && (
+          {(activeReport === 'escalacao' || activeReport === 'palmilha') && (
             <div>
               <label className="block text-xs font-semibold mb-1">Número do estoque (opcional)</label>
               <input
