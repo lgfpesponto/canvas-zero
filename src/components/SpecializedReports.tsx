@@ -1202,8 +1202,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'bold');
     doc.text(`Expedição  [${geradoEm} — ${vendedorLabel}]`, mx, 20);
 
-    const cols = [25, 22, 60, 15, 30, cw - 25 - 22 - 60 - 15 - 30];
-    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3], mx + cols[0] + cols[1] + cols[2] + cols[3] + cols[4]];
+    const cols = [25, 22, 75, 15, cw - 25 - 22 - 75 - 15];
+    const cx = [mx, mx + cols[0], mx + cols[0] + cols[1], mx + cols[0] + cols[1] + cols[2], mx + cols[0] + cols[1] + cols[2] + cols[3]];
 
     let y = 30;
 
@@ -1215,17 +1215,15 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.text('DATA', cx[1] + 1, y + 5.5);
     doc.text('COMPOSIÇÃO', cx[2] + 1, y + 5.5);
     doc.text('QTD', cx[3] + 1, y + 5.5);
-    doc.text('PREÇO', cx[4] + 1, y + 5.5);
-    doc.text('ASSINATURA', cx[5] + 1, y + 5.5);
+    doc.text('ASSINATURA', cx[4] + 1, y + 5.5);
     y += 8;
 
-    let totalValor = 0;
     let totalQtd = 0;
 
     doc.setFont('helvetica', 'normal');
     filtered.forEach(o => {
       const compItems = buildCompositionItems(o);
-      const compText = compItems.map(([name, val]) => `${name} ${formatCurrency(val)}`).join('\n');
+      const compText = compItems.map(([name]) => name).join('\n');
       doc.setFontSize(5);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);
       const rowH = Math.max(12, lines.length * 2.8 + 4);
@@ -1250,16 +1248,11 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const isBotaPE_exp = o.tipoExtra === 'bota_pronta_entrega';
       const detExp = (o.extraDetalhes || {}) as any;
       const realQtdExp = isBotaPE_exp && Array.isArray(detExp.botas) ? detExp.botas.length : o.quantidade;
-      // Valor exibido = valor final do pedido (já com desconto, se houver).
-      // Centralizado em getOrderFinalValue para bater com lista, detalhe e demais PDFs.
-      const orderTotal = getOrderFinalValue(o);
       doc.text(String(realQtdExp), cx[3] + 1, y + 5);
-      doc.text(formatCurrency(orderTotal), cx[4] + 1, y + 5);
       doc.setLineWidth(0.3);
-      doc.line(cx[5] + 4, y + rowH - 4, cx[5] + cols[5] - 4, y + rowH - 4);
+      doc.line(cx[4] + 4, y + rowH - 4, cx[4] + cols[4] - 4, y + rowH - 4);
 
       y += rowH;
-      totalValor += orderTotal;
       totalQtd += realQtdExp;
     });
 
@@ -1270,14 +1263,12 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFontSize(10);
     doc.text('TOTAL', cx[0] + 1, y + 7);
     doc.text(String(totalQtd), cx[3] + 1, y + 7);
-    doc.text(formatCurrency(totalValor), cx[4] + 1, y + 7);
 
     const dateFile = geradoEm.replace(/\//g, '-');
-    const valorFile = formatCurrency(totalValor).replace(/[^\d.,]/g, '').trim();
     stampPageNumbers(doc);
-    const expedicaoNome = `Expedição - ${vendedorLabel} - ${dateFile} - R$ ${valorFile} - ${totalQtd} pares.pdf`;
+    const expedicaoNome = `Expedição - ${vendedorLabel} - ${dateFile} - ${totalQtd} pares.pdf`;
     void recordPrintHistory(filtered.map(o => o.id), 'Expedição', userName);
-    void registrarPdfSnapshot({ tipo: 'expedicao', filtros: { vendedor: filterVendedor, progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length, qtd_produtos: totalQtd, valor_total: totalValor }, nomeArquivo: expedicaoNome });
+    void registrarPdfSnapshot({ tipo: 'expedicao', filtros: { vendedor: filterVendedor, progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length, qtd_produtos: totalQtd, valor_total: 0 }, nomeArquivo: expedicaoNome });
     doc.save(expedicaoNome);
   };
 
@@ -1564,7 +1555,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       nota = 'Os totais serão calculados ao gerar o PDF (consulta no servidor).';
     } else {
       const { qtdPedidos, qtdProdutos, valor } = computeTotais(previewFiltered());
-      const mostrarValor = activeReport === 'cobranca' || activeReport === 'expedicao' || activeReport === 'extras_cintos';
+      const mostrarValor = activeReport === 'cobranca' || activeReport === 'extras_cintos';
       destaques.push({ label: 'Pedidos', value: qtdPedidos.toLocaleString('pt-BR') });
       destaques.push({ label: 'Produtos', value: qtdProdutos.toLocaleString('pt-BR') });
       if (mostrarValor) destaques.push({ label: 'Valor total', value: formatCurrency(valor) });
