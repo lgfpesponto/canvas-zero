@@ -1551,7 +1551,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     if (activeReport === 'corte' || isComissao) {
       linhas.push({ label: isComissao ? 'Período de baixa' : 'Período de criação', value: fmtPeriodo(filterDataDe, filterDataAte) });
     }
-    if (activeReport === 'escalacao' && filterNumeroEstoque.trim()) linhas.push({ label: 'Número do estoque', value: filterNumeroEstoque.trim().toUpperCase() });
+    if ((activeReport === 'escalacao' || activeReport === 'palmilha') && filterNumeroEstoque.trim()) linhas.push({ label: 'Número do estoque', value: filterNumeroEstoque.trim().toUpperCase() });
     if (isComissao) linhas.push({ label: 'Quem deu baixa', value: fmtSet(filterBordadoUsuarios) });
 
     // Destaques numéricos: pedidos / produtos / valor (valor só nos financeiros).
