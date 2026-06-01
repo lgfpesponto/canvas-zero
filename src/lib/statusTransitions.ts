@@ -16,7 +16,13 @@ export const PESPONTOS = [
 
 const BAIXA_CORTE_NEXT = [
   'Entrada Laser Dinei', 'Entrada Laser Ferreni', 'Estampa', 'Sem bordado',
-  'Bordado Sandro', 'Entrada Bordado 7Estrivos',
+  'Bordado Sandro', 'Bordado Giovane', 'Entrada Bordado 7Estrivos',
+];
+
+/** Bordado Giovane: só avança para pespontos enumerados (sem "Pespontando"). */
+const GIOVANE_NEXT = [
+  'Pesponto 01', 'Pesponto 02', 'Pesponto 03',
+  'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton',
 ];
 
 const FLOW: Record<string, string[]> = {
