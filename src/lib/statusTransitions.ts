@@ -16,7 +16,13 @@ export const PESPONTOS = [
 
 const BAIXA_CORTE_NEXT = [
   'Entrada Laser Dinei', 'Entrada Laser Ferreni', 'Estampa', 'Sem bordado',
-  'Bordado Sandro', 'Entrada Bordado 7Estrivos',
+  'Bordado Sandro', 'Bordado Giovane', 'Entrada Bordado 7Estrivos',
+];
+
+/** Bordado Giovane: só avança para pespontos enumerados (sem "Pespontando"). */
+const GIOVANE_NEXT = [
+  'Pesponto 01', 'Pesponto 02', 'Pesponto 03',
+  'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton',
 ];
 
 const FLOW: Record<string, string[]> = {
@@ -33,6 +39,7 @@ const FLOW: Record<string, string[]> = {
   'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Sandro', ...PESPONTOS],
   'Sem bordado': PESPONTOS,
   'Bordado Sandro': PESPONTOS,
+  'Bordado Giovane': GIOVANE_NEXT,
   'Entrada Bordado 7Estrivos': ['Baixa Bordado 7Estrivos'],
   'Baixa Bordado 7Estrivos': PESPONTOS,
   'Pesponto 01': ['Pespontando'],
@@ -102,6 +109,7 @@ const BELT_FLOW: Record<string, string[]> = {
   'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Sandro', ...PESPONTOS],
   'Sem bordado': PESPONTOS,
   'Bordado Sandro': PESPONTOS,
+  'Bordado Giovane': GIOVANE_NEXT,
   'Entrada Bordado 7Estrivos': ['Baixa Bordado 7Estrivos'],
   'Baixa Bordado 7Estrivos': PESPONTOS,
   'Pesponto 01': ['Pespontando'],
