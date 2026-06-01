@@ -45,7 +45,7 @@ export const PRODUCTION_STATUSES = [
   "Sem bordado",
   "Bordado Sandro", "Bordado Giovane", "Entrada Bordado 7Estrivos", "Baixa Bordado 7Estrivos",
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05", "Pesponto Ailton",
-  "Pespontando", "Montagem", "Revisão", "Expedição",
+  "Pespontando", "Montagem", "Montagem Ailton", "Revisão", "Expedição",
   "Baixa Estoque", "Baixa Site (Despachado)",
   "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
