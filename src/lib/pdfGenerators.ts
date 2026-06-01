@@ -714,7 +714,7 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
 
   const ETAPAS_ANTES_BAIXA = new Set([
     'Em aberto','Impresso','Aguardando','Aguardando Couro','Aguardando Sola','Corte',
-    'Sem bordado','Bordado Dinei','Bordado Sandro','Bordado 7Estrivos',
+    'Sem bordado','Bordado Dinei','Bordado Sandro','Bordado Giovane','Bordado 7Estrivos',
     'Entrada Bordado 7Estrivos',
   ]);
 
