@@ -611,6 +611,33 @@ export type Database = {
         }
         Relationships: []
       }
+      order_status_changes: {
+        Row: {
+          changed_hora: string | null
+          changed_on: string
+          id: string
+          order_id: string
+          status: string
+          usuario: string | null
+        }
+        Insert: {
+          changed_hora?: string | null
+          changed_on: string
+          id?: string
+          order_id: string
+          status: string
+          usuario?: string | null
+        }
+        Update: {
+          changed_hora?: string | null
+          changed_on?: string
+          id?: string
+          order_id?: string
+          status?: string
+          usuario?: string | null
+        }
+        Relationships: []
+      }
       order_templates: {
         Row: {
           created_at: string
@@ -1816,6 +1843,7 @@ export type Database = {
         Returns: undefined
       }
       marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
+      parse_historico_date: { Args: { _data: string }; Returns: string }
       processar_baixas_automaticas_geral: { Args: never; Returns: Json }
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }

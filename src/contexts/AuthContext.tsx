@@ -782,6 +782,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .single();
     if (!currentRow) return;
 
+    // Dedup: se já está no status alvo e não há observação nova, não anexa entrada
+    // duplicada no histórico (evita inflar relatórios e o índice de mudanças).
+    if (currentRow.status === newStatus && !observacao) return;
+
     const { isTransitionAllowed, TRANSITION_BLOCKED_MESSAGE } = await import('@/lib/statusTransitions');
     if (!isTransitionAllowed(currentRow.status, newStatus, { vendedor: currentRow.vendedor || undefined, tipoExtra: (currentRow as any).tipo_extra || undefined })) {
       const { toast } = await import('sonner');
