@@ -1,40 +1,35 @@
-## Adicionar etapa "Bordado Giovane"
+## Ajuste: restringir transições do "Bordado Giovane"
 
-Espelhar exatamente o comportamento de **Bordado Sandro**, criando uma nova etapa paralela.
+Diferente do **Bordado Sandro**, o **Bordado Giovane** terá fluxo mais restrito:
 
-### 1. Banco de dados (migration)
-Inserir em `status_etapas`:
-- `nome = 'Bordado Giovane'`, `slug = 'bordado-giovane'`, `ordem = 9` (logo após Sandro = 8)
-- Reordenar (`ordem + 1`) as etapas atuais com `ordem >= 9` para não duplicar índice.
+- **Entrada**: somente a partir de **Baixa Corte**.
+- **Saída**: apenas **Pesponto 01, 02, 03, 04, 05** e **Pesponto Ailton** (sem `Pespontando`, sem `Estampa`).
 
-### 2. `src/lib/statusTransitions.ts`
-Em todos os pontos onde aparece `'Bordado Sandro'`, adicionar `'Bordado Giovane'` ao lado:
-- `BAIXA_CORTE_NEXT` (linha 17-20) → adicionar como destino válido a partir de Baixa Corte.
-- `FLOW['Estampa']` (linha 33) → adicionar como destino válido a partir de Estampa.
-- `FLOW['Bordado Giovane'] = PESPONTOS` (espelha linha 35).
-- `BELT_FLOW['Estampa']` (linha 102) → idem.
-- `BELT_FLOW['Bordado Giovane'] = PESPONTOS` (espelha linha 104).
+### Mudanças em `src/lib/statusTransitions.ts`
 
-### 3. `src/lib/order-logic.ts`
-Adicionar `"Bordado Giovane"` ao lado de `"Bordado Sandro"` nas quatro listas:
-- `PRODUCTION_STATUSES` (linha 46)
-- `PRODUCTION_STATUSES_USER` (linha 60)
-- `BELT_STATUSES` (linha 76)
-- `PRODUCTION_STATUSES_IN_PROD` (linha 95)
+1. Criar uma constante local com os destinos do Giovane:
+   ```ts
+   const GIOVANE_NEXT = [
+     'Pesponto 01', 'Pesponto 02', 'Pesponto 03',
+     'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton',
+   ];
+   ```
+2. `BAIXA_CORTE_NEXT` continua incluindo `'Bordado Giovane'` (já é o único ponto de entrada).
+3. `FLOW['Estampa']` **NÃO** receberá `'Bordado Giovane'` (apenas Sandro continua).
+4. `FLOW['Bordado Giovane'] = GIOVANE_NEXT` (em vez de `PESPONTOS`).
+5. `BELT_FLOW['Estampa']` idem — sem Giovane.
+6. `BELT_FLOW['Bordado Giovane'] = GIOVANE_NEXT`.
 
-### 4. `src/components/SpecializedReports.tsx`
-Linha 73: adicionar `'Bordado Giovane'` em `BORDADO_STATUSES` para o relatório de bordado contemplá-la.
+### O que NÃO muda
 
-### 5. `src/lib/pdfGenerators.ts`
-Linha 717: incluir `'Bordado Giovane'` na lista de status de bordado usada na geração do PDF.
-
-### 6. `docs/BUSINESS_RULES.md`
-Atualizar o fluxo (linha 362) inserindo `Bordado Giovane` após `Bordado Sandro`.
+- Migration do banco (`status_etapas`) permanece igual (inserir 'Bordado Giovane' ordem 9).
+- Listas em `src/lib/order-logic.ts` (`PRODUCTION_STATUSES`, `PRODUCTION_STATUSES_USER`, `BELT_STATUSES`, `PRODUCTION_STATUSES_IN_PROD`) continuam incluindo `'Bordado Giovane'`.
+- `BORDADO_STATUSES` em `SpecializedReports.tsx` e a lista em `pdfGenerators.ts` permanecem com Giovane.
+- `docs/BUSINESS_RULES.md` atualizado refletindo as transições restritas.
 
 ### Resultado
-- Mesmas transições de entrada (vinda de **Baixa Corte** ou **Estampa**) que o Sandro.
-- Mesmas transições de saída (qualquer **Pesponto**/`Pespontando`).
-- Aparece em listagens de status, filtros de produção, relatório de bordado e PDFs exatamente como Sandro.
-- Roles que hoje podem mover para Sandro (admin_master, admin_producao) automaticamente também podem mover para Giovane — não há regra de role específica por etapa de bordado.
 
-Nada relacionado a `bordado` role (Neto/Débora) muda — essa role só atua nas etapas `Entrada/Baixa Bordado 7Estrivos`, conforme RLS atuais.
+- Em **Baixa Corte**, o usuário vê **Bordado Giovane** como opção (junto com Sandro, 7Estrivos, Laser, etc.).
+- Em **Estampa**, apenas Sandro/7Estrivos/Pespontos seguem aparecendo (Giovane fica oculto).
+- Estando em **Bordado Giovane**, só é possível avançar para os 6 pespontos enumerados — `Pespontando` fica fora.
+- `Aguardando` e `Cancelado` continuam sempre disponíveis (regra global).
