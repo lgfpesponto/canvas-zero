@@ -1,39 +1,40 @@
-Gerar um PDF (entregue aqui no chat) consolidando **todos os itens cobrados** na composição do pedido de Bota, agrupados por categoria, com nome da variação e valor unitário em R$.
+## Adicionar etapa "Bordado Giovane"
 
-## O que entra no PDF
+Espelhar exatamente o comportamento de **Bordado Sandro**, criando uma nova etapa paralela.
 
-Fontes de dados (somente itens ativos com `preco > 0`):
-1. **`ficha_variacoes`** da ficha Bota (preço base oficial por variação).
-2. **`custom_options`** (opções extras administrativas — bordados/lasers/recortes adicionais cadastrados fora da ficha clássica).
+### 1. Banco de dados (migration)
+Inserir em `status_etapas`:
+- `nome = 'Bordado Giovane'`, `slug = 'bordado-giovane'`, `ordem = 9` (logo após Sandro = 8)
+- Reordenar (`ordem + 1`) as etapas atuais com `ordem >= 9` para não duplicar índice.
 
-## Estrutura do documento
+### 2. `src/lib/statusTransitions.ts`
+Em todos os pontos onde aparece `'Bordado Sandro'`, adicionar `'Bordado Giovane'` ao lado:
+- `BAIXA_CORTE_NEXT` (linha 17-20) → adicionar como destino válido a partir de Baixa Corte.
+- `FLOW['Estampa']` (linha 33) → adicionar como destino válido a partir de Estampa.
+- `FLOW['Bordado Giovane'] = PESPONTOS` (espelha linha 35).
+- `BELT_FLOW['Estampa']` (linha 102) → idem.
+- `BELT_FLOW['Bordado Giovane'] = PESPONTOS` (espelha linha 104).
 
-- Capa: "Tabela de Composição — Bota (7Estrivos)" + data de geração.
-- Seções, na ordem em que aparecem no formulário do pedido:
-  1. **Modelos** (Bota Tradicional, Peão, Montaria, Botina, etc.) — valor base do modelo.
-  2. **Solados / Cor da Sola / Formato do Bico** (quando houver adicional).
-  3. **Couros** (Cano, Gáspea, Taloneira) — quando a variação tiver adicional.
-  4. **Bordados Cano** (lista completa com preço).
-  5. **Bordados Gáspea**.
-  6. **Bordados Taloneira**.
-  7. **Lasers** (Cano / Gáspea / Taloneira).
-  8. **Recortes** (Cano / Gáspea / Taloneira).
-  9. **Personalização / Nome bordado / Carimbo / Estampa / Pintura / Costura atrás**.
-  10. **Metais e Acessórios** (Strass, Cruz Metal, Bridão, etc.).
-  11. **Tiras / Trisce / Vivo / Borrachinha / Linha** (se cobrados).
-  12. **Kits e Adicionais** (qualquer categoria de `custom_options` restante).
-- Cada seção em tabela de 2 colunas: **Item** | **Valor (R$)**, com zebra striping e totalizador de "quantidade de opções" no rodapé da seção.
-- Rodapé: observação de que valores são unitários e que o preço final do pedido depende de combinações (ex.: Cor da Sola é contextual por modelo+solado+bico).
+### 3. `src/lib/order-logic.ts`
+Adicionar `"Bordado Giovane"` ao lado de `"Bordado Sandro"` nas quatro listas:
+- `PRODUCTION_STATUSES` (linha 46)
+- `PRODUCTION_STATUSES_USER` (linha 60)
+- `BELT_STATUSES` (linha 76)
+- `PRODUCTION_STATUSES_IN_PROD` (linha 95)
 
-## Como vai ser gerado
+### 4. `src/components/SpecializedReports.tsx`
+Linha 73: adicionar `'Bordado Giovane'` em `BORDADO_STATUSES` para o relatório de bordado contemplá-la.
 
-- Script Python com `reportlab` (Platypus + Table) rodado via `code--exec`.
-- Dados puxados via `supabase--read_query` das tabelas `ficha_tipos`, `ficha_categorias`, `ficha_campos`, `ficha_variacoes` e `custom_options`.
-- Dedup: se a mesma variação existir em `ficha_variacoes` e `custom_options`, prevalece o valor de `ficha_variacoes` (regra de cascata do projeto).
-- QA visual obrigatório: converter cada página em imagem e revisar antes de entregar.
-- Arquivo final salvo em `/mnt/documents/tabela-composicao-bota.pdf` e disponibilizado como `<presentation-artifact>` aqui no chat.
+### 5. `src/lib/pdfGenerators.ts`
+Linha 717: incluir `'Bordado Giovane'` na lista de status de bordado usada na geração do PDF.
 
-## Fora do escopo
+### 6. `docs/BUSINESS_RULES.md`
+Atualizar o fluxo (linha 362) inserindo `Bordado Giovane` após `Bordado Sandro`.
 
-- Não inclui ficha de Cinto, Gravata, Regata ou Extras (só Bota, conforme pedido).
-- Não inclui preço de "Bota Pronta Entrega" nem ajustes manuais — só a tabela de composição cobrável.
+### Resultado
+- Mesmas transições de entrada (vinda de **Baixa Corte** ou **Estampa**) que o Sandro.
+- Mesmas transições de saída (qualquer **Pesponto**/`Pespontando`).
+- Aparece em listagens de status, filtros de produção, relatório de bordado e PDFs exatamente como Sandro.
+- Roles que hoje podem mover para Sandro (admin_master, admin_producao) automaticamente também podem mover para Giovane — não há regra de role específica por etapa de bordado.
+
+Nada relacionado a `bordado` role (Neto/Débora) muda — essa role só atua nas etapas `Entrada/Baixa Bordado 7Estrivos`, conforme RLS atuais.
