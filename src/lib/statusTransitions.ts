@@ -39,6 +39,7 @@ const FLOW: Record<string, string[]> = {
   'Estampa': ['Entrada Bordado 7Estrivos', 'Bordado Sandro', ...PESPONTOS],
   'Sem bordado': PESPONTOS,
   'Bordado Sandro': PESPONTOS,
+  'Bordado Giovane': GIOVANE_NEXT,
   'Entrada Bordado 7Estrivos': ['Baixa Bordado 7Estrivos'],
   'Baixa Bordado 7Estrivos': PESPONTOS,
   'Pesponto 01': ['Pespontando'],
