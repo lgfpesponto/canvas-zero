@@ -356,8 +356,29 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const received = auth.slice("Bearer ".length).trim();
-    if (!constantTimeEqual(received, token)) {
+    const receivedRaw = auth.slice("Bearer ".length);
+    const received = receivedRaw.trim();
+    const fp = (s: string) =>
+      s.length <= 8
+        ? `len=${s.length}`
+        : `len=${s.length} head=${s.slice(0, 4)} tail=${s.slice(-4)}`;
+    const tokenTrimmed = token.trim();
+    console.log("[fichas-receber][auth-debug]", JSON.stringify({
+      auth_len: auth.length,
+      received_raw_len: receivedRaw.length,
+      received: fp(received),
+      token_env: fp(token),
+      token_env_trimmed: fp(tokenTrimmed),
+      token_env_has_whitespace: /\s/.test(token),
+      received_has_whitespace: /\s/.test(received),
+      received_first_charcode: received.charCodeAt(0),
+      received_last_charcode: received.charCodeAt(received.length - 1),
+      token_first_charcode: tokenTrimmed.charCodeAt(0),
+      token_last_charcode: tokenTrimmed.charCodeAt(tokenTrimmed.length - 1),
+      match_raw: received === token,
+      match_trimmed: received === tokenTrimmed,
+    }));
+    if (!constantTimeEqual(received, tokenTrimmed)) {
       return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
