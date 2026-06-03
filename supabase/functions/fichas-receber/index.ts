@@ -139,8 +139,6 @@ function constantTimeEqual(a: string, b: string): boolean {
   return r === 0;
 }
 
-const SUFFIX_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
 type PlannedRow = {
   numero: string;
   tamanho: string;
@@ -149,18 +147,19 @@ type PlannedRow = {
   ficha: any;
 };
 
+// Mesma lógica do GradeEstoque.tsx: `${numero_pedido}${tamanho}${seq.padStart(2,'0')}`
+// O site já manda numero_pedido pronto (AT008, AT008A, AT008B...).
+// Sequencial reinicia em 01 por (numero_pedido, tamanho).
 function buildPlannedRows(payload: z.infer<typeof PayloadSchema>): PlannedRow[] {
   const numeroBase = payload.pedido.numero_pedido.trim();
   const planned: PlannedRow[] = [];
-  const counter = new Map<string, number>();
+  const seqByTamanho = new Map<string, number>();
 
   function nextNumeroFor(tamanho: string): string {
-    const used = counter.get(tamanho) ?? 0;
-    counter.set(tamanho, used + 1);
-    const base = `${numeroBase}${tamanho}`;
-    if (used === 0) return base;
-    const suffix = SUFFIX_ALPHABET[used - 1] ?? `Z${used}`;
-    return `${base}${suffix}`;
+    const used = seqByTamanho.get(tamanho) ?? 0;
+    const next = used + 1;
+    seqByTamanho.set(tamanho, next);
+    return `${numeroBase}${tamanho}${String(next).padStart(2, "0")}`;
   }
 
   payload.fichas.forEach((ficha, idx) => {
@@ -199,6 +198,7 @@ function buildPlannedRows(payload: z.infer<typeof PayloadSchema>): PlannedRow[] 
 
   return planned;
 }
+
 
 function fichaToDbRow(args: {
   planned: PlannedRow;
