@@ -1,47 +1,21 @@
-## Objetivo
+## Adicionar "Produzindo" ao filtro de Progresso da Produção em Meus Pedidos
 
-Criar nova etapa de produção **"Montagem Ailton"** que recebe **apenas** pedidos vindos de **"Pesponto Ailton"** e, a partir dela, segue os mesmos destinos atuais de "Montagem" (Revisão, Expedição, Baixa Site, Baixa Estoque). Adicionalmente:
-- **"Pesponto Ailton"** passa a avançar **somente** para "Montagem Ailton".
-- **"Montagem"** passa a receber **somente** de "Pespontando" (Pesponto Ailton deixa de mandar para Montagem).
+Hoje, na página `/relatorios` (Meus Pedidos), o filtro "Progresso da Produção" lista somente os status de bota/cinto (`PRODUCTION_STATUSES` ou `PRODUCTION_STATUSES_USER`). O status `Produzindo` é exclusivo dos produtos Extras (`EXTRAS_STATUSES`) e por isso não aparece como opção, mesmo quando existem extras na listagem.
 
-## Comportamento para pedidos existentes
+### Mudança
 
-Não há reclassificação retroativa. Pedidos que hoje estão em "Pesponto Ailton" ou "Montagem" permanecem onde estão; as novas restrições passam a valer apenas na **próxima** mudança de etapa.
+Em `src/pages/ReportsPage.tsx` (linha ~377), montar `allStatuses` incluindo `Produzindo` (de `EXTRAS_STATUSES`), preservando a ordem atual e sem duplicar status que já estejam na lista de botas.
 
-## Mudanças
+```ts
+const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
+// "Produzindo" é exclusivo de Extras — incluir como opção do filtro.
+const allStatuses = Array.from(new Set([...statuses, 'Produzindo']));
+```
 
-### 1. Banco — nova etapa em `status_etapas`
+`EXTRAS_STATUSES` já está importado no topo do arquivo, então alternativamente podemos derivar via `EXTRAS_STATUSES.filter(s => !statuses.includes(s))` para pegar também outros status exclusivos de extras no futuro — mas o pedido foi específico para `Produzindo`, então mantemos a inserção pontual.
 
-Inserir `'Montagem Ailton'` (slug `montagem-ailton`) logo após `Montagem` (ordem 18). Como existem etapas com ordem ≥ 19 (Revisão, Expedição, etc.), incrementar todas em +1 antes do INSERT para manter a sequência limpa.
+### Fora de escopo
 
-### 2. `src/lib/statusTransitions.ts` (FLOW de bota)
-
-- `'Pesponto Ailton'`: passa de `['Montagem']` para `['Montagem Ailton']`.
-- Adicionar `'Montagem Ailton': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque']`.
-- `'Montagem'` mantém destinos atuais. O único feeder direto passa a ser `'Pespontando'` (já é hoje).
-
-`BELT_FLOW` (cinto) não tem etapa "Montagem"/"Montagem Ailton" e fica inalterado.
-
-`EXTRAS_FLOW` não é afetado.
-
-### 3. `src/lib/order-logic.ts`
-
-Adicionar `'Montagem Ailton'` logo depois de `'Montagem'` nas listas:
-- `PRODUCTION_STATUSES` (linha 48)
-- `PRODUCTION_STATUSES_USER` (linha 62)
-- `PRODUCTION_STATUSES_IN_PROD` (linha 97)
-
-`BELT_STATUSES` não inclui "Montagem", então também não recebe "Montagem Ailton".
-
-### 4. `docs/BUSINESS_RULES.md`
-
-Refletir no fluxo de produção:
-- Pesponto Ailton → Montagem Ailton (única saída).
-- Montagem Ailton → Revisão / Expedição / Baixa Site / Baixa Estoque.
-- Montagem recebe apenas de Pespontando.
-
-## Observações técnicas
-
-- `getAllowedNextStatuses` hoje devolve todas as chaves do fluxo (transições laterais/retrocessos seguem com justificativa). A restrição "Pesponto Ailton só vai para Montagem Ailton" se aplica ao **avanço direto recomendado**; retrocessos/laterais com justificativa continuam funcionando como nas demais etapas — consistente com o padrão Sandro/Giovane.
-- Nenhum UPDATE em dados existentes: pedidos atuais em Pesponto Ailton/Montagem ficam onde estão e seguem o novo mapa só na próxima transição.
-- Relatórios (`SpecializedReports.tsx`, `pdfGenerators.ts`) não exigem mudança: "Montagem Ailton" não é etapa de bordado/corte/forro/solado e não aparece em nenhuma lista especializada — entra automaticamente nas listagens gerais via `PRODUCTION_STATUSES`.
+- Não mexer em `PRODUCTION_STATUSES` / `PRODUCTION_STATUSES_USER` (afetariam Detalhe do Pedido, regressão de status, dashboards e SoladoBoard).
+- Não alterar a lógica de filtragem em si — o `filterStatus` já é um `Set<string>` que casa por igualdade com `order.status`, então marcar "Produzindo" já filtra extras corretamente.
+- Não tocar em `SpecializedReports` nem em outras telas.
