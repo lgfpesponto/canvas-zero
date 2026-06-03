@@ -374,7 +374,8 @@ const ReportsPage = () => {
   const formatCurrency = useCallback((v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), []);
 
   const statuses = isAdmin ? PRODUCTION_STATUSES : PRODUCTION_STATUSES_USER;
-  const allStatuses = [...statuses];
+  // "Produzindo" é exclusivo de Extras — incluir como opção do filtro.
+  const allStatuses = Array.from(new Set([...statuses, 'Produzindo']));
 
   // Fetch vendedores list from DB
   const [allVendedores, setAllVendedores] = useState<string[]>([]);
