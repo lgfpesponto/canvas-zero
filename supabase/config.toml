@@ -2,3 +2,6 @@ project_id = "uxpcqqxlypshickabeyq"
 
 [functions.extract-comprovante]
 verify_jwt = false
+
+[functions.fichas-receber]
+verify_jwt = false
