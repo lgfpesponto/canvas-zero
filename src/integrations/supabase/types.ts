@@ -722,6 +722,7 @@ export type Database = {
           estampa: string | null
           estampa_desc: string | null
           extra_detalhes: Json | null
+          ficha_snapshot: Json | null
           forma: string | null
           formato_bico: string
           fotos: Json
@@ -819,6 +820,7 @@ export type Database = {
           estampa?: string | null
           estampa_desc?: string | null
           extra_detalhes?: Json | null
+          ficha_snapshot?: Json | null
           forma?: string | null
           formato_bico?: string
           fotos?: Json
@@ -916,6 +918,7 @@ export type Database = {
           estampa?: string | null
           estampa_desc?: string | null
           extra_detalhes?: Json | null
+          ficha_snapshot?: Json | null
           forma?: string | null
           formato_bico?: string
           fotos?: Json
@@ -1665,6 +1668,7 @@ export type Database = {
           estampa: string | null
           estampa_desc: string | null
           extra_detalhes: Json | null
+          ficha_snapshot: Json | null
           forma: string | null
           formato_bico: string
           fotos: Json
