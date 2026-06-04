@@ -100,6 +100,39 @@ export type Database = {
           },
         ]
       }
+      atacado_progress_log: {
+        Row: {
+          enviado_em: string
+          erro: string | null
+          etapa: string
+          http_status: number | null
+          id: string
+          numero: string
+          order_id: string
+          response_body: string | null
+        }
+        Insert: {
+          enviado_em?: string
+          erro?: string | null
+          etapa: string
+          http_status?: number | null
+          id?: string
+          numero: string
+          order_id: string
+          response_body?: string | null
+        }
+        Update: {
+          enviado_em?: string
+          erro?: string | null
+          etapa?: string
+          http_status?: number | null
+          id?: string
+          numero?: string
+          order_id?: string
+          response_body?: string | null
+        }
+        Relationships: []
+      }
       comprovante_notificacoes: {
         Row: {
           comprovante_id: string
@@ -521,6 +554,24 @@ export type Database = {
           id?: string
           quantidade?: number
           tipo_metal?: string
+        }
+        Relationships: []
+      }
+      internal_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }
