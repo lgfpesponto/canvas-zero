@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.fichas-receber]
 verify_jwt = false
+
+[functions.atacado-progress-dispatch]
+verify_jwt = false
