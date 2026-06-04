@@ -206,8 +206,9 @@ function fichaToDbRow(args: {
   cliente_nome: string;
   data: string;
   hora: string;
+  atacado_pedido_id?: string | null;
 }) {
-  const { planned, juliana_user_id, cliente_nome, data, hora } = args;
+  const { planned, juliana_user_id, cliente_nome, data, hora, atacado_pedido_id } = args;
   const f = planned.ficha.ficha ?? {};
   const residuais =
     planned.ficha.personalizacoes_residuais ?? planned.ficha.personalizacoes ?? [];
@@ -231,6 +232,7 @@ function fichaToDbRow(args: {
     origem: "atacado_site",
     ficha_titulo: planned.ficha.titulo ?? null,
     qr_code_url: planned.ficha.qr_code_url ?? null,
+    atacado_pedido_id: atacado_pedido_id ?? null,
   };
   if (residuais.length) extra_detalhes.personalizacoes_residuais = residuais;
 
@@ -457,6 +459,7 @@ Deno.serve(async (req) => {
         cliente_nome: payload.pedido.cliente_nome.trim(),
         data,
         hora,
+        atacado_pedido_id: payload.pedido.id ?? null,
       }),
     );
 
