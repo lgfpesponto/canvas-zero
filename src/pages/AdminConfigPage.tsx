@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users } from 'lucide-react';
+import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import FichaBuilder from '@/components/admin/FichaBuilder';
+import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
@@ -78,6 +79,9 @@ export default function AdminConfigPage() {
                 </TabsTrigger>
                 <TabsTrigger value="gestao" className="gap-1.5 lowercase">
                   <Activity className="h-4 w-4" /> gestão
+                </TabsTrigger>
+                <TabsTrigger value="atacado-sync" className="gap-1.5 lowercase">
+                  <RefreshCw className="h-4 w-4" /> sincronização atacado
                 </TabsTrigger>
               </>
             )}
@@ -162,6 +166,9 @@ export default function AdminConfigPage() {
               </TabsContent>
               <TabsContent value="gestao">
                 <GestaoInner />
+              </TabsContent>
+              <TabsContent value="atacado-sync">
+                <AtacadoSyncPanel />
               </TabsContent>
             </>
           )}

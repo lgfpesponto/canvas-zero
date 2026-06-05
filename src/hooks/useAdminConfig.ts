@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { syncFichaVariacaoDelete } from '@/lib/atacadoSync';
+import { syncVariacaoById } from '@/lib/priceChangeGuard';
 
 /* ───── Types ───── */
 export interface FichaTipo {
@@ -209,17 +211,19 @@ export function useUpdateVariacao() {
             .update({ ...rest, preco_adicional: precoDepois })
             .eq('id', id);
           if (error) throw error;
-          return;
+          return { id };
         }
       }
 
       const payload = preco_adicional !== undefined ? { ...rest, preco_adicional } : rest;
       const { error } = await supabase.from('ficha_variacoes').update(payload).eq('id', id);
       if (error) throw error;
+      return { id };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       qc.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
+      if (res?.id) void syncVariacaoById(res.id);
     },
   });
 }
@@ -230,8 +234,12 @@ export function useDeleteVariacao() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('ficha_variacoes').delete().eq('id', id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_variacoes'] }),
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      if (id) syncFichaVariacaoDelete(id);
+    },
   });
 }
 
@@ -239,12 +247,20 @@ export function useBulkInsertVariacoes() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (items: { categoria_id: string; nome: string; preco_adicional: number; ordem: number }[]) => {
-      const { error } = await supabase.from('ficha_variacoes').insert(items);
+      const { data, error } = await supabase
+        .from('ficha_variacoes')
+        .insert(items)
+        .select('id');
       if (error) throw error;
+      return (data ?? []).map(d => (d as any).id as string);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_variacoes'] }),
+    onSuccess: (ids) => {
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
+      if (Array.isArray(ids)) ids.forEach(id => { void syncVariacaoById(id); });
+    },
   });
 }
+
 
 export function useToggleWorkflow() {
   const qc = useQueryClient();
@@ -304,15 +320,22 @@ export function useInsertVariacao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number }) => {
-      const { error } = await supabase.from('ficha_variacoes').insert(v);
+      const { data, error } = await supabase
+        .from('ficha_variacoes')
+        .insert(v)
+        .select('id')
+        .single();
       if (error) throw error;
+      return (data as any)?.id as string;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       qc.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+      if (id) void syncVariacaoById(id);
     },
   });
 }
+
 
 export function useInsertFichaCampo() {
   const qc = useQueryClient();
