@@ -527,23 +527,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     renderCats(colCats[1], col2X);
     renderCats(colCats[2], col3X);
 
-    // ─── CÓDIGO DE BARRAS SUPERIOR (área livre acima do canhoto, lado direito) ───
-    {
-      const bcValTop = orderBarcodeValue(order.numero, order.id);
-      const bcUrlTop = barcodeDataUrl(bcValTop, { width: 2, height: 40 });
-      if (bcUrlTop) {
-        const topBcW = 60;
-        const topBcH = 14;
-        const topBcX = pw - m - topBcW - 2;
-        const topBcY = (ph - 34) - topBcH - 6; // 6mm de respiro acima do tracejado
-        try { doc.addImage(bcUrlTop, 'PNG', topBcX, topBcY, topBcW, topBcH); } catch {}
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text(orderNumClean, topBcX + topBcW / 2, topBcY + topBcH + 3, { align: 'center' });
-      }
-    }
-
-    // ─── STUB ÚNICO (montagem/sola + código de barras) ───
+    // ─── STUB ÚNICO em 3 partes: barcode | barcode | infos ───
     const stubTop = ph - 34;
     doc.setLineWidth(0.3);
     (doc as any).setLineDash([1, 1]);
@@ -551,43 +535,80 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     (doc as any).setLineDash([]);
 
     const stubAreaW = pw - m * 2;
-    const halfW = stubAreaW / 2;
+    const thirdW = stubAreaW / 3;
     const bcVal = orderBarcodeValue(order.numero, order.id);
     const bcUrl = barcodeDataUrl(bcVal, { width: 2, height: 40 });
 
-    // Divisória central entre os dois lados
+    // Divisórias verticais
     doc.setLineWidth(0.3);
-    doc.line(m + halfW, stubTop, m + halfW, ph - m);
+    doc.line(m + thirdW, stubTop, m + thirdW, ph - m);
+    doc.line(m + 2 * thirdW, stubTop, m + 2 * thirdW, ph - m);
 
-    // ─── LADO ESQUERDO: código de barras + número do pedido ───
-    const leftCx = m + halfW / 2;
-    if (bcUrl) {
-      try { doc.addImage(bcUrl, 'PNG', m + 8, stubTop + 5, halfW - 16, 16); } catch {}
-    }
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(orderNumClean, leftCx, stubTop + 28, { align: 'center' });
+    // Helper: desenha bloco de barcode + número (usado em 2 colunas)
+    const drawBarcodeBlock = (xLeft: number) => {
+      const innerMargin = 4; // mm
+      const bcW = thirdW - innerMargin * 2;
+      const bcH = 16;
+      if (bcUrl) {
+        try { doc.addImage(bcUrl, 'PNG', xLeft + innerMargin, stubTop + 5, bcW, bcH); } catch {}
+      }
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(orderNumClean, xLeft + thirdW / 2, stubTop + 28, { align: 'center' });
+    };
 
-    // ─── LADO DIREITO: informações de SOLA / MONTAGEM ───
-    const rightX = m + halfW;
-    const rightCx = rightX + halfW / 2;
-    const line1Parts = [
+    // Blocos 1 e 2: barcodes idênticos
+    drawBarcodeBlock(m);
+    drawBarcodeBlock(m + thirdW);
+
+    // ─── BLOCO 3 (direita): infos do pedido ───
+    // Abreviações restritas ao canhoto
+    const abbrevSolado = (s?: string) => {
+      const v = (s || '').trim();
+      if (!v) return '';
+      if (v.toLowerCase() === 'couro reta') return 'couro';
+      return v;
+    };
+    const abbrevCorSola = (s?: string) => {
+      const v = (s || '').trim();
+      if (!v) return '';
+      if (v.toLowerCase() === 'pintada de preto') return 'P. PRETA';
+      return v;
+    };
+    const abbrevBico = (s?: string) => {
+      const v = (s || 'quadrado').toLowerCase();
+      return v.replace(/\bfino\b/gi, 'BF');
+    };
+
+    const rightX = m + 2 * thirdW;
+    const rightCx = rightX + thirdW / 2;
+    const maxW = thirdW - 4;
+
+    const line1 = `Nº pedido: ${orderNumClean}`;
+    const line2 = [
       order.tamanho,
-      (order.solado || 'borracha').toLowerCase(),
-      order.corSola ? order.corSola.toLowerCase() : '',
+      abbrevSolado(order.solado || 'borracha'),
+      abbrevCorSola(order.corSola),
     ].filter(Boolean).join(' ');
-    const formaVal = (order as any).forma || '';
-    const stubLine1 = formaVal ? `${line1Parts} | forma: ${formaVal}` : line1Parts;
-    const bicoText = (order.formatoBico || 'quadrado').toLowerCase().replace(/\bfino\b/gi, 'BF');
     const viraText = (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
-    const stubLine2 = `${bicoText}${viraText}`;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Nº pedido: ${orderNumClean}`, rightCx, stubTop + 5, { align: 'center', maxWidth: halfW - 4 });
-    doc.setFontSize(10);
-    doc.text(stubLine1.toUpperCase(), rightCx, stubTop + 14, { align: 'center', maxWidth: halfW - 4 });
-    doc.setFontSize(9);
-    doc.text(stubLine2.toUpperCase(), rightCx, stubTop + 22, { align: 'center', maxWidth: halfW - 4 });
+    const line3 = `${abbrevBico(order.formatoBico)}${viraText}`;
+    const formaVal = (order as any).forma || '';
+    const line4 = formaVal ? `FORMA: ${formaVal}` : '';
+
+    const lines = [
+      { text: line1, size: 9, upper: false },
+      { text: line2, size: 10, upper: true },
+      { text: line3, size: 9, upper: true },
+      { text: line4, size: 9, upper: true },
+    ].filter(l => l.text && l.text.trim().length > 0);
+
+    let cy = stubTop + 6;
+    lines.forEach(l => {
+      doc.setFontSize(l.size);
+      doc.setFont('helvetica', 'bold');
+      doc.text(l.upper ? l.text.toUpperCase() : l.text, rightCx, cy, { align: 'center', maxWidth: maxW });
+      cy += 7;
+    });
   }
 
   const now = new Date();
