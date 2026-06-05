@@ -11,6 +11,7 @@
  * Sem diálogo, sem congelamento.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { syncCustomOptionUpsert, syncFichaVariacaoUpsert } from '@/lib/atacadoSync';
 
 export type PriceChangeTarget =
   | { tipo: 'ficha_variacao'; target_id: string; label: string; preco_antes: number; preco_depois: number }
