@@ -167,6 +167,9 @@ export default function AdminConfigPage() {
               <TabsContent value="gestao">
                 <GestaoInner />
               </TabsContent>
+              <TabsContent value="atacado-sync">
+                <AtacadoSyncPanel />
+              </TabsContent>
             </>
           )}
         </Tabs>
