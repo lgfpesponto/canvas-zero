@@ -581,8 +581,8 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     };
 
     const rightX = m + 2 * thirdW;
-    const rightCx = rightX + thirdW / 2;
-    const maxW = thirdW - 4;
+    const leftX = rightX + 3;
+    const maxW = thirdW - 6;
 
     const line1 = `Nº pedido: ${orderNumClean}`;
     const line2 = [
