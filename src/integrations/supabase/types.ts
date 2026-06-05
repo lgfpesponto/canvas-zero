@@ -133,6 +133,51 @@ export type Database = {
         }
         Relationships: []
       }
+      atacado_variacao_sync_log: {
+        Row: {
+          action: string
+          created_at: string
+          erro: string | null
+          finished_at: string | null
+          http_status: number | null
+          id: string
+          payload: Json
+          response_body: string | null
+          source_id: string
+          source_kind: string
+          status: string
+          tentativas: number
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          erro?: string | null
+          finished_at?: string | null
+          http_status?: number | null
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          source_id: string
+          source_kind: string
+          status?: string
+          tentativas?: number
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          erro?: string | null
+          finished_at?: string | null
+          http_status?: number | null
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          source_id?: string
+          source_kind?: string
+          status?: string
+          tentativas?: number
+        }
+        Relationships: []
+      }
       comprovante_notificacoes: {
         Row: {
           comprovante_id: string
