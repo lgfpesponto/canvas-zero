@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users } from 'lucide-react';
+import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
