@@ -79,6 +79,7 @@ const COURO_CORES_EXCLUSIVAS: Record<string, string[]> = {
 // Cores restritas: só aparecem quando o tipo está na lista
 const CORES_RESTRITAS: Record<string, string[]> = {
   'Nescau': ['Crazy Horse', 'Escamado'],
+  'Nescau Chapado': ['Crazy Horse'],
   'Chocolate': ['Nobuck', 'Estilizado em Tilápia'],
   'Marrom': ['Látego', 'Estilizado em Cobra', 'Estilizado em Jacaré', 'Estilizado em Avestruz', 'Estilizado em Dinossauro', 'Estilizado em Tatu'],
 };
