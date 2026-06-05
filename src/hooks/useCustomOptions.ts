@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { requiresPositivePrice, PRICE_REQUIRED_MESSAGE } from '@/lib/priceValidation';
+import { syncCustomOptionDelete, syncCustomOptionUpsert } from '@/lib/atacadoSync';
 
 export interface CustomOption {
   id: string;
