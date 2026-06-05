@@ -17,6 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import FichaBuilder from '@/components/admin/FichaBuilder';
+import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
