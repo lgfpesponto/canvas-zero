@@ -1,53 +1,66 @@
-## Resumo
+## Sincronização Portal → Atacado (variações e custom_options) — versão final
 
-Montar o lado emissor da sincronização Portal → Atacado, na ordem que o Atacado precisa pra primeira sincronização entrar limpa.
+**Migration 1 aprovada** ✅ — tabela `atacado_variacao_sync_log` + flag `atacado_variacao_sync_enabled`.
+**Secrets gravados** ✅ — `ATACADO_SYNC_URL`, `ATACADO_SYNC_SECRET`.
 
-## Ordem de execução
+### Ajustes confirmados
 
-1. **Cadastrar secrets** (vou usar `add_secret` com os dois nomes; valor do `ATACADO_SYNC_SECRET` já é o `a3f7c91e4b...0f29` que você passou; `ATACADO_SYNC_URL` = `https://project--fa3c3d6a-31d4-46ce-8d88-abb71c18bcc8.lovable.app/api/public/sync-variacoes`).
-2. **Migration**:
-   - tabela `atacado_sync_log` (id, source_kind, source_id, action, payload jsonb, status, http_status, erro, tentativas, created_at, finished_at) — RLS: SELECT só admin_master; INSERT/UPDATE via service_role; grants pra authenticated e service_role.
-   - flag em `system_flags`: `atacado_sync_enabled` default true.
-3. **Edge function `atacado-sync-proxy`** (verify_jwt=false; valida JWT do admin no código; anexa `x-sync-secret`; lote 200; grava log; retorna `{ ok, applied, errors }`).
-4. **`src/lib/atacadoSync.ts`** com `mapVariacaoToAtacado`, `mapCustomOptionToAtacado`, `pushOps` (retry 3×) e `syncAllNow` — tudo respeitando o flag.
-5. **Gatilhos** em `useAdminConfig.ts`, `useCustomOptions.ts` e `priceChangeGuard.ts` (desativar=delete, reativar=upsert; falha de sync não bloqueia).
-6. **Painel** "Sincronização Atacado" em `/admin/configuracoes` (status, toggle, falhas com retry, botão **Sincronizar tudo agora** — desabilitado até você confirmar que o Atacado está respondendo).
+1. **Stack**: edge function Supabase (Portal não é TanStack).
+2. **Ordem `await` → `invoke`**: helpers só disparam o sync **depois** que o `await` do upsert/delete no banco retornar sem erro.
+3. **Erro visível**: `invoke` rejeitado ou `ok:false` ⇒ `toast.error("Sincronização com Atacado falhou — ver log em configurações")` (4s) + `console.warn`. Sucesso fica silencioso.
+4. **`relacionamento`**: enviado como JSON cru (variação + campo pai), sem resumir.
+5. **Realtime**: roda **Migration 2** antes de ligar Realtime na UI — `ALTER TABLE ... REPLICA IDENTITY FULL` + `ALTER PUBLICATION supabase_realtime ADD TABLE atacado_variacao_sync_log`.
+6. **Rate limit**: `syncAllNow()` em lotes de 10 com `await sleep(200)` entre lotes.
 
-## Ponto de pausa combinado
+### Migration 2 (a aprovar antes do código)
 
-Depois do passo 3 (edge proxy deployada), eu **paro** e te aviso. Você pinga a rota do Atacado de lá pra confirmar que está OK, me responde "pode disparar", e só então:
-- continuo passos 4–6;
-- aperto **Sincronizar tudo agora** uma vez na sua frente.
-
-## Mapeamento (já acordado)
-
-```text
-tamanho-genero-modelo          → (tamanho-genero-modelo, modelo)
-tipos-couro                    → (couros, tipo)
-couros / cores-couro           → (couros, cor)
-solados / solados-visual       → (solados-visual, solado)
-formato-bico                   → (solados-visual, bico)
-cor-sola                       → (solados-visual, cor_sola)
-cor-vira                       → (solados-visual, cor_vira)
-cor-linha / cor-borrachinha / cor-vivo → (pesponto-visual, linha|borrachinha|vivo)
-bordados-* + custom bordado_*  → (bordados-visual, cano|gaspea|taloneira)
-recorte_*                      → (recortes-visual, cano|gaspea|taloneira)
-laser-* + custom laser_*       → (laser-visual, laser_opcao)  [pool único, dedup por nome]
-cor-glitter                    → (laser-visual, glitter_cor)
-tipo-metal / cor-metal / area-metal / metais-visual → (metais-visual, tipo|cor|area|rebite_item)
-acessorios / acessorios-visual → (acessorios-visual, acessorio)
-carimbo / carimbo-visual       → (carimbo-visual, carimbo)
-desenvolvimento*               → (desenvolvimento-visual, desenvolvimento)
-extras-visual                  → (extras-visual, extra_cor|extra_bool)
+```sql
+ALTER TABLE public.atacado_variacao_sync_log REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.atacado_variacao_sync_log;
 ```
 
-Internas não enviadas: identificacao, sob-medida, foto-referencia, tamanhos, generos, modelos, adicional-visual, observacao-visual, estampa-visual, e textos livres. Cinto idem com `produto_tipo='cinto'`.
+### Arquivos
 
-## Regras fechadas
+**A criar**
+- `supabase/functions/atacado-sync-proxy/index.ts` — auth: JWT admin_master OU header `X-Service-Token` = service_role (para chamadas internas/reenvio em lote). Insere linha em `atacado_variacao_sync_log` (pendente) → confere flag → POST `{base}/{kind}/{action}` com `X-Sync-Secret` e timeout 10s → atualiza log (status, http_status, response_body, tentativas++).
+- `src/lib/atacadoSync.ts` — helpers `syncFichaVariacaoUpsert/Delete`, `syncCustomOptionUpsert/Delete`, `retrySyncFromLog(logId)`, `syncAllNow(onProgress)`. Cada um `try { invoke } catch { toast + warn }`, fire-and-forget (`void`).
+- `src/components/admin/AtacadoSyncPanel.tsx` — UI da aba (switch flag, tabela do log com Realtime, filtros, "Reenviar" por linha, "Sincronizar tudo agora" com barra `X/Y`).
 
-- Portal = fonte da verdade. Atacado é receptor.
-- Sem markup atacado agora (preço lá = preço daqui).
-- Desativar aqui = DELETE lá; reativar = UPSERT.
-- 268 registros antigos do Atacado (sem `source_id`) ficam intocados.
+**A modificar**
+- `src/hooks/useAdminConfig.ts` — disparo após sucesso em `useInsertVariacao`, `useUpdateVariacao`, `useDeleteVariacao`, `useBulkInsertVariacoes`. Busca contexto (ficha_tipo + categoria + campo) via lookup do cache do react-query ou query rápida; envia `relacionamento` cru.
+- `src/hooks/useCustomOptions.ts` — disparo após sucesso em `addOption`, `updateOption`, `deleteOption` (e cada item do `bulkUpdatePreco`).
+- `src/lib/priceChangeGuard.ts` — após uma `preco_mudanca` aplicada, dispara upsert para cada variação/custom_option afetada (lotes de 10 + 200ms).
+- `src/pages/AdminConfigPage.tsx` — nova aba "sincronização atacado" só p/ `admin_master`, renderiza `<AtacadoSyncPanel />`.
 
-Aprova pra eu começar?
+### Contrato do payload
+
+`ficha_variacao` upsert:
+```ts
+{
+  source_id: variacao.id, source_origin: "portal",
+  nome, preco_adicional, ordem, ativo,
+  ficha_tipo: { id, slug, nome },
+  categoria:  { id, slug, nome },
+  campo:      { id, slug, nome, tipo, vinculo, relacionamento } | null,
+  relacionamento: variacao.relacionamento ?? null   // JSON cru
+}
+```
+`ficha_variacao` delete: `{ source_id }`.
+`custom_option` upsert: `{ source_id, source_origin:"portal", categoria, label, preco }`.
+`custom_option` delete: `{ source_id }`.
+
+### UI — aba "sincronização atacado"
+
+- Switch da flag global.
+- Lista das últimas 200 linhas do log, ordem desc por `created_at`, atualizando via Realtime.
+- Colunas: data/hora, kind, action, identificador, status (badge), HTTP, erro truncado, tentativas, botão "Reenviar" só em `erro`.
+- Filtro por status + busca textual.
+- "Sincronizar tudo agora" → `syncAllNow()` percorre `ficha_variacoes` ativos + `custom_options` em lotes de 10 com `sleep(200)` entre lotes, exibindo `X / Y`.
+
+### Retry policy
+
+Sem cron. Reenvio manual via UI. Idempotência fica no Atacado.
+
+### Memória ao final
+
+`mem://integrations/atacado-sync` — secrets, edge function, tabela de log, flag toggle, pontos de disparo, contrato do payload, Realtime, retry manual.
