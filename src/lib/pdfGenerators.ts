@@ -581,8 +581,8 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     };
 
     const rightX = m + 2 * thirdW;
-    const rightCx = rightX + thirdW / 2;
-    const maxW = thirdW - 4;
+    const leftX = rightX + 3;
+    const maxW = thirdW - 6;
 
     const line1 = `Nº pedido: ${orderNumClean}`;
     const line2 = [
@@ -606,7 +606,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     lines.forEach(l => {
       doc.setFontSize(l.size);
       doc.setFont('helvetica', 'bold');
-      doc.text(l.upper ? l.text.toUpperCase() : l.text, rightCx, cy, { align: 'center', maxWidth: maxW });
+      doc.text(l.upper ? l.text.toUpperCase() : l.text, leftX, cy, { align: 'left', maxWidth: maxW });
       cy += 7;
     });
   }
