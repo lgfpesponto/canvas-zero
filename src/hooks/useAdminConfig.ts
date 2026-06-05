@@ -320,15 +320,22 @@ export function useInsertVariacao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number }) => {
-      const { error } = await supabase.from('ficha_variacoes').insert(v);
+      const { data, error } = await supabase
+        .from('ficha_variacoes')
+        .insert(v)
+        .select('id')
+        .single();
       if (error) throw error;
+      return (data as any)?.id as string;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       qc.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+      if (id) void syncVariacaoById(id);
     },
   });
 }
+
 
 export function useInsertFichaCampo() {
   const qc = useQueryClient();
