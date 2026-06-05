@@ -80,6 +80,9 @@ export default function AdminConfigPage() {
                 <TabsTrigger value="gestao" className="gap-1.5 lowercase">
                   <Activity className="h-4 w-4" /> gestão
                 </TabsTrigger>
+                <TabsTrigger value="atacado-sync" className="gap-1.5 lowercase">
+                  <RefreshCw className="h-4 w-4" /> sincronização atacado
+                </TabsTrigger>
               </>
             )}
           </TabsList>
