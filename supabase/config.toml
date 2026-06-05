@@ -8,3 +8,7 @@ verify_jwt = false
 
 [functions.atacado-progress-dispatch]
 verify_jwt = false
+
+[functions.atacado-sync-proxy]
+verify_jwt = false
+
