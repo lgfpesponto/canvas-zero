@@ -102,6 +102,7 @@ export function useCustomOptions() {
         if (label !== current.label) {
           await supabase.from('custom_options').update({ label }).eq('id', id);
           setOptions(prev => prev.map(o => o.id === id ? { ...o, label } : o));
+          syncCustomOptionUpsert({ id, categoria, label, preco: precoAntes });
         }
         return;
       }
@@ -110,6 +111,7 @@ export function useCustomOptions() {
         await supabase.from('custom_options').update({ label }).eq('id', id);
       }
       setOptions(prev => prev.map(o => o.id === id ? { ...o, label, preco: precoDepois } : o));
+      // priceChangeGuard já dispara o sync com preço novo
       return;
     }
 
@@ -123,11 +125,13 @@ export function useCustomOptions() {
     }
     setOptions(prev => prev.map(o => o.id === id ? { ...o, label, preco } : o));
     toast.success('Opção atualizada!');
+    syncCustomOptionUpsert({ id, categoria, label, preco });
   };
 
   const bulkUpdatePreco = async (categoria: string, increment: number) => {
     const catOptions = options.filter(o => o.categoria === categoria);
     let errorCount = 0;
+    const updated: Array<{ id: string; categoria: string; label: string; preco: number }> = [];
     for (const opt of catOptions) {
       const newPreco = Math.max(0, opt.preco + increment);
       const { error } = await supabase
@@ -135,6 +139,7 @@ export function useCustomOptions() {
         .update({ preco: newPreco })
         .eq('id', opt.id);
       if (error) errorCount++;
+      else updated.push({ id: opt.id, categoria: opt.categoria, label: opt.label, preco: newPreco });
     }
     if (errorCount > 0) {
       toast.error(`Erro ao atualizar ${errorCount} opções`);
@@ -144,6 +149,8 @@ export function useCustomOptions() {
       ));
       toast.success(`Preços atualizados: ${increment >= 0 ? '+' : ''}R$${increment} em ${catOptions.length} itens`);
     }
+    // Dispara sync para cada item atualizado com sucesso (fire-and-forget)
+    updated.forEach(syncCustomOptionUpsert);
   };
 
   const getByCategoria = (cat: string) => options.filter(o => o.categoria === cat);
