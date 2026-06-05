@@ -622,7 +622,7 @@ const BeltOrderPage = () => {
               </div>
               <div>
                 <label className={cls.label}>Cor do Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
-                <SearchableSelect options={CORES_COURO} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
+                <SearchableSelect options={getCoresCouroFiltradas(tipoCouro)} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
           </Section>
