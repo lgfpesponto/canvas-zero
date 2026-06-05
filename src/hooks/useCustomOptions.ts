@@ -59,6 +59,7 @@ export function useCustomOptions() {
     };
     setOptions(prev => [...prev, newOpt]);
     toast.success(`Opção "${label}" adicionada!`);
+    syncCustomOptionUpsert(newOpt);
     return newOpt;
   };
 
@@ -73,6 +74,7 @@ export function useCustomOptions() {
     }
     setOptions(prev => prev.filter(o => o.id !== id));
     toast.success('Opção removida!');
+    syncCustomOptionDelete(id);
   };
 
   const updateOption = async (id: string, label: string, preco: number) => {
