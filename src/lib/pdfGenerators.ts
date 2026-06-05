@@ -606,7 +606,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     lines.forEach(l => {
       doc.setFontSize(l.size);
       doc.setFont('helvetica', 'bold');
-      doc.text(l.upper ? l.text.toUpperCase() : l.text, rightCx, cy, { align: 'center', maxWidth: maxW });
+      doc.text(l.upper ? l.text.toUpperCase() : l.text, leftX, cy, { align: 'left', maxWidth: maxW });
       cy += 7;
     });
   }
