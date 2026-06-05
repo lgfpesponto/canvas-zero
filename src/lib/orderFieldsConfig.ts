@@ -45,6 +45,7 @@ export const TIPOS_COURO = [
   'Egípcio','Estilizado em Jacaré','Estilizado em Cobra',
   'Estilizado em Dinossauro','Aramado','Escamado','Estilizado Duplo',
   'Estilizado em Tatu','Vaca Holandesa','Vaca Pintada','Metalizado',
+  'Estilizado em Madeira',
 ];
 
 export const COURO_PRECOS: Record<string, number> = {
@@ -63,7 +64,7 @@ export const CORES_COURO = [
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
   'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate','Castor',
-  'Caramelo','Preto e Branco','Madeira',
+  'Caramelo','Preto e Branco','Nescau Chapado',
 ];
 
 // ==================== VINCULAÇÃO TIPO COURO → COR ====================
@@ -72,6 +73,7 @@ const COURO_CORES_EXCLUSIVAS: Record<string, string[]> = {
   'Vaca Holandesa': ['Malhado', 'Preto', 'Branco'],
   'Vaca Pintada': ['Caramelo', 'Preto e Branco'],
   'Metalizado': ['Rosa Neon'],
+  'Estilizado em Madeira': ['Mostarda'],
 };
 
 // Cores restritas: só aparecem quando o tipo está na lista

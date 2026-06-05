@@ -1,56 +1,28 @@
-# Reorganizar canhoto da ficha impressa
+# Estender as novas variações de couro para os extras
 
-## O que muda
+Os extras que pedem **Tipo de Couro** e **Cor do Couro** (Kit Canivete, Kit Faca, Chaveiro c/ Carimbo a Fogo, Bainha de Cartão e Bota Pronta Entrega) não usam as variações do banco — usam as listas estáticas em `src/lib/orderFieldsConfig.ts` (`TIPOS_COURO`, `CORES_COURO`, `getCoresCouroFiltradas`).
 
-Na ficha de produção (PDF A5), o canhoto inferior passa a ter **3 divisões iguais** em vez de 2, e o código de barras solto acima do tracejado é removido (esse espaço fica livre, sem novo conteúdo).
+Para refletir as mesmas regras já aplicadas na ficha Bota, basta alterar esse arquivo.
 
-## Layout novo do canhoto
+## Mudanças em `src/lib/orderFieldsConfig.ts`
 
-```
-────────────── tracejado ──────────────
-│                │                │                       │
-│  [|||||||||]   │  [|||||||||]   │  Nº pedido: 30144     │
-│    30144       │    30144       │  36 PVC P. PRETA      │
-│                │                │  BF PONTA REDONDA     │
-│                │                │  FORMA: 6761          │
-```
+1. **`TIPOS_COURO`** — adicionar `'Estilizado em Madeira'` ao final da lista.
+2. **`CORES_COURO`**:
+   - remover `'Madeira'`
+   - adicionar `'Nescau Chapado'`
+3. **`COURO_CORES_EXCLUSIVAS`** — adicionar entrada para travar o vínculo:
+   ```
+   'Estilizado em Madeira': ['Mostarda']
+   ```
+   Isso garante que, ao escolher o tipo "Estilizado em Madeira", a única cor disponível seja "Mostarda" (mesma regra da ficha Bota).
 
-- **Esquerda (1/3):** código de barras + número do pedido
-- **Meio (1/3):** código de barras + número do pedido (idêntico — segundo canhoto destacável)
-- **Direita (1/3):** 4 linhas na ordem:
-  1. `Nº pedido: <numero>`
-  2. `<tamanho> <tipo sola> <cor sola>` (ex: `36 PVC P. PRETA`)
-  3. `<formato bico> <sola>` (ex: `BF PONTA REDONDA`)
-  4. `FORMA: <numero>`
+Sem preço adicional para "Estilizado em Madeira" (não entra em `COURO_PRECOS`).
 
-Duas linhas divisórias verticais separam os três blocos. Cabeçalho da ficha (dados do pedido, QR, categorias) permanece **inalterado**.
+## O que muda na prática
 
-## Novas abreviações (aplicadas SÓ no canhoto, lado direito)
+- Kit Canivete, Kit Faca, Chaveiro c/ Carimbo a Fogo, Bainha de Cartão: lista de tipo passa a incluir "Estilizado em Madeira" (com cor travada em Mostarda) e a lista de cor passa a incluir "Nescau Chapado" e não mostra mais "Madeira".
+- Bota Pronta Entrega (sub-itens): mesmo comportamento nas listas de tipo/cor.
 
-- **Solado**: `couro reta` → `couro`
-- **Cor da sola**: `pintada de preto` → `P. PRETA`
-- **Bico** (já existia): `fino` → `BF`
+## Sem alterações de banco
 
-Demais valores seguem para UPPERCASE como hoje. As abreviações são restritas ao canhoto — em todo o resto do PDF/sistema os valores continuam por extenso.
-
-## Arquivos afetados
-
-- `src/lib/pdfGenerators.ts` — único arquivo (área ~linhas 530–590 da ficha individual).
-
-## Detalhes técnicos
-
-1. **Remover** bloco "CÓDIGO DE BARRAS SUPERIOR" (linhas 530–544).
-2. **Substituir** `halfW = stubAreaW / 2` por `thirdW = stubAreaW / 3`; desenhar 2 divisórias verticais em `m + thirdW` e `m + 2*thirdW`.
-3. **Blocos 1 e 2 (esquerda/meio):** barcode centralizado (largura ≈ `thirdW - 10mm`, altura 16mm) + número do pedido embaixo. Iguais entre si.
-4. **Bloco 3 (direita):** 4 linhas na ordem definida, com `maxWidth = thirdW - 4mm`. Linha vazia é omitida sem deixar buraco (as presentes mantêm a ordem).
-5. **Helpers de abreviação** (locais, dentro do bloco do canhoto):
-   - `abbrevSolado(s)`: `'couro reta' → 'couro'`, caso contrário retorna o valor.
-   - `abbrevCorSola(s)`: `'pintada de preto' → 'P. PRETA'`, caso contrário retorna o valor.
-   - `abbrevBico(s)`: já existente (`fino → BF`).
-   - Comparação case-insensitive, com `trim()`.
-6. Margens internas ≥4mm em cada bloco para o barcode não ser cortado.
-
-## Fora do escopo
-
-- Nenhuma alteração na metade superior da ficha.
-- Nenhuma alteração em outros PDFs ou na exibição em tela.
+As variações dos extras vivem apenas no código — nenhum INSERT/DELETE em `ficha_variacoes` é necessário para esta tarefa.
