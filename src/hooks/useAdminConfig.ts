@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { syncFichaVariacaoDelete } from '@/lib/atacadoSync';
+import { syncVariacaoById } from '@/lib/priceChangeGuard';
 
 /* ───── Types ───── */
 export interface FichaTipo {
