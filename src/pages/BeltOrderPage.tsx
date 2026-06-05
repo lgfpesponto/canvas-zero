@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import SearchableSelect from '@/components/SearchableSelect';
-import { TIPOS_COURO, CORES_COURO } from '@/lib/orderFieldsConfig';
+import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
   FIVELA_OPTIONS,
