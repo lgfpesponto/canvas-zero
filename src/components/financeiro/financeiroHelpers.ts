@@ -193,13 +193,7 @@ export async function checkDuplicates(
 }
 
 export async function fetchVendedoresList(): Promise<string[]> {
-  const { data } = await supabase.from('orders').select('vendedor, cliente');
-  const names = new Set<string>();
-  (data || []).forEach((o: any) => {
-    if (o.vendedor) names.add(o.vendedor);
-    if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-      names.add(o.cliente.trim());
-    }
-  });
-  return [...names].sort();
+  const { data, error } = await supabase.rpc('get_vendedores_distinct' as any);
+  if (error || !Array.isArray(data)) return [];
+  return (data as string[]).filter(Boolean);
 }
