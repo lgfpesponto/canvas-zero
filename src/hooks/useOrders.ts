@@ -352,31 +352,9 @@ export async function fetchOrderByScan(code: string): Promise<Order | null> {
   return null;
 }
 
-/** Fetch distinct vendedores from all orders */
+/** Fetch distinct vendedores from all orders (via RPC, cacheado pelo caller) */
 export async function fetchVendedores(): Promise<string[]> {
-  const names = new Set<string>();
-  const BATCH = 1000;
-  let offset = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const { data } = await supabase
-      .from('orders')
-      .select('vendedor, cliente')
-      .range(offset, offset + BATCH - 1);
-
-    if (!data || data.length === 0) { hasMore = false; break; }
-
-    data.forEach((o: any) => {
-      if (o.vendedor) names.add(o.vendedor);
-      if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) {
-        names.add(o.cliente.trim());
-      }
-    });
-
-    if (data.length < BATCH) hasMore = false;
-    offset += BATCH;
-  }
-
-  return [...names].sort();
+  const { data, error } = await supabase.rpc('get_vendedores_distinct' as any);
+  if (error || !Array.isArray(data)) return [];
+  return (data as string[]).filter(Boolean);
 }

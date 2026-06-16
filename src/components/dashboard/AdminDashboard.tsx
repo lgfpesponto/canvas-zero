@@ -63,19 +63,15 @@ const AdminDashboard = () => {
   const [comprovantesLoading, setComprovantesLoading] = useState(true);
   const [ajustesPendentes, setAjustesPendentes] = useState<number>(0);
 
-  // Fetch vendedores list
+  // Fetch vendedores list (via RPC distinct — barato e indexado)
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('orders').select('vendedor, cliente');
-      if (!data) return;
-      const names = new Set<string>();
-      data.forEach((o: any) => {
-        if (o.vendedor) names.add(o.vendedor);
-        if (o.vendedor === 'Juliana Cristina Ribeiro' && o.cliente?.trim()) names.add(o.cliente.trim());
-      });
-      setVendedores([...names].sort());
+      const { data, error } = await supabase.rpc('get_vendedores_distinct' as any);
+      if (error || !Array.isArray(data)) return;
+      setVendedores((data as string[]).filter(Boolean));
     })();
   }, []);
+
 
   // Fetch pending value via RPC
   useEffect(() => {

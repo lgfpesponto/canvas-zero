@@ -1908,6 +1908,7 @@ export type Database = {
           vendas: number
         }[]
       }
+      get_vendedores_distinct: { Args: never; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1958,6 +1959,8 @@ export type Database = {
         Returns: undefined
       }
       saldo_atual_revendedor: { Args: { _vendedor: string }; Returns: number }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       tentar_baixa_automatica: {
         Args: { _admin_id?: string; _vendedor: string }
         Returns: number
