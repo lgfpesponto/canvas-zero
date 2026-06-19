@@ -154,6 +154,10 @@ export default function PublicTrackingPage() {
               </span>
             </div>
           )}
+          <div className="text-sm mt-1">
+            <span className="text-muted-foreground">Etapa atual: </span>
+            <span className="font-bold text-primary">{order.status}</span>
+          </div>
           {order.status === 'Cancelado' && (
             <div className="mt-2 text-sm text-destructive font-semibold">Pedido cancelado</div>
           )}
