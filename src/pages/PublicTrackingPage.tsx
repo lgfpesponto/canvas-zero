@@ -161,26 +161,28 @@ export default function PublicTrackingPage() {
         {/* Stepper de progresso */}
         <section className="bg-card rounded-xl p-5 western-shadow">
           <h2 className="font-display font-bold mb-4">Etapas de produção</h2>
-          <div className="flex items-center justify-between gap-1 overflow-x-auto pb-2">
+          <div className="flex items-start justify-between gap-1 overflow-x-auto pb-2">
             {PROGRESS_STEPS.map((step, i) => {
               const done = currentStepIdx > -1 && i < currentStepIdx;
               const active = i === currentStepIdx;
               return (
-                <div key={step.label} className="flex items-center flex-1 min-w-0">
+                <div key={step.label} className="flex items-start flex-1 min-w-0">
                   <div className="flex flex-col items-center text-center flex-1 min-w-[64px]">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 ${
-                      active ? 'bg-primary border-primary text-primary-foreground' :
-                      done ? 'bg-primary/80 border-primary/80 text-primary-foreground' :
-                      'bg-background border-border text-muted-foreground'
-                    }`}>
-                      {done ? '✓' : i + 1}
+                    <div className="h-6 flex items-center justify-center">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 ${
+                        active ? 'bg-primary border-primary text-primary-foreground' :
+                        done ? 'bg-primary/80 border-primary/80 text-primary-foreground' :
+                        'bg-background border-border text-muted-foreground'
+                      }`}>
+                        {done ? '✓' : i + 1}
+                      </div>
                     </div>
                     <span className={`text-[10px] mt-1 leading-tight ${active ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
                       {step.label}
                     </span>
                   </div>
                   {i < PROGRESS_STEPS.length - 1 && (
-                    <div className={`h-0.5 flex-1 ${done ? 'bg-primary/80' : 'bg-border'}`} />
+                    <div className={`h-0.5 flex-1 mt-3 ${done ? 'bg-primary/80' : 'bg-border'}`} />
                   )}
                 </div>
               );
