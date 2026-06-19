@@ -248,6 +248,7 @@ export function dbRowToOrder(row: any): Order {
     extraDetalhes: row.extra_detalhes || undefined,
     numeroPedidoBota: row.numero_pedido_bota || undefined,
     cliente: row.cliente || '',
+    clienteWhatsapp: row.cliente_whatsapp || undefined,
     recorteCano: row.recorte_cano || undefined,
     recorteGaspea: row.recorte_gaspea || undefined,
     recorteTaloneira: row.recorte_taloneira || undefined,
@@ -344,6 +345,7 @@ export function orderToDbRow(order: any, userId: string) {
     extra_detalhes: order.extraDetalhes || null,
     numero_pedido_bota: order.numeroPedidoBota || null,
     cliente: order.cliente || '',
+    cliente_whatsapp: order.clienteWhatsapp || null,
     recorte_cano: order.recorteCano || null,
     recorte_gaspea: order.recorteGaspea || null,
     recorte_taloneira: order.recorteTaloneira || null,
@@ -377,6 +379,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   recorteCano: 'recorte_cano', recorteGaspea: 'recorte_gaspea', recorteTaloneira: 'recorte_taloneira',
   corRecorteCano: 'cor_recorte_cano', corRecorteGaspea: 'cor_recorte_gaspea', corRecorteTaloneira: 'cor_recorte_taloneira',
   precoMigradoV2: 'preco_migrado_v2', precoRegraVersao: 'preco_regra_versao', precoCongelado: 'preco_congelado',
+  clienteWhatsapp: 'cliente_whatsapp',
 };
 
 /** Field labels for change tracking */
