@@ -459,6 +459,7 @@ const OrderDetailPage = () => {
       case 'carimbo_fogo': { const qty = parseInt(det.qtdCarimbos) || 1; t += qty >= 4 ? 40 : 20; break; }
       case 'revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
       case 'kit_revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 26 * qty; break; }
+      case 'palmilha': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
       case 'gravata_country': t += 30; break;
       case 'gravata_pronta_entrega': t += 30; break;
       case 'regata_pronta_entrega': t += 50; break;
@@ -876,6 +877,11 @@ const OrderDetailPage = () => {
                     case 'kit_revitalizador': {
                       const qty = parseInt(det.quantidade) || 1;
                       extraPriceItems.push([`Kit 2 Revitalizador (${qty}x)`, 26 * qty]);
+                      break;
+                    }
+                    case 'palmilha': {
+                      const qty = parseInt(det.quantidade) || 1;
+                      extraPriceItems.push([`Palmilha${qty > 1 ? ` (${qty}x)` : ''}`, 10 * qty]);
                       break;
                     }
                     case 'gravata_country':
