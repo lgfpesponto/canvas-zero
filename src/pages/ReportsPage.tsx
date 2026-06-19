@@ -1712,6 +1712,77 @@ const ReportsPage = () => {
         </AlertDialogContent>
       </AlertDialog>
       {confirmPrintDialog}
+
+      {/* Fila guiada de envio de WhatsApp */}
+      <Dialog open={showWhatsappQueue} onOpenChange={(open) => { if (!open) setWhatsappQueue([]); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="text-emerald-500" size={20} /> Enviar WhatsApp em lote
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const total = whatsappQueue.length;
+            const done = whatsappIndex >= total;
+            const current = whatsappQueue[whatsappIndex];
+            if (done) {
+              return (
+                <div className="space-y-4 py-2">
+                  <p className="text-sm">
+                    Fila concluída: <b>{whatsappSent}</b> enviado{whatsappSent === 1 ? '' : 's'},{' '}
+                    <b>{whatsappSkipped}</b> pulado{whatsappSkipped === 1 ? '' : 's'} de <b>{total}</b>.
+                  </p>
+                  <DialogFooter>
+                    <Button onClick={() => setWhatsappQueue([])}>Fechar</Button>
+                  </DialogFooter>
+                </div>
+              );
+            }
+            const loja = whatsappLojaCache[current.vendedor] || { nomeLoja: '', telefoneLoja: '' };
+            const handleOpen = () => {
+              const message = buildTrackingMessage({
+                cliente: current.cliente || '',
+                numero: current.numero,
+                nomeLoja: loja.nomeLoja,
+                link: getPublicTrackingUrl(current.id),
+                telefoneLoja: loja.telefoneLoja,
+              });
+              const url = buildWhatsappUrl((current as any).clienteWhatsapp || '', message);
+              window.open(url, '_blank', 'noopener');
+            };
+            return (
+              <div className="space-y-4 py-2">
+                <p className="text-xs text-muted-foreground">
+                  Pedido {whatsappIndex + 1} de {total} · {whatsappSent} enviado{whatsappSent === 1 ? '' : 's'}, {whatsappSkipped} pulado{whatsappSkipped === 1 ? '' : 's'}
+                </p>
+                <div className="rounded-lg border border-border p-3 space-y-1">
+                  <p className="text-sm"><b>{current.numero}</b> — {current.cliente || 'sem nome'}</p>
+                  <p className="text-xs text-muted-foreground">Vendedor: {current.vendedor}</p>
+                  <p className="text-xs text-muted-foreground">WhatsApp: {(current as any).clienteWhatsapp}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button onClick={handleOpen} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                    <MessageCircle size={16} className="mr-2" /> Abrir WhatsApp deste pedido
+                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => { setWhatsappSkipped(s => s + 1); setWhatsappIndex(i => i + 1); }}
+                    >
+                      <SkipForward size={16} className="mr-2" /> Pular
+                    </Button>
+                    <Button
+                      onClick={() => { setWhatsappSent(s => s + 1); setWhatsappIndex(i => i + 1); }}
+                    >
+                      <CheckCircle size={16} className="mr-2" /> Já enviei
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
