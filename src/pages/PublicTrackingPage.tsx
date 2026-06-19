@@ -9,9 +9,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
-import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
-import QRCode from 'qrcode';
-import { Clock, Loader2 } from 'lucide-react';
+import { dbRowToOrder } from '@/lib/order-logic';
+import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
+import { isHttpUrl, isDriveUrl, toDriveImageUrl, toDrivePreviewUrl } from '@/lib/driveUrl';
+import { Clock, Loader2, ExternalLink } from 'lucide-react';
+import logoAsset from '@/assets/logo-7estrivos.png.asset.json';
 
 // Etapas-chave agrupadas para o stepper público.
 const PROGRESS_STEPS: { label: string; matches: (s: string) => boolean }[] = [
@@ -22,7 +24,7 @@ const PROGRESS_STEPS: { label: string; matches: (s: string) => boolean }[] = [
   { label: 'Montagem', matches: s => s.startsWith('Montagem') },
   { label: 'Revisão', matches: s => s === 'Revisão' },
   { label: 'Expedição', matches: s => s === 'Expedição' || s === 'Baixa Estoque' || s === 'Baixa Site (Despachado)' },
-  { label: 'Entregue', matches: s => s === 'Entregue' || s === 'Conferido' || s === 'Cobrado' || s === 'Pago' },
+  { label: 'Entregue ao vendedor', matches: s => s === 'Entregue' || s === 'Conferido' || s === 'Cobrado' || s === 'Pago' },
 ];
 
 function fmtDateBR(d?: string) {
@@ -32,48 +34,19 @@ function fmtDateBR(d?: string) {
   return `${day}/${m}/${y}`;
 }
 
-const FIELD_LABELS: Array<[string, string]> = [
-  ['modelo', 'Modelo'],
-  ['tamanho', 'Tamanho'],
-  ['genero', 'Gênero'],
-  ['formatoBico', 'Formato do bico'],
-  ['solado', 'Solado'],
-  ['corSola', 'Cor da sola'],
-  ['corVira', 'Cor da vira'],
-  ['couroCano', 'Couro do cano'],
-  ['corCouroCano', 'Cor do couro do cano'],
-  ['couroGaspea', 'Couro da gáspea'],
-  ['corCouroGaspea', 'Cor do couro da gáspea'],
-  ['couroTaloneira', 'Couro da taloneira'],
-  ['corCouroTaloneira', 'Cor do couro da taloneira'],
-  ['bordadoCano', 'Bordado do cano'],
-  ['corBordadoCano', 'Cor bordado cano'],
-  ['bordadoGaspea', 'Bordado da gáspea'],
-  ['corBordadoGaspea', 'Cor bordado gáspea'],
-  ['bordadoTaloneira', 'Bordado da taloneira'],
-  ['corBordadoTaloneira', 'Cor bordado taloneira'],
-  ['personalizacaoNome', 'Personalização nome'],
-  ['nomeBordadoDesc', 'Nome bordado'],
-  ['corLinha', 'Cor da linha'],
-  ['corBorrachinha', 'Cor da borrachinha'],
-  ['laserCano', 'Laser cano'],
-  ['laserGaspea', 'Laser gáspea'],
-  ['laserTaloneira', 'Laser taloneira'],
-  ['estampa', 'Estampa'],
-  ['pintura', 'Pintura'],
-  ['carimbo', 'Carimbo'],
-  ['metais', 'Metais'],
-  ['acessorios', 'Acessórios'],
-  ['costuraAtras', 'Costura atrás'],
-  ['observacao', 'Observação'],
-];
+function fmtDateTimeBR(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function PublicTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<any | null>(null);
-  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     document.title = 'Acompanhe a produção do seu pedido — 7 Estrivos';
@@ -97,13 +70,6 @@ export default function PublicTrackingPage() {
         const ord = dbRowToOrder(data as any);
         (ord as any).vendedor = (data as any).vendedor || (data as any).vendedor_nome || '';
         setOrder(ord);
-        // QR code: aponta para a foto do pedido (Drive), igual ao QR dos PDFs.
-        const fotos: string[] = Array.isArray((ord as any).fotos) ? (ord as any).fotos : [];
-        const fotoLink = fotos.find(f => typeof f === 'string' && f.startsWith('http'));
-        if (fotoLink) {
-          const url = await QRCode.toDataURL(fotoLink, { width: 320, margin: 1 });
-          if (!cancelled) setQrUrl(url);
-        }
       } catch (e: any) {
         setError(e?.message || 'Erro ao carregar pedido.');
       }
@@ -125,6 +91,21 @@ export default function PublicTrackingPage() {
     return [...order.historico].reverse();
   }, [order?.historico]);
 
+  const fichaCategorias = useMemo(
+    () => order ? buildBootFichaCategories(order, { showCliente: false }) : [],
+    [order]
+  );
+
+  const fotoUrl = useMemo(() => {
+    const fotos: string[] = Array.isArray(order?.fotos) ? order!.fotos : [];
+    return fotos.find(f => typeof f === 'string' && isHttpUrl(f)) || null;
+  }, [order]);
+
+  const drive = !!fotoUrl && isDriveUrl(fotoUrl);
+  const imgUrl = fotoUrl ? (drive ? toDriveImageUrl(fotoUrl) : fotoUrl) : null;
+  const previewUrl = fotoUrl && drive ? toDrivePreviewUrl(fotoUrl) : null;
+  const useIframe = drive && imgFailed;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
@@ -144,28 +125,18 @@ export default function PublicTrackingPage() {
     );
   }
 
-  // Lista de campos preenchidos (não vazios)
-  const camposPreenchidos = FIELD_LABELS
-    .map(([k, label]) => [label, (order as any)[k]] as [string, any])
-    .filter(([, v]) => v != null && String(v).trim() !== '' && String(v).trim() !== 'Não');
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full orange-gradient flex items-center justify-center text-primary-foreground font-display font-bold">
-            7E
-          </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-display font-bold leading-tight">
-              acompanhe a produção do seu pedido
-            </h1>
-            <p className="text-xs text-muted-foreground">7 Estrivos</p>
-          </div>
+          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain" />
+          <h1 className="text-lg sm:text-xl font-display font-bold leading-tight">
+            Acompanhe a produção do seu pedido
+          </h1>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
+      <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         {/* Cabeçalho do pedido */}
         <section className="bg-card rounded-xl p-5 western-shadow">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -250,26 +221,82 @@ export default function PublicTrackingPage() {
           )}
         </section>
 
-        {/* Detalhes da bota + QR */}
+        {/* Detalhes da Bota — mesmo formato da ficha interna */}
         <section className="bg-card rounded-xl p-5 western-shadow">
-          <h2 className="font-display font-bold mb-3">Detalhes do pedido</h2>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6">
-            <dl className="space-y-1.5">
-              {camposPreenchidos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sem detalhes registrados.</p>
-              ) : camposPreenchidos.map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3 py-1 border-b border-border/40 text-sm">
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="font-medium text-right">{String(value)}</dd>
+          <h2 className="font-display font-bold mb-3">Detalhes da Bota</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,360px)] gap-5">
+            <div className="border border-border rounded-lg p-4">
+              {/* Cabeçalho tipo ficha */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-border text-sm">
+                <div>
+                  <div className="font-display font-bold">7ESTRIVOS</div>
+                  <div><span className="text-muted-foreground">Código:</span> <span className="font-semibold">{order.numero || '—'}</span></div>
+                  <div><span className="text-muted-foreground">Vendedor:</span> <span className="font-semibold">{order.vendedor || '—'}</span></div>
+                  <div><span className="text-muted-foreground">Data:</span> <span className="font-semibold">{fmtDateTimeBR(order.criadoEm || order.dataCriacao)}</span></div>
                 </div>
-              ))}
-            </dl>
-            {qrUrl && (
-              <div className="flex flex-col items-center md:items-start">
-                <img src={qrUrl} alt="QR Code do pedido" className="w-44 h-44 md:w-52 md:h-52" />
-                <p className="text-[11px] text-muted-foreground mt-1">QR Code do pedido</p>
+                <div>
+                  {order.tamanho && <div><span className="text-muted-foreground">Tamanho:</span> <span className="font-semibold">{order.tamanho}</span></div>}
+                  {order.modelo && <div><span className="text-muted-foreground">Modelo:</span> <span className="font-semibold">{String(order.modelo).toLowerCase()}</span></div>}
+                  {order.genero && <div><span className="text-muted-foreground">Gênero:</span> <span className="font-semibold">{order.genero}</span></div>}
+                </div>
+                <div>
+                  {fotoUrl && (
+                    <>
+                      <div className="text-muted-foreground text-xs uppercase tracking-wide">Foto de Referência</div>
+                      <a href={fotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary text-sm inline-flex items-center gap-1 hover:underline">
+                        view <ExternalLink size={12} />
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
-            )}
+
+              {/* Categorias em grid */}
+              {fichaCategorias.length === 0 ? (
+                <p className="text-sm text-muted-foreground mt-4">Sem detalhes registrados.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  {fichaCategorias.map(cat => (
+                    <div key={cat.title} className="border border-border rounded-md p-3 bg-muted/20">
+                      <div className="text-[11px] font-bold tracking-wider text-foreground border-b border-border pb-1 mb-2">
+                        {cat.title}
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        {cat.fields.map((f, i) => (
+                          <div key={i}>
+                            {f.label && <span className="font-semibold">{f.label} </span>}
+                            <span>{f.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Foto auto-aberta (equivalente ao QR "sempre escaneado") */}
+            <aside className="border border-border rounded-lg overflow-hidden bg-muted flex items-center justify-center min-h-[280px]">
+              {!fotoUrl ? (
+                <p className="text-xs text-muted-foreground p-4 text-center">Sem foto de referência.</p>
+              ) : useIframe && previewUrl ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[420px] border-0"
+                  title="Foto do pedido"
+                  allow="autoplay"
+                />
+              ) : imgUrl ? (
+                <img
+                  src={imgUrl}
+                  alt="Foto do pedido"
+                  className="w-full h-auto max-h-[480px] object-contain"
+                  referrerPolicy="no-referrer"
+                  onError={() => { if (drive) setImgFailed(true); }}
+                />
+              ) : null}
+            </aside>
           </div>
         </section>
 
