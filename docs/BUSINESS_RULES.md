@@ -300,6 +300,7 @@ Cores de vira que **não aparecem** na descrição/PDF: **Bege** e **Neutra**.
 | Regata | R$50 |
 | Bota Pronta Entrega | Valor manual + extras embutidos |
 | Gravata Pronta Entrega | R$30 |
+| Palmilha | R$10/un (campos: tamanho 24–45, formato do bico Quadrado/Redondo/Fino) |
 
 > **Importante**: No banco de dados, o campo `preco` dos extras já armazena o valor total. Não multiplicar por quantidade na exibição da lista.
 
