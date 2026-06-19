@@ -312,7 +312,7 @@ const ExtrasPage = () => {
         desenvolvimento: '-',
         sobMedida: false,
         observacao: '',
-        quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
+        quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
         // Modelo v2: preco já é o TOTAL FINAL (calcPrice retorna total cheio incl. quantidade).
         preco: price,
         precoMigradoV2: true,
