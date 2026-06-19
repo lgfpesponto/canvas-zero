@@ -1,13 +1,37 @@
-### Ajuste no stepper da página de rastreamento público
+## Mudanças
 
-**Arquivo:** `src/pages/PublicTrackingPage.tsx`
+### 1. `index.html` — preview do link compartilhado
+Atualizar as meta tags para que ao colar o link (WhatsApp, etc.) apareça:
+- **Título**: `Rastreie a produção`
+- **Descrição**: `Acompanhe a produção do seu pedido em tempo real`
+- **Imagem**: remover `og:image` e `twitter:image`
 
-**Problema:** O último passo "Entregue ao vendedor" tem o texto em duas linhas, o que aumenta a altura total do bloco e desloca a bolinha para baixo em relação às outras (todas com texto de uma linha).
+Mudar também `<title>` e `<meta name="description">` apenas dentro das tags `og:` / `twitter:`? Não — o `<title>` do navegador continua "Portal 7estrivos" (faz sentido na home). Só mudo as og/twitter para o texto novo, e removo as duas linhas de imagem.
 
-**Solução:** Isolar a bolinha em um container de altura fixa (`h-8` ou similar, centralizado) dentro de cada item do stepper, para que todas as bolinhas fiquem alinhadas horizontalmente independente do tamanho do texto. O texto continua abaixo da bolinha, naturalmente mais baixo onde houver mais linhas.
+**Aviso**: WhatsApp/Facebook fazem cache dos previews antigos. O link já compartilhado vai continuar mostrando a prévia velha por um tempo até o serviço reescanear. Para forçar agora: usar o Facebook Sharing Debugger (`developers.facebook.com/tools/debug`) com o link.
 
-**Mudanças concretas:**
-1. No JSX do stepper, envolver a `<div className="w-6 h-6 rounded-full ...">` em um `<div className="h-8 flex items-center justify-center">` para criar uma linha de base comum para todas as bolinhas.
-2. Remover `items-center` do wrapper externo do stepper (`<div className="flex ... justify-between ...">`) e substituir por `items-start`, garantindo que os blocos inteiros se alinhem pelo topo e as bolinhas (agora em linha de base fixa) fiquem niveladas.
+### 2. `src/pages/PublicTrackingPage.tsx` — ajustes de layout
 
-Resultado visual: todas as 8 bolinhas alinhadas na mesma horizontal; o rótulo "Entregue ao vendedor" aparece mais abaixo por ter duas linhas.
+**a) Cabeçalho (header) — quebrar título em duas linhas no mobile**
+- "Acompanhe a produção" em uma linha
+- "do seu pedido" na linha de baixo
+- Implementação: usar `<br className="sm:hidden" />` entre as duas partes, mantendo o desktop em uma linha só.
+
+**b) Cabeçalho do pedido — mover "Etapa atual" para abaixo de "Vendedor"**
+- Hoje "Etapa atual" aparece embaixo do stepper (na seção Etapas de produção).
+- Adicionar nova linha logo abaixo de "Vendedor: …" mostrando `Etapa atual: <status em laranja>`.
+- Manter também na seção de etapas (já existe) — o pedido pediu para mostrar ali também; vou manter nos dois lugares conforme solicitado ("tanto no desktop tanto no mobile" abaixo de vendedor).
+- Aplica desktop e mobile.
+
+**c) Stepper de etapas — corrigir sobreposição no mobile**
+- Problema: 8 etapas em uma linha só → labels colidem.
+- Solução: no mobile (`< sm`), trocar o layout horizontal por **grid de 4 colunas × 2 linhas** (4 por linha para caber bem em 320–414px com bolinhas maiores e labels legíveis). No desktop mantém o stepper horizontal atual.
+- Cada célula: bolinha (um pouco maior, `w-8 h-8`) + label abaixo (text-xs).
+- Conectores horizontais entre bolinhas: ocultos no mobile (grid não comporta); manter só no desktop.
+- Resultado: nada sobreposto, respeita padding do card, labels inteiras visíveis.
+
+> Observação: o usuário sugeriu "3 por linha". Optei por 4 por linha porque 8 etapas dividem certinho em 4×2 (sem célula vazia). Se preferir 3 por linha (3+3+2), me avise e ajusto.
+
+## Fora de escopo
+- Não mexo na lógica de etapas, RPC, nem em outras páginas.
+- Não mexo no `<title>` da home nem em outras meta tags fora das listadas.
