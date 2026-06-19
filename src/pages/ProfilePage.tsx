@@ -1,10 +1,11 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, CreditCard, Pencil, Check, X, HardHat, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, CreditCard, Pencil, Check, X, HardHat, AlertCircle, Store, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { maskPhoneBR } from '@/lib/whatsappSend';
 
 const ProfilePage = () => {
   const { isLoggedIn, isAdmin, user, updateProfile, loading: authLoading } = useAuth();
@@ -42,6 +43,8 @@ const ProfilePage = () => {
     email: '',
     telefone: '',
     cpfCnpj: '',
+    nomeLoja: '',
+    telefoneLoja: '',
   });
 
   if (authLoading) {
@@ -59,12 +62,14 @@ const ProfilePage = () => {
       email: user.email,
       telefone: user.telefone,
       cpfCnpj: user.cpfCnpj,
+      nomeLoja: user.nomeLoja || '',
+      telefoneLoja: user.telefoneLoja || '',
     });
     setEditing(true);
   };
 
   const saveEdit = () => {
-    updateProfile(form);
+    updateProfile(form as any);
     setEditing(false);
   };
 
@@ -122,6 +127,27 @@ const ProfilePage = () => {
                     <input value={form.cpfCnpj} onChange={e => setForm(f => ({ ...f, cpfCnpj: e.target.value }))} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none w-full" />
                   </div>
                 </div>
+
+                <div className="pt-3 border-t border-border space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                    <MessageCircle size={14} className="text-primary" /> Dados da loja (usados na mensagem de WhatsApp ao cliente)
+                  </p>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">Nome da Loja</label>
+                    <div className="flex items-center gap-3">
+                      <Store size={16} className="text-muted-foreground flex-shrink-0" />
+                      <input value={form.nomeLoja} onChange={e => setForm(f => ({ ...f, nomeLoja: e.target.value }))} placeholder="Ex: 7 Estrivos — Loja Centro" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none w-full" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">Telefone oficial da loja</label>
+                    <div className="flex items-center gap-3">
+                      <Phone size={16} className="text-muted-foreground flex-shrink-0" />
+                      <input value={form.telefoneLoja} onChange={e => setForm(f => ({ ...f, telefoneLoja: maskPhoneBR(e.target.value) }))} placeholder="(XX) XXXXX-XXXX" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none w-full" />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-2 pt-3">
                   <button onClick={saveEdit} className="orange-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
                     <Check size={16} /> Salvar
@@ -145,6 +171,25 @@ const ProfilePage = () => {
                   <CreditCard size={16} className="text-muted-foreground" />
                   <span className="text-sm">{user.cpfCnpj}</span>
                 </div>
+                {(user.nomeLoja || user.telefoneLoja) && (
+                  <div className="pt-3 border-t border-border space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                      <MessageCircle size={14} className="text-primary" /> Loja (WhatsApp)
+                    </p>
+                    {user.nomeLoja && (
+                      <div className="flex items-center gap-3">
+                        <Store size={16} className="text-muted-foreground" />
+                        <span className="text-sm">{user.nomeLoja}</span>
+                      </div>
+                    )}
+                    {user.telefoneLoja && (
+                      <div className="flex items-center gap-3">
+                        <Phone size={16} className="text-muted-foreground" />
+                        <span className="text-sm">{user.telefoneLoja}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
