@@ -290,6 +290,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         telefone: profile.telefone,
         email: profile.email,
         cpfCnpj: profile.cpf_cnpj,
+        nomeLoja: (profile as any).nome_loja || '',
+        telefoneLoja: (profile as any).telefone_loja || '',
         isAdmin: hasAdmin,
         role: userRole,
       };
@@ -500,6 +502,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.telefone !== undefined) updates.telefone = data.telefone;
     if (data.email !== undefined) updates.email = data.email;
     if (data.cpfCnpj !== undefined) updates.cpf_cnpj = data.cpfCnpj;
+    if ((data as any).nomeLoja !== undefined) updates.nome_loja = (data as any).nomeLoja;
+    if ((data as any).telefoneLoja !== undefined) updates.telefone_loja = (data as any).telefoneLoja;
 
     await supabase.from('profiles').update(updates).eq('id', user.id);
     setUser(prev => prev ? { ...prev, ...data } : prev);
