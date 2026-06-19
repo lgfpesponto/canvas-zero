@@ -226,6 +226,17 @@ const ExtrasPage = () => {
         return;
       }
 
+      if (productId === 'palmilha') {
+        if (!form.tamanhoPalmilha) {
+          toast({ title: 'Selecione o tamanho', variant: 'destructive' });
+          return;
+        }
+        if (!form.formatoBicoPalmilha) {
+          toast({ title: 'Selecione o formato do bico', variant: 'destructive' });
+          return;
+        }
+      }
+
       const price = calcPrice(productId);
 
       const PRODUCT_FIELDS: Record<string, string[]> = {
