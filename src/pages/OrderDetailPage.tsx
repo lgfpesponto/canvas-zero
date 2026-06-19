@@ -16,7 +16,8 @@ import { useCanSeeValues } from '@/hooks/useCanSeeValues';
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl, maskPhoneBR } from '@/lib/whatsappSend';
 import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
@@ -775,6 +776,7 @@ const OrderDetailPage = () => {
                           >
                             Abrir
                           </button>
+                          <WhatsappShareButton order={order} />
                         </>
                       );
                     })()}
