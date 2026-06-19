@@ -117,3 +117,7 @@ export const BELT_CARIMBO: { label: string; preco: number }[] = [
   { label: '1 a 3 carimbos', preco: 20 },
   { label: '4 a 6 carimbos', preco: 40 },
 ];
+
+// ==================== PALMILHA CONFIG ====================
+export const PALMILHA_FORMATO_BICO = ['Quadrado', 'Redondo', 'Fino'];
+export const PALMILHA_PRECO_UNITARIO = 10;
