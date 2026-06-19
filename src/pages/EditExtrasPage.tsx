@@ -77,6 +77,8 @@ const EditExtrasPage = () => {
       corBordadoRegata: det.corBordadoRegata || '',
       desenhoBordadoRegata: det.desenhoBordadoRegata || '',
       corBrilho: det.corBrilho || '',
+      tamanhoPalmilha: det.tamanhoPalmilha || '',
+      formatoBicoPalmilha: det.formatoBicoPalmilha || '',
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
