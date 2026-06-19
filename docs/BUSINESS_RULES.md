@@ -494,3 +494,13 @@ Opções: Feminino, Masculino
 Faixa: 24 a 45 (22 tamanhos)
 
 **Fonte**: `TAMANHOS` em `src/lib/orderFieldsConfig.ts`
+
+## AB. Rastreio público do pedido
+
+Cada pedido possui um link público de acompanhamento (sem login):
+`{origem}/rastreio/{order.id}`
+
+- O detalhe do pedido no portal exibe, na linha do prazo, dois botões: **Copiar** (copia o link) e **Abrir** (abre em nova aba).
+- A página `/rastreio/:id` fica fora do `ChromeWrapper` (sem Header/Banner/FAB) e mostra: cabeçalho com Pedido + Vendedor, prazo total + restante, stepper de progresso (Em aberto → Corte/Laser → Bordado → Pesponto → Montagem → Revisão → Expedição → Entregue), histórico de produção (`order.historico`), detalhes/ficha do pedido e QR Code (`order.fotos[0]`).
+- Dados sensíveis são omitidos: valores em R$, cliente, comissão, conferido, ajustes, comprovantes.
+- Acesso é feito via RPC `public.get_public_tracking(uuid)` (security definer, executável por `anon`). Não há `SELECT` direto liberado para `anon` em `orders`. UUID na URL funciona como token (não enumerável).

@@ -35,6 +35,7 @@ import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 // PriceChangeDialog removido — sem congelamento de preço.
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
+import PublicTrackingPage from "./pages/PublicTrackingPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 import PrecoReconciler from "@/components/PrecoReconciler";
 import NotFound from "./pages/NotFound.tsx";
@@ -56,11 +57,12 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const { role } = useAuth();
   const isBordado = role === 'bordado';
   const isAdminProducao = role === 'admin_producao';
+  const isPublicRoute = location.pathname.startsWith('/rastreio/');
   const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
-  const hideChrome = location.pathname === '/login' || isBordado;
+  const hideChrome = location.pathname === '/login' || isBordado || isPublicRoute;
 
-  // Force redirect bordado users out of disallowed routes
-  if (isBordado && !isBordadoRoute && !BORDADO_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
+  // Force redirect bordado users out of disallowed routes (mas /rastreio é público)
+  if (isBordado && !isBordadoRoute && !isPublicRoute && !BORDADO_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
     return <Navigate to="/bordado" replace />;
   }
 
@@ -97,6 +99,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/bordado" element={<BordadoPortalPage />} />
+            <Route path="/rastreio/:id" element={<PublicTrackingPage />} />
+            
             
             
             <Route path="/pedido" element={<OrderPage />} />

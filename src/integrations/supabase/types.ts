@@ -1897,6 +1897,7 @@ export type Database = {
           total: number
         }[]
       }
+      get_public_tracking: { Args: { _id: string }; Returns: Json }
       get_sales_chart: {
         Args: {
           period: string
