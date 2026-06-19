@@ -86,16 +86,20 @@ const CORES_RESTRITAS: Record<string, string[]> = {
 
 const TODAS_CORES_RESTRITAS = Object.keys(CORES_RESTRITAS);
 
+// Cores que SÓ existem em listas fechadas (jamais aparecem na lista geral).
+// Preto, Branco e Mostarda também figuram em listas fechadas, mas são universais
+// e DEVEM continuar na lista geral.
+const CORES_EXCLUSIVAS_REAIS = ['Malhado', 'Caramelo', 'Preto e Branco', 'Rosa Neon'];
+
 export function getCoresCouroFiltradas(tipoCouro: string): string[] {
   // Se tipo tem lista fechada, retorna somente suas cores exclusivas
   if (tipoCouro && COURO_CORES_EXCLUSIVAS[tipoCouro]) {
     return COURO_CORES_EXCLUSIVAS[tipoCouro];
   }
-  // Lista geral sem cores restritas
-  const base = CORES_COURO.filter(c => !TODAS_CORES_RESTRITAS.includes(c));
-  // Também remove cores exclusivas de outros tipos (Caramelo, Preto e Branco, etc.)
-  const exclusivas = Object.values(COURO_CORES_EXCLUSIVAS).flat();
-  const filtrada = base.filter(c => !exclusivas.includes(c) || c === 'Preto');
+  // Lista geral: remove cores restritas e cores realmente exclusivas de outros tipos
+  const filtrada = CORES_COURO.filter(
+    c => !TODAS_CORES_RESTRITAS.includes(c) && !CORES_EXCLUSIVAS_REAIS.includes(c)
+  );
   if (!tipoCouro) return filtrada;
   // Adiciona de volta cores restritas que pertencem a este tipo
   const extras: string[] = [];
