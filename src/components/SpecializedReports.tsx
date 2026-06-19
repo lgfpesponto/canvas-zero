@@ -69,7 +69,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   comissao_bordado: 'Comissão Bordado',
 };
 
-const PESPONTO_STATUSES = ['Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton', 'Pespontando'];
+const PESPONTO_STATUSES = ['Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05', 'Pesponto 06', 'Pesponto 07', 'Pesponto 08', 'Pesponto 09', 'Pesponto 10', 'Pesponto Ailton', 'Pespontando'];
 const BORDADO_STATUSES = ['Bordado Dinei', 'Bordado Sandro', 'Bordado Giovane', 'Entrada Bordado 7Estrivos', 'Baixa Bordado 7Estrivos'];
 
 /** Products available for the extras_cintos grouping report */
