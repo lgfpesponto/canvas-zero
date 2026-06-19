@@ -366,6 +366,7 @@ const BeltOrderPage = () => {
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
         cliente: cliente.trim(),
+        clienteWhatsapp: clienteWhatsapp.trim() || undefined,
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
         tamanho: '-',
         modelo: '-',
@@ -588,6 +589,17 @@ const BeltOrderPage = () => {
                 <label className={cls.label}>Cliente</label>
                 <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
               </div>
+            </div>
+
+            <div>
+              <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+              <input
+                type="tel"
+                value={clienteWhatsapp}
+                onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
+                placeholder="(XX) XXXXX-XXXX"
+                className={cls.input}
+              />
             </div>
 
             <div>
