@@ -10,6 +10,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X, Loader2, MessageCircle, SkipForward } from 'lucide-react';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl } from '@/lib/whatsappSend';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import SpecializedReports from '@/components/SpecializedReports';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
