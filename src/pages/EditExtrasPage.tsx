@@ -154,6 +154,7 @@ const EditExtrasPage = () => {
     regata: ['corRegata', 'descBordadoRegata'],
     regata_pronta_entrega: ['corTecidoRegata', 'corBordadoRegata', 'desenhoBordadoRegata'],
     bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
+    palmilha: ['tamanhoPalmilha', 'formatoBicoPalmilha', 'quantidade'],
   };
 
   const handleSave = async () => {
