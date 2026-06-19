@@ -129,7 +129,7 @@ export default function PublicTrackingPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain" />
+          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain mix-blend-multiply" />
           <h1 className="text-lg sm:text-xl font-display font-bold leading-tight">
             Acompanhe a produção do seu pedido
           </h1>
