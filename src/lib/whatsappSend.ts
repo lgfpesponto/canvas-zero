@@ -50,16 +50,12 @@ export interface TrackingMessageParams {
 export function buildTrackingMessage(p: TrackingMessageParams): string {
   const cliente = (p.cliente || '').trim() || 'cliente';
   const nomeLoja = (p.nomeLoja || '').trim() || '7 Estrivos';
-  const telLoja = formatPhoneDisplay(p.telefoneLoja).trim();
-  const linhaTel = telLoja
-    ? `\n\nEsse contato é somente para avisos e não recebe mensagens. Para dúvidas, entre em contato com o número oficial da loja: ${telLoja}.`
-    : `\n\nEsse contato é somente para avisos e não recebe mensagens.`;
   return (
     `Olá ${cliente}! Seu pedido ${p.numero} da loja ${nomeLoja} foi cadastrado. ` +
-    `Acompanhe a produção em tempo real com esse link: ${p.link}` +
-    linhaTel
+    `Acompanhe a produção em tempo real com esse link: ${p.link}`
   );
 }
+
 
 /** Monta a URL wa.me com telefone e mensagem (encode aplicado). */
 export function buildWhatsappUrl(phoneRaw: string, message: string): string {
