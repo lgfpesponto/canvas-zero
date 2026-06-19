@@ -129,7 +129,7 @@ export default function PublicTrackingPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain" />
+          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain mix-blend-multiply" />
           <h1 className="text-lg sm:text-xl font-display font-bold leading-tight">
             Acompanhe a produção do seu pedido
           </h1>
@@ -225,7 +225,7 @@ export default function PublicTrackingPage() {
         <section className="bg-card rounded-xl p-5 western-shadow">
           <h2 className="font-display font-bold mb-3">Detalhes da Bota</h2>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,360px)] gap-5">
+          <div className="space-y-5">
             <div className="border border-border rounded-lg p-4">
               {/* Cabeçalho tipo ficha */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-border text-sm">
@@ -252,11 +252,11 @@ export default function PublicTrackingPage() {
                 </div>
               </div>
 
-              {/* Categorias em grid */}
+              {/* Categorias em grid (largura total) */}
               {fichaCategorias.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-4">Sem detalhes registrados.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
                   {fichaCategorias.map(cat => (
                     <div key={cat.title} className="border border-border rounded-md p-3 bg-muted/20">
                       <div className="text-[11px] font-bold tracking-wider text-foreground border-b border-border pb-1 mb-2">
@@ -276,14 +276,14 @@ export default function PublicTrackingPage() {
               )}
             </div>
 
-            {/* Foto auto-aberta (equivalente ao QR "sempre escaneado") */}
-            <aside className="border border-border rounded-lg overflow-hidden bg-muted flex items-center justify-center min-h-[280px]">
+            {/* Foto abaixo da ficha, em largura total */}
+            <div className="border border-border rounded-lg overflow-hidden bg-muted flex items-center justify-center min-h-[280px]">
               {!fotoUrl ? (
                 <p className="text-xs text-muted-foreground p-4 text-center">Sem foto de referência.</p>
               ) : useIframe && previewUrl ? (
                 <iframe
                   src={previewUrl}
-                  className="w-full h-[420px] border-0"
+                  className="w-full h-[560px] border-0"
                   title="Foto do pedido"
                   allow="autoplay"
                 />
@@ -291,18 +291,19 @@ export default function PublicTrackingPage() {
                 <img
                   src={imgUrl}
                   alt="Foto do pedido"
-                  className="w-full h-auto max-h-[480px] object-contain"
+                  className="w-full h-auto max-h-[640px] object-contain"
                   referrerPolicy="no-referrer"
                   onError={() => { if (drive) setImgFailed(true); }}
                 />
               ) : null}
-            </aside>
+            </div>
           </div>
         </section>
 
         <footer className="text-center text-xs text-muted-foreground py-4">
-          7 Estrivos · acompanhe seu pedido em tempo real
+          7ESTRIVOS · acompanhe seu pedido em tempo real
         </footer>
+
       </main>
     </div>
   );
