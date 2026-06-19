@@ -1329,6 +1329,17 @@ const OrderPage = () => {
                 </div>
               </div>
 
+              <div>
+                <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                <input
+                  type="tel"
+                  value={clienteWhatsapp}
+                  onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
+                  placeholder="(XX) XXXXX-XXXX"
+                  className={cls.input}
+                />
+              </div>
+
               <div className="grid sm:grid-cols-3 gap-4">
                 {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
                   <div>
