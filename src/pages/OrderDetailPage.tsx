@@ -879,6 +879,11 @@ const OrderDetailPage = () => {
                       extraPriceItems.push([`Kit 2 Revitalizador (${qty}x)`, 26 * qty]);
                       break;
                     }
+                    case 'palmilha': {
+                      const qty = parseInt(det.quantidade) || 1;
+                      extraPriceItems.push([`Palmilha${qty > 1 ? ` (${qty}x)` : ''}`, 10 * qty]);
+                      break;
+                    }
                     case 'gravata_country':
                       extraPriceItems.push(['Gravata Country', 30]);
                       break;
