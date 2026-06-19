@@ -162,6 +162,7 @@ const ExtrasPage = () => {
       case 'regata': return 50;
       case 'regata_pronta_entrega': return 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
+      case 'palmilha': return PALMILHA_PRECO_UNITARIO * (parseInt(form.quantidade) || 1);
       default: return 0;
     }
   };
