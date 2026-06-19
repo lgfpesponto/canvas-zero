@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
+import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 import {
