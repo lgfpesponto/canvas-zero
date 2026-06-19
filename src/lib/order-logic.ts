@@ -60,7 +60,9 @@ export const PRODUCTION_STATUSES_USER = [
   "Estampa",
   "Sem bordado",
   "Bordado Sandro", "Bordado Giovane", "Entrada Bordado 7Estrivos", "Baixa Bordado 7Estrivos",
-  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05", "Pesponto Ailton",
+  "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
+  "Pesponto 06", "Pesponto 07", "Pesponto 08", "Pesponto 09", "Pesponto 10",
+  "Pesponto Ailton",
   "Pespontando", "Montagem", "Montagem Ailton", "Revisão", "Expedição",
   "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
