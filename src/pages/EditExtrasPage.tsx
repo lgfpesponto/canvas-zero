@@ -212,7 +212,7 @@ const EditExtrasPage = () => {
       preco: Math.max(0, price - (Number(order.desconto) || 0)),
       precoMigradoV2: true,
       precoCongelado: false,
-      quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
+      quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
       extraDetalhes: detalhes,
     };
 
