@@ -129,9 +129,10 @@ export default function PublicTrackingPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain mix-blend-multiply" />
+          <img src={logoAsset.url} alt="7 Estrivos" className="w-12 h-12 object-contain mix-blend-multiply shrink-0" />
           <h1 className="text-lg sm:text-xl font-display font-bold leading-tight">
-            Acompanhe a produção do seu pedido
+            <span className="sm:hidden">Acompanhe a produção<br />do seu pedido</span>
+            <span className="hidden sm:inline">Acompanhe a produção do seu pedido</span>
           </h1>
         </div>
       </header>
@@ -153,6 +154,10 @@ export default function PublicTrackingPage() {
               </span>
             </div>
           )}
+          <div className="text-sm mt-1">
+            <span className="text-muted-foreground">Etapa atual: </span>
+            <span className="font-bold text-primary">{order.status}</span>
+          </div>
           {order.status === 'Cancelado' && (
             <div className="mt-2 text-sm text-destructive font-semibold">Pedido cancelado</div>
           )}
@@ -161,7 +166,30 @@ export default function PublicTrackingPage() {
         {/* Stepper de progresso */}
         <section className="bg-card rounded-xl p-5 western-shadow">
           <h2 className="font-display font-bold mb-4">Etapas de produção</h2>
-          <div className="flex items-start justify-between gap-1 overflow-x-auto pb-2">
+          {/* Mobile: grid 4x2 */}
+          <div className="grid grid-cols-4 gap-y-4 gap-x-2 sm:hidden">
+            {PROGRESS_STEPS.map((step, i) => {
+              const done = currentStepIdx > -1 && i < currentStepIdx;
+              const active = i === currentStepIdx;
+              return (
+                <div key={step.label} className="flex flex-col items-center text-center">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                    active ? 'bg-primary border-primary text-primary-foreground' :
+                    done ? 'bg-primary/80 border-primary/80 text-primary-foreground' :
+                    'bg-background border-border text-muted-foreground'
+                  }`}>
+                    {done ? '✓' : i + 1}
+                  </div>
+                  <span className={`text-[11px] mt-1.5 leading-tight break-words ${active ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: linha horizontal com conectores */}
+          <div className="hidden sm:flex items-start justify-between gap-1">
             {PROGRESS_STEPS.map((step, i) => {
               const done = currentStepIdx > -1 && i < currentStepIdx;
               const active = i === currentStepIdx;
@@ -188,6 +216,7 @@ export default function PublicTrackingPage() {
               );
             })}
           </div>
+
           <p className="text-center text-sm mt-3">
             Etapa atual: <span className="font-bold text-primary">{order.status}</span>
           </p>
