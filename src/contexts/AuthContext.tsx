@@ -28,6 +28,8 @@ export interface User {
   telefone: string;
   email: string;
   cpfCnpj: string;
+  nomeLoja?: string;
+  telefoneLoja?: string;
   isAdmin?: boolean;
   role?: AppRole;
 }
@@ -129,6 +131,7 @@ export interface Order {
   extraDetalhes?: Record<string, any>;
   numeroPedidoBota?: string;
   cliente?: string;
+  clienteWhatsapp?: string;
   recorteCano?: string;
   recorteGaspea?: string;
   recorteTaloneira?: string;
