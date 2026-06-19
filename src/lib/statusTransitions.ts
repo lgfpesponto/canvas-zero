@@ -11,6 +11,7 @@
 
 export const PESPONTOS = [
   'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
+  'Pesponto 06', 'Pesponto 07', 'Pesponto 08', 'Pesponto 09', 'Pesponto 10',
   'Pesponto Ailton', 'Pespontando',
 ];
 
@@ -21,8 +22,9 @@ const BAIXA_CORTE_NEXT = [
 
 /** Bordado Giovane: só avança para pespontos enumerados (sem "Pespontando"). */
 const GIOVANE_NEXT = [
-  'Pesponto 01', 'Pesponto 02', 'Pesponto 03',
-  'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton',
+  'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
+  'Pesponto 06', 'Pesponto 07', 'Pesponto 08', 'Pesponto 09', 'Pesponto 10',
+  'Pesponto Ailton',
 ];
 
 const FLOW: Record<string, string[]> = {
@@ -47,6 +49,11 @@ const FLOW: Record<string, string[]> = {
   'Pesponto 03': ['Pespontando'],
   'Pesponto 04': ['Pespontando'],
   'Pesponto 05': ['Pespontando'],
+  'Pesponto 06': ['Pespontando'],
+  'Pesponto 07': ['Pespontando'],
+  'Pesponto 08': ['Pespontando'],
+  'Pesponto 09': ['Pespontando'],
+  'Pesponto 10': ['Pespontando'],
   'Pesponto Ailton': ['Montagem Ailton'],
   'Pespontando': ['Montagem'],
   'Montagem': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque'],
@@ -118,6 +125,11 @@ const BELT_FLOW: Record<string, string[]> = {
   'Pesponto 03': ['Pespontando'],
   'Pesponto 04': ['Pespontando'],
   'Pesponto 05': ['Pespontando'],
+  'Pesponto 06': ['Pespontando'],
+  'Pesponto 07': ['Pespontando'],
+  'Pesponto 08': ['Pespontando'],
+  'Pesponto 09': ['Pespontando'],
+  'Pesponto 10': ['Pespontando'],
   'Pesponto Ailton': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque'],
   'Pespontando': ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Baixa Estoque'],
   'Revisão': ['Expedição'],
