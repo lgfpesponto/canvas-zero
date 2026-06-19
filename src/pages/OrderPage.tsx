@@ -160,6 +160,7 @@ const OrderPage = () => {
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
+  const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
   const [modelo, setModelo] = useState(df.modelo || '');
@@ -844,6 +845,7 @@ const OrderPage = () => {
 
   const buildOrderData = () => ({
     cliente: cliente.trim(),
+    clienteWhatsapp: clienteWhatsapp.trim() || undefined,
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
