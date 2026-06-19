@@ -255,6 +255,7 @@ const ExtrasPage = () => {
         regata: ['corRegata', 'descBordadoRegata'],
         regata_pronta_entrega: [],
         bota_pronta_entrega: [],
+        palmilha: ['tamanhoPalmilha', 'formatoBicoPalmilha', 'quantidade'],
       };
 
       let detalhes: Record<string, any> = {};
