@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import SearchableSelect from '@/components/SearchableSelect';
+import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
@@ -52,6 +53,7 @@ const BeltOrderPage = () => {
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState('');
+  const [clienteWhatsapp, setClienteWhatsapp] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [tipoCouro, setTipoCouro] = useState('');
   const [corCouro, setCorCouro] = useState('');
