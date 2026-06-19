@@ -126,6 +126,13 @@ const ReportsPage = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkConferidoDialog, setShowBulkConferidoDialog] = useState(false);
   const [bulkConferidoLoading, setBulkConferidoLoading] = useState(false);
+  // Bulk WhatsApp queue
+  const [whatsappQueue, setWhatsappQueue] = useState<Order[]>([]);
+  const [whatsappIndex, setWhatsappIndex] = useState(0);
+  const [whatsappSent, setWhatsappSent] = useState(0);
+  const [whatsappSkipped, setWhatsappSkipped] = useState(0);
+  const [whatsappLojaCache, setWhatsappLojaCache] = useState<Record<string, { nomeLoja: string; telefoneLoja: string }>>({});
+  const showWhatsappQueue = whatsappQueue.length > 0;
   const [selectedProgress, setSelectedProgress] = useState('');
   const [progressObservacao, setProgressObservacao] = useState('');
 
