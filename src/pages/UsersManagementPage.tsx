@@ -19,6 +19,8 @@ interface Profile {
   email: string;
   telefone: string;
   cpf_cnpj: string;
+  nome_loja?: string | null;
+  telefone_loja?: string | null;
   created_at: string;
   role?: string;
 }
@@ -124,6 +126,8 @@ const UsersManagementPage = () => {
       email: p.email,
       telefone: p.telefone,
       cpf_cnpj: p.cpf_cnpj,
+      nome_loja: p.nome_loja || '',
+      telefone_loja: p.telefone_loja || '',
       newPassword: '',
       role: p.role || 'vendedor',
     });
@@ -175,7 +179,9 @@ const UsersManagementPage = () => {
       email: editForm.email || '',
       telefone: editForm.telefone || '',
       cpf_cnpj: editForm.cpf_cnpj || '',
-    }).eq('id', editProfile.id);
+      nome_loja: editForm.nome_loja || null,
+      telefone_loja: editForm.telefone_loja || null,
+    } as any).eq('id', editProfile.id);
 
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
@@ -396,6 +402,14 @@ const UsersManagementPage = () => {
             <div>
               <Label>CPF/CNPJ</Label>
               <Input value={editForm.cpf_cnpj || ''} onChange={(e) => setEditForm({ ...editForm, cpf_cnpj: e.target.value })} />
+            </div>
+            <div className="pt-3 border-t">
+              <Label>Nome da Loja (WhatsApp)</Label>
+              <Input value={editForm.nome_loja || ''} onChange={(e) => setEditForm({ ...editForm, nome_loja: e.target.value })} placeholder="Ex: 7 Estrivos — Centro" />
+            </div>
+            <div>
+              <Label>Telefone oficial da loja (WhatsApp)</Label>
+              <Input value={editForm.telefone_loja || ''} onChange={(e) => setEditForm({ ...editForm, telefone_loja: e.target.value })} placeholder="(XX) XXXXX-XXXX" />
             </div>
             <div>
               <Label>Nova Senha (deixe vazio para manter a atual)</Label>
