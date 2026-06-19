@@ -13,7 +13,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA, PALMILHA_FORMATO_BICO, PALMILHA_PRECO_UNITARIO } from '@/lib/extrasConfig';
 import { getExtraLeadTime } from '@/lib/orderDeadline';
