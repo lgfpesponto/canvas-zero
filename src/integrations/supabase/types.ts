@@ -783,6 +783,7 @@ export type Database = {
           carimbo: string | null
           carimbo_desc: string | null
           cliente: string
+          cliente_whatsapp: string | null
           conferido: boolean
           conferido_em: string | null
           conferido_por: string | null
@@ -881,6 +882,7 @@ export type Database = {
           carimbo?: string | null
           carimbo_desc?: string | null
           cliente?: string
+          cliente_whatsapp?: string | null
           conferido?: boolean
           conferido_em?: string | null
           conferido_por?: string | null
@@ -979,6 +981,7 @@ export type Database = {
           carimbo?: string | null
           carimbo_desc?: string | null
           cliente?: string
+          cliente_whatsapp?: string | null
           conferido?: boolean
           conferido_em?: string | null
           conferido_por?: string | null
@@ -1233,8 +1236,10 @@ export type Database = {
           email: string
           id: string
           nome_completo: string
+          nome_loja: string | null
           nome_usuario: string
           telefone: string
+          telefone_loja: string | null
           verificado: boolean
         }
         Insert: {
@@ -1243,8 +1248,10 @@ export type Database = {
           email?: string
           id: string
           nome_completo?: string
+          nome_loja?: string | null
           nome_usuario: string
           telefone?: string
+          telefone_loja?: string | null
           verificado?: boolean
         }
         Update: {
@@ -1253,8 +1260,10 @@ export type Database = {
           email?: string
           id?: string
           nome_completo?: string
+          nome_loja?: string | null
           nome_usuario?: string
           telefone?: string
+          telefone_loja?: string | null
           verificado?: boolean
         }
         Relationships: []
@@ -1729,6 +1738,7 @@ export type Database = {
           carimbo: string | null
           carimbo_desc: string | null
           cliente: string
+          cliente_whatsapp: string | null
           conferido: boolean
           conferido_em: string | null
           conferido_por: string | null
