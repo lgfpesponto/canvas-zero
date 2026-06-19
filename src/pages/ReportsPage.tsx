@@ -813,6 +813,37 @@ const ReportsPage = () => {
               )}
             </>
           )}
+          {/* Bulk WhatsApp — disponível para todos (admin e vendedores) */}
+          {selectedIds.size > 0 && !showScanner && (() => {
+            const ordersWithWa = serverOrders.filter(o => selectedIds.has(o.id) && (o as any).clienteWhatsapp);
+            if (ordersWithWa.length === 0) return null;
+            return (
+              <button
+                onClick={async () => {
+                  // Pré-carrega loja info dos vendedores únicos
+                  const vendedores = Array.from(new Set(ordersWithWa.map(o => o.vendedor)));
+                  const cache: Record<string, { nomeLoja: string; telefoneLoja: string }> = {};
+                  for (const v of vendedores) {
+                    if (user?.nomeCompleto === v) {
+                      cache[v] = { nomeLoja: user.nomeLoja || '', telefoneLoja: user.telefoneLoja || '' };
+                    } else {
+                      const { data } = await supabase
+                        .from('profiles').select('nome_loja, telefone_loja').eq('nome_completo', v).maybeSingle();
+                      cache[v] = { nomeLoja: (data as any)?.nome_loja || '', telefoneLoja: (data as any)?.telefone_loja || '' };
+                    }
+                  }
+                  setWhatsappLojaCache(cache);
+                  setWhatsappQueue(ordersWithWa);
+                  setWhatsappIndex(0);
+                  setWhatsappSent(0);
+                  setWhatsappSkipped(0);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 transition-colors"
+              >
+                <MessageCircle size={16} /> Enviar WhatsApp ({ordersWithWa.length})
+              </button>
+            );
+          })()}
         </div>
 
         <HolidayNoticeBanner />
