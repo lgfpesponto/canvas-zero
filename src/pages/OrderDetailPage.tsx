@@ -740,14 +740,47 @@ const OrderDetailPage = () => {
                   </div>
                 </div>
 
-                {/* Linha do prazo — largura cheia */}
-                <div className="flex items-center justify-between gap-3 py-2 mb-4 border-b border-border/40">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                {/* Linha do prazo — largura cheia. Restante ao lado do total; botões Copiar/Abrir à direita. */}
+                <div className="flex flex-wrap items-center justify-between gap-3 py-2 mb-4 border-b border-border/40">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2 flex-wrap">
                     <Clock size={13} className="text-primary" />
                     {prazoLabel}
+                    <span className={`text-sm normal-case tracking-normal ${prazoCls}`}>· {prazoValor}</span>
                   </span>
-                  <span className={`text-sm ${prazoCls}`}>{prazoValor}</span>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const shareUrl = `${window.location.origin}/rastreio/${order.id}`;
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(shareUrl);
+                                toast.success('Link copiado');
+                              } catch {
+                                toast.error('Não foi possível copiar');
+                              }
+                            }}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-md border border-border bg-background hover:bg-muted transition-colors"
+                            title="Copiar link público de acompanhamento"
+                          >
+                            Copiar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => window.open(shareUrl, '_blank', 'noopener')}
+                            className="text-xs font-bold px-3 py-1.5 rounded-md orange-gradient text-primary-foreground hover:opacity-90 transition-opacity"
+                            title="Abrir página pública de acompanhamento"
+                          >
+                            Abrir
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
+
               </>
             );
           })()}
