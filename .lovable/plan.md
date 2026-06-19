@@ -1,55 +1,63 @@
-## Por que o portal está lento
+## Objetivo
+1. Garantir que **bota, cinto e extras** mostrem **exatamente a mesma lista** de cores por tipo de couro.
+2. Impedir que o navegador traduza nomes próprios (Crazy Horse, Floter, Nobuck etc.).
 
-O Postgres mostra que **5 queries em `public.orders` consomem ~3 h de CPU acumulada**. A pior, sozinha, foi chamada **17.798 vezes** e gastou ~55 min:
+---
 
-```sql
-SELECT vendedor, cliente FROM orders LIMIT ? OFFSET ?
-```
+## Parte A — Unificar lista de cores em todas as fichas
 
-Sem `WHERE`, sem `ORDER BY`, sem índice — é varredura full table paginada, repetida toda hora (provavelmente um hook de autocomplete buscando lista de vendedores/clientes). As outras 4 são `SELECT *` em `orders` (96 colunas, JSONBs grandes) com paginação e busca por `ILIKE`.
+### Regra canônica (vale para bota, cinto e extras)
 
-## Plano de otimização (3 frentes, ordem de impacto)
+**Tipos com lista FECHADA:**
+- Vaca Holandesa → Malhado, Preto, Branco
+- Vaca Pintada → Caramelo, Preto e Branco
+- Metalizado → Rosa Neon
+- Estilizado em Madeira → Mostarda
 
-### 1. Matar a query #1 (maior ganho, ~55 min de CPU/mês)
-- Localizar o hook que dispara `SELECT vendedor, cliente FROM orders` sem filtro (busca por `.from('orders').select('vendedor, cliente')` em `src/hooks/` e `src/components/`).
-- Substituir por duas queries `DISTINCT` cacheadas via React Query (`staleTime: 5min`):
-  - `select distinct vendedor from orders where vendedor is not null order by vendedor`
-  - `select distinct cliente from orders where cliente is not null order by cliente`
-- Mover para um único hook `useVendedoresClientesAutocomplete()` reutilizado.
-- Se mesmo o `DISTINCT` ficar pesado, criar índice parcial (passo 3).
+**Cores restritas (só aparecem para tipos específicos):**
+- Nescau → Crazy Horse, Escamado
+- **Nescau Chapado → Crazy Horse** *(passa a aparecer também no cinto/extras — já aparecia)*
+- Chocolate → Nobuck, Estilizado em Tilápia
+- Marrom → Látego, Estilizado em Cobra, Estilizado em Jacaré, Estilizado em Avestruz, Estilizado em Dinossauro, Estilizado em Tatu
 
-### 2. Cortar payload do `SELECT *` em `orders` (médio impacto)
-- Identificar listagens que usam `select('*')` mas só renderizam 8–10 colunas (provavelmente `useOrdersQuery`, `OrderCard`, listas em `ReportsPage`).
-- Trocar por `select('id, numero, cliente, vendedor, status, data_criacao, hora_criacao, preco, desconto, tipo_extra, modelo')` (e o que mais a UI usar).
-- Para detalhe (`OrderDetailPage`) manter `select('*')` — lá precisa mesmo.
+**Demais tipos** (Crazy Horse, Látego, Fóssil, Napa Flay, **Floter**, Nobuck, Egípcio, Estilizados em Arraia/Tilápia/Cobra/Jacaré/Avestruz/Dinossauro/Tatu, Aramado, Escamado, Estilizado Duplo): recebem a **lista geral** = todas as cores de `CORES_COURO` **menos** as restritas que não pertencem a ele e **menos** as exclusivas de outros tipos (com exceção de Preto, que é universal).
 
-### 3. Índices faltantes (executar como migration)
-```sql
--- Acelera ORDER BY default das listagens
-CREATE INDEX IF NOT EXISTS idx_orders_data_hora_desc
-  ON public.orders (data_criacao DESC, hora_criacao DESC);
+→ Floter passará a mostrar **Branco** no cinto (hoje não aparece porque a função hardcoded está removendo cores exclusivas demais).
 
--- Acelera filtro por tipo_extra IS NULL OR IN (...)
-CREATE INDEX IF NOT EXISTS idx_orders_tipo_extra
-  ON public.orders (tipo_extra);
+### Mudanças de código
 
--- Acelera busca por numero
-CREATE INDEX IF NOT EXISTS idx_orders_numero_trgm
-  ON public.orders USING gin (numero gin_trgm_ops);
--- (requer: CREATE EXTENSION IF NOT EXISTS pg_trgm;)
+**1. `src/lib/orderFieldsConfig.ts`** — corrigir `getCoresCouroFiltradas` para devolver a lista correta. Causa do bug do "Branco no cinto com Floter": hoje a função remove cores exclusivas de outros tipos da lista geral (linha 97–98), o que está retirando Branco. A correção é **não remover Branco/Preto** (universais) e manter apenas a exclusão do que realmente é exclusivo (Malhado, Caramelo, Preto e Branco, Rosa Neon).
 
--- Acelera busca por cliente
-CREATE INDEX IF NOT EXISTS idx_orders_cliente_trgm
-  ON public.orders USING gin (cliente gin_trgm_ops);
-```
-Vou rodar `EXPLAIN ANALYZE` antes e depois pra confirmar que o planejador usa os índices.
+**2. `src/hooks/useDynamicFieldFilter.ts`** — quando o banco devolver uma lista, **mesclar** com a regra hardcoded em vez de substituir cegamente:
+- Aplicar a interseção apenas quando faz sentido; se o banco lista cores para um tipo, completar com as cores restritas do hardcoded (Nescau Chapado para Crazy Horse, por exemplo).
+- Alternativa mais simples e robusta: **ignorar o filtro do banco para cor↔couro** e usar sempre o hardcoded unificado em todas as fichas. Isso elimina a divergência entre bota e cinto definitivamente.
+- **Vou seguir a alternativa simples**: remover a chamada a `getFilteredOptions` no `getDynCoresCouro` de `OrderPage.tsx` e `EditOrderPage.tsx` e usar somente `getCoresCouroFiltradas`. O `useDynamicFieldFilter` continua existindo para outros campos dinâmicos.
 
-## Sobre a Florência
+**3. Migration no banco** — atualizar `ficha_variacoes.relacionamento` para Crazy Horse incluir "Nescau Chapado" nas três regiões (cano/gáspea/taloneira). Mesmo que o frontend não use mais isso para cor, manter o banco coerente evita confusão futura no editor de variações do admin.
 
-Não vou tocar — o "desconto automático" de R$ 5 já não existe como lógica viva (memória "Preço Congelado Removido"). Os 1.113 pedidos que ainda têm `desconto = 5` com justificativa "Florência" são histórico fixo gravado pelas migrations de maio/26. Se você quiser **zerar** esses descontos antigos, me confirma e faço uma migration separada (`UPDATE orders SET desconto = 0, desconto_justificativa = NULL WHERE desconto_justificativa ILIKE '%florência%'`).
+**4. `src/pages/ExtrasPage.tsx`** (linha 783) — trocar o `CORES_COURO` cru pelo `getCoresCouroFiltradas(extra.dados.tipoCouro)` para o extra também respeitar o filtro.
 
-## O que NÃO vou fazer
+**5. `src/pages/EditExtrasPage.tsx`** — aplicar o mesmo padrão.
 
-- Não vou refatorar a tabela `orders` (96 colunas) — fora do escopo.
-- Não vou mexer no sync Atacado nesta tarefa (problema separado, já diagnosticado: timeout do servidor deles).
-- Não vou apagar nem ocultar pedidos com Florência sem confirmação explícita.
+`BeltOrderPage` e `EditBeltPage` já usam `getCoresCouroFiltradas`, só ganham automaticamente a correção do passo 1.
+
+---
+
+## Parte B — Desativar tradução automática do navegador
+
+**1. `index.html`**
+- Adicionar `<meta name="google" content="notranslate">` no `<head>`.
+- Adicionar `translate="no"` e `class="notranslate"` na tag `<html>`.
+
+Isso já cobre Chrome/Edge/Safari/Firefox e impede que "Crazy Horse" vire "Cavalo Louco" em qualquer tela do portal.
+
+---
+
+## Resultado esperado
+- Bota, cinto e extras com Crazy Horse mostram: lista geral + Nescau + **Nescau Chapado**.
+- Bota, cinto e extras com Floter mostram: lista geral incluindo **Branco**.
+- Vaca Holandesa, Vaca Pintada, Metalizado e Estilizado em Madeira mantêm listas fechadas iguais nas três fichas.
+- Nenhum texto da interface é traduzido pelo navegador.
+
+## Memória
+Vou registrar em `mem://features/orders/couro-color-rules` a regra canônica para que futuras alterações respeitem essa fonte única.

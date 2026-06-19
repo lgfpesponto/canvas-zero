@@ -121,10 +121,10 @@ const EditOrderPage = () => {
   const { getFilteredOptions } = useDynamicFieldFilter();
   const catalogReady = !customOptsLoading && !fichaLoading;
 
-  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
-    const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
-    return dbResult ?? getCoresCouroFiltradas(tipoCouro);
-  }, [getFilteredOptions]);
+  // Unified hardcoded list — keeps bota/cinto/extras consistent.
+  const getDynCoresCouro = useCallback((tipoCouro: string, _campoCouroSlug: string, _campoCorSlug: string): string[] => {
+    return getCoresCouroFiltradas(tipoCouro);
+  }, []);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const fotoParam = searchParams.get('foto') === '1';

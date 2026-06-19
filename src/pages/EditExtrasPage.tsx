@@ -578,7 +578,7 @@ const EditExtrasPage = () => {
                       </>)}
                       {(extra.tipo === 'kit_canivete' || extra.tipo === 'kit_faca') && (<>
                         <div><Label className="text-xs">Tipo de couro *</Label><SearchableSelect options={TIPOS_COURO} value={extra.dados.tipoCouro || ''} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, tipoCouro: v })} placeholder="Selecione" /></div>
-                        <div><Label className="text-xs">Cor do couro *</Label><SearchableSelect options={CORES_COURO} value={extra.dados.corCouro || ''} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, corCouro: v })} placeholder="Selecione" /></div>
+                        <div><Label className="text-xs">Cor do couro *</Label><SearchableSelect options={getCoresCouroFiltradas(extra.dados.tipoCouro || '')} value={extra.dados.corCouro || ''} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, corCouro: v })} placeholder="Selecione" /></div>
                         <div><Label className="text-xs">Vai o canivete?</Label>
                           <Select value={extra.dados.vaiCanivete || 'Não'} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, vaiCanivete: v }, true)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>

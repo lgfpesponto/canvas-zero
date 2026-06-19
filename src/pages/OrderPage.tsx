@@ -132,11 +132,13 @@ const OrderPage = () => {
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
 
-  /** Returns filtered color options for a leather part, using DB relationships with hardcoded fallback */
-  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
-    const dbResult = getFilteredOptions(campoCorSlug, { [campoCouroSlug]: tipoCouro });
-    return dbResult ?? getCoresCouroFiltradas(tipoCouro);
-  }, [getFilteredOptions]);
+  /** Returns filtered color options for a leather part.
+   * Uses the unified hardcoded list (getCoresCouroFiltradas) to keep bota/cinto/extras
+   * with the SAME color list. DB relationships are not used for cor↔couro to avoid
+   * divergence between forms. */
+  const getDynCoresCouro = useCallback((tipoCouro: string, _campoCouroSlug: string, _campoCorSlug: string): string[] => {
+    return getCoresCouroFiltradas(tipoCouro);
+  }, []);
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
