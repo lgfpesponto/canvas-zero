@@ -79,6 +79,7 @@ export const BELT_STATUSES = [
   "Estampa", "Sem bordado",
   "Bordado Sandro", "Bordado Giovane", "Entrada Bordado 7Estrivos", "Baixa Bordado 7Estrivos",
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
+  "Pesponto 06", "Pesponto 07", "Pesponto 08", "Pesponto 09", "Pesponto 10",
   "Pesponto Ailton", "Pespontando",
   "Revisão", "Expedição",
   "Baixa Estoque", "Baixa Site (Despachado)",
