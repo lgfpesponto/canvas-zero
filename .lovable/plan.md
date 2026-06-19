@@ -1,46 +1,32 @@
-# Fix do rastreio público + botões na lista
+# Ajustes finais no rastreio público (/rastreio/:id)
 
-## Sobre o erro
-A página **abriu certinho** (não é problema de publicar). O `column p.user_id does not exist` veio da RPC `get_public_tracking`: fiz `join profiles p on p.user_id = o.user_id`, mas a tabela `profiles` usa `id`, não `user_id`. E nem precisa do join — `orders.vendedor` já tem o nome digitado.
+## 1. Logo da 7Estrivos no cabeçalho
+- Copiar `user-uploads://image-155.png` para `src/assets/logo-7estrivos.png` e importar em `PublicTrackingPage.tsx`.
+- Remover o círculo laranja "7E" **e** o subtítulo "7 Estrivos". Fica só a logo (ferradura) + o título.
 
-## Sobre o ícone do Lovable
-Aquela é a aba **"Adorável"** (favicon padrão Lovable, exibido em qualquer ambiente — preview, `*.lovable.app` e até no domínio próprio se quisermos manter). Continua igual depois de publicar. Fora do escopo agora; se quiser trocar o favicon/título do navegador, faço numa próxima.
+## 2. Título
+- `"acompanhe a produção do seu pedido"` → `"Acompanhe a produção do seu pedido"` (A maiúsculo).
+- O `document.title` também passa a usar "Acompanhe…".
 
-## Mudanças
+## 3. Stepper — última etapa
+- Em `PROGRESS_STEPS`, trocar o label `"Entregue"` por `"Entregue ao vendedor"` (mantém os mesmos `matches`).
 
-### 1. Corrigir a RPC `get_public_tracking`
-Migration que recria a função sem o join com `profiles` (usa direto `o.vendedor`):
+## 4. Detalhes do pedido no formato da Ficha interna (com foto auto-"escaneada")
+Hoje a seção "Detalhes do pedido" lista os campos em duas colunas chave/valor e mostra um QR Code.
+Trocar por algo equivalente ao bloco **"Detalhes da Bota"** do `OrderDetailPage`:
 
-```sql
-create or replace function public.get_public_tracking(_id uuid)
-returns jsonb
-language plpgsql stable security definer
-set search_path = public as $$
-declare r jsonb;
-begin
-  select to_jsonb(o.*)
-         - 'preco' - 'preco_congelado' - 'preco_regra_versao' - 'preco_migrado_v2'
-         - 'cliente'
-         - 'desconto' - 'desconto_justificativa'
-         - 'adicional_valor'
-         - 'conferido' - 'conferido_por' - 'conferido_em'
-         - 'impressoes' - 'alteracoes'
-         - 'user_id'
-  into r from public.orders o where o.id = _id;
-  return r;
-end $$;
+- Substituir a renderização atual de `camposPreenchidos` por **`buildBootFichaCategories(order, { showCliente: false })`** (`src/lib/orderFichaCategories.ts`) — exatamente os mesmos blocos COUROS / PESPONTO / SOLADOS / BORDADOS / LASER E RECORTES / METAIS / EXTRAS / ADICIONAL / OBS usados no portal interno e no PDF. `showCliente: false` garante que o nome do cliente nunca aparece.
+- Cabeçalho do card com **Código, Vendedor, Data, Tamanho, Modelo** (mesmo cabeçalho da ficha interna), sem preço/cliente.
+- Layout em 2 colunas no desktop: à esquerda a ficha, à direita a **foto do pedido** (primeira URL `http*` em `order.fotos`, convertida com `toDirectImageUrl` de `src/lib/driveUrl.ts`). É o mesmo helper já usado no `FotoPedidoSidePanel`. Sem botão "escanear" visível — a foto já entra renderizada (efeito de QR sempre escaneado). Se não houver foto, mostra um placeholder discreto "Sem foto de referência".
+- Para pedidos que **não são bota** (extras/cinto), cai num fallback simples só com a foto + lista chave/valor atual.
 
-revoke all on function public.get_public_tracking(uuid) from public;
-grant execute on function public.get_public_tracking(uuid) to anon, authenticated;
-```
+### Remover o QR Code visível
+O QR atual aponta para o link da foto no Drive — como agora a foto já aparece embutida, o QR deixa de fazer sentido nessa página. Removo o `qrUrl` / `QRCode.toDataURL` e a importação de `qrcode`.
 
-### 2. Botões Copiar/Abrir no `OrderCard`
-Em `src/components/OrderCard.tsx`, logo depois do `<span>{deadline.label}</span>` (linha 85), adicionar dois botões pequenos:
-- **Copiar** → copia `${window.location.origin}/rastreio/${order.id}` (toast "Link copiado").
-- **Abrir** → abre o link em nova aba (`window.open(..., '_blank', 'noopener')`).
+## Arquivos
+- `src/pages/PublicTrackingPage.tsx` — refactor da seção header + detalhes, troca de label, remoção do QR.
+- `src/assets/logo-7estrivos.png` (novo, copiado do upload).
 
-Estilo discreto pra não pesar visualmente: `text-[10px] px-2 py-0.5 rounded border`. `stopPropagation` no clique pra não abrir o detalhe.
-
-### Fora de escopo
-- Trocar favicon/título da aba do navegador.
-- Mudanças no portal logado (já estão prontas).
+## Fora de escopo
+- Mexer no preço/cliente (continuam protegidos pela RPC `get_public_tracking`).
+- Mudar a aba/favicon do navegador.
