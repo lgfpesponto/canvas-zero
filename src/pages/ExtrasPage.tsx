@@ -587,6 +587,24 @@ const ExtrasPage = () => {
           </>
         )}
 
+        {productId === 'palmilha' && (
+          <>
+            <div>
+              <Label>Tamanho *</Label>
+              <SearchableSelect options={TAMANHOS} value={form.tamanhoPalmilha} onValueChange={v => set('tamanhoPalmilha', v)} placeholder="Selecione o tamanho" />
+            </div>
+            <div>
+              <Label>Formato do bico *</Label>
+              <SearchableSelect options={PALMILHA_FORMATO_BICO} value={form.formatoBicoPalmilha} onValueChange={v => set('formatoBicoPalmilha', v)} placeholder="Selecione" />
+            </div>
+            <div>
+              <Label>Quantidade *</Label>
+              <Input type="number" min="1" value={form.quantidade} onChange={e => set('quantidade', e.target.value)} />
+            </div>
+          </>
+        )}
+
+
         {productId === 'gravata_country' && (
           <>
             <div>
