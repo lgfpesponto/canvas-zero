@@ -1,37 +1,133 @@
-## Mudanças
+# Plano: Envio de Link de Rastreio via WhatsApp (wa.me)
 
-### 1. `index.html` — preview do link compartilhado
-Atualizar as meta tags para que ao colar o link (WhatsApp, etc.) apareça:
-- **Título**: `Rastreie a produção`
-- **Descrição**: `Acompanhe a produção do seu pedido em tempo real`
-- **Imagem**: remover `og:image` e `twitter:image`
+## Objetivo
 
-Mudar também `<title>` e `<meta name="description">` apenas dentro das tags `og:` / `twitter:`? Não — o `<title>` do navegador continua "Portal 7estrivos" (faz sentido na home). Só mudo as og/twitter para o texto novo, e removo as duas linhas de imagem.
+Permitir que vendedores/enviadores enviem o link da página pública de rastreio do pedido diretamente para o WhatsApp do cliente, usando `wa.me` (sem custo por mensagem, sem API oficial). Suporte a envio unitário no detalhe do pedido e envio em lote com fila guiada (1 clique por pedido).
 
-**Aviso**: WhatsApp/Facebook fazem cache dos previews antigos. O link já compartilhado vai continuar mostrando a prévia velha por um tempo até o serviço reescanear. Para forçar agora: usar o Facebook Sharing Debugger (`developers.facebook.com/tools/debug`) com o link.
+## Decisões do usuário confirmadas
 
-### 2. `src/pages/PublicTrackingPage.tsx` — ajustes de layout
 
-**a) Cabeçalho (header) — quebrar título em duas linhas no mobile**
-- "Acompanhe a produção" em uma linha
-- "do seu pedido" na linha de baixo
-- Implementação: usar `<br className="sm:hidden" />` entre as duas partes, mantendo o desktop em uma linha só.
+| Decisão                       | Escolha                                                                                                                                                                                                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Caminho de envio**          | `wa.me` (gratuito, abre WhatsApp Web/App do celular/computador do vendedor)                                                                                                                                                                                                       |
+| **Envio em lote**             | Fila guiada — seleciona vários pedidos, clica uma vez, sistema abre um WhatsApp de cada vez em sequência                                                                                                                                                                          |
+| **O que é "loja"**            | Campos no perfil do usuário/vendedor (nome da loja + telefone oficial) — fixo por usuário                                                                                                                                                                                         |
+| **Campo WhatsApp do cliente** | Na **ficha principal (bota/cinto)** e **também nos extras avulsos** — cada pedido/extra tem seu próprio cliente                                                                                                                                                                   |
+| **Mensagem**                  | `Olá {cliente}! Seu pedido {número} da loja {nome da loja} foi cadastrado. Acompanhe a produção em tempo real com esse link: {link} — Esse contato é somente para avisos e não recebe mensagens, para dúvidas entre em contato com o número oficial da loja: {telefone da loja}.` |
+| **Disparador**                | Botão manual no detalhe do pedido e botão em lote na listagem (não automático ao criar)                                                                                                                                                                                           |
 
-**b) Cabeçalho do pedido — mover "Etapa atual" para abaixo de "Vendedor"**
-- Hoje "Etapa atual" aparece embaixo do stepper (na seção Etapas de produção).
-- Adicionar nova linha logo abaixo de "Vendedor: …" mostrando `Etapa atual: <status em laranja>`.
-- Manter também na seção de etapas (já existe) — o pedido pediu para mostrar ali também; vou manter nos dois lugares conforme solicitado ("tanto no desktop tanto no mobile" abaixo de vendedor).
-- Aplica desktop e mobile.
 
-**c) Stepper de etapas — corrigir sobreposição no mobile**
-- Problema: 8 etapas em uma linha só → labels colidem.
-- Solução: no mobile (`< sm`), trocar o layout horizontal por **grid de 4 colunas × 2 linhas** (4 por linha para caber bem em 320–414px com bolinhas maiores e labels legíveis). No desktop mantém o stepper horizontal atual.
-- Cada célula: bolinha (um pouco maior, `w-8 h-8`) + label abaixo (text-xs).
-- Conectores horizontais entre bolinhas: ocultos no mobile (grid não comporta); manter só no desktop.
-- Resultado: nada sobreposto, respeita padding do card, labels inteiras visíveis.
+## Escopo FORA deste plano
 
-> Observação: o usuário sugeriu "3 por linha". Optei por 4 por linha porque 8 etapas dividem certinho em 4×2 (sem célula vazia). Se preferir 3 por linha (3+3+2), me avise e ajusto.
+- Envio 100% automático no momento da criação do pedido (isso exige Z-API/Evolution ou WhatsApp Business API paga).
+- Histórico de envios de WhatsApp dentro do sistema.
+- Recebimento de respostas do cliente.
 
-## Fora de escopo
-- Não mexo na lógica de etapas, RPC, nem em outras páginas.
-- Não mexo no `<title>` da home nem em outras meta tags fora das listadas.
+---
+
+## 1. Banco de dados (Supabase migration)
+
+### 1.1 Tabela `profiles` (perfil do vendedor)
+
+Adicionar 2 campos:
+
+- `nome_loja` text, nullable — nome comercial da loja que aparece na mensagem
+- `telefone_loja` text, nullable — número oficial da loja (será formatado na mensagem)
+
+### 1.2 Tabela `orders` (pedidos principais e extras)
+
+Adicionar 1 campo:
+
+- `cliente_whatsapp` text, nullable — número do cliente para receber o link de rastreio
+  - Armazenado normalizado em formato E.164 no banco (ex: `5511999998888`)
+  - Na UI, máscara `(XX) XXXXX-XXXX` para digitação
+  - O campo é opcional; o botão de enviar WhatsApp só aparece se preenchido
+
+---
+
+## 2. Componentes e páginas — alterações
+
+### 2.1 Perfil do usuário (`ProfilePage`, `UsersManagementPage`)
+
+- Adicionar inputs: **Nome da Loja** e **Telefone da Loja** (com máscara)
+- Campos editáveis pelo próprio usuário e pelo admin
+
+### 2.2 Cadastro de pedido principal (`OrderPage`, `EditOrderPage`, `BeltOrderPage`)
+
+- Adicionar input **WhatsApp do Cliente** (opcional, máscara `(XX) XXXXX-XXXX`) posicionado próximo ao campo "Cliente"
+- Salvar normalizado no banco
+
+### 2.3 Cadastro de extras avulsos (`ExtrasPage`, `EditExtrasPage`)
+
+- Adicionar o mesmo input **WhatsApp do Cliente** (opcional)
+- Cada extra é um pedido independente, portanto mantém seu próprio número
+
+### 2.4 Detalhe do pedido (`OrderDetailPage`)
+
+- Novo botão com ícone do WhatsApp (verde) e label **"Enviar WhatsApp"**
+- O botão só aparece se `order.cliente_whatsapp` estiver preenchido
+- Ao clicar:
+  1. Monta a mensagem com template
+  2. Abre `wa.me` em nova aba com telefone do cliente e mensagem pré-preenchida
+  3. O vendedor confirma/envia no próprio WhatsApp
+
+### 2.5 Envio em lote (listagens de pedidos)
+
+- Reutilizar o mecanismo de `SelectedOrdersProvider` (seleção múltipla de pedidos)
+- Novo botão nos actions de lote: **"Enviar WhatsApp (N)"** (onde N = pedidos selecionados que possuem `cliente_whatsapp`)
+- Abrir modal de **fila guiada**:
+  - Lista os pedidos com telefone
+  - Mostra contador: "3 de 8 pedidos enviados"
+  - Para o pedido atual:
+    - **"Abrir WhatsApp"** → abre `wa.me` do pedido atual em nova aba
+    - **"Já enviei"** → marca como enviado, avança para o próximo pedido
+    - **"Pular"** → marca como não enviado, avança para o próximo
+  - Pedidos sem `cliente_whatsapp` são ignorados da fila com indicador visual
+
+---
+
+## 3. Utilitários
+
+### 3.1 Novo arquivo `src/lib/whatsappSend.ts`
+
+Funções puras e reutilizáveis:
+
+- `normalizePhoneBR(raw: string): string` — converte `(11) 99999-8888` → `5511999998888`
+- `buildTrackingMessage(params): string` — monta a mensagem com template confirmado
+- `buildWhatsappUrl(phoneE164: string, message: string): string` — retorna URL `wa.me` com encode correto
+- `getPublicTrackingUrl(orderId: string): string` — retorna link da página pública de rastreio (`/rastreio/{id}`)
+
+### 3.2 Integração com dados do vendedor
+
+- Ao montar a mensagem, buscar `nome_loja` e `telefone_loja` do perfil do vendedor associado ao pedido (`vendedor_id`)
+- Se o vendedor não tiver preenchido, usar fallback: nome do vendedor e telefone em branco na mensagem
+
+---
+
+## 4. Fluxo de experiência do usuário
+
+### Unitário
+
+1. Vendedor preenche o pedido e coloca o WhatsApp do cliente
+2. No detalhe do pedido, clica em "Enviar WhatsApp"
+3. Abre nova aba com WhatsApp Web/App já com a mensagem e link prontos
+4. Vendedor clica em enviar no próprio WhatsApp
+
+### Em lote
+
+1. Vendedor seleciona múltiplos pedidos na listagem (checkboxes)
+2. Clica em "Enviar WhatsApp (N)"
+3. Abre modal de fila guiada
+4. Para cada pedido, o sistema abre o `wa.me` automaticamente; o vendedor confirma o envio e clica "Já enviei" para ir ao próximo
+5. Ao final, resumo de quantos foram enviados e quantos pulados
+
+---
+
+## 5. Testes de aceitação
+
+- Campo "WhatsApp do Cliente" aparece e salva corretamente em pedido principal
+- Campo "WhatsApp do Cliente" aparece e salva corretamente em extras
+- Botão de WhatsApp no detalhe só aparece quando o campo está preenchido
+- Mensagem gerada contém nome do cliente, número do pedido, nome da loja, link de rastreio e telefone da loja
+- Fila guiada de lote avança corretamente e ignora pedidos sem telefone
+- Campos de loja são salvos no perfil e refletidos nas mensagens
