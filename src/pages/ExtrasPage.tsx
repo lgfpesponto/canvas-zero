@@ -62,6 +62,8 @@ const emptyForm = (): Record<string, any> => ({
   valorManual: '',
   numeroPedidoBotaVinculo: '',
   vinculadoBota: false,
+  tamanhoPalmilha: '',
+  formatoBicoPalmilha: '',
 });
 
 const ExtrasPage = () => {
