@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link2, X, Save, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 import SearchableSelect from '@/components/SearchableSelect';
+import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
@@ -51,6 +52,7 @@ const EditBeltPage = () => {
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido, order?.id);
   const [cliente, setCliente] = useState('');
+  const [clienteWhatsapp, setClienteWhatsapp] = useState('');
   const [tamanho, setTamanho] = useState('');
   const [tipoCouro, setTipoCouro] = useState('');
   const [corCouro, setCorCouro] = useState('');
@@ -85,6 +87,7 @@ const EditBeltPage = () => {
     setVendedor(order.vendedor || '');
     setNumeroPedido(order.numero || '');
     setCliente(order.cliente || '');
+    setClienteWhatsapp((order as any).clienteWhatsapp || '');
     // tamanho cinto saved like "P (R$X)" or "P" → strip suffix and find best match
     const tamRaw = det.tamanhoCinto || '';
     const matchedSize = BELT_SIZES.find(s => tamRaw.startsWith(s.label))?.label || '';
@@ -185,6 +188,7 @@ const EditBeltPage = () => {
       const payload = {
         numero: numeroPedido.trim(),
         cliente: cliente.trim(),
+        clienteWhatsapp: clienteWhatsapp.trim() || null,
         vendedor,
         // Modelo v2: preco gravado é o TOTAL FINAL (− desconto, se houver).
         preco: Math.max(0, total - (Number(order.desconto) || 0)),
@@ -256,6 +260,10 @@ const EditBeltPage = () => {
                   <label className={cls.label}>Cliente</label>
                   <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
                 </div>
+              </div>
+              <div>
+                <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional)</span></label>
+                <input type="tel" value={clienteWhatsapp} onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))} placeholder="(XX) XXXXX-XXXX" className={cls.input} />
               </div>
 
               <div>
