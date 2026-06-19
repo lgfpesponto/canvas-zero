@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
+import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 import {
@@ -160,6 +161,7 @@ const OrderPage = () => {
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
+  const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
   const [modelo, setModelo] = useState(df.modelo || '');
@@ -844,6 +846,7 @@ const OrderPage = () => {
 
   const buildOrderData = () => ({
     cliente: cliente.trim(),
+    clienteWhatsapp: clienteWhatsapp.trim() || undefined,
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
@@ -1325,6 +1328,17 @@ const OrderPage = () => {
                   <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
                   <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
                 </div>
+              </div>
+
+              <div>
+                <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                <input
+                  type="tel"
+                  value={clienteWhatsapp}
+                  onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
+                  placeholder="(XX) XXXXX-XXXX"
+                  className={cls.input}
+                />
               </div>
 
               <div className="grid sm:grid-cols-3 gap-4">
