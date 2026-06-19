@@ -6,6 +6,7 @@ import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { getOrderFinalValue } from '@/lib/order-logic';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 import { useCanSeeValues } from '@/hooks/useCanSeeValues';
+import { toast } from 'sonner';
 
 
 interface OrderCardProps {
@@ -83,6 +84,33 @@ const OrderCard = React.memo(({
 
                   <span className="text-xs text-muted-foreground">Qtd: {qtd}</span>
                   <span className={`text-xs ${deadlineClass}`}>{deadline.label}</span>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await navigator.clipboard.writeText(`${window.location.origin}/rastreio/${order.id}`);
+                        toast.success('Link copiado');
+                      } catch {
+                        toast.error('Não foi possível copiar');
+                      }
+                    }}
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded border border-border bg-background hover:bg-muted transition-colors"
+                    title="Copiar link público de acompanhamento"
+                  >
+                    Copiar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(`${window.location.origin}/rastreio/${order.id}`, '_blank', 'noopener');
+                    }}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded orange-gradient text-primary-foreground hover:opacity-90 transition-opacity"
+                    title="Abrir página pública de acompanhamento"
+                  >
+                    Abrir
+                  </button>
                 </>
               );
             })()}
