@@ -360,7 +360,7 @@ Extras possíveis dentro de Bota PE:
 ## R. Fluxos de Status
 
 ### Botas (23 etapas)
-Em aberto → Aguardando → Aguardando Couro → Emprestado → Corte → Sem bordado → Bordado Dinei → Bordado Sandro → Bordado Giovane → Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos → Pesponto 01 → Pesponto 02 → Pesponto 03 → Pesponto 04 → Pesponto 05 → Pesponto Ailton → Pespontando → Montagem → Montagem Ailton → Revisão → Expedição → Baixa Estoque → Baixa Site (Despachado) → Entregue → Cobrado → Pago
+Em aberto → Aguardando → Aguardando Couro → Emprestado → Corte → Sem bordado → Bordado Dinei → Bordado Sandro → Bordado Giovane → Entrada Bordado 7Estrivos → Baixa Bordado 7Estrivos → Pesponto 01 → Pesponto 02 → Pesponto 03 → Pesponto 04 → Pesponto 05 → Pesponto 06 → Pesponto 07 → Pesponto 08 → Pesponto 09 → Pesponto 10 → Pesponto Ailton → Pespontando → Montagem → Montagem Ailton → Revisão → Expedição → Baixa Estoque → Baixa Site (Despachado) → Entregue → Cobrado → Pago
 
 Observação: **Bordado Giovane** só pode ser atingido a partir de **Baixa Corte** e só avança para **Pesponto 01–05** ou **Pesponto Ailton** (não passa por Pespontando). **Pesponto Ailton** só avança para **Montagem Ailton**; **Montagem** recebe apenas de **Pespontando**. **Montagem Ailton** segue os mesmos destinos de Montagem (Revisão / Expedição / Baixa Site / Baixa Estoque). A restrição vale para novas transições — pedidos já em etapas anteriores permanecem onde estão.
 
