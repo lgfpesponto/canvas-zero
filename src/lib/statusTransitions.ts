@@ -22,8 +22,9 @@ const BAIXA_CORTE_NEXT = [
 
 /** Bordado Giovane: só avança para pespontos enumerados (sem "Pespontando"). */
 const GIOVANE_NEXT = [
-  'Pesponto 01', 'Pesponto 02', 'Pesponto 03',
-  'Pesponto 04', 'Pesponto 05', 'Pesponto Ailton',
+  'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
+  'Pesponto 06', 'Pesponto 07', 'Pesponto 08', 'Pesponto 09', 'Pesponto 10',
+  'Pesponto Ailton',
 ];
 
 const FLOW: Record<string, string[]> = {
