@@ -1,63 +1,55 @@
-## Objetivo
-1. Garantir que **bota, cinto e extras** mostrem **exatamente a mesma lista** de cores por tipo de couro.
-2. Impedir que o navegador traduza nomes próprios (Crazy Horse, Floter, Nobuck etc.).
+# Adicionar Produto Extra: Palmilha
 
----
+## Resumo
+Novo produto na página de Extras, comportamento idêntico aos demais (entra como pedido normal, prazo Pronta Entrega = 1 dia útil, valor R$ 10,00/unidade).
 
-## Parte A — Unificar lista de cores em todas as fichas
+## Campos do formulário
+- **Vendedor** — pré-preenchido para usuários `vendedor`/`vendedor_comissao` (regra global já existente, sem mudança)
+- **Nº do Pedido** — campo padrão dos extras (gerado/validado pela regra atual `7E-AAAA0001`)
+- **Cliente** — opcional (padrão dos extras)
+- **Tamanho** — select obrigatório: 24 a 45 (reutiliza `TAMANHOS` de `orderFieldsConfig.ts`)
+- **Formato do Bico** — select obrigatório: **Quadrado, Redondo, Fino**
+  - Lista nova e independente (não usa `BICOS` da bota)
+- **Quantidade** — numérico ≥ 1 (padrão dos extras que cobram por unidade, ex.: Revitalizador)
 
-### Regra canônica (vale para bota, cinto e extras)
+## Cálculo de preço
+`valor = 10 × quantidade` (igual ao padrão de Revitalizador Unidade).
 
-**Tipos com lista FECHADA:**
-- Vaca Holandesa → Malhado, Preto, Branco
-- Vaca Pintada → Caramelo, Preto e Branco
-- Metalizado → Rosa Neon
-- Estilizado em Madeira → Mostarda
+## Detalhes técnicos
 
-**Cores restritas (só aparecem para tipos específicos):**
-- Nescau → Crazy Horse, Escamado
-- **Nescau Chapado → Crazy Horse** *(passa a aparecer também no cinto/extras — já aparecia)*
-- Chocolate → Nobuck, Estilizado em Tilápia
-- Marrom → Látego, Estilizado em Cobra, Estilizado em Jacaré, Estilizado em Avestruz, Estilizado em Dinossauro, Estilizado em Tatu
+### `src/lib/extrasConfig.ts`
+- Adicionar em `EXTRA_PRODUCTS`:
+  ```ts
+  { id: 'palmilha', nome: 'Palmilha', descricao: 'Palmilha pronta entrega', precoBase: 10, precoLabel: 'R$ 10,00/un' }
+  ```
+- Adicionar em `EXTRA_DETAIL_LABELS`:
+  ```ts
+  tamanhoPalmilha: 'Tamanho',
+  formatoBicoPalmilha: 'Formato do Bico',
+  ```
+- Exportar `PALMILHA_FORMATO_BICO = ['Quadrado', 'Redondo', 'Fino']`
 
-**Demais tipos** (Crazy Horse, Látego, Fóssil, Napa Flay, **Floter**, Nobuck, Egípcio, Estilizados em Arraia/Tilápia/Cobra/Jacaré/Avestruz/Dinossauro/Tatu, Aramado, Escamado, Estilizado Duplo): recebem a **lista geral** = todas as cores de `CORES_COURO` **menos** as restritas que não pertencem a ele e **menos** as exclusivas de outros tipos (com exceção de Preto, que é universal).
+### `src/pages/ExtrasPage.tsx` e `src/pages/EditExtrasPage.tsx`
+- Adicionar bloco de formulário quando `tipoExtra === 'palmilha'` com:
+  - SearchableSelect Tamanho (usa `TAMANHOS`)
+  - SearchableSelect Formato do Bico (usa `PALMILHA_FORMATO_BICO`)
+  - Input numérico Quantidade (default 1)
+- Cálculo: `dados.valor = 10 * quantidade`
+- Validação: tamanho e formato obrigatórios
 
-→ Floter passará a mostrar **Branco** no cinto (hoje não aparece porque a função hardcoded está removendo cores exclusivas demais).
+### Prazo
+Em `docs/BUSINESS_RULES.md` extras já são 1 dia útil — Palmilha herda automaticamente (sem mudança em `orderDeadline.ts`).
 
-### Mudanças de código
+### PDFs / Detalhe do pedido
+`OrderDetailPage` e geradores de PDF já renderizam `extra_detalhes` via `EXTRA_DETAIL_LABELS` — os novos campos aparecem automaticamente.
 
-**1. `src/lib/orderFieldsConfig.ts`** — corrigir `getCoresCouroFiltradas` para devolver a lista correta. Causa do bug do "Branco no cinto com Floter": hoje a função remove cores exclusivas de outros tipos da lista geral (linha 97–98), o que está retirando Branco. A correção é **não remover Branco/Preto** (universais) e manter apenas a exclusão do que realmente é exclusivo (Malhado, Caramelo, Preto e Branco, Rosa Neon).
+### Banco de dados
+Nenhuma migração necessária — extras são armazenados em `orders.extra_detalhes` (JSONB) e `tipo_extra` é texto livre.
 
-**2. `src/hooks/useDynamicFieldFilter.ts`** — quando o banco devolver uma lista, **mesclar** com a regra hardcoded em vez de substituir cegamente:
-- Aplicar a interseção apenas quando faz sentido; se o banco lista cores para um tipo, completar com as cores restritas do hardcoded (Nescau Chapado para Crazy Horse, por exemplo).
-- Alternativa mais simples e robusta: **ignorar o filtro do banco para cor↔couro** e usar sempre o hardcoded unificado em todas as fichas. Isso elimina a divergência entre bota e cinto definitivamente.
-- **Vou seguir a alternativa simples**: remover a chamada a `getFilteredOptions` no `getDynCoresCouro` de `OrderPage.tsx` e `EditOrderPage.tsx` e usar somente `getCoresCouroFiltradas`. O `useDynamicFieldFilter` continua existindo para outros campos dinâmicos.
+### Documentação
+Atualizar `docs/BUSINESS_RULES.md` seção N (Extras) adicionando linha "Palmilha — R$ 10,00/un".
 
-**3. Migration no banco** — atualizar `ficha_variacoes.relacionamento` para Crazy Horse incluir "Nescau Chapado" nas três regiões (cano/gáspea/taloneira). Mesmo que o frontend não use mais isso para cor, manter o banco coerente evita confusão futura no editor de variações do admin.
-
-**4. `src/pages/ExtrasPage.tsx`** (linha 783) — trocar o `CORES_COURO` cru pelo `getCoresCouroFiltradas(extra.dados.tipoCouro)` para o extra também respeitar o filtro.
-
-**5. `src/pages/EditExtrasPage.tsx`** — aplicar o mesmo padrão.
-
-`BeltOrderPage` e `EditBeltPage` já usam `getCoresCouroFiltradas`, só ganham automaticamente a correção do passo 1.
-
----
-
-## Parte B — Desativar tradução automática do navegador
-
-**1. `index.html`**
-- Adicionar `<meta name="google" content="notranslate">` no `<head>`.
-- Adicionar `translate="no"` e `class="notranslate"` na tag `<html>`.
-
-Isso já cobre Chrome/Edge/Safari/Firefox e impede que "Crazy Horse" vire "Cavalo Louco" em qualquer tela do portal.
-
----
-
-## Resultado esperado
-- Bota, cinto e extras com Crazy Horse mostram: lista geral + Nescau + **Nescau Chapado**.
-- Bota, cinto e extras com Floter mostram: lista geral incluindo **Branco**.
-- Vaca Holandesa, Vaca Pintada, Metalizado e Estilizado em Madeira mantêm listas fechadas iguais nas três fichas.
-- Nenhum texto da interface é traduzido pelo navegador.
-
-## Memória
-Vou registrar em `mem://features/orders/couro-color-rules` a regra canônica para que futuras alterações respeitem essa fonte única.
+## Fora de escopo
+- Sem controle de estoque (diferente de Gravata/Regata Pronta Entrega)
+- Sem vínculo com bota
+- Sem variações de cor/material

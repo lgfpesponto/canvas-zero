@@ -24,6 +24,7 @@ export const EXTRA_PRODUCTS: ExtraProduct[] = [
   { id: 'regata_pronta_entrega', nome: 'Regata Pronta Entrega', descricao: 'Regata pronta com controle de estoque', precoBase: 50, precoLabel: 'R$ 50,00' },
   { id: 'bota_pronta_entrega', nome: 'Bota Pronta Entrega', descricao: 'Bota pronta para entrega imediata', precoBase: null, precoLabel: 'Valor manual' },
   { id: 'gravata_pronta_entrega', nome: 'Gravata Pronta Entrega', descricao: 'Gravata pronta com controle de estoque', precoBase: 30, precoLabel: 'R$ 30,00' },
+  { id: 'palmilha', nome: 'Palmilha', descricao: 'Palmilha pronta entrega', precoBase: 10, precoLabel: 'R$ 10,00/un' },
 ];
 
 /** Map tipoExtra id → product name */
@@ -74,6 +75,8 @@ export const EXTRA_DETAIL_LABELS: Record<string, string> = {
   fivelaOutroDesc: 'Descrição da Fivela',
   carimboOnde: 'Onde Aplicado (Carimbo)',
   numeroPedidoBotaVinculo: 'Nº Pedido da Bota',
+  tamanhoPalmilha: 'Tamanho',
+  formatoBicoPalmilha: 'Formato do Bico',
 };
 
 /** Keys to exclude from display in order details */
@@ -114,3 +117,7 @@ export const BELT_CARIMBO: { label: string; preco: number }[] = [
   { label: '1 a 3 carimbos', preco: 20 },
   { label: '4 a 6 carimbos', preco: 40 },
 ];
+
+// ==================== PALMILHA CONFIG ====================
+export const PALMILHA_FORMATO_BICO = ['Quadrado', 'Redondo', 'Fino'];
+export const PALMILHA_PRECO_UNITARIO = 10;

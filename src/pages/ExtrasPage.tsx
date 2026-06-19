@@ -13,8 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
-import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA } from '@/lib/extrasConfig';
+import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS } from '@/lib/orderFieldsConfig';
+import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA, PALMILHA_FORMATO_BICO, PALMILHA_PRECO_UNITARIO } from '@/lib/extrasConfig';
 import { getExtraLeadTime } from '@/lib/orderDeadline';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,6 +62,8 @@ const emptyForm = (): Record<string, any> => ({
   valorManual: '',
   numeroPedidoBotaVinculo: '',
   vinculadoBota: false,
+  tamanhoPalmilha: '',
+  formatoBicoPalmilha: '',
 });
 
 const ExtrasPage = () => {
@@ -160,6 +162,7 @@ const ExtrasPage = () => {
       case 'regata': return 50;
       case 'regata_pronta_entrega': return 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
+      case 'palmilha': return PALMILHA_PRECO_UNITARIO * (parseInt(form.quantidade) || 1);
       default: return 0;
     }
   };
@@ -223,6 +226,17 @@ const ExtrasPage = () => {
         return;
       }
 
+      if (productId === 'palmilha') {
+        if (!form.tamanhoPalmilha) {
+          toast({ title: 'Selecione o tamanho', variant: 'destructive' });
+          return;
+        }
+        if (!form.formatoBicoPalmilha) {
+          toast({ title: 'Selecione o formato do bico', variant: 'destructive' });
+          return;
+        }
+      }
+
       const price = calcPrice(productId);
 
       const PRODUCT_FIELDS: Record<string, string[]> = {
@@ -241,6 +255,7 @@ const ExtrasPage = () => {
         regata: ['corRegata', 'descBordadoRegata'],
         regata_pronta_entrega: [],
         bota_pronta_entrega: [],
+        palmilha: ['tamanhoPalmilha', 'formatoBicoPalmilha', 'quantidade'],
       };
 
       let detalhes: Record<string, any> = {};
@@ -297,7 +312,7 @@ const ExtrasPage = () => {
         desenvolvimento: '-',
         sobMedida: false,
         observacao: '',
-        quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
+        quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
         // Modelo v2: preco já é o TOTAL FINAL (calcPrice retorna total cheio incl. quantidade).
         preco: price,
         precoMigradoV2: true,
@@ -571,6 +586,24 @@ const ExtrasPage = () => {
             </div>
           </>
         )}
+
+        {productId === 'palmilha' && (
+          <>
+            <div>
+              <Label>Tamanho *</Label>
+              <SearchableSelect options={TAMANHOS} value={form.tamanhoPalmilha} onValueChange={v => set('tamanhoPalmilha', v)} placeholder="Selecione o tamanho" />
+            </div>
+            <div>
+              <Label>Formato do bico *</Label>
+              <SearchableSelect options={PALMILHA_FORMATO_BICO} value={form.formatoBicoPalmilha} onValueChange={v => set('formatoBicoPalmilha', v)} placeholder="Selecione" />
+            </div>
+            <div>
+              <Label>Quantidade *</Label>
+              <Input type="number" min="1" value={form.quantidade} onChange={e => set('quantidade', e.target.value)} />
+            </div>
+          </>
+        )}
+
 
         {productId === 'gravata_country' && (
           <>

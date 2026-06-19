@@ -13,8 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import SearchableSelect from '@/components/SearchableSelect';
 import { toast } from 'sonner';
-import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
-import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
+import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS } from '@/lib/orderFieldsConfig';
+import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP, PALMILHA_FORMATO_BICO, PALMILHA_PRECO_UNITARIO } from '@/lib/extrasConfig';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota, deserializeBota } from '@/lib/botaExtraHelpers';
@@ -77,6 +77,8 @@ const EditExtrasPage = () => {
       corBordadoRegata: det.corBordadoRegata || '',
       desenhoBordadoRegata: det.desenhoBordadoRegata || '',
       corBrilho: det.corBrilho || '',
+      tamanhoPalmilha: det.tamanhoPalmilha || '',
+      formatoBicoPalmilha: det.formatoBicoPalmilha || '',
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
@@ -131,6 +133,7 @@ const EditExtrasPage = () => {
       case 'regata_pronta_entrega': return 50;
       case 'gravata_pronta_entrega': return 30;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
+      case 'palmilha': return PALMILHA_PRECO_UNITARIO * (parseInt(form.quantidade) || 1);
       default: return 0;
     }
   };
@@ -151,6 +154,7 @@ const EditExtrasPage = () => {
     regata: ['corRegata', 'descBordadoRegata'],
     regata_pronta_entrega: ['corTecidoRegata', 'corBordadoRegata', 'desenhoBordadoRegata'],
     bota_pronta_entrega: ['descricaoProduto', 'valorManual'],
+    palmilha: ['tamanhoPalmilha', 'formatoBicoPalmilha', 'quantidade'],
   };
 
   const handleSave = async () => {
@@ -208,7 +212,7 @@ const EditExtrasPage = () => {
       preco: Math.max(0, price - (Number(order.desconto) || 0)),
       precoMigradoV2: true,
       precoCongelado: false,
-      quantidade: productId === 'revitalizador' || productId === 'kit_revitalizador' ? (parseInt(form.quantidade) || 1) : 1,
+      quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
       extraDetalhes: detalhes,
     };
 
@@ -398,6 +402,24 @@ const EditExtrasPage = () => {
               </div>
             </>
           )}
+
+          {productId === 'palmilha' && (
+            <>
+              <div>
+                <Label>Tamanho *</Label>
+                <SearchableSelect options={TAMANHOS} value={form.tamanhoPalmilha || ''} onValueChange={v => set('tamanhoPalmilha', v)} placeholder="Selecione o tamanho" />
+              </div>
+              <div>
+                <Label>Formato do bico *</Label>
+                <SearchableSelect options={PALMILHA_FORMATO_BICO} value={form.formatoBicoPalmilha || ''} onValueChange={v => set('formatoBicoPalmilha', v)} placeholder="Selecione" />
+              </div>
+              <div>
+                <Label>Quantidade *</Label>
+                <Input type="number" min="1" value={form.quantidade || '1'} onChange={e => set('quantidade', e.target.value)} />
+              </div>
+            </>
+          )}
+
 
           {productId === 'gravata_country' && (
             <>

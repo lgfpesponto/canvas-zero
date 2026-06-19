@@ -33,6 +33,7 @@ const EXTRA_LEAD_TIMES: Record<string, number> = {
   regata_pronta_entrega: 1,
   bota_pronta_entrega: 1,
   gravata_pronta_entrega: 1,
+  palmilha: 1,
 };
 
 export function getExtraLeadTime(tipoExtra: string): number {
