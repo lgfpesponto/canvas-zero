@@ -18,6 +18,7 @@ import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVAT
 import { getExtraLeadTime } from '@/lib/orderDeadline';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { maskPhoneBR } from '@/lib/whatsappSend';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
 
 interface StockItem {
@@ -39,6 +40,7 @@ interface RegataStockItem {
 const emptyForm = (): Record<string, any> => ({
   numeroPedidoBota: '',
   cliente: '',
+  clienteWhatsapp: '',
   corTiras: '',
   qualSola: '',
   trocaGaspea: 'Não',
@@ -290,6 +292,7 @@ const ExtrasPage = () => {
       const success = await addOrder({
         vendedor: isAdmin ? (form.vendedorSelecionado || user?.nomeCompleto || '') : (user?.nomeCompleto || ''),
         cliente: (form.cliente || '').trim(),
+        clienteWhatsapp: (form.clienteWhatsapp || '').trim() || undefined,
         tamanho: '-',
         modelo: `Extra — ${product.nome}`,
         solado: '-',
@@ -449,6 +452,15 @@ const ExtrasPage = () => {
         <div>
           <Label>Cliente</Label>
           <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
+        </div>
+        <div>
+          <Label>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></Label>
+          <Input
+            type="tel"
+            value={form.clienteWhatsapp || ''}
+            onChange={e => set('clienteWhatsapp', maskPhoneBR(e.target.value))}
+            placeholder="(XX) XXXXX-XXXX"
+          />
         </div>
 
         {/* Product-specific fields */}
