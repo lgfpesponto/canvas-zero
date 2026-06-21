@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
+import { useNfeAccess } from '@/hooks/useNfeAccess';
 import { Menu, X, User, LogOut, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
@@ -9,6 +10,7 @@ import NotificacoesBell from '@/components/NotificacoesBell';
 const Header = () => {
   const { isLoggedIn, user, isAdmin, role, logout, loading: authLoading } = useAuth();
   const { canSeeRevendedorView, isAdminMaster } = useFinanceiroSaldoAccess();
+  const hasNfeAccess = useNfeAccess();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
@@ -40,6 +42,7 @@ const Header = () => {
         ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
         ...(isJuliana ? [{ label: 'FINANCEIRO', path: '/financeiro' }] : []),
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
+        ...(hasNfeAccess ? [{ label: 'NF-E', path: '/configuracoes/nfe' }] : []),
         { label: 'MEU PERFIL', path: '/perfil' },
       ]
     : [

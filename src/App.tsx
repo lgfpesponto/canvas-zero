@@ -30,6 +30,8 @@ import FinanceiroPage from "./pages/FinanceiroPage";
 import RevendedorSaldoPage from "./pages/RevendedorSaldoPage";
 import GestaoPage from "./pages/GestaoPage";
 import SolicitacoesAjustePage from "./pages/SolicitacoesAjustePage";
+import ConfiguracoesNFe from "./pages/ConfiguracoesNFe";
+import ConfiguracoesTributacao from "./pages/ConfiguracoesTributacao";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 // PriceChangeDialog removido — sem congelamento de preço.
@@ -125,6 +127,8 @@ const App = () => (
             <Route path="/financeiro/saldo" element={<RevendedorSaldoPage />} />
             <Route path="/admin/gestao" element={<GestaoPage />} />
             <Route path="/admin/solicitacoes-ajuste" element={<SolicitacoesAjustePage />} />
+            <Route path="/configuracoes/nfe" element={<ConfiguracoesNFe />} />
+            <Route path="/configuracoes/tributacao" element={<ConfiguracoesTributacao />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ChromeWrapper>

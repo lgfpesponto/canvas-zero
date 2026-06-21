@@ -620,6 +620,360 @@ export type Database = {
         }
         Relationships: []
       }
+      nfe_config: {
+        Row: {
+          ambiente: number
+          bairro: string
+          cep: string
+          certificado_nome: string | null
+          certificado_path: string | null
+          certificado_validade: string | null
+          cnae: string | null
+          cnpj: string
+          cod_municipio: string
+          complemento: string | null
+          created_at: string
+          crt: number
+          csc: string | null
+          csc_id: string | null
+          id: string
+          inscricao_estadual: string
+          inscricao_municipal: string | null
+          logradouro: string
+          municipio: string
+          nome_fantasia: string | null
+          numero: string
+          proximo_numero: number
+          razao_social: string
+          regime_tributario: number
+          serie: number
+          telefone: string | null
+          uf: string
+          updated_at: string
+        }
+        Insert: {
+          ambiente?: number
+          bairro: string
+          cep: string
+          certificado_nome?: string | null
+          certificado_path?: string | null
+          certificado_validade?: string | null
+          cnae?: string | null
+          cnpj: string
+          cod_municipio: string
+          complemento?: string | null
+          created_at?: string
+          crt?: number
+          csc?: string | null
+          csc_id?: string | null
+          id?: string
+          inscricao_estadual: string
+          inscricao_municipal?: string | null
+          logradouro: string
+          municipio: string
+          nome_fantasia?: string | null
+          numero: string
+          proximo_numero?: number
+          razao_social: string
+          regime_tributario?: number
+          serie?: number
+          telefone?: string | null
+          uf: string
+          updated_at?: string
+        }
+        Update: {
+          ambiente?: number
+          bairro?: string
+          cep?: string
+          certificado_nome?: string | null
+          certificado_path?: string | null
+          certificado_validade?: string | null
+          cnae?: string | null
+          cnpj?: string
+          cod_municipio?: string
+          complemento?: string | null
+          created_at?: string
+          crt?: number
+          csc?: string | null
+          csc_id?: string | null
+          id?: string
+          inscricao_estadual?: string
+          inscricao_municipal?: string | null
+          logradouro?: string
+          municipio?: string
+          nome_fantasia?: string | null
+          numero?: string
+          proximo_numero?: number
+          razao_social?: string
+          regime_tributario?: number
+          serie?: number
+          telefone?: string | null
+          uf?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nfe_eventos: {
+        Row: {
+          created_at: string
+          id: string
+          justificativa: string | null
+          nota_id: string
+          payload: Json
+          protocolo: string | null
+          status: string | null
+          tipo: string
+          xml: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          justificativa?: string | null
+          nota_id: string
+          payload?: Json
+          protocolo?: string | null
+          status?: string | null
+          tipo: string
+          xml?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          justificativa?: string | null
+          nota_id?: string
+          payload?: Json
+          protocolo?: string | null
+          status?: string | null
+          tipo?: string
+          xml?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_eventos_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_notas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfe_itens: {
+        Row: {
+          aliq_cofins: number | null
+          aliq_icms: number | null
+          aliq_pis: number | null
+          cest: string | null
+          cfop: string | null
+          codigo: string | null
+          created_at: string
+          cst_cofins: string | null
+          cst_icms: string | null
+          cst_pis: string | null
+          descricao: string
+          id: string
+          ncm: string | null
+          nota_id: string
+          ordem: number
+          origem_mercadoria: number | null
+          quantidade: number
+          unidade: string | null
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          aliq_cofins?: number | null
+          aliq_icms?: number | null
+          aliq_pis?: number | null
+          cest?: string | null
+          cfop?: string | null
+          codigo?: string | null
+          created_at?: string
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_pis?: string | null
+          descricao: string
+          id?: string
+          ncm?: string | null
+          nota_id: string
+          ordem?: number
+          origem_mercadoria?: number | null
+          quantidade?: number
+          unidade?: string | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          aliq_cofins?: number | null
+          aliq_icms?: number | null
+          aliq_pis?: number | null
+          cest?: string | null
+          cfop?: string | null
+          codigo?: string | null
+          created_at?: string
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_pis?: string | null
+          descricao?: string
+          id?: string
+          ncm?: string | null
+          nota_id?: string
+          ordem?: number
+          origem_mercadoria?: number | null
+          quantidade?: number
+          unidade?: string | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_itens_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_notas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfe_notas: {
+        Row: {
+          ambiente: number
+          chave_acesso: string | null
+          created_at: string
+          danfe_pdf_url: string | null
+          data_autorizacao: string | null
+          data_emissao: string
+          destinatario_snapshot: Json
+          id: string
+          modelo: number
+          motivo_rejeicao: string | null
+          natureza_operacao: string
+          numero: number
+          observacoes: string | null
+          pedido_id: string | null
+          protocolo: string | null
+          serie: number
+          status: string
+          updated_at: string
+          valor_produtos: number
+          valor_total: number
+          xml_assinado: string | null
+          xml_autorizado: string | null
+        }
+        Insert: {
+          ambiente: number
+          chave_acesso?: string | null
+          created_at?: string
+          danfe_pdf_url?: string | null
+          data_autorizacao?: string | null
+          data_emissao?: string
+          destinatario_snapshot?: Json
+          id?: string
+          modelo?: number
+          motivo_rejeicao?: string | null
+          natureza_operacao?: string
+          numero: number
+          observacoes?: string | null
+          pedido_id?: string | null
+          protocolo?: string | null
+          serie: number
+          status?: string
+          updated_at?: string
+          valor_produtos?: number
+          valor_total?: number
+          xml_assinado?: string | null
+          xml_autorizado?: string | null
+        }
+        Update: {
+          ambiente?: number
+          chave_acesso?: string | null
+          created_at?: string
+          danfe_pdf_url?: string | null
+          data_autorizacao?: string | null
+          data_emissao?: string
+          destinatario_snapshot?: Json
+          id?: string
+          modelo?: number
+          motivo_rejeicao?: string | null
+          natureza_operacao?: string
+          numero?: number
+          observacoes?: string | null
+          pedido_id?: string | null
+          protocolo?: string | null
+          serie?: number
+          status?: string
+          updated_at?: string
+          valor_produtos?: number
+          valor_total?: number
+          xml_assinado?: string | null
+          xml_autorizado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_notas_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfe_tributacao_referencias: {
+        Row: {
+          aliq_cofins: number | null
+          aliq_icms: number | null
+          aliq_pis: number | null
+          cest: string | null
+          cfop_padrao: string | null
+          created_at: string
+          cst_cofins: string | null
+          cst_icms: string | null
+          cst_pis: string | null
+          descricao: string | null
+          id: string
+          ncm: string | null
+          origem_mercadoria: number | null
+          referencia: string
+          unidade_comercial: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliq_cofins?: number | null
+          aliq_icms?: number | null
+          aliq_pis?: number | null
+          cest?: string | null
+          cfop_padrao?: string | null
+          created_at?: string
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_pis?: string | null
+          descricao?: string | null
+          id?: string
+          ncm?: string | null
+          origem_mercadoria?: number | null
+          referencia: string
+          unidade_comercial?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliq_cofins?: number | null
+          aliq_icms?: number | null
+          aliq_pis?: number | null
+          cest?: string | null
+          cfop_padrao?: string | null
+          created_at?: string
+          cst_cofins?: string | null
+          cst_icms?: string | null
+          cst_pis?: string | null
+          descricao?: string | null
+          id?: string
+          ncm?: string | null
+          origem_mercadoria?: number | null
+          referencia?: string
+          unidade_comercial?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_ajuste_solicitacoes: {
         Row: {
           created_at: string
@@ -1920,6 +2274,7 @@ export type Database = {
         }[]
       }
       get_vendedores_distinct: { Args: never; Returns: string[] }
+      has_nfe_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
