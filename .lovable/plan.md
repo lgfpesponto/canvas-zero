@@ -1,33 +1,20 @@
-## Regra "Solado Rústica"
+Plano para corrigir o bloqueio ao enviar pedido com solado Rústica:
 
-Aplicar em todos os pontos do bloco Tradicional onde "Rústica" for o solado:
+1. Ajustar a validação do novo pedido em `src/pages/OrderPage.tsx`
+   - Hoje `Cor da Vira` ainda está sempre na lista de campos obrigatórios.
+   - Vou alterar para exigir `Cor da Vira` somente quando `getCorViraOptions(modelo, solado)` retornar opções visíveis.
+   - Para Rústica, como o campo fica oculto, ele não será obrigatório.
 
-### 1. `src/lib/orderFieldsConfig.ts`
+2. Garantir limpeza dos valores ocultos
+   - Ao selecionar Rústica, manter `corSola` e `corVira` como vazio.
+   - Isso evita salvar valor antigo/invisível no pedido.
 
-- **`getBicosForModeloSolado`** (case `'tradicional'`): se `solado === 'Rústica'` → retornar apenas `['Quadrado']` (atualmente devolve `['Quadrado', 'Redondo']`).
-- **`getCorSolaOptions`** (case `'tradicional'`): mudar `solado === 'Rústica'` para retornar `null` em vez de `[Madeira]` — assim a UI esconde o campo (mesmo padrão do Jump/Infantil).
-- **`getCorViraOptions`**: ajustar a assinatura para permitir `null` e, no case `'tradicional'`, retornar `null` quando `solado === 'Rústica'`. Atualizar consumidores que tratam o retorno (DynamicOrderPage e qualquer lookup) para esconder o campo quando vier `null`, igual já é feito para Cor da Sola.
+3. Aplicar a mesma proteção em edição, se houver validação semelhante
+   - Conferir `src/pages/EditOrderPage.tsx` e ajustar se o mesmo bloqueio existir ao salvar edição.
 
-### 2. `src/lib/pdfGenerators.ts` (canhotos + ficha)
+4. Manter a regra visual atual
+   - `Cor da Sola` e `Cor da Vira` continuam sumindo para Rústica.
+   - `Formato do Bico` continua restrito a `Quadrado`.
 
-Dentro do bloco SOLADOS (linhas ~360-366) e na geração dos canhotos compactos (linhas ~587-594), envolver as linhas de Cor Sola e Cor Vira em `if (order.solado !== 'Rústica')`:
-- Ficha: não adicionar `Cor:` nem `Vira:` quando solado for Rústica.
-- Canhoto compacto: `line2` sem `abbrevCorSola`; `viraText` vazio. Mantém apenas tamanho + solado + bico.
-
-### 3. `src/lib/cobrancaPdf.ts` (composição de preços)
-
-Linhas 258-261: pular as entradas `Cor Sola` e `Cor Vira` quando `o.solado === 'Rústica'` (já não somariam preço, mas garante que não apareçam na lista).
-
-### 4. Regra de migração
-
-Pedidos antigos com solado "Rústica" que já tenham `corSola`/`corVira` preenchidos: deixar o dado no banco (sem deletar — política de preservação) mas a exibição em formulário/PDF/composição passa a ignorar esses campos automaticamente pelas regras acima.
-
-### 5. Atualizar `docs/BUSINESS_RULES.md`
-
-Na seção **C. Bloco TRADICIONAL**, alterar as linhas referentes a Rústica:
-- "Cor Sola (Rústica)" → *campo oculto (retorna null)*
-- "Cor Vira (Rústica)" → *campo oculto (retorna null)*
-- Acrescentar nota no Bico: "Se solado = Rústica → apenas Quadrado".
-
-### Fora de escopo
-Sem mudanças em RLS, tabelas, edge functions, NF-e, ou outros blocos (Infantil/City/BicoFinoFeminino/Perfilado).
+5. Não alterar banco de dados
+   - Nenhum dado antigo será apagado; apenas a validação do formulário será corrigida.
