@@ -409,7 +409,9 @@ export function getBicosForModeloSolado(modelo: string, solado?: string): string
   switch (block) {
     case 'infantil': return ['Quadrado'];
     case 'city': return ['Fino Ponta Redonda'];
-    case 'tradicional': return ['Quadrado', 'Redondo'];
+    case 'tradicional':
+      if (solado === 'Rústica') return ['Quadrado'];
+      return ['Quadrado', 'Redondo'];
     case 'bicoFinoFeminino': return ['Fino Ponta Redonda'];
     case 'perfilado':
       if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
