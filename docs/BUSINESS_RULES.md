@@ -83,12 +83,14 @@ O sistema define **5 blocos** que controlam toda a cadeia de dependências entre
 | **Solados** | Borracha (R$0), Couro Reta (R$60), Couro Carrapeta (R$60), Couro Carrapeta com Espaço Espora (R$60), Jump (R$30), Rústica (R$0) |
 | *Se bico = Redondo* | *Remove Jump e Rústica da lista* |
 | **Bico** | Quadrado, Redondo |
+| *Se solado = Rústica* | *Apenas Quadrado* |
 | **Cor Sola (Borracha)** | Marrom (R$20), Preto (R$0), Branco (R$20) |
 | *Borracha + bico Redondo* | *Apenas Preto (R$0) e Branco (R$20)* |
 | **Cor Sola (Couro Reta / Carrapeta / Carrapeta c/ Espaço)** | Madeira (R$0), Avermelhada (R$10), Pintada de Preto (R$0) |
 | **Cor Sola (Jump)** | *(campo oculto — retorna null)* |
-| **Cor Sola (Rústica)** | Madeira (R$0) |
+| **Cor Sola (Rústica)** | *(campo oculto — retorna null)* |
 | **Cor Vira (Borracha)** | Bege (R$0), Rosa (R$10), Preto (R$10) |
+| **Cor Vira (Rústica)** | *(campo oculto)* |
 | **Cor Vira (demais solados)** | Neutra (R$0) |
 | **Forma (bico Quadrado)** | 2300 |
 | **Forma (bico Redondo)** | 7576 |

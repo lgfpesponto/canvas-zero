@@ -361,8 +361,8 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     const soladoFields: CatField[] = [];
     const solaType = `${order.solado || 'Borracha'} ${order.formatoBico || 'quadrada'}`.toLowerCase();
     soladoFields.push({ label: 'Tipo:', value: solaType });
-    if (order.corSola) soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
-    if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
+    if (order.corSola && order.solado !== 'Rústica') soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
+    if (order.corVira && order.solado !== 'Rústica' && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
     categories.push({ title: 'SOLADOS', fields: soladoFields });
 
     // BORDADOS
@@ -585,12 +585,13 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     const maxW = thirdW - 6;
 
     const line1 = `Nº pedido: ${orderNumClean}`;
+    const isRustica = order.solado === 'Rústica';
     const line2 = [
       order.tamanho,
       abbrevSolado(order.solado || 'borracha'),
-      abbrevCorSola(order.corSola),
+      isRustica ? '' : abbrevCorSola(order.corSola),
     ].filter(Boolean).join(' ');
-    const viraText = (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
+    const viraText = (!isRustica && order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) ? ` vira ${order.corVira.toLowerCase()}` : '';
     const line3 = `${abbrevBico(order.formatoBico)}${viraText}`;
     const formaVal = (order as any).forma || '';
     const line4 = formaVal ? `FORMA: ${formaVal}` : '';

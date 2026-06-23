@@ -409,7 +409,9 @@ export function getBicosForModeloSolado(modelo: string, solado?: string): string
   switch (block) {
     case 'infantil': return ['Quadrado'];
     case 'city': return ['Fino Ponta Redonda'];
-    case 'tradicional': return ['Quadrado', 'Redondo'];
+    case 'tradicional':
+      if (solado === 'Rústica') return ['Quadrado'];
+      return ['Quadrado', 'Redondo'];
     case 'bicoFinoFeminino': return ['Fino Ponta Redonda'];
     case 'perfilado':
       if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
@@ -433,7 +435,7 @@ export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: 
       if (['Couro Reta', 'Couro Carrapeta', 'Couro Carrapeta com Espaço Espora'].includes(solado))
         return COR_SOLA.filter(c => ['Madeira', 'Avermelhada', 'Pintada de Preto'].includes(c.label));
       if (solado === 'Jump') return null;
-      if (solado === 'Rústica') return COR_SOLA.filter(c => c.label === 'Madeira');
+      if (solado === 'Rústica') return null;
       return COR_SOLA;
     case 'bicoFinoFeminino':
       if (solado === 'PVC') return [{ label: 'Preto', preco: 0 }, { label: 'Off White', preco: 0 }, { label: 'Marrom', preco: 0 }];
@@ -473,6 +475,7 @@ export function getCorViraOptions(modelo: string, solado?: string): { label: str
     case 'infantil': return COR_VIRA.filter(c => c.label === 'Bege');
     case 'city': return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'tradicional':
+      if (solado === 'Rústica') return [];
       if (solado === 'Borracha') return COR_VIRA.filter(c => ['Bege', 'Rosa', 'Preto'].includes(c.label));
       return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'bicoFinoFeminino': return COR_VIRA.filter(c => c.label === 'Neutra');

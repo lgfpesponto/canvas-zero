@@ -255,10 +255,12 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
       if (o.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
       const soladoP = SOLADO.find(s => s.label === o.solado)?.preco;
       if (soladoP) priceItems.push(['Solado: ' + o.solado, soladoP]);
-      const corSolaP = getCorSolaPrecoContextual(o.modelo, o.solado, o.formatoBico, o.corSola);
-      if (corSolaP) priceItems.push(['Cor Sola: ' + o.corSola, corSolaP]);
-      const corViraP = COR_VIRA.find(c => c.label === o.corVira)?.preco || 0;
-      if (corViraP > 0) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
+      if (o.solado !== 'Rústica') {
+        const corSolaP = getCorSolaPrecoContextual(o.modelo, o.solado, o.formatoBico, o.corSola);
+        if (corSolaP) priceItems.push(['Cor Sola: ' + o.corSola, corSolaP]);
+        const corViraP = COR_VIRA.find(c => c.label === o.corVira)?.preco || 0;
+        if (corViraP > 0) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
+      }
       if (o.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
       const carimboP = CARIMBO.find(c => c.label === o.carimbo)?.preco;
       if (carimboP) priceItems.push([o.carimbo!, carimboP]);
