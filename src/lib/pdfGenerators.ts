@@ -361,8 +361,8 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     const soladoFields: CatField[] = [];
     const solaType = `${order.solado || 'Borracha'} ${order.formatoBico || 'quadrada'}`.toLowerCase();
     soladoFields.push({ label: 'Tipo:', value: solaType });
-    if (order.corSola) soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
-    if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
+    if (order.corSola && order.solado !== 'Rústica') soladoFields.push({ label: 'Cor:', value: order.corSola.toLowerCase() });
+    if (order.corVira && order.solado !== 'Rústica' && !['Bege', 'Neutra'].includes(order.corVira)) soladoFields.push({ label: 'Vira:', value: order.corVira.toLowerCase() });
     categories.push({ title: 'SOLADOS', fields: soladoFields });
 
     // BORDADOS
