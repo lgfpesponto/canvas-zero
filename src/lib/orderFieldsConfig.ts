@@ -475,6 +475,7 @@ export function getCorViraOptions(modelo: string, solado?: string): { label: str
     case 'infantil': return COR_VIRA.filter(c => c.label === 'Bege');
     case 'city': return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'tradicional':
+      if (solado === 'Rústica') return [];
       if (solado === 'Borracha') return COR_VIRA.filter(c => ['Bege', 'Rosa', 'Preto'].includes(c.label));
       return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'bicoFinoFeminino': return COR_VIRA.filter(c => c.label === 'Neutra');
