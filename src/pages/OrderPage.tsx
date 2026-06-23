@@ -805,7 +805,7 @@ const OrderPage = () => {
       [solado, 'Tipo do Solado'],
       [formatoBico, 'Formato do Bico'],
       ...(getCorSolaOptions(modelo, solado, formatoBico) !== null ? [[corSola, 'Cor da Sola'] as [string, string]] : []),
-      [corVira, 'Cor da Vira'],
+      ...(getCorViraOptions(modelo, solado).length > 0 ? [[corVira, 'Cor da Vira'] as [string, string]] : []),
     ];
     const missing = required.filter(([val]) => !val);
     if (missing.length > 0) {
