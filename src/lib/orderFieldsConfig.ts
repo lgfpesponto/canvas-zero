@@ -435,7 +435,7 @@ export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: 
       if (['Couro Reta', 'Couro Carrapeta', 'Couro Carrapeta com Espaço Espora'].includes(solado))
         return COR_SOLA.filter(c => ['Madeira', 'Avermelhada', 'Pintada de Preto'].includes(c.label));
       if (solado === 'Jump') return null;
-      if (solado === 'Rústica') return COR_SOLA.filter(c => c.label === 'Madeira');
+      if (solado === 'Rústica') return null;
       return COR_SOLA;
     case 'bicoFinoFeminino':
       if (solado === 'PVC') return [{ label: 'Preto', preco: 0 }, { label: 'Off White', preco: 0 }, { label: 'Marrom', preco: 0 }];
