@@ -238,7 +238,7 @@ const MontagemPortalPage = () => {
               <>
                 <div className="rounded-lg border-2 border-emerald-500 bg-emerald-50 p-3">
                   <label className="block text-xs font-bold text-emerald-900 mb-1">
-                    Leia o código de barras do pedido (em Montagem ou Montagem Ailton)
+                    Escaneie ou digite o número do pedido + Enter
                   </label>
                   <input
                     ref={scanInputRef}
@@ -251,7 +251,8 @@ const MontagemPortalPage = () => {
                       }
                     }}
                     onBlur={refocus}
-                    placeholder="Escaneie ou digite o número do pedido + Enter"
+                    placeholder="Toque aqui e comece"
+
                     autoFocus
                     className="w-full bg-white rounded px-3 py-3 text-lg font-mono font-bold border-2 border-emerald-400 focus:border-emerald-600 outline-none"
                   />
