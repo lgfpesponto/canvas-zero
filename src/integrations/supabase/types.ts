@@ -2310,6 +2310,11 @@ export type Database = {
         Returns: undefined
       }
       marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
+      montagem_baixar_pedido: { Args: { _order_id: string }; Returns: Json }
+      montagem_marcar_erro: {
+        Args: { _destino: string; _order_id: string }
+        Returns: Json
+      }
       parse_historico_date: { Args: { _data: string }; Returns: string }
       processar_baixas_automaticas_geral: { Args: never; Returns: Json }
       quitar_pedidos_historico: {
@@ -2341,6 +2346,7 @@ export type Database = {
         | "vendedor"
         | "vendedor_comissao"
         | "bordado"
+        | "montagem"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2476,6 +2482,7 @@ export const Constants = {
         "vendedor",
         "vendedor_comissao",
         "bordado",
+        "montagem",
       ],
     },
   },
