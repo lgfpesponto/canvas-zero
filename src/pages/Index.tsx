@@ -23,6 +23,9 @@ const Index = () => {
   if (role === 'bordado') {
     return <Navigate to="/bordado" replace />;
   }
+  if (role === 'montagem') {
+    return <Navigate to="/montagem" replace />;
+  }
 
   return (
     <div className="min-h-screen">

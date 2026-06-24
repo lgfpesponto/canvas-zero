@@ -40,8 +40,8 @@ const LoginPage = () => {
     try {
       const result = await login(username, password);
       if (result === 'ok') {
-        // role pode ainda não ter hidratado; o useEffect cuida do redirect quando hidratar.
-        navigate('/');
+        // NÃO navegar aqui — esperar o role hidratar; o useEffect direciona para
+        // /montagem, /bordado ou / conforme o role do usuário, sem flash de dashboard.
       } else if (result === 'network') {
         setError('Sem conexão com o servidor. Verifique sua internet, antivírus ou DNS.');
         setErrorKind('network');
