@@ -945,3 +945,161 @@ export async function generateBordadoBaixaResumoPDF(orders: any[], dataDe: strin
   const userSuffix = filtroUsuariosSet ? `_${[...filtroUsuariosSet].join('-').replace(/\s+/g, '-')}` : '';
   doc.save(`Comissao-Bordado-${baseSuffix}${userSuffix}.pdf`);
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Baixa Montagem — PDF em 2 vias (uma folha)
+ * Items: { numero, modelo, dataBaixa: "DD/MM/YYYY", quantidade, valorUnit, erroMontagem }
+ * ───────────────────────────────────────────────────────────────── */
+export interface BaixaMontagemItem {
+  numero: string;
+  modelo: string;
+  dataBaixa: string;
+  quantidade: number;
+  valorUnit: number;
+  erroMontagem: boolean;
+}
+
+export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: string) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();   // 210
+  const pageH = doc.internal.pageSize.getHeight();  // 297
+  const halfH = pageH / 2;                          // 148.5
+
+  const totalsByValor: Record<number, { qtd: number; subtotal: number }> = {
+    19: { qtd: 0, subtotal: 0 },
+    21: { qtd: 0, subtotal: 0 },
+    23: { qtd: 0, subtotal: 0 },
+  };
+  let erroQtd = 0;
+  let outrosQtd = 0;
+  let outrosSubtotal = 0;
+  let totalGeral = 0;
+  items.forEach(it => {
+    const q = Math.max(1, Number(it.quantidade) || 1);
+    if (it.erroMontagem) {
+      erroQtd += q;
+      return;
+    }
+    const v = Number(it.valorUnit) || 0;
+    const sub = v * q;
+    if (v === 19 || v === 21 || v === 23) {
+      totalsByValor[v].qtd += q;
+      totalsByValor[v].subtotal += sub;
+    } else {
+      outrosQtd += q;
+      outrosSubtotal += sub;
+    }
+    totalGeral += sub;
+  });
+
+  const nowStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+  const drawVia = (yOffset: number, viaLabel: string) => {
+    let y = yOffset + 8;
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Relatório de Baixa Montagem — 7ESTRIVOS', pageW / 2, y, { align: 'center' });
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`Gerado em: ${nowStr}   •   Operador: ${operador}   •   ${viaLabel}`, pageW / 2, y, { align: 'center' });
+    y += 4;
+
+    // Table header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    const col = { num: 8, pedido: 18, data: 40, modelo: 68, qtd: 150, valor: 170 };
+    doc.text('#', col.num, y);
+    doc.text('Nº pedido', col.pedido, y);
+    doc.text('Data baixa', col.data, y);
+    doc.text('Modelo', col.modelo, y);
+    doc.text('Qtd', col.qtd, y, { align: 'right' });
+    doc.text('Valor', col.valor, y, { align: 'right' });
+    y += 1.5;
+    doc.setLineWidth(0.2);
+    doc.line(7, y, pageW - 7, y);
+    y += 3;
+
+    // Rows
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    const limitY = yOffset + halfH - 50; // reserva espaço para totais + assinatura
+    items.forEach((it, idx) => {
+      if (y > limitY) {
+        doc.setFont('helvetica', 'italic');
+        doc.text(`... e mais ${items.length - idx} item(ns) (cortado por espaço)`, col.num, y);
+        return;
+      }
+      const q = Math.max(1, Number(it.quantidade) || 1);
+      const sub = it.erroMontagem ? 0 : (Number(it.valorUnit) || 0) * q;
+      doc.text(String(idx + 1), col.num, y);
+      doc.text(String(it.numero), col.pedido, y);
+      doc.text(it.dataBaixa || '-', col.data, y);
+      const modeloTxt = (it.modelo || '-').slice(0, 38);
+      doc.text(modeloTxt, col.modelo, y);
+      doc.text(String(q), col.qtd, y, { align: 'right' });
+      if (it.erroMontagem) {
+        doc.setTextColor(200, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ERRO MONTAGEM', col.valor, y, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+      } else {
+        doc.text(formatCurrency(sub), col.valor, y, { align: 'right' });
+      }
+      y += 4;
+    });
+
+    // Totals
+    const totalsY = yOffset + halfH - 38;
+    doc.setLineWidth(0.2);
+    doc.line(7, totalsY - 2, pageW - 7, totalsY - 2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    let ty = totalsY + 1;
+    const writeTot = (label: string, valor: string) => {
+      doc.text(label, col.modelo, ty);
+      doc.text(valor, col.valor, ty, { align: 'right' });
+      ty += 4;
+    };
+    writeTot(`${totalsByValor[19].qtd} × R$ 19,00`, formatCurrency(totalsByValor[19].subtotal));
+    writeTot(`${totalsByValor[21].qtd} × R$ 21,00`, formatCurrency(totalsByValor[21].subtotal));
+    writeTot(`${totalsByValor[23].qtd} × R$ 23,00`, formatCurrency(totalsByValor[23].subtotal));
+    if (outrosQtd > 0) {
+      writeTot(`${outrosQtd} × outros modelos`, formatCurrency(outrosSubtotal));
+    }
+    if (erroQtd > 0) {
+      doc.setTextColor(200, 0, 0);
+      writeTot(`${erroQtd} × ERRO MONTAGEM`, 'não cobrado');
+      doc.setTextColor(0, 0, 0);
+    }
+    doc.setFontSize(10);
+    writeTot('TOTAL GERAL', formatCurrency(totalGeral));
+
+    // Assinatura
+    const sigY = yOffset + halfH - 10;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Assinatura: ______________________________________', 8, sigY);
+    doc.text('Data: ____/____/______', pageW - 60, sigY);
+  };
+
+  drawVia(0, 'Via Montagem');
+
+  // Divisor tracejado
+  doc.setLineDashPattern([2, 2], 0);
+  doc.setLineWidth(0.3);
+  doc.line(5, halfH, pageW - 5, halfH);
+  doc.setLineDashPattern([], 0);
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('— — — — recorte aqui — — — —', pageW / 2, halfH + 3, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+
+  drawVia(halfH, 'Via 7Estrivos');
+
+  stampPageNumbers(doc);
+  const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+  doc.save(`Baixa-Montagem-${stamp}.pdf`);
+}
