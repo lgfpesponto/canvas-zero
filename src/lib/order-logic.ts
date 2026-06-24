@@ -47,7 +47,7 @@ export const PRODUCTION_STATUSES = [
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
   "Pesponto 06", "Pesponto 07", "Pesponto 08", "Pesponto 09", "Pesponto 10",
   "Pesponto Ailton",
-  "Pespontando", "Montagem", "Montagem Ailton", "Revisão", "Expedição",
+  "Pespontando", "Montagem", "Montagem Ailton", "Baixa Montagem", "Revisão", "Expedição",
   "Baixa Estoque", "Baixa Site (Despachado)",
   "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
@@ -63,7 +63,7 @@ export const PRODUCTION_STATUSES_USER = [
   "Pesponto 01", "Pesponto 02", "Pesponto 03", "Pesponto 04", "Pesponto 05",
   "Pesponto 06", "Pesponto 07", "Pesponto 08", "Pesponto 09", "Pesponto 10",
   "Pesponto Ailton",
-  "Pespontando", "Montagem", "Montagem Ailton", "Revisão", "Expedição",
+  "Pespontando", "Montagem", "Montagem Ailton", "Baixa Montagem", "Revisão", "Expedição",
   "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
 
@@ -101,7 +101,7 @@ export const PRODUCTION_STATUSES_IN_PROD = [
   'Pesponto 01', 'Pesponto 02', 'Pesponto 03', 'Pesponto 04', 'Pesponto 05',
   'Pesponto 06', 'Pesponto 07', 'Pesponto 08', 'Pesponto 09', 'Pesponto 10',
   'Pesponto Ailton',
-  'Pespontando', 'Montagem', 'Montagem Ailton', 'Revisão', 'Expedição',
+  'Pespontando', 'Montagem', 'Montagem Ailton', 'Baixa Montagem', 'Revisão', 'Expedição',
 ];
 
 /** Roles allowed to change order statuses */

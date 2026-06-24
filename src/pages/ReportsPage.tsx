@@ -1597,26 +1597,60 @@ const ReportsPage = () => {
                   </p>
                 </div>
                 {/* Os pedidos sem trava já foram aplicados antes deste modal abrir */}
-                <DialogFooter className="mt-4">
-                  <button
-                    onClick={() => setShowRegressionModal(false)}
-                    disabled={!!bulkProgress}
-                    className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleConfirmRegression}
-                    disabled={!!bulkProgress || regressionReason.trim().length < 5}
-                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[110px]"
-                  >
-                    {bulkProgress ? (
-                      <span className="inline-flex items-center gap-2 justify-center">
-                        <Loader2 className="animate-spin" size={14} />
-                        {bulkProgress.current} / {bulkProgress.total}
-                      </span>
-                    ) : 'Confirmar'}
-                  </button>
+                <DialogFooter className="mt-4 flex-col sm:flex-col items-stretch gap-2">
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setShowRegressionModal(false)}
+                      disabled={!!bulkProgress}
+                      className="px-4 py-2 rounded-lg bg-muted text-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleConfirmRegression}
+                      disabled={!!bulkProgress || regressionReason.trim().length < 5}
+                      className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-w-[110px]"
+                    >
+                      {bulkProgress ? (
+                        <span className="inline-flex items-center gap-2 justify-center">
+                          <Loader2 className="animate-spin" size={14} />
+                          {bulkProgress.current} / {bulkProgress.total}
+                        </span>
+                      ) : 'Confirmar'}
+                    </button>
+                  </div>
+                  {(selectedProgress === 'Montagem' || selectedProgress === 'Montagem Ailton') && (
+                    <button
+                      onClick={async () => {
+                        let okCount = 0;
+                        const blocked: BlockedItem[] = [];
+                        setBulkProgress({ current: 0, total: regressionItems.length });
+                        try {
+                          for (const item of regressionItems) {
+                            const { error } = await supabase.rpc('montagem_marcar_erro' as any, {
+                              _order_id: item.id,
+                              _destino: selectedProgress,
+                            } as any);
+                            if (error) blocked.push({ numero: item.numero, statusAtual: item.current });
+                            else okCount++;
+                            setBulkProgress(p => p ? { ...p, current: p.current + 1 } : p);
+                          }
+                        } finally {
+                          setBulkProgress(null);
+                        }
+                        if (blocked.length > 0) {
+                          setBlockedDialog({ open: true, destino: selectedProgress, blocked, movedCount: okCount });
+                        } else if (okCount > 0) {
+                          toast.success(`${okCount} pedido(s) marcado(s) como ERRO MONTAGEM.`);
+                        }
+                        finalizeBulkUpdate(okCount);
+                      }}
+                      disabled={!!bulkProgress}
+                      className="w-full px-4 py-2 rounded-lg bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      ERRO MONTAGEM (sem justificativa — não cobra novamente)
+                    </button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>
