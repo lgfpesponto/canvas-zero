@@ -58,7 +58,12 @@ const VALUE_BLOCKED_PREFIXES = [
 
 const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, loading: authLoading, isLoggedIn } = useAuth();
+  // Enquanto o role hidrata, não renderizar nada — evita flash do dashboard de
+  // vendedor para usuários de portal restrito (bordado/montagem) logo após o login.
+  if (authLoading && isLoggedIn && location.pathname !== '/login') {
+    return <div className="min-h-screen bg-background" />;
+  }
   const isBordado = role === 'bordado';
   const isMontagem = role === 'montagem';
   const isAdminProducao = role === 'admin_producao';
