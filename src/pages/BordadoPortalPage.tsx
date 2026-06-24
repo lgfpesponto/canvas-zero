@@ -532,26 +532,32 @@ const BordadoPortalPage = () => {
             )}
 
             <form onSubmit={(e) => { e.preventDefault(); handleScan(scanValue, scannerMode); }}>
-              <div className="flex items-center gap-2 mb-3">
-                {scanning
-                  ? <Loader2 size={20} className={`flex-shrink-0 animate-spin ${isBaixaMode ? 'text-emerald-400' : 'text-amber-500'}`} />
-                  : <ScanBarcode size={20} className={`flex-shrink-0 ${isBaixaMode ? 'text-emerald-400' : 'text-amber-500'}`} />}
-                <input
-                  ref={scanInputRef}
-                  type="text"
-                  value={scanValue}
-                  onChange={e => setScanValue(e.target.value)}
-                  onBlur={() => requestAnimationFrame(() => {
-                    const el = scanInputRef.current;
-                    if (el && document.activeElement?.tagName !== 'INPUT') el.focus();
-                  })}
-                  placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie ou digite o nº do pedido'}
-                  className={`flex-1 bg-gray-800 text-white rounded-lg px-3 py-3 text-base border border-gray-600 outline-none placeholder:text-gray-500 ${isBaixaMode ? 'focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500' : 'focus:border-amber-500 focus:ring-1 focus:ring-amber-500'}`}
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                />
+              <div className={`rounded-lg border-2 p-3 mb-3 ${isBaixaMode ? 'border-emerald-500 bg-emerald-50' : 'border-amber-500 bg-amber-50'}`}>
+                <label className={`block text-xs font-bold mb-1 ${isBaixaMode ? 'text-emerald-900' : 'text-amber-900'}`}>
+                  Leia o código de barras do pedido
+                </label>
+                <div className="flex items-center gap-2">
+                  {scanning
+                    ? <Loader2 size={20} className={`flex-shrink-0 animate-spin ${isBaixaMode ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    : <ScanBarcode size={20} className={`flex-shrink-0 ${isBaixaMode ? 'text-emerald-600' : 'text-amber-600'}`} />}
+                  <input
+                    ref={scanInputRef}
+                    type="text"
+                    value={scanValue}
+                    onChange={e => setScanValue(e.target.value)}
+                    onBlur={() => requestAnimationFrame(() => {
+                      const el = scanInputRef.current;
+                      if (el && document.activeElement?.tagName !== 'INPUT') el.focus();
+                    })}
+                    placeholder={scanning ? 'Buscando... pode escanear o próximo' : 'Escaneie ou digite o nº do pedido + Enter'}
+                    className={`flex-1 min-w-0 bg-white rounded px-3 py-3 text-lg font-mono font-bold border-2 outline-none placeholder:text-gray-400 placeholder:font-normal placeholder:text-sm ${isBaixaMode ? 'border-emerald-400 focus:border-emerald-600 text-emerald-950' : 'border-amber-400 focus:border-amber-600 text-amber-950'}`}
+                    autoFocus
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
               </div>
+
 
               <p className="text-xs text-gray-400 text-center mb-3">
                 Cada leitura aplica o progresso automaticamente. Use <span className="font-bold text-gray-200">Fechar</span> quando terminar.
