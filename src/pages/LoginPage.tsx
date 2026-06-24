@@ -6,7 +6,7 @@ import { Eye, EyeOff, WifiOff, Loader2 } from 'lucide-react';
 import logo from '@/assets/logo-7estrivos.png';
 
 const LoginPage = () => {
-  const { login, isLoggedIn, loading: authLoading } = useAuth();
+  const { login, isLoggedIn, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -15,11 +15,17 @@ const LoginPage = () => {
   const [errorKind, setErrorKind] = useState<'invalid' | 'network' | 'timeout' | 'generic' | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const destinationForRole = (r: string | null | undefined) => {
+    if (r === 'bordado') return '/bordado';
+    if (r === 'montagem') return '/montagem';
+    return '/';
+  };
+
   useEffect(() => {
     if (!authLoading && isLoggedIn) {
-      navigate('/');
+      navigate(destinationForRole(role));
     }
-  }, [authLoading, isLoggedIn, navigate]);
+  }, [authLoading, isLoggedIn, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +40,7 @@ const LoginPage = () => {
     try {
       const result = await login(username, password);
       if (result === 'ok') {
+        // role pode ainda não ter hidratado; o useEffect cuida do redirect quando hidratar.
         navigate('/');
       } else if (result === 'network') {
         setError('Sem conexão com o servidor. Verifique sua internet, antivírus ou DNS.');

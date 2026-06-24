@@ -37,6 +37,7 @@ import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 // PriceChangeDialog removido — sem congelamento de preço.
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
+import MontagemPortalPage from "./pages/MontagemPortalPage";
 import PublicTrackingPage from "./pages/PublicTrackingPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 import PrecoReconciler from "@/components/PrecoReconciler";
@@ -47,6 +48,7 @@ import { Navigate } from "react-router-dom";
 const queryClient = new QueryClient();
 
 const BORDADO_ALLOWED = new Set<string>(['/bordado', '/perfil']);
+const MONTAGEM_ALLOWED = new Set<string>(['/montagem', '/perfil']);
 
 // Rotas com valores em R$ — bloqueadas para admin_producao
 const VALUE_BLOCKED_PREFIXES = [
@@ -58,14 +60,20 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { role } = useAuth();
   const isBordado = role === 'bordado';
+  const isMontagem = role === 'montagem';
   const isAdminProducao = role === 'admin_producao';
   const isPublicRoute = location.pathname.startsWith('/rastreio/');
   const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
-  const hideChrome = location.pathname === '/login' || isBordado || isPublicRoute;
+  const hideChrome = location.pathname === '/login' || isBordado || isMontagem || isPublicRoute;
 
   // Force redirect bordado users out of disallowed routes (mas /rastreio é público)
   if (isBordado && !isBordadoRoute && !isPublicRoute && !BORDADO_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
     return <Navigate to="/bordado" replace />;
+  }
+
+  // Force redirect montagem users out of disallowed routes
+  if (isMontagem && !isPublicRoute && !MONTAGEM_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
+    return <Navigate to="/montagem" replace />;
   }
 
   // admin_producao não pode acessar áreas financeiras / de valores
@@ -101,6 +109,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/bordado" element={<BordadoPortalPage />} />
+            <Route path="/montagem" element={<MontagemPortalPage />} />
             <Route path="/rastreio/:id" element={<PublicTrackingPage />} />
             
             
