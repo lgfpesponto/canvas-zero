@@ -2152,6 +2152,10 @@ export type Database = {
         Args: { _ids: string[]; _motivo: string }
         Returns: Json
       }
+      devolver_estoque_pedido: {
+        Args: { _extra_detalhes: Json }
+        Returns: Json
+      }
       estornar_baixa_revendedor: {
         Args: { _baixa_id: string; _motivo: string }
         Returns: undefined
