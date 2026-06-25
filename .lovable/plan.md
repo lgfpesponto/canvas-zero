@@ -1,60 +1,59 @@
-# Plano — Atalho Em Aberto→Baixa Estoque com justificativa + Edição/Exclusão de Estoque
+# Plano — Devolução automática ao estoque + UI "Sem estoque" + remover edição admin
 
-## 1. Etapa direta para "Baixa Estoque" com justificativa
+## 1. Devolver pares ao estoque ao cancelar/excluir pedido de Estoque
 
-**Regra**: qualquer pedido pode ir direto para "Baixa Estoque" a partir de qualquer etapa, **mas se a transição não estiver na ordem padrão de produção** (ou seja, `FLOW[current]` não inclui `next`), pedir justificativa. Se já estiver na ordem padrão, manter sem justificativa.
+### Mecanismo
+Usar triggers no banco para garantir consistência independente do caminho (UI, RPC, edge function). Cada item em `extra_detalhes.botas[]` carrega `estoque_produto_id` e representa **1 par** — basta agregar e somar de volta.
 
-### Arquivos
+### Migração SQL
+- Função `public.devolver_estoque_pedido(_extra_detalhes jsonb) RETURNS jsonb`:
+  - Agrupa `botas[].estoque_produto_id` somando ocorrências.
+  - Para cada produto: `UPDATE estoque_produtos SET quantidade = quantidade + n WHERE id = ...` (com lock).
+  - Retorna `{ devolvidos: [{ produto_id, qtd }] }`.
+  - `SECURITY DEFINER`, `search_path = public`.
+- Trigger `trg_orders_devolve_estoque_cancel` **BEFORE UPDATE** em `public.orders`:
+  - Condição: `(NEW.extra_detalhes->>'origem_estoque')::boolean = true`
+    AND `NEW.extra_detalhes->>'estoque_devolvido' IS DISTINCT FROM 'true'`
+    AND `NEW.status = 'Cancelado'` AND `OLD.status IS DISTINCT FROM 'Cancelado'`.
+  - Chama `devolver_estoque_pedido(NEW.extra_detalhes)`.
+  - Marca `NEW.extra_detalhes = jsonb_set(NEW.extra_detalhes, '{estoque_devolvido}', 'true'::jsonb)`.
+  - Acrescenta linha em `NEW.historico` descrevendo a devolução (ex.: "Devolvidos ao estoque: 3 par(es)").
+- Trigger `trg_orders_devolve_estoque_delete` **BEFORE DELETE** em `public.orders`:
+  - Condição igual (origem_estoque=true e ainda não devolvido).
+  - Chama `devolver_estoque_pedido(OLD.extra_detalhes)`.
+  - Não precisa marcar flag (linha está saindo).
+- Sem migração de dados — só novas funções/triggers.
 
-- `src/lib/statusTransitions.ts`
-  - Permitir `Baixa Estoque` como destino independentemente do vendedor (remover o filtro `if (t === 'Baixa Estoque') return ctx.vendedor === 'Estoque'` em `applyContextFilter`). Mas continuar válido apenas no fluxo BOTA/CINTO (não nos extras, que já o têm).
-  - Exportar uma helper `isDirectFlowNext(current, next, ctx): boolean` que checa se `pickFlow(ctx)[current]?.includes(next)`.
+### Comportamentos cobertos
+- Status muda para "Cancelado" via UI/ReportsPage/RPC → estoque volta.
+- Exclusão direta ou em lote (`deleted_orders` arquivamento permanece como está) → estoque volta antes do DELETE.
+- Idempotente: a flag `estoque_devolvido` evita devolver duas vezes (ex.: cancelar → reativar → cancelar de novo não devolve a segunda vez; se o pedido foi reativado sem que o estoque tenha sido re-debitado, o sistema não sabe disso — documentar em mensagem de histórico).
 
-- `src/lib/statusRegression.ts`
-  - Estender `requiresJustification`: quando `next === 'Baixa Estoque'` e `!isDirectFlowNext(current, next, ctx)` → retornar `'regression'` (reaproveita o modal existente com motivo). Caso direto no fluxo (Baixa Montagem/Expedição → Baixa Estoque) continua sem justificativa.
-  - Generalizar opcionalmente para qualquer "salto" fora do fluxo padrão, mas no escopo desta tarefa cobrir apenas o caso `Baixa Estoque` para evitar quebrar fluxos existentes.
+### Fora do escopo
+- Re-debitar estoque ao "des-cancelar" um pedido (cenário raro; o usuário pediu explicitamente apenas o caminho cancelado/excluído).
 
-- Consumidor já existente em `ReportsPage.tsx` (linha ~469) — sem mudança, pois já usa `requiresJustification` e abre `JustificativaDialog`.
+## 2. Card "Sem estoque" e ordenação por último
 
-### Observação operacional
-- Após a baixa direta, se o pedido tinha vendedor ≠ Estoque e o admin quiser efetivamente "criar produto" no estoque, ele ainda passa pelo `EstoqueAdminPanel` (precisa SKU+Nome). Para vendedor ≠ Estoque normalmente é o caso de "saiu fisicamente para o estoque": a etapa fica `Baixa Estoque` no histórico, e o admin pode ou não criar o produto correspondente.
+`src/pages/EstoquePage.tsx`:
+- Em `filteredGroups`, parar de filtrar produtos com soma=0 — manter no grid.
+- Computar `g.totalQtd = sum(tamanhos.quantidade)` e ordenar: produtos com estoque primeiro (alfabético), produtos zerados depois (alfabético).
+- No card: se `totalQtd === 0`, exibir um overlay/badge grande "SEM ESTOQUE" sobre a imagem, esconder a grade de tamanhos (ou mostrar todos com `0 un.` e cor mutada), desabilitar o botão "Comprar" (mostrar "Indisponível").
+- Os tamanhos ainda existem no banco para futura reposição (entram pedidos com mesmo nome+sku_base via `criar_estoque_produto` somando quantidade).
 
-## 2. Admin: excluir produto do estoque
+## 3. Remover edição admin do estoque
 
-Botão **"Excluir produto"** no card de cada produto em `EstoquePage` (visível apenas para admins — `useAuth().user.role` em `admin_master` ou `admin_producao`).
+- Em `src/pages/EstoquePage.tsx`: remover os botões "Editar grade" e "Excluir", o estado `editingProduct`, o handler `handleDeleteProduct`, os imports `Pencil`/`Trash2` (se não usados em outro lugar) e o uso de `useAuth`.
+- Remover o mount de `<EstoqueGradeEditor />`.
+- Apagar arquivo `src/components/estoque/EstoqueGradeEditor.tsx`.
+- Estoque passa a ser mutado **apenas** por:
+  - `criar_estoque_produto` (pedidos novos de vendedor=Estoque chegando à etapa Baixa Estoque).
+  - `comprar_estoque` (compras saindo).
+  - `devolver_estoque_pedido` (novo — cancelamento/exclusão).
 
-- Confirmação simples (`window.confirm` + texto explicativo) — exclui **todas as linhas** desse produto (mesmo nome + mesma raiz de sku_base).
-- Implementação: `DELETE FROM estoque_produtos WHERE id IN (...)` direto (RLS já libera para `is_any_admin`).
-- Apenas o produto é apagado — o pedido original e seu histórico continuam intactos.
+## 4. Arquivos
 
-## 3. Admin: editar grade (qtd, adicionar/remover tamanhos)
-
-Novo botão **"Editar grade"** no card (admins). Abre dialog `EstoqueGradeEditor`:
-
-- Lista todas as linhas `estoque_produtos` desse produto (mesmo `nome` + raiz de `sku_base`), inclusive `quantidade = 0`.
-- Para cada tamanho:
-  - Input numérico de quantidade (0 permitido).
-  - Botão "Remover tamanho" → marca para `DELETE`.
-- Linha "Adicionar tamanho": input de tamanho + input de quantidade + botão "+". SKU final = `${sku_base_root}-${tamanho}`. Detecta colisão no banco (`uq_estoque_produtos_sku_tam`).
-- Botão "Salvar":
-  - `UPDATE` quantidade nas linhas alteradas.
-  - `INSERT` novos tamanhos (`preco`, `nome`, `foto_url`, `ficha_snapshot`, `sku_base` herdados da primeira linha do grupo).
-  - `DELETE` linhas marcadas para remoção.
-  - Tudo via cliente Supabase (RLS admin write).
-- Realtime já existente em `EstoquePage` (canal `estoque-produtos-rt`) atualiza a UI.
-
-### Arquivos novos / alterados
-
-- `src/components/estoque/EstoqueGradeEditor.tsx` — novo dialog.
-- `src/pages/EstoquePage.tsx` — botões "Editar grade" e "Excluir produto" no card (condicionados a admin), estado `editingProduct`/handlers, importa o novo dialog. Passar `id`s e `sku_base_root` para o editor.
-
-## 4. Sem migração de banco
-
-Não é necessário. RLS atual em `estoque_produtos` (`is_any_admin`) já cobre INSERT/UPDATE/DELETE direto pelo cliente. `criar_estoque_produto` continua igual.
-
-## 5. Fora do escopo
-
-- Não alterar o gating do botão "Criar estoque" no `EstoqueAdminPanel` (só aparece quando `status === 'Baixa Estoque'`) — segue funcional para pedidos de vendedor Estoque ou qualquer pedido que tenha SKU+Nome preenchidos.
-- Sem novo modelo de auditoria específica para exclusão — `audit_orders` cobre o pedido; exclusão de produto de estoque é operação administrativa direta.
+- **Migração nova** (via tool de migração): funções + triggers descritos em §1.
+- **Editado**: `src/pages/EstoquePage.tsx` (itens §2 e §3).
+- **Removido**: `src/components/estoque/EstoqueGradeEditor.tsx`.
 
 Confirma para implementar?
