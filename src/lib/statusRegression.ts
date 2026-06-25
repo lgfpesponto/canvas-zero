@@ -5,6 +5,7 @@
  * - Cancelamento (Cancelado)
  */
 import { PRODUCTION_STATUSES } from './order-logic';
+import { isDirectFlowNext } from './statusTransitions';
 
 /** Ordem canônica derivada de PRODUCTION_STATUSES, sem 'Cancelado' (tratado à parte). */
 export const STATUS_ORDER: string[] = PRODUCTION_STATUSES.filter(s => s !== 'Cancelado');
