@@ -273,8 +273,9 @@ const EstoquePage = () => {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredGroups.map(g => {
+          {paginatedGroups.map(g => {
             const totalQtd = g.tamanhos.reduce((s, t) => s + t.quantidade, 0);
             const semEstoque = totalQtd === 0;
             return (
@@ -297,15 +298,14 @@ const EstoquePage = () => {
               </div>
               <div className="p-3 flex-1 flex flex-col gap-2">
                 <h3 className="font-semibold text-sm leading-tight line-clamp-2">{g.nome}</h3>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {g.tamanhos.map(t => (
                     <div
                       key={t.id}
-                      className={`relative flex flex-col items-center rounded px-2 py-1 min-w-[44px] group ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                      className={`relative flex flex-col items-center rounded-md px-3 py-1.5 min-w-[56px] group ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
                     >
-                      <span className="text-xs font-bold leading-tight">{t.tamanho}</span>
-                      <span className="text-[10px] leading-tight">{t.quantidade} un.</span>
-                      <span className="text-[9px] text-muted-foreground/70 font-mono leading-none truncate max-w-[60px]" title={t.sku_base}>{t.sku_base}</span>
+                      <span className="text-lg font-bold leading-none">{t.tamanho}</span>
+                      <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">{t.quantidade} un.</span>
                       {isAdmin && (
                         <button
                           type="button"
@@ -319,7 +319,7 @@ const EstoquePage = () => {
                     </div>
                   ))}
                 </div>
-                <p className="text-sm font-bold text-primary mt-auto">
+                <p className="text-xl font-bold text-primary mt-auto">
                   {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
                 <div className="flex gap-2 mt-1">
@@ -340,6 +340,32 @@ const EstoquePage = () => {
             );
           })}
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-3 mt-6 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {filteredGroups.length} produto(s) · Página {currentPage} de {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+              >
+                <ChevronLeft size={14} /> Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Próxima <ChevronRight size={14} />
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {/* Preview product */}
