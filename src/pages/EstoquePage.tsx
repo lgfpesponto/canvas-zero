@@ -289,11 +289,21 @@ const EstoquePage = () => {
                   {g.tamanhos.map(t => (
                     <div
                       key={t.id}
-                      className={`flex flex-col items-center rounded px-2 py-1 min-w-[44px] ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                      className={`relative flex flex-col items-center rounded px-2 py-1 min-w-[44px] group ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
                     >
                       <span className="text-xs font-bold leading-tight">{t.tamanho}</span>
                       <span className="text-[10px] leading-tight">{t.quantidade} un.</span>
                       <span className="text-[9px] text-muted-foreground/70 font-mono leading-none truncate max-w-[60px]" title={t.sku_base}>{t.sku_base}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleExcluirTamanho(t, g.nome)}
+                          title="Excluir este tamanho do estoque"
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-110 transition shadow"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
