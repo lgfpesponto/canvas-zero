@@ -672,10 +672,13 @@ const OrderPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const handleUseTemplate = (formData: Record<string, string>) => {
+  const handleUseTemplate = (formData: Record<string, string>, templateNome?: string) => {
     tmpl.setShowTemplates(false);
     validateAndPopulateTemplate({ ...formData });
     setProductChoice('bota');
+    if (vendedorSelecionado === 'Estoque' && templateNome && !nomeProdutoEstoque.trim()) {
+      setNomeProdutoEstoque(templateNome);
+    }
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
@@ -683,6 +686,9 @@ const OrderPage = () => {
     validateAndPopulateTemplate({ ...template.form_data });
     setMode('template');
     setProductChoice('bota');
+    if (vendedorSelecionado === 'Estoque' && template.nome && !nomeProdutoEstoque.trim()) {
+      setNomeProdutoEstoque(template.nome);
+    }
   };
 
   if (authLoading) {
