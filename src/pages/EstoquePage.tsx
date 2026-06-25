@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, Pencil } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
-import EstoqueGradeEditor from '@/components/estoque/EstoqueGradeEditor';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface EstoqueRow {
   id: string;
@@ -48,19 +46,7 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
-  const [editingProduct, setEditingProduct] = useState<ProductGroup | null>(null);
-  const { user } = useAuth();
-  const isAdmin = !!user && ['admin_master', 'admin_producao', 'admin'].includes(user.role || '');
 
-  const handleDeleteProduct = async (g: ProductGroup) => {
-    const ids = g.tamanhos.map(t => t.id);
-    if (ids.length === 0) return;
-    if (!window.confirm(`Excluir definitivamente o produto "${g.nome}" do estoque? Todas as ${ids.length} entradas de tamanho serão removidas. Pedidos e histórico permanecem intactos.`)) return;
-    const { error } = await supabase.from('estoque_produtos' as any).delete().in('id', ids);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Produto removido do estoque.');
-    fetchRows();
-  };
 
   const fetchRows = async () => {
     const { data, error } = await supabase
@@ -133,9 +119,7 @@ const EstoquePage = () => {
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return groups
-      .map(g => ({ ...g, tamanhos: g.tamanhos.filter(t => t.quantidade > 0) }))
-      .filter(g => g.tamanhos.length > 0)
+    const list = groups
       .filter(g => {
         if (q) {
           const hitNome = g.nome.toLowerCase().includes(q);
@@ -143,7 +127,8 @@ const EstoquePage = () => {
           if (!hitNome && !hitSku) return false;
         }
         if (selTamanhos.size > 0) {
-          if (!g.tamanhos.some(t => selTamanhos.has(t.tamanho))) return false;
+          // Considera apenas tamanhos com estoque para o filtro de numeração
+          if (!g.tamanhos.some(t => t.quantidade > 0 && selTamanhos.has(t.tamanho))) return false;
         }
         for (const k of Object.keys(selFicha)) {
           const set = selFicha[k];
@@ -153,6 +138,16 @@ const EstoquePage = () => {
         }
         return true;
       });
+    // Ordena: com estoque primeiro (alfabético), zerados depois (alfabético)
+    list.sort((a, b) => {
+      const aTot = a.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+      const bTot = b.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+      const aOut = aTot === 0 ? 1 : 0;
+      const bOut = bTot === 0 ? 1 : 0;
+      if (aOut !== bOut) return aOut - bOut;
+      return a.nome.localeCompare(b.nome);
+    });
+    return list;
   }, [groups, search, selTamanhos, selFicha]);
 
   const toggleTam = (t: string) => {
@@ -247,15 +242,25 @@ const EstoquePage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredGroups.map(g => (
-            <div key={g.nome + g.tamanhos[0].sku_base} className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
+          {filteredGroups.map(g => {
+            const totalQtd = g.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+            const semEstoque = totalQtd === 0;
+            return (
+            <div key={g.nome + g.tamanhos[0].sku_base} className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col ${semEstoque ? 'opacity-80' : ''}`}>
               <div className="aspect-square bg-muted relative">
                 {g.foto_url ? (
                   // eslint-disable-next-line jsx-a11y/img-redundant-alt
-                  <img src={g.foto_url} alt={g.nome} className="w-full h-full object-cover" />
+                  <img src={g.foto_url} alt={g.nome} className={`w-full h-full object-cover ${semEstoque ? 'grayscale' : ''}`} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                     <Package size={32} />
+                  </div>
+                )}
+                {semEstoque && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <span className="text-white font-display font-bold text-xl tracking-wider border-2 border-white px-3 py-1 rounded-md -rotate-6">
+                      SEM ESTOQUE
+                    </span>
                   </div>
                 )}
               </div>
@@ -263,9 +268,12 @@ const EstoquePage = () => {
                 <h3 className="font-semibold text-sm leading-tight line-clamp-2">{g.nome}</h3>
                 <div className="flex flex-wrap gap-1.5">
                   {g.tamanhos.map(t => (
-                    <div key={t.id} className="flex flex-col items-center bg-muted rounded px-2 py-1 min-w-[44px]">
+                    <div
+                      key={t.id}
+                      className={`flex flex-col items-center rounded px-2 py-1 min-w-[44px] ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                    >
                       <span className="text-xs font-bold leading-tight">{t.tamanho}</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">{t.quantidade} un.</span>
+                      <span className="text-[10px] leading-tight">{t.quantidade} un.</span>
                       <span className="text-[9px] text-muted-foreground/70 font-mono leading-none truncate max-w-[60px]" title={t.sku_base}>{t.sku_base}</span>
                     </div>
                   ))}
@@ -281,29 +289,15 @@ const EstoquePage = () => {
                     size="sm"
                     className="flex-1 orange-gradient text-primary-foreground"
                     onClick={() => setBuyProduct(g)}
+                    disabled={semEstoque}
                   >
-                    <ShoppingCart size={14} /> Comprar
+                    <ShoppingCart size={14} /> {semEstoque ? 'Indisponível' : 'Comprar'}
                   </Button>
                 </div>
-                {isAdmin && (
-                  <div className="flex gap-2 mt-1">
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => {
-                      const full = groups.find(x => x.nome === g.nome && x.tamanhos[0]?.sku_base.replace(/-[^-]+$/, '') === g.tamanhos[0]?.sku_base.replace(/-[^-]+$/, ''));
-                      setEditingProduct(full || g);
-                    }}>
-                      <Pencil size={14} /> Editar grade
-                    </Button>
-                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => {
-                      const full = groups.find(x => x.nome === g.nome && x.tamanhos[0]?.sku_base.replace(/-[^-]+$/, '') === g.tamanhos[0]?.sku_base.replace(/-[^-]+$/, ''));
-                      handleDeleteProduct(full || g);
-                    }}>
-                      <Trash2 size={14} /> Excluir
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -395,14 +389,6 @@ const EstoquePage = () => {
         produto={buyProduct}
         vendedores={vendedores}
         onSuccess={fetchRows}
-      />
-
-      <EstoqueGradeEditor
-        open={!!editingProduct}
-        onClose={() => setEditingProduct(null)}
-        produtoNome={editingProduct?.nome || null}
-        rows={(editingProduct?.tamanhos || []) as any}
-        onSaved={fetchRows}
       />
     </div>
   );
