@@ -192,6 +192,8 @@ function applyContextFilter(targets: string[], ctx?: TransitionContext): string[
  */
 export function getAllowedNextStatuses(current: string | null | undefined, ctx?: TransitionContext): string[] {
   if (!current) return [];
+  // Pedido com estoque já criado: travado, apenas exclusão (sem destinos).
+  if (ctx?.estoqueBaixado) return [];
   const flow = pickFlow(ctx);
   const allFlowKeys = Object.keys(flow).filter(k => !MANUALLY_BLOCKED.has(k));
   const merged = Array.from(new Set([...allFlowKeys, ...ALWAYS_AVAILABLE]));
