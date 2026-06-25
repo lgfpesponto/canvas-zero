@@ -118,23 +118,26 @@ const EstoquePage = () => {
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return groups.filter(g => {
-      if (q) {
-        const hitNome = g.nome.toLowerCase().includes(q);
-        const hitSku = g.tamanhos.some(t => t.sku_base.toLowerCase().includes(q));
-        if (!hitNome && !hitSku) return false;
-      }
-      if (selTamanhos.size > 0) {
-        if (!g.tamanhos.some(t => selTamanhos.has(t.tamanho))) return false;
-      }
-      for (const k of Object.keys(selFicha)) {
-        const set = selFicha[k];
-        if (!set || set.size === 0) continue;
-        const v = g.ficha_snapshot?.[k];
-        if (!v || !set.has(v)) return false;
-      }
-      return true;
-    });
+    return groups
+      .map(g => ({ ...g, tamanhos: g.tamanhos.filter(t => t.quantidade > 0) }))
+      .filter(g => g.tamanhos.length > 0)
+      .filter(g => {
+        if (q) {
+          const hitNome = g.nome.toLowerCase().includes(q);
+          const hitSku = g.tamanhos.some(t => t.sku_base.toLowerCase().includes(q));
+          if (!hitNome && !hitSku) return false;
+        }
+        if (selTamanhos.size > 0) {
+          if (!g.tamanhos.some(t => selTamanhos.has(t.tamanho))) return false;
+        }
+        for (const k of Object.keys(selFicha)) {
+          const set = selFicha[k];
+          if (!set || set.size === 0) continue;
+          const v = g.ficha_snapshot?.[k];
+          if (!v || !set.has(v)) return false;
+        }
+        return true;
+      });
   }, [groups, search, selTamanhos, selFicha]);
 
   const toggleTam = (t: string) => {
