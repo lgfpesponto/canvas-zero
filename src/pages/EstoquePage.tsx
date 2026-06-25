@@ -396,6 +396,14 @@ const EstoquePage = () => {
         vendedores={vendedores}
         onSuccess={fetchRows}
       />
+
+      <EstoqueGradeEditor
+        open={!!editingProduct}
+        onClose={() => setEditingProduct(null)}
+        produtoNome={editingProduct?.nome || null}
+        rows={(editingProduct?.tamanhos || []) as any}
+        onSaved={fetchRows}
+      />
     </div>
   );
 };
