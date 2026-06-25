@@ -1329,22 +1329,38 @@ const OrderPage = () => {
                   <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
                   {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
-                <div>
-                  <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
-                  <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
-                </div>
+                {vendedorSelecionado === 'Estoque' ? (
+                  <div>
+                    <label className={cls.label}>Nome do produto<span className="text-destructive ml-0.5">*</span></label>
+                    <input
+                      type="text"
+                      value={nomeProdutoEstoque}
+                      onChange={e => setNomeProdutoEstoque(e.target.value)}
+                      placeholder="Ex: Bota Country Marrom"
+                      className={cls.input}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Nome que aparecerá na página Estoque.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+                    <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
-                <input
-                  type="tel"
-                  value={clienteWhatsapp}
-                  onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
-                  placeholder="(XX) XXXXX-XXXX"
-                  className={cls.input}
-                />
-              </div>
+              {vendedorSelecionado !== 'Estoque' && (
+                <div>
+                  <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                  <input
+                    type="tel"
+                    value={clienteWhatsapp}
+                    onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
+                    placeholder="(XX) XXXXX-XXXX"
+                    className={cls.input}
+                  />
+                </div>
+              )}
 
               <div className="grid sm:grid-cols-3 gap-4">
                 {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
