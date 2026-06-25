@@ -166,11 +166,9 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
         <div className="space-y-4">
           {/* Header produto */}
           <div className="flex gap-3 items-center bg-muted p-3 rounded-lg">
-            {produto.foto_url ? (
-              <img src={produto.foto_url} alt={produto.nome} className="w-16 h-16 object-cover rounded" />
-            ) : (
-              <div className="w-16 h-16 rounded bg-background flex items-center justify-center"><Package size={20} /></div>
-            )}
+            <div className="w-16 h-16 rounded bg-background overflow-hidden flex items-center justify-center shrink-0">
+              <EstoqueFoto url={produto.foto_url} alt={produto.nome} className="w-full h-full object-cover" />
+            </div>
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-sm">{produto.nome}</h4>
               <p className="text-xs text-muted-foreground">Preço base: {produto.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
