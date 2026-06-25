@@ -1,83 +1,73 @@
-# Phase 2 — Fluxo de compra do estoque + edição obrigatória + anti-colisão
+# Phase 3 — Criar estoque em massa pela lista de pedidos
 
 ## Objetivo
-Permitir que qualquer vendedor (ou admin no nome de um vendedor) compre pares do Estoque pela página `/estoque`, gerando um pedido extra "Bota Pronta Entrega" com origem rastreável, e garantir que **dois vendedores nunca consigam vender o mesmo par** mesmo comprando ao mesmo tempo.
+Permitir ao admin criar estoque de vários pedidos `vendedor=Estoque` direto da `OrderListPage`, com painel inline para preencher SKU/Nome dos pedidos antigos que ainda não têm esses campos — agrupando automaticamente por `numero` (mesma grade) para repetir SKU/Nome entre tamanhos.
 
-## 1. Anti-colisão (núcleo da fase)
+## 1. Botão "Criar estoque" em massa na lista
 
-**Regra:** a quantidade no `estoque_produtos` é a fonte única da verdade. Toda venda decrementa atomicamente no banco, com checagem dentro da transação, e a UI escuta em tempo real para refletir para todos.
+### 1.1 Onde aparece
+- `OrderPage` (lista) quando o filtro de status ativo é **"Baixa Estoque"** e o usuário é admin.
+- Botão na barra de ações em lote (mesma área de "Mudar etapa em massa") rotulado **"📦 Criar estoque dos selecionados"**.
+- Habilitado quando ≥1 pedido selecionado é `vendedor=Estoque` + `status=Baixa Estoque` + `estoque_baixado=false`.
+- Ignora silenciosamente seleções que não sejam de Estoque (mostra contador "X de Y elegíveis").
 
-### 1.1 RPC `comprar_estoque(_items jsonb, _vendedor text, _cliente text, _whatsapp text, _numero_pedido text)`
-- `_items`: `[{produto_id, sku, tamanho, quantidade, preco_unit}]`.
-- `SECURITY DEFINER`, `search_path=public`.
-- Início: `BEGIN ... LOCK TABLE`/`SELECT ... FOR UPDATE` em cada `estoque_produtos.id` da lista (em ordem de id para evitar deadlock).
-- Para cada item: se `quantidade_disponivel < quantidade_pedida` → `RAISE EXCEPTION 'ESTOQUE_INSUFICIENTE:<sku>:<tamanho>:<disponivel>'` (mensagem parseável no frontend para mostrar toast amigável).
-- Decrementa `UPDATE estoque_produtos SET quantidade = quantidade - X WHERE id = ? AND quantidade >= X` e exige `FOUND` (segurança extra contra race).
-- Cria 1 pedido na tabela `orders` com `tipo_extra='bota_pronta_entrega'`, `extra_detalhes.botas[]` (um item por par), `extra_detalhes.origem_estoque=true`, `det.estoque_origem_ids[]`, `det.foto_url`, `det.ficha_snapshot`, `vendedor`, `cliente`, `whatsapp`, `numero`, `preco` somado, `quantidade` total, `status='Pendente'` (mesmo fluxo dos demais extras).
-- Retorna `{order_id, numero}`.
+### 1.2 Fluxo ao clicar
+1. Particiona os selecionados em:
+   - **prontos**: têm `sku_estoque` e `nome_produto_estoque` preenchidos.
+   - **faltando**: falta SKU e/ou Nome.
+2. Se houver `faltando` → abre painel inline `CompletarSkusBulkPanel` no topo da lista (não modal — quadro fixo acima dos cards, como pedido pelo usuário).
+3. Se tudo estiver pronto → executa direto chamando `criar_estoque_produto` para cada id em paralelo (com limite de concorrência 4), com toast de progresso "X/Y criados".
+4. Ao final mostra resumo (criados / falhas) e recarrega.
 
-### 1.2 Realtime
-- `ALTER PUBLICATION supabase_realtime ADD TABLE public.estoque_produtos;`
-- `EstoquePage` assina mudanças e atualiza grade ao vivo (quantidades caem para todos os usuários abertos).
-- Se um card ficar com qtd 0 enquanto outro vendedor digita quantidade, o input cai para o máximo disponível e mostra aviso.
+## 2. Painel `CompletarSkusBulkPanel`
 
-### 1.3 UX de erro de colisão
-- Quando RPC retorna `ESTOQUE_INSUFICIENTE`, o dialog destaca a linha em vermelho com "Acabou de ser vendido por outro vendedor — restam X", reduz o valor e reabilita o botão Finalizar (não fecha o dialog, não cria pedido).
+### 2.1 Layout (quadro acima da lista)
+```text
+┌─ Complete SKUs e Nomes (N pedidos) ────────────── [Fechar] ┐
+│ Grupo: Pedido #7E-AAAA0001 (3 tamanhos)                    │
+│   SKU base: [_____________]   Nome: [________________]     │
+│   ├─ tam 38  qtd 2  → SKU final: bota-...-38 (auto)        │
+│   ├─ tam 39  qtd 1  → SKU final: bota-...-39 (auto)        │
+│   └─ tam 40  qtd 2  → SKU final: bota-...-40 (auto)        │
+│                                                             │
+│ Grupo: Pedido #7E-AAAA0007 (1 tamanho)                     │
+│   SKU base: [_____________]   Nome: [________________]     │
+│   └─ tam 41  qtd 1                                          │
+│                                                             │
+│ [Cancelar]                    [Salvar e Criar Estoque →]   │
+└────────────────────────────────────────────────────────────┘
+```
 
-## 2. Página Estoque — botão Comprar 🛒
+### 2.2 Agrupamento automático
+- Agrupa os "faltando" por `numero` (= mesma grade). Cada grupo recebe **um único campo SKU base + Nome**.
+- SKU final por linha = `{skuBase}-{tamanho}` (sufixo automático), editável individualmente clicando no SKU final.
+- Pré-preenche `Nome` com `nome_produto_estoque` do primeiro pedido do grupo que já tiver (caso parcial) ou com `modelo` do pedido.
+- Pré-preenche `SKU base` se algum pedido do grupo já tiver `sku_estoque` (extrai a parte antes do `-{tamanho}`).
+- Validação leve: avisa (não bloqueia) se SKU base colidir com outro produto já existente em `estoque_produtos` (mesma regra atual do `GradeEstoque`).
 
-### 2.1 `EstoqueBuyDialog.tsx` (novo)
-Reaproveita o layout do formulário "Bota P.E." de `ExtrasPage`:
-- Cabeçalho fixo: foto + nome do produto + SKU base.
-- Lista de tamanhos disponíveis com input de quantidade (limitado a `quantidade` atual).
-- Botão `+ Outro tamanho` adiciona linha.
-- Campo "Vendedor" (auto = usuário logado para vendedor; selecionável quando admin), "Cliente", "WhatsApp" — mesmas regras dos pedidos extras.
-- Preço unitário pré-preenchido com `estoque_produtos.preco`, editável (mantém regra "edição de valor").
-- Rodapé: total, botão **Finalizar compra**.
+### 2.3 Ação "Salvar e Criar Estoque"
+1. Faz `UPDATE orders SET sku_estoque, nome_produto_estoque` para cada pedido (em batch — uma chamada por grupo).
+2. Junta os ids salvos com os que já estavam prontos.
+3. Chama `criar_estoque_produto(_order_id)` para cada id em paralelo (concorrência 4).
+4. Toast com progresso `X/Y` (reaproveita padrão de "Bulk Progress Feedback").
+5. Erros individuais ficam listados no painel ao final (não derruba os que deram certo).
 
-### 2.2 Botão 🛒 no card
-- Disponível para vendedor, vendedor_comissao e admin (mesma regra de Extras / Faça seu pedido).
-- Desabilitado se `SUM(quantidade) = 0` em todos os tamanhos.
-
-## 3. Edição obrigando SKU + Nome (vendedor=Estoque)
-
-### 3.1 `EditOrderPage.tsx` e `EditBeltPage.tsx`
-- Ao salvar: se `vendedor === 'Estoque'` e (faltam SKUs em alguma linha da grade **ou** `nome_produto_estoque` vazio), abre modal bloqueante "Complete os SKUs e o nome do produto antes de salvar" (mesma UI do GradeEstoque) e impede commit.
-- Ao **mudar** vendedor para `Estoque` em uma edição: mesmo modal força preenchimento na hora.
-- Ao mudar vendedor **de** `Estoque` para outro: limpa `sku_estoque`/`nome_produto_estoque` apenas se `estoque_baixado=false` (se já baixou, bloqueia troca de vendedor — coerente com o lock atual).
-
-### 3.2 Dialog "Completar SKUs faltantes" (bulk)
-- Botão na `EstoquePage` (admin) ou em `OrderListPage` filtrando `vendedor=Estoque AND sku_estoque IS NULL`.
-- Lista pedidos antigos sem SKU, permite preencher em lote antes do "Criar estoque".
-
-## 4. OrderDetailPage — origem Estoque
-
-Quando `tipoExtra='bota_pronta_entrega'` e `det.origem_estoque===true`:
-- Substitui placeholder de foto por `det.foto_url`.
-- Mostra QR + botão "Escanear" invisível (mesma UX do Estoque).
-- Itens de composição (couro/sola/bordado do `ficha_snapshot`) renderizados × `quantidade` da bota.
-- Mostra bloco "Detalhes" com `ficha_snapshot` mesmo quando vários pares.
-- Histórico de produção começa zerado (já está em `Pendente`).
-
-## 5. Detalhes técnicos
+## 3. Detalhes técnicos
 
 **Arquivos novos**
-- `supabase/migrations/<ts>_comprar_estoque_rpc.sql` — função + `ALTER PUBLICATION` realtime.
-- `src/components/estoque/EstoqueBuyDialog.tsx`
-- `src/components/estoque/CompletarSkusDialog.tsx`
+- `src/components/estoque/CompletarSkusBulkPanel.tsx` — quadro de preenchimento agrupado.
+- `src/lib/criarEstoqueBulk.ts` — helper `criarEstoqueEmMassa(ids, onProgress)` com concorrência limitada e coleta de erros.
 
 **Arquivos alterados**
-- `src/pages/EstoquePage.tsx` — botão 🛒, realtime, integração do buy dialog.
-- `src/pages/EditOrderPage.tsx`, `src/pages/EditBeltPage.tsx` — guards de SKU/Nome.
-- `src/pages/OrderDetailPage.tsx` — render foto/composição/ficha para origem estoque.
-- `src/lib/estoqueHelpers.ts` — helper `comprarEstoque(items, dadosVendedor)` chamando a RPC e tratando erros.
+- `src/pages/OrderPage.tsx` (ou `OrderListPage`) — botão na barra de ações em lote + montagem do painel.
+- `src/hooks/useSelectedOrders.tsx` — sem mudanças; usa a seleção existente.
 
-**RLS / permissões**
-- RPC roda como `SECURITY DEFINER`; valida `auth.uid()` e papel (vendedor/comissao/admin). Bloqueia `admin_producao` (regra existente).
-- Mantém GRANTs já criados em `estoque_produtos`.
+**Sem mudanças de schema**: reusa `criar_estoque_produto` RPC e GRANTs existentes; updates de SKU/Nome usam o RLS já vigente em `orders`.
 
-## 6. Fora do escopo desta fase
-- Devolução/estorno de compra de estoque (retornar pares ao estoque) — pode virar Phase 3 se necessário.
-- Histórico financeiro vinculando venda ao saldo do revendedor — usa o fluxo existente de `Cobrado`/`Pago` já implementado.
+**Permissões**: botão visível apenas para admin (mesma regra do `EstoqueAdminPanel`); `admin_producao` continua bloqueado.
 
-Confirma para eu seguir?
+## 4. Fora de escopo
+- Edição de fotos em massa (segue usando `foto_pedido_url` existente).
+- Reaproveitamento de SKU entre grades diferentes — cada grupo (numero) é independente; usuário copia/cola se quiser.
+
+Confirma para eu seguir para a implementação?

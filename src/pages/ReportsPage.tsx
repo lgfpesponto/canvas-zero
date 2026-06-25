@@ -8,7 +8,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X, Loader2, MessageCircle, SkipForward } from 'lucide-react';
+import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X, Loader2, MessageCircle, SkipForward, Package } from 'lucide-react';
+import CompletarSkusBulkPanel from '@/components/estoque/CompletarSkusBulkPanel';
+import { criarEstoqueEmMassa } from '@/lib/criarEstoqueBulk';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl } from '@/lib/whatsappSend';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -127,6 +129,9 @@ const ReportsPage = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkConferidoDialog, setShowBulkConferidoDialog] = useState(false);
   const [bulkConferidoLoading, setBulkConferidoLoading] = useState(false);
+  // Bulk criar estoque
+  const [showCompletarSkusPanel, setShowCompletarSkusPanel] = useState<null | { faltando: Order[]; prontos: Order[] }>(null);
+  const [bulkEstoqueLoading, setBulkEstoqueLoading] = useState(false);
   // Bulk WhatsApp queue
   const [whatsappQueue, setWhatsappQueue] = useState<Order[]>([]);
   const [whatsappIndex, setWhatsappIndex] = useState(0);
@@ -812,6 +817,52 @@ const ReportsPage = () => {
                   <Trash2 size={16} /> Excluir selecionados ({selectedIds.size})
                 </button>
               )}
+              {(() => {
+                const selOrders = serverOrders.filter(o =>
+                  selectedIds.has(o.id) &&
+                  o.vendedor === 'Estoque' &&
+                  o.status === 'Baixa Estoque' &&
+                  !o.estoqueBaixado,
+                );
+                if (selOrders.length === 0) return null;
+                const faltando = selOrders.filter(o => !o.skuEstoque?.trim() || !o.nomeProdutoEstoque?.trim());
+                const prontos = selOrders.filter(o => o.skuEstoque?.trim() && o.nomeProdutoEstoque?.trim());
+                const onClick = async () => {
+                  if (faltando.length > 0) {
+                    setShowCompletarSkusPanel({ faltando, prontos });
+                    return;
+                  }
+                  // Tudo pronto: cria direto
+                  setBulkEstoqueLoading(true);
+                  try {
+                    const res = await criarEstoqueEmMassa(
+                      prontos.map(p => ({ id: p.id, numero: p.numero })),
+                      (done, total) => {
+                        if (done === total) toast.success(`Estoque criado: ${done}/${total}`);
+                      },
+                    );
+                    const ok = res.filter(r => r.ok).length;
+                    const fail = res.length - ok;
+                    if (fail === 0) toast.success(`Estoque criado para ${ok} pedido(s).`);
+                    else toast.warning(`${ok} criados, ${fail} com erro: ${res.filter(r => !r.ok).slice(0, 3).map(r => r.error).join(' | ')}`);
+                    refetchOrders();
+                    setSelectedIds(new Set());
+                  } finally {
+                    setBulkEstoqueLoading(false);
+                  }
+                };
+                return (
+                  <button
+                    onClick={onClick}
+                    disabled={bulkEstoqueLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-60"
+                    title="Criar produtos no estoque a partir dos pedidos selecionados"
+                  >
+                    {bulkEstoqueLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                    Criar estoque ({selOrders.length})
+                  </button>
+                );
+              })()}
             </>
           )}
           {/* Bulk WhatsApp — disponível para todos (admin e vendedores) */}
@@ -1375,6 +1426,21 @@ const ReportsPage = () => {
             </span>
           )}
         </div>
+
+        {showCompletarSkusPanel && (
+          <CompletarSkusBulkPanel
+            faltando={showCompletarSkusPanel.faltando.map(o => ({
+              id: o.id, numero: o.numero, tamanho: o.tamanho, quantidade: o.quantidade,
+              modelo: o.modelo, skuEstoque: o.skuEstoque, nomeProdutoEstoque: o.nomeProdutoEstoque,
+            }))}
+            prontos={showCompletarSkusPanel.prontos.map(o => ({
+              id: o.id, numero: o.numero, tamanho: o.tamanho, quantidade: o.quantidade,
+              modelo: o.modelo, skuEstoque: o.skuEstoque, nomeProdutoEstoque: o.nomeProdutoEstoque,
+            }))}
+            onClose={() => setShowCompletarSkusPanel(null)}
+            onDone={() => { refetchOrders(); setSelectedIds(new Set()); }}
+          />
+        )}
 
         {/* Orders list */}
         <div className="space-y-3">
