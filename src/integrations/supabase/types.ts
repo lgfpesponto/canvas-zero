@@ -279,6 +279,51 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_produtos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          ficha_snapshot: Json
+          foto_url: string | null
+          id: string
+          nome: string
+          preco: number
+          quantidade: number
+          sku_base: string
+          tamanho: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          ficha_snapshot?: Json
+          foto_url?: string | null
+          id?: string
+          nome: string
+          preco?: number
+          quantidade?: number
+          sku_base: string
+          tamanho: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          ficha_snapshot?: Json
+          foto_url?: string | null
+          id?: string
+          nome?: string
+          preco?: number
+          quantidade?: number
+          sku_base?: string
+          tamanho?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ficha_campos: {
         Row: {
           ativo: boolean | null
@@ -1172,6 +1217,8 @@ export type Database = {
           dias_restantes: number
           estampa: string | null
           estampa_desc: string | null
+          estoque_baixado: boolean
+          estoque_produto_id: string | null
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
           forma: string | null
@@ -1188,6 +1235,7 @@ export type Database = {
           metais: string
           modelo: string
           nome_bordado_desc: string | null
+          nome_produto_estoque: string | null
           numero: string
           numero_pedido_bota: string | null
           observacao: string
@@ -1205,6 +1253,7 @@ export type Database = {
           recorte_cano: string | null
           recorte_gaspea: string | null
           recorte_taloneira: string | null
+          sku_estoque: string | null
           sob_medida: boolean
           sob_medida_desc: string | null
           solado: string
@@ -1271,6 +1320,8 @@ export type Database = {
           dias_restantes?: number
           estampa?: string | null
           estampa_desc?: string | null
+          estoque_baixado?: boolean
+          estoque_produto_id?: string | null
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
           forma?: string | null
@@ -1287,6 +1338,7 @@ export type Database = {
           metais?: string
           modelo?: string
           nome_bordado_desc?: string | null
+          nome_produto_estoque?: string | null
           numero: string
           numero_pedido_bota?: string | null
           observacao?: string
@@ -1304,6 +1356,7 @@ export type Database = {
           recorte_cano?: string | null
           recorte_gaspea?: string | null
           recorte_taloneira?: string | null
+          sku_estoque?: string | null
           sob_medida?: boolean
           sob_medida_desc?: string | null
           solado?: string
@@ -1370,6 +1423,8 @@ export type Database = {
           dias_restantes?: number
           estampa?: string | null
           estampa_desc?: string | null
+          estoque_baixado?: boolean
+          estoque_produto_id?: string | null
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
           forma?: string | null
@@ -1386,6 +1441,7 @@ export type Database = {
           metais?: string
           modelo?: string
           nome_bordado_desc?: string | null
+          nome_produto_estoque?: string | null
           numero?: string
           numero_pedido_bota?: string | null
           observacao?: string
@@ -1403,6 +1459,7 @@ export type Database = {
           recorte_cano?: string | null
           recorte_gaspea?: string | null
           recorte_taloneira?: string | null
+          sku_estoque?: string | null
           sob_medida?: boolean
           sob_medida_desc?: string | null
           solado?: string
@@ -2056,8 +2113,21 @@ export type Database = {
         Returns: Json
       }
       bump_preco_regra_versao: { Args: never; Returns: number }
+      comprar_estoque: { Args: { _items: Json }; Returns: undefined }
       criar_ajuste_solicitacao: {
         Args: { _motivo: string; _order_id: string; _valor_solicitado: number }
+        Returns: string
+      }
+      criar_estoque_produto: {
+        Args: {
+          _ficha_snapshot?: Json
+          _order_id: string
+          _override_foto?: string
+          _override_nome?: string
+          _override_preco?: number
+          _qtd_override?: number
+          _tamanho_override?: string
+        }
         Returns: string
       }
       current_user_nome_completo: { Args: never; Returns: string }
@@ -2127,6 +2197,8 @@ export type Database = {
           dias_restantes: number
           estampa: string | null
           estampa_desc: string | null
+          estoque_baixado: boolean
+          estoque_produto_id: string | null
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
           forma: string | null
@@ -2143,6 +2215,7 @@ export type Database = {
           metais: string
           modelo: string
           nome_bordado_desc: string | null
+          nome_produto_estoque: string | null
           numero: string
           numero_pedido_bota: string | null
           observacao: string
@@ -2160,6 +2233,7 @@ export type Database = {
           recorte_cano: string | null
           recorte_gaspea: string | null
           recorte_taloneira: string | null
+          sku_estoque: string | null
           sob_medida: boolean
           sob_medida_desc: string | null
           solado: string
