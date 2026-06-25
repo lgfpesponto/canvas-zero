@@ -258,6 +258,10 @@ export function dbRowToOrder(row: any): Order {
     conferido: row.conferido ?? false,
     conferidoEm: row.conferido_em || undefined,
     conferidoPor: row.conferido_por || undefined,
+    skuEstoque: row.sku_estoque || undefined,
+    nomeProdutoEstoque: row.nome_produto_estoque || undefined,
+    estoqueBaixado: !!row.estoque_baixado,
+    estoqueProdutoId: row.estoque_produto_id || undefined,
   };
 }
 
