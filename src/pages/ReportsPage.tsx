@@ -817,6 +817,52 @@ const ReportsPage = () => {
                   <Trash2 size={16} /> Excluir selecionados ({selectedIds.size})
                 </button>
               )}
+              {(() => {
+                const selOrders = serverOrders.filter(o =>
+                  selectedIds.has(o.id) &&
+                  o.vendedor === 'Estoque' &&
+                  o.status === 'Baixa Estoque' &&
+                  !o.estoqueBaixado,
+                );
+                if (selOrders.length === 0) return null;
+                const faltando = selOrders.filter(o => !o.skuEstoque?.trim() || !o.nomeProdutoEstoque?.trim());
+                const prontos = selOrders.filter(o => o.skuEstoque?.trim() && o.nomeProdutoEstoque?.trim());
+                const onClick = async () => {
+                  if (faltando.length > 0) {
+                    setShowCompletarSkusPanel({ faltando, prontos });
+                    return;
+                  }
+                  // Tudo pronto: cria direto
+                  setBulkEstoqueLoading(true);
+                  try {
+                    const res = await criarEstoqueEmMassa(
+                      prontos.map(p => ({ id: p.id, numero: p.numero })),
+                      (done, total) => {
+                        if (done === total) toast.success(`Estoque criado: ${done}/${total}`);
+                      },
+                    );
+                    const ok = res.filter(r => r.ok).length;
+                    const fail = res.length - ok;
+                    if (fail === 0) toast.success(`Estoque criado para ${ok} pedido(s).`);
+                    else toast.warning(`${ok} criados, ${fail} com erro: ${res.filter(r => !r.ok).slice(0, 3).map(r => r.error).join(' | ')}`);
+                    refetchOrders();
+                    setSelectedIds(new Set());
+                  } finally {
+                    setBulkEstoqueLoading(false);
+                  }
+                };
+                return (
+                  <button
+                    onClick={onClick}
+                    disabled={bulkEstoqueLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-60"
+                    title="Criar produtos no estoque a partir dos pedidos selecionados"
+                  >
+                    {bulkEstoqueLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                    Criar estoque ({selOrders.length})
+                  </button>
+                );
+              })()}
             </>
           )}
           {/* Bulk WhatsApp — disponível para todos (admin e vendedores) */}
