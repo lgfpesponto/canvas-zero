@@ -138,6 +138,10 @@ export interface Order {
   corRecorteCano?: string;
   corRecorteGaspea?: string;
   corRecorteTaloneira?: string;
+  skuEstoque?: string;
+  nomeProdutoEstoque?: string;
+  estoqueBaixado?: boolean;
+  estoqueProdutoId?: string;
 }
 
 // Re-export statuses from centralized module for backward compatibility
