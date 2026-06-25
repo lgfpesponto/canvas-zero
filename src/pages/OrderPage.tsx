@@ -851,9 +851,10 @@ const OrderPage = () => {
   };
 
   const buildOrderData = () => ({
-    cliente: cliente.trim(),
-    clienteWhatsapp: clienteWhatsapp.trim() || undefined,
+    cliente: vendedorSelecionado === 'Estoque' ? '' : cliente.trim(),
+    clienteWhatsapp: vendedorSelecionado === 'Estoque' ? undefined : (clienteWhatsapp.trim() || undefined),
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
+    nomeProdutoEstoque: vendedorSelecionado === 'Estoque' ? nomeProdutoEstoque.trim() : undefined,
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
     // Modelo v2: preco gravado é o TOTAL FINAL (sem desconto na criação — desconto vem depois pelo detalhe).
