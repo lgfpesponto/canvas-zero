@@ -159,6 +159,13 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
                 Cada tamanho recebe um <span className="font-semibold text-foreground">SKU único</span>. Pedidos do mesmo tamanho compartilham o mesmo SKU.
               </p>
             )}
+            {requireSku && matchedExistingSku && (
+              <div className="text-xs bg-primary/10 border border-primary/30 text-foreground rounded-lg p-2">
+                Produto <span className="font-semibold">"{matchedExistingSku.nome}"</span> já existe no estoque — SKU sugerido <span className="font-mono font-semibold">{suggestSkuBase}</span> <span className="text-muted-foreground">(editável)</span>.
+              </div>
+            )}
+
+
 
             <div className="space-y-2">
               <div className={`grid ${requireSku ? 'grid-cols-[1fr_90px_1.4fr_36px]' : 'grid-cols-[1fr_100px_40px]'} gap-2 text-sm font-semibold`}>
