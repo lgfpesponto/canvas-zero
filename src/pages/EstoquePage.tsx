@@ -192,6 +192,14 @@ const EstoquePage = () => {
 
   const activeFichaCount = Object.values(selFicha).reduce((s, set) => s + (set?.size || 0), 0);
 
+  const totalPages = Math.max(1, Math.ceil(filteredGroups.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedGroups = useMemo(
+    () => filteredGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredGroups, currentPage]
+  );
+  useEffect(() => { setPage(1); }, [search, selTamanhos, selFicha]);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-6">
