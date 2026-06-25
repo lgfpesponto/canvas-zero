@@ -48,6 +48,24 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
+  const { isAdmin } = useAuth();
+
+  const handleExcluirTamanho = async (row: EstoqueRow, nomeProduto: string) => {
+    const ok = window.confirm(
+      `Excluir ${nomeProduto} tam ${row.tamanho} (${row.quantidade} un.) do estoque?\n\n` +
+      `Os pedidos originais que geraram esse item ficarão liberados para criar estoque novamente.`
+    );
+    if (!ok) return;
+    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto', { _produto_id: row.id });
+    if (error) {
+      toast.error('Erro ao excluir: ' + error.message);
+      return;
+    }
+    const liberados = (data as any)?.pedidos_liberados ?? 0;
+    toast.success(`Item removido do estoque. ${liberados} pedido(s) liberado(s) para recriar.`);
+    fetchRows();
+  };
+
 
 
   const fetchRows = async () => {
