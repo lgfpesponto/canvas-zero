@@ -310,7 +310,14 @@ const EstoquePage = () => {
           {previewProduct && (
             <div className="space-y-4">
               {previewProduct.foto_url && (
-                <img src={previewProduct.foto_url} alt={previewProduct.nome} className="w-full max-h-[400px] object-contain rounded-lg" />
+                <div className="w-full max-h-[400px] flex items-center justify-center bg-muted rounded-lg overflow-hidden">
+                  <EstoqueFoto
+                    url={previewProduct.foto_url}
+                    alt={previewProduct.nome}
+                    className="w-full max-h-[400px] object-contain"
+                    iframeHeightClass="h-[400px]"
+                  />
+                </div>
               )}
               <div>
                 <h4 className="text-sm font-semibold mb-1">Tamanhos disponíveis</h4>
