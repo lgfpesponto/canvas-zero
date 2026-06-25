@@ -129,6 +129,9 @@ const ReportsPage = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkConferidoDialog, setShowBulkConferidoDialog] = useState(false);
   const [bulkConferidoLoading, setBulkConferidoLoading] = useState(false);
+  // Bulk criar estoque
+  const [showCompletarSkusPanel, setShowCompletarSkusPanel] = useState<null | { faltando: Order[]; prontos: Order[] }>(null);
+  const [bulkEstoqueLoading, setBulkEstoqueLoading] = useState(false);
   // Bulk WhatsApp queue
   const [whatsappQueue, setWhatsappQueue] = useState<Order[]>([]);
   const [whatsappIndex, setWhatsappIndex] = useState(0);
