@@ -386,6 +386,8 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   corRecorteCano: 'cor_recorte_cano', corRecorteGaspea: 'cor_recorte_gaspea', corRecorteTaloneira: 'cor_recorte_taloneira',
   precoMigradoV2: 'preco_migrado_v2', precoRegraVersao: 'preco_regra_versao', precoCongelado: 'preco_congelado',
   clienteWhatsapp: 'cliente_whatsapp',
+  skuEstoque: 'sku_estoque', nomeProdutoEstoque: 'nome_produto_estoque',
+  estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
 };
 
 /** Field labels for change tracking */
