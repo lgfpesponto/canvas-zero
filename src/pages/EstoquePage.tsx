@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 
@@ -47,6 +48,24 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
+  const { isAdmin } = useAuth();
+
+  const handleExcluirTamanho = async (row: EstoqueRow, nomeProduto: string) => {
+    const ok = window.confirm(
+      `Excluir ${nomeProduto} tam ${row.tamanho} (${row.quantidade} un.) do estoque?\n\n` +
+      `Os pedidos originais que geraram esse item ficarão liberados para criar estoque novamente.`
+    );
+    if (!ok) return;
+    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto', { _produto_id: row.id });
+    if (error) {
+      toast.error('Erro ao excluir: ' + error.message);
+      return;
+    }
+    const liberados = (data as any)?.pedidos_liberados ?? 0;
+    toast.success(`Item removido do estoque. ${liberados} pedido(s) liberado(s) para recriar.`);
+    fetchRows();
+  };
+
 
 
   const fetchRows = async () => {
@@ -270,11 +289,21 @@ const EstoquePage = () => {
                   {g.tamanhos.map(t => (
                     <div
                       key={t.id}
-                      className={`flex flex-col items-center rounded px-2 py-1 min-w-[44px] ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                      className={`relative flex flex-col items-center rounded px-2 py-1 min-w-[44px] group ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
                     >
                       <span className="text-xs font-bold leading-tight">{t.tamanho}</span>
                       <span className="text-[10px] leading-tight">{t.quantidade} un.</span>
                       <span className="text-[9px] text-muted-foreground/70 font-mono leading-none truncate max-w-[60px]" title={t.sku_base}>{t.sku_base}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleExcluirTamanho(t, g.nome)}
+                          title="Excluir este tamanho do estoque"
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-110 transition shadow"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

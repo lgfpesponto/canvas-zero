@@ -2160,6 +2160,7 @@ export type Database = {
         Args: { _baixa_id: string; _motivo: string }
         Returns: undefined
       }
+      excluir_estoque_produto: { Args: { _produto_id: string }; Returns: Json }
       find_order_by_id_suffix: {
         Args: { suffix: string }
         Returns: {
