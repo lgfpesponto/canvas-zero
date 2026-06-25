@@ -1815,9 +1815,18 @@ const OrderPage = () => {
         numeroPedidoBase={numeroPedido.trim()}
         nomeProduto={nomeProdutoEstoque.trim()}
         requireSku={vendedorSelecionado === 'Estoque'}
-        suggestSkuBase={vendedorSelecionado === 'Estoque' && modelo
-          ? modelo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-          : undefined}
+        suggestSkuBase={(() => {
+          if (vendedorSelecionado !== 'Estoque') return undefined;
+          const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          // 1) Se nome do produto bate com um existente no estoque, reusa o sku_base dele
+          if (matchedExistingSku?.sku) {
+            return matchedExistingSku.sku.replace(/-\d+$/, '');
+          }
+          // 2) Caso contrário, deriva do nome do produto; cai para modelo
+          const base = nomeProdutoEstoque.trim() || modelo;
+          return base ? slug(base) : undefined;
+        })()}
+        matchedExistingSku={matchedExistingSku || undefined}
         initialItems={gradeItems}
         onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);
