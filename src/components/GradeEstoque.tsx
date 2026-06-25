@@ -28,7 +28,7 @@ interface GradeEstoqueProps {
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onConfirm, initialItems, requireSku, suggestSkuBase }: GradeEstoqueProps) => {
+const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onConfirm, initialItems, requireSku, suggestSkuBase, matchedExistingSku }: GradeEstoqueProps) => {
   const [items, setItems] = useState<GradeItem[]>(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1, sku: '' }]);
   const [showPreview, setShowPreview] = useState(false);
   const [skuConflicts, setSkuConflicts] = useState<Record<string, string>>({}); // sku -> nome existente
