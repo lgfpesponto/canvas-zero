@@ -84,6 +84,10 @@ export function requiresJustification(
   if (PAUSE_STATUSES.includes(next)) return 'pause';
   // Sair de Cancelado para qualquer outra etapa = retrocesso (precisa justificar)
   if (CANCEL_STATUSES.includes(current)) return 'regression';
+  // Atalho para Baixa Estoque fora da ordem padrão de produção exige justificativa
+  if (next === 'Baixa Estoque' && !isDirectFlowNext(current, next, { tipoExtra })) {
+    return 'regression';
+  }
   // Sair de Aguardando NÃO precisa justificativa (é apenas reativar)
   if (isStatusRegression(current, next, tipoExtra)) return 'regression';
   return null;
