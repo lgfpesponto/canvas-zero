@@ -992,8 +992,8 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
 
   const nowStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-  // Colunas (mm) — modelo mais largo, data afastada do modelo
-  const col = { num: margin, pedido: margin + 8, data: margin + 30, modelo: margin + 58, qtd: pageW - margin - 30, valor: pageW - margin };
+  // Colunas (mm) — sem Qtd; mais espaço entre Nº pedido e Data; modelo largo
+  const col = { num: margin, pedido: margin + 8, data: margin + 42, modelo: margin + 75, valor: pageW - margin };
   const rowH = 5.5;
 
   const drawViaHeader = (viaLabel: string, y: number): number => {
@@ -1014,7 +1014,6 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
     doc.text('Nº pedido', col.pedido, y);
     doc.text('Data baixa', col.data, y);
     doc.text('Modelo', col.modelo, y);
-    doc.text('Qtd', col.qtd, y, { align: 'right' });
     doc.text('Valor', col.valor, y, { align: 'right' });
     y += 1.5;
     doc.setLineWidth(0.3);
@@ -1026,12 +1025,13 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
     let y = drawViaHeader(viaLabel, margin + 3);
     y = drawTableHeader(y);
 
-    const totaisHeight = 8 // respiro+linha
-      + (totalsByValor[19].qtd > 0 || true ? 5 : 0) * 3 // 3 linhas fixas
+    const totaisHeight = 8
+      + 5 * 3
       + (outrosQtd > 0 ? 5 : 0)
       + (erroQtd > 0 ? 5 : 0)
-      + 7 // total geral
-      + 14; // assinatura
+      + 7
+      + 6
+      + 14;
     const limitY = pageH - margin - totaisHeight;
 
     doc.setFont('helvetica', 'normal');
@@ -1046,14 +1046,14 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
         doc.setFontSize(8);
       }
       const q = Math.max(1, Number(it.quantidade) || 1);
-      const sub = it.erroMontagem ? 0 : (Number(it.valorUnit) || 0) * q;
+      const v = Number(it.valorUnit) || 0;
+      const sub = it.erroMontagem ? 0 : v * q;
       doc.text(String(idx + 1), col.num, y);
       doc.text(String(it.numero), col.pedido, y);
       doc.text(it.dataBaixa || '-', col.data, y);
-      const maxModeloW = col.qtd - col.modelo - 12;
+      const maxModeloW = col.valor - col.modelo - 35;
       const modeloTxt = doc.splitTextToSize(it.modelo || '-', maxModeloW)[0];
       doc.text(modeloTxt, col.modelo, y);
-      doc.text(String(q), col.qtd, y, { align: 'right' });
       if (it.erroMontagem) {
         doc.setTextColor(200, 0, 0);
         doc.setFont('helvetica', 'bold');
@@ -1061,15 +1061,18 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(0, 0, 0);
       } else {
-        doc.text(formatCurrency(sub), col.valor, y, { align: 'right' });
+        const valorTxt = q > 1
+          ? `${q} × ${formatCurrency(v)} = ${formatCurrency(sub)}`
+          : formatCurrency(sub);
+        doc.text(valorTxt, col.valor, y, { align: 'right' });
       }
-      // linha fina entre pedidos
       doc.setLineWidth(0.1);
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, y + 1.8, pageW - margin, y + 1.8);
       doc.setDrawColor(0, 0, 0);
       y += rowH;
     });
+
 
     // Totais — se não couber, nova página
     if (y + totaisHeight > pageH - margin) {
