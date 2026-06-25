@@ -422,11 +422,30 @@ const EstoquePage = () => {
           <DialogHeader>
             <DialogTitle>Filtros da ficha</DialogTitle>
           </DialogHeader>
+          <div className="relative mb-2">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={fichaFilterSearch}
+              onChange={e => setFichaFilterSearch(e.target.value)}
+              placeholder="Buscar filtro por palavra-chave..."
+              className="pl-9"
+            />
+          </div>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-            {FICHA_FILTER_KEYS.map(({ key, label }) => {
-              const opts = [...(fichaOptions[key] || [])].sort();
-              if (opts.length === 0) return null;
-              return (
+            {(() => {
+              const q = fichaFilterSearch.trim().toLowerCase();
+              const blocos = FICHA_FILTER_KEYS.map(({ key, label }) => {
+                let opts = [...(fichaOptions[key] || [])].sort();
+                if (q) {
+                  const labelMatch = label.toLowerCase().includes(q);
+                  if (!labelMatch) opts = opts.filter(v => v.toLowerCase().includes(q));
+                }
+                return { key, label, opts };
+              }).filter(b => b.opts.length > 0);
+              if (blocos.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-6">Nenhum filtro encontrado.</p>;
+              }
+              return blocos.map(({ key, label, opts }) => (
                 <div key={key}>
                   <h4 className="text-sm font-semibold mb-2">{label}</h4>
                   <div className="flex flex-wrap gap-1.5">
@@ -447,8 +466,8 @@ const EstoquePage = () => {
                     })}
                   </div>
                 </div>
-              );
-            })}
+              ));
+            })()}
           </div>
           <div className="flex justify-between gap-2 pt-2">
             <Button variant="outline" onClick={() => setSelFicha({})}>Limpar</Button>
