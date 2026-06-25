@@ -1,66 +1,46 @@
-# Excluir produto do estoque + bloquear recriação duplicada
+## Causa do erro
 
-## Diagnóstico
-- A RPC `criar_estoque_produto` já marca `orders.estoque_baixado = true` e grava `estoque_produto_id`. Quando o pedido entra de novo na rotina de criar estoque, a função aborta com `'Pedido já teve estoque criado'`. Ou seja, **a regra de "não recriar com os mesmos pedidos" já existe** — só precisa ser **desfeita** quando o admin excluir o produto.
-- Hoje não existe botão de excluir produto na página `/estoque` (foi removido junto com a edição manual na Fase 6). Vamos trazer só a exclusão de volta, restrita a admin.
+A RPC `comprar_estoque` faz `INSERT INTO orders (...)` sem informar `user_id`, e a coluna é `NOT NULL` → Postgres retorna `null value in column "user_id" of relation "orders" violates not-null constraint`. Precisa passar `auth.uid()` no insert.
 
 ## Mudanças
 
-### 1. Migration — nova RPC `excluir_estoque_produto`
-```sql
-CREATE OR REPLACE FUNCTION public.excluir_estoque_produto(_produto_id uuid)
-RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  v_prod record;
-  v_pedidos_liberados int := 0;
-BEGIN
-  IF NOT public.is_any_admin(auth.uid()) THEN
-    RAISE EXCEPTION 'Apenas admins podem excluir produtos do estoque';
-  END IF;
+### 1. Migration — corrigir `comprar_estoque` e separar itens por unidade
 
-  SELECT * INTO v_prod FROM public.estoque_produtos WHERE id = _produto_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Produto não encontrado'; END IF;
+Atualizar a função `public.comprar_estoque(_items, _vendedor, _cliente, _whatsapp, _numero_pedido)`:
 
-  -- Libera os pedidos que originaram esse produto para poderem criar estoque de novo
-  UPDATE public.orders
-     SET estoque_baixado = false,
-         estoque_produto_id = NULL,
-         historico = COALESCE(historico,'[]'::jsonb) || jsonb_build_array(jsonb_build_object(
-           'data', to_char((now() AT TIME ZONE 'America/Sao_Paulo')::date,'YYYY-MM-DD'),
-           'hora', to_char(now() AT TIME ZONE 'America/Sao_Paulo','HH24:MI'),
-           'local', status,
-           'descricao', format('Produto de estoque excluído (%s tam %s) — pedido liberado para recriar estoque', v_prod.nome, v_prod.tamanho),
-           'usuario', COALESCE(public.current_user_nome_completo(),'Admin')
-         ))
-   WHERE estoque_produto_id = _produto_id;
-  GET DIAGNOSTICS v_pedidos_liberados = ROW_COUNT;
+- Adicionar `user_id` na lista de colunas do `INSERT INTO public.orders` usando `v_uid` (já existente).
+- Aceitar `extras` (array) dentro de cada `_items[i]`; ao montar `v_botas`, mesclar no objeto da bota: `'extras', COALESCE(item->'extras', '[]'::jsonb)`.
+- Continuar gerando **1 entrada por unidade** em `botas[]` (loop `1..v_qtd`) — assim 2un do tam 36 = Item 1 (tam 36) + Item 2 (tam 36), cada um com seus próprios extras.
+- `v_total_preco` passa a somar `(preco_unit + soma_extras) * 1` por item para refletir extras.
 
-  DELETE FROM public.estoque_produtos WHERE id = _produto_id;
+### 2. Redesenhar `src/components/estoque/EstoqueBuyDialog.tsx`
 
-  RETURN jsonb_build_object(
-    'ok', true,
-    'produto_id', _produto_id,
-    'pedidos_liberados', v_pedidos_liberados
-  );
-END; $$;
+Trocar a UI atual (linhas com select de tamanho + preço editável) por um fluxo em 2 blocos:
 
-GRANT EXECUTE ON FUNCTION public.excluir_estoque_produto(uuid) TO authenticated;
-```
-- Hard delete (apaga linha de `estoque_produtos`). A grade do produto raiz é composta por várias linhas (uma por tamanho) — a exclusão é por **tamanho** (linha individual), igual ao botão "Excluir" original que cada card de tamanho tinha. Se admin quiser zerar o produto inteiro, exclui cada tamanho.
-- Reseta `estoque_baixado` e `estoque_produto_id` nos pedidos que apontavam para esse produto e registra no histórico — assim a checagem existente em `criar_estoque_produto` (`IF ped.estoque_baixado THEN RAISE`) já permite recriar.
-- Sem checagem extra de "tem quantidade ainda em estoque" — é decisão do admin (alinhado com a permissão de exclusão).
+**Bloco A — Tamanhos e quantidades (grid)**
+- Mostra **todos** os tamanhos do produto em grade (igual ao print "Tamanhos e quantidades"): label "`<tam>` — `<disp>` disp." + input numérico de quantidade.
+- Tamanhos sem estoque ficam disabled mostrando "esgotado".
+- Ao digitar quantidade > disponível: força para o máximo e mostra toast `"Só tem X do tamanho Y"`.
 
-### 2. `src/pages/EstoquePage.tsx`
-- Voltar a importar `useAuth` e o ícone `Trash2`.
-- Em cada chip de tamanho dentro do card (onde aparece "35 · 1 un · sku..."), adicionar um botão pequeno `Trash2` visível **apenas para admin** (`isAdminMaster || isAdminProducao`).
-- Ao clicar: abrir `confirm()` simples ("Excluir tamanho X do produto Y? Os pedidos originais poderão ser usados para criar estoque novamente."), chamar `supabase.rpc('excluir_estoque_produto', { _produto_id: t.id })`, mostrar toast com `pedidos_liberados` e dar refetch (o realtime também atualiza).
-- **Nenhum botão de editar grade** — só excluir, como o usuário pediu.
+**Bloco B — Resumo do pedido (gerado automaticamente)**
+- Para cada tamanho com qtd > 0, gera N linhas "Item k — `<nome>` Tam `<tam>` · quantidade fixa 1".
+- Preço unitário vem do `produto.preco` (ou `tamanho.preco`) e fica **read-only** (texto, não input).
+- Cada item tem botão `+ extra` que abre um seletor com os 5 tipos de `BOTA_PE_EXTRA_TYPES` de `@/lib/botaExtraHelpers` (Adicionar Metais, Carimbo a Fogo, Kit Faca, Kit Canivete, Tiras Laterais), reutilizando a mesma UI condicional de campos que `src/pages/ExtrasPage.tsx` já usa para bota pronta entrega (importar `BOTA_PE_EXTRA_TYPES`, `BOTA_PE_EXTRA_LABEL`, `calcEmbeddedExtraPrice`, `calcBootTotal`).
+- Cada item mostra **Subtotal = preço da ficha + Σ extras** e tem botão remover extra.
+- Rodapé: **Total** = Σ subtotais.
 
-### 3. Sem mudança na regra de criar estoque
-- `criar_estoque_produto` já bloqueia recriação via `estoque_baixado`. Não precisa tocar.
-- Reaplicar via `criarEstoqueEmMassa` (Reports/CompletarSkus) continua respeitando o mesmo bloqueio.
+**Submit**
+- Monta `_items` agrupado por `produto_id`/tamanho (campo `quantidade` = nº de unidades daquele tam) + um array paralelo `_items[i].extras_por_unidade` para que a RPC distribua os extras nos itens certos.
+- Mantém parsing dos erros `ESTOQUE_INSUFICIENTE` / `NUMERO_DUPLICADO`.
+
+Remover do dialog: input editável de preço, botão "+ tamanho" (não faz mais sentido — todos os tamanhos já aparecem), botão lixeira por linha.
+
+### 3. Visualização do pedido (OrderDetailPage / Composição)
+
+A composição já mostra `Bota 1: 1x Texana Amanda (PRONTA ENTREGA) 37 — R$ 365,00` (print 174) porque cada unidade já é uma bota separada com `quantidade: '1'`. Após o fix da RPC isso continua válido para múltiplos itens, com cada extra aparecendo abaixo do item correspondente (a UI atual de `extra_detalhes.botas[].extras` já é renderizada em ExtrasPage/EditExtrasPage). Nenhuma mudança nova de layout — só garantir que o item gerado pela compra do estoque carregue corretamente os extras adicionados no dialog.
 
 ## Fora de escopo
-- Não mexer no fluxo de venda (`comprar_estoque`) nem nos triggers de devolução por cancelamento.
-- Não restaurar o botão "Editar grade" — exclusão é a única ação admin direta.
+
+- Não muda preço base do produto no estoque.
+- Não permite editar preço unitário no dialog (apenas admin master via "Edição de Valor" no detalhe, que já existe).
+- Não altera `criar_estoque_produto` nem `excluir_estoque_produto`.
