@@ -513,7 +513,8 @@ const OrderDetailPage = () => {
   // Última justificativa que afetou valor — exibida na Composição do Pedido (e PDF de cobrança)
   const ultimaJustificativaValor = [...alteracoesAgrupadas].reverse().find(g => g.afetouValor && g.justificativa);
 
-  const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? null;
+  const fotoEstoque = (order.extraDetalhes as any)?.origem_estoque ? (order.extraDetalhes as any)?.foto_url : null;
+  const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? (fotoEstoque && isHttpUrl(fotoEstoque) ? fotoEstoque : null);
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
 
   return (
