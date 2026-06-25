@@ -1113,6 +1113,10 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
     y += 6;
     doc.setFontSize(12);
     doc.text(`TOTAL GERAL  ${formatCurrency(totalGeral)}`, rightX, y, { align: 'right' });
+    y += 6;
+    const totalPares = items.reduce((acc, it) => acc + Math.max(1, Number(it.quantidade) || 1), 0);
+    doc.setFontSize(10);
+    doc.text(`TOTAL DE PARES: ${totalPares}`, rightX, y, { align: 'right' });
     y += 12;
 
     doc.setFont('helvetica', 'normal');
