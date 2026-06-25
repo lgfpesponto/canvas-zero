@@ -1,73 +1,58 @@
-# Phase 3 — Criar estoque em massa pela lista de pedidos
+# Phase 4 — Auto-preenchimento inteligente do Nome do produto e SKU (vendedor=Estoque)
 
 ## Objetivo
-Permitir ao admin criar estoque de vários pedidos `vendedor=Estoque` direto da `OrderListPage`, com painel inline para preencher SKU/Nome dos pedidos antigos que ainda não têm esses campos — agrupando automaticamente por `numero` (mesma grade) para repetir SKU/Nome entre tamanhos.
+Reduzir digitação no cadastro de pedidos de Estoque: nome do produto puxa do modelo, SKU sugerido vem do nome do produto, e se o nome bater com um produto já existente no estoque, traz o SKU dele — tudo editável.
 
-## 1. Botão "Criar estoque" em massa na lista
+## 1. Nome do produto a partir do modelo (OrderPage)
 
-### 1.1 Onde aparece
-- `OrderPage` (lista) quando o filtro de status ativo é **"Baixa Estoque"** e o usuário é admin.
-- Botão na barra de ações em lote (mesma área de "Mudar etapa em massa") rotulado **"📦 Criar estoque dos selecionados"**.
-- Habilitado quando ≥1 pedido selecionado é `vendedor=Estoque` + `status=Baixa Estoque` + `estoque_baixado=false`.
-- Ignora silenciosamente seleções que não sejam de Estoque (mostra contador "X de Y elegíveis").
+Já existe em `src/pages/OrderPage.tsx` (`handleModeloChange`):
+- Quando `vendedorSelecionado === 'Estoque'` e `nomeProdutoEstoque` está vazio, preenche com o `modelo` escolhido.
 
-### 1.2 Fluxo ao clicar
-1. Particiona os selecionados em:
-   - **prontos**: têm `sku_estoque` e `nome_produto_estoque` preenchidos.
-   - **faltando**: falta SKU e/ou Nome.
-2. Se houver `faltando` → abre painel inline `CompletarSkusBulkPanel` no topo da lista (não modal — quadro fixo acima dos cards, como pedido pelo usuário).
-3. Se tudo estiver pronto → executa direto chamando `criar_estoque_produto` para cada id em paralelo (com limite de concorrência 4), com toast de progresso "X/Y criados".
-4. Ao final mostra resumo (criados / falhas) e recarrega.
+Ajustes:
+- **Mantém editável** (já é — campo livre). Sem mudança extra.
+- Aplicar a mesma regra ao montar o estado inicial quando o pedido começa já com modelo (template / draft / `templateInit`): se vendedor=Estoque e nome vazio mas modelo preenchido → seta o nome.
 
-## 2. Painel `CompletarSkusBulkPanel`
+## 2. SKU sugerido a partir do nome do produto (GradeEstoque)
 
-### 2.1 Layout (quadro acima da lista)
-```text
-┌─ Complete SKUs e Nomes (N pedidos) ────────────── [Fechar] ┐
-│ Grupo: Pedido #7E-AAAA0001 (3 tamanhos)                    │
-│   SKU base: [_____________]   Nome: [________________]     │
-│   ├─ tam 38  qtd 2  → SKU final: bota-...-38 (auto)        │
-│   ├─ tam 39  qtd 1  → SKU final: bota-...-39 (auto)        │
-│   └─ tam 40  qtd 2  → SKU final: bota-...-40 (auto)        │
-│                                                             │
-│ Grupo: Pedido #7E-AAAA0007 (1 tamanho)                     │
-│   SKU base: [_____________]   Nome: [________________]     │
-│   └─ tam 41  qtd 1                                          │
-│                                                             │
-│ [Cancelar]                    [Salvar e Criar Estoque →]   │
-└────────────────────────────────────────────────────────────┘
-```
+Hoje `suggestSkuBase` em `OrderPage.tsx` (linha ~1789) usa `slug(modelo)`. Trocar para:
+- **Base**: `slug(nomeProdutoEstoque)` quando preenchido; cai para `slug(modelo)` se nome vazio.
+- A geração por tamanho continua sendo `${base}-${tamanho}` dentro do `GradeEstoque` (já funciona).
+- Cada linha continua editável (já é).
 
-### 2.2 Agrupamento automático
-- Agrupa os "faltando" por `numero` (= mesma grade). Cada grupo recebe **um único campo SKU base + Nome**.
-- SKU final por linha = `{skuBase}-{tamanho}` (sufixo automático), editável individualmente clicando no SKU final.
-- Pré-preenche `Nome` com `nome_produto_estoque` do primeiro pedido do grupo que já tiver (caso parcial) ou com `modelo` do pedido.
-- Pré-preenche `SKU base` se algum pedido do grupo já tiver `sku_estoque` (extrai a parte antes do `-{tamanho}`).
-- Validação leve: avisa (não bloqueia) se SKU base colidir com outro produto já existente em `estoque_produtos` (mesma regra atual do `GradeEstoque`).
+## 3. Reusar SKU de produto já existente no estoque (lookup por nome)
 
-### 2.3 Ação "Salvar e Criar Estoque"
-1. Faz `UPDATE orders SET sku_estoque, nome_produto_estoque` para cada pedido (em batch — uma chamada por grupo).
-2. Junta os ids salvos com os que já estavam prontos.
-3. Chama `criar_estoque_produto(_order_id)` para cada id em paralelo (concorrência 4).
-4. Toast com progresso `X/Y` (reaproveita padrão de "Bulk Progress Feedback").
-5. Erros individuais ficam listados no painel ao final (não derruba os que deram certo).
+Quando o usuário abre a Grade de Estoque com `vendedor=Estoque`:
 
-## 3. Detalhes técnicos
+1. `OrderPage` faz uma consulta única antes de abrir o dialog (ou ao montar o dialog):
+   ```sql
+   SELECT sku_base, nome FROM estoque_produtos
+   WHERE lower(unaccent(nome)) = lower(unaccent(:nomeProdutoEstoque))
+     AND ativo = true
+   LIMIT 1
+   ```
+   (cliente faz a normalização — `nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()` — e usa `.ilike` para o filtro server-side; depois filtra exato no cliente.)
+2. Se encontrar:
+   - Usa `stripSizeSuffix(sku_base)` como `suggestSkuBase` (remove eventual `-38` final, caso o registro existente já tenha sufixo de tamanho).
+   - Mostra aviso curto no topo do dialog: "Encontramos o produto **'X'** no estoque — SKU sugerido `bota-...` (editável)".
+3. Se não encontrar: usa a regra do item 2 (slug do nome → slug do modelo).
+4. Cada SKU por linha continua **editável** como já é, e a validação de colisão existente em `GradeEstoque` (`skuConflicts`) continua avisando sem bloquear.
 
-**Arquivos novos**
-- `src/components/estoque/CompletarSkusBulkPanel.tsx` — quadro de preenchimento agrupado.
-- `src/lib/criarEstoqueBulk.ts` — helper `criarEstoqueEmMassa(ids, onProgress)` com concorrência limitada e coleta de erros.
+## 4. Detalhes técnicos
 
 **Arquivos alterados**
-- `src/pages/OrderPage.tsx` (ou `OrderListPage`) — botão na barra de ações em lote + montagem do painel.
-- `src/hooks/useSelectedOrders.tsx` — sem mudanças; usa a seleção existente.
+- `src/pages/OrderPage.tsx`
+  - Ajustar fonte do `suggestSkuBase` para usar `nomeProdutoEstoque`.
+  - Adicionar `useEffect` (ou async ao abrir o botão "Grade") que consulta `estoque_produtos` por nome e guarda `suggestedSkuFromExisting` em state, passado ao `GradeEstoque`.
+  - Garantir preenchimento de `nomeProdutoEstoque` quando o estado inicial vem com modelo (template/draft).
+- `src/components/GradeEstoque.tsx`
+  - Aceitar nova prop opcional `matchedExistingSku?: { sku: string; nome: string }` para renderizar a faixa de aviso "produto já existe". Comportamento padrão (sugestão) reaproveita `suggestSkuBase`.
 
-**Sem mudanças de schema**: reusa `criar_estoque_produto` RPC e GRANTs existentes; updates de SKU/Nome usam o RLS já vigente em `orders`.
+**Sem mudanças**
+- Sem migração de banco; usa `estoque_produtos` já existente com RLS atual (admin/vendedor podem ler).
+- `BeltOrderPage` fica de fora (cintos não usam fluxo de estoque).
 
-**Permissões**: botão visível apenas para admin (mesma regra do `EstoqueAdminPanel`); `admin_producao` continua bloqueado.
+## 5. Fora do escopo
+- Auto-completar nome do produto enquanto digita (autocomplete) — apenas lookup por igualdade após o nome estar preenchido.
+- Mudanças em `EstoqueAdminPanel` (edição depois da criação) — já tem campos livres e segue como está.
 
-## 4. Fora de escopo
-- Edição de fotos em massa (segue usando `foto_pedido_url` existente).
-- Reaproveitamento de SKU entre grades diferentes — cada grupo (numero) é independente; usuário copia/cola se quiser.
-
-Confirma para eu seguir para a implementação?
+Confirma para implementar?
