@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 
 interface EstoqueRow {
   id: string;
