@@ -162,11 +162,7 @@ const OrderPage = () => {
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
-  const [nomeProdutoEstoque, setNomeProdutoEstoque] = useState<string>(
-    df.nomeProdutoEstoque
-    || ((isAdmin && df.modelo && (!isAdminProducao) /* qualquer admin pode escolher Estoque */) ? '' : '')
-    || ''
-  );
+  const [nomeProdutoEstoque, setNomeProdutoEstoque] = useState<string>(df.nomeProdutoEstoque || '');
   // Match contra estoque existente (mesmo nome → SKU sugerido reutilizado)
   const [matchedExistingSku, setMatchedExistingSku] = useState<{ sku: string; nome: string } | null>(null);
   const [tamanho, setTamanho] = useState(df.tamanho || '');
