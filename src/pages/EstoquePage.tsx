@@ -44,22 +44,39 @@ const EstoquePage = () => {
   const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
+  const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
+  const [vendedores, setVendedores] = useState<string[]>([]);
+
+  const fetchRows = async () => {
+    const { data, error } = await supabase
+      .from('estoque_produtos' as any)
+      .select('*')
+      .eq('ativo', true)
+      .order('nome');
+    if (error) {
+      toast.error('Erro ao carregar estoque: ' + error.message);
+    } else {
+      setRows((data || []) as any);
+    }
+  };
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from('estoque_produtos' as any)
-        .select('*')
-        .eq('ativo', true)
-        .gt('quantidade', 0)
-        .order('nome');
-      if (error) {
-        toast.error('Erro ao carregar estoque: ' + error.message);
-      } else {
-        setRows((data || []) as any);
-      }
+      await fetchRows();
       setLoading(false);
+      // carrega lista de vendedores (admin)
+      const { data: profs } = await supabase.from('profiles').select('nome_completo').order('nome_completo');
+      setVendedores((profs || []).map((p: any) => p.nome_completo).filter(Boolean));
     })();
+
+    // Realtime: estoque cai ao vivo para todos
+    const ch = supabase
+      .channel('estoque-produtos-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_produtos' }, () => {
+        fetchRows();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   // Agrupa por nome+sku_base (produto base)
