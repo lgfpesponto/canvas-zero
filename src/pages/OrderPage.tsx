@@ -286,13 +286,7 @@ const OrderPage = () => {
   const [recorteTaloneira, setRecorteTaloneira] = useState(df.recorteTaloneira || '');
   const [corRecorteTaloneira, setCorRecorteTaloneira] = useState(df.corRecorteTaloneira || '');
 
-  // Pré-preenche nome do produto de estoque a partir de modelo já presente (template/draft)
-  useEffect(() => {
-    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && modelo) {
-      setNomeProdutoEstoque(modelo);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendedorSelecionado, modelo]);
+  // Nome do produto NÃO é preenchido pela variação Modelo; vem do nome do Modelo Salvo (template).
 
   // Lookup: se o nome do produto já existe no estoque, pega o SKU para sugerir
   useEffect(() => {
