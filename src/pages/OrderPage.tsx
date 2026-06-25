@@ -312,10 +312,7 @@ const OrderPage = () => {
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
     setModelo(newModelo);
-    // Pré-preenche nome do produto de estoque com o modelo se ainda vazio (vendedor Estoque)
-    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && newModelo) {
-      setNomeProdutoEstoque(newModelo);
-    }
+
     const sols = getSoladosForModelo(newModelo);
     const newSolado = sols.length === 1 ? sols[0].label : (sols.find(s => s.label === solado) ? solado : '');
     setSolado(newSolado);
