@@ -1,26 +1,66 @@
-# Corrigir foto do produto no card de Estoque
+# Excluir produto do estoque + bloquear recriação duplicada
 
 ## Diagnóstico
-O campo `estoque_produtos.foto_url` guarda o link **bruto do Google Drive** (`https://drive.google.com/file/d/{ID}/view`) — o mesmo link usado para gerar o QR code da ficha do pedido raiz. Esse link não funciona em `<img src>` direto (o que explica o ícone quebrado mostrado no print do card). O projeto já tem o helper `src/lib/driveUrl.ts` (`isDriveUrl`, `toDriveImageUrl`, `toDrivePreviewUrl`) e o componente `FotoPedidoSidePanel.tsx` que faz exatamente essa conversão na visão detalhada dos pedidos.
+- A RPC `criar_estoque_produto` já marca `orders.estoque_baixado = true` e grava `estoque_produto_id`. Quando o pedido entra de novo na rotina de criar estoque, a função aborta com `'Pedido já teve estoque criado'`. Ou seja, **a regra de "não recriar com os mesmos pedidos" já existe** — só precisa ser **desfeita** quando o admin excluir o produto.
+- Hoje não existe botão de excluir produto na página `/estoque` (foi removido junto com a edição manual na Fase 6). Vamos trazer só a exclusão de volta, restrita a admin.
 
 ## Mudanças
 
-### 1. Novo componente `src/components/estoque/EstoqueFoto.tsx`
-Reaproveita a mesma lógica do `FotoPedidoSidePanel`, em versão enxuta para card/preview:
-- Se a URL é do Drive → tenta `<img src={toDriveImageUrl(url)}>` (CDN `lh3.googleusercontent.com/d/{id}`).
-- Se a `<img>` falhar (`onError`) → faz fallback para `<iframe src={toDrivePreviewUrl(url)}>` (mesma tática do painel de fotos do pedido, que lida com arquivos privados/protegidos).
-- Se não é Drive → renderiza `<img src={url}>` direto.
-- Sem URL → placeholder com ícone `Package` (igual ao atual).
-- Aceita props `url`, `alt`, `className`, e `grayscale` (para o estado SEM ESTOQUE).
+### 1. Migration — nova RPC `excluir_estoque_produto`
+```sql
+CREATE OR REPLACE FUNCTION public.excluir_estoque_produto(_produto_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_prod record;
+  v_pedidos_liberados int := 0;
+BEGIN
+  IF NOT public.is_any_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Apenas admins podem excluir produtos do estoque';
+  END IF;
+
+  SELECT * INTO v_prod FROM public.estoque_produtos WHERE id = _produto_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Produto não encontrado'; END IF;
+
+  -- Libera os pedidos que originaram esse produto para poderem criar estoque de novo
+  UPDATE public.orders
+     SET estoque_baixado = false,
+         estoque_produto_id = NULL,
+         historico = COALESCE(historico,'[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+           'data', to_char((now() AT TIME ZONE 'America/Sao_Paulo')::date,'YYYY-MM-DD'),
+           'hora', to_char(now() AT TIME ZONE 'America/Sao_Paulo','HH24:MI'),
+           'local', status,
+           'descricao', format('Produto de estoque excluído (%s tam %s) — pedido liberado para recriar estoque', v_prod.nome, v_prod.tamanho),
+           'usuario', COALESCE(public.current_user_nome_completo(),'Admin')
+         ))
+   WHERE estoque_produto_id = _produto_id;
+  GET DIAGNOSTICS v_pedidos_liberados = ROW_COUNT;
+
+  DELETE FROM public.estoque_produtos WHERE id = _produto_id;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'produto_id', _produto_id,
+    'pedidos_liberados', v_pedidos_liberados
+  );
+END; $$;
+
+GRANT EXECUTE ON FUNCTION public.excluir_estoque_produto(uuid) TO authenticated;
+```
+- Hard delete (apaga linha de `estoque_produtos`). A grade do produto raiz é composta por várias linhas (uma por tamanho) — a exclusão é por **tamanho** (linha individual), igual ao botão "Excluir" original que cada card de tamanho tinha. Se admin quiser zerar o produto inteiro, exclui cada tamanho.
+- Reseta `estoque_baixado` e `estoque_produto_id` nos pedidos que apontavam para esse produto e registra no histórico — assim a checagem existente em `criar_estoque_produto` (`IF ped.estoque_baixado THEN RAISE`) já permite recriar.
+- Sem checagem extra de "tem quantidade ainda em estoque" — é decisão do admin (alinhado com a permissão de exclusão).
 
 ### 2. `src/pages/EstoquePage.tsx`
-- Substituir o `<img src={g.foto_url} …>` do card pelo novo `<EstoqueFoto url={g.foto_url} alt={g.nome} grayscale={semEstoque} className="w-full h-full object-cover" />`.
-- Substituir o `<img src={previewProduct.foto_url} …>` do dialog "Ver" pelo mesmo componente (`className="w-full max-h-[400px] object-contain"`).
-- Manter o overlay "SEM ESTOQUE" e o `grayscale` como hoje.
+- Voltar a importar `useAuth` e o ícone `Trash2`.
+- Em cada chip de tamanho dentro do card (onde aparece "35 · 1 un · sku..."), adicionar um botão pequeno `Trash2` visível **apenas para admin** (`isAdminMaster || isAdminProducao`).
+- Ao clicar: abrir `confirm()` simples ("Excluir tamanho X do produto Y? Os pedidos originais poderão ser usados para criar estoque novamente."), chamar `supabase.rpc('excluir_estoque_produto', { _produto_id: t.id })`, mostrar toast com `pedidos_liberados` e dar refetch (o realtime também atualiza).
+- **Nenhum botão de editar grade** — só excluir, como o usuário pediu.
 
-### 3. `src/components/estoque/EstoqueBuyDialog.tsx`
-- Trocar o `<img src={produto.foto_url} …>` (thumb 16x16) pelo `<EstoqueFoto>` para consistência.
+### 3. Sem mudança na regra de criar estoque
+- `criar_estoque_produto` já bloqueia recriação via `estoque_baixado`. Não precisa tocar.
+- Reaplicar via `criarEstoqueEmMassa` (Reports/CompletarSkus) continua respeitando o mesmo bloqueio.
 
 ## Fora de escopo
-- Nenhuma mudança em DB: `foto_url` já vem corretamente do link da ficha no momento de criar a grade (via `criarEstoqueBulk` / fluxo de Baixa Estoque). Só o **render** estava errado.
-- Sem mexer em QR code novo — o "QR escaneado" do card é, na prática, a própria foto exibida via `lh3.googleusercontent.com`, exatamente como na visão detalhada do pedido.
+- Não mexer no fluxo de venda (`comprar_estoque`) nem nos triggers de devolução por cancelamento.
+- Não restaurar o botão "Editar grade" — exclusão é a única ação admin direta.
