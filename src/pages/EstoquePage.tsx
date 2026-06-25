@@ -242,15 +242,25 @@ const EstoquePage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredGroups.map(g => (
-            <div key={g.nome + g.tamanhos[0].sku_base} className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
+          {filteredGroups.map(g => {
+            const totalQtd = g.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+            const semEstoque = totalQtd === 0;
+            return (
+            <div key={g.nome + g.tamanhos[0].sku_base} className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col ${semEstoque ? 'opacity-80' : ''}`}>
               <div className="aspect-square bg-muted relative">
                 {g.foto_url ? (
                   // eslint-disable-next-line jsx-a11y/img-redundant-alt
-                  <img src={g.foto_url} alt={g.nome} className="w-full h-full object-cover" />
+                  <img src={g.foto_url} alt={g.nome} className={`w-full h-full object-cover ${semEstoque ? 'grayscale' : ''}`} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                     <Package size={32} />
+                  </div>
+                )}
+                {semEstoque && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <span className="text-white font-display font-bold text-xl tracking-wider border-2 border-white px-3 py-1 rounded-md -rotate-6">
+                      SEM ESTOQUE
+                    </span>
                   </div>
                 )}
               </div>
@@ -258,9 +268,12 @@ const EstoquePage = () => {
                 <h3 className="font-semibold text-sm leading-tight line-clamp-2">{g.nome}</h3>
                 <div className="flex flex-wrap gap-1.5">
                   {g.tamanhos.map(t => (
-                    <div key={t.id} className="flex flex-col items-center bg-muted rounded px-2 py-1 min-w-[44px]">
+                    <div
+                      key={t.id}
+                      className={`flex flex-col items-center rounded px-2 py-1 min-w-[44px] ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                    >
                       <span className="text-xs font-bold leading-tight">{t.tamanho}</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">{t.quantidade} un.</span>
+                      <span className="text-[10px] leading-tight">{t.quantidade} un.</span>
                       <span className="text-[9px] text-muted-foreground/70 font-mono leading-none truncate max-w-[60px]" title={t.sku_base}>{t.sku_base}</span>
                     </div>
                   ))}
@@ -276,13 +289,15 @@ const EstoquePage = () => {
                     size="sm"
                     className="flex-1 orange-gradient text-primary-foreground"
                     onClick={() => setBuyProduct(g)}
+                    disabled={semEstoque}
                   >
-                    <ShoppingCart size={14} /> Comprar
+                    <ShoppingCart size={14} /> {semEstoque ? 'Indisponível' : 'Comprar'}
                   </Button>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
