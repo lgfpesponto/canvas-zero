@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2 } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,8 @@ const FICHA_FILTER_KEYS: { key: string; label: string }[] = [
   { key: 'genero', label: 'Gênero' },
 ];
 
+const PAGE_SIZE = 25;
+
 const EstoquePage = () => {
   const [rows, setRows] = useState<EstoqueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,8 @@ const EstoquePage = () => {
   const [selTamanhos, setSelTamanhos] = useState<Set<string>>(new Set());
   const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
+  const [fichaFilterSearch, setFichaFilterSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
@@ -188,6 +192,14 @@ const EstoquePage = () => {
 
   const activeFichaCount = Object.values(selFicha).reduce((s, set) => s + (set?.size || 0), 0);
 
+  const totalPages = Math.max(1, Math.ceil(filteredGroups.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedGroups = useMemo(
+    () => filteredGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredGroups, currentPage]
+  );
+  useEffect(() => { setPage(1); }, [search, selTamanhos, selFicha]);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-6">
@@ -261,8 +273,9 @@ const EstoquePage = () => {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredGroups.map(g => {
+          {paginatedGroups.map(g => {
             const totalQtd = g.tamanhos.reduce((s, t) => s + t.quantidade, 0);
             const semEstoque = totalQtd === 0;
             return (
@@ -285,15 +298,14 @@ const EstoquePage = () => {
               </div>
               <div className="p-3 flex-1 flex flex-col gap-2">
                 <h3 className="font-semibold text-sm leading-tight line-clamp-2">{g.nome}</h3>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {g.tamanhos.map(t => (
                     <div
                       key={t.id}
-                      className={`relative flex flex-col items-center rounded px-2 py-1 min-w-[44px] group ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                      className={`relative flex flex-col items-center rounded-md px-3 py-1.5 min-w-[56px] group ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
                     >
-                      <span className="text-xs font-bold leading-tight">{t.tamanho}</span>
-                      <span className="text-[10px] leading-tight">{t.quantidade} un.</span>
-                      <span className="text-[9px] text-muted-foreground/70 font-mono leading-none truncate max-w-[60px]" title={t.sku_base}>{t.sku_base}</span>
+                      <span className="text-lg font-bold leading-none">{t.tamanho}</span>
+                      <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">{t.quantidade} un.</span>
                       {isAdmin && (
                         <button
                           type="button"
@@ -307,7 +319,7 @@ const EstoquePage = () => {
                     </div>
                   ))}
                 </div>
-                <p className="text-sm font-bold text-primary mt-auto">
+                <p className="text-xl font-bold text-primary mt-auto">
                   {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
                 <div className="flex gap-2 mt-1">
@@ -328,6 +340,32 @@ const EstoquePage = () => {
             );
           })}
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-3 mt-6 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {filteredGroups.length} produto(s) · Página {currentPage} de {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+              >
+                <ChevronLeft size={14} /> Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Próxima <ChevronRight size={14} />
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {/* Preview product */}
@@ -384,11 +422,30 @@ const EstoquePage = () => {
           <DialogHeader>
             <DialogTitle>Filtros da ficha</DialogTitle>
           </DialogHeader>
+          <div className="relative mb-2">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={fichaFilterSearch}
+              onChange={e => setFichaFilterSearch(e.target.value)}
+              placeholder="Buscar filtro por palavra-chave..."
+              className="pl-9"
+            />
+          </div>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-            {FICHA_FILTER_KEYS.map(({ key, label }) => {
-              const opts = [...(fichaOptions[key] || [])].sort();
-              if (opts.length === 0) return null;
-              return (
+            {(() => {
+              const q = fichaFilterSearch.trim().toLowerCase();
+              const blocos = FICHA_FILTER_KEYS.map(({ key, label }) => {
+                let opts = [...(fichaOptions[key] || [])].sort();
+                if (q) {
+                  const labelMatch = label.toLowerCase().includes(q);
+                  if (!labelMatch) opts = opts.filter(v => v.toLowerCase().includes(q));
+                }
+                return { key, label, opts };
+              }).filter(b => b.opts.length > 0);
+              if (blocos.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-6">Nenhum filtro encontrado.</p>;
+              }
+              return blocos.map(({ key, label, opts }) => (
                 <div key={key}>
                   <h4 className="text-sm font-semibold mb-2">{label}</h4>
                   <div className="flex flex-wrap gap-1.5">
@@ -409,8 +466,8 @@ const EstoquePage = () => {
                     })}
                   </div>
                 </div>
-              );
-            })}
+              ));
+            })()}
           </div>
           <div className="flex justify-between gap-2 pt-2">
             <Button variant="outline" onClick={() => setSelFicha({})}>Limpar</Button>
