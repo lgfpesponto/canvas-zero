@@ -218,6 +218,7 @@ export function isTransitionAllowed(
   ctx?: TransitionContext,
 ): boolean {
   if (!current || !next) return false;
+  if (ctx?.estoqueBaixado) return false;
   if (current === next) return true;
   // Exceção: Conferido → Cobrado é a única transição manual permitida para "Cobrado".
   if (next === 'Cobrado') return current === 'Conferido';
