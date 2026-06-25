@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
+import EstoqueGradeEditor from '@/components/estoque/EstoqueGradeEditor';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EstoqueRow {
   id: string;
@@ -46,6 +48,19 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
+  const [editingProduct, setEditingProduct] = useState<ProductGroup | null>(null);
+  const { user } = useAuth();
+  const isAdmin = !!user && ['admin_master', 'admin_producao', 'admin'].includes(user.role || '');
+
+  const handleDeleteProduct = async (g: ProductGroup) => {
+    const ids = g.tamanhos.map(t => t.id);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Excluir definitivamente o produto "${g.nome}" do estoque? Todas as ${ids.length} entradas de tamanho serão removidas. Pedidos e histórico permanecem intactos.`)) return;
+    const { error } = await supabase.from('estoque_produtos' as any).delete().in('id', ids);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Produto removido do estoque.');
+    fetchRows();
+  };
 
   const fetchRows = async () => {
     const { data, error } = await supabase
@@ -270,6 +285,22 @@ const EstoquePage = () => {
                     <ShoppingCart size={14} /> Comprar
                   </Button>
                 </div>
+                {isAdmin && (
+                  <div className="flex gap-2 mt-1">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => {
+                      const full = groups.find(x => x.nome === g.nome && x.tamanhos[0]?.sku_base.replace(/-[^-]+$/, '') === g.tamanhos[0]?.sku_base.replace(/-[^-]+$/, ''));
+                      setEditingProduct(full || g);
+                    }}>
+                      <Pencil size={14} /> Editar grade
+                    </Button>
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => {
+                      const full = groups.find(x => x.nome === g.nome && x.tamanhos[0]?.sku_base.replace(/-[^-]+$/, '') === g.tamanhos[0]?.sku_base.replace(/-[^-]+$/, ''));
+                      handleDeleteProduct(full || g);
+                    }}>
+                      <Trash2 size={14} /> Excluir
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -364,6 +395,14 @@ const EstoquePage = () => {
         produto={buyProduct}
         vendedores={vendedores}
         onSuccess={fetchRows}
+      />
+
+      <EstoqueGradeEditor
+        open={!!editingProduct}
+        onClose={() => setEditingProduct(null)}
+        produtoNome={editingProduct?.nome || null}
+        rows={(editingProduct?.tamanhos || []) as any}
+        onSaved={fetchRows}
       />
     </div>
   );

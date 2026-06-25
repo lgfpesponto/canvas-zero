@@ -172,10 +172,24 @@ function pickFlow(ctx?: TransitionContext): Record<string, string[]> {
 function applyContextFilter(targets: string[], ctx?: TransitionContext): string[] {
   if (!ctx) return targets;
   return targets.filter(t => {
-    if (t === 'Baixa Estoque') return ctx.vendedor === 'Estoque';
+    // Baixa Estoque: liberado para qualquer pedido (com justificativa se fora do fluxo direto — ver statusRegression).
     if (t === 'Baixa Site (Despachado)') return ctx.vendedor !== 'Estoque';
     return true;
   });
+}
+
+/**
+ * Verifica se `next` é um destino direto (avanço natural) a partir de `current`
+ * dentro do fluxo aplicável. Usado para decidir se um salto exige justificativa.
+ */
+export function isDirectFlowNext(
+  current: string | null | undefined,
+  next: string,
+  ctx?: TransitionContext,
+): boolean {
+  if (!current || !next) return false;
+  const flow = pickFlow(ctx);
+  return !!flow[current]?.includes(next);
 }
 
 /**
