@@ -37,6 +37,7 @@ const Header = () => {
     ? [
         { label: 'FAÇA SEU PEDIDO', path: '/pedido' },
         { label: 'EXTRAS', path: '/extras' },
+        { label: 'ESTOQUE', path: '/estoque' },
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
         ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
         ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
