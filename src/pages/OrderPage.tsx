@@ -163,6 +163,8 @@ const OrderPage = () => {
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
   const [nomeProdutoEstoque, setNomeProdutoEstoque] = useState<string>(df.nomeProdutoEstoque || '');
+  // Match contra estoque existente (mesmo nome → SKU sugerido reutilizado)
+  const [matchedExistingSku, setMatchedExistingSku] = useState<{ sku: string; nome: string } | null>(null);
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
   const [modelo, setModelo] = useState(df.modelo || '');
@@ -284,7 +286,34 @@ const OrderPage = () => {
   const [recorteTaloneira, setRecorteTaloneira] = useState(df.recorteTaloneira || '');
   const [corRecorteTaloneira, setCorRecorteTaloneira] = useState(df.corRecorteTaloneira || '');
 
-  
+  // Pré-preenche nome do produto de estoque a partir de modelo já presente (template/draft)
+  useEffect(() => {
+    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && modelo) {
+      setNomeProdutoEstoque(modelo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendedorSelecionado, modelo]);
+
+  // Lookup: se o nome do produto já existe no estoque, pega o SKU para sugerir
+  useEffect(() => {
+    if (vendedorSelecionado !== 'Estoque') { setMatchedExistingSku(null); return; }
+    const nome = nomeProdutoEstoque.trim();
+    if (!nome) { setMatchedExistingSku(null); return; }
+    let cancelled = false;
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const target = norm(nome);
+    const handle = setTimeout(async () => {
+      const { data } = await supabase
+        .from('estoque_produtos' as any)
+        .select('sku_base, nome, ativo')
+        .ilike('nome', nome)
+        .limit(20);
+      if (cancelled) return;
+      const match = (data as any[] | null)?.find(r => norm(r.nome || '') === target && r.ativo !== false);
+      setMatchedExistingSku(match ? { sku: String(match.sku_base || ''), nome: String(match.nome || '') } : null);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [vendedorSelecionado, nomeProdutoEstoque]);
 
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
@@ -1786,9 +1815,18 @@ const OrderPage = () => {
         numeroPedidoBase={numeroPedido.trim()}
         nomeProduto={nomeProdutoEstoque.trim()}
         requireSku={vendedorSelecionado === 'Estoque'}
-        suggestSkuBase={vendedorSelecionado === 'Estoque' && modelo
-          ? modelo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-          : undefined}
+        suggestSkuBase={(() => {
+          if (vendedorSelecionado !== 'Estoque') return undefined;
+          const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          // 1) Se nome do produto bate com um existente no estoque, reusa o sku_base dele
+          if (matchedExistingSku?.sku) {
+            return matchedExistingSku.sku.replace(/-\d+$/, '');
+          }
+          // 2) Caso contrário, deriva do nome do produto; cai para modelo
+          const base = nomeProdutoEstoque.trim() || modelo;
+          return base ? slug(base) : undefined;
+        })()}
+        matchedExistingSku={matchedExistingSku || undefined}
         initialItems={gradeItems}
         onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);

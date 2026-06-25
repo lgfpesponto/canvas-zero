@@ -22,11 +22,13 @@ interface GradeEstoqueProps {
   requireSku?: boolean;
   /** sugestão automática de SKU baseada em modelo+tamanho */
   suggestSkuBase?: string;
+  /** Match contra produto já existente no estoque (mesmo nome) — mostra aviso */
+  matchedExistingSku?: { sku: string; nome: string };
 }
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onConfirm, initialItems, requireSku, suggestSkuBase }: GradeEstoqueProps) => {
+const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onConfirm, initialItems, requireSku, suggestSkuBase, matchedExistingSku }: GradeEstoqueProps) => {
   const [items, setItems] = useState<GradeItem[]>(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1, sku: '' }]);
   const [showPreview, setShowPreview] = useState(false);
   const [skuConflicts, setSkuConflicts] = useState<Record<string, string>>({}); // sku -> nome existente
@@ -157,6 +159,13 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
                 Cada tamanho recebe um <span className="font-semibold text-foreground">SKU único</span>. Pedidos do mesmo tamanho compartilham o mesmo SKU.
               </p>
             )}
+            {requireSku && matchedExistingSku && (
+              <div className="text-xs bg-primary/10 border border-primary/30 text-foreground rounded-lg p-2">
+                Produto <span className="font-semibold">"{matchedExistingSku.nome}"</span> já existe no estoque — SKU sugerido <span className="font-mono font-semibold">{suggestSkuBase}</span> <span className="text-muted-foreground">(editável)</span>.
+              </div>
+            )}
+
+
 
             <div className="space-y-2">
               <div className={`grid ${requireSku ? 'grid-cols-[1fr_90px_1.4fr_36px]' : 'grid-cols-[1fr_100px_40px]'} gap-2 text-sm font-semibold`}>
