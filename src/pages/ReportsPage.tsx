@@ -1427,6 +1427,21 @@ const ReportsPage = () => {
           )}
         </div>
 
+        {showCompletarSkusPanel && (
+          <CompletarSkusBulkPanel
+            faltando={showCompletarSkusPanel.faltando.map(o => ({
+              id: o.id, numero: o.numero, tamanho: o.tamanho, quantidade: o.quantidade,
+              modelo: o.modelo, skuEstoque: o.skuEstoque, nomeProdutoEstoque: o.nomeProdutoEstoque,
+            }))}
+            prontos={showCompletarSkusPanel.prontos.map(o => ({
+              id: o.id, numero: o.numero, tamanho: o.tamanho, quantidade: o.quantidade,
+              modelo: o.modelo, skuEstoque: o.skuEstoque, nomeProdutoEstoque: o.nomeProdutoEstoque,
+            }))}
+            onClose={() => setShowCompletarSkusPanel(null)}
+            onDone={() => { refetchOrders(); setSelectedIds(new Set()); }}
+          />
+        )}
+
         {/* Orders list */}
         <div className="space-y-3">
           {visibleOrders.map(order => (
