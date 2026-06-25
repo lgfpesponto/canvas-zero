@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 
 interface EstoqueRow {
   id: string;
@@ -43,22 +44,39 @@ const EstoquePage = () => {
   const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
+  const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
+  const [vendedores, setVendedores] = useState<string[]>([]);
+
+  const fetchRows = async () => {
+    const { data, error } = await supabase
+      .from('estoque_produtos' as any)
+      .select('*')
+      .eq('ativo', true)
+      .order('nome');
+    if (error) {
+      toast.error('Erro ao carregar estoque: ' + error.message);
+    } else {
+      setRows((data || []) as any);
+    }
+  };
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from('estoque_produtos' as any)
-        .select('*')
-        .eq('ativo', true)
-        .gt('quantidade', 0)
-        .order('nome');
-      if (error) {
-        toast.error('Erro ao carregar estoque: ' + error.message);
-      } else {
-        setRows((data || []) as any);
-      }
+      await fetchRows();
       setLoading(false);
+      // carrega lista de vendedores (admin)
+      const { data: profs } = await supabase.from('profiles').select('nome_completo').order('nome_completo');
+      setVendedores((profs || []).map((p: any) => p.nome_completo).filter(Boolean));
     })();
+
+    // Realtime: estoque cai ao vivo para todos
+    const ch = supabase
+      .channel('estoque-produtos-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_produtos' }, () => {
+        fetchRows();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   // Agrupa por nome+sku_base (produto base)
@@ -100,23 +118,26 @@ const EstoquePage = () => {
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return groups.filter(g => {
-      if (q) {
-        const hitNome = g.nome.toLowerCase().includes(q);
-        const hitSku = g.tamanhos.some(t => t.sku_base.toLowerCase().includes(q));
-        if (!hitNome && !hitSku) return false;
-      }
-      if (selTamanhos.size > 0) {
-        if (!g.tamanhos.some(t => selTamanhos.has(t.tamanho))) return false;
-      }
-      for (const k of Object.keys(selFicha)) {
-        const set = selFicha[k];
-        if (!set || set.size === 0) continue;
-        const v = g.ficha_snapshot?.[k];
-        if (!v || !set.has(v)) return false;
-      }
-      return true;
-    });
+    return groups
+      .map(g => ({ ...g, tamanhos: g.tamanhos.filter(t => t.quantidade > 0) }))
+      .filter(g => g.tamanhos.length > 0)
+      .filter(g => {
+        if (q) {
+          const hitNome = g.nome.toLowerCase().includes(q);
+          const hitSku = g.tamanhos.some(t => t.sku_base.toLowerCase().includes(q));
+          if (!hitNome && !hitSku) return false;
+        }
+        if (selTamanhos.size > 0) {
+          if (!g.tamanhos.some(t => selTamanhos.has(t.tamanho))) return false;
+        }
+        for (const k of Object.keys(selFicha)) {
+          const set = selFicha[k];
+          if (!set || set.size === 0) continue;
+          const v = g.ficha_snapshot?.[k];
+          if (!v || !set.has(v)) return false;
+        }
+        return true;
+      });
   }, [groups, search, selTamanhos, selFicha]);
 
   const toggleTam = (t: string) => {
@@ -244,7 +265,7 @@ const EstoquePage = () => {
                   <Button
                     size="sm"
                     className="flex-1 orange-gradient text-primary-foreground"
-                    onClick={() => toast.info('Fluxo de compra será habilitado em breve.')}
+                    onClick={() => setBuyProduct(g)}
                   >
                     <ShoppingCart size={14} /> Comprar
                   </Button>
@@ -336,6 +357,14 @@ const EstoquePage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <EstoqueBuyDialog
+        open={!!buyProduct}
+        onClose={() => setBuyProduct(null)}
+        produto={buyProduct}
+        vendedores={vendedores}
+        onSuccess={fetchRows}
+      />
     </div>
   );
 };

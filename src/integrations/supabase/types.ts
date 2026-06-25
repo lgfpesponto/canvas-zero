@@ -2113,7 +2113,18 @@ export type Database = {
         Returns: Json
       }
       bump_preco_regra_versao: { Args: never; Returns: number }
-      comprar_estoque: { Args: { _items: Json }; Returns: undefined }
+      comprar_estoque:
+        | { Args: { _items: Json }; Returns: undefined }
+        | {
+            Args: {
+              _cliente: string
+              _items: Json
+              _numero_pedido: string
+              _vendedor: string
+              _whatsapp: string
+            }
+            Returns: Json
+          }
       criar_ajuste_solicitacao: {
         Args: { _motivo: string; _order_id: string; _valor_solicitado: number }
         Returns: string
