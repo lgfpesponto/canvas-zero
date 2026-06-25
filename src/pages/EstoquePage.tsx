@@ -271,22 +271,6 @@ const EstoquePage = () => {
                     <ShoppingCart size={14} /> Comprar
                   </Button>
                 </div>
-                {isAdmin && (
-                  <div className="flex gap-2 mt-1">
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => {
-                      const full = groups.find(x => x.nome === g.nome && x.tamanhos[0]?.sku_base.replace(/-[^-]+$/, '') === g.tamanhos[0]?.sku_base.replace(/-[^-]+$/, ''));
-                      setEditingProduct(full || g);
-                    }}>
-                      <Pencil size={14} /> Editar grade
-                    </Button>
-                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => {
-                      const full = groups.find(x => x.nome === g.nome && x.tamanhos[0]?.sku_base.replace(/-[^-]+$/, '') === g.tamanhos[0]?.sku_base.replace(/-[^-]+$/, ''));
-                      handleDeleteProduct(full || g);
-                    }}>
-                      <Trash2 size={14} /> Excluir
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
           ))}
