@@ -1,20 +1,30 @@
-## Erro
+## Mudanças em `src/pages/EstoquePage.tsx`
 
-`null value in column "hora_criacao" of relation "orders" violates not-null constraint`
+### 1. Card do produto (grade)
+- **Remover** a linha `<span>` que mostra o SKU dentro de cada chip de tamanho (o `t.sku_base` em fonte mono).
+- **Aumentar tamanho/quantidade** nos chips:
+  - Número do tamanho: maior e em destaque (ex.: `text-base font-bold`).
+  - Quantidade logo abaixo, menor que o tamanho (ex.: `text-[10px]` ou `text-xs text-muted-foreground`).
+  - Aumentar `min-w` e padding do chip para acomodar.
+- **Aumentar o preço**: passar de `text-sm font-bold` para algo como `text-lg font-bold` (mantendo a cor `text-primary`).
+- Não mexer no botão admin de excluir tamanho (continua aparecendo no hover).
 
-A RPC `comprar_estoque` faz `INSERT INTO public.orders` sem informar `hora_criacao` (coluna `NOT NULL` sem default).
+### 2. Diálogo "Filtros da ficha"
+- Adicionar um `<Input>` de busca no topo do diálogo com placeholder "Buscar filtro...".
+- Estado local `filtroBusca` que filtra as opções exibidas em cada categoria (`FICHA_FILTER_KEYS`):
+  - Match case-insensitive no valor da opção **ou** no label da categoria.
+  - Categorias sem nenhuma opção após o filtro são ocultadas.
+- Não alterar a lógica de `selFicha` (seleções permanecem mesmo se a opção sumir da busca).
 
-## Correção
-
-Migration única atualizando a função `public.comprar_estoque(...)`:
-
-- No `INSERT INTO public.orders (...)`, adicionar as colunas obrigatórias que faltam, com os mesmos valores que o app usa em pedidos normais:
-  - `hora_criacao` = `to_char(now() AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI')`
-  - `data_criacao` = `(now() AT TIME ZONE 'America/Sao_Paulo')::date` (se também estiver NOT NULL — incluir por segurança)
-- Manter o `user_id = v_uid` já corrigido na migration anterior.
-- Nenhuma outra mudança de lógica (extras por unidade, total, botas[] permanecem como estão).
+### 3. Paginação da grade (25 por página)
+- Constante `PAGE_SIZE = 25`.
+- Novo estado `page` (1-based), resetado para 1 sempre que `filteredGroups`, `search`, `selTamanhos` ou `selFicha` mudarem.
+- Derivar `paginatedGroups = filteredGroups.slice((page-1)*25, page*25)` e usar no `.map` da grade.
+- Renderizar controles de paginação abaixo da grade quando `totalPages > 1`:
+  - Botões "Anterior" / "Próxima" + indicador "Página X de Y" + total de itens.
+  - Usar `Button` variant `outline` size `sm`, desabilitando nos extremos.
+  - Componente simples inline (sem adicionar dependências); pode usar `Button` + ícones `ChevronLeft`/`ChevronRight` do `lucide-react`.
 
 ## Fora de escopo
-
-- UI do `EstoqueBuyDialog` não muda.
-- Nenhuma mudança em outras RPCs ou tabelas.
+- Nenhuma mudança em `EstoqueBuyDialog`, RPCs, schema, preview do produto ou outros componentes.
+- Lógica de agrupamento, ordenação (com estoque primeiro) e filtros existentes permanece igual.
