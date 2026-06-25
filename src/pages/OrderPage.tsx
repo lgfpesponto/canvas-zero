@@ -286,7 +286,34 @@ const OrderPage = () => {
   const [recorteTaloneira, setRecorteTaloneira] = useState(df.recorteTaloneira || '');
   const [corRecorteTaloneira, setCorRecorteTaloneira] = useState(df.corRecorteTaloneira || '');
 
-  
+  // Pré-preenche nome do produto de estoque a partir de modelo já presente (template/draft)
+  useEffect(() => {
+    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && modelo) {
+      setNomeProdutoEstoque(modelo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendedorSelecionado, modelo]);
+
+  // Lookup: se o nome do produto já existe no estoque, pega o SKU para sugerir
+  useEffect(() => {
+    if (vendedorSelecionado !== 'Estoque') { setMatchedExistingSku(null); return; }
+    const nome = nomeProdutoEstoque.trim();
+    if (!nome) { setMatchedExistingSku(null); return; }
+    let cancelled = false;
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const target = norm(nome);
+    const handle = setTimeout(async () => {
+      const { data } = await supabase
+        .from('estoque_produtos' as any)
+        .select('sku_base, nome, ativo')
+        .ilike('nome', nome)
+        .limit(20);
+      if (cancelled) return;
+      const match = (data as any[] | null)?.find(r => norm(r.nome || '') === target && r.ativo !== false);
+      setMatchedExistingSku(match ? { sku: String(match.sku_base || ''), nome: String(match.nome || '') } : null);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [vendedorSelecionado, nomeProdutoEstoque]);
 
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
