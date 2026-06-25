@@ -963,8 +963,9 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();   // 210
   const pageH = doc.internal.pageSize.getHeight();  // 297
-  const halfH = pageH / 2;                          // 148.5
+  const margin = 15;
 
+  // Totais
   const totalsByValor: Record<number, { qtd: number; subtotal: number }> = {
     19: { qtd: 0, subtotal: 0 },
     21: { qtd: 0, subtotal: 0 },
@@ -976,10 +977,7 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
   let totalGeral = 0;
   items.forEach(it => {
     const q = Math.max(1, Number(it.quantidade) || 1);
-    if (it.erroMontagem) {
-      erroQtd += q;
-      return;
-    }
+    if (it.erroMontagem) { erroQtd += q; return; }
     const v = Number(it.valorUnit) || 0;
     const sub = v * q;
     if (v === 19 || v === 21 || v === 23) {
@@ -994,9 +992,11 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
 
   const nowStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-  const drawVia = (yOffset: number, viaLabel: string) => {
-    let y = yOffset + 8;
-    // Header
+  // Colunas (mm) — modelo mais largo, data afastada do modelo
+  const col = { num: margin, pedido: margin + 8, data: margin + 30, modelo: margin + 58, qtd: pageW - margin - 30, valor: pageW - margin };
+  const rowH = 5.5;
+
+  const drawViaHeader = (viaLabel: string, y: number): number => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.text('Relatório de Baixa Montagem — 7ESTRIVOS', pageW / 2, y, { align: 'center' });
@@ -1004,12 +1004,12 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.text(`Gerado em: ${nowStr}   •   Operador: ${operador}   •   ${viaLabel}`, pageW / 2, y, { align: 'center' });
-    y += 4;
+    return y + 5;
+  };
 
-    // Table header
+  const drawTableHeader = (y: number): number => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    const col = { num: 8, pedido: 18, data: 40, modelo: 68, qtd: 150, valor: 170 };
     doc.text('#', col.num, y);
     doc.text('Nº pedido', col.pedido, y);
     doc.text('Data baixa', col.data, y);
@@ -1017,87 +1017,110 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
     doc.text('Qtd', col.qtd, y, { align: 'right' });
     doc.text('Valor', col.valor, y, { align: 'right' });
     y += 1.5;
-    doc.setLineWidth(0.2);
-    doc.line(7, y, pageW - 7, y);
-    y += 3;
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageW - margin, y);
+    return y + 4;
+  };
 
-    // Rows
+  const drawVia = (viaLabel: string) => {
+    let y = drawViaHeader(viaLabel, margin + 3);
+    y = drawTableHeader(y);
+
+    const totaisHeight = 8 // respiro+linha
+      + (totalsByValor[19].qtd > 0 || true ? 5 : 0) * 3 // 3 linhas fixas
+      + (outrosQtd > 0 ? 5 : 0)
+      + (erroQtd > 0 ? 5 : 0)
+      + 7 // total geral
+      + 14; // assinatura
+    const limitY = pageH - margin - totaisHeight;
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    const limitY = yOffset + halfH - 50; // reserva espaço para totais + assinatura
+    doc.setFontSize(8);
+
     items.forEach((it, idx) => {
       if (y > limitY) {
-        doc.setFont('helvetica', 'italic');
-        doc.text(`... e mais ${items.length - idx} item(ns) (cortado por espaço)`, col.num, y);
-        return;
+        doc.addPage();
+        y = drawViaHeader(`${viaLabel} (cont.)`, margin + 3);
+        y = drawTableHeader(y);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
       }
       const q = Math.max(1, Number(it.quantidade) || 1);
       const sub = it.erroMontagem ? 0 : (Number(it.valorUnit) || 0) * q;
       doc.text(String(idx + 1), col.num, y);
       doc.text(String(it.numero), col.pedido, y);
       doc.text(it.dataBaixa || '-', col.data, y);
-      const modeloTxt = (it.modelo || '-').slice(0, 38);
+      const maxModeloW = col.qtd - col.modelo - 12;
+      const modeloTxt = doc.splitTextToSize(it.modelo || '-', maxModeloW)[0];
       doc.text(modeloTxt, col.modelo, y);
       doc.text(String(q), col.qtd, y, { align: 'right' });
       if (it.erroMontagem) {
         doc.setTextColor(200, 0, 0);
         doc.setFont('helvetica', 'bold');
-        doc.text('ERRO MONTAGEM', col.valor, y, { align: 'right' });
+        doc.text('ERRO', col.valor, y, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(0, 0, 0);
       } else {
         doc.text(formatCurrency(sub), col.valor, y, { align: 'right' });
       }
-      y += 4;
+      // linha fina entre pedidos
+      doc.setLineWidth(0.1);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y + 1.8, pageW - margin, y + 1.8);
+      doc.setDrawColor(0, 0, 0);
+      y += rowH;
     });
 
-    // Totals
-    const totalsY = yOffset + halfH - 38;
-    doc.setLineWidth(0.2);
-    doc.line(7, totalsY - 2, pageW - 7, totalsY - 2);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    let ty = totalsY + 1;
-    const writeTot = (label: string, valor: string) => {
-      doc.text(label, col.modelo, ty);
-      doc.text(valor, col.valor, ty, { align: 'right' });
-      ty += 4;
-    };
-    writeTot(`${totalsByValor[19].qtd} × R$ 19,00`, formatCurrency(totalsByValor[19].subtotal));
-    writeTot(`${totalsByValor[21].qtd} × R$ 21,00`, formatCurrency(totalsByValor[21].subtotal));
-    writeTot(`${totalsByValor[23].qtd} × R$ 23,00`, formatCurrency(totalsByValor[23].subtotal));
-    if (outrosQtd > 0) {
-      writeTot(`${outrosQtd} × outros modelos`, formatCurrency(outrosSubtotal));
+    // Totais — se não couber, nova página
+    if (y + totaisHeight > pageH - margin) {
+      doc.addPage();
+      y = drawViaHeader(`${viaLabel} (cont.)`, margin + 3);
+    } else {
+      y += 4;
     }
-    if (erroQtd > 0) {
-      doc.setTextColor(200, 0, 0);
-      writeTot(`${erroQtd} × ERRO MONTAGEM`, 'não cobrado');
-      doc.setTextColor(0, 0, 0);
-    }
-    doc.setFontSize(10);
-    writeTot('TOTAL GERAL', formatCurrency(totalGeral));
 
-    // Assinatura
-    const sigY = yOffset + halfH - 10;
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageW - margin, y);
+    y += 5;
+
+    // Bloco alinhado à direita, uma linha por faixa: "N × R$ XX,00 = R$ YYY,YY"
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    const rightX = pageW - margin;
+    const writeTot = (txt: string, red = false) => {
+      if (red) doc.setTextColor(200, 0, 0);
+      doc.text(txt, rightX, y, { align: 'right' });
+      if (red) doc.setTextColor(0, 0, 0);
+      // linha fina separadora
+      doc.setLineWidth(0.1);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y + 1.8, pageW - margin, y + 1.8);
+      doc.setDrawColor(0, 0, 0);
+      y += 5;
+    };
+    writeTot(`${totalsByValor[19].qtd} × R$ 19,00 = ${formatCurrency(totalsByValor[19].subtotal)}`);
+    writeTot(`${totalsByValor[21].qtd} × R$ 21,00 = ${formatCurrency(totalsByValor[21].subtotal)}`);
+    writeTot(`${totalsByValor[23].qtd} × R$ 23,00 = ${formatCurrency(totalsByValor[23].subtotal)}`);
+    if (outrosQtd > 0) writeTot(`${outrosQtd} × outros = ${formatCurrency(outrosSubtotal)}`);
+    if (erroQtd > 0) writeTot(`${erroQtd} × ERRO MONTAGEM = não cobrado`, true);
+
+    y += 2;
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+    doc.setFontSize(12);
+    doc.text(`TOTAL GERAL  ${formatCurrency(totalGeral)}`, rightX, y, { align: 'right' });
+    y += 12;
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('Assinatura: ______________________________________', 8, sigY);
-    doc.text('Data: ____/____/______', pageW - 60, sigY);
+    doc.setFontSize(9);
+    doc.text('Assinatura: ______________________________________', margin, y);
+    doc.text('Data: ____/____/______', pageW - margin - 50, y);
   };
 
-  drawVia(0, 'Via Montagem');
-
-  // Divisor tracejado
-  doc.setLineDashPattern([2, 2], 0);
-  doc.setLineWidth(0.3);
-  doc.line(5, halfH, pageW - 5, halfH);
-  doc.setLineDashPattern([], 0);
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text('— — — — recorte aqui — — — —', pageW / 2, halfH + 3, { align: 'center' });
-  doc.setTextColor(0, 0, 0);
-
-  drawVia(halfH, 'Via 7Estrivos');
+  drawVia('Via Montagem');
+  doc.addPage();
+  drawVia('Via 7Estrivos');
 
   stampPageNumbers(doc);
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
