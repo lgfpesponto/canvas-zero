@@ -606,7 +606,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /* ───── Add Order Batch ───── */
   const addOrderBatch = useCallback(async (
     orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes' | 'tamanho'>,
-    gradeItems: { tamanho: string; quantidade: number }[],
+    gradeItems: { tamanho: string; quantidade: number; sku?: string }[],
     numeroPedidoBase: string,
   ): Promise<boolean> => {
     try {
@@ -615,11 +615,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!session) { await logout(); return false; }
 
       const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
-      const numbers: { tamanho: string; numero: string }[] = [];
+      const numbers: { tamanho: string; numero: string; sku?: string }[] = [];
       for (const item of sorted) {
         for (let i = 0; i < item.quantidade; i++) {
           const seq = String(i + 1).padStart(2, '0');
-          numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${item.tamanho}${seq}` });
+          numbers.push({ tamanho: item.tamanho, numero: `${numeroPedidoBase}${item.tamanho}${seq}`, sku: item.sku });
         }
       }
 
@@ -635,10 +635,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const horaAgora = formatBrasiliaTime();
       const targetUserId = user.id;
 
-      const rows = numbers.map(({ tamanho, numero }) => {
+      const rows = numbers.map(({ tamanho, numero, sku }) => {
         const newOrder = {
           ...orderData,
           tamanho,
+          skuEstoque: sku || (orderData as any).skuEstoque || null,
           dataCriacao: dataHoje,
           horaCriacao: horaAgora,
           diasRestantes: 15,
