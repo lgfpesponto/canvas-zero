@@ -1,52 +1,25 @@
-## Reescrever `generateBaixaMontagemPDF` (src/lib/pdfGenerators.ts)
+## Ajustes no PDF `generateBaixaMontagemPDF` (src/lib/pdfGenerators.ts)
 
-Substituir o layout atual de "meia folha por via" por um layout multi-página real, com paginação automática.
+Pequenos ajustes de layout no relatório de Baixa Montagem — sem mexer em portal, hooks ou cálculos.
 
-### Estrutura de página
+### 1. Remover coluna QTD
+- Remover header "Qtd" e a célula da quantidade em cada linha de pedido.
+- Quando `quantidade > 1`, mostrar a multiplicação dentro da coluna **Valor** no formato `2 × R$ 21,00 = R$ 42,00` (mantém a informação sem precisar da coluna dedicada).
+- Para `ERRO MONTAGEM`, segue só `ERRO` (vermelho, bold) na coluna Valor.
 
-- A4 retrato, margens 15mm (laterais/top/bottom) para garantir impressão sem corte.
-- **Cada via em folhas separadas**: 
-  1. Imprime todas as páginas da **Via Montagem** (`doc.addPage()` enquanto houver pedidos).
-  2. `doc.addPage()` e imprime todas as páginas da **Via 7Estrivos**.
-- Remover o divisor tracejado/recorte do meio da folha.
+### 2. Aumentar espaço entre "Nº pedido" e "Data baixa"
+- Redistribuir as colunas dando mais respiro entre Nº pedido e Data, e mais largura ainda para Modelo (já que Qtd saiu):
+  ```
+  #   Nº pedido        Data baixa       Modelo .................................  Valor
+  15  25               55               90 → ~165 (≈75mm)                          180 (right)
+  ```
+- Header da tabela e linhas dos pedidos seguem o mesmo grid.
 
-### Cabeçalho (repetido em toda página da via)
-
-- Título: `Relatório de Baixa Montagem — 7ESTRIVOS`
-- Linha: `Gerado em: ... • Operador: ... • Via Montagem (pág X/Y)`
-
-### Tabela de itens
-
-Colunas com espaçamento corrigido (modelo recebe mais espaço, data afastada do modelo):
-
-```
-#  | Nº pedido | Data baixa | Modelo .................... | Qtd | Valor
-15   25          45           70 → 150 (largura ~80mm)     155   180
-```
-
-- Linha fina horizontal (`setLineWidth(0.1)`) abaixo do header **e entre cada pedido**.
-- Cabeçalho da tabela redesenhado no topo de cada nova página.
-- Quando `y` ultrapassa o limite inferior (≈ pageH - 40 reservados p/ totais+assinatura **da última página**), chama `doc.addPage()`, redesenha header da via + header da tabela, e continua — **sem truncar e sem reduzir fonte**.
-- `ERRO MONTAGEM`: mostrar apenas `ERRO` (vermelho, bold) na coluna Valor, alinhado à direita, com margem suficiente para não tocar a coluna Qtd (Qtd em 155, Valor em 180 → folga garantida).
-
-### Totais + assinatura (apenas na última página da via)
-
-- Logo após o último pedido, deixar ~6mm de respiro e desenhar linha fina.
-- Bloco de totais alinhado à **direita**, formato consistente `N × R$ XX,00 = R$ YYY,YY` em uma única linha (qtd, unitário e subtotal juntos, não separados em lados opostos):
-  - `2 × R$ 19,00 = R$ 38,00`
-  - `5 × R$ 21,00 = R$ 105,00`
-  - `3 × R$ 23,00 = R$ 69,00`
-  - (se houver) `1 × outros = R$ XX,XX`
-  - (se houver) `1 × ERRO MONTAGEM = não cobrado` (vermelho)
-- Linha fina separadora.
-- `TOTAL GERAL  R$ XXX,XX` em fonte maior, bold.
-- ~6mm depois: linha de assinatura + data.
-- Se não couber totais+assinatura na página corrente, faz `addPage()` antes de desenhá-los.
-
-### Numeração
-
-- Manter `stampPageNumbers(doc)` no final.
+### 3. Total geral de pares
+- No bloco de totais, manter as linhas por valor (`N × R$ 19,00 = R$ XX,XX`, etc.) e a linha `TOTAL GERAL  R$ YYY,YY`.
+- Adicionar **logo abaixo do TOTAL GERAL** uma linha:
+  - `TOTAL DE PARES: N` (bold, alinhada à direita junto com os outros totais).
+  - `N` = soma de `quantidade` de **todos** os itens da lista, incluindo `ERRO MONTAGEM` (são pares montados, mesmo que não cobrados).
 
 ### Nada mais muda
-
-Sem alterações no portal, hooks, ou cálculos — apenas o gerador de PDF.
+- Margens, multi-página, linhas finas entre pedidos, assinatura, numeração de página, separação em vias — tudo permanece como está hoje.
