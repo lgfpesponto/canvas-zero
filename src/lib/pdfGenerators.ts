@@ -993,7 +993,7 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
   const nowStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
   // Colunas (mm) — sem Qtd; mais espaço entre Nº pedido e Data; modelo largo
-  const col = { num: margin, pedido: margin + 8, data: margin + 42, modelo: margin + 75, valor: pageW - margin };
+  const col = { num: margin, pedido: margin + 8, data: margin + 55, modelo: margin + 88, valor: pageW - margin };
   const rowH = 5.5;
 
   const drawViaHeader = (viaLabel: string, y: number): number => {

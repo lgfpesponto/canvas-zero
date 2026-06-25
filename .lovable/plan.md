@@ -1,25 +1,19 @@
-## Ajustes no PDF `generateBaixaMontagemPDF` (src/lib/pdfGenerators.ts)
+## Ajuste de larguras de coluna no PDF Baixa Montagem
 
-Pequenos ajustes de layout no relatório de Baixa Montagem — sem mexer em portal, hooks ou cálculos.
+Em `src/lib/pdfGenerators.ts`, dentro de `generateBaixaMontagemPDF`, ajustar o objeto `col` para dar mais respiro ao número do pedido e reduzir um pouco o espaço do modelo.
 
-### 1. Remover coluna QTD
-- Remover header "Qtd" e a célula da quantidade em cada linha de pedido.
-- Quando `quantidade > 1`, mostrar a multiplicação dentro da coluna **Valor** no formato `2 × R$ 21,00 = R$ 42,00` (mantém a informação sem precisar da coluna dedicada).
-- Para `ERRO MONTAGEM`, segue só `ERRO` (vermelho, bold) na coluna Valor.
+**Antes:**
+```ts
+const col = { num: margin, pedido: margin + 8, data: margin + 42, modelo: margin + 75, valor: pageW - margin };
+```
 
-### 2. Aumentar espaço entre "Nº pedido" e "Data baixa"
-- Redistribuir as colunas dando mais respiro entre Nº pedido e Data, e mais largura ainda para Modelo (já que Qtd saiu):
-  ```
-  #   Nº pedido        Data baixa       Modelo .................................  Valor
-  15  25               55               90 → ~165 (≈75mm)                          180 (right)
-  ```
-- Header da tabela e linhas dos pedidos seguem o mesmo grid.
+**Depois:**
+```ts
+const col = { num: margin, pedido: margin + 8, data: margin + 55, modelo: margin + 88, valor: pageW - margin };
+```
 
-### 3. Total geral de pares
-- No bloco de totais, manter as linhas por valor (`N × R$ 19,00 = R$ XX,XX`, etc.) e a linha `TOTAL GERAL  R$ YYY,YY`.
-- Adicionar **logo abaixo do TOTAL GERAL** uma linha:
-  - `TOTAL DE PARES: N` (bold, alinhada à direita junto com os outros totais).
-  - `N` = soma de `quantidade` de **todos** os itens da lista, incluindo `ERRO MONTAGEM` (são pares montados, mesmo que não cobrados).
+- `pedido → data`: 34mm (era 34 com data em +42... ajustando: pedido fica de margin+8 até data em margin+55 → ~47mm de largura para o número, bem mais folga).
+- `data → modelo`: 33mm (mantém data legível).
+- `modelo → valor`: ~92mm (era ~105mm; ainda largo o suficiente para o nome do modelo, que é truncado em uma linha).
 
-### Nada mais muda
-- Margens, multi-página, linhas finas entre pedidos, assinatura, numeração de página, separação em vias — tudo permanece como está hoje.
+Nada mais muda.
