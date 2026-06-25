@@ -1782,12 +1782,18 @@ const OrderPage = () => {
         open={showGrade}
         onOpenChange={setShowGrade}
         numeroPedidoBase={numeroPedido.trim()}
+        nomeProduto={nomeProdutoEstoque.trim()}
+        requireSku={vendedorSelecionado === 'Estoque'}
+        suggestSkuBase={vendedorSelecionado === 'Estoque' && modelo
+          ? modelo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+          : undefined}
         initialItems={gradeItems}
         onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);
           toast.success(`Grade definida: ${items.length} tamanhos, ${items.reduce((s, i) => s + i.quantidade, 0)} pedidos. Preencha a ficha e finalize.`);
         }}
       />
+
 
       {/* ───── Mirror ───── */}
       {showMirror && (
