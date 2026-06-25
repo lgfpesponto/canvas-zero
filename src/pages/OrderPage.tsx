@@ -1722,7 +1722,7 @@ const OrderPage = () => {
                   <div className="flex gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
-                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
+                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data, t.nome)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                   </div>
                 </div>
