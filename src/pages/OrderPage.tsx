@@ -286,13 +286,7 @@ const OrderPage = () => {
   const [recorteTaloneira, setRecorteTaloneira] = useState(df.recorteTaloneira || '');
   const [corRecorteTaloneira, setCorRecorteTaloneira] = useState(df.corRecorteTaloneira || '');
 
-  // Pré-preenche nome do produto de estoque a partir de modelo já presente (template/draft)
-  useEffect(() => {
-    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && modelo) {
-      setNomeProdutoEstoque(modelo);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendedorSelecionado, modelo]);
+  // Nome do produto NÃO é preenchido pela variação Modelo; vem do nome do Modelo Salvo (template).
 
   // Lookup: se o nome do produto já existe no estoque, pega o SKU para sugerir
   useEffect(() => {
@@ -318,10 +312,7 @@ const OrderPage = () => {
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
     setModelo(newModelo);
-    // Pré-preenche nome do produto de estoque com o modelo se ainda vazio (vendedor Estoque)
-    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && newModelo) {
-      setNomeProdutoEstoque(newModelo);
-    }
+
     const sols = getSoladosForModelo(newModelo);
     const newSolado = sols.length === 1 ? sols[0].label : (sols.find(s => s.label === solado) ? solado : '');
     setSolado(newSolado);
@@ -681,10 +672,13 @@ const OrderPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const handleUseTemplate = (formData: Record<string, string>) => {
+  const handleUseTemplate = (formData: Record<string, string>, templateNome?: string) => {
     tmpl.setShowTemplates(false);
     validateAndPopulateTemplate({ ...formData });
     setProductChoice('bota');
+    if (vendedorSelecionado === 'Estoque' && templateNome && !nomeProdutoEstoque.trim()) {
+      setNomeProdutoEstoque(templateNome);
+    }
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
@@ -692,6 +686,9 @@ const OrderPage = () => {
     validateAndPopulateTemplate({ ...template.form_data });
     setMode('template');
     setProductChoice('bota');
+    if (vendedorSelecionado === 'Estoque' && template.nome && !nomeProdutoEstoque.trim()) {
+      setNomeProdutoEstoque(template.nome);
+    }
   };
 
   if (authLoading) {
@@ -1725,7 +1722,7 @@ const OrderPage = () => {
                   <div className="flex gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
-                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
+                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data, t.nome)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                   </div>
                 </div>
