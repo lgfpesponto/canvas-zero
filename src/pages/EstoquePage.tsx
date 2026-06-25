@@ -265,7 +265,7 @@ const EstoquePage = () => {
                   <Button
                     size="sm"
                     className="flex-1 orange-gradient text-primary-foreground"
-                    onClick={() => toast.info('Fluxo de compra será habilitado em breve.')}
+                    onClick={() => setBuyProduct(g)}
                   >
                     <ShoppingCart size={14} /> Comprar
                   </Button>
