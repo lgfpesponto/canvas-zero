@@ -794,6 +794,7 @@ const OrderPage = () => {
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
+      ...(vendedorSelecionado === 'Estoque' ? [[nomeProdutoEstoque.trim(), 'Nome do Produto'] as [string, string]] : []),
       [genero, 'Gênero'],
       [modelo, 'Modelo'],
       [tipoCouroCano, 'Tipo do Couro do Cano'],
