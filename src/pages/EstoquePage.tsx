@@ -48,6 +48,19 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
+  const [editingProduct, setEditingProduct] = useState<ProductGroup | null>(null);
+  const { user } = useAuth();
+  const isAdmin = !!user && ['admin_master', 'admin_producao', 'admin'].includes(user.role || '');
+
+  const handleDeleteProduct = async (g: ProductGroup) => {
+    const ids = g.tamanhos.map(t => t.id);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Excluir definitivamente o produto "${g.nome}" do estoque? Todas as ${ids.length} entradas de tamanho serão removidas. Pedidos e histórico permanecem intactos.`)) return;
+    const { error } = await supabase.from('estoque_produtos' as any).delete().in('id', ids);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Produto removido do estoque.');
+    fetchRows();
+  };
 
   const fetchRows = async () => {
     const { data, error } = await supabase
