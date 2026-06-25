@@ -151,6 +151,8 @@ export interface TransitionContext {
   role?: string;
   /** Tipo de produto extra (`'cinto'`, `'bota_pronta_entrega'`, etc.). Vazio/undefined = bota normal. */
   tipoExtra?: string | null;
+  /** Quando true, o pedido já gerou produto na página Estoque — etapa fica travada. */
+  estoqueBaixado?: boolean;
 }
 
 function isPureExtra(ctx?: TransitionContext): boolean {
