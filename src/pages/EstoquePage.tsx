@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
+import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 
 interface EstoqueRow {
   id: string;
@@ -248,14 +249,13 @@ const EstoquePage = () => {
             return (
             <div key={g.nome + g.tamanhos[0].sku_base} className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col ${semEstoque ? 'opacity-80' : ''}`}>
               <div className="aspect-square bg-muted relative">
-                {g.foto_url ? (
-                  // eslint-disable-next-line jsx-a11y/img-redundant-alt
-                  <img src={g.foto_url} alt={g.nome} className={`w-full h-full object-cover ${semEstoque ? 'grayscale' : ''}`} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    <Package size={32} />
-                  </div>
-                )}
+                <EstoqueFoto
+                  url={g.foto_url}
+                  alt={g.nome}
+                  grayscale={semEstoque}
+                  className="w-full h-full object-cover"
+                  wrapperClassName="w-full h-full"
+                />
                 {semEstoque && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                     <span className="text-white font-display font-bold text-xl tracking-wider border-2 border-white px-3 py-1 rounded-md -rotate-6">

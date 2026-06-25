@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Package, Trash2, AlertCircle } from 'lucide-react';
+import EstoqueFoto from './EstoqueFoto';
 
 interface EstoqueRow {
   id: string;
