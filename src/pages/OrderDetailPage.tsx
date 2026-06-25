@@ -49,6 +49,7 @@ import {
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
 import { BordadoOrderView } from '@/components/BordadoOrderView';
 import { AjusteValorSolicitacao } from '@/components/AjusteValorSolicitacao';
+import EstoqueAdminPanel from '@/components/estoque/EstoqueAdminPanel';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
@@ -681,6 +682,9 @@ const OrderDetailPage = () => {
                 : 'text-foreground font-semibold';
             return (
               <>
+                {isAdmin && order.vendedor === 'Estoque' && (
+                  <EstoqueAdminPanel order={order} />
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-3">
                   {/* Célula 1: Número do pedido */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">

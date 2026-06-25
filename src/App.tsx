@@ -20,6 +20,7 @@ import ProfilePage from "./pages/ProfilePage";
 import DraftsPage from "./pages/DraftsPage";
 import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
+import EstoquePage from "./pages/EstoquePage";
 import DynamicOrderPage from "./pages/DynamicOrderPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
 import VerifyCodePage from "./pages/VerifyCodePage";
@@ -121,6 +122,7 @@ const App = () => (
             
             <Route path="/pedido" element={<OrderPage />} />
             <Route path="/extras" element={<ExtrasPage />} />
+            <Route path="/estoque" element={<EstoquePage />} />
             <Route path="/pedido-cinto" element={<BeltOrderPage />} />
             <Route path="/pedido/:id" element={<OrderDetailPage />} />
             <Route path="/pedido/:id/editar" element={<EditOrderPage />} />

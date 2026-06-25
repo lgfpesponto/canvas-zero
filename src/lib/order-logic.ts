@@ -258,6 +258,10 @@ export function dbRowToOrder(row: any): Order {
     conferido: row.conferido ?? false,
     conferidoEm: row.conferido_em || undefined,
     conferidoPor: row.conferido_por || undefined,
+    skuEstoque: row.sku_estoque || undefined,
+    nomeProdutoEstoque: row.nome_produto_estoque || undefined,
+    estoqueBaixado: !!row.estoque_baixado,
+    estoqueProdutoId: row.estoque_produto_id || undefined,
   };
 }
 
@@ -352,6 +356,8 @@ export function orderToDbRow(order: any, userId: string) {
     cor_recorte_cano: order.corRecorteCano || null,
     cor_recorte_gaspea: order.corRecorteGaspea || null,
     cor_recorte_taloneira: order.corRecorteTaloneira || null,
+    sku_estoque: order.skuEstoque || null,
+    nome_produto_estoque: order.nomeProdutoEstoque || null,
   };
 }
 
@@ -380,6 +386,8 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   corRecorteCano: 'cor_recorte_cano', corRecorteGaspea: 'cor_recorte_gaspea', corRecorteTaloneira: 'cor_recorte_taloneira',
   precoMigradoV2: 'preco_migrado_v2', precoRegraVersao: 'preco_regra_versao', precoCongelado: 'preco_congelado',
   clienteWhatsapp: 'cliente_whatsapp',
+  skuEstoque: 'sku_estoque', nomeProdutoEstoque: 'nome_produto_estoque',
+  estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
 };
 
 /** Field labels for change tracking */

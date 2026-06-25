@@ -151,6 +151,8 @@ export interface TransitionContext {
   role?: string;
   /** Tipo de produto extra (`'cinto'`, `'bota_pronta_entrega'`, etc.). Vazio/undefined = bota normal. */
   tipoExtra?: string | null;
+  /** Quando true, o pedido já gerou produto na página Estoque — etapa fica travada. */
+  estoqueBaixado?: boolean;
 }
 
 function isPureExtra(ctx?: TransitionContext): boolean {
@@ -190,6 +192,8 @@ function applyContextFilter(targets: string[], ctx?: TransitionContext): string[
  */
 export function getAllowedNextStatuses(current: string | null | undefined, ctx?: TransitionContext): string[] {
   if (!current) return [];
+  // Pedido com estoque já criado: travado, apenas exclusão (sem destinos).
+  if (ctx?.estoqueBaixado) return [];
   const flow = pickFlow(ctx);
   const allFlowKeys = Object.keys(flow).filter(k => !MANUALLY_BLOCKED.has(k));
   const merged = Array.from(new Set([...allFlowKeys, ...ALWAYS_AVAILABLE]));
@@ -214,6 +218,7 @@ export function isTransitionAllowed(
   ctx?: TransitionContext,
 ): boolean {
   if (!current || !next) return false;
+  if (ctx?.estoqueBaixado) return false;
   if (current === next) return true;
   // Exceção: Conferido → Cobrado é a única transição manual permitida para "Cobrado".
   if (next === 'Cobrado') return current === 'Conferido';

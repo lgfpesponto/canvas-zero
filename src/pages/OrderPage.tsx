@@ -162,6 +162,7 @@ const OrderPage = () => {
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
+  const [nomeProdutoEstoque, setNomeProdutoEstoque] = useState<string>(df.nomeProdutoEstoque || '');
   const [tamanho, setTamanho] = useState(df.tamanho || '');
   const [genero, setGenero] = useState(df.genero || '');
   const [modelo, setModelo] = useState(df.modelo || '');
@@ -288,6 +289,10 @@ const OrderPage = () => {
   /* ───── cascading field handlers ───── */
   const handleModeloChange = (newModelo: string) => {
     setModelo(newModelo);
+    // Pré-preenche nome do produto de estoque com o modelo se ainda vazio (vendedor Estoque)
+    if (vendedorSelecionado === 'Estoque' && !nomeProdutoEstoque.trim() && newModelo) {
+      setNomeProdutoEstoque(newModelo);
+    }
     const sols = getSoladosForModelo(newModelo);
     const newSolado = sols.length === 1 ? sols[0].label : (sols.find(s => s.label === solado) ? solado : '');
     setSolado(newSolado);
@@ -789,6 +794,7 @@ const OrderPage = () => {
       [numeroPedido.trim(), 'Número do Pedido'],
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
+      ...(vendedorSelecionado === 'Estoque' ? [[nomeProdutoEstoque.trim(), 'Nome do Produto'] as [string, string]] : []),
       [genero, 'Gênero'],
       [modelo, 'Modelo'],
       [tipoCouroCano, 'Tipo do Couro do Cano'],
@@ -845,9 +851,10 @@ const OrderPage = () => {
   };
 
   const buildOrderData = () => ({
-    cliente: cliente.trim(),
-    clienteWhatsapp: clienteWhatsapp.trim() || undefined,
+    cliente: vendedorSelecionado === 'Estoque' ? '' : cliente.trim(),
+    clienteWhatsapp: vendedorSelecionado === 'Estoque' ? undefined : (clienteWhatsapp.trim() || undefined),
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
+    nomeProdutoEstoque: vendedorSelecionado === 'Estoque' ? nomeProdutoEstoque.trim() : undefined,
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
     // Modelo v2: preco gravado é o TOTAL FINAL (sem desconto na criação — desconto vem depois pelo detalhe).
@@ -1324,22 +1331,38 @@ const OrderPage = () => {
                   <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
                   {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
-                <div>
-                  <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
-                  <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
-                </div>
+                {vendedorSelecionado === 'Estoque' ? (
+                  <div>
+                    <label className={cls.label}>Nome do produto<span className="text-destructive ml-0.5">*</span></label>
+                    <input
+                      type="text"
+                      value={nomeProdutoEstoque}
+                      onChange={e => setNomeProdutoEstoque(e.target.value)}
+                      placeholder="Ex: Bota Country Marrom"
+                      className={cls.input}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Nome que aparecerá na página Estoque.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+                    <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
-                <input
-                  type="tel"
-                  value={clienteWhatsapp}
-                  onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
-                  placeholder="(XX) XXXXX-XXXX"
-                  className={cls.input}
-                />
-              </div>
+              {vendedorSelecionado !== 'Estoque' && (
+                <div>
+                  <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                  <input
+                    type="tel"
+                    value={clienteWhatsapp}
+                    onChange={e => setClienteWhatsapp(maskPhoneBR(e.target.value))}
+                    placeholder="(XX) XXXXX-XXXX"
+                    className={cls.input}
+                  />
+                </div>
+              )}
 
               <div className="grid sm:grid-cols-3 gap-4">
                 {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
@@ -1761,12 +1784,18 @@ const OrderPage = () => {
         open={showGrade}
         onOpenChange={setShowGrade}
         numeroPedidoBase={numeroPedido.trim()}
+        nomeProduto={nomeProdutoEstoque.trim()}
+        requireSku={vendedorSelecionado === 'Estoque'}
+        suggestSkuBase={vendedorSelecionado === 'Estoque' && modelo
+          ? modelo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+          : undefined}
         initialItems={gradeItems}
         onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);
           toast.success(`Grade definida: ${items.length} tamanhos, ${items.reduce((s, i) => s + i.quantidade, 0)} pedidos. Preencha a ficha e finalize.`);
         }}
       />
+
 
       {/* ───── Mirror ───── */}
       {showMirror && (
