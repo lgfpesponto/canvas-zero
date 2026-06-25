@@ -356,6 +356,8 @@ export function orderToDbRow(order: any, userId: string) {
     cor_recorte_cano: order.corRecorteCano || null,
     cor_recorte_gaspea: order.corRecorteGaspea || null,
     cor_recorte_taloneira: order.corRecorteTaloneira || null,
+    sku_estoque: order.skuEstoque || null,
+    nome_produto_estoque: order.nomeProdutoEstoque || null,
   };
 }
 
