@@ -357,6 +357,14 @@ const EstoquePage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <EstoqueBuyDialog
+        open={!!buyProduct}
+        onClose={() => setBuyProduct(null)}
+        produto={buyProduct}
+        vendedores={vendedores}
+        onSuccess={fetchRows}
+      />
     </div>
   );
 };
