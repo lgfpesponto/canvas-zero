@@ -119,9 +119,7 @@ const EstoquePage = () => {
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return groups
-      .map(g => ({ ...g, tamanhos: g.tamanhos.filter(t => t.quantidade > 0) }))
-      .filter(g => g.tamanhos.length > 0)
+    const list = groups
       .filter(g => {
         if (q) {
           const hitNome = g.nome.toLowerCase().includes(q);
@@ -129,7 +127,8 @@ const EstoquePage = () => {
           if (!hitNome && !hitSku) return false;
         }
         if (selTamanhos.size > 0) {
-          if (!g.tamanhos.some(t => selTamanhos.has(t.tamanho))) return false;
+          // Considera apenas tamanhos com estoque para o filtro de numeração
+          if (!g.tamanhos.some(t => t.quantidade > 0 && selTamanhos.has(t.tamanho))) return false;
         }
         for (const k of Object.keys(selFicha)) {
           const set = selFicha[k];
@@ -139,6 +138,16 @@ const EstoquePage = () => {
         }
         return true;
       });
+    // Ordena: com estoque primeiro (alfabético), zerados depois (alfabético)
+    list.sort((a, b) => {
+      const aTot = a.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+      const bTot = b.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+      const aOut = aTot === 0 ? 1 : 0;
+      const bOut = bTot === 0 ? 1 : 0;
+      if (aOut !== bOut) return aOut - bOut;
+      return a.nome.localeCompare(b.nome);
+    });
+    return list;
   }, [groups, search, selTamanhos, selFicha]);
 
   const toggleTam = (t: string) => {
