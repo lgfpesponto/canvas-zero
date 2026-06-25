@@ -1,58 +1,39 @@
-# Phase 4 — Auto-preenchimento inteligente do Nome do produto e SKU (vendedor=Estoque)
+# Phase 4 — Correção: Nome do produto vem do template (Modelos Salvos), não da variação Modelo
 
-## Objetivo
-Reduzir digitação no cadastro de pedidos de Estoque: nome do produto puxa do modelo, SKU sugerido vem do nome do produto, e se o nome bater com um produto já existente no estoque, traz o SKU dele — tudo editável.
+## O que mudar
 
-## 1. Nome do produto a partir do modelo (OrderPage)
+Hoje (errado): quando o vendedor é **Estoque**, o campo *Nome do produto* é auto-preenchido com a **variação Modelo** da ficha (ex.: "Bota Feminino"). 
 
-Já existe em `src/pages/OrderPage.tsx` (`handleModeloChange`):
-- Quando `vendedorSelecionado === 'Estoque'` e `nomeProdutoEstoque` está vazio, preenche com o `modelo` escolhido.
+Correto: deve ser preenchido com o **nome do Modelo Salvo** (template), que é o título mostrado em "Modelos Salvos" (ex.: "Florência Horse Preto e Bege", "LARA HORSE NESCAU MARROM"). Continua **editável**.
 
-Ajustes:
-- **Mantém editável** (já é — campo livre). Sem mudança extra.
-- Aplicar a mesma regra ao montar o estado inicial quando o pedido começa já com modelo (template / draft / `templateInit`): se vendedor=Estoque e nome vazio mas modelo preenchido → seta o nome.
+## Arquivo: `src/pages/OrderPage.tsx`
 
-## 2. SKU sugerido a partir do nome do produto (GradeEstoque)
+1. **Remover auto-fill via Modelo:**
+   - Apagar o `useEffect` das linhas 289–295 que copia `modelo → nomeProdutoEstoque`.
+   - Em `handleModeloChange` (linhas 319–324), remover o bloco que seta `nomeProdutoEstoque` a partir de `newModelo`.
 
-Hoje `suggestSkuBase` em `OrderPage.tsx` (linha ~1789) usa `slug(modelo)`. Trocar para:
-- **Base**: `slug(nomeProdutoEstoque)` quando preenchido; cai para `slug(modelo)` se nome vazio.
-- A geração por tamanho continua sendo `${base}-${tamanho}` dentro do `GradeEstoque` (já funciona).
-- Cada linha continua editável (já é).
+2. **Preencher a partir do template salvo:**
+   - Mudar a assinatura de `handleUseTemplate` para receber `(formData, templateNome)`.
+   - Mudar `handleEditTemplate` para também propagar `template.nome`.
+   - Dentro de ambos, após `validateAndPopulateTemplate`, se `vendedorSelecionado === 'Estoque'` (ou se o `formData.vendedorSelecionado === 'Estoque'`), setar:
+     ```ts
+     setNomeProdutoEstoque(prev => prev.trim() ? prev : templateNome);
+     ```
+     (não sobrescreve se usuário já digitou algo).
+   - Nos botões "Preencher" (linha 1728) e "Editar" (handleEditTemplate uso na lista), passar `t.nome`.
 
-## 3. Reusar SKU de produto já existente no estoque (lookup por nome)
+3. **Cobrir caminho de "envio entre usuários" / `templateInit`:**
+   - Em `templateInit` (linha 149), o objeto vem com `nome` do template (verificar shape). Adicionar um `useEffect` único no mount: se `vendedorSelecionado === 'Estoque'` e `nomeProdutoEstoque` vazio e `templateInit?.__templateNome` (ou `templateInit?.nome`) preenchido → setar. Se o shape não tiver o nome, propagar via `locState.templateNome` quando navegar.
 
-Quando o usuário abre a Grade de Estoque com `vendedor=Estoque`:
+## Comportamento resultante
 
-1. `OrderPage` faz uma consulta única antes de abrir o dialog (ou ao montar o dialog):
-   ```sql
-   SELECT sku_base, nome FROM estoque_produtos
-   WHERE lower(unaccent(nome)) = lower(unaccent(:nomeProdutoEstoque))
-     AND ativo = true
-   LIMIT 1
-   ```
-   (cliente faz a normalização — `nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()` — e usa `.ilike` para o filtro server-side; depois filtra exato no cliente.)
-2. Se encontrar:
-   - Usa `stripSizeSuffix(sku_base)` como `suggestSkuBase` (remove eventual `-38` final, caso o registro existente já tenha sufixo de tamanho).
-   - Mostra aviso curto no topo do dialog: "Encontramos o produto **'X'** no estoque — SKU sugerido `bota-...` (editável)".
-3. Se não encontrar: usa a regra do item 2 (slug do nome → slug do modelo).
-4. Cada SKU por linha continua **editável** como já é, e a validação de colisão existente em `GradeEstoque` (`skuConflicts`) continua avisando sem bloquear.
+- Abrir ficha vazia + escolher Modelo "Bota Feminino" → *Nome do produto* permanece **vazio**.
+- Clicar "Preencher" no template "Florência Horse Preto e Bege" → *Nome do produto* fica `Florência Horse Preto e Bege`.
+- Usuário pode editar a qualquer momento.
+- Sugestão de SKU (Phase 4 anterior) continua: usa `slug(nomeProdutoEstoque)` → fallback `slug(modelo)`; lookup em `estoque_produtos` por nome continua igual.
 
-## 4. Detalhes técnicos
-
-**Arquivos alterados**
-- `src/pages/OrderPage.tsx`
-  - Ajustar fonte do `suggestSkuBase` para usar `nomeProdutoEstoque`.
-  - Adicionar `useEffect` (ou async ao abrir o botão "Grade") que consulta `estoque_produtos` por nome e guarda `suggestedSkuFromExisting` em state, passado ao `GradeEstoque`.
-  - Garantir preenchimento de `nomeProdutoEstoque` quando o estado inicial vem com modelo (template/draft).
-- `src/components/GradeEstoque.tsx`
-  - Aceitar nova prop opcional `matchedExistingSku?: { sku: string; nome: string }` para renderizar a faixa de aviso "produto já existe". Comportamento padrão (sugestão) reaproveita `suggestSkuBase`.
-
-**Sem mudanças**
-- Sem migração de banco; usa `estoque_produtos` já existente com RLS atual (admin/vendedor podem ler).
-- `BeltOrderPage` fica de fora (cintos não usam fluxo de estoque).
-
-## 5. Fora do escopo
-- Auto-completar nome do produto enquanto digita (autocomplete) — apenas lookup por igualdade após o nome estar preenchido.
-- Mudanças em `EstoqueAdminPanel` (edição depois da criação) — já tem campos livres e segue como está.
+## Fora do escopo
+- Não muda `GradeEstoque`, `EstoqueAdminPanel`, nem migrations.
+- Não muda o fluxo de cinto.
 
 Confirma para implementar?
