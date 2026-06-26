@@ -606,10 +606,7 @@ const RanchoChiquePedidosPage = () => {
                       </Button>
                     </div>
 
-                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
-                        <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
-                      </Button>
-                    </div>
+
 
                     {p.order_id_portal && syncByOrder[p.order_id_portal] && (
                       <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
