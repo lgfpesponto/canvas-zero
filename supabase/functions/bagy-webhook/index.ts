@@ -521,8 +521,9 @@ Deno.serve(async (req) => {
       } else if (templateId) {
         status = "aguardando_ficha";
       } else {
-        status = "sem_mapeamento";
-        hasMissingMap = true;
+        // Brindes (preço 0) não contam como mapeamento faltante — não bloqueiam o pedido
+        status = precoUnit > 0 ? "sem_mapeamento" : "brinde_sem_sku";
+        if (precoUnit > 0) hasMissingMap = true;
       }
 
       classifiedItems.push({
