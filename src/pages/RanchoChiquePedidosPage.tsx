@@ -448,16 +448,13 @@ const RanchoChiquePedidosPage = () => {
             return (
               <div key={p.id} className="border rounded-lg bg-card overflow-hidden">
                 <div className="w-full flex items-center gap-3 p-3 hover:bg-accent/30">
-                  {p.order_id_portal ? (
-                    <Checkbox
-                      checked={selected.has(p.order_id_portal)}
-                      onCheckedChange={() => toggleSelected(p.order_id_portal)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label="Selecionar para sincronizar"
-                    />
-                  ) : (
-                    <div className="w-4 h-4 shrink-0" title="Sem vínculo com portal — não sincronizável" />
-                  )}
+                  <Checkbox
+                    checked={selected.has(p.id)}
+                    onCheckedChange={() => toggleSelected(p.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Selecionar pedido"
+                  />
+
                   <button
                     type="button"
                     onClick={() => setSelPedido(selPedido?.id === p.id ? null : p)}
@@ -493,7 +490,7 @@ const RanchoChiquePedidosPage = () => {
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-3 space-y-3 bg-background">
-                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div className="grid sm:grid-cols-3 gap-3 text-sm">
                       <div>
                         <div className="text-xs text-muted-foreground">Cliente</div>
                         <div className="font-semibold">{p.cliente_nome || '—'}</div>
@@ -502,7 +499,6 @@ const RanchoChiquePedidosPage = () => {
                         {p.cliente_email && <div className="text-xs">{p.cliente_email}</div>}
                         {p.pagamento && <div className="text-xs mt-1">Pagamento: <b>{p.pagamento}</b></div>}
                         <div className="text-xs">Total: <b>{brl(p.total)}</b></div>
-
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground">Endereço</div>
@@ -515,6 +511,16 @@ const RanchoChiquePedidosPage = () => {
                           </div>
                         ) : <div className="text-xs text-muted-foreground">—</div>}
                       </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Envio</div>
+                        <div className="text-xs">{p.metodo_envio || <span className="text-muted-foreground">— não informado —</span>}</div>
+                        {(p.frete ?? 0) > 0 && <div className="text-xs">Frete: <b>{brl(p.frete)}</b></div>}
+                        {p.tracking_code && (
+                          <div className="text-xs mt-1">
+                            Rastreio: <span className="font-mono">{p.tracking_code}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -525,16 +531,16 @@ const RanchoChiquePedidosPage = () => {
                           const sb = ITEM_STATUS_BADGE[it.status] || { label: it.status.toUpperCase(), cls: 'bg-gray-400 text-white' };
                           return (
                             <div key={it.id} className="flex items-center gap-3 p-2 border rounded text-sm">
-                              {it.foto_url
-                                ? <img src={it.foto_url} alt="" className="w-12 h-12 object-cover rounded" />
-                                : <div className="w-12 h-12 rounded bg-muted" />}
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">{it.nome_produto || '—'}</div>
+                                <div className="font-medium truncate">
+                                  {it.nome_produto || '—'}
+                                  {it.variacao_nome && <span className="text-muted-foreground font-normal"> — {it.variacao_nome}</span>}
+                                </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {it.variacao_nome && <>{it.variacao_nome} · </>}
                                   {it.tamanho && <>Tam {it.tamanho} · </>}
                                   Qtd {it.quantidade}
                                   {it.sku && <> · SKU <span className="font-mono">{it.sku}</span></>}
+                                  {it.ncm && <> · NCM <span className="font-mono">{it.ncm}</span></>}
                                 </div>
                               </div>
                               <div className="text-sm font-semibold">{brl(it.preco_unit)}</div>
@@ -571,9 +577,35 @@ const RanchoChiquePedidosPage = () => {
                           </TooltipContent>
                         </Tooltip></TooltipProvider>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => reprocessar(p)}>
-                        <RefreshCw size={14} className="mr-1" /> Reprocessar
+                      <Button size="sm" variant="outline" disabled={reprocessing} onClick={() => reprocessar(p)}>
+                        {reprocessing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RefreshCw size={14} className="mr-1" />}
+                        Reprocessar
                       </Button>
+                      <TooltipProvider><Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button size="sm" variant="outline" disabled>
+                              <FileText size={14} className="mr-1" /> Gerar NF-e
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Integração NF-e em configuração.</TooltipContent>
+                      </Tooltip></TooltipProvider>
+                      <TooltipProvider><Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button size="sm" variant="outline" disabled>
+                              <Printer size={14} className="mr-1" /> Imprimir etiqueta
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
+                      </Tooltip></TooltipProvider>
+                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
+                        <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
+                      </Button>
+                    </div>
+
                       <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
                         <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
                       </Button>
