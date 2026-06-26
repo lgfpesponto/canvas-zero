@@ -144,7 +144,9 @@ const OrderPage = () => {
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string } | null;
+  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string; bagyPrefill?: { templateId: string; numero: string; cliente?: string; whatsapp?: string; tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string; bagyOrderId: string; quantidade?: number } } | null;
+  const bagyPrefill = locState?.bagyPrefill || null;
+  const bagyPrefillRef = useRef(bagyPrefill);
   const draftState = locState?.draft;
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
