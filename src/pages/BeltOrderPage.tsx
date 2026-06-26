@@ -86,6 +86,9 @@ const BeltOrderPage = () => {
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
+  useEffect(() => {
+    if (mode === 'template' && isHttpUrl(tmpl.templateFotoUrl)) setMostrarFotoPainel(true);
+  }, [mode, tmpl.templateFotoUrl]);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
