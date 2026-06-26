@@ -689,7 +689,7 @@ const OrderPage = () => {
     (async () => {
       const { data: tmplRow } = await supabase
         .from('order_templates')
-        .select('id, nome, form_data, genero, sku')
+        .select('id, nome, form_data, genero, sku, tamanhos_skus')
         .eq('id', bagyPrefill.templateId)
         .maybeSingle();
       if (!tmplRow) {
@@ -698,6 +698,11 @@ const OrderPage = () => {
       }
       setProductChoice('bota');
       setMode('order');
+      appliedTemplateRef.current = {
+        nome: (tmplRow as any).nome,
+        sku: (tmplRow as any).sku,
+        tamanhosSkus: Array.isArray((tmplRow as any).tamanhos_skus) ? (tmplRow as any).tamanhos_skus : [],
+      };
       validateAndPopulateTemplate({ ...(tmplRow.form_data as any) });
       // Override com dados do pedido Bagy
       if (bagyPrefill.numero) setNumeroPedido(bagyPrefill.numero);
@@ -718,16 +723,25 @@ const OrderPage = () => {
   }, [bagyPrefill, fichaLoading]);
 
 
-  const handleUseTemplate = (formData: Record<string, string>, templateNome?: string) => {
+  const handleUseTemplate = (
+    template: { nome: string; form_data: Record<string, string>; sku?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
+  ) => {
     tmpl.setShowTemplates(false);
-    validateAndPopulateTemplate({ ...formData });
+    appliedTemplateRef.current = {
+      nome: template.nome,
+      sku: template.sku || null,
+      tamanhosSkus: Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : [],
+    };
+    validateAndPopulateTemplate({ ...template.form_data });
     setProductChoice('bota');
-    if (vendedorSelecionado === 'Estoque' && templateNome && !nomeProdutoEstoque.trim()) {
-      setNomeProdutoEstoque(templateNome);
+    if (vendedorSelecionado === 'Estoque' && template.nome && !nomeProdutoEstoque.trim()) {
+      setNomeProdutoEstoque(template.nome);
     }
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
+    // Edição de modelo NÃO cria pedido — limpa o template aplicado para não vazar identificação.
+    appliedTemplateRef.current = null;
     tmpl.startEditing(template);
     validateAndPopulateTemplate({ ...template.form_data });
     setMode('template');
