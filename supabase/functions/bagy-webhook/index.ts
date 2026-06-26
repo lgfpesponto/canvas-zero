@@ -61,31 +61,64 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Token na query string
+  // Token aceito via query (?token=XYZ), header (x-webhook-token) ou Authorization Bearer
   const url = new URL(req.url);
-  const token = url.searchParams.get("token") || "";
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) {
-    return new Response(JSON.stringify({ error: "invalid_token" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const tokenQuery = url.searchParams.get("token") || "";
+  const tokenHeader = req.headers.get("x-webhook-token") || "";
+  const authHeader = req.headers.get("authorization") || "";
+  const tokenBearer = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : "";
+  const tokenProvided = tokenQuery || tokenHeader || tokenBearer;
 
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    auth: { persistSession: false },
+  });
+
+  // Lê body uma vez (pra logar mesmo se token inválido)
   let rawBody = "";
   let payload: any = {};
   try {
     rawBody = await req.text();
     payload = rawBody ? JSON.parse(rawBody) : {};
   } catch (_e) {
+    // segue: payload fica {} e rawBody fica como veio
+  }
+
+  // Log sempre — útil pra debugar webhook não chegando ou com token errado
+  try {
+    await supabase.from("bagy_webhook_log").insert({
+      event: "incoming",
+      bagy_order_id: String(payload?.id ?? payload?.data?.id ?? "") || null,
+      signature: `query_token_len=${tokenQuery.length} header_token_len=${tokenHeader.length} bearer_len=${tokenBearer.length} ua=${(req.headers.get("user-agent") || "").slice(0, 80)}`,
+      payload_hash: await sha256Hex(rawBody || ""),
+      payload: payload || {},
+      erro: !tokenProvided
+        ? "sem_token"
+        : (tokenProvided !== WEBHOOK_TOKEN ? "token_invalido" : null),
+    });
+  } catch (_e) {
+    // não bloqueia
+  }
+
+  if (!WEBHOOK_TOKEN || tokenProvided !== WEBHOOK_TOKEN) {
+    return new Response(JSON.stringify({
+      error: "invalid_token",
+      hint: "Inclua ?token=SEU_TOKEN na URL do webhook (ou header x-webhook-token). Use 'Copiar URL do Webhook' no portal.",
+    }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!payload || typeof payload !== "object") {
     return new Response(JSON.stringify({ error: "invalid_json" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
-    auth: { persistSession: false },
-  });
+
 
   // A Bagy/Dooca tipicamente envia { event, data: {... order ...} } ou direto o order
   const event = pick<string>(payload, "event", "type") || "order";
