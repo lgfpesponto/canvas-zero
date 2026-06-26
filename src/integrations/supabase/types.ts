@@ -378,6 +378,47 @@ export type Database = {
         }
         Relationships: []
       }
+      bagy_stock_sync_queue: {
+        Row: {
+          criado_em: string
+          estoque_produto_id: string
+          id: string
+          novo_saldo: number
+          processado_em: string | null
+          sku: string
+          tentativas: number
+          ultimo_erro: string | null
+        }
+        Insert: {
+          criado_em?: string
+          estoque_produto_id: string
+          id?: string
+          novo_saldo: number
+          processado_em?: string | null
+          sku: string
+          tentativas?: number
+          ultimo_erro?: string | null
+        }
+        Update: {
+          criado_em?: string
+          estoque_produto_id?: string
+          id?: string
+          novo_saldo?: number
+          processado_em?: string | null
+          sku?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bagy_stock_sync_queue_estoque_produto_id_fkey"
+            columns: ["estoque_produto_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bagy_webhook_log: {
         Row: {
           bagy_order_id: string | null
@@ -518,6 +559,10 @@ export type Database = {
       estoque_produtos: {
         Row: {
           ativo: boolean
+          bagy_sync_at: string | null
+          bagy_sync_erro: string | null
+          bagy_sync_status: string | null
+          bagy_variation_id: string | null
           created_at: string
           criado_por: string | null
           ficha_snapshot: Json
@@ -532,6 +577,10 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          bagy_sync_at?: string | null
+          bagy_sync_erro?: string | null
+          bagy_sync_status?: string | null
+          bagy_variation_id?: string | null
           created_at?: string
           criado_por?: string | null
           ficha_snapshot?: Json
@@ -546,6 +595,10 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          bagy_sync_at?: string | null
+          bagy_sync_erro?: string | null
+          bagy_sync_status?: string | null
+          bagy_variation_id?: string | null
           created_at?: string
           criado_por?: string | null
           ficha_snapshot?: Json

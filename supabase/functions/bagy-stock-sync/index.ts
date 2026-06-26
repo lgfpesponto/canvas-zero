@@ -1,0 +1,234 @@
+// deno-lint-ignore-file no-explicit-any
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const BAGY_TOKEN = Deno.env.get("BAGY_API_TOKEN") || "";
+const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
+  .replace(/\/$/, "");
+
+const MAX_BATCH = 50;
+const MAX_TENTATIVAS = 5;
+
+async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
+  try {
+    const url = `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${BAGY_TOKEN}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      return { id: null, error: `GET HTTP ${res.status}: ${t.slice(0, 300)}` };
+    }
+    const json = await res.json();
+    // Dooca returns { data: [...] } usually
+    const arr = Array.isArray(json) ? json : (json.data || json.items || []);
+    if (!Array.isArray(arr) || arr.length === 0) {
+      return { id: null };
+    }
+    // Try exact sku match first (case-insensitive)
+    const skuLower = sku.toLowerCase();
+    const hit = arr.find((v: any) =>
+      String(v.sku || v.code || "").toLowerCase() === skuLower
+    ) || arr[0];
+    const id = hit?.id ?? hit?.variation_id ?? null;
+    return { id: id ? String(id) : null, raw: hit };
+  } catch (e) {
+    return { id: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function bagyPutBalance(variationId: string, balance: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const url = `${BAGY_BASE}/products/variations/${encodeURIComponent(variationId)}`;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${BAGY_TOKEN}`,
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ balance }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      return { ok: false, error: `PUT HTTP ${res.status}: ${t.slice(0, 400)}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (!BAGY_TOKEN) {
+    return new Response(JSON.stringify({ error: "BAGY_API_TOKEN ausente" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    auth: { persistSession: false },
+  });
+
+  // Optional body: { retry_produto_id?: string, retry_all_errors?: boolean, force_all_active?: boolean }
+  let body: any = {};
+  try { body = await req.json(); } catch { /* empty body ok */ }
+
+  // Retry: reenfileira itens específicos
+  if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active) {
+    let q = admin.from("estoque_produtos").select("id, sku_base, quantidade").eq("ativo", true);
+    if (body.retry_produto_id) {
+      q = q.eq("id", body.retry_produto_id);
+    } else if (body.retry_all_errors) {
+      q = q.in("bagy_sync_status", ["nao_encontrado_na_bagy", "erro"]);
+    }
+    const { data: prods, error } = await q;
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    for (const p of prods || []) {
+      if (!p.sku_base) continue;
+      // limpa pendente anterior do mesmo produto + reseta status
+      await admin.from("bagy_stock_sync_queue")
+        .upsert({
+          estoque_produto_id: p.id,
+          sku: p.sku_base,
+          novo_saldo: p.quantidade ?? 0,
+          tentativas: 0,
+          ultimo_erro: null,
+          processado_em: null,
+          criado_em: new Date().toISOString(),
+        } as any, { onConflict: "estoque_produto_id" });
+      await admin.from("estoque_produtos")
+        .update({ bagy_sync_status: "pendente", bagy_sync_erro: null })
+        .eq("id", p.id);
+    }
+  }
+
+  // Pega pendentes
+  const { data: pending, error: pendErr } = await admin
+    .from("bagy_stock_sync_queue")
+    .select("id, estoque_produto_id, sku, novo_saldo, tentativas")
+    .is("processado_em", null)
+    .order("criado_em", { ascending: true })
+    .limit(MAX_BATCH);
+
+  if (pendErr) {
+    return new Response(JSON.stringify({ error: pendErr.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const results: any[] = [];
+
+  for (const item of pending || []) {
+    // Lê produto pra pegar bagy_variation_id cacheado
+    const { data: prod } = await admin
+      .from("estoque_produtos")
+      .select("id, bagy_variation_id")
+      .eq("id", item.estoque_produto_id)
+      .maybeSingle();
+
+    let variationId: string | null = prod?.bagy_variation_id || null;
+    const nowIso = new Date().toISOString();
+
+    // Descobre o id se não tiver cache
+    if (!variationId) {
+      const r = await bagyGetVariationIdBySku(item.sku);
+      if (r.error) {
+        const novasTentativas = (item.tentativas || 0) + 1;
+        const desistir = novasTentativas >= MAX_TENTATIVAS;
+        await admin.from("bagy_stock_sync_queue").update({
+          tentativas: novasTentativas,
+          ultimo_erro: r.error,
+          processado_em: desistir ? nowIso : null,
+        }).eq("id", item.id);
+        if (desistir) {
+          await admin.from("estoque_produtos").update({
+            bagy_sync_status: "erro",
+            bagy_sync_erro: r.error,
+            bagy_sync_at: nowIso,
+          }).eq("id", item.estoque_produto_id);
+        }
+        results.push({ sku: item.sku, ok: false, stage: "lookup", error: r.error });
+        continue;
+      }
+      if (!r.id) {
+        // SKU não existe na Bagy → para de tentar
+        await admin.from("bagy_stock_sync_queue").update({
+          tentativas: (item.tentativas || 0) + 1,
+          ultimo_erro: "sku_nao_encontrado_na_bagy",
+          processado_em: nowIso,
+        }).eq("id", item.id);
+        await admin.from("estoque_produtos").update({
+          bagy_sync_status: "nao_encontrado_na_bagy",
+          bagy_sync_erro: `SKU "${item.sku}" não encontrado na Bagy. Cadastre o produto na Bagy com esse SKU e clique em Tentar novamente.`,
+          bagy_sync_at: nowIso,
+        }).eq("id", item.estoque_produto_id);
+        results.push({ sku: item.sku, ok: false, stage: "lookup", error: "sku_nao_encontrado_na_bagy" });
+        continue;
+      }
+      variationId = r.id;
+      await admin.from("estoque_produtos").update({
+        bagy_variation_id: variationId,
+      }).eq("id", item.estoque_produto_id);
+    }
+
+    // PUT do saldo
+    const put = await bagyPutBalance(variationId!, item.novo_saldo);
+    if (put.ok) {
+      await admin.from("bagy_stock_sync_queue").update({
+        tentativas: (item.tentativas || 0) + 1,
+        ultimo_erro: null,
+        processado_em: nowIso,
+      }).eq("id", item.id);
+      await admin.from("estoque_produtos").update({
+        bagy_sync_status: "ok",
+        bagy_sync_erro: null,
+        bagy_sync_at: nowIso,
+      }).eq("id", item.estoque_produto_id);
+      results.push({ sku: item.sku, ok: true, balance: item.novo_saldo });
+    } else {
+      const novasTentativas = (item.tentativas || 0) + 1;
+      const desistir = novasTentativas >= MAX_TENTATIVAS;
+      await admin.from("bagy_stock_sync_queue").update({
+        tentativas: novasTentativas,
+        ultimo_erro: put.error || "erro",
+        processado_em: desistir ? nowIso : null,
+      }).eq("id", item.id);
+      if (desistir) {
+        await admin.from("estoque_produtos").update({
+          bagy_sync_status: "erro",
+          bagy_sync_erro: put.error || "erro",
+          bagy_sync_at: nowIso,
+        }).eq("id", item.estoque_produto_id);
+      }
+      results.push({ sku: item.sku, ok: false, stage: "put", error: put.error });
+    }
+  }
+
+  return new Response(
+    JSON.stringify({ ok: true, processados: results.length, results }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+});
