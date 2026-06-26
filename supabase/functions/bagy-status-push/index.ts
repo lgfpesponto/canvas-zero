@@ -22,38 +22,81 @@ const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
 
 type Result = { order_id: string; ok: boolean; status?: string; error?: string };
 
+function isAlreadyExistsError(httpStatus: number, body: string): boolean {
+  if (httpStatus === 409 || httpStatus === 422) return true;
+  const t = body.toLowerCase();
+  return t.includes("already") || t.includes("já existe") || t.includes("ja existe");
+}
+
+async function bagyReq(
+  method: string,
+  path: string,
+  body?: any,
+): Promise<{ ok: boolean; status: number; text: string }> {
+  const res = await fetch(`${BAGY_BASE}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${BAGY_TOKEN}`,
+      Accept: "application/json",
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text().catch(() => "");
+  return { ok: res.ok, status: res.status, text };
+}
+
 async function pushToBagy(
   bagyOrderId: string,
   target: BagyTargetStatus,
   extras: { tracking_code?: string | null; tracking_url?: string | null; nf_numero?: string | null },
 ): Promise<{ ok: boolean; error?: string }> {
   if (!BAGY_TOKEN) return { ok: false, error: "BAGY_API_TOKEN ausente" };
-  const body: Record<string, unknown> = { status: BAGY_STATUS_CODE[target] };
-  if (target === "shipped" && extras.tracking_code) {
-    body.tracking_code = extras.tracking_code;
-    body.tracking = extras.tracking_code;
-    if (extras.tracking_url) body.tracking_url = extras.tracking_url;
-  }
-  if (target === "invoiced" && extras.nf_numero) {
-    body.invoice_number = extras.nf_numero;
-    body.nfe_number = extras.nf_numero;
-    body.nf_numero = extras.nf_numero;
-  }
+  const id = encodeURIComponent(bagyOrderId);
   try {
-    const url = `${BAGY_BASE}/orders/${encodeURIComponent(bagyOrderId)}`;
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${BAGY_TOKEN}`,
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      return { ok: false, error: `HTTP ${res.status}: ${t.slice(0, 400)}` };
+    if (target === "production" || target === "separated") {
+      const r = await bagyReq("POST", `/orders/${id}/fulfillment`);
+      if (r.ok || isAlreadyExistsError(r.status, r.text)) return { ok: true };
+      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
     }
+    if (target === "invoiced") {
+      const cre = await bagyReq("POST", `/orders/${id}/fulfillment`);
+      if (!cre.ok && !isAlreadyExistsError(cre.status, cre.text)) {
+        return { ok: false, error: `pré-fulfillment HTTP ${cre.status}: ${cre.text.slice(0, 200)}` };
+      }
+      const nfBody: Record<string, unknown> = {};
+      if (extras.nf_numero) {
+        const parts = String(extras.nf_numero).split("/");
+        nfBody.nfe_number = parts[0];
+        if (parts[1]) nfBody.nfe_series = parts[1];
+      }
+      const r = await bagyReq("PUT", `/orders/${id}/fulfillment/invoiced`, nfBody);
+      if (r.ok) return { ok: true };
+      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+    }
+    if (target === "shipped") {
+      const cre = await bagyReq("POST", `/orders/${id}/fulfillment`);
+      if (!cre.ok && !isAlreadyExistsError(cre.status, cre.text)) {
+        return { ok: false, error: `pré-fulfillment HTTP ${cre.status}: ${cre.text.slice(0, 200)}` };
+      }
+      const shipBody: Record<string, unknown> = {};
+      if (extras.tracking_code) shipBody.shipping_code = extras.tracking_code;
+      if (extras.tracking_url) shipBody.shipping_track_url = extras.tracking_url;
+      const r = await bagyReq("PUT", `/orders/${id}/fulfillment/shipped`, shipBody);
+      if (r.ok) return { ok: true };
+      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+    }
+    if (target === "delivered") {
+      const r = await bagyReq("PUT", `/orders/${id}/fulfillment/delivered`);
+      if (r.ok) return { ok: true };
+      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+    }
+    if (target === "canceled") {
+      const r = await bagyReq("PUT", `/orders/${id}`, { status: "canceled" });
+      if (r.ok) return { ok: true };
+      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+    }
+    // approved não tem ação na Bagy (já está aprovado quando webhook chega)
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
