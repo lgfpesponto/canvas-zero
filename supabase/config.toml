@@ -12,3 +12,10 @@ verify_jwt = false
 [functions.atacado-sync-proxy]
 verify_jwt = false
 
+[functions.bagy-webhook]
+verify_jwt = false
+
+[functions.bagy-status-push]
+verify_jwt = false
+
+
