@@ -1042,8 +1042,31 @@ const OrderPage = () => {
         if (success) {
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim() || '(novo)';
+          // === Pós-save Bagy: liga pedido criado ao item Bagy + enfileira "production" ===
+          const bp = bagyPrefillRef.current;
+          if (bp && numeroSalvo && numeroSalvo !== '(novo)') {
+            try {
+              const { data: ord } = await supabase
+                .from('orders').select('id').eq('numero', numeroSalvo).maybeSingle();
+              if (ord?.id) {
+                await supabase.from('orders').update({ bagy_order_id: bp.bagyOrderId } as any).eq('id', ord.id);
+                await supabase.from('bagy_pedido_itens').update({
+                  order_id_portal: ord.id, status: 'ficha_gerada',
+                } as any).eq('id', bp.bagyItemId);
+                await supabase.from('bagy_pedidos').update({
+                  order_id_portal: ord.id, flag: 'pedido_criado',
+                } as any).eq('id', bp.bagyPedidoId);
+                await supabase.from('bagy_status_sync_queue').insert({
+                  bagy_order_id: bp.bagyOrderId, target_status: 'production',
+                } as any);
+                toast.success('Ficha criada e Bagy será atualizada para "Em Produção".');
+              }
+            } catch (e) { console.error('bagy post-save err', e); }
+            bagyPrefillRef.current = null;
+          }
           toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
           resetForm();
+
         } else {
           toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
         }
