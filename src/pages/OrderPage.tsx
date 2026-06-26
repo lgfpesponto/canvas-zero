@@ -1117,22 +1117,23 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           const bp = bagyPrefillRef.current;
           if (bp && numeroSalvo && numeroSalvo !== '(novo)') {
             try {
-              const { data: ord } = await supabase
+              const { data: ord, error: ordErr } = await supabase
                 .from('orders').select('id').eq('numero', numeroSalvo).maybeSingle();
+              if (ordErr) throw ordErr;
               if (ord?.id) {
-                await supabase.from('orders').update({ bagy_order_id: bp.bagyOrderId } as any).eq('id', ord.id);
-                await supabase.from('bagy_pedido_itens').update({
-                  order_id_portal: ord.id, status: 'ficha_gerada',
-                } as any).eq('id', bp.bagyItemId);
-                await supabase.from('bagy_pedidos').update({
-                  order_id_portal: ord.id, flag: 'pedido_criado',
-                } as any).eq('id', bp.bagyPedidoId);
-                await supabase.from('bagy_status_sync_queue').insert({
-                  bagy_order_id: bp.bagyOrderId, target_status: 'production',
-                } as any);
+                // Apenas seta o bagy_order_id; o trigger DB
+                // (bagy_link_orders_after_save) atualiza item/pedido Bagy
+                // e enfileira "production" automaticamente — não depende de
+                // o cliente ter permissão pra escrever nessas tabelas.
+                const { error: e1 } = await supabase
+                  .from('orders').update({ bagy_order_id: bp.bagyOrderId } as any).eq('id', ord.id);
+                if (e1) throw e1;
                 toast.success('Ficha criada e Bagy será atualizada para "Em Produção".');
               }
-            } catch (e) { console.error('bagy post-save err', e); }
+            } catch (e: any) {
+              console.error('bagy post-save err', e);
+              toast.error('Pedido salvo, mas falhou ao vincular com Bagy: ' + (e?.message || 'erro desconhecido'));
+            }
             bagyPrefillRef.current = null;
           }
           toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
