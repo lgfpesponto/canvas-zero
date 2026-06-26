@@ -75,40 +75,40 @@ Deno.serve(async (req) => {
 
   const webhookUrl = `${SUPABASE_URL}/functions/v1/bagy-webhook?token=${encodeURIComponent(WEBHOOK_TOKEN)}&force=1`;
 
-  const results: Array<{ pedido_id: string; numero_bagy: string; ok: boolean; message: string }> = [];
+  const results: Array<{ key: string; label: string; ok: boolean; message: string }> = [];
 
-  for (const p of (pedidos || [])) {
-    if (!p.payload) {
-      results.push({ pedido_id: p.id, numero_bagy: p.numero_bagy, ok: false, message: "sem payload salvo" });
+  for (const s of sources) {
+    if (!s.payload) {
+      results.push({ key: s.key, label: s.label, ok: false, message: "sem payload salvo" });
       continue;
     }
     try {
       const resp = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(p.payload),
+        body: JSON.stringify(s.payload),
       });
       const txt = await resp.text();
       let parsed: any = null;
       try { parsed = JSON.parse(txt); } catch { /* */ }
       if (resp.ok) {
         results.push({
-          pedido_id: p.id,
-          numero_bagy: p.numero_bagy,
+          key: s.key,
+          label: s.label,
           ok: true,
           message: parsed?.flag || parsed?.skipped || "ok",
         });
       } else {
         results.push({
-          pedido_id: p.id,
-          numero_bagy: p.numero_bagy,
+          key: s.key,
+          label: s.label,
           ok: false,
           message: parsed?.error || txt.slice(0, 200) || `HTTP ${resp.status}`,
         });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      results.push({ pedido_id: p.id, numero_bagy: p.numero_bagy, ok: false, message: msg });
+      results.push({ key: s.key, label: s.label, ok: false, message: msg });
     }
   }
 
