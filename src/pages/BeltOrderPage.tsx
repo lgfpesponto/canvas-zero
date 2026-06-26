@@ -8,6 +8,7 @@ import { saveDraft, deleteDraft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
 import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Pencil, Check, Send, Inbox } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
+import { TemplateHeaderFields } from '@/components/template/TemplateHeaderFields';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +86,9 @@ const BeltOrderPage = () => {
   const [observacao, setObservacao] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
+  useEffect(() => {
+    if (mode === 'template' && isHttpUrl(tmpl.templateFotoUrl)) setMostrarFotoPainel(true);
+  }, [mode, tmpl.templateFotoUrl]);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
@@ -485,7 +489,8 @@ const BeltOrderPage = () => {
     },
   ].filter(g => g.itens.length > 0);
 
-  const showFotoPanel = mode === 'order' && mostrarFotoPainel && isHttpUrl(fotoUrl);
+  const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
+  const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
   const isTemplate = mode === 'template';
 
   return (
@@ -525,12 +530,20 @@ const BeltOrderPage = () => {
 
         <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* Template name field */}
+          {/* Cabeçalho do Modelo (foto, nome, gênero, SKU base, tamanhos+SKU) */}
           {isTemplate && (
-            <div>
-              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Cinto tradicional" className={cls.input} />
-            </div>
+            <TemplateHeaderFields
+              nome={tmpl.templateName}
+              onNome={tmpl.setTemplateName}
+              genero={tmpl.templateGenero}
+              onGenero={tmpl.setTemplateGenero}
+              sku={tmpl.templateSku}
+              onSku={tmpl.setTemplateSku}
+              fotoUrl={tmpl.templateFotoUrl}
+              onFotoUrl={v => { tmpl.setTemplateFotoUrl(v); if (isHttpUrl(v)) setMostrarFotoPainel(true); else setMostrarFotoPainel(false); }}
+              tamanhosSkus={tmpl.templateTamanhosSkus}
+              onTamanhosSkus={tmpl.setTemplateTamanhosSkus}
+            />
           )}
 
           {/* IDENTIFICAÇÃO (apenas em modo pedido) */}
@@ -777,7 +790,7 @@ const BeltOrderPage = () => {
         </form>
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel url={fotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+          <FotoPedidoSidePanel url={currentFotoUrl} onClose={() => setMostrarFotoPainel(false)} />
         )}
       </div>
 
