@@ -214,10 +214,27 @@ const RanchoChiquePedidosPage = () => {
         <h1 className="text-2xl font-display font-bold flex items-center gap-2">
           <Package /> Pedidos Bagy — Rancho Chique
         </h1>
-        <Button variant="outline" size="sm" onClick={load}>
-          <RefreshCw size={14} className="mr-1" /> Atualizar
-        </Button>
+        <div className="flex gap-2">
+          {role === 'admin_master' && (
+            <Button variant="outline" size="sm" onClick={async () => {
+              const { data, error } = await supabase.functions.invoke('bagy-webhook-info');
+              if (error || !data?.webhook_url) { toast.error('Erro: ' + (error?.message || 'sem URL')); return; }
+              try {
+                await navigator.clipboard.writeText(data.webhook_url);
+                toast.success('URL do webhook copiada! Cole na Bagy em Webhooks → "Pedidos".');
+              } catch {
+                prompt('URL do webhook Bagy (copie):', data.webhook_url);
+              }
+            }}>
+              Copiar URL do Webhook
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={load}>
+            <RefreshCw size={14} className="mr-1" /> Atualizar
+          </Button>
+        </div>
       </div>
+
 
       {semMapCount > 0 && (
         <div className="mb-3 p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-900 flex items-start gap-2 text-sm">
