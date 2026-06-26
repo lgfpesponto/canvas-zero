@@ -1360,103 +1360,24 @@ const OrderPage = () => {
 
         <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* Template name + SKU + Gênero + Foto + Grade Tamanhos/SKU (integração Bagy) */}
+          {/* Cabeçalho do Modelo (foto, nome, modelo+gênero, SKU base, tamanhos+SKU) */}
           {mode === 'template' && (
-            <div className="space-y-3">
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-3">
-                  <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
-                  <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={cls.label}>SKU Bagy base <span className="text-xs font-normal text-muted-foreground">(opcional — quando o produto não varia por tamanho)</span></label>
-                  <input type="text" value={tmpl.templateSku} onChange={e => tmpl.setTemplateSku(e.target.value)} placeholder="Ex: TEX-AMANDA-PE" className={cls.input} />
-                </div>
-                <div>
-                  <label className={cls.label}>Gênero</label>
-                  <select value={tmpl.templateGenero} onChange={e => tmpl.setTemplateGenero(e.target.value)} className={cls.select}>
-                    <option value="">—</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Feminino">Feminino</option>
-                    <option value="Unissex">Unissex</option>
-                    <option value="Infantil">Infantil</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Foto de referência do modelo */}
-              <div>
-                <label className={cls.label}>Link da Foto de Referência (Google Drive) <span className="text-xs font-normal text-muted-foreground">(opcional — usada na ficha automática de pedidos da Bagy)</span></label>
-                <div className="flex items-center gap-2">
-                  <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
-                  <input
-                    type="url"
-                    value={tmpl.templateFotoUrl}
-                    onChange={e => tmpl.setTemplateFotoUrl(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className={cls.input}
-                  />
-                  {tmpl.templateFotoUrl && (
-                    <button type="button" onClick={() => tmpl.setTemplateFotoUrl('')} className="text-destructive hover:text-destructive/80">
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Grade Tamanho × SKU Bagy */}
-              <div className="border rounded-lg p-3 bg-muted/30">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <div className="font-semibold text-sm">Tamanhos disponíveis + SKU Bagy</div>
-                    <div className="text-xs text-muted-foreground">Quando o SKU da Bagy varia por tamanho, cadastre cada par aqui. Ao receber um pedido, a ficha é gerada automaticamente já com o tamanho certo.</div>
-                  </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => tmpl.setTemplateTamanhosSkus([...(tmpl.templateTamanhosSkus || []), { tamanho: '', sku: '' }])}>
-                    <Plus size={14} className="mr-1" /> Adicionar tamanho
-                  </Button>
-                </div>
-                {(!tmpl.templateTamanhosSkus || tmpl.templateTamanhosSkus.length === 0) ? (
-                  <div className="text-xs text-muted-foreground italic">Nenhum tamanho cadastrado. Clique em "Adicionar tamanho".</div>
-                ) : (
-                  <div className="space-y-2">
-                    {tmpl.templateTamanhosSkus.map((row, idx) => (
-                      <div key={idx} className="grid grid-cols-[100px_1fr_auto] gap-2 items-center">
-                        <input
-                          type="text"
-                          value={row.tamanho}
-                          onChange={e => {
-                            const next = [...tmpl.templateTamanhosSkus];
-                            next[idx] = { ...next[idx], tamanho: e.target.value };
-                            tmpl.setTemplateTamanhosSkus(next);
-                          }}
-                          placeholder="Tam (ex 36)"
-                          className={cls.input}
-                        />
-                        <input
-                          type="text"
-                          value={row.sku}
-                          onChange={e => {
-                            const next = [...tmpl.templateTamanhosSkus];
-                            next[idx] = { ...next[idx], sku: e.target.value };
-                            tmpl.setTemplateTamanhosSkus(next);
-                          }}
-                          placeholder="SKU Bagy (ex TEX-AMANDA-PE-36)"
-                          className={cls.input}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => tmpl.setTemplateTamanhosSkus(tmpl.templateTamanhosSkus.filter((_, i) => i !== idx))}
-                          className="text-destructive hover:text-destructive/80 p-2"
-                          title="Remover"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <TemplateHeaderFields
+              nome={tmpl.templateName}
+              onNome={tmpl.setTemplateName}
+              showModelo
+              modelo={modelo}
+              onModelo={handleModeloChange}
+              modeloOptions={MODELOS.map(m => m.label)}
+              genero={tmpl.templateGenero}
+              onGenero={tmpl.setTemplateGenero}
+              sku={tmpl.templateSku}
+              onSku={tmpl.setTemplateSku}
+              fotoUrl={tmpl.templateFotoUrl}
+              onFotoUrl={v => { tmpl.setTemplateFotoUrl(v); if (isHttpUrl(v)) setMostrarFotoPainel(true); else setMostrarFotoPainel(false); }}
+              tamanhosSkus={tmpl.templateTamanhosSkus}
+              onTamanhosSkus={tmpl.setTemplateTamanhosSkus}
+            />
           )}
 
 
