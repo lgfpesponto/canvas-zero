@@ -396,8 +396,8 @@ Deno.serve(async (req) => {
     // Remove itens antigos e insere os novos (mais simples que diff)
     await supabase.from("bagy_pedido_itens").delete().eq("pedido_id", pedidoRow.id);
 
-    const isApproved = APPROVED_STATUSES.has(statusBagy);
-    const isRefund = REFUND_STATUSES.has(statusBagy);
+    const isApproved = APPROVED_STATUSES.has(finalStatusBagy);
+    const isRefund = REFUND_STATUSES.has(finalStatusBagy);
     const isFirstTimeApproved = isApproved && !pedidoExistente?.order_id_portal;
 
     // Resolve user_id do vendedor "site"/Rancho Chique
