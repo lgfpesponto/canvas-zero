@@ -1577,6 +1577,8 @@ export type Database = {
           strass_qtd: number | null
           tamanho: string
           tem_laser: boolean
+          template_nome: string | null
+          template_sku: string | null
           tipo_extra: string | null
           tipo_metal: string | null
           tiras: string
@@ -1686,6 +1688,8 @@ export type Database = {
           strass_qtd?: number | null
           tamanho?: string
           tem_laser?: boolean
+          template_nome?: string | null
+          template_sku?: string | null
           tipo_extra?: string | null
           tipo_metal?: string | null
           tiras?: string
@@ -1795,6 +1799,8 @@ export type Database = {
           strass_qtd?: number | null
           tamanho?: string
           tem_laser?: boolean
+          template_nome?: string | null
+          template_sku?: string | null
           tipo_extra?: string | null
           tipo_metal?: string | null
           tiras?: string
@@ -2628,6 +2634,8 @@ export type Database = {
           strass_qtd: number | null
           tamanho: string
           tem_laser: boolean
+          template_nome: string | null
+          template_sku: string | null
           tipo_extra: string | null
           tipo_metal: string | null
           tiras: string
