@@ -345,6 +345,7 @@ const BeltOrderPage = () => {
     setFotoUrl('');
     setShowMirror(false);
     setLoadedDraftId(null);
+    appliedTemplateRef.current = null;
   };
 
   const confirmOrder = async () => {
@@ -377,11 +378,21 @@ const BeltOrderPage = () => {
         if (fivela === 'Outro' && fivelaOutroDesc) extraDetalhes.fivelaOutroDesc = fivelaOutroDesc;
       }
 
+      const tpl = appliedTemplateRef.current;
+      const tplGrade = tpl
+        ? (tpl.tamanhosSkus || []).find(
+            t => (t.tamanho || '').trim().toLowerCase() === (tamanho || '').trim().toLowerCase(),
+          )
+        : undefined;
+      const tplSku = tpl ? ((tplGrade?.sku || tpl.sku || '').trim() || null) : null;
+
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
         cliente: cliente.trim(),
         clienteWhatsapp: clienteWhatsapp.trim() || undefined,
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
+        templateNome: tpl?.nome,
+        templateSku: tplSku || undefined,
         tamanho: '-',
         modelo: '-',
         solado: '-',
