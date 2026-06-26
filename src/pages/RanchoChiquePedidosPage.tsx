@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type BagyPedido = {
   id: string;
