@@ -640,16 +640,36 @@ const RanchoChiquePedidosPage = () => {
 
       {/* Barra flutuante de seleção */}
       {selected.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-full px-4 py-2 flex items-center gap-3">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-2xl px-4 py-2 flex items-center gap-2 flex-wrap max-w-[95vw]">
           <span className="text-sm font-semibold">{selected.size} selecionado(s)</span>
           <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
-          <Button size="sm" disabled={syncing} onClick={() => sincronizarBagy(Array.from(selected))}>
+          <Button size="sm" variant="outline" disabled={reprocessing}
+            onClick={() => reprocessarBulk(Array.from(selected))}>
+            {reprocessing
+              ? <><Loader2 size={14} className="mr-1 animate-spin"/> Reprocessando...</>
+              : <><RefreshCw size={14} className="mr-1"/> Reprocessar</>}
+          </Button>
+          <Button size="sm" disabled={syncing || selectedPortalIds.length === 0}
+            onClick={() => sincronizarBagy(selectedPortalIds)}>
             {syncing
               ? <><Loader2 size={14} className="mr-1 animate-spin"/> {syncProgress ? `${syncProgress.done}/${syncProgress.total}` : 'Enviando...'}</>
-              : <><Send size={14} className="mr-1"/> Atualizar {selected.size} na Bagy</>}
+              : <><Send size={14} className="mr-1"/> Atualizar Bagy ({selectedPortalIds.length}/{selected.size})</>}
           </Button>
+          <TooltipProvider><Tooltip>
+            <TooltipTrigger asChild>
+              <span><Button size="sm" variant="outline" disabled><FileText size={14} className="mr-1"/> Gerar NF-e</Button></span>
+            </TooltipTrigger>
+            <TooltipContent>Integração NF-e em configuração.</TooltipContent>
+          </Tooltip></TooltipProvider>
+          <TooltipProvider><Tooltip>
+            <TooltipTrigger asChild>
+              <span><Button size="sm" variant="outline" disabled><Printer size={14} className="mr-1"/> Imprimir etiqueta</Button></span>
+            </TooltipTrigger>
+            <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
+          </Tooltip></TooltipProvider>
         </div>
       )}
+
 
       <Dialog open={!!trackDialog} onOpenChange={(o) => !o && setTrackDialog(null)}>
         <DialogContent>
