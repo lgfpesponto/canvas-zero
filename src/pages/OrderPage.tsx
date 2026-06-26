@@ -154,6 +154,10 @@ const OrderPage = () => {
   const [draftId, setDraftId] = useState(draftId_init);
   const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
   const [mode, setMode] = useState<'order' | 'template'>('order');
+  // Abre painel automaticamente ao entrar em template com foto preenchida (edição de modelo)
+  useEffect(() => {
+    if (mode === 'template' && isHttpUrl(tmpl.templateFotoUrl)) setMostrarFotoPainel(true);
+  }, [mode, tmpl.templateFotoUrl]);
   const tmpl = useTemplateManagement();
   // Restore draft or template form data
   const df = templateInit || draftState?.form || {};
