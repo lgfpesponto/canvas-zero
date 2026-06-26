@@ -736,7 +736,12 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         .eq('nome_usuario', 'site')
         .maybeSingle();
       if (prof?.nome_completo) setVendedorSelecionado(prof.nome_completo);
-      toast.info(`Ficha pré-preenchida do pedido Bagy ${bagyPrefill.numero}. Revise e salve.`);
+      if (autoShowMirror) {
+        // Aguarda 1 tick pra estados aplicarem antes de abrir o espelho
+        setTimeout(() => setShowMirror(true), 50);
+      } else {
+        toast.info(`Ficha pré-preenchida do pedido Bagy ${bagyPrefill.numero}. Revise e salve.`);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bagyPrefill, fichaLoading]);
