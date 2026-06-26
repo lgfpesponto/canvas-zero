@@ -411,8 +411,14 @@ const RanchoChiquePedidosPage = () => {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Buscar nº Bagy, cliente, CPF, WhatsApp..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="border rounded px-2 text-sm" value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}>
-          <option value="todos">Todos os status</option>
+        <select className="border rounded px-2 text-sm h-10" value={filtroStatusBagy} onChange={e => setFiltroStatusBagy(e.target.value)}>
+          <option value="todos">Todos status Bagy</option>
+          {STATUS_BAGY_FILTROS.map(s => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        <select className="border rounded px-2 text-sm h-10" value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}>
+          <option value="todos">Toda situação interna</option>
           <option value="pedido_criado">Pedido criado</option>
           <option value="aguardando_ficha">Aguardando ficha</option>
           <option value="aguardando_mapeamento">Sem mapeamento</option>
@@ -428,12 +434,13 @@ const RanchoChiquePedidosPage = () => {
         <>
           <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
             <Checkbox
-              checked={filtered.length > 0 && filtered.every(p => !p.order_id_portal || selected.has(p.order_id_portal!))}
+              checked={filtered.length > 0 && filtered.every(p => selected.has(p.id))}
               onCheckedChange={(v) => v ? selectAllVisible() : clearSelection()}
             />
             <span>Selecionar todos visíveis</span>
             {selected.size > 0 && <span className="ml-2">· {selected.size} selecionado(s)</span>}
           </div>
+
         <div className="space-y-2">
           {filtered.map(p => {
             const itens = itensByPed[p.id] || [];
