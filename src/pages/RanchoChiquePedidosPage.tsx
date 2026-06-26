@@ -366,6 +366,15 @@ const RanchoChiquePedidosPage = () => {
       ) : filtered.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado.</p>
       ) : (
+        <>
+          <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={filtered.length > 0 && filtered.every(p => !p.order_id_portal || selected.has(p.order_id_portal!))}
+              onCheckedChange={(v) => v ? selectAllVisible() : clearSelection()}
+            />
+            <span>Selecionar todos visíveis</span>
+            {selected.size > 0 && <span className="ml-2">· {selected.size} selecionado(s)</span>}
+          </div>
         <div className="space-y-2">
           {filtered.map(p => {
             const itens = itensByPed[p.id] || [];
