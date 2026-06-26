@@ -440,6 +440,9 @@ const RanchoChiquePedidosPage = () => {
                         {p.cliente_doc && <div className="text-xs">CPF/CNPJ: {p.cliente_doc}</div>}
                         {p.cliente_whats && <div className="text-xs">WhatsApp: {p.cliente_whats}</div>}
                         {p.cliente_email && <div className="text-xs">{p.cliente_email}</div>}
+                        {p.pagamento && <div className="text-xs mt-1">Pagamento: <b>{p.pagamento}</b></div>}
+                        <div className="text-xs">Total: <b>{brl(p.total)}</b></div>
+
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground">Endereço</div>
