@@ -47,6 +47,7 @@ const BeltOrderPage = () => {
   const isAdminUser = isAdmin;
   const tmpl = useTemplateManagement();
   const [mode, setMode] = useState<'order' | 'template'>('order');
+  const [mostrarFotoPainel, setMostrarFotoPainelTop] = useState(false);
 
   // Form state
   const isAdminProducao = user?.role === 'admin_producao';
