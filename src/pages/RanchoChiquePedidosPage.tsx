@@ -321,18 +321,24 @@ const RanchoChiquePedidosPage = () => {
     return { ok, fail };
   };
 
-  const toggleSelected = (orderIdPortal: string | null) => {
-    if (!orderIdPortal) return;
+  const toggleSelected = (pedidoId: string) => {
     setSelected(prev => {
       const n = new Set(prev);
-      if (n.has(orderIdPortal)) n.delete(orderIdPortal); else n.add(orderIdPortal);
+      if (n.has(pedidoId)) n.delete(pedidoId); else n.add(pedidoId);
       return n;
     });
   };
   const selectAllVisible = () => {
-    setSelected(new Set(filtered.map(p => p.order_id_portal).filter(Boolean) as string[]));
+    setSelected(new Set(filtered.map(p => p.id)));
   };
   const clearSelection = () => setSelected(new Set());
+
+  // Os ids de portal correspondentes aos pedidos selecionados (subset elegível para sync)
+  const selectedPortalIds = useMemo(() => {
+    const byId = new Map(pedidos.map(p => [p.id, p.order_id_portal]));
+    return Array.from(selected).map(id => byId.get(id)).filter(Boolean) as string[];
+  }, [selected, pedidos]);
+
 
   const fmtRelative = (iso: string | null | undefined) => {
     if (!iso) return null;
