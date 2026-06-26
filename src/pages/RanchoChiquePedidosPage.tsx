@@ -173,7 +173,11 @@ const RanchoChiquePedidosPage = () => {
   };
 
   useEffect(() => {
-    if (!authLoading && isLoggedIn && allowed) load();
+    if (!authLoading && isLoggedIn && allowed) {
+      load();
+      // drena fila de status Bagy em background (silencioso)
+      supabase.functions.invoke('bagy-queue-drain').catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, isLoggedIn, allowed]);
 
