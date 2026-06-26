@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export type TamanhoSku = { tamanho: string; sku: string };
+
 export interface TemplateRecord {
   id: string;
   nome: string;
@@ -11,6 +13,8 @@ export interface TemplateRecord {
   seen?: boolean;
   sku?: string | null;
   genero?: string | null;
+  foto_url?: string | null;
+  tamanhos_skus?: TamanhoSku[] | null;
 }
 
 
@@ -20,20 +24,34 @@ export function useTemplateManagement() {
   const [templateName, setTemplateName] = useState('');
   const [templateSku, setTemplateSku] = useState('');
   const [templateGenero, setTemplateGenero] = useState('');
+  const [templateFotoUrl, setTemplateFotoUrl] = useState('');
+  const [templateTamanhosSkus, setTemplateTamanhosSkus] = useState<TamanhoSku[]>([]);
   const [templateSearch, setTemplateSearch] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
 
   const isEditing = editingTemplateId !== null;
 
+  const resetTemplateFields = useCallback(() => {
+    setTemplateName('');
+    setTemplateSku('');
+    setTemplateGenero('');
+    setTemplateFotoUrl('');
+    setTemplateTamanhosSkus([]);
+  }, []);
 
   const loadTemplates = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('order_templates')
-      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero')
+      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero, foto_url, tamanhos_skus')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     setTemplates((data as any) || []);
   }, []);
+
+  const sanitizeTamanhos = (arr: TamanhoSku[]): TamanhoSku[] =>
+    arr
+      .map(t => ({ tamanho: (t.tamanho || '').trim(), sku: (t.sku || '').trim() }))
+      .filter(t => t.tamanho || t.sku);
 
   const saveTemplate = useCallback(async (userId: string, formData: Record<string, string>) => {
     if (!templateName.trim()) {
@@ -42,20 +60,20 @@ export function useTemplateManagement() {
     }
     const sku = templateSku.trim() || null;
     const genero = templateGenero.trim() || null;
+    const foto_url = templateFotoUrl.trim() || null;
+    const tamanhos_skus = sanitizeTamanhos(templateTamanhosSkus);
     const { error } = await supabase
       .from('order_templates')
-      .insert({ user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero } as any);
+      .insert({ user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero, foto_url, tamanhos_skus } as any);
     if (error) {
       toast.error('Erro ao salvar modelo');
       console.error(error);
       return false;
     }
     toast.success('Modelo criado com sucesso!');
-    setTemplateName('');
-    setTemplateSku('');
-    setTemplateGenero('');
+    resetTemplateFields();
     return true;
-  }, [templateName, templateSku, templateGenero]);
+  }, [templateName, templateSku, templateGenero, templateFotoUrl, templateTamanhosSkus, resetTemplateFields]);
 
   const updateTemplate = useCallback(async (formData: Record<string, string>) => {
     if (!editingTemplateId) return false;
@@ -65,9 +83,11 @@ export function useTemplateManagement() {
     }
     const sku = templateSku.trim() || null;
     const genero = templateGenero.trim() || null;
+    const foto_url = templateFotoUrl.trim() || null;
+    const tamanhos_skus = sanitizeTamanhos(templateTamanhosSkus);
     const { error } = await supabase
       .from('order_templates')
-      .update({ nome: templateName.trim(), form_data: formData, sku, genero } as any)
+      .update({ nome: templateName.trim(), form_data: formData, sku, genero, foto_url, tamanhos_skus } as any)
       .eq('id', editingTemplateId);
     if (error) {
       toast.error('Erro ao atualizar modelo');
@@ -76,11 +96,9 @@ export function useTemplateManagement() {
     }
     toast.success('Modelo atualizado com sucesso!');
     setEditingTemplateId(null);
-    setTemplateName('');
-    setTemplateSku('');
-    setTemplateGenero('');
+    resetTemplateFields();
     return true;
-  }, [editingTemplateId, templateName, templateSku, templateGenero]);
+  }, [editingTemplateId, templateName, templateSku, templateGenero, templateFotoUrl, templateTamanhosSkus, resetTemplateFields]);
 
   const deleteTemplate = useCallback(async (id: string, userId: string) => {
     await supabase.from('order_templates').delete().eq('id', id);
@@ -93,15 +111,15 @@ export function useTemplateManagement() {
     setTemplateName(template.nome);
     setTemplateSku(template.sku || '');
     setTemplateGenero(template.genero || '');
+    setTemplateFotoUrl(template.foto_url || '');
+    setTemplateTamanhosSkus(Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : []);
     setShowTemplates(false);
   }, []);
 
   const cancelEditing = useCallback(() => {
     setEditingTemplateId(null);
-    setTemplateName('');
-    setTemplateSku('');
-    setTemplateGenero('');
-  }, []);
+    resetTemplateFields();
+  }, [resetTemplateFields]);
 
 
   const sendTemplateToUsers = useCallback(async (
@@ -151,6 +169,10 @@ export function useTemplateManagement() {
     setTemplateSku,
     templateGenero,
     setTemplateGenero,
+    templateFotoUrl,
+    setTemplateFotoUrl,
+    templateTamanhosSkus,
+    setTemplateTamanhosSkus,
     templateSearch,
     setTemplateSearch,
     showTemplates,
