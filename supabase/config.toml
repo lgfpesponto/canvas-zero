@@ -18,4 +18,9 @@ verify_jwt = false
 [functions.bagy-status-push]
 verify_jwt = false
 
+[functions.bagy-stock-sync]
+verify_jwt = false
+
+
+
 
