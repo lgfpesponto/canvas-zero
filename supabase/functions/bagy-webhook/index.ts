@@ -70,6 +70,8 @@ Deno.serve(async (req) => {
     ? authHeader.slice(7).trim()
     : "";
   const tokenProvided = tokenQuery || tokenHeader || tokenBearer;
+  const forceReprocess = url.searchParams.get("force") === "1";
+
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false },
@@ -162,12 +164,13 @@ Deno.serve(async (req) => {
     .eq("payload_hash", payloadHash)
     .maybeSingle();
 
-  if (existingLog?.processed_em) {
+  if (existingLog?.processed_em && !forceReprocess) {
     return new Response(
       JSON.stringify({ ok: true, duplicate: true, log_id: existingLog.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
+
 
   const { data: logRow } = await supabase
     .from("bagy_webhook_log")
