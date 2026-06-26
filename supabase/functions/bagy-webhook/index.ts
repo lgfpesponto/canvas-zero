@@ -276,12 +276,16 @@ Deno.serve(async (req) => {
     const customer = order.customer || order.client || {};
     const shippingAddr = order.shipping_address || order.address || order.shipping || null;
 
-    const clienteNome = pick<string>(
-      customer,
-      "name",
-      "full_name",
-      "first_name",
-    ) || pick<string>(order, "customer_name") || null;
+    const firstLast = [
+      pick<string>(customer, "first_name"),
+      pick<string>(customer, "last_name"),
+    ].filter(Boolean).join(" ").trim();
+    const clienteNome =
+      pick<string>(customer, "name", "full_name") ||
+      (firstLast || null) ||
+      pick<string>(shippingAddr || {}, "recipient", "name", "receiver") ||
+      pick<string>(order, "customer_name") ||
+      null;
     const clienteDoc = pick<string>(customer, "cpf", "document", "cnpj") || null;
     const clienteEmail = pick<string>(customer, "email") || null;
     const clienteWhats = pick<string>(

@@ -1,63 +1,83 @@
-## Problema
+## Objetivo
+Tornar a página **Pedidos Bagy** (`/rancho-chique/pedidos`) operacional sem sair da lista: gerar ficha direto na linha, em massa, com fluxo Espelho → Finalizar/Editar sobreposto. Corrigir nome do cliente vindo da Bagy. Formalizar que as flags internas funcionam como **status internos do portal** que ao avançarem disparam atualização automática na Bagy.
 
-1. **Pedido novo (17824773741752 / bagy_order_id 50013262) sumiu**: chegaram dois webhooks (`order.approved` e `order.created`) mas o `payload.status` veio `null` e `payment_status` `null`. O webhook rejeitou com `status_nao_aprovado:open` e o pedido nem foi gravado em `bagy_pedidos`. Quando o webhook seguinte de aprovação chegar (com status preenchido), também não vai aparecer porque nunca foi salvo o registro inicial.
+## 0. Conceito de status (flags = status internos do portal)
 
-2. **Cleidiane (50012748) com SKU correto não casa**: o item tem `sku=CLEIDIANE-39` e existe o template rascunho com `tamanhos_skus=[{tamanho:"39", sku:"CLEIDIANE-39"}]`. O SQL `@>` casa, mas o `.contains()` do supabase-js no edge function não está achando — provavelmente por como o PostgREST recebe o array. Resultado: item fica `sem_mapeamento`.
+As flags atuais (`sem_mapeamento`, `aguardando_ficha`, `pedido_criado`) passam a ser tratadas como **etapas internas do portal Bagy** — não vão pra Bagy. A Bagy só recebe quando o pedido cruza pra produção real:
 
-3. **Política atual** "só salvar se aprovado" deixa pedidos invisíveis enquanto não viram aprovados. O usuário quer que **todos** entrem e sejam atualizados conforme mudam de status, com as ações (baixa de estoque, criar pedido portal, enfileirar separated) só disparando quando vira aprovado.
+| Flag portal | Significado | Ação na Bagy |
+|---|---|---|
+| `sem_mapeamento` | SKU não casa com nenhum template/estoque | nada |
+| `aguardando_ficha` | mapeado, falta gerar ficha | nada |
+| `pedido_criado` | ficha gerada, pedido no portal | enfileira **`production`** na Bagy |
+| `pronta_entrega_separada` | item veio do Estoque (já tem peça) | enfileira **`separated`** na Bagy |
 
-## Plano (Fase 20)
+Implementação:
+- Ao **OK — Finalizar** no espelho (item tipo modelo/ficha): pedido cai em portal com status `Aguardando produção`, flag Bagy vira `pedido_criado`, insere em `bagy_status_sync_queue` com `target_status='production'` (já existe esse caminho — só consolidar).
+- Quando o item Bagy é resolvido contra `estoque_produtos` (pronta entrega — fluxo do `bagy-webhook` `comprar_estoque_bagy`): flag vira `pronta_entrega_separada` e enfileira `target_status='separated'`.
+- A fila `bagy_status_sync_queue` continua sendo drenada por `bagy-status-push` (já existe). Confirmar que ela roda automático após o insert (toast de sucesso já indica isso no código atual).
 
-### 1. `supabase/functions/bagy-webhook/index.ts` — sempre ingerir, agir só se aprovado
+## 1. Botão "Gerar ficha" na linha (sem duplicar badge)
 
-- Remover o early-return `status_nao_aprovado`. Em vez disso:
-  - **Sempre** fazer upsert em `bagy_pedidos` com o `status_bagy` atual (mesmo `open`, `pending`, `cancelled`, etc.), atualizando `status_bagy_anterior` para detectar transição.
-  - **Sempre** regravar `bagy_pedido_itens` com a classificação (sku, tamanho, template_id, estoque_produto_id, status).
-  - Calcular `isApproved` igual hoje (status logístico aprovado OU payment_status aprovado OU evento em `APPROVED_EVENTS`).
-  - Só rodar o bloco "criar pedido portal + comprar estoque + enfileirar separated" quando `isApproved` e `!pedidoExistente?.order_id_portal` (continua sendo `isFirstTimeApproved`).
-  - Quando o pedido já existia como não-aprovado e agora chegou aprovado, esse mesmo caminho roda naturalmente (porque `order_id_portal` ainda é null).
-- Definir `flag` mesmo nos não-aprovados: `aguardando_aprovacao` quando `!isApproved`, mantendo `aguardando_mapeamento` / `aguardando_ficha` / `pedido_criado` quando aprovado.
-- Manter o log incoming + processed do `bagy_webhook_log` para todos.
+`src/pages/RanchoChiquePedidosPage.tsx`:
 
-### 2. Corrigir match de SKU em template (`tamanhos_skus`)
+- Quando `flag = 'aguardando_ficha'`, **substituir** o badge azul `GERAR FICHA` por um **botão azul `Gerar ficha`** no mesmo slot da linha (sem mostrar os dois).
+- Pedidos com múltiplos itens pendentes: o botão da linha abre o dialog com fila dos itens daquele pedido.
+- Os demais badges (`SEM MAPEAMENTO`, `PEDIDO CRIADO`, `AGUARDANDO PAGAMENTO`) continuam como badges.
 
-Substituir o `.contains("tamanhos_skus", [{ sku: skuPattern }])` (que não está acertando) por uma RPC determinística:
+## 2. Fluxo "Gerar ficha" sobreposto (sem trocar de página)
 
-- Criar função `public.find_template_by_sku(_sku text)` (security definer) que faz:
-  ```sql
-  SELECT id FROM public.order_templates
-  WHERE sku ILIKE _sku
-     OR EXISTS (
-       SELECT 1 FROM jsonb_array_elements(COALESCE(tamanhos_skus,'[]'::jsonb)) e
-       WHERE lower(e->>'sku') = lower(_sku)
-     )
-  LIMIT 1;
-  ```
-  Grant EXECUTE para `service_role` (e `authenticated` se útil).
-- No webhook, trocar as duas tentativas (root + contains) por uma única chamada `supabase.rpc('find_template_by_sku', { _sku: skuRaw })`.
+Trocar `navigate('/pedido', { state: { bagyPrefill } })` por um **dialog `BagyFichaDialog`** (`src/components/bagy/BagyFichaDialog.tsx`) que abre por cima da lista (pedidos seguem ao fundo, igual `Dialog` shadcn).
 
-### 3. Auto-reprocesso quando vira aprovado
+Comportamento:
+1. Carrega template + override de `cliente`, `whatsapp`, `tamanho`, `foto_url`, `numero = RC-<numero_bagy>`, vendedor = profile `site` (mesma lógica de `OrderPage.bagyPrefill` linhas 685–723).
+2. Renderiza **só o Espelho da Ficha de Produção** (layout idêntico ao `OrderPage` linhas ~1960+: COMPOSIÇÃO, IDENTIFICAÇÃO, COUROS, BORDADOS, PESPONTO, SOLADOS, FINALIZAÇÃO).
+3. Rodapé do espelho:
+   - **OK — Finalizar** → salva pedido + executa o pós-save Bagy (linhas 1093–1113 do `OrderPage`: vincula `bagy_order_id`, marca item `ficha_gerada`, pedido `pedido_criado`, enfileira `production`).
+   - **Editar** → troca o conteúdo do mesmo dialog para o formulário completo da ficha. Ao clicar "Pré-visualizar" volta ao espelho.
+   - **Cancelar / X** → fecha sem salvar.
 
-Hoje, se a Bagy mandar primeiro `order.created` (status=open) e depois `order.approved`, o segundo webhook entra normal e roda o caminho aprovado. Com a mudança do item 1 isso passa a funcionar de ponta a ponta automaticamente: o `order.created` cria a linha em `bagy_pedidos` com `flag=aguardando_aprovacao`, e o `order.approved` seguinte (idempotência por payload_hash não bloqueia porque o hash é diferente) detecta `order_id_portal=null` + `isApproved=true` e cria o pedido portal.
+**Refactor:** extrair de `OrderPage.tsx` um componente `FichaBotaForm` reusável (form + espelho), parametrizado por `bagyPrefill` + callbacks `onSaved` / `onCancel`. `OrderPage` continua usando o mesmo componente.
 
-Pequeno ajuste: também tratar o caso "o segundo webhook é idêntico ao primeiro mas o status mudou na Bagy" enfileirando um refetch via `bagy-reprocess` quando detectarmos `status_bagy_anterior != status_bagy` e `isApproved && !order_id_portal`. (Na prática a Bagy manda payloads diferentes, então o caminho normal já cobre.)
+## 3. Geração em massa (fila estilo WhatsApp)
 
-### 4. Reprocessar pedidos perdidos / travados
+Na barra flutuante de seleção, adicionar **`Gerar fichas (N)`** habilitado quando há ≥1 item `aguardando_ficha` entre os selecionados.
 
-- Disparar `bagy-reprocess` com `webhook_log_ids` para os 4 logs `order.approved`/`order.created` do pedido **50013262** (Texana Florência) que foram rejeitados.
-- Disparar `bagy-reprocess` para **50012748** (Cleidiane) depois do deploy, para reaplicar o match de template via nova RPC e gerar o pedido portal.
+Comportamento:
+- Monta fila `[ {pedidoId, itemId}, ... ]` apenas com itens `aguardando_ficha`; demais são pulados.
+- Abre `BagyFichaDialog` com header `1/N`.
+- Após **OK — Finalizar** ou **Pular este**, avança automático ao próximo (recarrega template/prefill).
+- Botões no modo fila: **Pular este**, **Cancelar fila**.
+- Final: toast `X ficha(s) geradas, Y pulada(s)` e recarrega lista.
 
-### 5. UI `PedidosBagyPage` — banner
+## 4. Corrigir nome do cliente (Larissa / Maria)
 
-Adicionar contagem de pedidos com `flag='aguardando_aprovacao'` no banner amarelo (texto: "X pedido(s) aguardando aprovação da Bagy — sem ação necessária, virá automaticamente."). Filtro existente de status continua funcionando.
+`supabase/functions/bagy-webhook/index.ts` linhas 279–284 — `clienteNome` cai pra `first_name` sozinho. Mudar para:
 
-## Fora do escopo
+```ts
+clienteNome =
+  customer.name
+  || customer.full_name
+  || [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
+  || shippingAddr?.recipient
+  || shippingAddr?.name
+  || order.customer_name
+  || null
+```
 
-- Mexer em `bagy-stock-sync`, em `comprar_estoque_bagy`, nas RLS de `bagy_pedidos`/`bagy_pedido_itens` ou em qualquer regra de negócio de produção.
-- Reverter estoque automaticamente em cancelamento (segue manual, como hoje).
+Rodar `bagy-reprocess` nos pedidos `17824787352288` (Larissa) e `17824773741752` (Maria) para reescrever o nome.
 
-## Validação após deploy
+## Detalhes técnicos
 
-1. Confirmar que o pedido **17824773741752** aparece em `/rancho-chique/pedidos` com status correto.
-2. Confirmar que o pedido **Cleidiane** sai de `aguardando_mapeamento` e vira `pedido_criado` (ou `aguardando_ficha` se SKU não estiver no estoque), com `order_id_portal` preenchido.
-3. Inspecionar `bagy_webhook_log` para garantir que nenhum log novo tem `erro: status_nao_aprovado`.
+- Novo: `src/components/bagy/BagyFichaDialog.tsx` (dialog + estado de fila + modo espelho/edição).
+- Refactor: extrair `FichaBotaForm` de `src/pages/OrderPage.tsx` (form + espelho). Sem mudar regras de preço/composição.
+- `RanchoChiquePedidosPage.tsx`:
+  - Badge `aguardando_ficha` vira botão na linha.
+  - `gerarFicha` chama `openBagyFichaDialog({ queue: [...] })` em vez de `navigate('/pedido', ...)`.
+  - Botão `Gerar fichas (N)` na barra flutuante.
+- Migrations: nenhuma.
+
+## Fora de escopo
+- Lógica de SKU/mapeamento (já tratada).
+- NF-e, etiqueta Melhor Envio.
+- `OrderPage` standalone (rota `/pedido`) continua funcionando para criação manual.

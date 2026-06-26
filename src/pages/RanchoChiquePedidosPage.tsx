@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BagyFichaDialog, type BagyFichaQueueItem } from '@/components/bagy/BagyFichaDialog';
 
 type BagyPedido = {
   id: string;
@@ -119,6 +120,7 @@ const RanchoChiquePedidosPage = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fichaQueue, setFichaQueue] = useState<BagyFichaQueueItem[] | null>(null);
 
   const allowed = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
 
@@ -222,45 +224,40 @@ const RanchoChiquePedidosPage = () => {
   };
 
 
-  const gerarFicha = async (p: BagyPedido, item: BagyItem) => {
+  /** Abre o BagyFichaDialog com a fila pedida. Filtra apenas itens prontos (aguardando_ficha + template_id). */
+  const abrirFichaDialog = (queue: BagyFichaQueueItem[]) => {
+    if (queue.length === 0) {
+      toast.error('Nenhum item pronto para gerar ficha.');
+      return;
+    }
+    setFichaQueue(queue);
+  };
+
+  /** Constrói a fila a partir de um pedido (todos os itens elegíveis dele). */
+  const queueFromPedido = (p: BagyPedido): BagyFichaQueueItem[] => {
+    const itens = itensByPed[p.id] || [];
+    return itens
+      .filter(i => i.status === 'aguardando_ficha' && !!i.template_id)
+      .map(i => ({ pedidoId: p.id, itemId: i.id }));
+  };
+
+  /** Constrói a fila a partir de vários pedidos selecionados. */
+  const queueFromSelection = (): BagyFichaQueueItem[] => {
+    const out: BagyFichaQueueItem[] = [];
+    pedidos.filter(p => selected.has(p.id)).forEach(p => {
+      out.push(...queueFromPedido(p));
+    });
+    return out;
+  };
+
+  const gerarFichaItem = (p: BagyPedido, item: BagyItem) => {
     if (!item.template_id) {
       toast.error('Item sem template mapeado por SKU. Crie/edite um modelo de ficha com esse SKU.');
       return;
     }
-    // Resolve foto + tamanho via template (foto_url do template tem prioridade; tamanho casado por SKU dentro de tamanhos_skus)
-    let fotoUrl: string | null = item.foto_url;
-    let tamanho: string | null = item.tamanho || null;
-    try {
-      const { data: tpl } = await supabase
-        .from('order_templates')
-        .select('foto_url, tamanhos_skus')
-        .eq('id', item.template_id)
-        .maybeSingle();
-      if (tpl?.foto_url) fotoUrl = tpl.foto_url;
-      const arr = (tpl?.tamanhos_skus as any[]) || [];
-      if (item.sku && (!tamanho || tamanho.trim() === '')) {
-        const match = arr.find((x: any) => (x?.sku || '').trim().toLowerCase() === item.sku!.trim().toLowerCase());
-        if (match?.tamanho) tamanho = match.tamanho;
-      }
-    } catch (_e) { /* segue */ }
-
-    navigate('/pedido', {
-      state: {
-        bagyPrefill: {
-          templateId: item.template_id,
-          numero: `RC-${p.numero_bagy}`,
-          cliente: p.cliente_nome || '',
-          whatsapp: p.cliente_whats || '',
-          tamanho: tamanho || '',
-          fotoUrl,
-          bagyPedidoId: p.id,
-          bagyItemId: item.id,
-          bagyOrderId: p.bagy_order_id,
-          quantidade: item.quantidade,
-        },
-      },
-    });
+    abrirFichaDialog([{ pedidoId: p.id, itemId: item.id }]);
   };
+
 
 
   const marcarDespachado = async () => {
@@ -466,26 +463,39 @@ const RanchoChiquePedidosPage = () => {
                     <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.bagy_created_at || p.created_at).toLocaleString('pt-BR')}</div>
                     <div className="text-sm font-semibold">{brl(p.total)}</div>
                     <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
-                    {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
-                    {(() => {
-                      const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
-                      if (!si) return null;
-                      if (si.bagy_last_sync_error) {
-                        return (
-                          <TooltipProvider><Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1"><XCircle size={10}/>ERRO BAGY</span>
-                            </TooltipTrigger>
-                            <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
-                          </Tooltip></TooltipProvider>
-                        );
-                      }
-                      if (si.bagy_last_sync_at) {
-                        return <span className="text-[10px] text-muted-foreground hidden md:inline">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
-                      }
-                      return null;
-                    })()}
                   </button>
+
+                  {/* Slot de status interno — botão "Gerar ficha" substitui o badge quando aguardando_ficha (sem duplicar). */}
+                  {p.flag === 'aguardando_ficha' ? (
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                      onClick={(e) => { e.stopPropagation(); const q = queueFromPedido(p); abrirFichaDialog(q); }}
+                    >
+                      <FileText size={14} className="mr-1" /> Gerar ficha
+                    </Button>
+                  ) : flag ? (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${flag.cls}`}>{flag.label}</span>
+                  ) : null}
+
+                  {(() => {
+                    const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
+                    if (!si) return null;
+                    if (si.bagy_last_sync_error) {
+                      return (
+                        <TooltipProvider><Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1 shrink-0"><XCircle size={10}/>ERRO BAGY</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
+                        </Tooltip></TooltipProvider>
+                      );
+                    }
+                    if (si.bagy_last_sync_at) {
+                      return <span className="text-[10px] text-muted-foreground hidden md:inline shrink-0">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {selPedido?.id === p.id && (
@@ -544,11 +554,13 @@ const RanchoChiquePedidosPage = () => {
                                 </div>
                               </div>
                               <div className="text-sm font-semibold">{brl(it.preco_unit)}</div>
-                              <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
-                              {it.status === 'aguardando_ficha' && (
-                                <Button size="sm" variant="default" onClick={() => gerarFicha(p, it)}>
+                              {/* Quando aguardando_ficha: mostra só o botão azul (sem badge duplicado). */}
+                              {it.status === 'aguardando_ficha' ? (
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => gerarFichaItem(p, it)}>
                                   <FileText size={14} className="mr-1" /> Gerar ficha
                                 </Button>
+                              ) : (
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
                               )}
                             </div>
                           );
@@ -649,6 +661,15 @@ const RanchoChiquePedidosPage = () => {
               ? <><Loader2 size={14} className="mr-1 animate-spin"/> Reprocessando...</>
               : <><RefreshCw size={14} className="mr-1"/> Reprocessar</>}
           </Button>
+          {(() => {
+            const fichaCount = queueFromSelection().length;
+            return (
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={fichaCount === 0}
+                onClick={() => abrirFichaDialog(queueFromSelection())}>
+                <FileText size={14} className="mr-1"/> Gerar fichas ({fichaCount})
+              </Button>
+            );
+          })()}
           <Button size="sm" disabled={syncing || selectedPortalIds.length === 0}
             onClick={() => sincronizarBagy(selectedPortalIds)}>
             {syncing
@@ -695,6 +716,18 @@ const RanchoChiquePedidosPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BagyFichaDialog
+        open={!!fichaQueue}
+        queue={fichaQueue || []}
+        onClose={() => setFichaQueue(null)}
+        onFinished={({ saved: ok, skipped: sk }) => {
+          if (ok > 0 && sk === 0) toast.success(`${ok} ficha(s) gerada(s).`);
+          else if (ok === 0 && sk > 0) toast.info(`${sk} item(ns) pulado(s).`);
+          else if (ok + sk > 0) toast.success(`${ok} gerada(s) · ${sk} pulada(s).`);
+          load();
+        }}
+      />
     </div>
   );
 };
