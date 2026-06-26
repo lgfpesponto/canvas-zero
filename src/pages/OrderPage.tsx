@@ -936,11 +936,22 @@ const OrderPage = () => {
     setShowMirror(true);
   };
 
-  const buildOrderData = () => ({
+  const buildOrderData = () => {
+    const tpl = appliedTemplateRef.current;
+    let templateSku: string | null = null;
+    if (tpl && vendedorSelecionado !== 'Estoque') {
+      const grade = (tpl.tamanhosSkus || []).find(
+        t => (t.tamanho || '').trim().toLowerCase() === (tamanho || '').trim().toLowerCase(),
+      );
+      templateSku = (grade?.sku || tpl.sku || '').trim() || null;
+    }
+    return {
     cliente: vendedorSelecionado === 'Estoque' ? '' : cliente.trim(),
     clienteWhatsapp: vendedorSelecionado === 'Estoque' ? undefined : (clienteWhatsapp.trim() || undefined),
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
     nomeProdutoEstoque: vendedorSelecionado === 'Estoque' ? nomeProdutoEstoque.trim() : undefined,
+    templateNome: tpl && vendedorSelecionado !== 'Estoque' ? tpl.nome : undefined,
+    templateSku: templateSku || undefined,
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
     // Modelo v2: preco gravado é o TOTAL FINAL (sem desconto na criação — desconto vem depois pelo detalhe).
@@ -986,7 +997,9 @@ const OrderPage = () => {
       corrente, correnteCor,
       corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
     },
-  });
+    };
+  };
+
 
 
   const resetForm = () => {
