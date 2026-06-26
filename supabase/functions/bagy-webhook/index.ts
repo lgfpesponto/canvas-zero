@@ -352,10 +352,19 @@ Deno.serve(async (req) => {
       .eq("bagy_order_id", bagyOrderId)
       .maybeSingle();
 
+    // Nunca rebaixa o status: se já estávamos aprovados/cancelados, não volta para "open"/"pending"
+    const previousApproved = pedidoExistente?.status_bagy
+      ? APPROVED_STATUSES.has(pedidoExistente.status_bagy) || REFUND_STATUSES.has(pedidoExistente.status_bagy)
+      : false;
+    const incomingApproved = APPROVED_STATUSES.has(statusBagy) || REFUND_STATUSES.has(statusBagy);
+    const finalStatusBagy = previousApproved && !incomingApproved
+      ? pedidoExistente!.status_bagy!
+      : statusBagy;
+
     const upsertData: any = {
       bagy_order_id: bagyOrderId,
       numero_bagy: numeroBagy,
-      status_bagy: statusBagy,
+      status_bagy: finalStatusBagy,
       status_bagy_anterior: pedidoExistente?.status_bagy || null,
       cliente_nome: clienteNome,
       cliente_doc: clienteDoc,
