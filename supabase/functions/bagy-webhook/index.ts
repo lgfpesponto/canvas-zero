@@ -352,8 +352,10 @@ Deno.serve(async (req) => {
       estoque_produto_id: string | null;
       template_id: string | null;
       status: string;
+      ncm: string | null;
       payload: any;
     };
+
 
     const classifiedItems: ItemRow[] = [];
     const estoqueParaComprar: Array<
@@ -385,6 +387,10 @@ Deno.serve(async (req) => {
         "variation.image",
         "image_url",
       ) || null;
+      const ncm = pick<string>(
+        it, "ncm", "product.ncm", "variation.ncm", "tax.ncm", "product.tax.ncm",
+      ) || null;
+
 
       const { base, tamanho: tamFromSku } = parseTamanhoFromSku(skuRaw);
       const tamanho = pick<string>(it, "size", "variation.size") || tamFromSku || null;
@@ -473,9 +479,11 @@ Deno.serve(async (req) => {
         estoque_produto_id: estoqueProdutoId,
         template_id: templateId,
         status,
+        ncm,
         payload: it,
       });
     }
+
 
     // Insere itens
     if (classifiedItems.length > 0) {
