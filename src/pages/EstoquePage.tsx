@@ -72,6 +72,19 @@ const EstoquePage = () => {
     fetchRows();
   };
 
+  const handleRetryBagySync = async (row: EstoqueRow, nomeProduto: string) => {
+    toast.loading(`Reenviando "${nomeProduto} tam ${row.tamanho}" para Bagy...`, { id: `bagy-retry-${row.id}` });
+    const { error } = await supabase.functions.invoke('bagy-stock-sync', {
+      body: { retry_produto_id: row.id },
+    });
+    toast.dismiss(`bagy-retry-${row.id}`);
+    if (error) { toast.error('Erro: ' + error.message); return; }
+    toast.success('Tentativa enviada. Atualizando status...');
+    setTimeout(fetchRows, 1500);
+  };
+
+
+
 
 
   const fetchRows = async () => {
