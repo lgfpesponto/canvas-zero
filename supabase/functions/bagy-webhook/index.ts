@@ -559,12 +559,18 @@ Deno.serve(async (req) => {
     }
 
 
-    // Insere itens
+    // Insere itens — já preenchendo order_id_portal quando o pedido portal existia (re-entrega de webhook).
     if (classifiedItems.length > 0) {
+      const portalIdForExisting = pedidoExistente?.order_id_portal || null;
       await supabase.from("bagy_pedido_itens").insert(
-        classifiedItems.map((c) => ({ ...c, pedido_id: pedidoRow.id })),
+        classifiedItems.map((c) => ({
+          ...c,
+          pedido_id: pedidoRow.id,
+          order_id_portal: c.status === "pedido_criado" ? portalIdForExisting : null,
+        })),
       );
     }
+
 
     // === Caminho A: cria pedido único no portal com TODOS os itens de estoque ===
     let createdOrderId: string | null = null;
