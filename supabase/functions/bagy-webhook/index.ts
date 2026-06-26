@@ -11,6 +11,54 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_TOKEN = Deno.env.get("BAGY_WEBHOOK_TOKEN") || "";
+const BAGY_TOKEN = Deno.env.get("BAGY_API_TOKEN") || "";
+const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store").replace(/\/+$/, "");
+
+// Cache de SKU por id (variation/product) escopado à execução
+const skuCache = new Map<string, string | null>();
+
+async function bagyGetJson(url: string): Promise<any | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${BAGY_TOKEN}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBagySku(opts: { variationId?: string | number | null; productId?: string | number | null }): Promise<string | null> {
+  if (!BAGY_TOKEN) return null;
+  const varId = opts.variationId ? String(opts.variationId) : "";
+  const prodId = opts.productId ? String(opts.productId) : "";
+  const cacheKey = `v:${varId}|p:${prodId}`;
+  if (skuCache.has(cacheKey)) return skuCache.get(cacheKey) || null;
+
+  let sku: string | null = null;
+  if (varId) {
+    const candidates = [
+      `${BAGY_BASE}/variations/${encodeURIComponent(varId)}`,
+      `${BAGY_BASE}/products/variations/${encodeURIComponent(varId)}`,
+    ];
+    for (const url of candidates) {
+      const data = await bagyGetJson(url);
+      const s = data?.sku || data?.data?.sku;
+      if (s && String(s).trim()) { sku = String(s).trim(); break; }
+    }
+  }
+  if (!sku && prodId) {
+    const data = await bagyGetJson(`${BAGY_BASE}/products/${encodeURIComponent(prodId)}`);
+    const s = data?.sku || data?.data?.sku;
+    if (s && String(s).trim()) sku = String(s).trim();
+  }
+  skuCache.set(cacheKey, sku);
+  return sku;
+}
 
 // status Bagy/Dooca que disparam baixa de estoque + criação do pedido no portal
 const APPROVED_STATUSES = new Set([
