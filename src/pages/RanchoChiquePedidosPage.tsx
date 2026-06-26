@@ -214,23 +214,84 @@ const RanchoChiquePedidosPage = () => {
     if (!trackDialog) return;
     const code = trackCode.trim();
     if (!code) { toast.error('Informe o código de rastreio'); return; }
-    const { error } = await supabase.from('bagy_status_sync_queue').insert({
-      bagy_order_id: trackDialog.bagy_order_id,
-      target_status: 'shipped',
-      tracking_code: code,
-      tracking_url: trackUrl.trim() || null,
-    });
-    if (error) { toast.error('Erro: ' + error.message); return; }
-    toast.success('Despacho enfileirado para sincronizar com a Bagy (até 1 min).');
-    // Atualiza pedido portal também
+    const { error: bpErr } = await supabase
+      .from('bagy_pedidos')
+      .update({ tracking_code: code, tracking_url: trackUrl.trim() || null } as any)
+      .eq('id', trackDialog.id);
+    if (bpErr) { toast.error('Erro ao salvar rastreio: ' + bpErr.message); return; }
     if (trackDialog.order_id_portal) {
-      await supabase.from('orders').update({
-        status: 'Despachado',
-      } as any).eq('id', trackDialog.order_id_portal);
+      await supabase.from('orders').update({ status: 'Despachado' } as any).eq('id', trackDialog.order_id_portal);
+      await sincronizarBagy([trackDialog.order_id_portal], { silent: false });
+    } else {
+      toast.success('Rastreio salvo. Vincule o pedido ao portal para sincronizar com a Bagy.');
     }
     setTrackDialog(null);
     setTrackCode('');
     setTrackUrl('');
+    await load();
+  };
+
+  const sincronizarBagy = async (
+    portalOrderIds: string[],
+    opts?: { silent?: boolean },
+  ): Promise<{ ok: number; fail: number }> => {
+    const ids = portalOrderIds.filter(Boolean);
+    if (ids.length === 0) {
+      if (!opts?.silent) toast.error('Nenhum pedido selecionado com vínculo ao portal.');
+      return { ok: 0, fail: 0 };
+    }
+    setSyncing(true);
+    setSyncProgress({ done: 0, total: ids.length });
+    let ok = 0; let fail = 0;
+    const CHUNK = 5;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { data, error } = await supabase.functions.invoke('bagy-status-push', {
+        body: { order_ids: slice },
+      });
+      if (error) {
+        fail += slice.length;
+      } else {
+        const results = (data?.results || []) as Array<{ ok: boolean }>;
+        results.forEach(r => { if (r.ok) ok++; else fail++; });
+      }
+      setSyncProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
+    }
+    setSyncing(false);
+    setSyncProgress(null);
+    if (!opts?.silent) {
+      if (fail === 0) toast.success(`Sincronizado com a Bagy: ${ok} pedido(s).`);
+      else if (ok === 0) toast.error(`Falha ao sincronizar ${fail} pedido(s).`);
+      else toast.warning(`${ok} ok · ${fail} com erro.`);
+    }
+    await load();
+    return { ok, fail };
+  };
+
+  const toggleSelected = (orderIdPortal: string | null) => {
+    if (!orderIdPortal) return;
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(orderIdPortal)) n.delete(orderIdPortal); else n.add(orderIdPortal);
+      return n;
+    });
+  };
+  const selectAllVisible = () => {
+    setSelected(new Set(filtered.map(p => p.order_id_portal).filter(Boolean) as string[]));
+  };
+  const clearSelection = () => setSelected(new Set());
+
+  const fmtRelative = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso).getTime();
+    const diff = Date.now() - d;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `há ${mins} min`;
+    const h = Math.floor(mins / 60);
+    if (h < 24) return `há ${h} h`;
+    const days = Math.floor(h / 24);
+    return `há ${days} d`;
   };
 
   if (authLoading) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
