@@ -661,6 +661,15 @@ const RanchoChiquePedidosPage = () => {
               ? <><Loader2 size={14} className="mr-1 animate-spin"/> Reprocessando...</>
               : <><RefreshCw size={14} className="mr-1"/> Reprocessar</>}
           </Button>
+          {(() => {
+            const fichaCount = queueFromSelection().length;
+            return (
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={fichaCount === 0}
+                onClick={() => abrirFichaDialog(queueFromSelection())}>
+                <FileText size={14} className="mr-1"/> Gerar fichas ({fichaCount})
+              </Button>
+            );
+          })()}
           <Button size="sm" disabled={syncing || selectedPortalIds.length === 0}
             onClick={() => sincronizarBagy(selectedPortalIds)}>
             {syncing
