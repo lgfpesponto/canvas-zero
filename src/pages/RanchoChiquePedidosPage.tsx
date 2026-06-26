@@ -173,7 +173,11 @@ const RanchoChiquePedidosPage = () => {
   };
 
   useEffect(() => {
-    if (!authLoading && isLoggedIn && allowed) load();
+    if (!authLoading && isLoggedIn && allowed) {
+      load();
+      // drena fila de status Bagy em background (silencioso)
+      supabase.functions.invoke('bagy-queue-drain').catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, isLoggedIn, allowed]);
 
@@ -500,9 +504,6 @@ const RanchoChiquePedidosPage = () => {
                         </Tooltip></TooltipProvider>
                       );
                     }
-                    if (si.bagy_last_sync_at) {
-                      return <span className="text-[10px] text-muted-foreground hidden md:inline shrink-0">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
-                    }
                     return null;
                   })()}
                 </div>
@@ -743,6 +744,10 @@ const RanchoChiquePedidosPage = () => {
           if (ok > 0 && sk === 0) toast.success(`${ok} ficha(s) gerada(s).`);
           else if (ok === 0 && sk > 0) toast.info(`${sk} item(ns) pulado(s).`);
           else if (ok + sk > 0) toast.success(`${ok} gerada(s) · ${sk} pulada(s).`);
+          // Empurra status para Bagy imediatamente (em produção / separado)
+          setTimeout(() => {
+            supabase.functions.invoke('bagy-queue-drain').catch(() => {}).finally(() => load());
+          }, 800);
           load();
         }}
       />
