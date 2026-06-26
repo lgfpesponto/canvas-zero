@@ -110,6 +110,8 @@ const RanchoChiquePedidosPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
+  const [filtroStatusBagy, setFiltroStatusBagy] = useState<string>('todos');
+  const [reprocessing, setReprocessing] = useState(false);
   const [selPedido, setSelPedido] = useState<BagyPedido | null>(null);
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [trackCode, setTrackCode] = useState('');
@@ -176,6 +178,7 @@ const RanchoChiquePedidosPage = () => {
   const filtered = useMemo(() => {
     return pedidos.filter(p => {
       if (filtroFlag !== 'todos' && (p.flag || 'sem_flag') !== filtroFlag) return false;
+      if (filtroStatusBagy !== 'todos' && (p.status_bagy || '').toLowerCase() !== filtroStatusBagy) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return (
@@ -185,26 +188,39 @@ const RanchoChiquePedidosPage = () => {
         (p.cliente_whats || '').toLowerCase().includes(q)
       );
     });
-  }, [pedidos, search, filtroFlag]);
+  }, [pedidos, search, filtroFlag, filtroStatusBagy]);
+
 
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
   const aguardFichaCount = pedidos.filter(p => p.flag === 'aguardando_ficha').length;
 
-  const reprocessar = async (p: BagyPedido) => {
-    if (!confirm(`Reprocessar pedido Bagy ${p.numero_bagy}?\nIsso tenta criar o pedido no portal novamente com base nos SKUs atuais.`)) return;
-    toast.info('Reprocessando...');
+  const reprocessarBulk = async (pedidoIds: string[]) => {
+    const ids = pedidoIds.filter(Boolean);
+    if (ids.length === 0) { toast.error('Nenhum pedido selecionado.'); return; }
+    setReprocessing(true);
     try {
-      // Re-invoca o webhook reenviando o payload guardado
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bagy-webhook?token=__reprocess__&__internal=1`;
-      // O melhor é via RPC server-side, mas como simplicidade chamamos uma função separada.
-      // Por ora: tenta refazer o caminho A direto no client (só pra item de estoque ainda não criado).
-      // Para casos complexos, repostar via webhook real.
-      void url;
-      toast.error('Reprocessamento server-side ainda não disponível. Aguarde a Bagy reenviar o webhook (ele reenvia em mudança de status) ou contate o admin.');
-    } catch (e: any) {
-      toast.error('Erro: ' + (e.message || e));
+      const { data, error } = await supabase.functions.invoke('bagy-reprocess', {
+        body: { pedido_ids: ids },
+      });
+      if (error) { toast.error('Erro: ' + error.message); return; }
+      const results = (data?.results || []) as Array<{ ok: boolean; message: string; numero_bagy: string }>;
+      const ok = results.filter(r => r.ok).length;
+      const fail = results.length - ok;
+      if (fail === 0) toast.success(`Reprocessado: ${ok} pedido(s).`);
+      else if (ok === 0) toast.error(`Falha ao reprocessar ${fail} pedido(s). Verifique o console.`);
+      else toast.warning(`${ok} reprocessado(s) · ${fail} com erro.`);
+      if (fail > 0) console.warn('Falhas reprocesso:', results.filter(r => !r.ok));
+      await load();
+    } finally {
+      setReprocessing(false);
     }
   };
+
+  const reprocessar = async (p: BagyPedido) => {
+    if (!confirm(`Reprocessar pedido Bagy ${p.numero_bagy}?\nIsso reexecuta a importação usando o payload original.`)) return;
+    await reprocessarBulk([p.id]);
+  };
+
 
   const gerarFicha = async (p: BagyPedido, item: BagyItem) => {
     if (!item.template_id) {
