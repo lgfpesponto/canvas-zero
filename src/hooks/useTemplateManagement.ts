@@ -18,10 +18,13 @@ export function useTemplateManagement() {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState('');
+  const [templateSku, setTemplateSku] = useState('');
+  const [templateGenero, setTemplateGenero] = useState('');
   const [templateSearch, setTemplateSearch] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
 
   const isEditing = editingTemplateId !== null;
+
 
   const loadTemplates = useCallback(async (userId: string) => {
     const { data } = await supabase
