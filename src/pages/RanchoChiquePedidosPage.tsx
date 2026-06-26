@@ -474,6 +474,15 @@ const RanchoChiquePedidosPage = () => {
                     >
                       <FileText size={14} className="mr-1" /> Gerar ficha
                     </Button>
+                  ) : p.flag === 'pedido_criado' && p.order_id_portal ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/pedido/${p.order_id_portal}`); }}
+                      className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 cursor-pointer bg-green-600 hover:bg-green-700 text-white`}
+                      title="Abrir pedido detalhado"
+                    >
+                      PEDIDO CRIADO
+                    </button>
                   ) : flag ? (
                     <span className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${flag.cls}`}>{flag.label}</span>
                   ) : null}
@@ -559,6 +568,15 @@ const RanchoChiquePedidosPage = () => {
                                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => gerarFichaItem(p, it)}>
                                   <FileText size={14} className="mr-1" /> Gerar ficha
                                 </Button>
+                              ) : it.status === 'pedido_criado' && p.order_id_portal ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/pedido/${p.order_id_portal}`)}
+                                  className={`text-[10px] font-bold px-2 py-1 rounded cursor-pointer bg-green-600 hover:bg-green-700 text-white`}
+                                  title="Abrir pedido detalhado"
+                                >
+                                  PEDIDO CRIADO
+                                </button>
                               ) : (
                                 <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
                               )}
