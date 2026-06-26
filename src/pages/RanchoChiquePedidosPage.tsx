@@ -537,6 +537,20 @@ const RanchoChiquePedidosPage = () => {
             );
           })}
         </div>
+        </>
+      )}
+
+      {/* Barra flutuante de seleção */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-full px-4 py-2 flex items-center gap-3">
+          <span className="text-sm font-semibold">{selected.size} selecionado(s)</span>
+          <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
+          <Button size="sm" disabled={syncing} onClick={() => sincronizarBagy(Array.from(selected))}>
+            {syncing
+              ? <><Loader2 size={14} className="mr-1 animate-spin"/> {syncProgress ? `${syncProgress.done}/${syncProgress.total}` : 'Enviando...'}</>
+              : <><Send size={14} className="mr-1"/> Atualizar {selected.size} na Bagy</>}
+          </Button>
+        </div>
       )}
 
       <Dialog open={!!trackDialog} onOpenChange={(o) => !o && setTrackDialog(null)}>
