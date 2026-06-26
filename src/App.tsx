@@ -33,6 +33,7 @@ import GestaoPage from "./pages/GestaoPage";
 import SolicitacoesAjustePage from "./pages/SolicitacoesAjustePage";
 import ConfiguracoesNFe from "./pages/ConfiguracoesNFe";
 import ConfiguracoesTributacao from "./pages/ConfiguracoesTributacao";
+import RanchoChiquePedidosPage from "./pages/RanchoChiquePedidosPage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 // PriceChangeDialog removido — sem congelamento de preço.
@@ -145,6 +146,7 @@ const App = () => (
             <Route path="/admin/solicitacoes-ajuste" element={<SolicitacoesAjustePage />} />
             <Route path="/configuracoes/nfe" element={<ConfiguracoesNFe />} />
             <Route path="/configuracoes/tributacao" element={<ConfiguracoesTributacao />} />
+            <Route path="/rancho-chique/pedidos" element={<RanchoChiquePedidosPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ChromeWrapper>
