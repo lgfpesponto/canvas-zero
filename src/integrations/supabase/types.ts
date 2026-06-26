@@ -185,6 +185,7 @@ export type Database = {
           estoque_produto_id: string | null
           foto_url: string | null
           id: string
+          ncm: string | null
           nome_produto: string | null
           order_id_portal: string | null
           payload: Json
@@ -204,6 +205,7 @@ export type Database = {
           estoque_produto_id?: string | null
           foto_url?: string | null
           id?: string
+          ncm?: string | null
           nome_produto?: string | null
           order_id_portal?: string | null
           payload?: Json
@@ -223,6 +225,7 @@ export type Database = {
           estoque_produto_id?: string | null
           foto_url?: string | null
           id?: string
+          ncm?: string | null
           nome_produto?: string | null
           order_id_portal?: string | null
           payload?: Json
@@ -268,6 +271,7 @@ export type Database = {
           flag: string | null
           frete: number | null
           id: string
+          metodo_envio: string | null
           numero_bagy: string
           order_id_portal: string | null
           pagamento: string | null
@@ -294,6 +298,7 @@ export type Database = {
           flag?: string | null
           frete?: number | null
           id?: string
+          metodo_envio?: string | null
           numero_bagy: string
           order_id_portal?: string | null
           pagamento?: string | null
@@ -320,6 +325,7 @@ export type Database = {
           flag?: string | null
           frete?: number | null
           id?: string
+          metodo_envio?: string | null
           numero_bagy?: string
           order_id_portal?: string | null
           pagamento?: string | null
