@@ -20,6 +20,8 @@ interface EstoqueRow {
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   ativo: boolean;
+  bagy_sync_status?: string | null;
+  bagy_sync_erro?: string | null;
 }
 
 interface ProductGroup {
