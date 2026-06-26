@@ -18,34 +18,42 @@ const MAX_BATCH = 50;
 const MAX_TENTATIVAS = 5;
 
 async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
-  try {
-    const url = `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${BAGY_TOKEN}`,
-        Accept: "application/json",
-      },
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      return { id: null, error: `GET HTTP ${res.status}: ${t.slice(0, 300)}` };
+  // Tenta múltiplos caminhos da API Dooca/Bagy
+  const candidates = [
+    `${BAGY_BASE}/variations?sku=${encodeURIComponent(sku)}`,
+    `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`,
+    `${BAGY_BASE}/variations?q=${encodeURIComponent(sku)}`,
+  ];
+  let lastError = "";
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${BAGY_TOKEN}`,
+          Accept: "application/json",
+        },
+      });
+      if (!res.ok) {
+        lastError = `GET ${url.replace(BAGY_BASE, "")} HTTP ${res.status}`;
+        continue;
+      }
+      const json = await res.json();
+      const arr = Array.isArray(json) ? json : (json.data || json.items || []);
+      if (!Array.isArray(arr) || arr.length === 0) {
+        // resposta válida mas vazio → não tente outros candidatos (a rota funciona, só não tem SKU)
+        return { id: null };
+      }
+      const skuLower = sku.toLowerCase();
+      const hit = arr.find((v: any) =>
+        String(v.sku || v.code || "").toLowerCase() === skuLower
+      ) || arr[0];
+      const id = hit?.id ?? hit?.variation_id ?? null;
+      return { id: id ? String(id) : null, raw: hit };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
     }
-    const json = await res.json();
-    // Dooca returns { data: [...] } usually
-    const arr = Array.isArray(json) ? json : (json.data || json.items || []);
-    if (!Array.isArray(arr) || arr.length === 0) {
-      return { id: null };
-    }
-    // Try exact sku match first (case-insensitive)
-    const skuLower = sku.toLowerCase();
-    const hit = arr.find((v: any) =>
-      String(v.sku || v.code || "").toLowerCase() === skuLower
-    ) || arr[0];
-    const id = hit?.id ?? hit?.variation_id ?? null;
-    return { id: id ? String(id) : null, raw: hit };
-  } catch (e) {
-    return { id: null, error: e instanceof Error ? e.message : String(e) };
   }
+  return { id: null, error: lastError || "no endpoint matched" };
 }
 
 async function bagyPutBalance(variationId: string, balance: number): Promise<{ ok: boolean; error?: string }> {
