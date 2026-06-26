@@ -8,6 +8,7 @@ import { isHttpUrl } from '@/lib/driveUrl';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link2, X, Save, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { TemplateTag } from '@/components/orders/TemplateTag';
 import SearchableSelect from '@/components/SearchableSelect';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
