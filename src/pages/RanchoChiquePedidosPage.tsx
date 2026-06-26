@@ -28,10 +28,12 @@ type BagyPedido = {
   erro: string | null;
   order_id_portal: string | null;
   created_at: string;
+  bagy_created_at: string | null;
   payload: any;
   tracking_code?: string | null;
   tracking_url?: string | null;
 };
+
 
 type OrderSyncInfo = {
   bagy_last_sync_at: string | null;
@@ -73,12 +75,14 @@ const ITEM_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const STATUS_BAGY_LABEL: Record<string, string> = {
-  new: 'Novo', pending: 'Pendente',
-  paid: 'Pago', approved: 'Aprovado',
+  new: 'Novo', pending: 'Pendente', open: 'Aberto', archived: 'Arquivado',
+  paid: 'Pago', approved: 'Aprovado', processing: 'Processando',
   separated: 'Separado', production: 'Em Produção',
-  shipped: 'Despachado', delivered: 'Entregue',
-  canceled: 'Cancelado', cancelled: 'Cancelado', refunded: 'Reembolsado',
+  shipped: 'Despachado', delivered: 'Entregue', completed: 'Concluído',
+  canceled: 'Cancelado', cancelled: 'Cancelado',
+  refunded: 'Reembolsado', returned: 'Devolvido',
 };
+
 
 function brl(n: number | null | undefined) {
   return (n ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -108,8 +112,10 @@ const RanchoChiquePedidosPage = () => {
     const { data: peds, error } = await supabase
       .from('bagy_pedidos')
       .select('*')
+      .order('bagy_created_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(500);
+
     if (error) {
       toast.error('Erro ao carregar pedidos Bagy: ' + error.message);
       setLoading(false);
@@ -187,11 +193,28 @@ const RanchoChiquePedidosPage = () => {
     }
   };
 
-  const gerarFicha = (p: BagyPedido, item: BagyItem) => {
+  const gerarFicha = async (p: BagyPedido, item: BagyItem) => {
     if (!item.template_id) {
       toast.error('Item sem template mapeado por SKU. Crie/edite um modelo de ficha com esse SKU.');
       return;
     }
+    // Resolve foto + tamanho via template (foto_url do template tem prioridade; tamanho casado por SKU dentro de tamanhos_skus)
+    let fotoUrl: string | null = item.foto_url;
+    let tamanho: string | null = item.tamanho || null;
+    try {
+      const { data: tpl } = await supabase
+        .from('order_templates')
+        .select('foto_url, tamanhos_skus')
+        .eq('id', item.template_id)
+        .maybeSingle();
+      if (tpl?.foto_url) fotoUrl = tpl.foto_url;
+      const arr = (tpl?.tamanhos_skus as any[]) || [];
+      if (item.sku && (!tamanho || tamanho.trim() === '')) {
+        const match = arr.find((x: any) => (x?.sku || '').trim().toLowerCase() === item.sku!.trim().toLowerCase());
+        if (match?.tamanho) tamanho = match.tamanho;
+      }
+    } catch (_e) { /* segue */ }
+
     navigate('/pedido', {
       state: {
         bagyPrefill: {
@@ -199,8 +222,8 @@ const RanchoChiquePedidosPage = () => {
           numero: `RC-${p.numero_bagy}`,
           cliente: p.cliente_nome || '',
           whatsapp: p.cliente_whats || '',
-          tamanho: item.tamanho || '',
-          fotoUrl: item.foto_url,
+          tamanho: tamanho || '',
+          fotoUrl,
           bagyPedidoId: p.id,
           bagyItemId: item.id,
           bagyOrderId: p.bagy_order_id,
@@ -209,6 +232,7 @@ const RanchoChiquePedidosPage = () => {
       },
     });
   };
+
 
   const marcarDespachado = async () => {
     if (!trackDialog) return;
@@ -400,7 +424,7 @@ const RanchoChiquePedidosPage = () => {
                     {selPedido?.id === p.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <div className="font-mono font-bold text-sm shrink-0">RC-{p.numero_bagy}</div>
                     <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
-                    <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.created_at).toLocaleString('pt-BR')}</div>
+                    <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.bagy_created_at || p.created_at).toLocaleString('pt-BR')}</div>
                     <div className="text-sm font-semibold">{brl(p.total)}</div>
                     <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
                     {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
@@ -434,6 +458,9 @@ const RanchoChiquePedidosPage = () => {
                         {p.cliente_doc && <div className="text-xs">CPF/CNPJ: {p.cliente_doc}</div>}
                         {p.cliente_whats && <div className="text-xs">WhatsApp: {p.cliente_whats}</div>}
                         {p.cliente_email && <div className="text-xs">{p.cliente_email}</div>}
+                        {p.pagamento && <div className="text-xs mt-1">Pagamento: <b>{p.pagamento}</b></div>}
+                        <div className="text-xs">Total: <b>{brl(p.total)}</b></div>
+
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground">Endereço</div>

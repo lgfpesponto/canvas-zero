@@ -130,6 +130,28 @@ Deno.serve(async (req) => {
     pick(order, "id", "order_id", "uuid") ?? "",
   );
 
+  const statusBagyEarly = String(
+    pick(order, "status", "status_name", "current_status") ?? "unknown",
+  ).toLowerCase();
+
+  // Só processamos pedidos APROVADOS — ignoramos new/open/pending/canceled/archived/refunded
+  if (!APPROVED_STATUSES.has(statusBagyEarly)) {
+    try {
+      await supabase.from("bagy_webhook_log").insert({
+        event,
+        bagy_order_id: bagyOrderId || null,
+        payload_hash: await sha256Hex(rawBody),
+        payload,
+        erro: `status_nao_aprovado:${statusBagyEarly}`,
+        processed_em: new Date().toISOString(),
+      });
+    } catch (_e) { /* não bloqueia */ }
+    return new Response(
+      JSON.stringify({ ok: true, skipped: "status_nao_aprovado", status: statusBagyEarly }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   // Idempotência por hash do payload
   const payloadHash = await sha256Hex(rawBody);
 
@@ -169,6 +191,7 @@ Deno.serve(async (req) => {
     );
   }
 
+
   try {
     // === Extrai campos do pedido ===
     const numeroBagy = String(
@@ -202,13 +225,38 @@ Deno.serve(async (req) => {
     const desconto = Number(
       pick(order, "discount", "discount_amount", "coupon_value") || 0,
     );
-    const pagamento = pick<string>(
+    const pagamentoRaw = pick<string>(
       order,
       "payment_method",
       "payment.method",
+      "payment.payment_method",
       "payments.0.method",
+      "payments.0.payment_method",
+      "payment_method_name",
       "gateway",
     ) || null;
+    const PAGAMENTO_MAP: Record<string, string> = {
+      pix: "Pix",
+      credit_card: "Cartão de Crédito",
+      creditcard: "Cartão de Crédito",
+      credit: "Cartão de Crédito",
+      debit_card: "Cartão de Débito",
+      debit: "Cartão de Débito",
+      boleto: "Boleto",
+      billet: "Boleto",
+      bank_slip: "Boleto",
+      money: "Dinheiro",
+      cash: "Dinheiro",
+    };
+    const pagamento = pagamentoRaw
+      ? (PAGAMENTO_MAP[pagamentoRaw.toLowerCase()] || pagamentoRaw)
+      : null;
+
+    // Data/hora real do pedido na Bagy
+    const bagyCreatedRaw = pick<string>(
+      order, "created_at", "created", "date", "purchased_at", "order_date",
+    ) || null;
+    const bagyCreatedAt = bagyCreatedRaw ? new Date(bagyCreatedRaw).toISOString() : null;
 
     // Status anterior pra detectar transições
     const { data: pedidoExistente } = await supabase
@@ -231,8 +279,10 @@ Deno.serve(async (req) => {
       frete,
       desconto,
       pagamento,
+      bagy_created_at: bagyCreatedAt,
       payload: order,
     };
+
 
     const { data: pedidoRow, error: upErr } = await supabase
       .from("bagy_pedidos")
@@ -341,20 +391,35 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Busca template
+      // Busca template — por SKU raiz OU por SKU dentro do array tamanhos_skus[*].sku
       let templateId: string | null = null;
       if (!estoqueProdutoId && skuRaw) {
-        const { data: tmpl } = await supabase
+        // 1) tenta match por sku raiz (compat com cadastros antigos)
+        const { data: tmplRoot } = await supabase
           .from("order_templates")
-          .select("id")
+          .select("id, tamanhos_skus")
           .ilike("sku", skuRaw)
           .limit(1)
           .maybeSingle();
-        if (tmpl) {
-          templateId = tmpl.id;
+        if (tmplRoot) {
+          templateId = tmplRoot.id;
           hasTemplateMatch = true;
+        } else {
+          // 2) tenta match dentro do array tamanhos_skus (busca usando jsonb contains)
+          const skuPattern = skuRaw.trim();
+          const { data: tmplArr } = await supabase
+            .from("order_templates")
+            .select("id, tamanhos_skus")
+            .contains("tamanhos_skus", [{ sku: skuPattern }])
+            .limit(1)
+            .maybeSingle();
+          if (tmplArr) {
+            templateId = tmplArr.id;
+            hasTemplateMatch = true;
+          }
         }
       }
+
 
       let status = "pendente";
       if (estoqueProdutoId) {
@@ -415,8 +480,12 @@ Deno.serve(async (req) => {
           _numero_pedido: numeroPortal,
           _bagy_order_id: bagyOrderId,
           _user_id: siteUserId,
+          _cpf_cnpj: clienteDoc,
+          _forma_pagamento: pagamento,
+          _bagy_created_at: bagyCreatedAt,
         },
       );
+
       if (rpcErr) {
         pedidoFlag = `erro_comprar_estoque: ${rpcErr.message}`;
       } else if (rpcRes?.order_id) {
