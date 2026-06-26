@@ -406,7 +406,7 @@ const RanchoChiquePedidosPage = () => {
                     {selPedido?.id === p.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <div className="font-mono font-bold text-sm shrink-0">RC-{p.numero_bagy}</div>
                     <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
-                    <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.created_at).toLocaleString('pt-BR')}</div>
+                    <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.bagy_created_at || p.created_at).toLocaleString('pt-BR')}</div>
                     <div className="text-sm font-semibold">{brl(p.total)}</div>
                     <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
                     {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
