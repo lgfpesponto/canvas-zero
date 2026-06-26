@@ -716,6 +716,18 @@ const RanchoChiquePedidosPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BagyFichaDialog
+        open={!!fichaQueue}
+        queue={fichaQueue || []}
+        onClose={() => setFichaQueue(null)}
+        onFinished={({ saved: ok, skipped: sk }) => {
+          if (ok > 0 && sk === 0) toast.success(`${ok} ficha(s) gerada(s).`);
+          else if (ok === 0 && sk > 0) toast.info(`${sk} item(ns) pulado(s).`);
+          else if (ok + sk > 0) toast.success(`${ok} gerada(s) · ${sk} pulada(s).`);
+          load();
+        }}
+      />
     </div>
   );
 };
