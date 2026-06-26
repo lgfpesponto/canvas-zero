@@ -262,6 +262,8 @@ export function dbRowToOrder(row: any): Order {
     nomeProdutoEstoque: row.nome_produto_estoque || undefined,
     estoqueBaixado: !!row.estoque_baixado,
     estoqueProdutoId: row.estoque_produto_id || undefined,
+    templateNome: row.template_nome || undefined,
+    templateSku: row.template_sku || undefined,
   };
 }
 
@@ -358,6 +360,8 @@ export function orderToDbRow(order: any, userId: string) {
     cor_recorte_taloneira: order.corRecorteTaloneira || null,
     sku_estoque: order.skuEstoque || null,
     nome_produto_estoque: order.nomeProdutoEstoque || null,
+    template_nome: order.templateNome || null,
+    template_sku: order.templateSku || null,
   };
 }
 
@@ -388,6 +392,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   clienteWhatsapp: 'cliente_whatsapp',
   skuEstoque: 'sku_estoque', nomeProdutoEstoque: 'nome_produto_estoque',
   estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
+  templateNome: 'template_nome', templateSku: 'template_sku',
 };
 
 /** Field labels for change tracking */

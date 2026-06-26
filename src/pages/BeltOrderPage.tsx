@@ -47,6 +47,8 @@ const BeltOrderPage = () => {
   const isAdminUser = isAdmin;
   const tmpl = useTemplateManagement();
   const [mode, setMode] = useState<'order' | 'template'>('order');
+  // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
+  const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
 
   // Form state
   const isAdminProducao = user?.role === 'admin_producao';
@@ -212,14 +214,22 @@ const BeltOrderPage = () => {
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
+    appliedTemplateRef.current = null;
     tmpl.startEditing(template);
     populateFromTemplate(template.form_data);
     setMode('template');
   };
 
-  const handleUseTemplate = (formData: Record<string, string>) => {
+  const handleUseTemplate = (
+    template: { nome: string; form_data: Record<string, string>; sku?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
+  ) => {
     tmpl.setShowTemplates(false);
-    populateFromTemplate(formData);
+    appliedTemplateRef.current = {
+      nome: template.nome,
+      sku: template.sku || null,
+      tamanhosSkus: Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : [],
+    };
+    populateFromTemplate(template.form_data);
   };
 
   // send dialog
@@ -335,6 +345,7 @@ const BeltOrderPage = () => {
     setFotoUrl('');
     setShowMirror(false);
     setLoadedDraftId(null);
+    appliedTemplateRef.current = null;
   };
 
   const confirmOrder = async () => {
@@ -367,11 +378,21 @@ const BeltOrderPage = () => {
         if (fivela === 'Outro' && fivelaOutroDesc) extraDetalhes.fivelaOutroDesc = fivelaOutroDesc;
       }
 
+      const tpl = appliedTemplateRef.current;
+      const tplGrade = tpl
+        ? (tpl.tamanhosSkus || []).find(
+            t => (t.tamanho || '').trim().toLowerCase() === (tamanho || '').trim().toLowerCase(),
+          )
+        : undefined;
+      const tplSku = tpl ? ((tplGrade?.sku || tpl.sku || '').trim() || null) : null;
+
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
         cliente: cliente.trim(),
         clienteWhatsapp: clienteWhatsapp.trim() || undefined,
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
+        templateNome: tpl?.nome,
+        templateSku: tplSku || undefined,
         tamanho: '-',
         modelo: '-',
         solado: '-',
@@ -828,7 +849,7 @@ const BeltOrderPage = () => {
                         <div className="flex gap-1.5 shrink-0">
                           <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
                           <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
-                          <Button size="sm" onClick={() => handleUseTemplate(t.form_data)}>Preencher</Button>
+                          <Button size="sm" onClick={() => handleUseTemplate(t)}>Preencher</Button>
                           <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                         </div>
                       </div>

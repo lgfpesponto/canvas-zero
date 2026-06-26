@@ -155,6 +155,8 @@ const OrderPage = () => {
   const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
   const [mode, setMode] = useState<'order' | 'template'>('order');
   const tmpl = useTemplateManagement();
+  // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
+  const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
   // Abre painel automaticamente ao entrar em template com foto preenchida (edição de modelo)
   useEffect(() => {
     if (mode === 'template' && isHttpUrl(tmpl.templateFotoUrl)) setMostrarFotoPainel(true);
@@ -687,7 +689,7 @@ const OrderPage = () => {
     (async () => {
       const { data: tmplRow } = await supabase
         .from('order_templates')
-        .select('id, nome, form_data, genero, sku')
+        .select('id, nome, form_data, genero, sku, tamanhos_skus')
         .eq('id', bagyPrefill.templateId)
         .maybeSingle();
       if (!tmplRow) {
@@ -696,6 +698,11 @@ const OrderPage = () => {
       }
       setProductChoice('bota');
       setMode('order');
+      appliedTemplateRef.current = {
+        nome: (tmplRow as any).nome,
+        sku: (tmplRow as any).sku,
+        tamanhosSkus: Array.isArray((tmplRow as any).tamanhos_skus) ? (tmplRow as any).tamanhos_skus : [],
+      };
       validateAndPopulateTemplate({ ...(tmplRow.form_data as any) });
       // Override com dados do pedido Bagy
       if (bagyPrefill.numero) setNumeroPedido(bagyPrefill.numero);
@@ -716,16 +723,25 @@ const OrderPage = () => {
   }, [bagyPrefill, fichaLoading]);
 
 
-  const handleUseTemplate = (formData: Record<string, string>, templateNome?: string) => {
+  const handleUseTemplate = (
+    template: { nome: string; form_data: Record<string, string>; sku?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
+  ) => {
     tmpl.setShowTemplates(false);
-    validateAndPopulateTemplate({ ...formData });
+    appliedTemplateRef.current = {
+      nome: template.nome,
+      sku: template.sku || null,
+      tamanhosSkus: Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : [],
+    };
+    validateAndPopulateTemplate({ ...template.form_data });
     setProductChoice('bota');
-    if (vendedorSelecionado === 'Estoque' && templateNome && !nomeProdutoEstoque.trim()) {
-      setNomeProdutoEstoque(templateNome);
+    if (vendedorSelecionado === 'Estoque' && template.nome && !nomeProdutoEstoque.trim()) {
+      setNomeProdutoEstoque(template.nome);
     }
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
+    // Edição de modelo NÃO cria pedido — limpa o template aplicado para não vazar identificação.
+    appliedTemplateRef.current = null;
     tmpl.startEditing(template);
     validateAndPopulateTemplate({ ...template.form_data });
     setMode('template');
@@ -920,11 +936,22 @@ const OrderPage = () => {
     setShowMirror(true);
   };
 
-  const buildOrderData = () => ({
+  const buildOrderData = () => {
+    const tpl = appliedTemplateRef.current;
+    let templateSku: string | null = null;
+    if (tpl && vendedorSelecionado !== 'Estoque') {
+      const grade = (tpl.tamanhosSkus || []).find(
+        t => (t.tamanho || '').trim().toLowerCase() === (tamanho || '').trim().toLowerCase(),
+      );
+      templateSku = (grade?.sku || tpl.sku || '').trim() || null;
+    }
+    return {
     cliente: vendedorSelecionado === 'Estoque' ? '' : cliente.trim(),
     clienteWhatsapp: vendedorSelecionado === 'Estoque' ? undefined : (clienteWhatsapp.trim() || undefined),
     vendedor: isAdmin ? vendedorSelecionado : (user?.nomeCompleto || ''),
     nomeProdutoEstoque: vendedorSelecionado === 'Estoque' ? nomeProdutoEstoque.trim() : undefined,
+    templateNome: tpl && vendedorSelecionado !== 'Estoque' ? tpl.nome : undefined,
+    templateSku: templateSku || undefined,
     genero, modelo, sobMedida, sobMedidaDesc,
     solado, formatoBico, quantidade: 1,
     // Modelo v2: preco gravado é o TOTAL FINAL (sem desconto na criação — desconto vem depois pelo detalhe).
@@ -970,7 +997,9 @@ const OrderPage = () => {
       corrente, correnteCor,
       corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
     },
-  });
+    };
+  };
+
 
 
   const resetForm = () => {
@@ -1019,6 +1048,7 @@ const OrderPage = () => {
     setGradeItems([]);
     setShowMirror(false);
     setDraftId('');
+    appliedTemplateRef.current = null;
   };
 
   const confirmOrder = async () => {
@@ -1801,7 +1831,7 @@ const OrderPage = () => {
                   <div className="flex gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
                     <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
-                    <Button size="sm" onClick={() => handleUseTemplate(t.form_data, t.nome)}>Preencher</Button>
+                    <Button size="sm" onClick={() => handleUseTemplate(t)}>Preencher</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
                   </div>
                 </div>

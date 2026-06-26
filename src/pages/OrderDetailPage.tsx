@@ -12,6 +12,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
 import { useCanSeeValues } from '@/hooks/useCanSeeValues';
+import { TemplateTag } from '@/components/orders/TemplateTag';
 
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 
@@ -694,7 +695,10 @@ const OrderDetailPage = () => {
                   {/* Célula 1: Número do pedido */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Número do pedido</span>
-                    <span className="text-base font-display font-bold">{order.numero}</span>
+                    <span className="text-base font-display font-bold inline-flex items-center gap-2 flex-wrap justify-end">
+                      {order.numero}
+                      <TemplateTag nome={order.templateNome} sku={order.templateSku} />
+                    </span>
                   </div>
 
                   {/* Célula 2: Vendedor (admin) ou Cliente (vendedor/comissão) */}
