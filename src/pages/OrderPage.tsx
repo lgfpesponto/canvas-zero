@@ -1048,6 +1048,7 @@ const OrderPage = () => {
     setGradeItems([]);
     setShowMirror(false);
     setDraftId('');
+    appliedTemplateRef.current = null;
   };
 
   const confirmOrder = async () => {
