@@ -255,6 +255,7 @@ export type Database = {
       }
       bagy_pedidos: {
         Row: {
+          bagy_created_at: string | null
           bagy_order_id: string
           cliente_doc: string | null
           cliente_email: string | null
@@ -280,6 +281,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bagy_created_at?: string | null
           bagy_order_id: string
           cliente_doc?: string | null
           cliente_email?: string | null
@@ -305,6 +307,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bagy_created_at?: string | null
           bagy_order_id?: string
           cliente_doc?: string | null
           cliente_email?: string | null
@@ -1426,6 +1429,7 @@ export type Database = {
         Row: {
           created_at: string
           form_data: Json
+          foto_url: string | null
           genero: string | null
           id: string
           nome: string
@@ -1433,11 +1437,13 @@ export type Database = {
           sent_by: string | null
           sent_by_name: string | null
           sku: string | null
+          tamanhos_skus: Json
           user_id: string
         }
         Insert: {
           created_at?: string
           form_data?: Json
+          foto_url?: string | null
           genero?: string | null
           id?: string
           nome: string
@@ -1445,11 +1451,13 @@ export type Database = {
           sent_by?: string | null
           sent_by_name?: string | null
           sku?: string | null
+          tamanhos_skus?: Json
           user_id: string
         }
         Update: {
           created_at?: string
           form_data?: Json
+          foto_url?: string | null
           genero?: string | null
           id?: string
           nome?: string
@@ -1457,6 +1465,7 @@ export type Database = {
           sent_by?: string | null
           sent_by_name?: string | null
           sku?: string | null
+          tamanhos_skus?: Json
           user_id?: string
         }
         Relationships: []
@@ -1481,6 +1490,7 @@ export type Database = {
           carimbo: string | null
           carimbo_desc: string | null
           cliente: string
+          cliente_cpf_cnpj: string | null
           cliente_whatsapp: string | null
           conferido: boolean
           conferido_em: string | null
@@ -1521,6 +1531,7 @@ export type Database = {
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
           forma: string | null
+          forma_pagamento: string | null
           formato_bico: string
           fotos: Json
           genero: string | null
@@ -1588,6 +1599,7 @@ export type Database = {
           carimbo?: string | null
           carimbo_desc?: string | null
           cliente?: string
+          cliente_cpf_cnpj?: string | null
           cliente_whatsapp?: string | null
           conferido?: boolean
           conferido_em?: string | null
@@ -1628,6 +1640,7 @@ export type Database = {
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
           forma?: string | null
+          forma_pagamento?: string | null
           formato_bico?: string
           fotos?: Json
           genero?: string | null
@@ -1695,6 +1708,7 @@ export type Database = {
           carimbo?: string | null
           carimbo_desc?: string | null
           cliente?: string
+          cliente_cpf_cnpj?: string | null
           cliente_whatsapp?: string | null
           conferido?: boolean
           conferido_em?: string | null
@@ -1735,6 +1749,7 @@ export type Database = {
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
           forma?: string | null
+          forma_pagamento?: string | null
           formato_bico?: string
           fotos?: Json
           genero?: string | null
@@ -2441,18 +2456,34 @@ export type Database = {
             }
             Returns: Json
           }
-      comprar_estoque_bagy: {
-        Args: {
-          _bagy_order_id: string
-          _cliente: string
-          _items: Json
-          _numero_pedido: string
-          _user_id: string
-          _vendedor: string
-          _whatsapp: string
-        }
-        Returns: Json
-      }
+      comprar_estoque_bagy:
+        | {
+            Args: {
+              _bagy_order_id: string
+              _cliente: string
+              _items: Json
+              _numero_pedido: string
+              _user_id: string
+              _vendedor: string
+              _whatsapp: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _bagy_created_at?: string
+              _bagy_order_id: string
+              _cliente: string
+              _cpf_cnpj?: string
+              _forma_pagamento?: string
+              _items: Json
+              _numero_pedido: string
+              _user_id: string
+              _vendedor: string
+              _whatsapp: string
+            }
+            Returns: Json
+          }
       criar_ajuste_solicitacao: {
         Args: { _motivo: string; _order_id: string; _valor_solicitado: number }
         Returns: string
@@ -2510,6 +2541,7 @@ export type Database = {
           carimbo: string | null
           carimbo_desc: string | null
           cliente: string
+          cliente_cpf_cnpj: string | null
           cliente_whatsapp: string | null
           conferido: boolean
           conferido_em: string | null
@@ -2550,6 +2582,7 @@ export type Database = {
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
           forma: string | null
+          forma_pagamento: string | null
           formato_bico: string
           fotos: Json
           genero: string | null
