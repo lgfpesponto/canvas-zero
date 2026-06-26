@@ -178,6 +178,233 @@ export type Database = {
         }
         Relationships: []
       }
+      bagy_pedido_itens: {
+        Row: {
+          cor: string | null
+          created_at: string
+          estoque_produto_id: string | null
+          foto_url: string | null
+          id: string
+          nome_produto: string | null
+          order_id_portal: string | null
+          payload: Json
+          pedido_id: string
+          preco_unit: number | null
+          quantidade: number
+          sku: string | null
+          status: string
+          tamanho: string | null
+          template_id: string | null
+          updated_at: string
+          variacao_nome: string | null
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          estoque_produto_id?: string | null
+          foto_url?: string | null
+          id?: string
+          nome_produto?: string | null
+          order_id_portal?: string | null
+          payload?: Json
+          pedido_id: string
+          preco_unit?: number | null
+          quantidade?: number
+          sku?: string | null
+          status?: string
+          tamanho?: string | null
+          template_id?: string | null
+          updated_at?: string
+          variacao_nome?: string | null
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          estoque_produto_id?: string | null
+          foto_url?: string | null
+          id?: string
+          nome_produto?: string | null
+          order_id_portal?: string | null
+          payload?: Json
+          pedido_id?: string
+          preco_unit?: number | null
+          quantidade?: number
+          sku?: string | null
+          status?: string
+          tamanho?: string | null
+          template_id?: string | null
+          updated_at?: string
+          variacao_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bagy_pedido_itens_order_id_portal_fkey"
+            columns: ["order_id_portal"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bagy_pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "bagy_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bagy_pedidos: {
+        Row: {
+          bagy_order_id: string
+          cliente_doc: string | null
+          cliente_email: string | null
+          cliente_nome: string | null
+          cliente_whats: string | null
+          created_at: string
+          desconto: number | null
+          endereco: Json | null
+          erro: string | null
+          flag: string | null
+          frete: number | null
+          id: string
+          numero_bagy: string
+          order_id_portal: string | null
+          pagamento: string | null
+          payload: Json
+          processado_em: string | null
+          status_bagy: string
+          status_bagy_anterior: string | null
+          total: number | null
+          updated_at: string
+        }
+        Insert: {
+          bagy_order_id: string
+          cliente_doc?: string | null
+          cliente_email?: string | null
+          cliente_nome?: string | null
+          cliente_whats?: string | null
+          created_at?: string
+          desconto?: number | null
+          endereco?: Json | null
+          erro?: string | null
+          flag?: string | null
+          frete?: number | null
+          id?: string
+          numero_bagy: string
+          order_id_portal?: string | null
+          pagamento?: string | null
+          payload?: Json
+          processado_em?: string | null
+          status_bagy: string
+          status_bagy_anterior?: string | null
+          total?: number | null
+          updated_at?: string
+        }
+        Update: {
+          bagy_order_id?: string
+          cliente_doc?: string | null
+          cliente_email?: string | null
+          cliente_nome?: string | null
+          cliente_whats?: string | null
+          created_at?: string
+          desconto?: number | null
+          endereco?: Json | null
+          erro?: string | null
+          flag?: string | null
+          frete?: number | null
+          id?: string
+          numero_bagy?: string
+          order_id_portal?: string | null
+          pagamento?: string | null
+          payload?: Json
+          processado_em?: string | null
+          status_bagy?: string
+          status_bagy_anterior?: string | null
+          total?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bagy_pedidos_order_id_portal_fkey"
+            columns: ["order_id_portal"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bagy_status_sync_queue: {
+        Row: {
+          bagy_order_id: string
+          created_at: string
+          id: string
+          processado_em: string | null
+          target_status: string
+          tentativas: number
+          tracking_code: string | null
+          tracking_url: string | null
+          ultimo_erro: string | null
+        }
+        Insert: {
+          bagy_order_id: string
+          created_at?: string
+          id?: string
+          processado_em?: string | null
+          target_status: string
+          tentativas?: number
+          tracking_code?: string | null
+          tracking_url?: string | null
+          ultimo_erro?: string | null
+        }
+        Update: {
+          bagy_order_id?: string
+          created_at?: string
+          id?: string
+          processado_em?: string | null
+          target_status?: string
+          tentativas?: number
+          tracking_code?: string | null
+          tracking_url?: string | null
+          ultimo_erro?: string | null
+        }
+        Relationships: []
+      }
+      bagy_webhook_log: {
+        Row: {
+          bagy_order_id: string | null
+          erro: string | null
+          event: string | null
+          id: string
+          payload: Json
+          payload_hash: string | null
+          processed_em: string | null
+          received_at: string
+          signature: string | null
+        }
+        Insert: {
+          bagy_order_id?: string | null
+          erro?: string | null
+          event?: string | null
+          id?: string
+          payload: Json
+          payload_hash?: string | null
+          processed_em?: string | null
+          received_at?: string
+          signature?: string | null
+        }
+        Update: {
+          bagy_order_id?: string | null
+          erro?: string | null
+          event?: string | null
+          id?: string
+          payload?: Json
+          payload_hash?: string | null
+          processed_em?: string | null
+          received_at?: string
+          signature?: string | null
+        }
+        Relationships: []
+      }
       comprovante_notificacoes: {
         Row: {
           comprovante_id: string
@@ -1137,31 +1364,37 @@ export type Database = {
         Row: {
           created_at: string
           form_data: Json
+          genero: string | null
           id: string
           nome: string
           seen: boolean
           sent_by: string | null
           sent_by_name: string | null
+          sku: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           form_data?: Json
+          genero?: string | null
           id?: string
           nome: string
           seen?: boolean
           sent_by?: string | null
           sent_by_name?: string | null
+          sku?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
           form_data?: Json
+          genero?: string | null
           id?: string
           nome?: string
           seen?: boolean
           sent_by?: string | null
           sent_by_name?: string | null
+          sku?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1172,6 +1405,7 @@ export type Database = {
           adicional_desc: string | null
           adicional_valor: number | null
           alteracoes: Json
+          bagy_order_id: string | null
           bordado_cano: string
           bordado_gaspea: string
           bordado_taloneira: string
@@ -1275,6 +1509,7 @@ export type Database = {
           adicional_desc?: string | null
           adicional_valor?: number | null
           alteracoes?: Json
+          bagy_order_id?: string | null
           bordado_cano?: string
           bordado_gaspea?: string
           bordado_taloneira?: string
@@ -1378,6 +1613,7 @@ export type Database = {
           adicional_desc?: string | null
           adicional_valor?: number | null
           alteracoes?: Json
+          bagy_order_id?: string | null
           bordado_cano?: string
           bordado_gaspea?: string
           bordado_taloneira?: string
@@ -2104,6 +2340,15 @@ export type Database = {
         Args: { _comprovante_id: string }
         Returns: Json
       }
+      bagy_enqueue_status: {
+        Args: {
+          _bagy_order_id: string
+          _target_status: string
+          _tracking_code?: string
+          _tracking_url?: string
+        }
+        Returns: string
+      }
       bordado_baixar_pedido: {
         Args: {
           _justificativa?: string
@@ -2125,6 +2370,18 @@ export type Database = {
             }
             Returns: Json
           }
+      comprar_estoque_bagy: {
+        Args: {
+          _bagy_order_id: string
+          _cliente: string
+          _items: Json
+          _numero_pedido: string
+          _user_id: string
+          _vendedor: string
+          _whatsapp: string
+        }
+        Returns: Json
+      }
       criar_ajuste_solicitacao: {
         Args: { _motivo: string; _order_id: string; _valor_solicitado: number }
         Returns: string
@@ -2168,6 +2425,7 @@ export type Database = {
           adicional_desc: string | null
           adicional_valor: number | null
           alteracoes: Json
+          bagy_order_id: string | null
           bordado_cano: string
           bordado_gaspea: string
           bordado_taloneira: string

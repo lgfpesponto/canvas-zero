@@ -1,0 +1,457 @@
+// deno-lint-ignore-file no-explicit-any
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-bagy-signature",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const WEBHOOK_TOKEN = Deno.env.get("BAGY_WEBHOOK_TOKEN") || "";
+
+// status Bagy/Dooca que disparam baixa de estoque + criação do pedido no portal
+const APPROVED_STATUSES = new Set([
+  "paid",
+  "approved",
+  "production",
+  "separated",
+  "shipped",
+  "delivered",
+  "completed",
+]);
+const REFUND_STATUSES = new Set([
+  "canceled",
+  "cancelled",
+  "refunded",
+  "returned",
+]);
+
+function sha256Hex(s: string): Promise<string> {
+  const buf = new TextEncoder().encode(s);
+  return crypto.subtle.digest("SHA-256", buf).then((h) =>
+    Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+function pick<T = any>(obj: any, ...keys: string[]): T | undefined {
+  for (const k of keys) {
+    const v = k.split(".").reduce((o, p) => o?.[p], obj);
+    if (v !== undefined && v !== null && v !== "") return v as T;
+  }
+  return undefined;
+}
+
+function parseTamanhoFromSku(sku: string | undefined): {
+  base: string;
+  tamanho: string | null;
+} {
+  if (!sku) return { base: "", tamanho: null };
+  // padrões aceitos: BASE-34, BASE_34, BASE34 (último número)
+  const m1 = sku.match(/^(.+?)[-_ ]+(\d{2})$/);
+  if (m1) return { base: m1[1], tamanho: m1[2] };
+  return { base: sku, tamanho: null };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Token na query string
+  const url = new URL(req.url);
+  const token = url.searchParams.get("token") || "";
+  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) {
+    return new Response(JSON.stringify({ error: "invalid_token" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  let rawBody = "";
+  let payload: any = {};
+  try {
+    rawBody = await req.text();
+    payload = rawBody ? JSON.parse(rawBody) : {};
+  } catch (_e) {
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    auth: { persistSession: false },
+  });
+
+  // A Bagy/Dooca tipicamente envia { event, data: {... order ...} } ou direto o order
+  const event = pick<string>(payload, "event", "type") || "order";
+  const order = payload?.data && typeof payload.data === "object"
+    ? payload.data
+    : payload;
+
+  const bagyOrderId = String(
+    pick(order, "id", "order_id", "uuid") ?? "",
+  );
+
+  // Idempotência por hash do payload
+  const payloadHash = await sha256Hex(rawBody);
+
+  // log primeiro (sem bloquear se duplicar)
+  const { data: existingLog } = await supabase
+    .from("bagy_webhook_log")
+    .select("id, processed_em")
+    .eq("payload_hash", payloadHash)
+    .maybeSingle();
+
+  if (existingLog?.processed_em) {
+    return new Response(
+      JSON.stringify({ ok: true, duplicate: true, log_id: existingLog.id }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const { data: logRow } = await supabase
+    .from("bagy_webhook_log")
+    .insert({
+      event,
+      bagy_order_id: bagyOrderId || null,
+      payload_hash: payloadHash,
+      payload,
+    })
+    .select("id")
+    .single();
+
+  if (!bagyOrderId) {
+    await supabase.from("bagy_webhook_log").update({
+      erro: "missing_order_id",
+      processed_em: new Date().toISOString(),
+    }).eq("id", logRow!.id);
+    return new Response(
+      JSON.stringify({ ok: true, skipped: "missing_order_id" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  try {
+    // === Extrai campos do pedido ===
+    const numeroBagy = String(
+      pick(order, "code", "number", "numero", "id") ?? bagyOrderId,
+    );
+    const statusBagy = String(
+      pick(order, "status", "status_name", "current_status") ?? "unknown",
+    ).toLowerCase();
+
+    const customer = order.customer || order.client || {};
+    const shippingAddr = order.shipping_address || order.address || order.shipping || null;
+
+    const clienteNome = pick<string>(
+      customer,
+      "name",
+      "full_name",
+      "first_name",
+    ) || pick<string>(order, "customer_name") || null;
+    const clienteDoc = pick<string>(customer, "cpf", "document", "cnpj") || null;
+    const clienteEmail = pick<string>(customer, "email") || null;
+    const clienteWhats = pick<string>(
+      customer,
+      "phone",
+      "mobile_phone",
+      "cellphone",
+      "whatsapp",
+    ) || pick<string>(shippingAddr || {}, "phone") || null;
+
+    const total = Number(pick(order, "total", "amount_total", "amount") || 0);
+    const frete = Number(pick(order, "shipping_amount", "freight", "shipping") || 0);
+    const desconto = Number(
+      pick(order, "discount", "discount_amount", "coupon_value") || 0,
+    );
+    const pagamento = pick<string>(
+      order,
+      "payment_method",
+      "payment.method",
+      "payments.0.method",
+      "gateway",
+    ) || null;
+
+    // Status anterior pra detectar transições
+    const { data: pedidoExistente } = await supabase
+      .from("bagy_pedidos")
+      .select("id, status_bagy, order_id_portal")
+      .eq("bagy_order_id", bagyOrderId)
+      .maybeSingle();
+
+    const upsertData: any = {
+      bagy_order_id: bagyOrderId,
+      numero_bagy: numeroBagy,
+      status_bagy: statusBagy,
+      status_bagy_anterior: pedidoExistente?.status_bagy || null,
+      cliente_nome: clienteNome,
+      cliente_doc: clienteDoc,
+      cliente_email: clienteEmail,
+      cliente_whats: clienteWhats,
+      endereco: shippingAddr,
+      total,
+      frete,
+      desconto,
+      pagamento,
+      payload: order,
+    };
+
+    const { data: pedidoRow, error: upErr } = await supabase
+      .from("bagy_pedidos")
+      .upsert(upsertData, { onConflict: "bagy_order_id" })
+      .select("id, order_id_portal")
+      .single();
+
+    if (upErr) throw upErr;
+
+    // === Itens ===
+    const rawItems: any[] = order.items || order.products || order.order_items ||
+      [];
+
+    // Remove itens antigos e insere os novos (mais simples que diff)
+    await supabase.from("bagy_pedido_itens").delete().eq("pedido_id", pedidoRow.id);
+
+    const isApproved = APPROVED_STATUSES.has(statusBagy);
+    const isRefund = REFUND_STATUSES.has(statusBagy);
+    const isFirstTimeApproved = isApproved && !pedidoExistente?.order_id_portal;
+
+    // Resolve user_id do vendedor "site"/Rancho Chique
+    let siteUserId: string | null = null;
+    let siteVendedorNome = "Rancho Chique";
+    {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("id, nome_completo")
+        .eq("nome_usuario", "site")
+        .maybeSingle();
+      if (prof) {
+        siteUserId = prof.id;
+        siteVendedorNome = prof.nome_completo || siteVendedorNome;
+      }
+    }
+
+    const numeroPortal = `RC-${numeroBagy}`;
+
+    // Coleta itens classificados
+    type ItemRow = {
+      sku: string | null;
+      nome_produto: string | null;
+      variacao_nome: string | null;
+      tamanho: string | null;
+      cor: string | null;
+      quantidade: number;
+      preco_unit: number;
+      foto_url: string | null;
+      estoque_produto_id: string | null;
+      template_id: string | null;
+      status: string;
+      payload: any;
+    };
+
+    const classifiedItems: ItemRow[] = [];
+    const estoqueParaComprar: Array<
+      { produto_id: string; quantidade: number; preco_unit: number; descricao: string }
+    > = [];
+    let hasTemplateMatch = false;
+    let hasMissingMap = false;
+
+    for (const it of rawItems) {
+      const skuRaw = String(
+        pick(it, "sku", "variation.sku", "variant.sku", "variation_sku") ?? "",
+      ).trim();
+      const nomeProd = pick<string>(it, "name", "product.name", "product_name") ||
+        null;
+      const variacaoNome = pick<string>(
+        it,
+        "variation.name",
+        "variant.name",
+        "variation_name",
+      ) || null;
+      const qty = Number(pick(it, "quantity", "qty") || 1);
+      const precoUnit = Number(
+        pick(it, "price", "unit_price", "amount", "price_compare") || 0,
+      );
+      const foto = pick<string>(
+        it,
+        "image",
+        "product.image",
+        "variation.image",
+        "image_url",
+      ) || null;
+
+      const { base, tamanho: tamFromSku } = parseTamanhoFromSku(skuRaw);
+      const tamanho = pick<string>(it, "size", "variation.size") || tamFromSku || null;
+      const cor = pick<string>(it, "color", "variation.color") || null;
+
+      // Busca no estoque por sku_base
+      let estoqueProdutoId: string | null = null;
+      if (skuRaw) {
+        const candidates = [base, skuRaw];
+        for (const cand of candidates) {
+          if (!cand) continue;
+          const q = supabase
+            .from("estoque_produtos")
+            .select("id, quantidade, preco, ativo, tamanho, sku_base")
+            .ilike("sku_base", cand)
+            .eq("ativo", true);
+          if (tamanho) q.eq("tamanho", tamanho);
+          const { data: rows } = await q.limit(1);
+          if (rows && rows.length > 0) {
+            estoqueProdutoId = rows[0].id;
+            break;
+          }
+        }
+      }
+
+      // Busca template
+      let templateId: string | null = null;
+      if (!estoqueProdutoId && skuRaw) {
+        const { data: tmpl } = await supabase
+          .from("order_templates")
+          .select("id")
+          .ilike("sku", skuRaw)
+          .limit(1)
+          .maybeSingle();
+        if (tmpl) {
+          templateId = tmpl.id;
+          hasTemplateMatch = true;
+        }
+      }
+
+      let status = "pendente";
+      if (estoqueProdutoId) {
+        status = "pedido_criado"; // será criado abaixo se isFirstTimeApproved
+        if (isFirstTimeApproved) {
+          estoqueParaComprar.push({
+            produto_id: estoqueProdutoId,
+            quantidade: qty,
+            preco_unit: precoUnit,
+            descricao: nomeProd ||
+              (variacaoNome ? `Produto — ${variacaoNome}` : "Produto Bagy"),
+          });
+        } else if (!isApproved) {
+          status = "aguardando_aprovacao";
+        }
+      } else if (templateId) {
+        status = "aguardando_ficha";
+      } else {
+        status = "sem_mapeamento";
+        hasMissingMap = true;
+      }
+
+      classifiedItems.push({
+        sku: skuRaw || null,
+        nome_produto: nomeProd,
+        variacao_nome: variacaoNome,
+        tamanho,
+        cor,
+        quantidade: qty,
+        preco_unit: precoUnit,
+        foto_url: foto,
+        estoque_produto_id: estoqueProdutoId,
+        template_id: templateId,
+        status,
+        payload: it,
+      });
+    }
+
+    // Insere itens
+    if (classifiedItems.length > 0) {
+      await supabase.from("bagy_pedido_itens").insert(
+        classifiedItems.map((c) => ({ ...c, pedido_id: pedidoRow.id })),
+      );
+    }
+
+    // === Caminho A: cria pedido único no portal com TODOS os itens de estoque ===
+    let createdOrderId: string | null = null;
+    let pedidoFlag: string | null = null;
+
+    if (isFirstTimeApproved && estoqueParaComprar.length > 0 && siteUserId) {
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc(
+        "comprar_estoque_bagy",
+        {
+          _items: estoqueParaComprar,
+          _vendedor: siteVendedorNome,
+          _cliente: clienteNome || "Cliente Bagy",
+          _whatsapp: clienteWhats || "",
+          _numero_pedido: numeroPortal,
+          _bagy_order_id: bagyOrderId,
+          _user_id: siteUserId,
+        },
+      );
+      if (rpcErr) {
+        pedidoFlag = `erro_comprar_estoque: ${rpcErr.message}`;
+      } else if (rpcRes?.order_id) {
+        createdOrderId = rpcRes.order_id;
+        // marca itens de estoque como pedido_criado e linka
+        await supabase
+          .from("bagy_pedido_itens")
+          .update({
+            order_id_portal: createdOrderId,
+            status: "pedido_criado",
+          })
+          .eq("pedido_id", pedidoRow.id)
+          .not("estoque_produto_id", "is", null);
+
+        // enfileira "separado" para Bagy
+        await supabase.from("bagy_status_sync_queue").insert({
+          bagy_order_id: bagyOrderId,
+          target_status: "separated",
+        });
+      }
+    }
+
+    // === Atualiza bagy_pedidos com resultado ===
+    let flag: string | null = pedidoFlag;
+    if (!flag) {
+      if (hasMissingMap) flag = "aguardando_mapeamento";
+      else if (hasTemplateMatch && !createdOrderId) flag = "aguardando_ficha";
+      else if (createdOrderId) flag = "pedido_criado";
+    }
+
+    await supabase.from("bagy_pedidos").update({
+      order_id_portal: createdOrderId || pedidoExistente?.order_id_portal || null,
+      flag,
+      erro: pedidoFlag,
+      processado_em: new Date().toISOString(),
+    }).eq("id", pedidoRow.id);
+
+    // === Devolução: aumenta estoque de volta ===
+    if (isRefund && pedidoExistente?.order_id_portal) {
+      // Marca como cancelado/devolvido — devolução fica registrada;
+      // a reposição de estoque será feita ao cancelar o pedido portal pelo admin.
+      // (decisão: não reverter automaticamente para evitar duplicidade)
+    }
+
+    await supabase.from("bagy_webhook_log").update({
+      processed_em: new Date().toISOString(),
+    }).eq("id", logRow!.id);
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        bagy_order_id: bagyOrderId,
+        portal_order_id: createdOrderId,
+        flag,
+        items: classifiedItems.length,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("bagy-webhook error", msg);
+    await supabase.from("bagy_webhook_log").update({
+      erro: msg,
+      processed_em: new Date().toISOString(),
+    }).eq("id", logRow!.id);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
