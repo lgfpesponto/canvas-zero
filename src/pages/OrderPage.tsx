@@ -1322,7 +1322,8 @@ const OrderPage = () => {
     </div>
   );
 
-  const showFotoPanel = mode === 'order' && mostrarFotoPainel && isHttpUrl(fotoUrl);
+  const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
+  const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
 
   return (
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
