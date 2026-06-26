@@ -89,6 +89,7 @@ const RanchoChiquePedidosPage = () => {
   const { isLoggedIn, role, loading: authLoading } = useAuth();
   const [pedidos, setPedidos] = useState<BagyPedido[]>([]);
   const [itensByPed, setItensByPed] = useState<Record<string, BagyItem[]>>({});
+  const [syncByOrder, setSyncByOrder] = useState<Record<string, OrderSyncInfo>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
@@ -96,6 +97,9 @@ const RanchoChiquePedidosPage = () => {
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [trackCode, setTrackCode] = useState('');
   const [trackUrl, setTrackUrl] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ done: number; total: number } | null>(null);
 
   const allowed = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
 
