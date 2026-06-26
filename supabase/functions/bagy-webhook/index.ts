@@ -130,6 +130,28 @@ Deno.serve(async (req) => {
     pick(order, "id", "order_id", "uuid") ?? "",
   );
 
+  const statusBagyEarly = String(
+    pick(order, "status", "status_name", "current_status") ?? "unknown",
+  ).toLowerCase();
+
+  // Só processamos pedidos APROVADOS — ignoramos new/open/pending/canceled/archived/refunded
+  if (!APPROVED_STATUSES.has(statusBagyEarly)) {
+    try {
+      await supabase.from("bagy_webhook_log").insert({
+        event,
+        bagy_order_id: bagyOrderId || null,
+        payload_hash: await sha256Hex(rawBody),
+        payload,
+        erro: `status_nao_aprovado:${statusBagyEarly}`,
+        processed_em: new Date().toISOString(),
+      });
+    } catch (_e) { /* não bloqueia */ }
+    return new Response(
+      JSON.stringify({ ok: true, skipped: "status_nao_aprovado", status: statusBagyEarly }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   // Idempotência por hash do payload
   const payloadHash = await sha256Hex(rawBody);
 
@@ -168,6 +190,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
+
 
   try {
     // === Extrai campos do pedido ===
