@@ -56,12 +56,21 @@ async function pushToBagy(row: Row): Promise<{ ok: boolean; error?: string }> {
   const target = (row.target_status || "").toLowerCase();
   try {
     if (target === "production" || target === "separated" || target === "attended") {
-      // Cria fulfillment (passo "Separar ou Produzir"). Idempotente.
+      // 1) Garante fulfillment (POST cria como "attended" = "Separado"). Idempotente.
       const r = await bagyRequest("POST", `/orders/${id}/fulfillment`);
-      if (r.ok) return { ok: true };
-      if (isAlreadyExistsError(r.status, r.text)) return { ok: true };
-      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+      if (!r.ok && !isAlreadyExistsError(r.status, r.text)) {
+        return { ok: false, error: `POST fulfillment HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+      }
+      // 2) Se o alvo é "production" (Em Produção), troca o status.
+      if (target === "production") {
+        const p = await bagyRequest("PUT", `/orders/${id}/fulfillment/production`);
+        if (!p.ok) {
+          return { ok: false, error: `PUT /production HTTP ${p.status}: ${p.text.slice(0, 400)}` };
+        }
+      }
+      return { ok: true };
     }
+
     if (target === "invoiced") {
       // Garante que o fulfillment exista (POST é idempotente)
       const cre = await bagyRequest("POST", `/orders/${id}/fulfillment`);
