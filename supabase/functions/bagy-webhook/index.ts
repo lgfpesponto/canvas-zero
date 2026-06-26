@@ -70,6 +70,8 @@ Deno.serve(async (req) => {
     ? authHeader.slice(7).trim()
     : "";
   const tokenProvided = tokenQuery || tokenHeader || tokenBearer;
+  const forceReprocess = url.searchParams.get("force") === "1";
+
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false },
@@ -162,12 +164,13 @@ Deno.serve(async (req) => {
     .eq("payload_hash", payloadHash)
     .maybeSingle();
 
-  if (existingLog?.processed_em) {
+  if (existingLog?.processed_em && !forceReprocess) {
     return new Response(
       JSON.stringify({ ok: true, duplicate: true, log_id: existingLog.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
+
 
   const { data: logRow } = await supabase
     .from("bagy_webhook_log")
@@ -252,6 +255,21 @@ Deno.serve(async (req) => {
       ? (PAGAMENTO_MAP[pagamentoRaw.toLowerCase()] || pagamentoRaw)
       : null;
 
+    // Método de envio escolhido pelo cliente
+    const metodoEnvio = pick<string>(
+      order,
+      "shipping_method",
+      "shipping.name",
+      "shipping.method",
+      "shipping.service_name",
+      "shipping.title",
+      "freight_name",
+      "selected_shipping.name",
+      "shippings.0.name",
+      "shippings.0.service_name",
+    ) || null;
+
+
     // Data/hora real do pedido na Bagy
     const bagyCreatedRaw = pick<string>(
       order, "created_at", "created", "date", "purchased_at", "order_date",
@@ -279,6 +297,7 @@ Deno.serve(async (req) => {
       frete,
       desconto,
       pagamento,
+      metodo_envio: metodoEnvio,
       bagy_created_at: bagyCreatedAt,
       payload: order,
     };
@@ -333,8 +352,10 @@ Deno.serve(async (req) => {
       estoque_produto_id: string | null;
       template_id: string | null;
       status: string;
+      ncm: string | null;
       payload: any;
     };
+
 
     const classifiedItems: ItemRow[] = [];
     const estoqueParaComprar: Array<
@@ -366,6 +387,10 @@ Deno.serve(async (req) => {
         "variation.image",
         "image_url",
       ) || null;
+      const ncm = pick<string>(
+        it, "ncm", "product.ncm", "variation.ncm", "tax.ncm", "product.tax.ncm",
+      ) || null;
+
 
       const { base, tamanho: tamFromSku } = parseTamanhoFromSku(skuRaw);
       const tamanho = pick<string>(it, "size", "variation.size") || tamFromSku || null;
@@ -454,9 +479,11 @@ Deno.serve(async (req) => {
         estoque_produto_id: estoqueProdutoId,
         template_id: templateId,
         status,
+        ncm,
         payload: it,
       });
     }
+
 
     // Insere itens
     if (classifiedItems.length > 0) {

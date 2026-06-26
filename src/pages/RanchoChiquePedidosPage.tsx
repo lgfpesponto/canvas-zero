@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -24,6 +24,7 @@ type BagyPedido = {
   total: number | null;
   frete: number | null;
   pagamento: string | null;
+  metodo_envio: string | null;
   flag: string | null;
   erro: string | null;
   order_id_portal: string | null;
@@ -52,6 +53,7 @@ type BagyItem = {
   quantidade: number;
   preco_unit: number | null;
   foto_url: string | null;
+  ncm: string | null;
   estoque_produto_id: string | null;
   template_id: string | null;
   status: string;
@@ -78,10 +80,21 @@ const STATUS_BAGY_LABEL: Record<string, string> = {
   new: 'Novo', pending: 'Pendente', open: 'Aberto', archived: 'Arquivado',
   paid: 'Pago', approved: 'Aprovado', processing: 'Processando',
   separated: 'Separado', production: 'Em Produção',
+  invoiced: 'Faturado', billed: 'Faturado',
   shipped: 'Despachado', delivered: 'Entregue', completed: 'Concluído',
   canceled: 'Cancelado', cancelled: 'Cancelado',
   refunded: 'Reembolsado', returned: 'Devolvido',
 };
+
+const STATUS_BAGY_FILTROS: Array<{ value: string; label: string }> = [
+  { value: 'approved', label: 'Aprovado' },
+  { value: 'production', label: 'Em Produção' },
+  { value: 'separated', label: 'Separado' },
+  { value: 'invoiced', label: 'Faturado' },
+  { value: 'shipped', label: 'Despachado' },
+  { value: 'delivered', label: 'Entregue' },
+  { value: 'canceled', label: 'Cancelado' },
+];
 
 
 function brl(n: number | null | undefined) {
@@ -97,6 +110,8 @@ const RanchoChiquePedidosPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
+  const [filtroStatusBagy, setFiltroStatusBagy] = useState<string>('todos');
+  const [reprocessing, setReprocessing] = useState(false);
   const [selPedido, setSelPedido] = useState<BagyPedido | null>(null);
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [trackCode, setTrackCode] = useState('');
@@ -163,6 +178,7 @@ const RanchoChiquePedidosPage = () => {
   const filtered = useMemo(() => {
     return pedidos.filter(p => {
       if (filtroFlag !== 'todos' && (p.flag || 'sem_flag') !== filtroFlag) return false;
+      if (filtroStatusBagy !== 'todos' && (p.status_bagy || '').toLowerCase() !== filtroStatusBagy) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return (
@@ -172,26 +188,39 @@ const RanchoChiquePedidosPage = () => {
         (p.cliente_whats || '').toLowerCase().includes(q)
       );
     });
-  }, [pedidos, search, filtroFlag]);
+  }, [pedidos, search, filtroFlag, filtroStatusBagy]);
+
 
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
   const aguardFichaCount = pedidos.filter(p => p.flag === 'aguardando_ficha').length;
 
-  const reprocessar = async (p: BagyPedido) => {
-    if (!confirm(`Reprocessar pedido Bagy ${p.numero_bagy}?\nIsso tenta criar o pedido no portal novamente com base nos SKUs atuais.`)) return;
-    toast.info('Reprocessando...');
+  const reprocessarBulk = async (pedidoIds: string[]) => {
+    const ids = pedidoIds.filter(Boolean);
+    if (ids.length === 0) { toast.error('Nenhum pedido selecionado.'); return; }
+    setReprocessing(true);
     try {
-      // Re-invoca o webhook reenviando o payload guardado
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bagy-webhook?token=__reprocess__&__internal=1`;
-      // O melhor é via RPC server-side, mas como simplicidade chamamos uma função separada.
-      // Por ora: tenta refazer o caminho A direto no client (só pra item de estoque ainda não criado).
-      // Para casos complexos, repostar via webhook real.
-      void url;
-      toast.error('Reprocessamento server-side ainda não disponível. Aguarde a Bagy reenviar o webhook (ele reenvia em mudança de status) ou contate o admin.');
-    } catch (e: any) {
-      toast.error('Erro: ' + (e.message || e));
+      const { data, error } = await supabase.functions.invoke('bagy-reprocess', {
+        body: { pedido_ids: ids },
+      });
+      if (error) { toast.error('Erro: ' + error.message); return; }
+      const results = (data?.results || []) as Array<{ ok: boolean; message: string; numero_bagy: string }>;
+      const ok = results.filter(r => r.ok).length;
+      const fail = results.length - ok;
+      if (fail === 0) toast.success(`Reprocessado: ${ok} pedido(s).`);
+      else if (ok === 0) toast.error(`Falha ao reprocessar ${fail} pedido(s). Verifique o console.`);
+      else toast.warning(`${ok} reprocessado(s) · ${fail} com erro.`);
+      if (fail > 0) console.warn('Falhas reprocesso:', results.filter(r => !r.ok));
+      await load();
+    } finally {
+      setReprocessing(false);
     }
   };
+
+  const reprocessar = async (p: BagyPedido) => {
+    if (!confirm(`Reprocessar pedido Bagy ${p.numero_bagy}?\nIsso reexecuta a importação usando o payload original.`)) return;
+    await reprocessarBulk([p.id]);
+  };
+
 
   const gerarFicha = async (p: BagyPedido, item: BagyItem) => {
     if (!item.template_id) {
@@ -292,18 +321,24 @@ const RanchoChiquePedidosPage = () => {
     return { ok, fail };
   };
 
-  const toggleSelected = (orderIdPortal: string | null) => {
-    if (!orderIdPortal) return;
+  const toggleSelected = (pedidoId: string) => {
     setSelected(prev => {
       const n = new Set(prev);
-      if (n.has(orderIdPortal)) n.delete(orderIdPortal); else n.add(orderIdPortal);
+      if (n.has(pedidoId)) n.delete(pedidoId); else n.add(pedidoId);
       return n;
     });
   };
   const selectAllVisible = () => {
-    setSelected(new Set(filtered.map(p => p.order_id_portal).filter(Boolean) as string[]));
+    setSelected(new Set(filtered.map(p => p.id)));
   };
   const clearSelection = () => setSelected(new Set());
+
+  // Os ids de portal correspondentes aos pedidos selecionados (subset elegível para sync)
+  const selectedPortalIds = useMemo(() => {
+    const byId = new Map(pedidos.map(p => [p.id, p.order_id_portal]));
+    return Array.from(selected).map(id => byId.get(id)).filter(Boolean) as string[];
+  }, [selected, pedidos]);
+
 
   const fmtRelative = (iso: string | null | undefined) => {
     if (!iso) return null;
@@ -376,8 +411,14 @@ const RanchoChiquePedidosPage = () => {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Buscar nº Bagy, cliente, CPF, WhatsApp..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="border rounded px-2 text-sm" value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}>
-          <option value="todos">Todos os status</option>
+        <select className="border rounded px-2 text-sm h-10" value={filtroStatusBagy} onChange={e => setFiltroStatusBagy(e.target.value)}>
+          <option value="todos">Todos status Bagy</option>
+          {STATUS_BAGY_FILTROS.map(s => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        <select className="border rounded px-2 text-sm h-10" value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}>
+          <option value="todos">Toda situação interna</option>
           <option value="pedido_criado">Pedido criado</option>
           <option value="aguardando_ficha">Aguardando ficha</option>
           <option value="aguardando_mapeamento">Sem mapeamento</option>
@@ -393,12 +434,13 @@ const RanchoChiquePedidosPage = () => {
         <>
           <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
             <Checkbox
-              checked={filtered.length > 0 && filtered.every(p => !p.order_id_portal || selected.has(p.order_id_portal!))}
+              checked={filtered.length > 0 && filtered.every(p => selected.has(p.id))}
               onCheckedChange={(v) => v ? selectAllVisible() : clearSelection()}
             />
             <span>Selecionar todos visíveis</span>
             {selected.size > 0 && <span className="ml-2">· {selected.size} selecionado(s)</span>}
           </div>
+
         <div className="space-y-2">
           {filtered.map(p => {
             const itens = itensByPed[p.id] || [];
@@ -406,16 +448,13 @@ const RanchoChiquePedidosPage = () => {
             return (
               <div key={p.id} className="border rounded-lg bg-card overflow-hidden">
                 <div className="w-full flex items-center gap-3 p-3 hover:bg-accent/30">
-                  {p.order_id_portal ? (
-                    <Checkbox
-                      checked={selected.has(p.order_id_portal)}
-                      onCheckedChange={() => toggleSelected(p.order_id_portal)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label="Selecionar para sincronizar"
-                    />
-                  ) : (
-                    <div className="w-4 h-4 shrink-0" title="Sem vínculo com portal — não sincronizável" />
-                  )}
+                  <Checkbox
+                    checked={selected.has(p.id)}
+                    onCheckedChange={() => toggleSelected(p.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Selecionar pedido"
+                  />
+
                   <button
                     type="button"
                     onClick={() => setSelPedido(selPedido?.id === p.id ? null : p)}
@@ -451,7 +490,7 @@ const RanchoChiquePedidosPage = () => {
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-3 space-y-3 bg-background">
-                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div className="grid sm:grid-cols-3 gap-3 text-sm">
                       <div>
                         <div className="text-xs text-muted-foreground">Cliente</div>
                         <div className="font-semibold">{p.cliente_nome || '—'}</div>
@@ -460,7 +499,6 @@ const RanchoChiquePedidosPage = () => {
                         {p.cliente_email && <div className="text-xs">{p.cliente_email}</div>}
                         {p.pagamento && <div className="text-xs mt-1">Pagamento: <b>{p.pagamento}</b></div>}
                         <div className="text-xs">Total: <b>{brl(p.total)}</b></div>
-
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground">Endereço</div>
@@ -473,6 +511,16 @@ const RanchoChiquePedidosPage = () => {
                           </div>
                         ) : <div className="text-xs text-muted-foreground">—</div>}
                       </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Envio</div>
+                        <div className="text-xs">{p.metodo_envio || <span className="text-muted-foreground">— não informado —</span>}</div>
+                        {(p.frete ?? 0) > 0 && <div className="text-xs">Frete: <b>{brl(p.frete)}</b></div>}
+                        {p.tracking_code && (
+                          <div className="text-xs mt-1">
+                            Rastreio: <span className="font-mono">{p.tracking_code}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -483,16 +531,16 @@ const RanchoChiquePedidosPage = () => {
                           const sb = ITEM_STATUS_BADGE[it.status] || { label: it.status.toUpperCase(), cls: 'bg-gray-400 text-white' };
                           return (
                             <div key={it.id} className="flex items-center gap-3 p-2 border rounded text-sm">
-                              {it.foto_url
-                                ? <img src={it.foto_url} alt="" className="w-12 h-12 object-cover rounded" />
-                                : <div className="w-12 h-12 rounded bg-muted" />}
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">{it.nome_produto || '—'}</div>
+                                <div className="font-medium truncate">
+                                  {it.nome_produto || '—'}
+                                  {it.variacao_nome && <span className="text-muted-foreground font-normal"> — {it.variacao_nome}</span>}
+                                </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {it.variacao_nome && <>{it.variacao_nome} · </>}
                                   {it.tamanho && <>Tam {it.tamanho} · </>}
                                   Qtd {it.quantidade}
                                   {it.sku && <> · SKU <span className="font-mono">{it.sku}</span></>}
+                                  {it.ncm && <> · NCM <span className="font-mono">{it.ncm}</span></>}
                                 </div>
                               </div>
                               <div className="text-sm font-semibold">{brl(it.preco_unit)}</div>
@@ -529,13 +577,36 @@ const RanchoChiquePedidosPage = () => {
                           </TooltipContent>
                         </Tooltip></TooltipProvider>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => reprocessar(p)}>
-                        <RefreshCw size={14} className="mr-1" /> Reprocessar
+                      <Button size="sm" variant="outline" disabled={reprocessing} onClick={() => reprocessar(p)}>
+                        {reprocessing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RefreshCw size={14} className="mr-1" />}
+                        Reprocessar
                       </Button>
+                      <TooltipProvider><Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button size="sm" variant="outline" disabled>
+                              <FileText size={14} className="mr-1" /> Gerar NF-e
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Integração NF-e em configuração.</TooltipContent>
+                      </Tooltip></TooltipProvider>
+                      <TooltipProvider><Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button size="sm" variant="outline" disabled>
+                              <Printer size={14} className="mr-1" /> Imprimir etiqueta
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
+                      </Tooltip></TooltipProvider>
                       <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
                         <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
                       </Button>
                     </div>
+
+
 
                     {p.order_id_portal && syncByOrder[p.order_id_portal] && (
                       <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
@@ -569,16 +640,36 @@ const RanchoChiquePedidosPage = () => {
 
       {/* Barra flutuante de seleção */}
       {selected.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-full px-4 py-2 flex items-center gap-3">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-2xl px-4 py-2 flex items-center gap-2 flex-wrap max-w-[95vw]">
           <span className="text-sm font-semibold">{selected.size} selecionado(s)</span>
           <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
-          <Button size="sm" disabled={syncing} onClick={() => sincronizarBagy(Array.from(selected))}>
+          <Button size="sm" variant="outline" disabled={reprocessing}
+            onClick={() => reprocessarBulk(Array.from(selected))}>
+            {reprocessing
+              ? <><Loader2 size={14} className="mr-1 animate-spin"/> Reprocessando...</>
+              : <><RefreshCw size={14} className="mr-1"/> Reprocessar</>}
+          </Button>
+          <Button size="sm" disabled={syncing || selectedPortalIds.length === 0}
+            onClick={() => sincronizarBagy(selectedPortalIds)}>
             {syncing
               ? <><Loader2 size={14} className="mr-1 animate-spin"/> {syncProgress ? `${syncProgress.done}/${syncProgress.total}` : 'Enviando...'}</>
-              : <><Send size={14} className="mr-1"/> Atualizar {selected.size} na Bagy</>}
+              : <><Send size={14} className="mr-1"/> Atualizar Bagy ({selectedPortalIds.length}/{selected.size})</>}
           </Button>
+          <TooltipProvider><Tooltip>
+            <TooltipTrigger asChild>
+              <span><Button size="sm" variant="outline" disabled><FileText size={14} className="mr-1"/> Gerar NF-e</Button></span>
+            </TooltipTrigger>
+            <TooltipContent>Integração NF-e em configuração.</TooltipContent>
+          </Tooltip></TooltipProvider>
+          <TooltipProvider><Tooltip>
+            <TooltipTrigger asChild>
+              <span><Button size="sm" variant="outline" disabled><Printer size={14} className="mr-1"/> Imprimir etiqueta</Button></span>
+            </TooltipTrigger>
+            <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
+          </Tooltip></TooltipProvider>
         </div>
       )}
+
 
       <Dialog open={!!trackDialog} onOpenChange={(o) => !o && setTrackDialog(null)}>
         <DialogContent>
