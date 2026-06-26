@@ -128,6 +128,24 @@ const RanchoChiquePedidosPage = () => {
       });
       setItensByPed(map);
     }
+    // Carrega info de sync dos pedidos do portal
+    const portalIds = (peds || []).map((p: any) => p.order_id_portal).filter(Boolean);
+    if (portalIds.length > 0) {
+      const { data: ords } = await supabase
+        .from('orders')
+        .select('id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
+        .in('id', portalIds);
+      const sm: Record<string, OrderSyncInfo> = {};
+      (ords || []).forEach((o: any) => {
+        sm[o.id] = {
+          status: o.status || null,
+          bagy_last_sync_at: o.bagy_last_sync_at || null,
+          bagy_last_sync_error: o.bagy_last_sync_error || null,
+          bagy_last_sync_status: o.bagy_last_sync_status || null,
+        };
+      });
+      setSyncByOrder(sm);
+    }
     setLoading(false);
   };
 
