@@ -230,9 +230,8 @@ Deno.serve(async (req) => {
     const numeroBagy = String(
       pick(order, "code", "number", "numero", "id") ?? bagyOrderId,
     );
-    const statusBagy = String(
-      pick(order, "status", "status_name", "current_status") ?? "unknown",
-    ).toLowerCase();
+    // Usa o status normalizado (statusBagyEarly considera payment_status + evento de aprovação)
+    const statusBagy = statusBagyEarly;
 
     const customer = order.customer || order.client || {};
     const shippingAddr = order.shipping_address || order.address || order.shipping || null;
