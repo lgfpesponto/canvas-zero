@@ -532,12 +532,14 @@ Deno.serve(async (req) => {
           status = "aguardando_aprovacao";
         }
       } else if (templateId) {
-        status = "aguardando_ficha";
+        // Se já existe pedido portal vinculado, a ficha já foi gerada — não regride para aguardando_ficha
+        status = pedidoExistente?.order_id_portal ? "pedido_criado" : "aguardando_ficha";
       } else {
         // Brindes (preço 0) não contam como mapeamento faltante — não bloqueiam o pedido
         status = precoUnit > 0 ? "sem_mapeamento" : "brinde_sem_sku";
         if (precoUnit > 0) hasMissingMap = true;
       }
+
 
       classifiedItems.push({
         sku: skuRaw || null,
