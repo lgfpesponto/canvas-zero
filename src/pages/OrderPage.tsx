@@ -1497,9 +1497,7 @@ const OrderPage = () => {
 
               <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
             </Section>
-          ) : (
-            <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={MODELOS} />
-          )}
+          ) : null}
 
           {/* COUROS */}
           <Section title="Couros">
