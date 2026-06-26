@@ -47,6 +47,8 @@ const BeltOrderPage = () => {
   const isAdminUser = isAdmin;
   const tmpl = useTemplateManagement();
   const [mode, setMode] = useState<'order' | 'template'>('order');
+  // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
+  const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
 
   // Form state
   const isAdminProducao = user?.role === 'admin_producao';
@@ -212,14 +214,22 @@ const BeltOrderPage = () => {
   };
 
   const handleEditTemplate = (template: { id: string; nome: string; form_data: Record<string, string> }) => {
+    appliedTemplateRef.current = null;
     tmpl.startEditing(template);
     populateFromTemplate(template.form_data);
     setMode('template');
   };
 
-  const handleUseTemplate = (formData: Record<string, string>) => {
+  const handleUseTemplate = (
+    template: { nome: string; form_data: Record<string, string>; sku?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
+  ) => {
     tmpl.setShowTemplates(false);
-    populateFromTemplate(formData);
+    appliedTemplateRef.current = {
+      nome: template.nome,
+      sku: template.sku || null,
+      tamanhosSkus: Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : [],
+    };
+    populateFromTemplate(template.form_data);
   };
 
   // send dialog
