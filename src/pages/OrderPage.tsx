@@ -1358,13 +1358,30 @@ const OrderPage = () => {
 
         <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* Template name field */}
+          {/* Template name + SKU + Gênero (integração Bagy) */}
           {mode === 'template' && (
-            <div>
-              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-3">
+                <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
+                <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={cls.label}>SKU Bagy <span className="text-xs font-normal text-muted-foreground">(opcional — pra gerar ficha automática de pedidos da loja Bagy)</span></label>
+                <input type="text" value={tmpl.templateSku} onChange={e => tmpl.setTemplateSku(e.target.value)} placeholder="Ex: TEX-AMANDA-PE" className={cls.input} />
+              </div>
+              <div>
+                <label className={cls.label}>Gênero</label>
+                <select value={tmpl.templateGenero} onChange={e => tmpl.setTemplateGenero(e.target.value)} className={cls.select}>
+                  <option value="">—</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Feminino">Feminino</option>
+                  <option value="Unissex">Unissex</option>
+                  <option value="Infantil">Infantil</option>
+                </select>
+              </div>
             </div>
           )}
+
 
           {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (
