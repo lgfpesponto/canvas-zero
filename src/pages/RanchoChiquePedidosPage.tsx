@@ -224,45 +224,40 @@ const RanchoChiquePedidosPage = () => {
   };
 
 
-  const gerarFicha = async (p: BagyPedido, item: BagyItem) => {
+  /** Abre o BagyFichaDialog com a fila pedida. Filtra apenas itens prontos (aguardando_ficha + template_id). */
+  const abrirFichaDialog = (queue: BagyFichaQueueItem[]) => {
+    if (queue.length === 0) {
+      toast.error('Nenhum item pronto para gerar ficha.');
+      return;
+    }
+    setFichaQueue(queue);
+  };
+
+  /** Constrói a fila a partir de um pedido (todos os itens elegíveis dele). */
+  const queueFromPedido = (p: BagyPedido): BagyFichaQueueItem[] => {
+    const itens = itensByPed[p.id] || [];
+    return itens
+      .filter(i => i.status === 'aguardando_ficha' && !!i.template_id)
+      .map(i => ({ pedidoId: p.id, itemId: i.id }));
+  };
+
+  /** Constrói a fila a partir de vários pedidos selecionados. */
+  const queueFromSelection = (): BagyFichaQueueItem[] => {
+    const out: BagyFichaQueueItem[] = [];
+    pedidos.filter(p => selected.has(p.id)).forEach(p => {
+      out.push(...queueFromPedido(p));
+    });
+    return out;
+  };
+
+  const gerarFichaItem = (p: BagyPedido, item: BagyItem) => {
     if (!item.template_id) {
       toast.error('Item sem template mapeado por SKU. Crie/edite um modelo de ficha com esse SKU.');
       return;
     }
-    // Resolve foto + tamanho via template (foto_url do template tem prioridade; tamanho casado por SKU dentro de tamanhos_skus)
-    let fotoUrl: string | null = item.foto_url;
-    let tamanho: string | null = item.tamanho || null;
-    try {
-      const { data: tpl } = await supabase
-        .from('order_templates')
-        .select('foto_url, tamanhos_skus')
-        .eq('id', item.template_id)
-        .maybeSingle();
-      if (tpl?.foto_url) fotoUrl = tpl.foto_url;
-      const arr = (tpl?.tamanhos_skus as any[]) || [];
-      if (item.sku && (!tamanho || tamanho.trim() === '')) {
-        const match = arr.find((x: any) => (x?.sku || '').trim().toLowerCase() === item.sku!.trim().toLowerCase());
-        if (match?.tamanho) tamanho = match.tamanho;
-      }
-    } catch (_e) { /* segue */ }
-
-    navigate('/pedido', {
-      state: {
-        bagyPrefill: {
-          templateId: item.template_id,
-          numero: `RC-${p.numero_bagy}`,
-          cliente: p.cliente_nome || '',
-          whatsapp: p.cliente_whats || '',
-          tamanho: tamanho || '',
-          fotoUrl,
-          bagyPedidoId: p.id,
-          bagyItemId: item.id,
-          bagyOrderId: p.bagy_order_id,
-          quantidade: item.quantidade,
-        },
-      },
-    });
+    abrirFichaDialog([{ pedidoId: p.id, itemId: item.id }]);
   };
+
 
 
   const marcarDespachado = async () => {
