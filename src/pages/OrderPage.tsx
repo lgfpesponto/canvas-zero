@@ -128,7 +128,26 @@ const MultiSelect = ({
 };
 
 /* ───── main component ───── */
-const OrderPage = () => {
+export interface OrderPageProps {
+  /** Modo embarcado (dentro de Dialog do fluxo Bagy). Pula tela de login/seleção de produto e omite chrome. */
+  embedded?: boolean;
+  /** Override do route state — usado pelo BagyFichaDialog. */
+  bagyPrefillOverride?: {
+    templateId: string; numero: string; cliente?: string; whatsapp?: string;
+    tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string;
+    bagyOrderId: string; quantidade?: number;
+  } | null;
+  /** Quando true, abre o espelho automaticamente assim que o prefill é aplicado. */
+  autoShowMirror?: boolean;
+  /** Callback após salvar com sucesso (substitui resetForm + toast no modo embarcado). */
+  onBagySaved?: () => void;
+  /** Callback ao cancelar (clicar X). */
+  onBagyCancel?: () => void;
+  /** Texto extra mostrado no botão "OK — Finalizar" (ex: "(3/5)"). */
+  finalizeBadge?: string;
+}
+
+const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
