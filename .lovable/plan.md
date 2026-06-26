@@ -1,49 +1,26 @@
-## Plano final — Integração Bagy (botão manual + Faturado)
+## Fix: Bagy webhook respondendo 401 antes de entrar na função
 
-Status confirmados pelos prints da Bagy (vou usar esses labels no mapa):
+### Diagnóstico
 
-| Etapa portal              | Label Bagy             | Campos enviados            |
-| ------------------------- | ---------------------- | -------------------------- |
-| Pagamento aprovado        | `Pagamento aprovado`   | — (já vem assim)           |
-| Em produção (ficha)       | `Em produção`          | —                          |
-| Separado (estoque pronto) | `Separado`             | —                          |
-| Faturado                  | `Faturado`             | `nf_numero` (ex: 003876/2) |
-| Despachado                | `Despachado`           | `tracking_code`            |
-| Entregue                  | `Marcar como entregue` | —                          |
+- `bagy_webhook_log` vazio e `bagy_pedidos` zero → nenhuma chamada da Bagy chegou no handler.
+- Logs da edge `bagy-webhook` só mostram `boot`, nenhuma execução.
+- Teste `POST /functions/v1/bagy-webhook` sem header `Authorization` → `401 {"error":"invalid_token"}`.
+- A Bagy não manda `Authorization` (autentica via `?token=...` na query), então toda chamada dela está sendo barrada pelo gateway do Supabase antes de virar request da função. Resultado: webhook configurado certinho na Bagy, mas nada cai aqui.
+- O `supabase/config.toml` já tem `verify_jwt = false`, só que o deploy atual não está honrando isso — provavelmente porque a função foi deployada antes de o flag ter sido salvo, ou o config não foi reaplicado.
 
-> Códigos reais da API Dooca/Bagy (ex: `separated`, `invoiced`, `shipped`) ficam centralizados em `supabase/functions/bagy-status-push/status-map.ts`. Se a API rejeitar algum label exato, troco só os valores nesse arquivo.
+### O que vou fazer
 
-### Implementação
+1. **Redeployar `bagy-webhook` e `bagy-webhook-info`** forçando a aplicação do `verify_jwt=false`. (Os dois precisam, porque o `info` também é chamado do front sem necessariamente passar JWT em alguns paths.)
+2. **Testar de novo via curl sem Authorization** → esperar `400/200` (resposta da própria função, não mais 401 do gateway).
+3. **Pedir pra Bagy reenviar o pedido** (geralmente o painel tem "Reenviar webhook" no histórico do pedido; senão, basta mudar o status do pedido pra qualquer outro e voltar — isso costuma redisparar).
+4. **Confirmar no portal** que o pedido apareceu em `/rancho-chique/pedidos` e em `bagy_webhook_log`.
 
-1. **Migration**
-   - Coluna `nf_numero TEXT` em `bagy_status_sync_queue`.
-   - Coluna `bagy_last_sync_at TIMESTAMPTZ` + `bagy_last_sync_error TEXT` em `orders` (pra mostrar quando foi o último envio e se deu erro).
-   - **Sem `pg_cron` / `pg_net`** — tudo manual.
+### Sem mudança de código
 
-2. **Edge function `bagy-status-push` (refatorada)**
-   - Aceita `{ order_ids: string[] }` (modo manual).
-   - Para cada `order_id`: lê `orders` + `nfe_notas` (join opcional), mapeia status portal → Bagy via `status-map.ts`, monta payload com `tracking_code`/`invoice_number` quando aplicável, chama `PUT https://api.dooca.store/orders/{bagy_order_id}`.
-   - Retorna array `[{ order_id, ok, error? }]`.
-   - Grava `bagy_last_sync_at` / `bagy_last_sync_error` no `orders`.
+Só redeploy + teste. Se mesmo após o redeploy o 401 persistir, aí vou:
+- Adicionar verificação `verify_jwt=false` explícita também via metadata da função (algumas versões do Supabase exigem que esteja na seção certa do toml).
+- Como fallback, mudar a função pra aceitar a chamada Bagy via header customizado e divulgar a nova URL.
 
-3. **UI — detalhe do pedido**
-   - Se `order.bagy_order_id` existir: botão **"Atualizar status na Bagy"** na barra de ações.
-   - Mostra timestamp do último sync abaixo do botão; se erro, badge vermelho + tooltip com a mensagem.
+### Mensagem final pra você
 
-4. **UI — lista `/rancho-chique/pedidos`**
-   - Checkbox por linha + selectAll.
-   - Barra flutuante "Atualizar N na Bagy" quando há seleção.
-   - Mostra progresso X/Y enquanto roda; toast final com sucesso/erro por pedido.
-   - Coluna extra "Último sync Bagy" (relativo, ex: "há 5 min" ou "❌ erro").
-
-5. **Faturado**
-   - Quando o portal marca etapa "Faturado", busca número da NF mais recente em `nfe_notas` daquele `order_id` e envia junto.
-   - Se não houver NF emitida ainda, botão fica desabilitado com tooltip "Emita a NF antes de marcar Faturado na Bagy".
-
-6. **Tooltip explicativo** no botão: "Envia o status atual do portal pra Bagy agora. Use depois de mudar etapa, faturar ou despachar."
-
-### Fora do escopo (decisão sua)
-- Cron automático.
-- Trigger DB de auto-enfileirar mudanças de etapa.
-
-Tudo manual via botão, individual ou em lote.
+Quando terminar te aviso o resultado do curl. Se voltar 200/400 (não 401), você reenvia o pedido na Bagy e ele aparece aqui.
