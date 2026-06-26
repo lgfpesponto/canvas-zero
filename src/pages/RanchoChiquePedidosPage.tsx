@@ -112,8 +112,10 @@ const RanchoChiquePedidosPage = () => {
     const { data: peds, error } = await supabase
       .from('bagy_pedidos')
       .select('*')
+      .order('bagy_created_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(500);
+
     if (error) {
       toast.error('Erro ao carregar pedidos Bagy: ' + error.message);
       setLoading(false);
