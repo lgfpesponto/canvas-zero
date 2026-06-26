@@ -674,6 +674,43 @@ const OrderPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  /* ───── Bagy prefill: vem de /rancho-chique/pedidos → "Gerar ficha" ───── */
+  const bagyPrefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (bagyPrefillAppliedRef.current || !bagyPrefill || fichaLoading) return;
+    bagyPrefillAppliedRef.current = true;
+    (async () => {
+      const { data: tmplRow } = await supabase
+        .from('order_templates')
+        .select('id, nome, form_data, genero, sku')
+        .eq('id', bagyPrefill.templateId)
+        .maybeSingle();
+      if (!tmplRow) {
+        toast.error('Modelo de ficha não encontrado para esse SKU.');
+        return;
+      }
+      setProductChoice('bota');
+      setMode('order');
+      validateAndPopulateTemplate({ ...(tmplRow.form_data as any) });
+      // Override com dados do pedido Bagy
+      if (bagyPrefill.numero) setNumeroPedido(bagyPrefill.numero);
+      if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
+      if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
+      if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
+      if (bagyPrefill.fotoUrl) setFotoUrl(bagyPrefill.fotoUrl);
+      // Vendedor = Rancho Chique (resolve pelo user 'site')
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('nome_completo')
+        .eq('nome_usuario', 'site')
+        .maybeSingle();
+      if (prof?.nome_completo) setVendedorSelecionado(prof.nome_completo);
+      toast.info(`Ficha pré-preenchida do pedido Bagy ${bagyPrefill.numero}. Revise e salve.`);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bagyPrefill, fichaLoading]);
+
+
   const handleUseTemplate = (formData: Record<string, string>, templateNome?: string) => {
     tmpl.setShowTemplates(false);
     validateAndPopulateTemplate({ ...formData });
