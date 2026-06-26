@@ -255,6 +255,21 @@ Deno.serve(async (req) => {
       ? (PAGAMENTO_MAP[pagamentoRaw.toLowerCase()] || pagamentoRaw)
       : null;
 
+    // Método de envio escolhido pelo cliente
+    const metodoEnvio = pick<string>(
+      order,
+      "shipping_method",
+      "shipping.name",
+      "shipping.method",
+      "shipping.service_name",
+      "shipping.title",
+      "freight_name",
+      "selected_shipping.name",
+      "shippings.0.name",
+      "shippings.0.service_name",
+    ) || null;
+
+
     // Data/hora real do pedido na Bagy
     const bagyCreatedRaw = pick<string>(
       order, "created_at", "created", "date", "purchased_at", "order_date",
@@ -282,6 +297,7 @@ Deno.serve(async (req) => {
       frete,
       desconto,
       pagamento,
+      metodo_envio: metodoEnvio,
       bagy_created_at: bagyCreatedAt,
       payload: order,
     };
