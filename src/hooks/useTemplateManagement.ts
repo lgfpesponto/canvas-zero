@@ -9,7 +9,10 @@ export interface TemplateRecord {
   sent_by?: string | null;
   sent_by_name?: string | null;
   seen?: boolean;
+  sku?: string | null;
+  genero?: string | null;
 }
+
 
 export function useTemplateManagement() {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
