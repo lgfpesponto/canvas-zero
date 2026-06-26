@@ -372,18 +372,49 @@ const RanchoChiquePedidosPage = () => {
             const flag = p.flag ? FLAG_BADGE[p.flag] : null;
             return (
               <div key={p.id} className="border rounded-lg bg-card overflow-hidden">
-                <button
-                  onClick={() => setSelPedido(selPedido?.id === p.id ? null : p)}
-                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/30"
-                >
-                  {selPedido?.id === p.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <div className="font-mono font-bold text-sm shrink-0">RC-{p.numero_bagy}</div>
-                  <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
-                  <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.created_at).toLocaleString('pt-BR')}</div>
-                  <div className="text-sm font-semibold">{brl(p.total)}</div>
-                  <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
-                  {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
-                </button>
+                <div className="w-full flex items-center gap-3 p-3 hover:bg-accent/30">
+                  {p.order_id_portal ? (
+                    <Checkbox
+                      checked={selected.has(p.order_id_portal)}
+                      onCheckedChange={() => toggleSelected(p.order_id_portal)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Selecionar para sincronizar"
+                    />
+                  ) : (
+                    <div className="w-4 h-4 shrink-0" title="Sem vínculo com portal — não sincronizável" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelPedido(selPedido?.id === p.id ? null : p)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
+                    {selPedido?.id === p.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <div className="font-mono font-bold text-sm shrink-0">RC-{p.numero_bagy}</div>
+                    <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
+                    <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.created_at).toLocaleString('pt-BR')}</div>
+                    <div className="text-sm font-semibold">{brl(p.total)}</div>
+                    <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
+                    {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
+                    {(() => {
+                      const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
+                      if (!si) return null;
+                      if (si.bagy_last_sync_error) {
+                        return (
+                          <TooltipProvider><Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1"><XCircle size={10}/>ERRO BAGY</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
+                          </Tooltip></TooltipProvider>
+                        );
+                      }
+                      if (si.bagy_last_sync_at) {
+                        return <span className="text-[10px] text-muted-foreground hidden md:inline">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
+                      }
+                      return null;
+                    })()}
+                  </button>
+                </div>
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-3 space-y-3 bg-background">
