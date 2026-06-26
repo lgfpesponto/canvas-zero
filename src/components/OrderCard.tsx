@@ -7,6 +7,7 @@ import { getOrderFinalValue } from '@/lib/order-logic';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
 import { useCanSeeValues } from '@/hooks/useCanSeeValues';
 import { toast } from 'sonner';
+import { TemplateTag } from '@/components/orders/TemplateTag';
 
 
 interface OrderCardProps {
@@ -44,6 +45,7 @@ const OrderCard = React.memo(({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="font-display font-bold">{order.numero}</span>
+            <TemplateTag nome={order.templateNome} sku={order.templateSku} className="ml-2" />
             {showConferidoTag && order.conferido && (
               <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold inline-flex items-center gap-1 align-middle">
                 <CheckCircle size={10} /> CONFERIDO
