@@ -500,9 +500,6 @@ const RanchoChiquePedidosPage = () => {
                         </Tooltip></TooltipProvider>
                       );
                     }
-                    if (si.bagy_last_sync_at) {
-                      return <span className="text-[10px] text-muted-foreground hidden md:inline shrink-0">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
-                    }
                     return null;
                   })()}
                 </div>
