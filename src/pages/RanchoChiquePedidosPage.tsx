@@ -75,12 +75,14 @@ const ITEM_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const STATUS_BAGY_LABEL: Record<string, string> = {
-  new: 'Novo', pending: 'Pendente',
-  paid: 'Pago', approved: 'Aprovado',
+  new: 'Novo', pending: 'Pendente', open: 'Aberto', archived: 'Arquivado',
+  paid: 'Pago', approved: 'Aprovado', processing: 'Processando',
   separated: 'Separado', production: 'Em Produção',
-  shipped: 'Despachado', delivered: 'Entregue',
-  canceled: 'Cancelado', cancelled: 'Cancelado', refunded: 'Reembolsado',
+  shipped: 'Despachado', delivered: 'Entregue', completed: 'Concluído',
+  canceled: 'Cancelado', cancelled: 'Cancelado',
+  refunded: 'Reembolsado', returned: 'Devolvido',
 };
+
 
 function brl(n: number | null | undefined) {
   return (n ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
