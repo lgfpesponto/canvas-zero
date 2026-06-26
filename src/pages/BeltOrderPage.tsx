@@ -530,12 +530,20 @@ const BeltOrderPage = () => {
 
         <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* Template name field */}
+          {/* Cabeçalho do Modelo (foto, nome, gênero, SKU base, tamanhos+SKU) */}
           {isTemplate && (
-            <div>
-              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Cinto tradicional" className={cls.input} />
-            </div>
+            <TemplateHeaderFields
+              nome={tmpl.templateName}
+              onNome={tmpl.setTemplateName}
+              genero={tmpl.templateGenero}
+              onGenero={tmpl.setTemplateGenero}
+              sku={tmpl.templateSku}
+              onSku={tmpl.setTemplateSku}
+              fotoUrl={tmpl.templateFotoUrl}
+              onFotoUrl={v => { tmpl.setTemplateFotoUrl(v); if (isHttpUrl(v)) setMostrarFotoPainel(true); else setMostrarFotoPainel(false); }}
+              tamanhosSkus={tmpl.templateTamanhosSkus}
+              onTamanhosSkus={tmpl.setTemplateTamanhosSkus}
+            />
           )}
 
           {/* IDENTIFICAÇÃO (apenas em modo pedido) */}
