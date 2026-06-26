@@ -489,7 +489,8 @@ const BeltOrderPage = () => {
     },
   ].filter(g => g.itens.length > 0);
 
-  const showFotoPanel = mode === 'order' && mostrarFotoPainel && isHttpUrl(fotoUrl);
+  const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
+  const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
   const isTemplate = mode === 'template';
 
   return (
