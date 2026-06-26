@@ -220,8 +220,15 @@ const BeltOrderPage = () => {
     setMode('template');
   };
 
+  const canInheritTemplateFoto = () => {
+    if (!user) return false;
+    if (user.role === 'admin_master' || user.role === 'admin_producao') return true;
+    if ((user.nomeUsuario || '').toLowerCase() === 'site') return true;
+    return false;
+  };
+
   const handleUseTemplate = (
-    template: { nome: string; form_data: Record<string, string>; sku?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
+    template: { nome: string; form_data: Record<string, string>; sku?: string | null; foto_url?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
   ) => {
     tmpl.setShowTemplates(false);
     appliedTemplateRef.current = {
@@ -230,6 +237,10 @@ const BeltOrderPage = () => {
       tamanhosSkus: Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : [],
     };
     populateFromTemplate(template.form_data);
+    if (template.foto_url && canInheritTemplateFoto()) {
+      setFotoUrl(template.foto_url);
+      if (isHttpUrl(template.foto_url)) setMostrarFotoPainel(true);
+    }
   };
 
   // send dialog
