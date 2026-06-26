@@ -334,6 +334,58 @@ const EstoquePage = () => {
                     </div>
                   ))}
                 </div>
+                {/* Status sync Bagy — agrega por produto base */}
+                {(() => {
+                  const naoEncontrados = g.tamanhos.filter(t => t.bagy_sync_status === 'nao_encontrado_na_bagy');
+                  const comErro = g.tamanhos.filter(t => t.bagy_sync_status === 'erro');
+                  const pendentes = g.tamanhos.filter(t => t.bagy_sync_status === 'pendente');
+                  const okCount = g.tamanhos.filter(t => t.bagy_sync_status === 'ok').length;
+                  const problemas = [...naoEncontrados, ...comErro];
+                  if (problemas.length > 0) {
+                    return (
+                      <div className={`text-[11px] rounded-md p-2 border ${naoEncontrados.length > 0 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200' : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-900 dark:text-red-200'}`}>
+                        <div className="font-semibold mb-1">
+                          {naoEncontrados.length > 0 ? '⚠ SKU não está na Bagy' : '✗ Erro ao sincronizar com Bagy'}
+                        </div>
+                        <div className="space-y-1">
+                          {problemas.map(t => (
+                            <div key={t.id} className="flex items-center justify-between gap-2">
+                              <span className="font-mono truncate">tam {t.tamanho} · {t.sku_base}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRetryBagySync(t, g.nome)}
+                                className="shrink-0 underline hover:no-underline font-semibold"
+                                title={t.bagy_sync_erro || ''}
+                              >
+                                Tentar novamente
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        {naoEncontrados.length > 0 && (
+                          <p className="mt-1 opacity-80">
+                            Cadastre o SKU na Bagy e clique em "Tentar novamente".
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (pendentes.length > 0) {
+                    return (
+                      <div className="text-[10px] text-muted-foreground">
+                        Bagy: sincronizando {pendentes.length}…
+                      </div>
+                    );
+                  }
+                  if (okCount > 0 && okCount === g.tamanhos.length) {
+                    return (
+                      <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                        ✓ Sincronizado com Bagy
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 <p className="text-xl font-bold text-primary mt-auto">
                   {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
