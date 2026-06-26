@@ -1758,7 +1758,7 @@ const OrderPage = () => {
         </form>
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel url={fotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+          <FotoPedidoSidePanel url={currentFotoUrl} onClose={() => setMostrarFotoPainel(false)} />
         )}
       </div>
 
