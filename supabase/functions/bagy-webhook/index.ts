@@ -442,7 +442,7 @@ Deno.serve(async (req) => {
     let hasMissingMap = false;
 
     for (const it of rawItems) {
-      const skuRaw = String(
+      let skuRaw = String(
         pick(it, "sku", "variation.sku", "variant.sku", "variation_sku") ?? "",
       ).trim();
       const nomeProd = pick<string>(it, "name", "product.name", "product_name") ||
@@ -468,10 +468,18 @@ Deno.serve(async (req) => {
         it, "ncm", "product.ncm", "variation.ncm", "tax.ncm", "product.tax.ncm",
       ) || null;
 
+      // SKU pode ter sido cadastrado na Bagy DEPOIS do pedido — busca ao vivo se vier vazio
+      if (!skuRaw) {
+        const variationId = pick(it, "variation_id", "variation.id", "variant_id", "variant.id");
+        const productId = pick(it, "product_id", "product.id");
+        const live = await fetchBagySku({ variationId, productId });
+        if (live) skuRaw = live;
+      }
 
       const { base, tamanho: tamFromSku } = parseTamanhoFromSku(skuRaw);
       const tamanho = pick<string>(it, "size", "variation.size") || tamFromSku || null;
       const cor = pick<string>(it, "color", "variation.color") || null;
+
 
       // Busca no estoque por sku_base
       let estoqueProdutoId: string | null = null;
