@@ -29,7 +29,7 @@ export function useTemplateManagement() {
   const loadTemplates = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('order_templates')
-      .select('id, nome, form_data, sent_by, sent_by_name, seen')
+      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     setTemplates((data as any) || []);
@@ -40,9 +40,11 @@ export function useTemplateManagement() {
       toast.error('Preencha o nome do modelo');
       return false;
     }
+    const sku = templateSku.trim() || null;
+    const genero = templateGenero.trim() || null;
     const { error } = await supabase
       .from('order_templates')
-      .insert({ user_id: userId, nome: templateName.trim(), form_data: formData } as any);
+      .insert({ user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero } as any);
     if (error) {
       toast.error('Erro ao salvar modelo');
       console.error(error);
@@ -50,8 +52,10 @@ export function useTemplateManagement() {
     }
     toast.success('Modelo criado com sucesso!');
     setTemplateName('');
+    setTemplateSku('');
+    setTemplateGenero('');
     return true;
-  }, [templateName]);
+  }, [templateName, templateSku, templateGenero]);
 
   const updateTemplate = useCallback(async (formData: Record<string, string>) => {
     if (!editingTemplateId) return false;
@@ -59,9 +63,11 @@ export function useTemplateManagement() {
       toast.error('Preencha o nome do modelo');
       return false;
     }
+    const sku = templateSku.trim() || null;
+    const genero = templateGenero.trim() || null;
     const { error } = await supabase
       .from('order_templates')
-      .update({ nome: templateName.trim(), form_data: formData } as any)
+      .update({ nome: templateName.trim(), form_data: formData, sku, genero } as any)
       .eq('id', editingTemplateId);
     if (error) {
       toast.error('Erro ao atualizar modelo');
@@ -71,8 +77,10 @@ export function useTemplateManagement() {
     toast.success('Modelo atualizado com sucesso!');
     setEditingTemplateId(null);
     setTemplateName('');
+    setTemplateSku('');
+    setTemplateGenero('');
     return true;
-  }, [editingTemplateId, templateName]);
+  }, [editingTemplateId, templateName, templateSku, templateGenero]);
 
   const deleteTemplate = useCallback(async (id: string, userId: string) => {
     await supabase.from('order_templates').delete().eq('id', id);
@@ -83,13 +91,18 @@ export function useTemplateManagement() {
   const startEditing = useCallback((template: TemplateRecord) => {
     setEditingTemplateId(template.id);
     setTemplateName(template.nome);
+    setTemplateSku(template.sku || '');
+    setTemplateGenero(template.genero || '');
     setShowTemplates(false);
   }, []);
 
   const cancelEditing = useCallback(() => {
     setEditingTemplateId(null);
     setTemplateName('');
+    setTemplateSku('');
+    setTemplateGenero('');
   }, []);
+
 
   const sendTemplateToUsers = useCallback(async (
     templatesToSend: TemplateRecord | TemplateRecord[],
