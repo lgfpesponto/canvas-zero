@@ -532,12 +532,14 @@ Deno.serve(async (req) => {
           status = "aguardando_aprovacao";
         }
       } else if (templateId) {
-        status = "aguardando_ficha";
+        // Se já existe pedido portal vinculado, a ficha já foi gerada — não regride para aguardando_ficha
+        status = pedidoExistente?.order_id_portal ? "pedido_criado" : "aguardando_ficha";
       } else {
         // Brindes (preço 0) não contam como mapeamento faltante — não bloqueiam o pedido
         status = precoUnit > 0 ? "sem_mapeamento" : "brinde_sem_sku";
         if (precoUnit > 0) hasMissingMap = true;
       }
+
 
       classifiedItems.push({
         sku: skuRaw || null,
@@ -557,12 +559,18 @@ Deno.serve(async (req) => {
     }
 
 
-    // Insere itens
+    // Insere itens — já preenchendo order_id_portal quando o pedido portal existia (re-entrega de webhook).
     if (classifiedItems.length > 0) {
+      const portalIdForExisting = pedidoExistente?.order_id_portal || null;
       await supabase.from("bagy_pedido_itens").insert(
-        classifiedItems.map((c) => ({ ...c, pedido_id: pedidoRow.id })),
+        classifiedItems.map((c) => ({
+          ...c,
+          pedido_id: pedidoRow.id,
+          order_id_portal: c.status === "pedido_criado" ? portalIdForExisting : null,
+        })),
       );
     }
+
 
     // === Caminho A: cria pedido único no portal com TODOS os itens de estoque ===
     let createdOrderId: string | null = null;
@@ -610,12 +618,14 @@ Deno.serve(async (req) => {
     // === Atualiza bagy_pedidos com resultado ===
     let flag: string | null = pedidoFlag;
     if (!flag) {
-      if (createdOrderId) flag = "pedido_criado";
+      // Pedido já tinha sido criado no portal (ficha gerada / estoque baixado anteriormente):
+      // SEMPRE mantém "pedido_criado" — re-entregas do webhook não devem regredir o status visual.
+      if (createdOrderId || pedidoExistente?.order_id_portal) flag = "pedido_criado";
       else if (!isApproved) flag = "aguardando_aprovacao";
       else if (hasMissingMap) flag = "aguardando_mapeamento";
       else if (hasTemplateMatch) flag = "aguardando_ficha";
-      else if (pedidoExistente?.order_id_portal) flag = "pedido_criado";
     }
+
 
     await supabase.from("bagy_pedidos").update({
       order_id_portal: createdOrderId || pedidoExistente?.order_id_portal || null,

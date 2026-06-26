@@ -56,9 +56,16 @@ async function pushToBagy(
   try {
     if (target === "production" || target === "separated") {
       const r = await bagyReq("POST", `/orders/${id}/fulfillment`);
-      if (r.ok || isAlreadyExistsError(r.status, r.text)) return { ok: true };
-      return { ok: false, error: `HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+      if (!r.ok && !isAlreadyExistsError(r.status, r.text)) {
+        return { ok: false, error: `POST fulfillment HTTP ${r.status}: ${r.text.slice(0, 400)}` };
+      }
+      if (target === "production") {
+        const p = await bagyReq("PUT", `/orders/${id}/fulfillment/production`);
+        if (!p.ok) return { ok: false, error: `PUT /production HTTP ${p.status}: ${p.text.slice(0, 400)}` };
+      }
+      return { ok: true };
     }
+
     if (target === "invoiced") {
       const cre = await bagyReq("POST", `/orders/${id}/fulfillment`);
       if (!cre.ok && !isAlreadyExistsError(cre.status, cre.text)) {
