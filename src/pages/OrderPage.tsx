@@ -1136,7 +1136,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             bagyPrefillRef.current = null;
           }
           toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
-          resetForm();
+          if (embedded && onBagySaved) {
+            onBagySaved();
+          } else {
+            resetForm();
+          }
 
         } else {
           toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
