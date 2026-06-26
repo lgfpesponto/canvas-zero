@@ -463,26 +463,39 @@ const RanchoChiquePedidosPage = () => {
                     <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.bagy_created_at || p.created_at).toLocaleString('pt-BR')}</div>
                     <div className="text-sm font-semibold">{brl(p.total)}</div>
                     <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
-                    {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
-                    {(() => {
-                      const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
-                      if (!si) return null;
-                      if (si.bagy_last_sync_error) {
-                        return (
-                          <TooltipProvider><Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1"><XCircle size={10}/>ERRO BAGY</span>
-                            </TooltipTrigger>
-                            <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
-                          </Tooltip></TooltipProvider>
-                        );
-                      }
-                      if (si.bagy_last_sync_at) {
-                        return <span className="text-[10px] text-muted-foreground hidden md:inline">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
-                      }
-                      return null;
-                    })()}
                   </button>
+
+                  {/* Slot de status interno — botão "Gerar ficha" substitui o badge quando aguardando_ficha (sem duplicar). */}
+                  {p.flag === 'aguardando_ficha' ? (
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                      onClick={(e) => { e.stopPropagation(); const q = queueFromPedido(p); abrirFichaDialog(q); }}
+                    >
+                      <FileText size={14} className="mr-1" /> Gerar ficha
+                    </Button>
+                  ) : flag ? (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${flag.cls}`}>{flag.label}</span>
+                  ) : null}
+
+                  {(() => {
+                    const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
+                    if (!si) return null;
+                    if (si.bagy_last_sync_error) {
+                      return (
+                        <TooltipProvider><Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1 shrink-0"><XCircle size={10}/>ERRO BAGY</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
+                        </Tooltip></TooltipProvider>
+                      );
+                    }
+                    if (si.bagy_last_sync_at) {
+                      return <span className="text-[10px] text-muted-foreground hidden md:inline shrink-0">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {selPedido?.id === p.id && (
