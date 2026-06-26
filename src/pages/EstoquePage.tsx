@@ -335,8 +335,8 @@ const EstoquePage = () => {
                     </div>
                   ))}
                 </div>
-                {/* Status sync Bagy — agrega por produto base */}
-                {(() => {
+                {/* Status sync Bagy — agrega por produto base (oculto p/ vendedor comum e bordado) */}
+                {canSeeBagySync && (() => {
                   const naoEncontrados = g.tamanhos.filter(t => t.bagy_sync_status === 'nao_encontrado_na_bagy');
                   const comErro = g.tamanhos.filter(t => t.bagy_sync_status === 'erro');
                   const pendentes = g.tamanhos.filter(t => t.bagy_sync_status === 'pendente');
