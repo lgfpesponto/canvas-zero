@@ -8,6 +8,7 @@ import { isHttpUrl } from '@/lib/driveUrl';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link2, X, Save, ArrowLeft, Search } from 'lucide-react';
+import { TemplateTag } from '@/components/orders/TemplateTag';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
@@ -510,7 +511,10 @@ const EditOrderPage = () => {
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
           <ArrowLeft size={16} /> Voltar
         </button>
-        <h1 className="text-3xl font-display font-bold mb-6">Editar Pedido — {order.numero}</h1>
+        <h1 className="text-3xl font-display font-bold mb-6 flex flex-wrap items-center gap-2">
+          Editar Pedido — {order.numero}
+          <TemplateTag nome={order.templateNome} sku={order.templateSku} />
+        </h1>
 
         <form onSubmit={handleSave} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
           <Section title="Identificação">
