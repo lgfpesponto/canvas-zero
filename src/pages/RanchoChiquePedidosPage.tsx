@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -24,6 +24,7 @@ type BagyPedido = {
   total: number | null;
   frete: number | null;
   pagamento: string | null;
+  metodo_envio: string | null;
   flag: string | null;
   erro: string | null;
   order_id_portal: string | null;
@@ -52,6 +53,7 @@ type BagyItem = {
   quantidade: number;
   preco_unit: number | null;
   foto_url: string | null;
+  ncm: string | null;
   estoque_produto_id: string | null;
   template_id: string | null;
   status: string;
@@ -78,10 +80,21 @@ const STATUS_BAGY_LABEL: Record<string, string> = {
   new: 'Novo', pending: 'Pendente', open: 'Aberto', archived: 'Arquivado',
   paid: 'Pago', approved: 'Aprovado', processing: 'Processando',
   separated: 'Separado', production: 'Em Produção',
+  invoiced: 'Faturado', billed: 'Faturado',
   shipped: 'Despachado', delivered: 'Entregue', completed: 'Concluído',
   canceled: 'Cancelado', cancelled: 'Cancelado',
   refunded: 'Reembolsado', returned: 'Devolvido',
 };
+
+const STATUS_BAGY_FILTROS: Array<{ value: string; label: string }> = [
+  { value: 'approved', label: 'Aprovado' },
+  { value: 'production', label: 'Em Produção' },
+  { value: 'separated', label: 'Separado' },
+  { value: 'invoiced', label: 'Faturado' },
+  { value: 'shipped', label: 'Despachado' },
+  { value: 'delivered', label: 'Entregue' },
+  { value: 'canceled', label: 'Cancelado' },
+];
 
 
 function brl(n: number | null | undefined) {
