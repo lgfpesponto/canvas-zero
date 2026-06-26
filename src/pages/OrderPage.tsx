@@ -275,7 +275,6 @@ const OrderPage = () => {
   const [observacao, setObservacao] = useState(df.observacao || '');
   const [fotoUrl, setFotoUrl] = useState(draftState?.fotos?.[0] || '');
   const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
-  // Abre painel da foto automaticamente quando entra no modo template com foto preenchida (ex: editar modelo)
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
