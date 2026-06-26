@@ -744,6 +744,10 @@ const RanchoChiquePedidosPage = () => {
           if (ok > 0 && sk === 0) toast.success(`${ok} ficha(s) gerada(s).`);
           else if (ok === 0 && sk > 0) toast.info(`${sk} item(ns) pulado(s).`);
           else if (ok + sk > 0) toast.success(`${ok} gerada(s) · ${sk} pulada(s).`);
+          // Empurra status para Bagy imediatamente (em produção / separado)
+          setTimeout(() => {
+            supabase.functions.invoke('bagy-queue-drain').catch(() => {}).finally(() => load());
+          }, 800);
           load();
         }}
       />
