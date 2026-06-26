@@ -144,7 +144,9 @@ const OrderPage = () => {
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string } | null;
+  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string; bagyPrefill?: { templateId: string; numero: string; cliente?: string; whatsapp?: string; tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string; bagyOrderId: string; quantidade?: number } } | null;
+  const bagyPrefill = locState?.bagyPrefill || null;
+  const bagyPrefillRef = useRef(bagyPrefill);
   const draftState = locState?.draft;
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
@@ -672,6 +674,43 @@ const OrderPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  /* ───── Bagy prefill: vem de /rancho-chique/pedidos → "Gerar ficha" ───── */
+  const bagyPrefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (bagyPrefillAppliedRef.current || !bagyPrefill || fichaLoading) return;
+    bagyPrefillAppliedRef.current = true;
+    (async () => {
+      const { data: tmplRow } = await supabase
+        .from('order_templates')
+        .select('id, nome, form_data, genero, sku')
+        .eq('id', bagyPrefill.templateId)
+        .maybeSingle();
+      if (!tmplRow) {
+        toast.error('Modelo de ficha não encontrado para esse SKU.');
+        return;
+      }
+      setProductChoice('bota');
+      setMode('order');
+      validateAndPopulateTemplate({ ...(tmplRow.form_data as any) });
+      // Override com dados do pedido Bagy
+      if (bagyPrefill.numero) setNumeroPedido(bagyPrefill.numero);
+      if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
+      if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
+      if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
+      if (bagyPrefill.fotoUrl) setFotoUrl(bagyPrefill.fotoUrl);
+      // Vendedor = Rancho Chique (resolve pelo user 'site')
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('nome_completo')
+        .eq('nome_usuario', 'site')
+        .maybeSingle();
+      if (prof?.nome_completo) setVendedorSelecionado(prof.nome_completo);
+      toast.info(`Ficha pré-preenchida do pedido Bagy ${bagyPrefill.numero}. Revise e salve.`);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bagyPrefill, fichaLoading]);
+
+
   const handleUseTemplate = (formData: Record<string, string>, templateNome?: string) => {
     tmpl.setShowTemplates(false);
     validateAndPopulateTemplate({ ...formData });
@@ -1003,8 +1042,31 @@ const OrderPage = () => {
         if (success) {
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim() || '(novo)';
+          // === Pós-save Bagy: liga pedido criado ao item Bagy + enfileira "production" ===
+          const bp = bagyPrefillRef.current;
+          if (bp && numeroSalvo && numeroSalvo !== '(novo)') {
+            try {
+              const { data: ord } = await supabase
+                .from('orders').select('id').eq('numero', numeroSalvo).maybeSingle();
+              if (ord?.id) {
+                await supabase.from('orders').update({ bagy_order_id: bp.bagyOrderId } as any).eq('id', ord.id);
+                await supabase.from('bagy_pedido_itens').update({
+                  order_id_portal: ord.id, status: 'ficha_gerada',
+                } as any).eq('id', bp.bagyItemId);
+                await supabase.from('bagy_pedidos').update({
+                  order_id_portal: ord.id, flag: 'pedido_criado',
+                } as any).eq('id', bp.bagyPedidoId);
+                await supabase.from('bagy_status_sync_queue').insert({
+                  bagy_order_id: bp.bagyOrderId, target_status: 'production',
+                } as any);
+                toast.success('Ficha criada e Bagy será atualizada para "Em Produção".');
+              }
+            } catch (e) { console.error('bagy post-save err', e); }
+            bagyPrefillRef.current = null;
+          }
           toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
           resetForm();
+
         } else {
           toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
         }
@@ -1296,13 +1358,30 @@ const OrderPage = () => {
 
         <form onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
-          {/* Template name field */}
+          {/* Template name + SKU + Gênero (integração Bagy) */}
           {mode === 'template' && (
-            <div>
-              <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
-              <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-3">
+                <label className={cls.label}>Nome do Modelo<span className="text-destructive ml-0.5">*</span></label>
+                <input type="text" value={tmpl.templateName} onChange={e => tmpl.setTemplateName(e.target.value)} placeholder="Ex: Texana tradicional" className={cls.input} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={cls.label}>SKU Bagy <span className="text-xs font-normal text-muted-foreground">(opcional — pra gerar ficha automática de pedidos da loja Bagy)</span></label>
+                <input type="text" value={tmpl.templateSku} onChange={e => tmpl.setTemplateSku(e.target.value)} placeholder="Ex: TEX-AMANDA-PE" className={cls.input} />
+              </div>
+              <div>
+                <label className={cls.label}>Gênero</label>
+                <select value={tmpl.templateGenero} onChange={e => tmpl.setTemplateGenero(e.target.value)} className={cls.select}>
+                  <option value="">—</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Feminino">Feminino</option>
+                  <option value="Unissex">Unissex</option>
+                  <option value="Infantil">Infantil</option>
+                </select>
+              </div>
             </div>
           )}
+
 
           {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (

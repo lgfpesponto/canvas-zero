@@ -33,12 +33,14 @@ const Header = () => {
     } catch {}
   }, [isAdmin, isJuliana, location.pathname]);
 
+  const isBagyAccess = isAdmin || role === 'vendedor_comissao';
   const navItems = showAsLogged
     ? [
         { label: 'FAÇA SEU PEDIDO', path: '/pedido' },
         { label: 'EXTRAS', path: '/extras' },
         { label: 'ESTOQUE', path: '/estoque' },
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
+        ...(isBagyAccess ? [{ label: 'PEDIDOS BAGY', path: '/rancho-chique/pedidos' }] : []),
         ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
         ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
         ...(isJuliana ? [{ label: 'FINANCEIRO', path: '/financeiro' }] : []),
