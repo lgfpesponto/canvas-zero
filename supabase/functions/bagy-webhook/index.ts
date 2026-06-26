@@ -480,8 +480,12 @@ Deno.serve(async (req) => {
           _numero_pedido: numeroPortal,
           _bagy_order_id: bagyOrderId,
           _user_id: siteUserId,
+          _cpf_cnpj: clienteDoc,
+          _forma_pagamento: pagamento,
+          _bagy_created_at: bagyCreatedAt,
         },
       );
+
       if (rpcErr) {
         pedidoFlag = `erro_comprar_estoque: ${rpcErr.message}`;
       } else if (rpcRes?.order_id) {
