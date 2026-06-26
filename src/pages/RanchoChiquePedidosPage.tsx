@@ -113,6 +113,7 @@ const RanchoChiquePedidosPage = () => {
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
   const [filtroStatusBagy, setFiltroStatusBagy] = useState<string>('todos');
   const [reprocessing, setReprocessing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selPedido, setSelPedido] = useState<BagyPedido | null>(null);
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [trackCode, setTrackCode] = useState('');
