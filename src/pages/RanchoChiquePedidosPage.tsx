@@ -29,6 +29,15 @@ type BagyPedido = {
   order_id_portal: string | null;
   created_at: string;
   payload: any;
+  tracking_code?: string | null;
+  tracking_url?: string | null;
+};
+
+type OrderSyncInfo = {
+  bagy_last_sync_at: string | null;
+  bagy_last_sync_error: string | null;
+  bagy_last_sync_status: string | null;
+  status: string | null;
 };
 
 type BagyItem = {
