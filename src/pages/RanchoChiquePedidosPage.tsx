@@ -120,6 +120,7 @@ const RanchoChiquePedidosPage = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fichaQueue, setFichaQueue] = useState<BagyFichaQueueItem[] | null>(null);
 
   const allowed = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
 
