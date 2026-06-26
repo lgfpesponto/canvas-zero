@@ -478,13 +478,44 @@ const RanchoChiquePedidosPage = () => {
                           <ExternalLink size={14} className="mr-1" /> Ver pedido no portal
                         </Button>
                       )}
+                      {p.order_id_portal && (
+                        <TooltipProvider><Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="default" disabled={syncing}
+                              onClick={() => sincronizarBagy([p.order_id_portal!])}>
+                              {syncing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Send size={14} className="mr-1" />}
+                              Atualizar status na Bagy
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            Envia o status atual do portal pra Bagy agora.<br/>
+                            Use depois de mudar a etapa, faturar (emitir NF) ou despachar (com rastreio).
+                          </TooltipContent>
+                        </Tooltip></TooltipProvider>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => reprocessar(p)}>
                         <RefreshCw size={14} className="mr-1" /> Reprocessar
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(''); setTrackUrl(''); }}>
-                        <Truck size={14} className="mr-1" /> Marcar despachado + rastreio
+                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
+                        <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
                       </Button>
                     </div>
+
+                    {p.order_id_portal && syncByOrder[p.order_id_portal] && (
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                        {syncByOrder[p.order_id_portal].bagy_last_sync_at ? (
+                          <>
+                            {syncByOrder[p.order_id_portal].bagy_last_sync_error ? (
+                              <span className="text-destructive flex items-center gap-1"><XCircle size={12}/>Último envio falhou ({fmtRelative(syncByOrder[p.order_id_portal].bagy_last_sync_at)}): {syncByOrder[p.order_id_portal].bagy_last_sync_error}</span>
+                            ) : (
+                              <span className="text-green-700 flex items-center gap-1"><CheckCircle2 size={12}/>Sincronizado {fmtRelative(syncByOrder[p.order_id_portal].bagy_last_sync_at)} como <b>{syncByOrder[p.order_id_portal].bagy_last_sync_status}</b></span>
+                            )}
+                          </>
+                        ) : (
+                          <span>Nunca sincronizado com a Bagy.</span>
+                        )}
+                      </div>
+                    )}
 
                     {p.erro && (
                       <div className="text-xs text-destructive border border-destructive/40 rounded p-2 bg-destructive/5">
