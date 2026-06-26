@@ -225,13 +225,38 @@ Deno.serve(async (req) => {
     const desconto = Number(
       pick(order, "discount", "discount_amount", "coupon_value") || 0,
     );
-    const pagamento = pick<string>(
+    const pagamentoRaw = pick<string>(
       order,
       "payment_method",
       "payment.method",
+      "payment.payment_method",
       "payments.0.method",
+      "payments.0.payment_method",
+      "payment_method_name",
       "gateway",
     ) || null;
+    const PAGAMENTO_MAP: Record<string, string> = {
+      pix: "Pix",
+      credit_card: "Cartão de Crédito",
+      creditcard: "Cartão de Crédito",
+      credit: "Cartão de Crédito",
+      debit_card: "Cartão de Débito",
+      debit: "Cartão de Débito",
+      boleto: "Boleto",
+      billet: "Boleto",
+      bank_slip: "Boleto",
+      money: "Dinheiro",
+      cash: "Dinheiro",
+    };
+    const pagamento = pagamentoRaw
+      ? (PAGAMENTO_MAP[pagamentoRaw.toLowerCase()] || pagamentoRaw)
+      : null;
+
+    // Data/hora real do pedido na Bagy
+    const bagyCreatedRaw = pick<string>(
+      order, "created_at", "created", "date", "purchased_at", "order_date",
+    ) || null;
+    const bagyCreatedAt = bagyCreatedRaw ? new Date(bagyCreatedRaw).toISOString() : null;
 
     // Status anterior pra detectar transições
     const { data: pedidoExistente } = await supabase
@@ -254,8 +279,10 @@ Deno.serve(async (req) => {
       frete,
       desconto,
       pagamento,
+      bagy_created_at: bagyCreatedAt,
       payload: order,
     };
+
 
     const { data: pedidoRow, error: upErr } = await supabase
       .from("bagy_pedidos")
