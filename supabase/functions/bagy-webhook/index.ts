@@ -220,23 +220,9 @@ Deno.serve(async (req) => {
     ? "approved"
     : statusBagyRaw;
 
-  // Só processamos pedidos APROVADOS (por status, pagamento ou evento explícito de aprovação)
-  if (!statusApproved && !paymentApproved && !eventApproved) {
-    try {
-      await supabase.from("bagy_webhook_log").insert({
-        event,
-        bagy_order_id: bagyOrderId || null,
-        payload_hash: await sha256Hex(rawBody),
-        payload,
-        erro: `status_nao_aprovado:${statusBagyRaw}${paymentStatusRaw ? `/pay:${paymentStatusRaw}` : ""}`,
-        processed_em: new Date().toISOString(),
-      });
-    } catch (_e) { /* não bloqueia */ }
-    return new Response(
-      JSON.stringify({ ok: true, skipped: "status_nao_aprovado", status: statusBagyRaw, payment_status: paymentStatusRaw || null }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
+  // POLÍTICA: SEMPRE ingerimos o pedido (mesmo não aprovado) para que apareça no portal.
+  // As ações que disparam efeitos colaterais (criar pedido portal, baixar estoque, enfileirar
+  // "separated" na Bagy) só rodam quando `isApproved` (calculado abaixo).
 
   // Idempotência por hash do payload
   const payloadHash = await sha256Hex(rawBody);
@@ -366,10 +352,19 @@ Deno.serve(async (req) => {
       .eq("bagy_order_id", bagyOrderId)
       .maybeSingle();
 
+    // Nunca rebaixa o status: se já estávamos aprovados/cancelados, não volta para "open"/"pending"
+    const previousApproved = pedidoExistente?.status_bagy
+      ? APPROVED_STATUSES.has(pedidoExistente.status_bagy) || REFUND_STATUSES.has(pedidoExistente.status_bagy)
+      : false;
+    const incomingApproved = APPROVED_STATUSES.has(statusBagy) || REFUND_STATUSES.has(statusBagy);
+    const finalStatusBagy = previousApproved && !incomingApproved
+      ? pedidoExistente!.status_bagy!
+      : statusBagy;
+
     const upsertData: any = {
       bagy_order_id: bagyOrderId,
       numero_bagy: numeroBagy,
-      status_bagy: statusBagy,
+      status_bagy: finalStatusBagy,
       status_bagy_anterior: pedidoExistente?.status_bagy || null,
       cliente_nome: clienteNome,
       cliente_doc: clienteDoc,
@@ -401,8 +396,8 @@ Deno.serve(async (req) => {
     // Remove itens antigos e insere os novos (mais simples que diff)
     await supabase.from("bagy_pedido_itens").delete().eq("pedido_id", pedidoRow.id);
 
-    const isApproved = APPROVED_STATUSES.has(statusBagy);
-    const isRefund = REFUND_STATUSES.has(statusBagy);
+    const isApproved = APPROVED_STATUSES.has(finalStatusBagy);
+    const isRefund = REFUND_STATUSES.has(finalStatusBagy);
     const isFirstTimeApproved = isApproved && !pedidoExistente?.order_id_portal;
 
     // Resolve user_id do vendedor "site"/Rancho Chique
@@ -507,32 +502,13 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Busca template — por SKU raiz OU por SKU dentro do array tamanhos_skus[*].sku
+      // Busca template via RPC (cobre sku raiz + sku dentro de tamanhos_skus[*].sku)
       let templateId: string | null = null;
       if (!estoqueProdutoId && skuRaw) {
-        // 1) tenta match por sku raiz (compat com cadastros antigos)
-        const { data: tmplRoot } = await supabase
-          .from("order_templates")
-          .select("id, tamanhos_skus")
-          .ilike("sku", skuRaw)
-          .limit(1)
-          .maybeSingle();
-        if (tmplRoot) {
-          templateId = tmplRoot.id;
-          hasTemplateMatch = true;
-        } else {
-          // 2) tenta match dentro do array tamanhos_skus (busca usando jsonb contains)
-          const skuPattern = skuRaw.trim();
-          const { data: tmplArr } = await supabase
-            .from("order_templates")
-            .select("id, tamanhos_skus")
-            .contains("tamanhos_skus", [{ sku: skuPattern }])
-            .limit(1)
-            .maybeSingle();
-          if (tmplArr) {
-            templateId = tmplArr.id;
-            hasTemplateMatch = true;
-          }
+        const { data: tmplId } = await supabase.rpc("find_template_by_sku", { _sku: skuRaw });
+        if (tmplId) {
+          templateId = typeof tmplId === "string" ? tmplId : (tmplId as any)?.id ?? null;
+          if (templateId) hasTemplateMatch = true;
         }
       }
 
@@ -554,8 +530,9 @@ Deno.serve(async (req) => {
       } else if (templateId) {
         status = "aguardando_ficha";
       } else {
-        status = "sem_mapeamento";
-        hasMissingMap = true;
+        // Brindes (preço 0) não contam como mapeamento faltante — não bloqueiam o pedido
+        status = precoUnit > 0 ? "sem_mapeamento" : "brinde_sem_sku";
+        if (precoUnit > 0) hasMissingMap = true;
       }
 
       classifiedItems.push({
@@ -629,9 +606,11 @@ Deno.serve(async (req) => {
     // === Atualiza bagy_pedidos com resultado ===
     let flag: string | null = pedidoFlag;
     if (!flag) {
-      if (hasMissingMap) flag = "aguardando_mapeamento";
-      else if (hasTemplateMatch && !createdOrderId) flag = "aguardando_ficha";
-      else if (createdOrderId) flag = "pedido_criado";
+      if (createdOrderId) flag = "pedido_criado";
+      else if (!isApproved) flag = "aguardando_aprovacao";
+      else if (hasMissingMap) flag = "aguardando_mapeamento";
+      else if (hasTemplateMatch) flag = "aguardando_ficha";
+      else if (pedidoExistente?.order_id_portal) flag = "pedido_criado";
     }
 
     await supabase.from("bagy_pedidos").update({

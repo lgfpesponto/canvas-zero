@@ -2656,6 +2656,7 @@ export type Database = {
         Args: { _ate: string; _de: string; _status: string[] }
         Returns: string[]
       }
+      find_template_by_sku: { Args: { _sku: string }; Returns: string }
       get_auditoria_alteracoes: {
         Args: {
           _ate?: string
