@@ -275,6 +275,8 @@ export type Database = {
           status_bagy: string
           status_bagy_anterior: string | null
           total: number | null
+          tracking_code: string | null
+          tracking_url: string | null
           updated_at: string
         }
         Insert: {
@@ -298,6 +300,8 @@ export type Database = {
           status_bagy: string
           status_bagy_anterior?: string | null
           total?: number | null
+          tracking_code?: string | null
+          tracking_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -321,6 +325,8 @@ export type Database = {
           status_bagy?: string
           status_bagy_anterior?: string | null
           total?: number | null
+          tracking_code?: string | null
+          tracking_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -338,6 +344,7 @@ export type Database = {
           bagy_order_id: string
           created_at: string
           id: string
+          nf_numero: string | null
           processado_em: string | null
           target_status: string
           tentativas: number
@@ -349,6 +356,7 @@ export type Database = {
           bagy_order_id: string
           created_at?: string
           id?: string
+          nf_numero?: string | null
           processado_em?: string | null
           target_status: string
           tentativas?: number
@@ -360,6 +368,7 @@ export type Database = {
           bagy_order_id?: string
           created_at?: string
           id?: string
+          nf_numero?: string | null
           processado_em?: string | null
           target_status?: string
           tentativas?: number
@@ -1405,6 +1414,9 @@ export type Database = {
           adicional_desc: string | null
           adicional_valor: number | null
           alteracoes: Json
+          bagy_last_sync_at: string | null
+          bagy_last_sync_error: string | null
+          bagy_last_sync_status: string | null
           bagy_order_id: string | null
           bordado_cano: string
           bordado_gaspea: string
@@ -1509,6 +1521,9 @@ export type Database = {
           adicional_desc?: string | null
           adicional_valor?: number | null
           alteracoes?: Json
+          bagy_last_sync_at?: string | null
+          bagy_last_sync_error?: string | null
+          bagy_last_sync_status?: string | null
           bagy_order_id?: string | null
           bordado_cano?: string
           bordado_gaspea?: string
@@ -1613,6 +1628,9 @@ export type Database = {
           adicional_desc?: string | null
           adicional_valor?: number | null
           alteracoes?: Json
+          bagy_last_sync_at?: string | null
+          bagy_last_sync_error?: string | null
+          bagy_last_sync_status?: string | null
           bagy_order_id?: string | null
           bordado_cano?: string
           bordado_gaspea?: string
@@ -2425,6 +2443,9 @@ export type Database = {
           adicional_desc: string | null
           adicional_valor: number | null
           alteracoes: Json
+          bagy_last_sync_at: string | null
+          bagy_last_sync_error: string | null
+          bagy_last_sync_status: string | null
           bagy_order_id: string | null
           bordado_cano: string
           bordado_gaspea: string

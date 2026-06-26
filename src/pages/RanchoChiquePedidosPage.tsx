@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type BagyPedido = {
   id: string;
@@ -27,6 +29,15 @@ type BagyPedido = {
   order_id_portal: string | null;
   created_at: string;
   payload: any;
+  tracking_code?: string | null;
+  tracking_url?: string | null;
+};
+
+type OrderSyncInfo = {
+  bagy_last_sync_at: string | null;
+  bagy_last_sync_error: string | null;
+  bagy_last_sync_status: string | null;
+  status: string | null;
 };
 
 type BagyItem = {
@@ -78,6 +89,7 @@ const RanchoChiquePedidosPage = () => {
   const { isLoggedIn, role, loading: authLoading } = useAuth();
   const [pedidos, setPedidos] = useState<BagyPedido[]>([]);
   const [itensByPed, setItensByPed] = useState<Record<string, BagyItem[]>>({});
+  const [syncByOrder, setSyncByOrder] = useState<Record<string, OrderSyncInfo>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
@@ -85,6 +97,9 @@ const RanchoChiquePedidosPage = () => {
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [trackCode, setTrackCode] = useState('');
   const [trackUrl, setTrackUrl] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ done: number; total: number } | null>(null);
 
   const allowed = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
 
@@ -112,6 +127,24 @@ const RanchoChiquePedidosPage = () => {
         (map[i.pedido_id] ||= []).push(i);
       });
       setItensByPed(map);
+    }
+    // Carrega info de sync dos pedidos do portal
+    const portalIds = (peds || []).map((p: any) => p.order_id_portal).filter(Boolean);
+    if (portalIds.length > 0) {
+      const { data: ords } = await supabase
+        .from('orders')
+        .select('id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
+        .in('id', portalIds);
+      const sm: Record<string, OrderSyncInfo> = {};
+      (ords || []).forEach((o: any) => {
+        sm[o.id] = {
+          status: o.status || null,
+          bagy_last_sync_at: o.bagy_last_sync_at || null,
+          bagy_last_sync_error: o.bagy_last_sync_error || null,
+          bagy_last_sync_status: o.bagy_last_sync_status || null,
+        };
+      });
+      setSyncByOrder(sm);
     }
     setLoading(false);
   };
@@ -181,23 +214,84 @@ const RanchoChiquePedidosPage = () => {
     if (!trackDialog) return;
     const code = trackCode.trim();
     if (!code) { toast.error('Informe o código de rastreio'); return; }
-    const { error } = await supabase.from('bagy_status_sync_queue').insert({
-      bagy_order_id: trackDialog.bagy_order_id,
-      target_status: 'shipped',
-      tracking_code: code,
-      tracking_url: trackUrl.trim() || null,
-    });
-    if (error) { toast.error('Erro: ' + error.message); return; }
-    toast.success('Despacho enfileirado para sincronizar com a Bagy (até 1 min).');
-    // Atualiza pedido portal também
+    const { error: bpErr } = await supabase
+      .from('bagy_pedidos')
+      .update({ tracking_code: code, tracking_url: trackUrl.trim() || null } as any)
+      .eq('id', trackDialog.id);
+    if (bpErr) { toast.error('Erro ao salvar rastreio: ' + bpErr.message); return; }
     if (trackDialog.order_id_portal) {
-      await supabase.from('orders').update({
-        status: 'Despachado',
-      } as any).eq('id', trackDialog.order_id_portal);
+      await supabase.from('orders').update({ status: 'Despachado' } as any).eq('id', trackDialog.order_id_portal);
+      await sincronizarBagy([trackDialog.order_id_portal], { silent: false });
+    } else {
+      toast.success('Rastreio salvo. Vincule o pedido ao portal para sincronizar com a Bagy.');
     }
     setTrackDialog(null);
     setTrackCode('');
     setTrackUrl('');
+    await load();
+  };
+
+  const sincronizarBagy = async (
+    portalOrderIds: string[],
+    opts?: { silent?: boolean },
+  ): Promise<{ ok: number; fail: number }> => {
+    const ids = portalOrderIds.filter(Boolean);
+    if (ids.length === 0) {
+      if (!opts?.silent) toast.error('Nenhum pedido selecionado com vínculo ao portal.');
+      return { ok: 0, fail: 0 };
+    }
+    setSyncing(true);
+    setSyncProgress({ done: 0, total: ids.length });
+    let ok = 0; let fail = 0;
+    const CHUNK = 5;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { data, error } = await supabase.functions.invoke('bagy-status-push', {
+        body: { order_ids: slice },
+      });
+      if (error) {
+        fail += slice.length;
+      } else {
+        const results = (data?.results || []) as Array<{ ok: boolean }>;
+        results.forEach(r => { if (r.ok) ok++; else fail++; });
+      }
+      setSyncProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
+    }
+    setSyncing(false);
+    setSyncProgress(null);
+    if (!opts?.silent) {
+      if (fail === 0) toast.success(`Sincronizado com a Bagy: ${ok} pedido(s).`);
+      else if (ok === 0) toast.error(`Falha ao sincronizar ${fail} pedido(s).`);
+      else toast.warning(`${ok} ok · ${fail} com erro.`);
+    }
+    await load();
+    return { ok, fail };
+  };
+
+  const toggleSelected = (orderIdPortal: string | null) => {
+    if (!orderIdPortal) return;
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(orderIdPortal)) n.delete(orderIdPortal); else n.add(orderIdPortal);
+      return n;
+    });
+  };
+  const selectAllVisible = () => {
+    setSelected(new Set(filtered.map(p => p.order_id_portal).filter(Boolean) as string[]));
+  };
+  const clearSelection = () => setSelected(new Set());
+
+  const fmtRelative = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso).getTime();
+    const diff = Date.now() - d;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `há ${mins} min`;
+    const h = Math.floor(mins / 60);
+    if (h < 24) return `há ${h} h`;
+    const days = Math.floor(h / 24);
+    return `há ${days} d`;
   };
 
   if (authLoading) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
@@ -272,24 +366,64 @@ const RanchoChiquePedidosPage = () => {
       ) : filtered.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado.</p>
       ) : (
+        <>
+          <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={filtered.length > 0 && filtered.every(p => !p.order_id_portal || selected.has(p.order_id_portal!))}
+              onCheckedChange={(v) => v ? selectAllVisible() : clearSelection()}
+            />
+            <span>Selecionar todos visíveis</span>
+            {selected.size > 0 && <span className="ml-2">· {selected.size} selecionado(s)</span>}
+          </div>
         <div className="space-y-2">
           {filtered.map(p => {
             const itens = itensByPed[p.id] || [];
             const flag = p.flag ? FLAG_BADGE[p.flag] : null;
             return (
               <div key={p.id} className="border rounded-lg bg-card overflow-hidden">
-                <button
-                  onClick={() => setSelPedido(selPedido?.id === p.id ? null : p)}
-                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/30"
-                >
-                  {selPedido?.id === p.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <div className="font-mono font-bold text-sm shrink-0">RC-{p.numero_bagy}</div>
-                  <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
-                  <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.created_at).toLocaleString('pt-BR')}</div>
-                  <div className="text-sm font-semibold">{brl(p.total)}</div>
-                  <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
-                  {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
-                </button>
+                <div className="w-full flex items-center gap-3 p-3 hover:bg-accent/30">
+                  {p.order_id_portal ? (
+                    <Checkbox
+                      checked={selected.has(p.order_id_portal)}
+                      onCheckedChange={() => toggleSelected(p.order_id_portal)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Selecionar para sincronizar"
+                    />
+                  ) : (
+                    <div className="w-4 h-4 shrink-0" title="Sem vínculo com portal — não sincronizável" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelPedido(selPedido?.id === p.id ? null : p)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
+                    {selPedido?.id === p.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <div className="font-mono font-bold text-sm shrink-0">RC-{p.numero_bagy}</div>
+                    <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
+                    <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.created_at).toLocaleString('pt-BR')}</div>
+                    <div className="text-sm font-semibold">{brl(p.total)}</div>
+                    <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
+                    {flag && <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}</span>}
+                    {(() => {
+                      const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
+                      if (!si) return null;
+                      if (si.bagy_last_sync_error) {
+                        return (
+                          <TooltipProvider><Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1"><XCircle size={10}/>ERRO BAGY</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
+                          </Tooltip></TooltipProvider>
+                        );
+                      }
+                      if (si.bagy_last_sync_at) {
+                        return <span className="text-[10px] text-muted-foreground hidden md:inline">Bagy: {fmtRelative(si.bagy_last_sync_at)}</span>;
+                      }
+                      return null;
+                    })()}
+                  </button>
+                </div>
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-3 space-y-3 bg-background">
@@ -353,13 +487,44 @@ const RanchoChiquePedidosPage = () => {
                           <ExternalLink size={14} className="mr-1" /> Ver pedido no portal
                         </Button>
                       )}
+                      {p.order_id_portal && (
+                        <TooltipProvider><Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="default" disabled={syncing}
+                              onClick={() => sincronizarBagy([p.order_id_portal!])}>
+                              {syncing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Send size={14} className="mr-1" />}
+                              Atualizar status na Bagy
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            Envia o status atual do portal pra Bagy agora.<br/>
+                            Use depois de mudar a etapa, faturar (emitir NF) ou despachar (com rastreio).
+                          </TooltipContent>
+                        </Tooltip></TooltipProvider>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => reprocessar(p)}>
                         <RefreshCw size={14} className="mr-1" /> Reprocessar
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(''); setTrackUrl(''); }}>
-                        <Truck size={14} className="mr-1" /> Marcar despachado + rastreio
+                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
+                        <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
                       </Button>
                     </div>
+
+                    {p.order_id_portal && syncByOrder[p.order_id_portal] && (
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                        {syncByOrder[p.order_id_portal].bagy_last_sync_at ? (
+                          <>
+                            {syncByOrder[p.order_id_portal].bagy_last_sync_error ? (
+                              <span className="text-destructive flex items-center gap-1"><XCircle size={12}/>Último envio falhou ({fmtRelative(syncByOrder[p.order_id_portal].bagy_last_sync_at)}): {syncByOrder[p.order_id_portal].bagy_last_sync_error}</span>
+                            ) : (
+                              <span className="text-green-700 flex items-center gap-1"><CheckCircle2 size={12}/>Sincronizado {fmtRelative(syncByOrder[p.order_id_portal].bagy_last_sync_at)} como <b>{syncByOrder[p.order_id_portal].bagy_last_sync_status}</b></span>
+                            )}
+                          </>
+                        ) : (
+                          <span>Nunca sincronizado com a Bagy.</span>
+                        )}
+                      </div>
+                    )}
 
                     {p.erro && (
                       <div className="text-xs text-destructive border border-destructive/40 rounded p-2 bg-destructive/5">
@@ -371,6 +536,20 @@ const RanchoChiquePedidosPage = () => {
               </div>
             );
           })}
+        </div>
+        </>
+      )}
+
+      {/* Barra flutuante de seleção */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-full px-4 py-2 flex items-center gap-3">
+          <span className="text-sm font-semibold">{selected.size} selecionado(s)</span>
+          <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
+          <Button size="sm" disabled={syncing} onClick={() => sincronizarBagy(Array.from(selected))}>
+            {syncing
+              ? <><Loader2 size={14} className="mr-1 animate-spin"/> {syncProgress ? `${syncProgress.done}/${syncProgress.total}` : 'Enviando...'}</>
+              : <><Send size={14} className="mr-1"/> Atualizar {selected.size} na Bagy</>}
+          </Button>
         </div>
       )}
 

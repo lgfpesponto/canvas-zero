@@ -17,6 +17,7 @@ import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDia
 
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { BagySyncButton } from '@/components/BagySyncButton';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl, maskPhoneBR } from '@/lib/whatsappSend';
 import { WhatsappShareButton } from '@/components/WhatsappShareButton';
 import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
@@ -554,7 +555,7 @@ const OrderDetailPage = () => {
               </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {isAdmin && order && (
               <label className="flex items-center gap-2 text-sm cursor-pointer border border-border rounded-md px-3 py-1.5">
                 <Checkbox
@@ -563,6 +564,9 @@ const OrderDetailPage = () => {
                 />
                 Selecionar
               </label>
+            )}
+            {order && (order as any).bagy_order_id && (
+              <BagySyncButton order={order as any} onDone={() => window.location.reload()} />
             )}
             <Button variant="outline" size="sm" onClick={() => { setShowScanner(!showScanner); setTimeout(() => scanInputRef.current?.focus(), 100); }}>
               <ScanBarcode size={16} /> Buscar Pedido
