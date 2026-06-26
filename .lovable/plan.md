@@ -1,83 +1,86 @@
-## Objetivo
-Tornar a página **Pedidos Bagy** (`/rancho-chique/pedidos`) operacional sem sair da lista: gerar ficha direto na linha, em massa, com fluxo Espelho → Finalizar/Editar sobreposto. Corrigir nome do cliente vindo da Bagy. Formalizar que as flags internas funcionam como **status internos do portal** que ao avançarem disparam atualização automática na Bagy.
+## Diagnóstico
 
-## 0. Conceito de status (flags = status internos do portal)
+Pedido da Cleidiane (Bagy `17824733566050`, portal `RC-17824733566050`) **foi salvo no portal** (`orders.bagy_order_id=50012748` populado), mas as tabelas Bagy ficaram travadas:
 
-As flags atuais (`sem_mapeamento`, `aguardando_ficha`, `pedido_criado`) passam a ser tratadas como **etapas internas do portal Bagy** — não vão pra Bagy. A Bagy só recebe quando o pedido cruza pra produção real:
+- `bagy_pedido_itens.status` = `aguardando_ficha` (deveria ser `ficha_gerada`)
+- `bagy_pedido_itens.order_id_portal` = `null` (deveria apontar pro portal)
+- `bagy_pedidos.flag` = `aguardando_ficha` (deveria ser `pedido_criado`)
+- nada foi enfileirado em `bagy_status_sync_queue` → Bagy continua em `approved`
 
-| Flag portal | Significado | Ação na Bagy |
-|---|---|---|
-| `sem_mapeamento` | SKU não casa com nenhum template/estoque | nada |
-| `aguardando_ficha` | mapeado, falta gerar ficha | nada |
-| `pedido_criado` | ficha gerada, pedido no portal | enfileira **`production`** na Bagy |
-| `pronta_entrega_separada` | item veio do Estoque (já tem peça) | enfileira **`separated`** na Bagy |
+Por isso a lista ainda mostra "Gerar ficha".
 
-Implementação:
-- Ao **OK — Finalizar** no espelho (item tipo modelo/ficha): pedido cai em portal com status `Aguardando produção`, flag Bagy vira `pedido_criado`, insere em `bagy_status_sync_queue` com `target_status='production'` (já existe esse caminho — só consolidar).
-- Quando o item Bagy é resolvido contra `estoque_produtos` (pronta entrega — fluxo do `bagy-webhook` `comprar_estoque_bagy`): flag vira `pronta_entrega_separada` e enfileira `target_status='separated'`.
-- A fila `bagy_status_sync_queue` continua sendo drenada por `bagy-status-push` (já existe). Confirmar que ela roda automático após o insert (toast de sucesso já indica isso no código atual).
+**Causa raiz**: `bagy_status_sync_queue` **não tem política de INSERT** (só `SELECT`). O `try/catch` em `OrderPage.confirmOrder` engole o erro silenciosamente, e como o insert da fila vem depois dos updates, qualquer falha de policy em qualquer um dos passos derruba os subsequentes sem aviso.
 
-## 1. Botão "Gerar ficha" na linha (sem duplicar badge)
+## Correções
 
-`src/pages/RanchoChiquePedidosPage.tsx`:
+### 1. Consertar o pedido da Cleidiane agora (data fix)
 
-- Quando `flag = 'aguardando_ficha'`, **substituir** o badge azul `GERAR FICHA` por um **botão azul `Gerar ficha`** no mesmo slot da linha (sem mostrar os dois).
-- Pedidos com múltiplos itens pendentes: o botão da linha abre o dialog com fila dos itens daquele pedido.
-- Os demais badges (`SEM MAPEAMENTO`, `PEDIDO CRIADO`, `AGUARDANDO PAGAMENTO`) continuam como badges.
+Aplicar diretamente:
 
-## 2. Fluxo "Gerar ficha" sobreposto (sem trocar de página)
+```sql
+UPDATE public.bagy_pedido_itens
+   SET status='ficha_gerada',
+       order_id_portal='36f7cb06-762a-4876-87c2-636a3591025a'
+ WHERE id='e53fc6da-1dac-4271-90cf-82a9dd0a79fe';
 
-Trocar `navigate('/pedido', { state: { bagyPrefill } })` por um **dialog `BagyFichaDialog`** (`src/components/bagy/BagyFichaDialog.tsx`) que abre por cima da lista (pedidos seguem ao fundo, igual `Dialog` shadcn).
+UPDATE public.bagy_pedidos
+   SET flag='pedido_criado',
+       order_id_portal='36f7cb06-762a-4876-87c2-636a3591025a'
+ WHERE id='690ba8f6-8c9e-4927-82f7-95caf6d2f509';
 
-Comportamento:
-1. Carrega template + override de `cliente`, `whatsapp`, `tamanho`, `foto_url`, `numero = RC-<numero_bagy>`, vendedor = profile `site` (mesma lógica de `OrderPage.bagyPrefill` linhas 685–723).
-2. Renderiza **só o Espelho da Ficha de Produção** (layout idêntico ao `OrderPage` linhas ~1960+: COMPOSIÇÃO, IDENTIFICAÇÃO, COUROS, BORDADOS, PESPONTO, SOLADOS, FINALIZAÇÃO).
-3. Rodapé do espelho:
-   - **OK — Finalizar** → salva pedido + executa o pós-save Bagy (linhas 1093–1113 do `OrderPage`: vincula `bagy_order_id`, marca item `ficha_gerada`, pedido `pedido_criado`, enfileira `production`).
-   - **Editar** → troca o conteúdo do mesmo dialog para o formulário completo da ficha. Ao clicar "Pré-visualizar" volta ao espelho.
-   - **Cancelar / X** → fecha sem salvar.
-
-**Refactor:** extrair de `OrderPage.tsx` um componente `FichaBotaForm` reusável (form + espelho), parametrizado por `bagyPrefill` + callbacks `onSaved` / `onCancel`. `OrderPage` continua usando o mesmo componente.
-
-## 3. Geração em massa (fila estilo WhatsApp)
-
-Na barra flutuante de seleção, adicionar **`Gerar fichas (N)`** habilitado quando há ≥1 item `aguardando_ficha` entre os selecionados.
-
-Comportamento:
-- Monta fila `[ {pedidoId, itemId}, ... ]` apenas com itens `aguardando_ficha`; demais são pulados.
-- Abre `BagyFichaDialog` com header `1/N`.
-- Após **OK — Finalizar** ou **Pular este**, avança automático ao próximo (recarrega template/prefill).
-- Botões no modo fila: **Pular este**, **Cancelar fila**.
-- Final: toast `X ficha(s) geradas, Y pulada(s)` e recarrega lista.
-
-## 4. Corrigir nome do cliente (Larissa / Maria)
-
-`supabase/functions/bagy-webhook/index.ts` linhas 279–284 — `clienteNome` cai pra `first_name` sozinho. Mudar para:
-
-```ts
-clienteNome =
-  customer.name
-  || customer.full_name
-  || [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
-  || shippingAddr?.recipient
-  || shippingAddr?.name
-  || order.customer_name
-  || null
+INSERT INTO public.bagy_status_sync_queue (bagy_order_id, target_status)
+VALUES ('50012748', 'production');
 ```
 
-Rodar `bagy-reprocess` nos pedidos `17824787352288` (Larissa) e `17824773741752` (Maria) para reescrever o nome.
+Em seguida, chamar `bagy-status-push` com `order_ids=['36f7cb06-762a-4876-87c2-636a3591025a']` pra empurrar pra Bagy.
+
+### 2. Política de INSERT/UPDATE em `bagy_status_sync_queue`
+
+Migration adicionando policies que permitem `admin_master`/`admin_producao`/`vendedor_comissao` inserir e atualizar (drenagem feita pela edge function com service role continua funcionando):
+
+```sql
+CREATE POLICY bagy_status_sync_insert_authorized
+  ON public.bagy_status_sync_queue FOR INSERT TO authenticated
+  WITH CHECK (
+    has_role(auth.uid(),'admin_master')
+    OR has_role(auth.uid(),'admin_producao')
+    OR has_role(auth.uid(),'vendedor_comissao')
+  );
+
+CREATE POLICY bagy_status_sync_update_authorized
+  ON public.bagy_status_sync_queue FOR UPDATE TO authenticated
+  USING (
+    has_role(auth.uid(),'admin_master')
+    OR has_role(auth.uid(),'admin_producao')
+    OR has_role(auth.uid(),'vendedor_comissao')
+  );
+```
+
+Também ampliar `bagy_pedido_itens_update` e `bagy_pedidos_update` para incluir `admin_producao` (hoje só `admin_master`), para que qualquer admin que gere ficha consiga marcar a flag.
+
+### 3. Trigger de segurança (à prova de bug do client)
+
+Trigger `AFTER INSERT OR UPDATE OF bagy_order_id ON public.orders` que, quando `bagy_order_id` é setado:
+
+- atualiza `bagy_pedido_itens.status='ficha_gerada'` e `order_id_portal=NEW.id` para o(s) item(ns) `aguardando_ficha` daquele `bagy_order_id`;
+- atualiza `bagy_pedidos.flag='pedido_criado'` se todos os itens elegíveis estiverem resolvidos;
+- insere em `bagy_status_sync_queue (bagy_order_id, target_status='production')` se ainda não houver linha pendente.
+
+Assim, mesmo que o pós-save do `OrderPage` falhe, a ligação acontece no banco.
+
+### 4. Tornar o erro visível (frontend)
+
+Em `src/pages/OrderPage.tsx` (linhas 1117-1136): trocar o `catch` silencioso por `toast.error('Falha ao sincronizar Bagy: ...')` e logar o `error` retornado por cada `update/insert` do Supabase (hoje só o throw é capturado; erros de RLS retornam `{ error }` sem throw). Verificar `.update(...).select()` ou checar `error` para reportar.
 
 ## Detalhes técnicos
 
-- Novo: `src/components/bagy/BagyFichaDialog.tsx` (dialog + estado de fila + modo espelho/edição).
-- Refactor: extrair `FichaBotaForm` de `src/pages/OrderPage.tsx` (form + espelho). Sem mudar regras de preço/composição.
-- `RanchoChiquePedidosPage.tsx`:
-  - Badge `aguardando_ficha` vira botão na linha.
-  - `gerarFicha` chama `openBagyFichaDialog({ queue: [...] })` em vez de `navigate('/pedido', ...)`.
-  - Botão `Gerar fichas (N)` na barra flutuante.
-- Migrations: nenhuma.
+Arquivos/migrations:
+
+- Migration: policies novas em `bagy_status_sync_queue`; ampliar policies de UPDATE em `bagy_pedidos`/`bagy_pedido_itens`; criar função+trigger `bagy_link_orders_after_save`.
+- Data patch via tool de insert (SQL acima) + chamada `bagy-status-push` para o pedido da Cleidiane.
+- Edit: `src/pages/OrderPage.tsx` post-save Bagy — checar `error` de cada call e exibir toast em vez de engolir.
 
 ## Fora de escopo
-- Lógica de SKU/mapeamento (já tratada).
-- NF-e, etiqueta Melhor Envio.
-- `OrderPage` standalone (rota `/pedido`) continua funcionando para criação manual.
+
+- Layout/UX do `BagyFichaDialog`.
+- Mapeamento de SKU, NF, etiqueta.
