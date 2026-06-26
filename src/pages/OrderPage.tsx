@@ -155,6 +155,8 @@ const OrderPage = () => {
   const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
   const [mode, setMode] = useState<'order' | 'template'>('order');
   const tmpl = useTemplateManagement();
+  // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
+  const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
   // Abre painel automaticamente ao entrar em template com foto preenchida (edição de modelo)
   useEffect(() => {
     if (mode === 'template' && isHttpUrl(tmpl.templateFotoUrl)) setMostrarFotoPainel(true);
