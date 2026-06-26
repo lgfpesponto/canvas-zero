@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import SearchableSelect from '@/components/SearchableSelect';
 import { toast } from 'sonner';
+import { TemplateTag } from '@/components/orders/TemplateTag';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP, PALMILHA_FORMATO_BICO, PALMILHA_PRECO_UNITARIO } from '@/lib/extrasConfig';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
@@ -236,7 +237,10 @@ const EditExtrasPage = () => {
           <ArrowLeft size={16} /> Voltar
         </button>
 
-        <h1 className="text-2xl font-display font-bold mb-6">Editar — {productName}</h1>
+        <h1 className="text-2xl font-display font-bold mb-6 flex flex-wrap items-center gap-2">
+          Editar — {productName}
+          <TemplateTag nome={order.templateNome} sku={order.templateSku} />
+        </h1>
 
         <div className="space-y-4">
           {/* Vendedor — ADM only */}
