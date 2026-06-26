@@ -57,25 +57,32 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
 }
 
 async function bagyPutBalance(variationId: string, balance: number): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const url = `${BAGY_BASE}/products/variations/${encodeURIComponent(variationId)}`;
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${BAGY_TOKEN}`,
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ balance }),
-    });
-    if (!res.ok) {
+  // Tenta /variations/{id} primeiro (Dooca atual); fallback /products/variations/{id}
+  const candidates = [
+    `${BAGY_BASE}/variations/${encodeURIComponent(variationId)}`,
+    `${BAGY_BASE}/products/variations/${encodeURIComponent(variationId)}`,
+  ];
+  let lastError = "";
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${BAGY_TOKEN}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ balance }),
+      });
+      if (res.ok) return { ok: true };
       const t = await res.text();
-      return { ok: false, error: `PUT HTTP ${res.status}: ${t.slice(0, 400)}` };
+      lastError = `PUT ${url.replace(BAGY_BASE, "")} HTTP ${res.status}: ${t.slice(0, 300)}`;
+      if (res.status !== 404) break; // só faz fallback em 404
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
     }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+  return { ok: false, error: lastError };
 }
 
 Deno.serve(async (req) => {
