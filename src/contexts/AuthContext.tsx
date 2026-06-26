@@ -142,6 +142,10 @@ export interface Order {
   nomeProdutoEstoque?: string;
   estoqueBaixado?: boolean;
   estoqueProdutoId?: string;
+  /** Nome do modelo rascunho usado para criar o pedido (quando aplicável). */
+  templateNome?: string;
+  /** SKU resolvido a partir do modelo rascunho (base ou da grade do tamanho). */
+  templateSku?: string;
 }
 
 // Re-export statuses from centralized module for backward compatibility
