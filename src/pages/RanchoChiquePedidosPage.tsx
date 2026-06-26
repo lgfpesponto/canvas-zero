@@ -541,11 +541,13 @@ const RanchoChiquePedidosPage = () => {
                                 </div>
                               </div>
                               <div className="text-sm font-semibold">{brl(it.preco_unit)}</div>
-                              <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
-                              {it.status === 'aguardando_ficha' && (
-                                <Button size="sm" variant="default" onClick={() => gerarFicha(p, it)}>
+                              {/* Quando aguardando_ficha: mostra só o botão azul (sem badge duplicado). */}
+                              {it.status === 'aguardando_ficha' ? (
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => gerarFichaItem(p, it)}>
                                   <FileText size={14} className="mr-1" /> Gerar ficha
                                 </Button>
+                              ) : (
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
                               )}
                             </div>
                           );
