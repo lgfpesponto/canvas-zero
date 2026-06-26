@@ -194,6 +194,8 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       return;
     }
     toast.success(`Pedido ${data?.numero} criado com sucesso!`);
+    // Dispara sync de estoque com Bagy fire-and-forget
+    supabase.functions.invoke('bagy-stock-sync', { body: {} }).catch(() => {});
     onSuccess();
     onClose();
   };
