@@ -391,20 +391,35 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Busca template
+      // Busca template — por SKU raiz OU por SKU dentro do array tamanhos_skus[*].sku
       let templateId: string | null = null;
       if (!estoqueProdutoId && skuRaw) {
-        const { data: tmpl } = await supabase
+        // 1) tenta match por sku raiz (compat com cadastros antigos)
+        const { data: tmplRoot } = await supabase
           .from("order_templates")
-          .select("id")
+          .select("id, tamanhos_skus")
           .ilike("sku", skuRaw)
           .limit(1)
           .maybeSingle();
-        if (tmpl) {
-          templateId = tmpl.id;
+        if (tmplRoot) {
+          templateId = tmplRoot.id;
           hasTemplateMatch = true;
+        } else {
+          // 2) tenta match dentro do array tamanhos_skus (busca usando jsonb contains)
+          const skuPattern = skuRaw.trim();
+          const { data: tmplArr } = await supabase
+            .from("order_templates")
+            .select("id, tamanhos_skus")
+            .contains("tamanhos_skus", [{ sku: skuPattern }])
+            .limit(1)
+            .maybeSingle();
+          if (tmplArr) {
+            templateId = tmplArr.id;
+            hasTemplateMatch = true;
+          }
         }
       }
+
 
       let status = "pendente";
       if (estoqueProdutoId) {
