@@ -125,6 +125,28 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Pula pedidos já existentes no portal — não pode regredir nem destruir itens já mapeados/gerados.
+      const { data: existente } = await admin
+        .from("bagy_pedidos")
+        .select("id, order_id_portal, flag, processado_em")
+        .eq("bagy_order_id", bagyOrderId)
+        .maybeSingle();
+      if (existente && (existente.order_id_portal || existente.processado_em ||
+        ["pedido_criado", "aguardando_ficha", "aguardando_mapeamento"].includes(existente.flag || ""))) {
+        // Já passou pelo fluxo normal — apenas garante que está enfileirado pra Bagy se ainda não foi.
+        const { data: q } = await admin.from("bagy_status_sync_queue")
+          .select("id").eq("bagy_order_id", bagyOrderId).is("processado_em", null).limit(1);
+        if (!q || q.length === 0) {
+          await admin.from("bagy_status_sync_queue").insert({
+            bagy_order_id: bagyOrderId,
+            target_status: "production",
+          });
+          enqueued++;
+        }
+        skipped++;
+        continue;
+      }
+
       // Busca pedido completo (lista da Bagy às vezes não traz items)
       const order = await fetchBagyOrderFull(bagyOrderId) || summary;
 
@@ -147,11 +169,10 @@ Deno.serve(async (req) => {
         const bagyCreatedRaw = pick<string>(order, "created_at") || null;
         const bagyCreatedAt = bagyCreatedRaw ? new Date(bagyCreatedRaw).toISOString() : null;
 
-        // Decide status local: se há itens vendidos com selling_out_of_stock=true -> production (sob encomenda).
-        // Caso contrário -> separated (estoque).
+        // Sem mapeamento de SKU no backfill -> sempre "production" (Em Produção).
+        // "Separado" só é decidido quando há baixa real de estoque (fluxo do webhook normal).
         const items: any[] = order.items || [];
-        const anyOutOfStock = items.some((it: any) => it?.selling_out_of_stock === 1 || it?.selling_out_of_stock === true);
-        const targetStatus = anyOutOfStock ? "production" : "separated";
+        const targetStatus = "production";
 
         // Upsert bagy_pedidos
         const { data: pedidoRow, error: upErr } = await admin
@@ -179,8 +200,9 @@ Deno.serve(async (req) => {
           .single();
         if (upErr) { errors.push(`${bagyOrderId}: upsert ${upErr.message}`); continue; }
 
-        // Itens (best-effort, sem mapeamento — só pra mostrar)
+        // Itens (best-effort, sem mapeamento — só pra mostrar). Só roda em pedidos novos (já filtramos acima).
         await admin.from("bagy_pedido_itens").delete().eq("pedido_id", pedidoRow.id);
+
         if (items.length > 0) {
           const rows = items.map((it: any) => {
             const skuRaw = String(pick(it, "sku") ?? "").trim();
