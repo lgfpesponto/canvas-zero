@@ -28,10 +28,12 @@ type BagyPedido = {
   erro: string | null;
   order_id_portal: string | null;
   created_at: string;
+  bagy_created_at: string | null;
   payload: any;
   tracking_code?: string | null;
   tracking_url?: string | null;
 };
+
 
 type OrderSyncInfo = {
   bagy_last_sync_at: string | null;
