@@ -1,39 +1,29 @@
 ## Problema
 
-Pedido Bagy `50013032` (#17824757479293, "Depósito em Lotérica") foi marcado como aprovado na Bagy, o webhook `order.approved` chegou no portal **duas vezes**, mas ambas foram descartadas com `erro: status_nao_aprovado:open` e o pedido nunca entrou em `bagy_pedidos`.
-
-Causa: o webhook `bagy-webhook` decide aprovação só pelo `data.status`. Nesse pedido, o payload veio assim:
-
-```
-event           = order.approved
-data.status     = "open"          ← (status logístico, ainda aberto)
-data.payment_status = "approved"  ← (financeiro aprovado)
-data.payment.status = "approved"
-```
-
-Como `"open"` não está em `APPROVED_STATUSES`, o pedido é ignorado. Isso é especialmente comum em pagamentos não automáticos (boleto, depósito em lotérica) que ficam `status=open` mesmo após aprovação manual.
+O pedido Bagy `50013032` (e qualquer outro nessa situação) chegou no portal com `items[].sku = null` no payload — porque o SKU foi cadastrado na Bagy **depois** que o pedido foi criado. O webhook usa só `sku` do payload para casar com estoque/modelo. Quando o usuário cadastra o SKU no produto Bagy e no modelo rascunho e clica em **Reprocessar**, o `bagy-reprocess` apenas re-envia o **payload salvo** (que continua com `sku: null`), então o match continua falhando e o pedido permanece em `aguardando_mapeamento`.
 
 ## Correção
 
 ### `supabase/functions/bagy-webhook/index.ts`
 
-Trocar o gating "só `data.status` aprovado" por uma checagem que aceita o pedido quando **qualquer** sinal indica aprovação:
+Quando um item do pedido vier sem SKU no payload, buscar o SKU **ao vivo** na Bagy usando os IDs que já vêm no payload (`variation_id` e/ou `product_id`).
 
-1. **Evento já indica aprovação:** `event` ∈ {`order.approved`, `order.paid`, `order.invoiced`, `order.production`, `order.separated`, `order.shipped`, `order.delivered`, `order.completed`}.
-2. **Status logístico aprovado:** `data.status` ∈ `APPROVED_STATUSES` (comportamento atual).
-3. **Status de pagamento aprovado:** `data.payment_status`, `data.financial_status` ou `data.payment.status` ∈ `APPROVED_STATUSES`.
+1. Adicionar helper `fetchBagySku({ variationId, productId })`:
+   - Se `BAGY_API_TOKEN` não estiver setado, retorna `null` (mantém comportamento atual).
+   - Tenta `GET {BAGY_BASE}/variations/{variationId}` e lê `sku` (fallback `/products/variations/{variationId}` em 404, mesmo padrão usado em `bagy-stock-sync`).
+   - Se ainda não achou e tiver `productId`, tenta `GET {BAGY_BASE}/products/{productId}` e lê `sku` raiz.
+   - Faz cache em memória por chamada (Map) para evitar refetch quando o mesmo item se repete.
 
-Se qualquer um valer, processa o pedido. Caso contrário, mantém o skip e o log com `status_nao_aprovado:<status>` atual.
+2. No loop de itens (linha ~396): se `skuRaw` ficar vazio, chamar `fetchBagySku(...)` e usar o valor retornado como `skuRaw` antes da busca por estoque/template. Continuar tudo igual a partir daí (parse de tamanho, lookup em `estoque_produtos`, lookup em `order_templates` por `sku` raiz ou por `tamanhos_skus[*].sku`).
 
-O `statusBagyEarly` que é salvo na coluna `status_bagy` da tabela `bagy_pedidos` deve refletir o estado real:
-- Se o `data.status` já é aprovado, usa ele.
-- Senão, usa o payment_status aprovado (ex.: `approved`) para que o pedido apareça como aprovado na listagem do portal, mesmo quando a Bagy ainda traz `data.status=open`.
+3. Mantém `payload: it` salvo cru no `bagy_pedido_itens.payload`; mas grava `sku: skuRaw` (já enriquecido) na coluna `sku`, para a tela mostrar corretamente.
 
-### Reprocessar o pedido perdido
+### Sem mudanças em `bagy-reprocess`
 
-Após o deploy, fazer um POST manual no webhook reusando o `payload` salvo em `bagy_webhook_log` para `bagy_order_id=50013032` com `?force=1`, para que o pedido entre na fila normalmente. Confirmação via `SELECT … FROM bagy_pedidos WHERE bagy_order_id='50013032'`.
+Como o reprocess apenas re-POSTa o payload, e a re-lookup acontece dentro do webhook, basta o usuário clicar **Reprocessar** depois de cadastrar o SKU na Bagy + criar o modelo. Não precisa novo botão.
 
 ## Fora de escopo
-- Não muda nada na UI de `/rancho-chique/pedidos`.
-- Não altera o fluxo de mapeamento de SKU nem as colunas da tabela.
-- Não mexe em estoque/refund — `REFUND_STATUSES` segue igual.
+- Não muda a UI da página de Pedidos Bagy.
+- Não altera a estrutura do payload salvo em `bagy_pedidos.payload`.
+- Não muda `bagy-stock-sync` nem fluxo de estoque.
+- Sem migração de banco.
