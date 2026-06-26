@@ -610,12 +610,14 @@ Deno.serve(async (req) => {
     // === Atualiza bagy_pedidos com resultado ===
     let flag: string | null = pedidoFlag;
     if (!flag) {
-      if (createdOrderId) flag = "pedido_criado";
+      // Pedido já tinha sido criado no portal (ficha gerada / estoque baixado anteriormente):
+      // SEMPRE mantém "pedido_criado" — re-entregas do webhook não devem regredir o status visual.
+      if (createdOrderId || pedidoExistente?.order_id_portal) flag = "pedido_criado";
       else if (!isApproved) flag = "aguardando_aprovacao";
       else if (hasMissingMap) flag = "aguardando_mapeamento";
       else if (hasTemplateMatch) flag = "aguardando_ficha";
-      else if (pedidoExistente?.order_id_portal) flag = "pedido_criado";
     }
+
 
     await supabase.from("bagy_pedidos").update({
       order_id_portal: createdOrderId || pedidoExistente?.order_id_portal || null,
