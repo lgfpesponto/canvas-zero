@@ -384,24 +384,6 @@ const RanchoChiquePedidosPage = () => {
               Copiar URL do Webhook
             </Button>
           )}
-          {(role === 'admin_master' || role === 'admin_producao') && (
-            <Button variant="outline" size="sm" disabled={importing} onClick={async () => {
-              if (!confirm('Importar pedidos ativos da Bagy (aprovados e ainda em produção/separação)?\nIsso pode demorar alguns segundos.')) return;
-              setImporting(true);
-              try {
-                const { data, error } = await supabase.functions.invoke('bagy-backfill-ativos', { body: { max_pages: 20 } });
-                if (error) { toast.error('Erro: ' + error.message); return; }
-                const d = data || {};
-                toast.success(`Importados: ${d.imported || 0} · linkados: ${d.linked || 0} · enfileirados Bagy: ${d.enqueued || 0}`);
-                if ((d.errors || []).length) console.warn('Backfill errors:', d.errors);
-                await load();
-              } finally {
-                setImporting(false);
-              }
-            }}>
-              {importing ? <><Loader2 size={14} className="mr-1 animate-spin"/> Importando...</> : <>Importar ativos Bagy</>}
-            </Button>
-          )}
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw size={14} className="mr-1" /> Atualizar
           </Button>
