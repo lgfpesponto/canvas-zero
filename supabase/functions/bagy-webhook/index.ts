@@ -33,7 +33,10 @@ async function bagyGetJson(url: string): Promise<any | null> {
 }
 
 async function fetchBagySku(opts: { variationId?: string | number | null; productId?: string | number | null }): Promise<string | null> {
-  if (!BAGY_TOKEN) return null;
+  if (!BAGY_TOKEN) {
+    console.log("[fetchBagySku] BAGY_API_TOKEN ausente");
+    return null;
+  }
   const varId = opts.variationId ? String(opts.variationId) : "";
   const prodId = opts.productId ? String(opts.productId) : "";
   const cacheKey = `v:${varId}|p:${prodId}`;
@@ -47,14 +50,23 @@ async function fetchBagySku(opts: { variationId?: string | number | null; produc
     ];
     for (const url of candidates) {
       const data = await bagyGetJson(url);
-      const s = data?.sku || data?.data?.sku;
+      console.log(`[fetchBagySku] var ${url} -> keys=${data ? Object.keys(data).slice(0,15).join(",") : "null"} sku=${data?.sku ?? data?.data?.sku ?? "null"}`);
+      const s = data?.sku || data?.data?.sku || data?.reference || data?.data?.reference;
       if (s && String(s).trim()) { sku = String(s).trim(); break; }
     }
   }
   if (!sku && prodId) {
     const data = await bagyGetJson(`${BAGY_BASE}/products/${encodeURIComponent(prodId)}`);
-    const s = data?.sku || data?.data?.sku;
+    console.log(`[fetchBagySku] prod ${prodId} -> keys=${data ? Object.keys(data).slice(0,15).join(",") : "null"} sku=${data?.sku ?? data?.data?.sku ?? "null"} variations=${Array.isArray(data?.variations) ? data.variations.length : Array.isArray(data?.data?.variations) ? data.data.variations.length : 0}`);
+    const s = data?.sku || data?.data?.sku || data?.reference || data?.data?.reference;
     if (s && String(s).trim()) sku = String(s).trim();
+    // Tenta achar variação dentro do produto
+    if (!sku) {
+      const vars = (Array.isArray(data?.variations) ? data.variations : Array.isArray(data?.data?.variations) ? data.data.variations : []) as any[];
+      const match = vars.find((v) => String(v?.id) === String(varId));
+      const vs = match?.sku || match?.reference;
+      if (vs && String(vs).trim()) sku = String(vs).trim();
+    }
   }
   skuCache.set(cacheKey, sku);
   return sku;
