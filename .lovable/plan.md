@@ -1,30 +1,71 @@
-## Reorganização visual do "Criar Modelo" + edição de modelos antigos
+## Página Pedidos Bagy — checkbox em todos, bulk reprocessar, envio, NCM, e visual com NF/Etiqueta
 
-Aplicar em **OrderPage**, **BeltOrderPage** e **BordadoPortalPage** (todos os criadores de modelo).
+### 1. Checkbox em cada pedido + ações em massa
 
-### Nova ordem dos campos no modo template
+- Hoje só pedidos com `order_id_portal` mostram checkbox (pra sincronizar Bagy). Mudar: **todo pedido** ganha checkbox de seleção.
+- Estado `selected` continua sendo `Set<string>` mas guarda `pedido.id` (id da linha em `bagy_pedidos`), não mais `order_id_portal`.
+- Barra flutuante de seleção passa a ter três botões:
+  - **Reprocessar selecionados** (novo, bulk).
+  - **Atualizar status na Bagy** (só envia os selecionados que têm `order_id_portal`; mostra "X de Y elegíveis").
+  - **Gerar NF-e (em breve)** e **Imprimir etiqueta (em breve)** — desabilitados, com tooltip "Disponível após integração". Visual só.
+- "Reprocessar" individual e bulk: chama uma nova edge function `bagy-reprocess` que, dado um conjunto de `bagy_pedidos.id`, reexecuta a lógica do webhook usando `payload` salvo. Substitui o stub atual que só mostra toast de erro.
 
-1. **Link da Foto de Referência (Google Drive)** — label limpa, sem "(opcional — usada na ficha automática...)". Mantém ícone de link e input.
-2. **Nome do Modelo** *
-3. **Modelo** + **Gênero** lado a lado (grid 2 colunas).
-4. **SKU base** *(quando o produto não varia por tamanho)* — remover "Bagy" do label e o prefixo "(opcional —".
-5. **Tamanhos disponíveis + SKU** — bloco com apenas o título e o botão "+ Adicionar tamanho" na mesma linha. Remover o parágrafo explicativo e o texto "Nenhum tamanho cadastrado...". Quando vazio, fica só o header.
-6. Demais seções (Couros etc.) seguem inalteradas.
+### 2. Status na Bagy — incluir todos os relevantes + remover "Aberto" confuso
 
-### Foto lateral ao colar o link
+- O filtro topo hoje mistura "flag interna" com nada de status Bagy. Trocar pra dois selects lado a lado:
+  - **Status Bagy:** Todos, Aprovado, Em produção, Separado, Faturado, Despachado, Entregue, Cancelado.
+  - **Situação interna (flag):** Todos, Pedido criado, Aguardando ficha, Sem mapeamento, Erros.
+- "Aberto" (`open`) só aparece no mapa de label porque a Bagy às vezes manda assim — manter no map mas tirar do filtro. Adicionar `invoiced: 'Faturado'` ao `STATUS_BAGY_LABEL` (a Bagy usa esse status quando NF é emitida).
+- Badge do card mostra label PT-BR do status Bagy (já mostra), mais a flag interna ao lado (já mostra).
 
-Replicar o comportamento da Ficha de Pedido: assim que `templateFotoUrl` tiver valor, abrir o **`FotoPedidoSidePanel`** ao lado do formulário (mesmo layout grid 2 colunas). Fechar pelo X esconde até novo paste/edit. Reaproveitar o componente existente.
+### 3. Itens — sem foto, com nome + variação + SKU + meio de envio do pedido
 
-### Edição de modelos já criados
+- No expandido, **remover a miniatura** (`<img>` / placeholder `w-12 h-12`).
+- Linha de cada item fica: **Nome** em destaque, abaixo `Variação · Tam X · Qtd N · SKU XXX`. Igual já é, só sem a imagem.
+- No bloco "Cliente/Endereço", **adicionar uma terceira coluna ou linha "Envio"** com o método escolhido pelo cliente (`shipping_method` / `shipping.name` / `freight_name` / `selected_shipping.name` no payload Bagy) e o valor do frete. Mapear no edge `bagy-webhook` salvando em nova coluna `metodo_envio TEXT` em `bagy_pedidos`.
 
-Ao clicar em **Editar** em um modelo existente, abrir nesta mesma nova visão reorganizada (já é o mesmo modo template — basta garantir que `startEditing` preencha `templateFotoUrl` e `templateTamanhosSkus`, o que já faz no `useTemplateManagement`). Verificar também `BeltOrderPage` e `BordadoPortalPage` — se a edição deles não popular esses campos novos hoje, ajustar para popular, mesmo que o modelo antigo venha com `foto_url=null` e `tamanhos_skus=[]`. O usuário poderá preencher os campos novos e salvar via `updateTemplate` (já grava esses campos).
+### 4. NCM puxado da Bagy
 
-### Padronização
+- Adicionar coluna `ncm TEXT` em `bagy_pedido_itens`.
+- No webhook, extrair de `it.ncm`, `it.product.ncm`, `it.tax.ncm`, `it.variation.ncm` (a Bagy expõe quando configurado no produto).
+- Mostrar NCM ao lado do SKU na linha do item, quando presente: `· NCM 6403.91.90`.
 
-Extrair o cabeçalho do template (foto + nome + modelo/gênero + SKU base + grade tamanhos) em um componente reutilizável `TemplateHeaderFields` em `src/components/template/`, para que OrderPage, BeltOrderPage e BordadoPortalPage compartilhem layout e comportamento idênticos (inclusive abertura da foto lateral e edição).
+### 5. Botões NF-e e Etiqueta (visual)
+
+- No rodapé de ações de cada pedido expandido, adicionar (sempre visíveis quando há `order_id_portal`):
+  - `Gerar NF-e` (ícone `FileText`) — `disabled`, tooltip "Integração NF-e em configuração".
+  - `Imprimir etiqueta` (ícone `Printer`) — `disabled`, tooltip "Integração Melhor Envio em configuração".
+- Botão "Atualizar status na Bagy" + "Reprocessar" + "Marcar despachado + rastreio" + "Ver pedido no portal" continuam funcionando.
+- Estes mesmos dois botões aparecem na barra flutuante de bulk (também desabilitados).
+
+### 6. Migration
+
+```sql
+ALTER TABLE public.bagy_pedidos ADD COLUMN IF NOT EXISTS metodo_envio text;
+ALTER TABLE public.bagy_pedido_itens ADD COLUMN IF NOT EXISTS ncm text;
+```
+
+### 7. Nova edge function `bagy-reprocess`
+
+- Input: `{ pedido_ids: string[] }` (ids de `bagy_pedidos`).
+- Para cada um: lê `payload` salvo + token interno e roda a mesma rotina do webhook (refatorar webhook extraindo um `processOrderPayload(supabase, payload)` reutilizável).
+- Retorna `{ results: [{ pedido_id, ok, message }] }`.
+- Frontend chama com chunk de 5, mesma UX da sincronização atual.
 
 ### Fora de escopo
 
-- Lógica de salvar/atualizar template (já funciona).
-- Campos abaixo de "Couros" em cada página.
-- Mudanças no modo "pedido" (não-template).
+- Implementação real de NF-e e Melhor Envio (só visual desabilitado).
+- Mexer em telas de modelo/ficha.
+
+### Diagrama do header da lista
+
+```text
+[ Buscar... ]  [ Status Bagy ▾ ]  [ Situação ▾ ]
+[x] Selecionar todos visíveis · 3 selecionado(s)
+```
+
+### Barra flutuante
+
+```text
+3 selecionado(s) | Limpar | [Reprocessar] [Atualizar Bagy (2/3)] [NF-e (em breve)] [Etiqueta (em breve)]
+```
