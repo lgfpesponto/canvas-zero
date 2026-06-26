@@ -147,6 +147,10 @@ export function useTemplateManagement() {
     templates,
     templateName,
     setTemplateName,
+    templateSku,
+    setTemplateSku,
+    templateGenero,
+    setTemplateGenero,
     templateSearch,
     setTemplateSearch,
     showTemplates,
@@ -163,4 +167,5 @@ export function useTemplateManagement() {
     markTemplatesAsSeen,
     unseenCount,
   };
+
 }
