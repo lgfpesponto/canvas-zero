@@ -132,24 +132,54 @@ Deno.serve(async (req) => {
     pick(order, "id", "order_id", "uuid") ?? "",
   );
 
-  const statusBagyEarly = String(
+  const statusBagyRaw = String(
     pick(order, "status", "status_name", "current_status") ?? "unknown",
   ).toLowerCase();
+  const paymentStatusRaw = String(
+    pick(order, "payment_status", "financial_status", "payment.status") ?? "",
+  ).toLowerCase();
+  const eventLower = String(event || "").toLowerCase();
 
-  // Só processamos pedidos APROVADOS — ignoramos new/open/pending/canceled/archived/refunded
-  if (!APPROVED_STATUSES.has(statusBagyEarly)) {
+  // Eventos que, por si só, indicam que o pedido foi aprovado/avançou
+  const APPROVED_EVENTS = new Set([
+    "order.approved",
+    "order.paid",
+    "order.invoiced",
+    "order.production",
+    "order.separated",
+    "order.shipped",
+    "order.delivered",
+    "order.completed",
+  ]);
+
+  const eventApproved = APPROVED_EVENTS.has(eventLower);
+  const statusApproved = APPROVED_STATUSES.has(statusBagyRaw);
+  const paymentApproved = !!paymentStatusRaw && APPROVED_STATUSES.has(paymentStatusRaw);
+
+  // statusBagyEarly = melhor representação do estado real (privilegia status logístico se aprovado,
+  // senão usa o status de pagamento aprovado, senão o evento, senão o bruto)
+  const statusBagyEarly = statusApproved
+    ? statusBagyRaw
+    : paymentApproved
+    ? paymentStatusRaw
+    : eventApproved
+    ? "approved"
+    : statusBagyRaw;
+
+  // Só processamos pedidos APROVADOS (por status, pagamento ou evento explícito de aprovação)
+  if (!statusApproved && !paymentApproved && !eventApproved) {
     try {
       await supabase.from("bagy_webhook_log").insert({
         event,
         bagy_order_id: bagyOrderId || null,
         payload_hash: await sha256Hex(rawBody),
         payload,
-        erro: `status_nao_aprovado:${statusBagyEarly}`,
+        erro: `status_nao_aprovado:${statusBagyRaw}${paymentStatusRaw ? `/pay:${paymentStatusRaw}` : ""}`,
         processed_em: new Date().toISOString(),
       });
     } catch (_e) { /* não bloqueia */ }
     return new Response(
-      JSON.stringify({ ok: true, skipped: "status_nao_aprovado", status: statusBagyEarly }),
+      JSON.stringify({ ok: true, skipped: "status_nao_aprovado", status: statusBagyRaw, payment_status: paymentStatusRaw || null }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
@@ -200,9 +230,8 @@ Deno.serve(async (req) => {
     const numeroBagy = String(
       pick(order, "code", "number", "numero", "id") ?? bagyOrderId,
     );
-    const statusBagy = String(
-      pick(order, "status", "status_name", "current_status") ?? "unknown",
-    ).toLowerCase();
+    // Usa o status normalizado (statusBagyEarly considera payment_status + evento de aprovação)
+    const statusBagy = statusBagyEarly;
 
     const customer = order.customer || order.client || {};
     const shippingAddr = order.shipping_address || order.address || order.shipping || null;

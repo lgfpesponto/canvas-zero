@@ -27,8 +27,9 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* */ }
   const pedidoIds: string[] = Array.isArray(body?.pedido_ids) ? body.pedido_ids : [];
-  if (pedidoIds.length === 0) {
-    return new Response(JSON.stringify({ error: "pedido_ids vazio" }), {
+  const webhookLogIds: string[] = Array.isArray(body?.webhook_log_ids) ? body.webhook_log_ids : [];
+  if (pedidoIds.length === 0 && webhookLogIds.length === 0) {
+    return new Response(JSON.stringify({ error: "pedido_ids ou webhook_log_ids vazio" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -38,54 +39,76 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  const { data: pedidos, error } = await supabase
-    .from("bagy_pedidos")
-    .select("id, numero_bagy, payload")
-    .in("id", pedidoIds);
+  const sources: Array<{ key: string; label: string; payload: any }> = [];
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (pedidoIds.length > 0) {
+    const { data: pedidos, error } = await supabase
+      .from("bagy_pedidos")
+      .select("id, numero_bagy, payload")
+      .in("id", pedidoIds);
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    for (const p of (pedidos || [])) {
+      sources.push({ key: p.id, label: p.numero_bagy, payload: p.payload });
+    }
+  }
+
+  if (webhookLogIds.length > 0) {
+    const { data: logs, error } = await supabase
+      .from("bagy_webhook_log")
+      .select("id, bagy_order_id, payload")
+      .in("id", webhookLogIds);
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    for (const l of (logs || [])) {
+      sources.push({ key: l.id, label: l.bagy_order_id || l.id, payload: l.payload });
+    }
   }
 
   const webhookUrl = `${SUPABASE_URL}/functions/v1/bagy-webhook?token=${encodeURIComponent(WEBHOOK_TOKEN)}&force=1`;
 
-  const results: Array<{ pedido_id: string; numero_bagy: string; ok: boolean; message: string }> = [];
+  const results: Array<{ key: string; label: string; ok: boolean; message: string }> = [];
 
-  for (const p of (pedidos || [])) {
-    if (!p.payload) {
-      results.push({ pedido_id: p.id, numero_bagy: p.numero_bagy, ok: false, message: "sem payload salvo" });
+  for (const s of sources) {
+    if (!s.payload) {
+      results.push({ key: s.key, label: s.label, ok: false, message: "sem payload salvo" });
       continue;
     }
     try {
       const resp = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(p.payload),
+        body: JSON.stringify(s.payload),
       });
       const txt = await resp.text();
       let parsed: any = null;
       try { parsed = JSON.parse(txt); } catch { /* */ }
       if (resp.ok) {
         results.push({
-          pedido_id: p.id,
-          numero_bagy: p.numero_bagy,
+          key: s.key,
+          label: s.label,
           ok: true,
           message: parsed?.flag || parsed?.skipped || "ok",
         });
       } else {
         results.push({
-          pedido_id: p.id,
-          numero_bagy: p.numero_bagy,
+          key: s.key,
+          label: s.label,
           ok: false,
           message: parsed?.error || txt.slice(0, 200) || `HTTP ${resp.status}`,
         });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      results.push({ pedido_id: p.id, numero_bagy: p.numero_bagy, ok: false, message: msg });
+      results.push({ key: s.key, label: s.label, ok: false, message: msg });
     }
   }
 
