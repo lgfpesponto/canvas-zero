@@ -1,74 +1,73 @@
-## Objetivo
-Reorganizar visualmente as páginas "Faça seu Pedido" (bota e cinto): novo botão Limpar no topo, botões flutuantes de finalizar/rascunho junto da foto, mover Observação para IDENTIFICAÇÃO, e dividir "Desenvolvimento" em 3 campos separados por categoria (Bordado R$50, Laser R$100, Estampa R$150), cada um como tem/não tem com descrição opcional.
+## 1) Desenvolvimento como PRIMEIRO campo de cada categoria
 
-## 1) Botão "Limpar" (bota e cinto)
-No cabeçalho, antes de "Criar Modelo" e "Modelos", adicionar botão **Limpar** (variante outline com ícone de vassoura/eraser).
+Em `src/pages/OrderPage.tsx`, mover os blocos "Desenvolvimento (+R$50/100/150)" para serem o primeiro item logo após o cabeçalho da seção:
 
-- Ao clicar: pedir confirmação (`window.confirm`) e resetar TODOS os states do formulário para o padrão inicial — reaproveitando o mesmo bloco que já existe após submit bem-sucedido em OrderPage (`setModelo('')`, `setDesenvolvimento('')`, etc., linhas ~1030-1100). Extrair essa lógica em uma função `resetForm()` já usada tanto pelo submit quanto pelo botão Limpar.
-- Não limpa: vendedor, número do pedido gerado, foto (mantém visível se estiver aberta). Opcional: também limpar. **Assumindo limpar tudo do formulário exceto vendedor logado.**
+- **BORDADOS**: Desenvolvimento +R$50 antes de "Tipo de Bordado".
+- **LASER E RECORTES**: Desenvolvimento +R$100 antes do primeiro campo (Laser).
+- **ESTAMPA**: Desenvolvimento +R$150 antes do toggle Estampa.
+Sem mudança de lógica de preço/persistência — só reordenar JSX.
 
-## 2) Botões flutuantes junto da foto
-No `FotoPedidoSidePanel`, adicionar dois botões flutuantes empilhados logo abaixo do painel da foto, dentro do mesmo `aside` sticky (portanto acompanham a rolagem):
+## 2) Botões flutuantes (olho + página) do lado da ficha
 
-- **Olhinho (Eye)** — dispara o mesmo caminho que "Conferir e finalizar pedido" (chama `handleSubmit` do form, que abre a tela de confirmação).
-- **Página (FileText)** — dispara `handleSaveDraft`.
+Em `src/components/FotoPedidoSidePanel.tsx`, trocar o wrapper dos botões:
 
-Implementação: `FotoPedidoSidePanel` recebe duas novas props opcionais `onFinalizar?` e `onSaveDraft?`. Renderizadas como botões redondos grandes (56px), ícone lucide, `title` com tooltip, empilhados verticalmente abaixo da foto (não fixed — sticky junto do `aside` que já é sticky). Desabilita quando `orderDuplicate === true`.
+- Atual: `mt-3 flex justify-end gap-2` (encostam na direita)
+- Novo: `mt-3 flex justify-start gap-2` (encostam à esquerda do painel, ficando visualmente ao lado da ficha)
+Continuam sticky junto do `aside`, tamanho e ícones inalterados.
 
-Passar callbacks a partir de OrderPage e BeltOrderPage.
+## 3) Redesenho do dialog "Modelos Salvos"
 
-## 3) Observação dentro de IDENTIFICAÇÃO
-Mover o `<Section title="Observação">` (textarea `observacao`) para dentro da seção IDENTIFICAÇÃO, ocupando a posição onde hoje fica o campo "Desenvolvimento" (linha ~1585 em OrderPage.tsx). O bloco "Observação" separado no final é removido.
+Reescrever o bloco em `OrderPage.tsx` (linhas ~1913-1970) e o equivalente em `BeltOrderPage.tsx`.
 
-Aplicar mesma mudança em BeltOrderPage (mover textarea para dentro da seção de identificação do cinto).
+### Layout de cada card
 
-## 4) Dividir Desenvolvimento em 3 campos por categoria (apenas bota)
+```text
+┌──────────────────────────────────┐
+│  [QR code 96x96]   [ ] Nome  ⋮  │
+│                                  │
+│  [Preencher]                     │
+└──────────────────────────────────┘
+```
 
-### Modelo de dados — sem migração de schema
-- Coluna `desenvolvimento` (text) permanece intocada — usada só para **compatibilidade retroativa** (pedidos antigos continuam exibindo/somando "Desenvolvimento: Bordado/Laser/Estampa" via lógica atual).
-- Novos campos vão em `extra_detalhes` (jsonb) já existente:
-  - `desenvBordado: boolean`, `desenvBordadoDesc: string`
-  - `desenvLaser: boolean`, `desenvLaserDesc: string`
-  - `desenvEstampa: boolean`, `desenvEstampaDesc: string`
-- Em pedidos **novos**, `desenvolvimento` fica vazio ('') e os 3 booleans mandam. Pedidos **antigos** que já têm `desenvolvimento` preenchido continuam funcionando pelo caminho legacy.
+- Foto do modelo **em cima** (miniatura clicável abrindo Drive), largura total do card, altura ~140px, `object-cover`.
+- Se o modelo tem `foto_url`: renderiza QR code (biblioteca `qrcode.react` — instalar via `bun add qrcode.react`) contendo `${MODEL_SCAN_PREFIX}${template.id}` (ex.: `7EMODEL:<uuid>`). Tamanho compacto (~72px) sobreposto no canto da foto, ou abaixo da foto — **abaixo da foto, alinhado à esquerda, ao lado do nome**.
+- Nome do modelo em negrito abaixo.
+- Checkbox de seleção em lote fica **do lado do nome** (não mais no início da linha).
+- Botão **Preencher** (laranja, grande) + **⋮ (MoreVertical)** DropdownMenu à direita.
+- Dropdown itens em ordem: **Enviar modelo** (Send), **Editar** (Pencil), **Excluir** (Trash2, destructive).
 
-### Preços (na composição do pedido)
-Em `src/lib/recomputeOrderPrice.ts` (~linha 66): manter push de `DESENVOLVIMENTO.find(...)` **apenas quando** os 3 booleans estão ausentes (pedido legacy). Se houver qualquer um dos 3 novos, somar:
-- Bordado: +50
-- Laser: +100
-- Estampa: +150
+### Scanner físico invisível (auto-preencher)
 
-Aplicar mesma lógica no cálculo local do OrderPage.tsx (`desenvPreco`, linha 857) e em qualquer item de composição (`items.push` linha ~1220 e ~1287).
+- Ao abrir o dialog: montar um `<input type="text" />` invisível (`className="sr-only" autoFocus`) que **rerouba foco** em `onBlur` — enquanto o dialog estiver aberto ele fica sempre focado.
+- Handler `onKeyDown`: acumula caracteres; quando recebe `Enter` (leitores USB enviam Enter no final), lê o buffer.
+- Se buffer começa com `7EMODEL:` → extrai o UUID, busca o template correspondente na lista carregada e chama `handleUseTemplate(template)` → fecha o dialog automaticamente. Limpa buffer.
+- Se não bater com o prefixo, ignora silenciosamente.
+- Toast de confirmação: "Modelo &nbsp; carregado via scanner".
 
-### UI (OrderPage.tsx)
-- Remover o `SelectField label="Desenvolvimento"` da seção IDENTIFICAÇÃO (linha ~1585).
-- Em **BORDADOS**: adicionar toggle "Desenvolvimento (+R$50)" tem/não tem; se "tem", abrir input de texto para descrição.
-- Em **LASER E RECORTES**: idem, "Desenvolvimento (+R$100)".
-- Em **ESTAMPA**: idem, "Desenvolvimento (+R$150)".
-- Padrão visual: mesmo dos toggles existentes tipo `pintura`, `estampa`, `trice` (Select "tem/não tem" + textarea condicional).
+### Paginação de 5 por página
 
-### PDF e Ficha (impressos e detalhe)
-- `src/lib/pdfGenerators.ts` (~linha 342): manter o "Desenv." em IDENTIFICAÇÃO **só** se `order.desenvolvimento` (legacy) estiver preenchido E não houver novos campos. Novos aparecem nas próprias categorias:
-  - BORDADOS: linha "Desenvolvimento: <desc>" após os bordados existentes.
-  - LASER E RECORTES: linha "Desenvolvimento: <desc>".
-  - ESTAMPA: linha "Desenvolvimento: <desc>".
-- Mesma mudança em `src/lib/orderFichaCategories.ts` (buildBootFichaCategories) para o detalhe da tela.
+- State novo `templatePage` (default 1).
+- Após aplicar filtro por `templateSearch`, paginar `filtered` em fatias de 5:
+  - `pageItems = filtered.slice((page-1)*5, page*5)`
+  - `totalPages = Math.max(1, Math.ceil(filtered.length / 5))`
+- Rodapé do dialog: `« ‹  Página X de Y  › »` (usar `Button` `ghost` `sm`).
+- Quando `templateSearch` muda, resetar `page` para 1 (useEffect).
+- "Mostrar sempre 5 últimos modelos" = a lista já vem ordenada por `created_at desc` do hook; a página 1 sempre mostra os 5 mais recentes. Confirmado com ordenação existente em `useTemplateManagement`.
 
-### Ordem/atribuição
-- `src/lib/order-logic.ts` `dbRowToOrder` e `orderToDbRow`: mapear os 3 novos campos via `extra_detalhes` (nada muda no schema SQL).
-- `checkSingle('desenvolvimento', ...)` no OrderPage (linha 630) removido (não é mais SelectField).
+## 4) Aplicar mesmas mudanças em BeltOrderPage
 
-## 5) BeltOrderPage
-- Botão Limpar e botões flutuantes (itens 1 e 2): sim, iguais.
-- Observação dentro de identificação (item 3): sim.
-- Item 4 (desenvolvimento em 3 categorias): **não se aplica** — cinto não tem Bordado/Laser/Estampa com desenvolvimento; segue com `desenvolvimento: '-'`.
+- Dialog "Modelos Salvos" (cinto): mesmo redesenho, QR + scanner + paginação, filtrando `__tipo === 'cinto'`. O scanner reconhece `7EMODEL:<uuid>` de cintos e chama `handleUseTemplate` do belt.
+- Reordenar Desenvolvimento: **não se aplica** (cinto não tem categorias Bordado/Laser/Estampa).
 
 ## Fora de escopo
-- EditOrderPage/EditBeltPage/EditExtrasPage: **não** ganham UI de desenvolvimento 3-em-1 nesta rodada (pedidos antigos continuam editáveis com o campo legacy). Se a Juliana quiser editar novos pedidos com essa granularidade, tratamos em plano separado.
-- Migração de banco: nenhuma.
-- Recalcular retroativamente valores de pedidos antigos: nenhum.
 
-## Detalhes técnicos
-- Arquivos alterados: `src/pages/OrderPage.tsx`, `src/pages/BeltOrderPage.tsx`, `src/components/FotoPedidoSidePanel.tsx`, `src/lib/recomputeOrderPrice.ts`, `src/lib/pdfGenerators.ts`, `src/lib/orderFichaCategories.ts`, `src/lib/order-logic.ts` (mapeamento extra_detalhes).
-- Botões flutuantes: `sticky` dentro do `aside` já sticky do painel; wrapper com `mt-3 flex flex-col gap-2 items-end`.
-- Toggles de desenvolvimento: reutilizar o padrão dos campos "tem/não tem" já usados (Select `Sim`/`Não` + textarea condicional).
+- Nenhuma mudança de schema; QR carrega apenas o `id` do template já existente.
+- Sem alteração no fluxo de preço, PDF ou ficha.
+- Sem câmera nem leitor via webcam — apenas leitor físico USB/Bluetooth.
+
+## Arquivos alterados
+
+- `src/pages/OrderPage.tsx` — reordenar Desenvolvimento, redesenhar dialog Modelos.
+- `src/pages/BeltOrderPage.tsx` — redesenhar dialog Modelos.
+- `src/components/FotoPedidoSidePanel.tsx` — alinhar botões flutuantes à esquerda.
+- `package.json` — adicionar `qrcode.react`.
