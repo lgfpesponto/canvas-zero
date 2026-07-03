@@ -1900,7 +1900,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </form>
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel url={currentFotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+          <FotoPedidoSidePanel
+            url={currentFotoUrl}
+            onClose={() => setMostrarFotoPainel(false)}
+            onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
+            onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
+            disabled={orderDuplicate}
+          />
         )}
       </div>
 
