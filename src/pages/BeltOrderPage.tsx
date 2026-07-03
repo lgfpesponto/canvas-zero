@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
+import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import SearchableSelect from '@/components/SearchableSelect';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
