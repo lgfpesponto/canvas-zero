@@ -189,12 +189,12 @@ const ModelosPage = () => {
 
   function missingFieldsFor(m: ModeloRow): string[] {
     const fd = m.form_data || {};
-    const base = m.tipo === 'cinto' ? IDENT_KEYS_CINTO : IDENT_KEYS_BOTA;
+    const base: string[] = m.tipo === 'cinto' ? [...IDENT_KEYS_CINTO] : [...IDENT_KEYS_BOTA];
     return base.filter(k => {
       if (k === 'vendedor' && !isAdmin) return false; // vendedor comum usa o próprio nome
       if (k === 'sobMedida') return isEmpty(fd.sobMedida);
       return isEmpty(fd[k]);
-    }) as string[];
+    });
   }
 
   function handleConferir() {
