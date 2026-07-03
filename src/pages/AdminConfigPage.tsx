@@ -1,12 +1,11 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw, Wallet, FileText } from 'lucide-react';
+import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw, Wallet, FileText, ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UsersManagementInner } from './UsersManagementPage';
 import { GestaoInner } from './GestaoPage';
 import { useEffect, useState } from 'react';
@@ -22,6 +21,10 @@ import { FinanceiroInner } from './FinanceiroPage';
 import ConfiguracoesNFe from './ConfiguracoesNFe';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
 
+type SectionKey =
+  | 'fichas' | 'extras' | 'progresso' | 'relatorios'
+  | 'usuarios' | 'gestao' | 'atacado-sync' | 'financeiro' | 'nfe';
+
 export default function AdminConfigPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -30,15 +33,9 @@ export default function AdminConfigPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [builderOpen, setBuilderOpen] = useState(false);
   const hasNfeAccess = useNfeAccess();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const currentTab = searchParams.get('tab') || 'fichas';
-  const handleTabChange = (v: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('tab', v);
-      return next;
-    }, { replace: true });
-  };
+  const [searchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const currentTab = (rawTab || null) as SectionKey | null;
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
@@ -47,6 +44,8 @@ export default function AdminConfigPage() {
   }, [user, navigate]);
 
   if (!user || (user.role !== 'admin_master' && user.role !== 'admin_producao')) return null;
+
+  const isAdminMaster = user.role === 'admin_master';
 
   const handleDeactivate = async () => {
     if (!deleteTarget) return;
@@ -57,6 +56,22 @@ export default function AdminConfigPage() {
     refetch();
   };
 
+  const sections: { key: SectionKey; label: string; Icon: typeof Layers; visible: boolean }[] = [
+    { key: 'fichas', label: 'ficha de produção', Icon: Layers, visible: true },
+    { key: 'extras', label: 'extras', Icon: Package, visible: true },
+    { key: 'progresso', label: 'progresso de produção', Icon: Activity, visible: true },
+    { key: 'relatorios', label: 'relatórios', Icon: BarChart3, visible: true },
+    { key: 'usuarios', label: 'usuários', Icon: Users, visible: isAdminMaster },
+    { key: 'gestao', label: 'gestão', Icon: Activity, visible: isAdminMaster },
+    { key: 'atacado-sync', label: 'sincronização atacado', Icon: RefreshCw, visible: isAdminMaster },
+    { key: 'financeiro', label: 'financeiro', Icon: Wallet, visible: isAdminMaster },
+    { key: 'nfe', label: 'nf-e', Icon: FileText, visible: isAdminMaster && hasNfeAccess },
+  ];
+
+  const activeSection = sections.find(s => s.key === currentTab && s.visible);
+  const pageTitle = activeSection?.label ?? 'configurações';
+  const PageIcon = activeSection?.Icon ?? Settings;
+
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
       <motion.div
@@ -65,80 +80,43 @@ export default function AdminConfigPage() {
         className="mx-auto max-w-7xl"
       >
         <div className="mb-8 flex items-center gap-3">
-          <Settings className="h-6 w-6 text-primary" />
+          {activeSection && (
+            <Link
+              to="/admin/configuracoes"
+              className="mr-1 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="voltar para configurações"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          )}
+          <PageIcon className="h-6 w-6 text-primary" />
           <h1 className="font-montserrat text-2xl font-bold text-foreground lowercase">
-            configurações
+            {pageTitle}
           </h1>
         </div>
 
-        <Tabs value={currentTab} onValueChange={handleTabChange} orientation="vertical" className="flex flex-col md:flex-row gap-6">
-          <TabsList className="flex md:flex-col h-auto md:w-60 shrink-0 bg-primary text-primary-foreground p-2 rounded-lg gap-1 justify-start overflow-x-auto md:overflow-visible">
-            <TabsTrigger
-              value="fichas"
-              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-            >
-              <Layers className="h-4 w-4" /> ficha de produção
-            </TabsTrigger>
-            <TabsTrigger
-              value="extras"
-              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-            >
-              <Package className="h-4 w-4" /> extras
-            </TabsTrigger>
-            <TabsTrigger
-              value="progresso"
-              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-            >
-              <Activity className="h-4 w-4" /> progresso de produção
-            </TabsTrigger>
-            <TabsTrigger
-              value="relatorios"
-              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-            >
-              <BarChart3 className="h-4 w-4" /> relatórios
-            </TabsTrigger>
-            {user.role === 'admin_master' && (
-              <>
-                <TabsTrigger
-                  value="usuarios"
-                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-                >
-                  <Users className="h-4 w-4" /> usuários
-                </TabsTrigger>
-                <TabsTrigger
-                  value="gestao"
-                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-                >
-                  <Activity className="h-4 w-4" /> gestão
-                </TabsTrigger>
-                <TabsTrigger
-                  value="atacado-sync"
-                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-                >
-                  <RefreshCw className="h-4 w-4" /> sincronização atacado
-                </TabsTrigger>
-                <TabsTrigger
-                  value="financeiro"
-                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-                >
-                  <Wallet className="h-4 w-4" /> financeiro
-                </TabsTrigger>
-                {hasNfeAccess && (
-                  <TabsTrigger
-                    value="nfe"
-                    className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
-                  >
-                    <FileText className="h-4 w-4" /> nf-e
-                  </TabsTrigger>
-                )}
-              </>
-            )}
-          </TabsList>
+        {/* ── Menu (quando não há aba selecionada) ── */}
+        {!activeSection && (
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            {sections.filter(s => s.visible).map(s => (
+              <Link key={s.key} to={`/admin/configuracoes?tab=${s.key}`}>
+                <Card className="cursor-pointer transition-all hover:border-primary/50 hover:shadow-md">
+                  <CardContent className="flex items-center justify-between gap-3 p-5">
+                    <div className="flex items-center gap-3">
+                      <s.Icon className="h-5 w-5 text-primary" />
+                      <span className="font-montserrat text-base font-semibold lowercase">{s.label}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
 
-          <div className="flex-1 min-w-0">
-
-          {/* ─── Fichas de Produção ─── */}
-          <TabsContent value="fichas">
+        {/* ── Seções ── */}
+        {activeSection?.key === 'fichas' && (
+          <div>
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Gerencie as variações, categorias e etapas de produção de cada tipo de ficha.
@@ -147,7 +125,6 @@ export default function AdminConfigPage() {
                 <Plus className="h-4 w-4" /> criar nova ficha
               </Button>
             </div>
-
             {isLoading ? (
               <div className="grid gap-4 md:grid-cols-3">
                 {[1, 2, 3].map(i => (
@@ -162,27 +139,27 @@ export default function AdminConfigPage() {
                       key={tipo.id}
                       tipo={tipo}
                       index={i}
-                      canDelete={user.role === 'admin_master'}
+                      canDelete={isAdminMaster}
                       onDelete={() => setDeleteTarget({ id: tipo.id, nome: tipo.nome })}
                     />
                   ))}
                 </AnimatePresence>
               </div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          {/* ─── Extras (placeholder) ─── */}
-          <TabsContent value="extras">
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Package className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                <p className="text-sm">Gestão de extras será implementada em breve.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {activeSection?.key === 'extras' && (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <Package className="mx-auto mb-3 h-10 w-10 opacity-40" />
+              <p className="text-sm">Gestão de extras será implementada em breve.</p>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* ─── Progresso de Produção ─── */}
-          <TabsContent value="progresso">
+        {activeSection?.key === 'progresso' && (
+          <>
             <p className="mb-4 text-sm text-muted-foreground">
               Etapas de produção cadastradas no sistema. Vincule-as a cada tipo de ficha na tela de edição.
             </p>
@@ -197,41 +174,23 @@ export default function AdminConfigPage() {
                 ))}
               </CardContent>
             </Card>
-          </TabsContent>
+          </>
+        )}
 
-          {/* ─── Relatórios (placeholder) ─── */}
-          <TabsContent value="relatorios" className="space-y-4">
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <BarChart3 className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                <p className="text-sm">Mais relatórios administrativos em breve.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {activeSection?.key === 'relatorios' && (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <BarChart3 className="mx-auto mb-3 h-10 w-10 opacity-40" />
+              <p className="text-sm">Mais relatórios administrativos em breve.</p>
+            </CardContent>
+          </Card>
+        )}
 
-          {user.role === 'admin_master' && (
-            <>
-              <TabsContent value="usuarios">
-                <UsersManagementInner />
-              </TabsContent>
-              <TabsContent value="gestao">
-                <GestaoInner />
-              </TabsContent>
-              <TabsContent value="atacado-sync">
-                <AtacadoSyncPanel />
-              </TabsContent>
-              <TabsContent value="financeiro">
-                <FinanceiroInner />
-              </TabsContent>
-              {hasNfeAccess && (
-                <TabsContent value="nfe">
-                  <ConfiguracoesNFe />
-                </TabsContent>
-              )}
-            </>
-          )}
-          </div>
-        </Tabs>
+        {activeSection?.key === 'usuarios' && <UsersManagementInner />}
+        {activeSection?.key === 'gestao' && <GestaoInner />}
+        {activeSection?.key === 'atacado-sync' && <AtacadoSyncPanel />}
+        {activeSection?.key === 'financeiro' && <FinanceiroInner />}
+        {activeSection?.key === 'nfe' && <ConfiguracoesNFe />}
       </motion.div>
 
       {/* Delete confirmation */}
