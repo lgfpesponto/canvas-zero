@@ -173,9 +173,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     comprarModelo?: {
       templateId: string;
       overrides?: {
+        numeroPedido?: string;
         cliente?: string; clienteWhatsapp?: string; tamanho?: string;
         vendedor?: string; observacao?: string;
         sobMedida?: boolean; sobMedidaDesc?: string;
+        gradeItems?: { tamanho: string; quantidade: number; sku?: string }[];
       };
     };
   } | null;
