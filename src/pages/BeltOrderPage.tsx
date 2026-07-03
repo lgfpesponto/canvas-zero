@@ -215,6 +215,7 @@ const BeltOrderPage = () => {
       populateFromTemplate({ ...((tmplRow as any).form_data || {}) });
       if ((tmplRow as any).foto_url) setFotoUrl((tmplRow as any).foto_url);
       const ov = comprarModelo.overrides || {};
+      if (ov.numeroPedido !== undefined) setNumeroPedido(ov.numeroPedido);
       if (ov.cliente !== undefined) setCliente(ov.cliente);
       if (ov.clienteWhatsapp !== undefined) setClienteWhatsapp(ov.clienteWhatsapp);
       if (ov.tamanho !== undefined) setTamanho(ov.tamanho);
