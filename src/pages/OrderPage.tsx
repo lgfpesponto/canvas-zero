@@ -1205,7 +1205,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim();
           toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
-          resetForm();
+          if (comprarMode && onComprarSaved) onComprarSaved();
+          else resetForm();
         }
       } else {
         const success = await addOrder({
