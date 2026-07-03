@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Pencil, Check, Send, Inbox } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Pencil, Check, Send, Inbox, Eraser } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { TemplateHeaderFields } from '@/components/template/TemplateHeaderFields';
 import { isHttpUrl } from '@/lib/driveUrl';
