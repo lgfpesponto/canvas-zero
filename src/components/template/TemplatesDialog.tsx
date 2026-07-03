@@ -14,9 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const MODEL_SCAN_PREFIX = '7EMODEL:';
-const PAGE_SIZE = 6;
 
 export interface TemplateItem {
   id: string;
