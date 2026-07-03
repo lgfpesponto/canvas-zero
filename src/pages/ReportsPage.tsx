@@ -1693,9 +1693,11 @@ const ReportsPage = () => {
                         setBulkProgress({ current: 0, total: regressionItems.length });
                         try {
                           for (const item of regressionItems) {
+                            const motivoOpt = regressionReason.trim();
                             const { error } = await supabase.rpc('montagem_marcar_erro' as any, {
                               _order_id: item.id,
                               _destino: selectedProgress,
+                              _motivo: motivoOpt || null,
                             } as any);
                             if (error) blocked.push({ numero: item.numero, statusAtual: item.current });
                             else okCount++;

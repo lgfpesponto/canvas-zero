@@ -2782,7 +2782,7 @@ export type Database = {
       marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
       montagem_baixar_pedido: { Args: { _order_id: string }; Returns: Json }
       montagem_marcar_erro: {
-        Args: { _destino: string; _order_id: string }
+        Args: { _destino: string; _motivo?: string; _order_id: string }
         Returns: Json
       }
       parse_historico_date: { Args: { _data: string }; Returns: string }
