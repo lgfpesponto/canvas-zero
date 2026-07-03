@@ -165,7 +165,20 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string; bagyPrefill?: { templateId: string; numero: string; cliente?: string; whatsapp?: string; tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string; bagyOrderId: string; quantidade?: number } } | null;
+  const locState = location.state as {
+    draft?: Draft;
+    templateData?: Record<string, string>;
+    productChoice?: string;
+    bagyPrefill?: { templateId: string; numero: string; cliente?: string; whatsapp?: string; tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string; bagyOrderId: string; quantidade?: number };
+    comprarModelo?: {
+      templateId: string;
+      overrides?: {
+        cliente?: string; clienteWhatsapp?: string; tamanho?: string;
+        vendedor?: string; observacao?: string;
+        sobMedida?: boolean; sobMedidaDesc?: string;
+      };
+    };
+  } | null;
   const bagyPrefill = bagyPrefillOverride ?? locState?.bagyPrefill ?? null;
   const bagyPrefillRef = useRef(bagyPrefill);
   const draftState = locState?.draft;
