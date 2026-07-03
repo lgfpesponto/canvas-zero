@@ -19,6 +19,8 @@ import {
 import FichaBuilder from '@/components/admin/FichaBuilder';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 import { FinanceiroInner } from './FinanceiroPage';
+import ConfiguracoesNFe from './ConfiguracoesNFe';
+import { useNfeAccess } from '@/hooks/useNfeAccess';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
