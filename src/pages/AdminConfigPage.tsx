@@ -30,6 +30,15 @@ export default function AdminConfigPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [builderOpen, setBuilderOpen] = useState(false);
   const hasNfeAccess = useNfeAccess();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get('tab') || 'fichas';
+  const handleTabChange = (v: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', v);
+      return next;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
