@@ -14,9 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const MODEL_SCAN_PREFIX = '7EMODEL:';
-const PAGE_SIZE = 6;
 
 export interface TemplateItem {
   id: string;
@@ -67,7 +67,7 @@ function TemplateCard({
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
-      <div className="w-full h-40 bg-background relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-48 sm:h-40 bg-background relative flex items-center justify-center overflow-hidden">
         {imgSrc && !imgErr ? (
           <img
             src={imgSrc}
@@ -141,6 +141,8 @@ export function TemplatesDialog({
   onDelete,
   onSendMany,
 }: Props) {
+  const isMobile = useIsMobile();
+  const PAGE_SIZE = isMobile ? 2 : 6;
   const [page, setPage] = useState(1);
   const scanBufferRef = useRef('');
   const scanInputRef = useRef<HTMLInputElement | null>(null);
@@ -150,7 +152,7 @@ export function TemplatesDialog({
     [templates, search],
   );
 
-  useEffect(() => { setPage(1); }, [search, templates.length]);
+  useEffect(() => { setPage(1); }, [search, templates.length, isMobile]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

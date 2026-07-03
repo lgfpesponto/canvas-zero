@@ -1,38 +1,25 @@
-## Ajustes solicitados
+## Ajustar diálogo "Modelos Salvos" no mobile
 
-### 1. "Trocar para Bota" deve abrir direto a ficha de Bota
+Componente: `src/components/template/TemplatesDialog.tsx`.
 
-Hoje, no `BeltOrderPage`, o botão "Trocar para Bota" faz `navigate('/pedido')`. Como `OrderPage` sempre mostra a tela "Faça seu Pedido" (escolha entre Bota/Cinto) quando `productChoice` está `null`, o usuário cai de novo na seleção.
+Hoje a lista usa `PAGE_SIZE = 6` fixo e grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`. No celular fica 1 coluna com 6 itens, o que no aparelho do usuário aparece sem a foto por falta de espaço vertical (a área da foto é empurrada para fora).
 
-**Mudança:**
-- `src/pages/BeltOrderPage.tsx`: alterar o botão para `navigate('/pedido?tipo=bota')`.
-- `src/pages/OrderPage.tsx`: ao montar, se `searchParams.get('tipo') === 'bota'`, chamar `setProductChoice('bota')` (via `useEffect`) — assim a tela de escolha é pulada. Nada muda no fluxo normal (`/pedido` sem query continua mostrando a escolha).
-- Simetria opcional: aplicar a mesma lógica em `OrderPage` "Trocar para Cinto" → `navigate('/pedido-cinto?tipo=cinto')` e ler no `BeltOrderPage` (apenas se quiser consistência; posso incluir).
+### Mudanças (puramente visuais)
 
-### 2. Modelos (rascunhos com foto) — melhorar mobile
+1. **Tamanho de página responsivo**  
+   - Importar `useIsMobile` de `@/hooks/use-mobile`.  
+   - Substituir a constante `PAGE_SIZE = 6` por `const PAGE_SIZE = isMobile ? 2 : 6;` dentro do componente.  
+   - Ajustar o `useEffect([search, templates.length])` que reseta `page` para também depender de `isMobile` (evita ficar em página inexistente ao girar/redimensionar).
 
-Página `src/pages/ModelosPage.tsx`, componente `TemplateCard`.
+2. **Card com a mesma cara do desktop no mobile**  
+   - Manter o layout atual do `TemplateCard` (foto em cima + nome + linha de ações).  
+   - Aumentar levemente a altura da foto no mobile para dar a mesma leitura visual do desktop: `h-40` → `h-48 sm:h-40` (foto maior no celular já que agora só cabem 2).  
+   - Manter grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` — no mobile continuam empilhados verticalmente (um em cima, outro embaixo), exatamente como pedido.
 
-**Mudanças (puramente visuais, mantendo 2 colunas no mobile):**
-- Card: altura da foto reduz no mobile para caber na tela. `h-56` → `h-40 sm:h-48 lg:h-56`.
-- Padding interno menor no mobile: `p-3` → `p-2 sm:p-3`.
-- Nome com fonte adaptativa: `text-sm` → `text-xs sm:text-sm`.
-- Badge do tipo levemente menor no mobile.
-- Botão "Comprar": mantém `size="sm"` mas com `text-xs sm:text-sm` para não estourar em telas estreitas.
-- Grid: mantém `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`, apenas reduz gap no mobile (`gap-2 sm:gap-3`).
+3. **Paginação**  
+   - Sem mudança estrutural: os botões `ChevronLeft` / `ChevronRight` e o rodapé "Página X de Y" continuam funcionando; só passam a paginar de 2 em 2 no celular.
 
-### 3. Paginação em `/modelos` — 20 por página
+### Fora de escopo
 
-Ainda em `src/pages/ModelosPage.tsx`:
-
-- Adicionar `const [page, setPage] = useState(1)` e `const PAGE_SIZE = 20`.
-- Resetar `page` para 1 sempre que `search` ou `tiposAtivos` mudarem (via `useEffect`).
-- Derivar `paginated = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)` e renderizar `paginated` no grid.
-- Controle de paginação abaixo do grid: usar o componente `Pagination` já existente em `src/components/ui/pagination.tsx` (Anterior / números / Próxima), só aparece se `filtered.length > PAGE_SIZE`.
-- Contador do topo continua mostrando o total (`filtered.length`), mas com sufixo `— página X de Y` quando houver mais de uma.
-
-## Detalhes técnicos
-
-- Nenhuma mudança de regra de negócio, banco ou permissões.
-- `OrderPage` já usa `useSearchParams` (ou pode importar de `react-router-dom`), sem impacto em `comprarModeloOverride` (fluxo embarcado do espelho não passa por query string).
-- Todos os textos/badges permanecem em UTF-8 literal.
+- Não altero regras de negócio, seleção em lote, scanner, edição, exclusão ou envio.  
+- Nada muda em desktop/tablet além da altura da foto (que só cresce no breakpoint mobile).
