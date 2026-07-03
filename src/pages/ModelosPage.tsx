@@ -62,7 +62,7 @@ function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () 
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
-      <div className="w-full h-56 bg-background relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-40 sm:h-48 lg:h-56 bg-background relative flex items-center justify-center overflow-hidden">
         {imgSrc && !imgErr ? (
           <img
             src={imgSrc}
@@ -79,19 +79,19 @@ function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () 
         )}
         <Badge
           variant="secondary"
-          className="absolute top-2 left-2 text-[10px] uppercase tracking-wide"
+          className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 text-[9px] sm:text-[10px] px-1.5 py-0 uppercase tracking-wide"
         >
           {modelo.tipo}
         </Badge>
       </div>
-      <div className="p-3 flex flex-col gap-2">
+      <div className="p-2 sm:p-3 flex flex-col gap-2">
         <span
-          className="font-semibold text-sm text-foreground text-center line-clamp-2 leading-tight"
+          className="font-semibold text-xs sm:text-sm text-foreground text-center line-clamp-2 leading-tight"
           title={modelo.nome}
         >
           {modelo.nome}
         </span>
-        <Button size="sm" onClick={onComprar} className="w-full">
+        <Button size="sm" onClick={onComprar} className="w-full text-xs sm:text-sm">
           <ShoppingCart size={14} className="mr-1" /> Comprar
         </Button>
       </div>
