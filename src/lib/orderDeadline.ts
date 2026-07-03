@@ -11,7 +11,7 @@
 import { businessDaysRemaining, businessDaysOverdue } from '@/contexts/AuthContext';
 import { isBusinessDay } from '@/lib/holidays';
 
-export const FINAL_STAGES = ['Baixa Site (Despachado)', 'Expedição', 'Entregue', 'Conferido', 'Cobrado', 'Pago', 'Cancelado'];
+export const FINAL_STAGES = ['Baixa Estoque', 'Baixa Site (Despachado)', 'Expedição', 'Entregue', 'Conferido', 'Cobrado', 'Pago', 'Cancelado'];
 
 /** Etapas que liberam o início do prazo do carimbo vinculado a bota. */
 const CARIMBO_BOOT_TRIGGER_STAGES = ['Revisão', 'Expedição', 'Baixa Site (Despachado)', 'Entregue', 'Conferido', 'Cobrado', 'Pago'];
