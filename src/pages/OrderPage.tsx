@@ -176,6 +176,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const tmpl = useTemplateManagement();
   // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
   const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   // Abre painel automaticamente ao entrar em template com foto preenchida (edição de modelo)
   useEffect(() => {
     if (mode === 'template' && isHttpUrl(tmpl.templateFotoUrl)) setMostrarFotoPainel(true);
