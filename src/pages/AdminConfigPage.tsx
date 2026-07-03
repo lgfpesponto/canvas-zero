@@ -214,8 +214,14 @@ export default function AdminConfigPage() {
               <TabsContent value="financeiro">
                 <FinanceiroInner />
               </TabsContent>
+              {hasNfeAccess && (
+                <TabsContent value="nfe">
+                  <ConfiguracoesNFe />
+                </TabsContent>
+              )}
             </>
           )}
+          </div>
         </Tabs>
       </motion.div>
 
