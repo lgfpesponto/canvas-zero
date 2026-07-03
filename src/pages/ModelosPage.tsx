@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
+import OrderPage from '@/pages/OrderPage';
+import BeltOrderPage from '@/pages/BeltOrderPage';
 import { toast } from 'sonner';
 
 type Tipo = 'bota' | 'cinto';
