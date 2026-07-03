@@ -1,23 +1,47 @@
-# Novo extra: Bainha de Celular
+## Objetivo
 
-Criar produto `bainha_celular` idêntico ao `bainha_cartao` (campos Tipo de Couro + Cor do Couro), mas com preço **R$ 50,00**.
+Permitir que vendedor e vendedor_comissao gerem grade de tamanhos ao passar um pedido de bota em "Faça seu Pedido", com o mesmo funcionamento do vendedor Estoque/Juliana (subpedidos gerados automaticamente), mas SEM tornar o campo Cliente obrigatório.
 
-## Alterações
+## Fluxo de UX (novo)
 
-1. **`src/lib/extrasConfig.ts`** — adicionar entrada `bainha_celular` em `EXTRA_PRODUCTS` logo após `bainha_cartao`, com `precoBase: 50`, `precoLabel: 'R$ 50,00'`.
-2. **`src/lib/orderDeadline.ts`** — adicionar `bainha_celular: 7` (mesmo prazo).
-3. **`src/lib/recomputeOrderPrice.ts`** — adicionar `case 'bainha_celular': t += 50; break;`.
-4. **`src/pages/ExtrasPage.tsx`**
-   - preço padrão: `case 'bainha_celular': return 50;`
-   - matriz de campos: `bainha_celular: ['tipoCouro', 'corCouro']`
-   - render dos campos: incluir `productId === 'bainha_celular'` na mesma condição do `bainha_cartao`
-5. **`src/pages/EditExtrasPage.tsx`** — mesmas 3 mudanças acima (preço 50, matriz de campos, render condicional).
-6. **`src/pages/OrderDetailPage.tsx`**
-   - soma de preço: `case 'bainha_celular': t += 50; break;`
-   - breakdown do PDF: `case 'bainha_celular': extraPriceItems.push(['Bainha de Celular', 50]);`
-7. **`src/components/SpecializedReports.tsx`** — adicionar `{ value: 'bainha_celular', label: 'Bainha de Celular' }` no seletor e a mesma configuração de colunas (`tipoCouro`, `corCouro`) usada para `bainha_cartao`.
-8. **`src/contexts/AuthContext.tsx`** — adicionar `bainha_celular: 7` no mapa de prazos (linha 546).
+Para vendedor e vendedor_comissao, na seção "Modelo" do OrderPage:
+
+- O campo Tamanho continua aparecendo normal (obrigatório) como hoje.
+- Ao lado do label "Tamanho" aparece um mini botão "Gerar Grade" (ícone + texto pequeno).
+- Ao clicar, abre o mesmo dialog `GradeEstoque` já existente.
+- Depois de confirmar a grade, o campo Tamanho é substituído pelo resumo da grade (igual Juliana hoje: "X tam. (Y pedidos) — Editar"). Tamanho deixa de ser obrigatório.
+- Enquanto não gerar grade, pedido segue o fluxo normal com Tamanho único.
+- Cliente permanece opcional (sem asterisco, sem validação — diferente da Juliana).
+- WhatsApp do Cliente continua aparecendo (opcional).
+- Ao salvar com grade, usa `addOrderBatch` exatamente como já faz para Juliana (sem SKU obrigatório — `requireSku=false`).
+
+Para admin (Estoque/Juliana): comportamento atual preservado 100%.
+
+## Alterações técnicas (arquivo único: `src/pages/OrderPage.tsx`)
+
+1. Novo flag derivado:
+   - `const isVendedorComum = !isAdmin && (user?.role === 'vendedor' || user?.role === 'vendedor_comissao');`
+   - `const podeGerarGrade = isAdmin && (Estoque || Juliana) || isVendedorComum;` (mantém `isGradeVendedor` atual, cria variante nova).
+   - `const isEstoqueGrade` passa a considerar `podeGerarGrade && gradeItems.length > 0`.
+
+2. Validação (linhas ~908-919):
+   - Tamanho só é obrigatório quando `!isEstoqueGrade`.
+   - Validação de Cliente obrigatório continua apenas para Juliana (não muda).
+
+3. Submit (linhas ~1094-1099):
+   - `if (isEstoqueGrade)` chama `addOrderBatch` — já cobre o novo caso via `podeGerarGrade`.
+
+4. Render do campo Tamanho (linhas ~1546-1566):
+   - Se `isAdmin && (Estoque||Juliana)`: mantém o card grande atual.
+   - Se `isVendedorComum`:
+     - Sem grade: renderiza `SelectField Tamanho` normal + mini botão "Gerar Grade" ao lado do label (via prop nova ou wrapper local com label customizado).
+     - Com grade: mesmo card resumo "X tam. (Y pedidos) — Editar" usado hoje.
+
+5. Dialog `<GradeEstoque>` (linhas ~1958+):
+   - Continua o mesmo; `requireSku` fica `vendedorSelecionado === 'Estoque'` (falso para vendedor comum) e `nomeProduto` fica vazio para vendedor comum.
 
 ## Fora de escopo
 
-Nenhuma mudança de banco. Pedidos antigos continuam funcionando; o novo produto só aparece a partir de agora.
+- Nenhuma alteração em regras de comissão, preço, backend, RLS ou geração de PDF.
+- Grade fica disponível apenas em Faça seu Pedido de Bota (OrderPage). Cinto/Extras não mudam.
+- Vendedor Bordado e admin_producao não ganham grade.
