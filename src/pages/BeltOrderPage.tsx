@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Pencil, Check, Send, Inbox } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Pencil, Check, Send, Inbox, Eraser } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { TemplateHeaderFields } from '@/components/template/TemplateHeaderFields';
 import { isHttpUrl } from '@/lib/driveUrl';
@@ -49,6 +49,7 @@ const BeltOrderPage = () => {
   const [mode, setMode] = useState<'order' | 'template'>('order');
   // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
   const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   // Form state
   const isAdminProducao = user?.role === 'admin_producao';
@@ -529,6 +530,20 @@ const BeltOrderPage = () => {
           </h1>
           {!isTemplate && (
             <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
+                    resetForm();
+                    toast.success('Ficha limpa.');
+                  }
+                }}
+                title="Limpar todos os campos da ficha"
+              >
+                <Eraser size={16} /> Limpar
+              </Button>
               <Button type="button" variant="outline" size="sm" onClick={() => setMode('template')}>
                 <Plus size={16} /> Criar Modelo
               </Button>
@@ -554,7 +569,7 @@ const BeltOrderPage = () => {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <form ref={formRef} onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
           {/* Cabeçalho do Modelo (foto, nome, gênero, SKU base, tamanhos+SKU) */}
           {isTemplate && (
@@ -649,6 +664,11 @@ const BeltOrderPage = () => {
                   <option key={s.label} value={s.label}>{s.label} (R${s.preco})</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className={cls.label}>Observação</label>
+              <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
             </div>
           </Section>
           )}
@@ -779,10 +799,7 @@ const BeltOrderPage = () => {
             </div>
           </Section>
 
-          {/* Observação */}
-          <Section title="Observação">
-            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
-          </Section>
+          {/* Observação vive dentro da Identificação (topo) */}
 
           {!isTemplate && (
             <>
@@ -816,7 +833,13 @@ const BeltOrderPage = () => {
         </form>
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel url={currentFotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+          <FotoPedidoSidePanel
+            url={currentFotoUrl}
+            onClose={() => setMostrarFotoPainel(false)}
+            onFinalizar={!isTemplate ? () => formRef.current?.requestSubmit() : undefined}
+            onSaveDraft={!isTemplate ? handleSaveDraft : undefined}
+            disabled={orderDuplicate}
+          />
         )}
       </div>
 

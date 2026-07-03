@@ -339,7 +339,11 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     // IDENTIFICAÇÃO (campos do topo do faça seu pedido que não cabem no header)
     const identFields: CatField[] = [];
     if (order.sobMedida && order.sobMedidaDesc) identFields.push({ label: 'Sob medida:', value: order.sobMedidaDesc.toLowerCase() });
-    if (order.desenvolvimento) identFields.push({ label: 'Desenv.:', value: order.desenvolvimento.toLowerCase() });
+    // Desenv. legacy (campo único) — só se pedido antigo NÃO tem os novos 3 campos
+    const _detIdent: any = order.extraDetalhes || {};
+    const _hasNewDesenv = !!(_detIdent.desenvBordado || _detIdent.desenvLaser || _detIdent.desenvEstampa);
+    if (order.desenvolvimento && !_hasNewDesenv) identFields.push({ label: 'Desenv.:', value: order.desenvolvimento.toLowerCase() });
+    if (order.observacao) identFields.push({ label: 'Obs.:', value: order.observacao });
     if (order.cliente) identFields.push({ label: 'Cliente:', value: order.cliente.toLowerCase() });
     if (identFields.length) categories.push({ title: 'IDENTIFICAÇÃO', fields: identFields });
 
@@ -381,6 +385,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     if (bordGaspeaText) bordadoFields.push({ label: 'Gáspea:', value: `${bordGaspeaText.toLowerCase()}${order.corBordadoGaspea ? ' ' + order.corBordadoGaspea.toLowerCase() : ''}` });
     if (bordTaloneiraText) bordadoFields.push({ label: 'Taloneira:', value: `${bordTaloneiraText.toLowerCase()}${order.corBordadoTaloneira ? ' ' + order.corBordadoTaloneira.toLowerCase() : ''}` });
     if (order.nomeBordadoDesc || order.personalizacaoNome) bordadoFields.push({ label: 'Nome:', value: (order.nomeBordadoDesc || order.personalizacaoNome || '').toLowerCase() });
+    if (_detIdent.desenvBordado) bordadoFields.push({ label: 'Desenv.:', value: (_detIdent.desenvBordadoDesc || 'sim').toString().toLowerCase() });
     if (bordadoFields.length) categories.push({ title: 'BORDADOS', fields: bordadoFields });
 
     // LASER E RECORTES
@@ -392,11 +397,15 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     if (order.recorteGaspea) laserFields.push({ label: 'Recorte gáspea:', value: `${order.recorteGaspea.toLowerCase()}${order.corRecorteGaspea ? ' ' + order.corRecorteGaspea.toLowerCase() : ''}` });
     if (order.recorteTaloneira) laserFields.push({ label: 'Recorte taloneira:', value: `${order.recorteTaloneira.toLowerCase()}${order.corRecorteTaloneira ? ' ' + order.corRecorteTaloneira.toLowerCase() : ''}` });
     if (order.pintura === 'Sim') laserFields.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });
+    if (_detIdent.desenvLaser) laserFields.push({ label: 'Desenv.:', value: (_detIdent.desenvLaserDesc || 'sim').toString().toLowerCase() });
     if (laserFields.length) categories.push({ title: 'LASER E RECORTES', fields: laserFields });
 
     // ESTAMPA (bloco próprio)
-    if (order.estampa === 'Sim') {
-      categories.push({ title: 'ESTAMPA', fields: [{ label: '', value: order.estampaDesc || 'sim' }] });
+    if (order.estampa === 'Sim' || _detIdent.desenvEstampa) {
+      const estampaLines: CatField[] = [];
+      if (order.estampa === 'Sim') estampaLines.push({ label: '', value: order.estampaDesc || 'sim' });
+      if (_detIdent.desenvEstampa) estampaLines.push({ label: 'Desenv.:', value: (_detIdent.desenvEstampaDesc || 'sim').toString().toLowerCase() });
+      categories.push({ title: 'ESTAMPA', fields: estampaLines });
     }
 
     // METAIS
@@ -437,10 +446,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
       categories.push({ title: 'ADICIONAL', fields: [{ label: '', value: `${order.adicionalDesc || ''}${order.adicionalValor ? ' R$' + order.adicionalValor : ''}`.trim() }] });
     }
 
-    // OBS
-    if (order.observacao) {
-      categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
-    }
+    // OBS já vive dentro da IDENTIFICAÇÃO (campo Obs.:).
 
     const colWidth = (pw - m * 2 - 8) / 3;
     const col1X = m + 3;

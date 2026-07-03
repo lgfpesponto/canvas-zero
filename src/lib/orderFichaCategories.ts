@@ -21,9 +21,11 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
 
   // IDENTIFICAÇÃO
   const identFields: FichaField[] = [];
+  const hasNewDesenv = !!(det.desenvBordado || det.desenvLaser || det.desenvEstampa);
   if (order.sobMedida && order.sobMedidaDesc) identFields.push({ label: 'Sob medida:', value: lower(order.sobMedidaDesc) });
-  if (order.desenvolvimento) identFields.push({ label: 'Desenv.:', value: lower(order.desenvolvimento) });
+  if (order.desenvolvimento && !hasNewDesenv) identFields.push({ label: 'Desenv.:', value: lower(order.desenvolvimento) });
   if (showCliente && order.cliente) identFields.push({ label: 'Cliente:', value: lower(order.cliente) });
+  if (order.observacao) identFields.push({ label: 'Obs.:', value: order.observacao });
   if (identFields.length) categories.push({ title: 'IDENTIFICAÇÃO', fields: identFields });
 
   // COUROS
@@ -57,6 +59,7 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
   if (bG) bord.push({ label: 'Gáspea:', value: `${lower(bG)}${order.corBordadoGaspea ? ' ' + lower(order.corBordadoGaspea) : ''}` });
   if (bT) bord.push({ label: 'Taloneira:', value: `${lower(bT)}${order.corBordadoTaloneira ? ' ' + lower(order.corBordadoTaloneira) : ''}` });
   if (order.nomeBordadoDesc || order.personalizacaoNome) bord.push({ label: 'Nome:', value: lower(order.nomeBordadoDesc || order.personalizacaoNome) });
+  if (det.desenvBordado) bord.push({ label: 'Desenv.:', value: lower(det.desenvBordadoDesc) || 'sim' });
   if (bord.length) categories.push({ title: 'BORDADOS', fields: bord });
 
   // LASER E RECORTES
@@ -68,11 +71,15 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
   if (order.recorteGaspea) laser.push({ label: 'Recorte gáspea:', value: `${lower(order.recorteGaspea)}${order.corRecorteGaspea ? ' ' + lower(order.corRecorteGaspea) : ''}` });
   if (order.recorteTaloneira) laser.push({ label: 'Recorte taloneira:', value: `${lower(order.recorteTaloneira)}${order.corRecorteTaloneira ? ' ' + lower(order.corRecorteTaloneira) : ''}` });
   if (order.pintura === 'Sim') laser.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });
+  if (det.desenvLaser) laser.push({ label: 'Desenv.:', value: lower(det.desenvLaserDesc) || 'sim' });
   if (laser.length) categories.push({ title: 'LASER E RECORTES', fields: laser });
 
   // ESTAMPA
-  if (order.estampa === 'Sim') {
-    categories.push({ title: 'ESTAMPA', fields: [{ label: '', value: order.estampaDesc || 'sim' }] });
+  if (order.estampa === 'Sim' || det.desenvEstampa) {
+    const estampaLines: FichaField[] = [];
+    if (order.estampa === 'Sim') estampaLines.push({ label: '', value: order.estampaDesc || 'sim' });
+    if (det.desenvEstampa) estampaLines.push({ label: 'Desenv.:', value: lower(det.desenvEstampaDesc) || 'sim' });
+    categories.push({ title: 'ESTAMPA', fields: estampaLines });
   }
 
   // METAIS
@@ -118,10 +125,7 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
     });
   }
 
-  // OBS
-  if (order.observacao) {
-    categories.push({ title: 'OBS', fields: [{ label: '', value: order.observacao }] });
-  }
+  // OBS já entra na IDENTIFICAÇÃO (campo Obs.:).
 
   return categories;
 }
