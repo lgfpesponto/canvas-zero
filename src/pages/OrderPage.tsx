@@ -2171,7 +2171,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <div className="flex gap-3">
               <button onClick={() => {
                 if (comprarMode) {
-                  navigate('/modelos', { state: { editComprar: comprarModelo } });
+                  if (onComprarEditar) onComprarEditar();
+                  else navigate('/modelos', { state: { editComprar: comprarModelo } });
                 } else {
                   setShowMirror(false);
                 }
