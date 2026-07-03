@@ -67,7 +67,7 @@ function TemplateCard({
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
-      <div className="w-full h-40 bg-background relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-48 sm:h-40 bg-background relative flex items-center justify-center overflow-hidden">
         {imgSrc && !imgErr ? (
           <img
             src={imgSrc}
