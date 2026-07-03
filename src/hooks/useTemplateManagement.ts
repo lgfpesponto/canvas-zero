@@ -15,6 +15,7 @@ export interface TemplateRecord {
   genero?: string | null;
   foto_url?: string | null;
   tamanhos_skus?: TamanhoSku[] | null;
+  tipo?: 'bota' | 'cinto';
 }
 
 
