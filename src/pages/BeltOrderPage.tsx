@@ -1039,7 +1039,10 @@ const BeltOrderPage = () => {
 
 
             <div className="flex gap-3">
-              <button onClick={() => setShowMirror(false)} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
+              <button onClick={() => {
+                if (comprarMode) navigate('/modelos', { state: { editComprar: comprarModelo } });
+                else setShowMirror(false);
+              }} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
               <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : 'OK — FINALIZAR'}</button>
             </div>
           </motion.div>
