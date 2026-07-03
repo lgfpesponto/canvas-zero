@@ -141,6 +141,7 @@ function computeExtraTotal(order: Order): number {
     }
     case 'chaveiro_carimbo': t += 50; break;
     case 'bainha_cartao': t += 15; break;
+    case 'bainha_celular': t += 50; break;
     case 'regata': t += 50; break;
     case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(order); break;
   }
