@@ -220,12 +220,6 @@ const BeltOrderPage = () => {
     setMode('template');
   };
 
-  const canInheritTemplateFoto = () => {
-    if (!user) return false;
-    if (user.role === 'admin_master' || user.role === 'admin_producao') return true;
-    if ((user.nomeUsuario || '').toLowerCase() === 'site') return true;
-    return false;
-  };
 
   const handleUseTemplate = (
     template: { nome: string; form_data: Record<string, string>; sku?: string | null; foto_url?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
