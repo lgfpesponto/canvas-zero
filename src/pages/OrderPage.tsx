@@ -1858,10 +1858,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             </div>
           </Section>
 
-          {/* OBSERVAÇÃO */}
-          <Section title="Observação">
-            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
-          </Section>
+          {/* OBSERVAÇÃO vive dentro da Identificação (topo) */}
 
           {/* Link da foto agora vive na seção Identificação no topo */}
 
