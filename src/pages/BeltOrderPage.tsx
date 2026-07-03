@@ -489,7 +489,8 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         if (loadedDraftId) deleteDraft(loadedDraftId);
         const numeroSalvo = numeroPedido.trim() || '(novo)';
         toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
-        resetForm();
+        if (comprarMode && onComprarSaved) onComprarSaved();
+        else resetForm();
       } else {
         toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
       }
