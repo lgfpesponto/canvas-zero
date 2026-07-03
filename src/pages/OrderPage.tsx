@@ -906,7 +906,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   /* ───── submit ───── */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
+    const isGradeVendedor = (isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum;
     const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
     if (isAdminProducao && (!vendedorSelecionado || vendedorSelecionado === user?.nomeCompleto)) {
       toast.error('Por favor, selecione um vendedor válido.');
