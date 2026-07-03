@@ -530,6 +530,20 @@ const BeltOrderPage = () => {
           </h1>
           {!isTemplate && (
             <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
+                    resetForm();
+                    toast.success('Ficha limpa.');
+                  }
+                }}
+                title="Limpar todos os campos da ficha"
+              >
+                <Eraser size={16} /> Limpar
+              </Button>
               <Button type="button" variant="outline" size="sm" onClick={() => setMode('template')}>
                 <Plus size={16} /> Criar Modelo
               </Button>
