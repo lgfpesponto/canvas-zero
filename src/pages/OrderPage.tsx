@@ -521,7 +521,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   // Template handlers using hook
   const handleSaveTemplate = async () => {
     if (!user) return;
-    const success = await tmpl.saveTemplate(user.id, buildFormData());
+    const success = await tmpl.saveTemplate(user.id, buildFormData(), 'bota');
     if (success) {
       setMode('order');
       resetForm();
