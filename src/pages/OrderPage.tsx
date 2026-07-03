@@ -1092,7 +1092,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (submitting) return;
     setSubmitting(true);
     try {
-      const isGradeVendedor = isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro');
+      const isGradeVendedor = (isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum;
       const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
 
       if (isEstoqueGrade) {
