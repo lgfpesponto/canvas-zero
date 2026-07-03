@@ -271,7 +271,9 @@ const ModelosPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl md:text-3xl font-display font-bold">Modelos</h1>
         <span className="text-sm text-muted-foreground">
-          {loading ? 'Carregando…' : `${filtered.length} modelo${filtered.length === 1 ? '' : 's'}`}
+          {loading
+            ? 'Carregando…'
+            : `${filtered.length} modelo${filtered.length === 1 ? '' : 's'}${totalPages > 1 ? ` — página ${currentPage} de ${totalPages}` : ''}`}
         </span>
       </div>
 
