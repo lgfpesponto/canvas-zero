@@ -134,7 +134,7 @@ const ModelosPage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('order_templates')
-        .select('id, nome, form_data, foto_url, tipo, sku, tamanhos_skus, created_at')
+        .select('id, nome, form_data, foto_url, genero, tipo, sku, tamanhos_skus, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) {
