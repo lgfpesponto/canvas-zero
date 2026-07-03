@@ -312,10 +312,45 @@ const ModelosPage = () => {
       )}
 
       {filtered.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {filtered.map(m => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+          {paginated.map(m => (
             <TemplateCard key={m.id} modelo={m} onComprar={() => openComprar(m)} />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            Anterior
+          </Button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            <Button
+              key={n}
+              type="button"
+              variant={n === currentPage ? 'default' : 'outline'}
+              size="sm"
+              className="min-w-9"
+              onClick={() => setPage(n)}
+            >
+              {n}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
+            Próxima
+          </Button>
         </div>
       )}
 
