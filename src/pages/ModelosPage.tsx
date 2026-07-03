@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ImageOff, ShoppingCart } from 'lucide-react';
+import { ImageOff, ShoppingCart, Grid3X3 } from 'lucide-react';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
+import { TAMANHOS } from '@/lib/orderFieldsConfig';
+import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import { toast } from 'sonner';
 
 type Tipo = 'bota' | 'cinto';
@@ -22,32 +24,26 @@ interface ModeloRow {
   form_data: Record<string, any>;
   foto_url: string | null;
   tipo: Tipo;
+  sku: string | null;
+  tamanhos_skus: { tamanho: string; sku: string }[] | null;
   created_at: string;
 }
 
 interface EditComprarState {
   templateId: string;
   overrides?: {
+    numeroPedido?: string;
     cliente?: string; clienteWhatsapp?: string; tamanho?: string;
     vendedor?: string; observacao?: string;
     sobMedida?: boolean; sobMedidaDesc?: string;
+    gradeItems?: GradeItem[];
   };
 }
 
 const ALL_TIPOS: Tipo[] = ['bota', 'cinto'];
 
-// Chaves de identificação por tipo
-const IDENT_KEYS_BOTA = ['cliente', 'tamanho', 'clienteWhatsapp', 'vendedor', 'observacao', 'sobMedida'] as const;
-const IDENT_KEYS_CINTO = ['cliente', 'tamanho', 'clienteWhatsapp', 'vendedor', 'observacao'] as const;
-
-const KEY_LABELS: Record<string, string> = {
-  cliente: 'Cliente',
-  tamanho: 'Tamanho',
-  clienteWhatsapp: 'WhatsApp do Cliente',
-  vendedor: 'Vendedor',
-  observacao: 'Observação',
-  sobMedida: 'Sob Medida',
-};
+const JULIANA = 'Juliana Cristina Ribeiro';
+const RANCHO = 'Rancho Chique';
 
 function isEmpty(v: any): boolean {
   if (v === undefined || v === null) return true;
@@ -105,6 +101,7 @@ const ModelosPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editState = (location.state as any)?.editComprar as EditComprarState | undefined;
+  const isAdminProducao = role === 'admin_producao';
 
   const [modelos, setModelos] = useState<ModeloRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,14 +111,19 @@ const ModelosPage = () => {
   const [comprarOpen, setComprarOpen] = useState(false);
   const [comprarModelo, setComprarModelo] = useState<ModeloRow | null>(null);
 
-  // valores da etapa A
-  const [vCliente, setVCliente] = useState('');
-  const [vTamanho, setVTamanho] = useState('');
-  const [vWhats, setVWhats] = useState('');
+  // Campos do formulário
+  const [vNumeroPedido, setVNumeroPedido] = useState('');
   const [vVendedor, setVVendedor] = useState('');
+  const [vCliente, setVCliente] = useState('');
+  const [vWhats, setVWhats] = useState('');
+  const [vTamanho, setVTamanho] = useState('');
   const [vObs, setVObs] = useState('');
   const [vSobMedida, setVSobMedida] = useState(false);
   const [vSobMedidaDesc, setVSobMedidaDesc] = useState('');
+  const [vGradeItems, setVGradeItems] = useState<GradeItem[]>([]);
+  const [showGrade, setShowGrade] = useState(false);
+
+  const restoredFromEditRef = useRef(false);
 
   useEffect(() => {
     if (!user) return;
@@ -129,7 +131,7 @@ const ModelosPage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('order_templates')
-        .select('id, nome, form_data, foto_url, tipo, created_at')
+        .select('id, nome, form_data, foto_url, tipo, sku, tamanhos_skus, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) {
@@ -139,6 +141,7 @@ const ModelosPage = () => {
       setModelos(((data as any[]) || []).map(r => ({
         ...r,
         tipo: (r.tipo === 'cinto' ? 'cinto' : 'bota') as Tipo,
+        tamanhos_skus: Array.isArray(r.tamanhos_skus) ? r.tamanhos_skus : [],
       })));
       setLoading(false);
     })();
@@ -146,11 +149,11 @@ const ModelosPage = () => {
 
   // Reabrir dialog quando voltar do espelho via "Editar"
   useEffect(() => {
-    if (!editState || modelos.length === 0) return;
+    if (!editState || modelos.length === 0 || restoredFromEditRef.current) return;
     const m = modelos.find(x => x.id === editState.templateId);
     if (!m) return;
+    restoredFromEditRef.current = true;
     openComprar(m, editState.overrides);
-    // Limpa o state para não reabrir em navegações futuras
     navigate(location.pathname, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editState, modelos]);
@@ -168,55 +171,72 @@ const ModelosPage = () => {
     setTiposAtivos(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
   };
 
+  function defaultVendedor(fd: Record<string, any>): string {
+    if (isAdmin) return fd.vendedor || '';
+    return user?.nomeCompleto || '';
+  }
+
   function openComprar(m: ModeloRow, prefill?: EditComprarState['overrides']) {
     setComprarModelo(m);
     const fd = m.form_data || {};
-    // Valores existentes no modelo + overrides já preenchidos (edição)
+    setVNumeroPedido(prefill?.numeroPedido ?? '');
+    setVVendedor(prefill?.vendedor ?? defaultVendedor(fd));
     setVCliente(prefill?.cliente ?? (fd.cliente || ''));
-    setVTamanho(prefill?.tamanho ?? (fd.tamanho || ''));
     setVWhats(prefill?.clienteWhatsapp ?? (fd.clienteWhatsapp || ''));
-    setVVendedor(prefill?.vendedor ?? (fd.vendedor || (isAdmin ? '' : (user?.nomeCompleto || ''))));
+    setVTamanho(prefill?.tamanho ?? (fd.tamanho || ''));
     setVObs(prefill?.observacao ?? (fd.observacao || ''));
     setVSobMedida(prefill?.sobMedida ?? (fd.sobMedida === 'true' || fd.sobMedida === true));
     setVSobMedidaDesc(prefill?.sobMedidaDesc ?? (fd.sobMedidaDesc || ''));
+    setVGradeItems(prefill?.gradeItems ?? []);
     setComprarOpen(true);
   }
 
   function closeComprar() {
     setComprarOpen(false);
     setComprarModelo(null);
+    setVGradeItems([]);
   }
 
-  function missingFieldsFor(m: ModeloRow): string[] {
-    const fd = m.form_data || {};
-    const base: string[] = m.tipo === 'cinto' ? [...IDENT_KEYS_CINTO] : [...IDENT_KEYS_BOTA];
-    return base.filter(k => {
-      if (k === 'vendedor' && !isAdmin) return false; // vendedor comum usa o próprio nome
-      if (k === 'sobMedida') return isEmpty(fd.sobMedida);
-      return isEmpty(fd[k]);
-    });
-  }
+  // Tamanhos disponíveis para o modelo — vem do cadastro do modelo (tamanhos_skus).
+  const tamanhosDoModelo = useMemo<string[]>(() => {
+    if (!comprarModelo) return [];
+    const list = (comprarModelo.tamanhos_skus || [])
+      .map(t => (t.tamanho || '').trim())
+      .filter(Boolean);
+    return list.length > 0 ? list : TAMANHOS;
+  }, [comprarModelo]);
+
+  const showWhatsapp = vVendedor === JULIANA || vVendedor === RANCHO;
+  const clienteObrigatorio = vVendedor === JULIANA;
+  const modeloJaTemSobMedida = comprarModelo
+    ? !isEmpty((comprarModelo.form_data || {}).sobMedida)
+    : true;
+  // Grade: mesma regra do OrderPage — admin com Estoque/Juliana OU vendedor comum (não bordado/montagem/admin_producao)
+  const isVendedorComum = !isAdmin && role !== 'bordado' && role !== 'montagem';
+  const podeGerarGrade = comprarModelo?.tipo === 'bota' && (
+    (isAdmin && (vVendedor === 'Estoque' || vVendedor === JULIANA)) || isVendedorComum
+  );
 
   function handleConferir() {
     if (!comprarModelo) return;
-    const missing = missingFieldsFor(comprarModelo);
-    // Validação básica
-    if (missing.includes('cliente') && !vCliente.trim()) {
-      toast.error('Preencha o Cliente'); return;
+    if (!vNumeroPedido.trim()) { toast.error('Informe o Número do pedido'); return; }
+    if (!vVendedor.trim()) { toast.error('Selecione o Vendedor'); return; }
+    if (clienteObrigatorio && !vCliente.trim()) { toast.error('Cliente é obrigatório para Juliana'); return; }
+    if (vGradeItems.length === 0 && !vTamanho.trim()) { toast.error('Selecione o Tamanho ou gere uma Grade'); return; }
+
+    const overrides: EditComprarState['overrides'] = {
+      numeroPedido: vNumeroPedido.trim(),
+      vendedor: vVendedor.trim(),
+      cliente: vCliente.trim(),
+      observacao: vObs.trim(),
+    };
+    if (showWhatsapp) overrides.clienteWhatsapp = vWhats.trim();
+    if (vGradeItems.length > 0) {
+      overrides.gradeItems = vGradeItems;
+    } else {
+      overrides.tamanho = vTamanho.trim();
     }
-    if (missing.includes('tamanho') && !vTamanho.trim()) {
-      toast.error('Preencha o Tamanho'); return;
-    }
-    if (missing.includes('vendedor') && !vVendedor.trim()) {
-      toast.error('Selecione o Vendedor'); return;
-    }
-    const overrides: EditComprarState['overrides'] = {};
-    if (missing.includes('cliente')) overrides.cliente = vCliente.trim();
-    if (missing.includes('clienteWhatsapp')) overrides.clienteWhatsapp = vWhats.trim();
-    if (missing.includes('tamanho')) overrides.tamanho = vTamanho.trim();
-    if (missing.includes('vendedor')) overrides.vendedor = vVendedor.trim();
-    if (missing.includes('observacao')) overrides.observacao = vObs.trim();
-    if (missing.includes('sobMedida')) {
+    if (!modeloJaTemSobMedida) {
       overrides.sobMedida = vSobMedida;
       if (vSobMedida) overrides.sobMedidaDesc = vSobMedidaDesc.trim();
     }
@@ -232,8 +252,9 @@ const ModelosPage = () => {
     return <Navigate to="/" replace />;
   }
 
-  const currentMissing = comprarModelo ? missingFieldsFor(comprarModelo) : [];
-  const vendedoresOptions = ((allProfiles as any[]) || []).map(p => p.nomeCompleto || p.nome_completo).filter(Boolean);
+  const vendedoresOptions = (allProfiles || [])
+    .map((p: any) => p.nomeCompleto || p.nome_completo)
+    .filter(Boolean);
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
@@ -287,80 +308,137 @@ const ModelosPage = () => {
       )}
 
       <Dialog open={comprarOpen} onOpenChange={o => (o ? setComprarOpen(true) : closeComprar())}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Comprar — {comprarModelo?.nome}</DialogTitle>
           </DialogHeader>
 
           {comprarModelo && (
-            <>
-              {currentMissing.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Este modelo já tem todos os dados de identificação. Basta conferir e finalizar.
-                </p>
-              )}
+            <div className="space-y-3">
+              {/* 1. Número do pedido */}
+              <div>
+                <Label>Número do pedido *</Label>
+                <Input
+                  value={vNumeroPedido}
+                  onChange={e => setVNumeroPedido(e.target.value)}
+                  placeholder="Digite o número"
+                />
+              </div>
 
-              <div className="space-y-3">
-                {currentMissing.includes('cliente') && (
-                  <div>
-                    <Label>Cliente *</Label>
-                    <Input value={vCliente} onChange={e => setVCliente(e.target.value)} />
-                  </div>
-                )}
-                {currentMissing.includes('tamanho') && (
-                  <div>
-                    <Label>Tamanho *</Label>
-                    <Input value={vTamanho} onChange={e => setVTamanho(e.target.value)} />
-                  </div>
-                )}
-                {currentMissing.includes('clienteWhatsapp') && (
-                  <div>
-                    <Label>WhatsApp do Cliente</Label>
-                    <Input
-                      value={vWhats}
-                      onChange={e => setVWhats(maskPhoneBR(e.target.value))}
-                      placeholder="(11) 91234-5678"
-                    />
-                  </div>
-                )}
-                {currentMissing.includes('vendedor') && (
-                  <div>
-                    <Label>Vendedor *</Label>
-                    <select
-                      value={vVendedor}
-                      onChange={e => setVVendedor(e.target.value)}
-                      className="w-full bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none"
-                    >
-                      <option value="">Selecione…</option>
-                      {vendedoresOptions.map(nome => (
-                        <option key={nome} value={nome}>{nome}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {currentMissing.includes('observacao') && (
-                  <div>
-                    <Label>Observação</Label>
-                    <Textarea value={vObs} onChange={e => setVObs(e.target.value)} rows={2} />
-                  </div>
-                )}
-                {currentMissing.includes('sobMedida') && (
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={vSobMedida} onCheckedChange={v => setVSobMedida(!!v)} />
-                      Sob medida
-                    </label>
-                    {vSobMedida && (
-                      <Input
-                        value={vSobMedidaDesc}
-                        onChange={e => setVSobMedidaDesc(e.target.value)}
-                        placeholder="Detalhes da medida"
-                      />
-                    )}
-                  </div>
+              {/* 2. Vendedor */}
+              <div>
+                <Label>Vendedor *</Label>
+                {isAdmin ? (
+                  <select
+                    value={vVendedor}
+                    onChange={e => setVVendedor(e.target.value)}
+                    className="w-full bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none"
+                  >
+                    {isAdminProducao && <option value="">Selecione um vendedor</option>}
+                    {!isAdminProducao && <option value="">Selecione…</option>}
+                    {vendedoresOptions.map(nome => (
+                      <option key={nome} value={nome}>{nome}</option>
+                    ))}
+                    <option value="Estoque">Estoque</option>
+                  </select>
+                ) : (
+                  <Input value={vVendedor} readOnly className="opacity-70 cursor-not-allowed" />
                 )}
               </div>
-            </>
+
+              {/* 3. Cliente */}
+              <div>
+                <Label>
+                  Cliente {clienteObrigatorio && <span className="text-destructive">*</span>}
+                </Label>
+                <Input
+                  value={vCliente}
+                  onChange={e => setVCliente(e.target.value)}
+                  placeholder={clienteObrigatorio ? 'Nome do cliente (obrigatório)' : 'Nome do cliente (opcional)'}
+                />
+              </div>
+
+              {/* 4. WhatsApp — condicional */}
+              {showWhatsapp && (
+                <div>
+                  <Label>WhatsApp do Cliente</Label>
+                  <Input
+                    value={vWhats}
+                    onChange={e => setVWhats(maskPhoneBR(e.target.value))}
+                    placeholder="(11) 91234-5678"
+                  />
+                </div>
+              )}
+
+              {/* 5. Tamanho / Grade */}
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <Label className="mb-0">
+                    {podeGerarGrade && vGradeItems.length > 0 ? 'Tamanho / Grade' : 'Tamanho'}
+                    {vGradeItems.length === 0 && <span className="text-destructive ml-0.5">*</span>}
+                  </Label>
+                  {podeGerarGrade && vGradeItems.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowGrade(true)}
+                      className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Grid3X3 size={12} /> Gerar Grade
+                    </button>
+                  )}
+                </div>
+                {vGradeItems.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowGrade(true)}
+                    className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border hover:border-primary text-left flex items-center justify-between gap-2"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Grid3X3 size={14} className="text-primary" />
+                      <span className="font-semibold">{vGradeItems.length} tam.</span>
+                      <span className="text-muted-foreground">
+                        ({vGradeItems.reduce((s, i) => s + i.quantidade, 0)} pedidos)
+                      </span>
+                    </span>
+                    <span className="text-xs text-primary font-medium">Editar</span>
+                  </button>
+                ) : (
+                  <select
+                    value={vTamanho}
+                    onChange={e => setVTamanho(e.target.value)}
+                    className="w-full bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none"
+                  >
+                    <option value="">Selecione…</option>
+                    {tamanhosDoModelo.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* 6. Sob medida (apenas se o modelo não trouxe) */}
+              {!modeloJaTemSobMedida && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={vSobMedida} onCheckedChange={v => setVSobMedida(!!v)} />
+                    Sob medida
+                  </label>
+                  {vSobMedida && (
+                    <Input
+                      value={vSobMedidaDesc}
+                      onChange={e => setVSobMedidaDesc(e.target.value)}
+                      placeholder="Detalhes da medida"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* 7. Observação */}
+              <div>
+                <Label>Observação</Label>
+                <Textarea value={vObs} onChange={e => setVObs(e.target.value)} rows={2} />
+              </div>
+            </div>
           )}
 
           <DialogFooter>
@@ -369,6 +447,22 @@ const ModelosPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {showGrade && (
+        <GradeEstoque
+          open={showGrade}
+          onOpenChange={setShowGrade}
+          initialItems={vGradeItems}
+          tamanhosDisponiveis={tamanhosDoModelo}
+          skuBase={comprarModelo?.sku || undefined}
+          tamanhosSkus={comprarModelo?.tamanhos_skus || undefined}
+          onConfirm={(items: GradeItem[]) => {
+            setVGradeItems(items);
+            setShowGrade(false);
+            toast.success(`Grade definida: ${items.length} tamanhos, ${items.reduce((s, i) => s + i.quantidade, 0)} pedidos.`);
+          }}
+        />
+      )}
     </div>
   );
 };
