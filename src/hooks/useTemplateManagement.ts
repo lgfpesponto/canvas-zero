@@ -43,7 +43,7 @@ export function useTemplateManagement() {
   const loadTemplates = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('order_templates')
-      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero, foto_url, tamanhos_skus')
+      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero, foto_url, tamanhos_skus, tipo')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     setTemplates((data as any) || []);
