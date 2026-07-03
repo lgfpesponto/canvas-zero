@@ -1242,6 +1242,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
           if (embedded && onBagySaved) {
             onBagySaved();
+          } else if (comprarMode && onComprarSaved) {
+            onComprarSaved();
           } else {
             resetForm();
           }
