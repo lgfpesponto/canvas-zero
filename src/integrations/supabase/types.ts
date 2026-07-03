@@ -1444,6 +1444,7 @@ export type Database = {
           sent_by_name: string | null
           sku: string | null
           tamanhos_skus: Json
+          tipo: string
           user_id: string
         }
         Insert: {
@@ -1458,6 +1459,7 @@ export type Database = {
           sent_by_name?: string | null
           sku?: string | null
           tamanhos_skus?: Json
+          tipo?: string
           user_id: string
         }
         Update: {
@@ -1472,6 +1474,7 @@ export type Database = {
           sent_by_name?: string | null
           sku?: string | null
           tamanhos_skus?: Json
+          tipo?: string
           user_id?: string
         }
         Relationships: []
