@@ -1,48 +1,51 @@
-## Refatorar modal "Comprar" em `/modelos`
+## Fluxo "Comprar" em `/modelos` sem sair da página + filtro de modelos completos
 
-Refazer o fluxo de compra a partir da página Modelos para que tudo aconteça sem sair da grade — modal de identificação por cima, espelho por cima do modal, e ao finalizar volta para a grade pronta para comprar o próximo.
+### 1. Espelho por cima do modal, sem navegar
 
-### 1. Campos do modal (nova ordem e regras)
+Hoje `handleConferir` em `ModelosPage.tsx` faz `navigate('/pedido' | '/pedido-cinto', ...)`, o que recarrega a página e leva o usuário para fora. Vamos manter tudo dentro de `/modelos`.
 
-Ordem fixa:
+**Passos:**
 
-1. **Número do pedido** *(obrigatório, texto livre)* — sempre visível, digitado à mão.
-2. **Vendedor**
-   - `admin_master` / `admin_producao`: `<select>` com `allProfiles` (mesma lista do OrderPage), incluindo "Estoque" / "Juliana Cristina Ribeiro" / "Rancho Chique" conforme regras existentes.
-   - Demais papéis: campo travado com o `nomeCompleto` do usuário logado (readonly, sem select). Não editável.
-3. **Cliente** — sempre visível. **Obrigatório apenas se vendedor = "Juliana Cristina Ribeiro"**. Nos demais casos é opcional.
-4. **WhatsApp do Cliente** — **só aparece** quando vendedor = "Juliana Cristina Ribeiro" ou "Rancho Chique". Máscara `maskPhoneBR`.
-5. **Tamanho / Grade**
-   - Dropdown alimentado por `template.tamanhos_skus[].tamanho` (as variações cadastradas no modelo rascunho para aquele Modelo). Se o modelo não tem `tamanhos_skus`, cair no `TAMANHOS` padrão.
-   - Botão **"Gerar Grade"** ao lado do label, idêntico ao OrderPage (abre `GradeEstoque` com `initialItems={gradeItems}`, aceitando apenas os tamanhos do modelo). Quando `gradeItems.length > 0`, o dropdown vira o resumo `X tam. (Y pedidos)` clicável para editar.
-   - Regras de exibição do botão Grade: mesmas do OrderPage (admin com Estoque/Juliana OU vendedor comum). Para Rancho Chique / demais vendedores, apenas o select simples.
-6. **Sob medida** (só quando o modelo não tem o valor preenchido) — mantém checkbox + descrição.
-7. **Observação** — sempre por último, textarea.
+1. Extrair de `OrderPage.tsx` e `BeltOrderPage.tsx` duas funções puras num novo arquivo `src/lib/comprarRapido.ts`:
+   - `buildOrderPreview(template, overrides, ctx)` → devolve o objeto no mesmo formato usado pelo espelho atual (composição, identificação, couros, bordados, preço), reaproveitando os helpers já existentes (`priceCache`, `recomputeOrderPrice`, `botaExtraHelpers`, etc.).
+   - `createBotaOrder({ template, overrides, gradeItems, user, allProfiles })` e `createCintoOrder(...)` encapsulando exatamente o submit atual dos dois pages (merge form_data + overrides, `addOrder` / `addOrderBatch`, notificações, atribuição). Zero mudança de regra.
+2. Criar `src/components/orders/EspelhoFichaDialog.tsx` que renderiza o mesmo markup do espelho hoje inline em OrderPage/BeltOrderPage, recebendo `preview`, `onEditar`, `onConfirmar`, `loading`.
+3. Em `ModelosPage.tsx`:
+   - Novo state `espelhoOpen`, `espelhoPreview`, `salvando`.
+   - `handleConferir` deixa de navegar: monta overrides → chama `buildOrderPreview` → abre `EspelhoFichaDialog` por cima do modal atual (o modal de identificação permanece montado com os dados).
+   - Botões do espelho:
+     - **Editar** → fecha só o espelho, foco volta ao modal de identificação.
+     - **OK, finalizar** → chama `createBotaOrder`/`createCintoOrder` conforme `comprarModelo.tipo`, mostra toast "Pedido criado", fecha os dois dialogs, limpa states, permanece em `/modelos`.
+4. Remover de `OrderPage.tsx` e `BeltOrderPage.tsx` toda a lógica `comprarMode` (state, `hidden` do form, abertura automática do espelho, interceptação de EDITAR para voltar a `/modelos`). Essas páginas voltam a servir só o fluxo direto normal.
+5. Remover o `location.state.editComprar` de ida/volta — não é mais necessário porque nunca saímos de `/modelos`.
 
-Campos que já vêm preenchidos no `form_data` continuam sendo "faltantes" apenas quando vazios, exceto os 4 novos casos acima (Número do pedido é sempre pedido; Vendedor sempre mostrado com a regra de trava; Cliente sempre visível; WhatsApp condicional ao vendedor selecionado).
+### 2. Filtro: só entram modelos "completos"
 
-### 2. Espelho dentro de `/modelos`
+Modelos rascunho ganharam recentemente **gênero** e **URL da foto**. Modelos antigos sem esses dois campos preenchidos não devem aparecer em `/modelos` (que é a vitrine de compra rápida) — continuam existindo no banco e no fluxo original.
 
-Substituir o redirecionamento para `/pedido` ou `/pedido-cinto` por um segundo Dialog empilhado sobre o modal atual:
+- Campo da foto: coluna `foto_url` já existe em `order_templates` (usada no card).
+- Campo do gênero: hoje vem dentro de `form_data.genero` (mesma chave usada em OrderPage). Verificar na leitura.
 
-- Ao clicar **"Conferir e finalizar"**, o modal de identificação permanece montado (com os valores digitados) e abre-se um Dialog do Espelho por cima.
-- O Espelho reutiliza o mesmo componente/markup já usado em `OrderPage` / `BeltOrderPage` (extrair para `src/components/orders/EspelhoFichaDialog.tsx` recebendo `orderPreview`, `onEditar`, `onConfirmar`).
-- Botões:
-  - **Editar** → fecha só o espelho, volta para o modal de identificação com os dados intactos.
-  - **OK, finalizar** → chama helper `createBotaOrder` / `createCintoOrder` (extraídos do submit existente do OrderPage/BeltOrderPage, sem alterar regras de preço/atribuição/notificação). Se grade, usa `addOrderBatch`.
-- Após sucesso: toast "Pedido criado", fecha ambos os dialogs, mantém usuário em `/modelos`. Não navega. Grade de cards continua visível pronta para próximo "Comprar". Remover o state `comprarMode` de OrderPage/BeltOrderPage adicionado antes (não é mais usado).
+**Alteração em `ModelosPage.tsx`:**
+
+- No `useEffect` que carrega `modelos`, aplicar filtro:
+  ```ts
+  const isCompleto = (r) =>
+    !!(r.foto_url && String(r.foto_url).trim()) &&
+    !!((r.form_data?.genero ?? '').toString().trim());
+  ```
+- Guardar apenas os completos em `setModelos`. Os incompletos ficam invisíveis nessa página.
+- Manter contador `X modelo(s)` refletindo só os completos. Sem toast/aviso — comportamento silencioso, como o usuário pediu.
 
 ### 3. Detalhes técnicos
 
-- `ModelosPage.tsx`: adicionar states `vNumeroPedido`, `vVendedor` (com default = nome do usuário quando não-admin), lista de vendedores idem OrderPage, computação `showWhatsapp = ['Juliana Cristina Ribeiro','Rancho Chique'].includes(vVendedor)`, `clienteObrigatorio = vVendedor === 'Juliana Cristina Ribeiro'`, `tamanhosDoModelo = template.tamanhos_skus?.map(t => t.tamanho) ?? TAMANHOS`.
-- Extrair de `src/pages/OrderPage.tsx` uma função pura `createBotaOrder({ template, overrides, gradeItems, user, ... })` e de `src/pages/BeltOrderPage.tsx` `createCintoOrder(...)`. Elas encapsulam: merge de `form_data` + overrides, validações mínimas restantes, resolução de preço via cache existente, chamada a `addOrder` / `addOrderBatch`, notificações e atribuição. Sem alterações de regra.
-- `EspelhoFichaDialog`: renderiza a mesma tabela de composição/identificação/couros/bordados/... hoje inline no espelho. Recebe já o objeto de "pedido preview" montado pelos helpers acima (novo utilitário `buildOrderPreview(template, overrides)`).
-- Remover em `OrderPage.tsx` / `BeltOrderPage.tsx` a lógica `comprarMode` que escondia o form e abria o espelho automático — não é mais necessária.
-- `Header.tsx` e rota `/modelos` permanecem como estão.
-- Migração do `tipo` já aplicada anteriormente permanece.
+- `EspelhoFichaDialog` usa `Dialog` do shadcn com `z-index` padrão; empilha naturalmente sobre o modal de identificação (ambos são portals).
+- `createBotaOrder`/`createCintoOrder` recebem `user` e `allProfiles` para preservar a lógica de atribuição/comissão atual.
+- `gradeItems` continuam sendo aplicados via `addOrderBatch` (mesmo caminho de hoje).
+- Nada muda em preço, comissão, PDF, notificações, RLS, criação/edição de modelos.
 
 ### 4. Fora de escopo
 
-- Não altera preço, comissão, notificações, PDF, atribuição, RLS.
-- Não altera criação/edição de modelos em OrderPage/BeltOrderPage.
-- Não altera fluxo direto de "Faça seu pedido".
+- Não altera o fluxo direto de `/pedido` e `/pedido-cinto`.
+- Não altera criação/edição de modelos rascunho.
+- Não migra dados: modelos antigos incompletos continuam no banco; só ficam ocultos da vitrine.
