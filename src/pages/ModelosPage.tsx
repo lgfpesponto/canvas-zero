@@ -141,11 +141,12 @@ const ModelosPage = () => {
         toast.error('Erro ao carregar modelos');
         console.error(error);
       }
-      // Só entram modelos "completos": precisam ter foto_url e form_data.genero preenchidos.
+      // Só entram modelos "completos": precisam ter foto_url e genero preenchidos.
       const completos = ((data as any[]) || []).filter(r => {
         const foto = (r.foto_url ?? '').toString().trim();
-        const genero = ((r.form_data ?? {}).genero ?? '').toString().trim();
-        return !!foto && !!genero;
+        const genero = (r.genero ?? '').toString().trim();
+        const generoFallback = ((r.form_data ?? {}).genero ?? '').toString().trim();
+        return !!foto && !!(genero || generoFallback);
       });
       setModelos(completos.map(r => ({
         ...r,
