@@ -9,20 +9,12 @@ import FinanceiroSaldoRevendedor from '@/components/financeiro/saldo/FinanceiroS
 const VALID_TABS = ['receber', 'pagar', 'saldo'] as const;
 type TabValue = typeof VALID_TABS[number];
 
-const FinanceiroPage = () => {
-  const { role, loading } = useAuth();
-  const navigate = useNavigate();
+export const FinanceiroInner = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const initialTab: TabValue = (VALID_TABS as readonly string[]).includes(tabFromUrl || '')
     ? (tabFromUrl as TabValue)
     : 'receber';
-
-  useEffect(() => {
-    if (!loading && role !== 'admin_master') {
-      navigate('/', { replace: true });
-    }
-  }, [role, loading, navigate]);
 
   // Scroll para a seção de comprovantes do vendedor se houver hash
   useEffect(() => {
@@ -35,8 +27,6 @@ const FinanceiroPage = () => {
     }
   }, [initialTab]);
 
-  if (loading || role !== 'admin_master') return null;
-
   const handleTabChange = (v: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -46,24 +36,41 @@ const FinanceiroPage = () => {
   };
 
   return (
+    <Tabs value={initialTab} onValueChange={handleTabChange} className="w-full">
+      <TabsList className="mb-6">
+        <TabsTrigger value="receber">A Receber</TabsTrigger>
+        <TabsTrigger value="pagar">A Pagar</TabsTrigger>
+        <TabsTrigger value="saldo">Saldo do Vendedor</TabsTrigger>
+      </TabsList>
+      <TabsContent value="receber">
+        <FinanceiroAReceber />
+      </TabsContent>
+      <TabsContent value="pagar">
+        <FinanceiroAPagar />
+      </TabsContent>
+      <TabsContent value="saldo">
+        <FinanceiroSaldoRevendedor />
+      </TabsContent>
+    </Tabs>
+  );
+};
+
+const FinanceiroPage = () => {
+  const { role, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && role !== 'admin_master') {
+      navigate('/', { replace: true });
+    }
+  }, [role, loading, navigate]);
+
+  if (loading || role !== 'admin_master') return null;
+
+  return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <h1 className="text-3xl font-bold text-primary mb-6">Financeiro</h1>
-      <Tabs value={initialTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="receber">A Receber</TabsTrigger>
-          <TabsTrigger value="pagar">A Pagar</TabsTrigger>
-          <TabsTrigger value="saldo">Saldo do Vendedor</TabsTrigger>
-        </TabsList>
-        <TabsContent value="receber">
-          <FinanceiroAReceber />
-        </TabsContent>
-        <TabsContent value="pagar">
-          <FinanceiroAPagar />
-        </TabsContent>
-        <TabsContent value="saldo">
-          <FinanceiroSaldoRevendedor />
-        </TabsContent>
-      </Tabs>
+      <FinanceiroInner />
     </div>
   );
 };

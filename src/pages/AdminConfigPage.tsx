@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw } from 'lucide-react';
+import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import FichaBuilder from '@/components/admin/FichaBuilder';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
+import { FinanceiroInner } from './FinanceiroPage';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
@@ -82,6 +83,9 @@ export default function AdminConfigPage() {
                 </TabsTrigger>
                 <TabsTrigger value="atacado-sync" className="gap-1.5 lowercase">
                   <RefreshCw className="h-4 w-4" /> sincronização atacado
+                </TabsTrigger>
+                <TabsTrigger value="financeiro" className="gap-1.5 lowercase">
+                  <Wallet className="h-4 w-4" /> financeiro
                 </TabsTrigger>
               </>
             )}
@@ -169,6 +173,9 @@ export default function AdminConfigPage() {
               </TabsContent>
               <TabsContent value="atacado-sync">
                 <AtacadoSyncPanel />
+              </TabsContent>
+              <TabsContent value="financeiro">
+                <FinanceiroInner />
               </TabsContent>
             </>
           )}
