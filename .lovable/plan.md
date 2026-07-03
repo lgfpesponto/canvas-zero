@@ -1,25 +1,24 @@
-## Ajustar diálogo "Modelos Salvos" no mobile
+## Objetivo
+Na página **Modelos**, adicionar um botão com ícone de olho ao lado do botão "Comprar" de cada card. Ao clicar, abre um modal mostrando a **foto em tamanho maior** e o **nome completo** do modelo (sem quebra/limite de linhas), apenas para visualização.
 
-Componente: `src/components/template/TemplatesDialog.tsx`.
+## Alterações — `src/pages/ModelosPage.tsx`
 
-Hoje a lista usa `PAGE_SIZE = 6` fixo e grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`. No celular fica 1 coluna com 6 itens, o que no aparelho do usuário aparece sem a foto por falta de espaço vertical (a área da foto é empurrada para fora).
+1. **Import**: adicionar `Eye` em `lucide-react`.
 
-### Mudanças (puramente visuais)
+2. **`TemplateCard`**: aceitar nova prop `onVisualizar` e trocar o botão único "Comprar" por uma linha com dois botões lado a lado:
+   - `Comprar` (mantém `flex-1`, cor primária).
+   - Botão outline quadrado (`h-9 w-9`, ícone `<Eye />`, `title="Visualizar modelo"`), que dispara `onVisualizar`.
 
-1. **Tamanho de página responsivo**  
-   - Importar `useIsMobile` de `@/hooks/use-mobile`.  
-   - Substituir a constante `PAGE_SIZE = 6` por `const PAGE_SIZE = isMobile ? 2 : 6;` dentro do componente.  
-   - Ajustar o `useEffect([search, templates.length])` que reseta `page` para também depender de `isMobile` (evita ficar em página inexistente ao girar/redimensionar).
+3. **Estado do modal de visualização** no componente `ModelosPage`:
+   - `visualizarModelo: ModeloRow | null` + `visualizarOpen: boolean`.
+   - Passar `onVisualizar={() => { setVisualizarModelo(m); setVisualizarOpen(true); }}` ao `TemplateCard`.
 
-2. **Card com a mesma cara do desktop no mobile**  
-   - Manter o layout atual do `TemplateCard` (foto em cima + nome + linha de ações).  
-   - Aumentar levemente a altura da foto no mobile para dar a mesma leitura visual do desktop: `h-40` → `h-48 sm:h-40` (foto maior no celular já que agora só cabem 2).  
-   - Manter grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` — no mobile continuam empilhados verticalmente (um em cima, outro embaixo), exatamente como pedido.
+4. **Modal de visualização** (novo `<Dialog>`):
+   - `DialogContent` com `max-w-2xl`.
+   - Foto grande: container `w-full aspect-square sm:aspect-[4/3] bg-background` com `<img className="w-full h-full object-contain" />` (mesma resolução de URL/Drive já usada). Fallback com `ImageOff` se erro.
+   - Abaixo: `<DialogTitle>` (ou `<h2>`) com o **nome completo**, sem `line-clamp`, `text-center`, `text-base sm:text-lg font-semibold break-words`.
+   - Sem outras informações (tipo, SKU, tamanhos, etc.) — só foto + nome, conforme pedido.
 
-3. **Paginação**  
-   - Sem mudança estrutural: os botões `ChevronLeft` / `ChevronRight` e o rodapé "Página X de Y" continuam funcionando; só passam a paginar de 2 em 2 no celular.
-
-### Fora de escopo
-
-- Não altero regras de negócio, seleção em lote, scanner, edição, exclusão ou envio.  
-- Nada muda em desktop/tablet além da altura da foto (que só cresce no breakpoint mobile).
+## Fora de escopo
+- Não altera o fluxo do botão "Comprar".
+- Não altera dados, filtros, paginação nem cards em outras páginas (TemplatesDialog etc.).
