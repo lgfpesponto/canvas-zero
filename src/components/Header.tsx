@@ -45,7 +45,7 @@ const Header = () => {
         ...(isBagyAccess ? [{ label: 'PEDIDOS BAGY', path: '/rancho-chique/pedidos' }] : []),
         ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
         ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
-        ...(isJuliana ? [{ label: 'FINANCEIRO', path: '/financeiro' }] : []),
+        
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
         ...(hasNfeAccess ? [{ label: 'NF-E', path: '/configuracoes/nfe' }] : []),
         { label: 'MEU PERFIL', path: '/perfil' },
