@@ -161,6 +161,7 @@ const ExtrasPage = () => {
       }
       case 'chaveiro_carimbo': return 50;
       case 'bainha_cartao': return 15;
+      case 'bainha_celular': return 50;
       case 'regata': return 50;
       case 'regata_pronta_entrega': return 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
@@ -254,6 +255,7 @@ const ExtrasPage = () => {
         adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
         bainha_cartao: ['tipoCouro', 'corCouro'],
+        bainha_celular: ['tipoCouro', 'corCouro'],
         regata: ['corRegata', 'descBordadoRegata'],
         regata_pronta_entrega: [],
         bota_pronta_entrega: [],
@@ -741,7 +743,7 @@ const ExtrasPage = () => {
           </>
         )}
 
-        {(productId === 'chaveiro_carimbo' || productId === 'bainha_cartao') && (
+        {(productId === 'chaveiro_carimbo' || productId === 'bainha_cartao' || productId === 'bainha_celular') && (
           <>
             <div>
               <Label>Tipo de couro *</Label>

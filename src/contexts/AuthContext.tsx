@@ -543,7 +543,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const EXTRA_LEAD_TIMES_INIT: Record<string, number> = {
         tiras_laterais: 2, desmanchar: 7, gravata_country: 7, kit_canivete: 4, kit_faca: 4,
         carimbo_fogo: 5, revitalizador: 1, kit_revitalizador: 1, adicionar_metais: 7,
-        chaveiro_carimbo: 5, bainha_cartao: 7, regata: 20, regata_pronta_entrega: 1,
+        chaveiro_carimbo: 5, bainha_cartao: 7, bainha_celular: 7, regata: 20, regata_pronta_entrega: 1,
         bota_pronta_entrega: 1, gravata_pronta_entrega: 1,
       };
       let totalBizDays: number;

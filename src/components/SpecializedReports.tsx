@@ -86,6 +86,7 @@ const EXTRAS_CINTOS_PRODUCTS: { value: string; label: string }[] = [
   { value: 'adicionar_metais', label: 'Adicionar Metais' },
   { value: 'chaveiro_carimbo', label: 'Chaveiro c/ Carimbo' },
   { value: 'bainha_cartao', label: 'Bainha de Cartão' },
+  { value: 'bainha_celular', label: 'Bainha de Celular' },
   { value: 'regata', label: 'Regata' },
   { value: 'bota_pronta_entrega', label: 'Bota Pronta Entrega' },
 ];
@@ -111,6 +112,10 @@ const PRODUCT_GROUPABLE_FIELDS: Record<string, { key: string; label: string }[]>
     { key: 'vaiCanivete', label: 'Vai o Canivete' },
   ],
   bainha_cartao: [
+    { key: 'tipoCouro', label: 'Tipo de Couro' },
+    { key: 'corCouro', label: 'Cor do Couro' },
+  ],
+  bainha_celular: [
     { key: 'tipoCouro', label: 'Tipo de Couro' },
     { key: 'corCouro', label: 'Cor do Couro' },
   ],

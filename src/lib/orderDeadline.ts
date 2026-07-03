@@ -29,6 +29,7 @@ const EXTRA_LEAD_TIMES: Record<string, number> = {
   adicionar_metais: 7,
   chaveiro_carimbo: 5,
   bainha_cartao: 7,
+  bainha_celular: 7,
   regata: 20,
   regata_pronta_entrega: 1,
   bota_pronta_entrega: 1,

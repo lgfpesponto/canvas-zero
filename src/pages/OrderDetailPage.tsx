@@ -476,6 +476,7 @@ const OrderDetailPage = () => {
       }
       case 'chaveiro_carimbo': t += 50; break;
       case 'bainha_cartao': t += 15; break;
+      case 'bainha_celular': t += 50; break;
       case 'regata': t += 50; break;
       case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(order); break;
     }
@@ -959,6 +960,9 @@ const OrderDetailPage = () => {
                       break;
                     case 'bainha_cartao':
                       extraPriceItems.push(['Bainha de Cartão', 15]);
+                      break;
+                    case 'bainha_celular':
+                      extraPriceItems.push(['Bainha de Celular', 50]);
                       break;
                     case 'regata':
                       extraPriceItems.push(['Regata', 50]);
