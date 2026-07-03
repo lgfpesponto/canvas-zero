@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import FichaBuilder from '@/components/admin/FichaBuilder';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
+import { FinanceiroInner } from './FinanceiroPage';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
