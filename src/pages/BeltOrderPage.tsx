@@ -191,6 +191,42 @@ const BeltOrderPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  /* Comprar Modelo prefill: vem de /modelos → "Comprar" */
+  const comprarAppliedRef = useRef(false);
+  useEffect(() => {
+    if (comprarAppliedRef.current || !comprarModelo) return;
+    comprarAppliedRef.current = true;
+    (async () => {
+      const { data: tmplRow } = await supabase
+        .from('order_templates')
+        .select('id, nome, form_data, sku, tamanhos_skus, foto_url')
+        .eq('id', comprarModelo.templateId)
+        .maybeSingle();
+      if (!tmplRow) {
+        toast.error('Modelo não encontrado.');
+        navigate('/modelos', { replace: true });
+        return;
+      }
+      appliedTemplateRef.current = {
+        nome: (tmplRow as any).nome,
+        sku: (tmplRow as any).sku,
+        tamanhosSkus: Array.isArray((tmplRow as any).tamanhos_skus) ? (tmplRow as any).tamanhos_skus : [],
+      };
+      populateFromTemplate({ ...((tmplRow as any).form_data || {}) });
+      if ((tmplRow as any).foto_url) setFotoUrl((tmplRow as any).foto_url);
+      const ov = comprarModelo.overrides || {};
+      if (ov.cliente !== undefined) setCliente(ov.cliente);
+      if (ov.clienteWhatsapp !== undefined) setClienteWhatsapp(ov.clienteWhatsapp);
+      if (ov.tamanho !== undefined) setTamanho(ov.tamanho);
+      if (ov.vendedor !== undefined && ov.vendedor) setVendedor(ov.vendedor);
+      if (ov.observacao !== undefined) setObservacao(ov.observacao);
+      setTimeout(() => setShowMirror(true), 60);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprarModelo]);
+
+
+
   // Filter templates that belong to belts only
   const beltTemplates = tmpl.templates.filter(t => (t.form_data as any)?.__tipo === 'cinto');
   const beltUnseenCount = beltTemplates.filter(t => t.seen === false).length;
