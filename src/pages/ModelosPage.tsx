@@ -448,14 +448,14 @@ const ModelosPage = () => {
         </DialogContent>
       </Dialog>
 
-      {showGrade && (
+      {showGrade && comprarModelo && (
         <GradeEstoque
           open={showGrade}
           onOpenChange={setShowGrade}
           initialItems={vGradeItems}
-          tamanhosDisponiveis={tamanhosDoModelo}
-          skuBase={comprarModelo?.sku || undefined}
-          tamanhosSkus={comprarModelo?.tamanhos_skus || undefined}
+          numeroPedidoBase={vNumeroPedido.trim()}
+          nomeProduto={comprarModelo.nome}
+          suggestSkuBase={comprarModelo.sku || undefined}
           onConfirm={(items: GradeItem[]) => {
             setVGradeItems(items);
             setShowGrade(false);
