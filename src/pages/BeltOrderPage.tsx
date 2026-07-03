@@ -613,7 +613,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                   </span>
                 )}
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido')}>
+              <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido?tipo=bota')}>
                 Trocar para Bota
               </Button>
             </>

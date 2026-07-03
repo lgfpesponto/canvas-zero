@@ -204,9 +204,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
   const [draftId, setDraftId] = useState(draftId_init);
-  const [productChoice, setProductChoice] = useState<'bota' | null>(
-    (draftState || comprarModelo) ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null),
-  );
+  const [productChoice, setProductChoice] = useState<'bota' | null>(() => {
+    if (draftState || comprarModelo) return 'bota';
+    if (locState?.productChoice === 'bota') return 'bota';
+    if (typeof window !== 'undefined') {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get('tipo') === 'bota') return 'bota';
+    }
+    return null;
+  });
   const [mode, setMode] = useState<'order' | 'template'>('order');
   const tmpl = useTemplateManagement();
   // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.

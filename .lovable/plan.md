@@ -1,31 +1,38 @@
-## Objetivo
-1. Mover a página NF-E para dentro de `/admin/configuracoes` como aba (removendo o link "NF-E" do menu superior).
-2. Trocar as abas horizontais atuais por um **submenu vertical à esquerda** (estilo sidebar do print de referência).
+## Ajustes solicitados
 
-## Alterações
+### 1. "Trocar para Bota" deve abrir direto a ficha de Bota
 
-### `src/components/Header.tsx`
-Remover a linha do link NF-E (linha 50):
-```ts
-...(hasNfeAccess ? [{ label: 'NF-E', path: '/configuracoes/nfe' }] : []),
-```
-Rota `/configuracoes/nfe` **continua funcionando** (links internos que apontem para ela não quebram).
+Hoje, no `BeltOrderPage`, o botão "Trocar para Bota" faz `navigate('/pedido')`. Como `OrderPage` sempre mostra a tela "Faça seu Pedido" (escolha entre Bota/Cinto) quando `productChoice` está `null`, o usuário cai de novo na seleção.
 
-### `src/pages/AdminConfigPage.tsx`
-- Importar `ConfiguracoesNFe` e o hook `useNfeAccess`.
-- Trocar layout dos Tabs para vertical:
-  - `Tabs orientation="vertical"` dentro de um container `flex gap-6`.
-  - `TabsList` vira coluna à esquerda: `flex-col h-auto w-56 bg-primary/90 rounded-lg p-2` (fundo marrom institucional, itens brancos), cada `TabsTrigger` alinhado à esquerda com padding vertical.
-  - Área de conteúdo à direita com `flex-1 min-w-0`.
-- Adicionar `<TabsTrigger value="nfe">` (ícone `FileText`), visível somente quando `useNfeAccess()` retornar true.
-- Adicionar `<TabsContent value="nfe"><ConfiguracoesNFe /></TabsContent>`.
+**Mudança:**
+- `src/pages/BeltOrderPage.tsx`: alterar o botão para `navigate('/pedido?tipo=bota')`.
+- `src/pages/OrderPage.tsx`: ao montar, se `searchParams.get('tipo') === 'bota'`, chamar `setProductChoice('bota')` (via `useEffect`) — assim a tela de escolha é pulada. Nada muda no fluxo normal (`/pedido` sem query continua mostrando a escolha).
+- Simetria opcional: aplicar a mesma lógica em `OrderPage` "Trocar para Cinto" → `navigate('/pedido-cinto?tipo=cinto')` e ler no `BeltOrderPage` (apenas se quiser consistência; posso incluir).
 
-### Estilo do sidebar (aproxima do print)
-- Container do menu: fundo `bg-primary` marrom, cantos arredondados, texto `text-primary-foreground`.
-- Trigger ativo: fundo `bg-background text-primary` (contraste).
-- Divisórias suaves entre itens.
-- Em telas < md, cair de volta para lista rolável horizontal (mantém acessibilidade mobile).
+### 2. Modelos (rascunhos com foto) — melhorar mobile
 
-## Fora de escopo
-- Nenhuma mudança no conteúdo/lógica de NF-E, tributação ou outras abas.
-- Rota `/configuracoes/tributacao` continua como página separada acessível via botão dentro de NF-E.
+Página `src/pages/ModelosPage.tsx`, componente `TemplateCard`.
+
+**Mudanças (puramente visuais, mantendo 2 colunas no mobile):**
+- Card: altura da foto reduz no mobile para caber na tela. `h-56` → `h-40 sm:h-48 lg:h-56`.
+- Padding interno menor no mobile: `p-3` → `p-2 sm:p-3`.
+- Nome com fonte adaptativa: `text-sm` → `text-xs sm:text-sm`.
+- Badge do tipo levemente menor no mobile.
+- Botão "Comprar": mantém `size="sm"` mas com `text-xs sm:text-sm` para não estourar em telas estreitas.
+- Grid: mantém `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`, apenas reduz gap no mobile (`gap-2 sm:gap-3`).
+
+### 3. Paginação em `/modelos` — 20 por página
+
+Ainda em `src/pages/ModelosPage.tsx`:
+
+- Adicionar `const [page, setPage] = useState(1)` e `const PAGE_SIZE = 20`.
+- Resetar `page` para 1 sempre que `search` ou `tiposAtivos` mudarem (via `useEffect`).
+- Derivar `paginated = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)` e renderizar `paginated` no grid.
+- Controle de paginação abaixo do grid: usar o componente `Pagination` já existente em `src/components/ui/pagination.tsx` (Anterior / números / Próxima), só aparece se `filtered.length > PAGE_SIZE`.
+- Contador do topo continua mostrando o total (`filtered.length`), mas com sufixo `— página X de Y` quando houver mais de uma.
+
+## Detalhes técnicos
+
+- Nenhuma mudança de regra de negócio, banco ou permissões.
+- `OrderPage` já usa `useSearchParams` (ou pode importar de `react-router-dom`), sem impacto em `comprarModeloOverride` (fluxo embarcado do espelho não passa por query string).
+- Todos os textos/badges permanecem em UTF-8 literal.

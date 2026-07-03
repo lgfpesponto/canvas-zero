@@ -62,7 +62,7 @@ function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () 
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
-      <div className="w-full h-56 bg-background relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-40 sm:h-48 lg:h-56 bg-background relative flex items-center justify-center overflow-hidden">
         {imgSrc && !imgErr ? (
           <img
             src={imgSrc}
@@ -79,19 +79,19 @@ function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () 
         )}
         <Badge
           variant="secondary"
-          className="absolute top-2 left-2 text-[10px] uppercase tracking-wide"
+          className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 text-[9px] sm:text-[10px] px-1.5 py-0 uppercase tracking-wide"
         >
           {modelo.tipo}
         </Badge>
       </div>
-      <div className="p-3 flex flex-col gap-2">
+      <div className="p-2 sm:p-3 flex flex-col gap-2">
         <span
-          className="font-semibold text-sm text-foreground text-center line-clamp-2 leading-tight"
+          className="font-semibold text-xs sm:text-sm text-foreground text-center line-clamp-2 leading-tight"
           title={modelo.nome}
         >
           {modelo.nome}
         </span>
-        <Button size="sm" onClick={onComprar} className="w-full">
+        <Button size="sm" onClick={onComprar} className="w-full text-xs sm:text-sm">
           <ShoppingCart size={14} className="mr-1" /> Comprar
         </Button>
       </div>
@@ -165,6 +165,16 @@ const ModelosPage = () => {
       return true;
     });
   }, [modelos, search, tiposAtivos]);
+
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search, tiposAtivos]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
 
   const toggleTipo = (t: Tipo) => {
     setTiposAtivos(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
@@ -261,7 +271,9 @@ const ModelosPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl md:text-3xl font-display font-bold">Modelos</h1>
         <span className="text-sm text-muted-foreground">
-          {loading ? 'Carregando…' : `${filtered.length} modelo${filtered.length === 1 ? '' : 's'}`}
+          {loading
+            ? 'Carregando…'
+            : `${filtered.length} modelo${filtered.length === 1 ? '' : 's'}${totalPages > 1 ? ` — página ${currentPage} de ${totalPages}` : ''}`}
         </span>
       </div>
 
@@ -300,10 +312,45 @@ const ModelosPage = () => {
       )}
 
       {filtered.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {filtered.map(m => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+          {paginated.map(m => (
             <TemplateCard key={m.id} modelo={m} onComprar={() => openComprar(m)} />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            Anterior
+          </Button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            <Button
+              key={n}
+              type="button"
+              variant={n === currentPage ? 'default' : 'outline'}
+              size="sm"
+              className="min-w-9"
+              onClick={() => setPage(n)}
+            >
+              {n}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
+            Próxima
+          </Button>
         </div>
       )}
 
