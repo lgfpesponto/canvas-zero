@@ -72,7 +72,7 @@ function TemplateCard({
           <img
             src={imgSrc}
             alt={t.nome}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             referrerPolicy="no-referrer"
             onError={() => setImgErr(true)}
           />
@@ -85,18 +85,23 @@ function TemplateCard({
       </div>
       <div className="p-3 flex flex-col gap-2 flex-1">
         <div className="flex items-start gap-2">
-          <Checkbox
-            checked={isChecked}
-            onCheckedChange={onToggleSelect}
-            title="Selecionar para envio em lote"
-            className="mt-0.5"
-          />
-          <span className="font-semibold text-sm break-words flex-1">{t.nome}</span>
+          <span
+            className="font-medium text-xs text-foreground line-clamp-2 flex-1 leading-tight"
+            title={t.nome}
+          >
+            {t.nome}
+          </span>
           {t.seen === false && (
             <Badge variant="destructive" className="text-[10px] py-0 px-1.5 shrink-0">Novo</Badge>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-auto">
+          <Checkbox
+            checked={isChecked}
+            onCheckedChange={onToggleSelect}
+            title="Selecionar para envio em lote"
+            className="shrink-0"
+          />
           <Button size="sm" onClick={onUse} className="flex-1">Preencher</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

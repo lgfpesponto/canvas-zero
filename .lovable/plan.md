@@ -1,27 +1,26 @@
-## Ajuste visual: foto no lugar do QR Code (QR invisível)
+## Ajuste no card de modelos: checkbox junto ao botão, nome reduzido e foto inteira
 
 ### Objetivo
-No diálogo **Modelos Salvos**, o QR Code não deve ser exibido visualmente. A foto escaneada do modelo ocupa o espaço do QR, e modelos sem foto exibem um placeholder.
+Refinar o card do diálogo **Modelos Salvos** para priorizar a visualização da foto completa, reduzir o destaque do nome e reposicionar o checkbox de seleção em lote.
 
 ### Alterações previstas
 
-1. **`src/components/template/TemplatesDialog.tsx`**
-   - Remover o bloco `<QRCodeSVG>` visível do `TemplateCard`.
-   - Substituir por uma única área de imagem no topo do card, usando `foto_url` quando existir.
-   - Se não houver `foto_url`, exibir um placeholder (`ImageOff` ou similar) em fundo suave.
-   - Manter o mesmo tratamento para imagens do Google Drive (`toDriveImageUrl`) e `referrerPolicy="no-referrer"`.
-   - Garantir que o scanner físico continue funcionando: a lógica de `window keydown` + `7EMODEL:<uuid>` permanece inalterada, apenas o QR não é renderizado na UI.
+1. **`src/components/template/TemplatesDialog.tsx` — `TemplateCard`**
+   - **Foto sem corte**: trocar `object-cover` por `object-contain` na imagem do modelo, para que a foto inteira apareça dentro do espaço do card (sem cortar laterais/topos).
+   - **Checkbox junto ao botão**: mover o `<Checkbox>` da linha do nome para a linha de ações, posicionando-o à esquerda do botão **Preencher** (mesma linha do botão e do menu ⋮).
+   - **Nome reduzido**: diminuir a fonte do nome para `text-xs` e limitar a 2 linhas com `line-clamp-2`, mantendo o nome completo disponível via tooltip (`title`).
+   - Ajustar espaçamentos internos para que o card continue limpo com o novo layout.
 
 2. **Layout preservado**
    - Grid 3×2 (6 modelos por página).
    - Paginação com setas laterais.
-   - Nome, checkbox, badge "Novo" e botões de ação permanecem abaixo da imagem.
+   - Placeholder "Sem foto" permanece para modelos sem imagem.
+   - Scanner físico continua funcionando (lógica inalterada).
 
 ### Não altera
-- Dados de modelos (interface, props, busca, multi-seleção).
-- Comportamento de escaneamento físico.
+- Dados de modelos, busca, multi-seleção e comportamento do scanner.
 - Páginas de pedido (`OrderPage.tsx`, `BeltOrderPage.tsx`).
-- PDFs ou lógica de preenchimento de formulários.
+- PDFs ou lógica de preenchimento.
 
 ### Resultado esperado
-Cards de modelo mostram apenas a foto no topo, sem QR Code visível. Modelos sem foto exibem placeholder. Scanner continua carregando modelos via código `7EMODEL:<id>`.
+Cards exibem a foto completa (sem cortes), nome compacto abaixo da foto, e checkbox de seleção ao lado do botão **Preencher**.
