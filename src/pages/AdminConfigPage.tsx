@@ -174,6 +174,9 @@ export default function AdminConfigPage() {
               <TabsContent value="atacado-sync">
                 <AtacadoSyncPanel />
               </TabsContent>
+              <TabsContent value="financeiro">
+                <FinanceiroInner />
+              </TabsContent>
             </>
           )}
         </Tabs>
