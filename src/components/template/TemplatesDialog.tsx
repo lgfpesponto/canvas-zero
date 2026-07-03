@@ -141,6 +141,8 @@ export function TemplatesDialog({
   onDelete,
   onSendMany,
 }: Props) {
+  const isMobile = useIsMobile();
+  const PAGE_SIZE = isMobile ? 2 : 6;
   const [page, setPage] = useState(1);
   const scanBufferRef = useRef('');
   const scanInputRef = useRef<HTMLInputElement | null>(null);
@@ -150,7 +152,7 @@ export function TemplatesDialog({
     [templates, search],
   );
 
-  useEffect(() => { setPage(1); }, [search, templates.length]);
+  useEffect(() => { setPage(1); }, [search, templates.length, isMobile]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
