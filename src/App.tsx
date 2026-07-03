@@ -22,6 +22,7 @@ import BeltOrderPage from "./pages/BeltOrderPage";
 import ExtrasPage from "./pages/ExtrasPage";
 import EstoquePage from "./pages/EstoquePage";
 import DynamicOrderPage from "./pages/DynamicOrderPage";
+import ModelosPage from "./pages/ModelosPage";
 import UsersManagementPage from "./pages/UsersManagementPage";
 import VerifyCodePage from "./pages/VerifyCodePage";
 import AdminConfigPage from "./pages/AdminConfigPage";
