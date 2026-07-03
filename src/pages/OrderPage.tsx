@@ -1912,63 +1912,21 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       </div>
 
       {/* ───── Templates Dialog ───── */}
-      <Dialog open={tmpl.showTemplates} onOpenChange={tmpl.setShowTemplates}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Modelos Salvos</DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder="Pesquisar modelo..."
-            value={tmpl.templateSearch}
-            onChange={e => tmpl.setTemplateSearch(e.target.value)}
-            className="mb-2"
-          />
-          {(() => {
-            const bootTemplates = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto');
-            const filtered = bootTemplates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
-            if (bootTemplates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
-            if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
-            const bulkTemplates = bootTemplates.filter(t => bulkSelectedTemplateIds.includes(t.id));
-            return (
-            <>
-            <div className="space-y-2 max-h-[55vh] overflow-y-auto">
-              {filtered.map(t => {
-                const isChecked = bulkSelectedTemplateIds.includes(t.id);
-                return (
-                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
-                  <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm break-words">{t.nome}</span>
-                      {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
-                    <Button size="sm" onClick={() => handleUseTemplate(t)}>Preencher</Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-            {bulkSelectedTemplateIds.length > 0 && (
-              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
-                <span className="text-sm font-semibold">{bulkSelectedTemplateIds.length} modelo{bulkSelectedTemplateIds.length > 1 ? 's' : ''} selecionado{bulkSelectedTemplateIds.length > 1 ? 's' : ''}</span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setBulkSelectedTemplateIds([])}>Limpar</Button>
-                  <Button size="sm" onClick={() => openSendDialog(bulkTemplates)}>
-                    <Send size={14} /> Enviar selecionados
-                  </Button>
-                </div>
-              </div>
-            )}
-            </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
+      <TemplatesDialog
+        open={tmpl.showTemplates}
+        onOpenChange={tmpl.setShowTemplates}
+        templates={tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto') as any}
+        search={tmpl.templateSearch}
+        onSearchChange={tmpl.setTemplateSearch}
+        selectedIds={bulkSelectedTemplateIds}
+        onToggleSelect={toggleBulkTemplate}
+        onClearSelection={() => setBulkSelectedTemplateIds([])}
+        onUse={handleUseTemplate as any}
+        onEdit={handleEditTemplate as any}
+        onDelete={handleDeleteTemplate}
+        onSendMany={openSendDialog as any}
+      />
+
 
       {/* ───── Send Template Dialog ───── */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
