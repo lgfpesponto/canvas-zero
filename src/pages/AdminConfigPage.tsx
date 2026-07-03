@@ -71,7 +71,7 @@ export default function AdminConfigPage() {
           </h1>
         </div>
 
-        <Tabs defaultValue="fichas" orientation="vertical" className="flex flex-col md:flex-row gap-6">
+        <Tabs value={currentTab} onValueChange={handleTabChange} orientation="vertical" className="flex flex-col md:flex-row gap-6">
           <TabsList className="flex md:flex-col h-auto md:w-60 shrink-0 bg-primary text-primary-foreground p-2 rounded-lg gap-1 justify-start overflow-x-auto md:overflow-visible">
             <TabsTrigger
               value="fichas"
