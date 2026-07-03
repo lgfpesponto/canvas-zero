@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ImageOff, ShoppingCart, Grid3X3 } from 'lucide-react';
+import { ImageOff, ShoppingCart, Grid3X3, Eye } from 'lucide-react';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
@@ -54,7 +54,7 @@ function isEmpty(v: any): boolean {
   return String(v).trim() === '';
 }
 
-function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () => void }) {
+function TemplateCard({ modelo, onComprar, onVisualizar }: { modelo: ModeloRow; onComprar: () => void; onVisualizar: () => void }) {
   const [imgErr, setImgErr] = useState(false);
   const imgSrc = modelo.foto_url
     ? (isDriveUrl(modelo.foto_url) ? toDriveImageUrl(modelo.foto_url) : modelo.foto_url)
@@ -91,9 +91,21 @@ function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () 
         >
           {modelo.nome}
         </span>
-        <Button size="sm" onClick={onComprar} className="w-full text-xs sm:text-sm">
-          <ShoppingCart size={14} className="mr-1" /> Comprar
-        </Button>
+        <div className="flex gap-1.5">
+          <Button size="sm" onClick={onComprar} className="flex-1 text-xs sm:text-sm">
+            <ShoppingCart size={14} className="mr-1" /> Comprar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onVisualizar}
+            className="h-9 w-9 p-0 shrink-0"
+            title="Visualizar modelo"
+            aria-label="Visualizar modelo"
+          >
+            <Eye size={16} />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -110,6 +122,10 @@ const ModelosPage = () => {
 
   const [comprarOpen, setComprarOpen] = useState(false);
   const [comprarModelo, setComprarModelo] = useState<ModeloRow | null>(null);
+
+  const [visualizarOpen, setVisualizarOpen] = useState(false);
+  const [visualizarModelo, setVisualizarModelo] = useState<ModeloRow | null>(null);
+  const [visualizarImgErr, setVisualizarImgErr] = useState(false);
 
   // Campos do formulário
   const [vNumeroPedido, setVNumeroPedido] = useState('');
@@ -314,10 +330,48 @@ const ModelosPage = () => {
       {filtered.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {paginated.map(m => (
-            <TemplateCard key={m.id} modelo={m} onComprar={() => openComprar(m)} />
+            <TemplateCard
+              key={m.id}
+              modelo={m}
+              onComprar={() => openComprar(m)}
+              onVisualizar={() => { setVisualizarModelo(m); setVisualizarImgErr(false); setVisualizarOpen(true); }}
+            />
           ))}
         </div>
       )}
+
+      <Dialog open={visualizarOpen} onOpenChange={setVisualizarOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {visualizarModelo && (() => {
+            const src = visualizarModelo.foto_url
+              ? (isDriveUrl(visualizarModelo.foto_url) ? toDriveImageUrl(visualizarModelo.foto_url) : visualizarModelo.foto_url)
+              : null;
+            return (
+              <div className="space-y-4">
+                <div className="w-full aspect-square sm:aspect-[4/3] bg-background rounded-lg overflow-hidden flex items-center justify-center">
+                  {src && !visualizarImgErr ? (
+                    <img
+                      src={src}
+                      alt={visualizarModelo.nome}
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                      onError={() => setVisualizarImgErr(true)}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-muted-foreground">
+                      <ImageOff size={48} />
+                      <span className="text-sm mt-2">Sem foto</span>
+                    </div>
+                  )}
+                </div>
+                <DialogTitle className="text-center text-base sm:text-lg font-semibold break-words">
+                  {visualizarModelo.nome}
+                </DialogTitle>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
