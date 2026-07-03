@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,6 +30,15 @@ export default function AdminConfigPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [builderOpen, setBuilderOpen] = useState(false);
   const hasNfeAccess = useNfeAccess();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get('tab') || 'fichas';
+  const handleTabChange = (v: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', v);
+      return next;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
@@ -62,7 +71,7 @@ export default function AdminConfigPage() {
           </h1>
         </div>
 
-        <Tabs defaultValue="fichas" orientation="vertical" className="flex flex-col md:flex-row gap-6">
+        <Tabs value={currentTab} onValueChange={handleTabChange} orientation="vertical" className="flex flex-col md:flex-row gap-6">
           <TabsList className="flex md:flex-col h-auto md:w-60 shrink-0 bg-primary text-primary-foreground p-2 rounded-lg gap-1 justify-start overflow-x-auto md:overflow-visible">
             <TabsTrigger
               value="fichas"
