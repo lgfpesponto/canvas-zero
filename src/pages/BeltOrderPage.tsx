@@ -192,7 +192,7 @@ const BeltOrderPage = () => {
 
   const handleSaveTemplate = async () => {
     if (!user) return;
-    const ok = await tmpl.saveTemplate(user.id, buildBeltFormData());
+    const ok = await tmpl.saveTemplate(user.id, buildBeltFormData(), 'cinto');
     if (ok) {
       setMode('order');
       resetForm();
