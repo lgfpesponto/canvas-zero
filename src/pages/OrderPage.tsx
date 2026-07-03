@@ -1554,6 +1554,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   ) : null;
                 })()}
               </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
+                Trocar para Cinto
+              </Button>
             </>
           )}
           {mode === 'template' && (
