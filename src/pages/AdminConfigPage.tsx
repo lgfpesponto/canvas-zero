@@ -84,6 +84,9 @@ export default function AdminConfigPage() {
                 <TabsTrigger value="atacado-sync" className="gap-1.5 lowercase">
                   <RefreshCw className="h-4 w-4" /> sincronização atacado
                 </TabsTrigger>
+                <TabsTrigger value="financeiro" className="gap-1.5 lowercase">
+                  <Wallet className="h-4 w-4" /> financeiro
+                </TabsTrigger>
               </>
             )}
           </TabsList>
