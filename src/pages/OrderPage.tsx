@@ -13,6 +13,7 @@ import { isHttpUrl } from '@/lib/driveUrl';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
+import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
