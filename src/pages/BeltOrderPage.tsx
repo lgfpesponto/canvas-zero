@@ -49,6 +49,7 @@ const BeltOrderPage = () => {
   const [mode, setMode] = useState<'order' | 'template'>('order');
   // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
   const appliedTemplateRef = useRef<{ nome: string; sku?: string | null; tamanhosSkus?: { tamanho: string; sku: string }[] } | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   // Form state
   const isAdminProducao = user?.role === 'admin_producao';
