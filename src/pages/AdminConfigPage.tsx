@@ -53,7 +53,7 @@ export default function AdminConfigPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-auto max-w-5xl"
+        className="mx-auto max-w-7xl"
       >
         <div className="mb-8 flex items-center gap-3">
           <Settings className="h-6 w-6 text-primary" />
