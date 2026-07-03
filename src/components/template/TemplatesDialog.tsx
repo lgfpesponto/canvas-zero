@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+
 import { toast } from 'sonner';
 import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -64,32 +64,26 @@ function TemplateCard({
   const [imgErr, setImgErr] = useState(false);
   const hasPhoto = !!t.foto_url;
   const imgSrc = hasPhoto ? (isDriveUrl(t.foto_url!) ? toDriveImageUrl(t.foto_url!) : t.foto_url!) : null;
-  const qrValue = `${MODEL_SCAN_PREFIX}${t.id}`;
+  
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
-      {hasPhoto && (
-        <div className="w-full h-40 bg-background relative flex items-center justify-center overflow-hidden">
-          {imgSrc && !imgErr ? (
-            <img
-              src={imgSrc}
-              alt={t.nome}
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-              onError={() => setImgErr(true)}
-            />
-          ) : (
-            <ImageOff className="text-muted-foreground" size={24} />
-          )}
-        </div>
-      )}
-      {hasPhoto && (
-        <div className="flex justify-center pt-3">
-          <div className="bg-white p-1.5 rounded border border-border" title="Escaneie para preencher">
-            <QRCodeSVG value={qrValue} size={72} level="M" />
+      <div className="w-full h-40 bg-background relative flex items-center justify-center overflow-hidden">
+        {imgSrc && !imgErr ? (
+          <img
+            src={imgSrc}
+            alt={t.nome}
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setImgErr(true)}
+          />
+        ) : (
+          <div className="flex flex-col items-center text-muted-foreground">
+            <ImageOff size={24} />
+            <span className="text-xs mt-1">Sem foto</span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       <div className="p-3 flex flex-col gap-2 flex-1">
         <div className="flex items-start gap-2">
           <Checkbox

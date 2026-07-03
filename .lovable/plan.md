@@ -1,20 +1,27 @@
-## Mudanças em `src/components/template/TemplatesDialog.tsx`
+## Ajuste visual: foto no lugar do QR Code (QR invisível)
 
-1. **Dialog largo**: `DialogContent` → `max-w-5xl` (era `max-w-md`) para caber 3 colunas.
-2. **Grid 3×2 (6/página)**:
-   - `PAGE_SIZE = 6`.
-   - Container de cards: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3` (em vez de `space-y-2`).
-3. **Card redesenhado** (`TemplateCard`):
-   - Foto grande no topo ocupando a largura toda do card (altura `h-40`, `object-cover`) — mesmo tratamento visual de quando cola link.
-   - QR code centralizado logo abaixo da foto (ainda dentro do card, `mx-auto`, fundo branco), acima do nome.
-   - Nome abaixo do QR (com checkbox à esquerda do nome, badge "Novo" à direita se aplicável).
-   - Botão "Preencher" + menu `⋮` mantidos abaixo do nome.
-4. **Paginação nas laterais** (não embaixo):
-   - Envolver a grid num wrapper `flex items-center gap-2`.
-   - Botão `<` à esquerda da grid, botão `>` à direita, ambos com `h-full` (altura da grid) e centralizados verticalmente.
-   - Rótulo "Página X de Y" fica abaixo da grid, discreto e centralizado (só rótulo, sem setas).
-5. Manter scanner físico, seleção múltipla e demais comportamentos intactos.
+### Objetivo
+No diálogo **Modelos Salvos**, o QR Code não deve ser exibido visualmente. A foto escaneada do modelo ocupa o espaço do QR, e modelos sem foto exibem um placeholder.
 
-## Fora de escopo
-- Sem mudanças em `OrderPage.tsx` / `BeltOrderPage.tsx`.
-- Sem alteração no modelo de dados nem no PDF.
+### Alterações previstas
+
+1. **`src/components/template/TemplatesDialog.tsx`**
+   - Remover o bloco `<QRCodeSVG>` visível do `TemplateCard`.
+   - Substituir por uma única área de imagem no topo do card, usando `foto_url` quando existir.
+   - Se não houver `foto_url`, exibir um placeholder (`ImageOff` ou similar) em fundo suave.
+   - Manter o mesmo tratamento para imagens do Google Drive (`toDriveImageUrl`) e `referrerPolicy="no-referrer"`.
+   - Garantir que o scanner físico continue funcionando: a lógica de `window keydown` + `7EMODEL:<uuid>` permanece inalterada, apenas o QR não é renderizado na UI.
+
+2. **Layout preservado**
+   - Grid 3×2 (6 modelos por página).
+   - Paginação com setas laterais.
+   - Nome, checkbox, badge "Novo" e botões de ação permanecem abaixo da imagem.
+
+### Não altera
+- Dados de modelos (interface, props, busca, multi-seleção).
+- Comportamento de escaneamento físico.
+- Páginas de pedido (`OrderPage.tsx`, `BeltOrderPage.tsx`).
+- PDFs ou lógica de preenchimento de formulários.
+
+### Resultado esperado
+Cards de modelo mostram apenas a foto no topo, sem QR Code visível. Modelos sem foto exibem placeholder. Scanner continua carregando modelos via código `7EMODEL:<id>`.
