@@ -29,6 +29,7 @@ export default function AdminConfigPage() {
   const { data: etapas } = useStatusEtapas();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const hasNfeAccess = useNfeAccess();
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
