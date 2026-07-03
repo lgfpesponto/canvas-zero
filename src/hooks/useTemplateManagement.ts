@@ -141,6 +141,7 @@ export function useTemplateManagement() {
       sent_by: senderId,
       sent_by_name: senderName || 'Usuário',
       seen: false,
+      ...(template.tipo ? { tipo: template.tipo } : {}),
     })));
     const { error } = await supabase.from('order_templates').insert(rows as any);
     if (error) {
