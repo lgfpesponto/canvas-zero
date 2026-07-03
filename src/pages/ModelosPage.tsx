@@ -233,7 +233,7 @@ const ModelosPage = () => {
   }
 
   const currentMissing = comprarModelo ? missingFieldsFor(comprarModelo) : [];
-  const vendedoresOptions = (allProfiles || []).map(p => p.nome_completo).filter(Boolean);
+  const vendedoresOptions = ((allProfiles as any[]) || []).map(p => p.nomeCompleto || p.nome_completo).filter(Boolean);
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
