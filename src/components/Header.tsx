@@ -2,10 +2,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
-import { Menu, X, User, LogOut, AlertTriangle } from 'lucide-react';
+import { Menu, X, LogOut, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 import NotificacoesBell from '@/components/NotificacoesBell';
+
+type SubItem = { label: string; path: string };
+type NavItem = { label: string; path: string; subItems?: SubItem[] };
 
 const Header = () => {
   const { isLoggedIn, user, isAdmin, role, logout, loading: authLoading } = useAuth();
@@ -16,7 +19,6 @@ const Header = () => {
   const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
 
   const isJuliana = role === 'admin_master';
-  // Treat user as logged in while auth is still hydrating to avoid flicker
   const showAsLogged = isLoggedIn || authLoading;
 
   useEffect(() => {
@@ -35,7 +37,22 @@ const Header = () => {
 
   const isBagyAccess = isAdmin || role === 'vendedor_comissao';
   const canSeeModelos = showAsLogged && role !== 'bordado' && role !== 'montagem' && role !== 'admin_producao';
-  const navItems = showAsLogged
+
+  const configSubItems: SubItem[] = [
+    { label: 'Ficha de produção', path: '/admin/configuracoes?tab=fichas' },
+    { label: 'Extras', path: '/admin/configuracoes?tab=extras' },
+    { label: 'Progresso de produção', path: '/admin/configuracoes?tab=progresso' },
+    { label: 'Relatórios', path: '/admin/configuracoes?tab=relatorios' },
+    ...(isJuliana ? [
+      { label: 'Usuários', path: '/admin/configuracoes?tab=usuarios' },
+      { label: 'Gestão', path: '/admin/configuracoes?tab=gestao' },
+      { label: 'Sincronização atacado', path: '/admin/configuracoes?tab=atacado-sync' },
+      { label: 'Financeiro', path: '/admin/configuracoes?tab=financeiro' },
+      ...(hasNfeAccess ? [{ label: 'NF-e', path: '/admin/configuracoes?tab=nfe' }] : []),
+    ] : []),
+  ];
+
+  const navItems: NavItem[] = showAsLogged
     ? [
         { label: 'FAÇA SEU PEDIDO', path: '/pedido' },
         ...(canSeeModelos ? [{ label: 'MODELOS', path: '/modelos' }] : []),
@@ -44,10 +61,8 @@ const Header = () => {
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
         ...(isBagyAccess ? [{ label: 'PEDIDOS BAGY', path: '/rancho-chique/pedidos' }] : []),
         ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
-        ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
-        
+        ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes', subItems: configSubItems }] : []),
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
-        
         { label: 'MEU PERFIL', path: '/perfil' },
       ]
     : [
@@ -56,6 +71,11 @@ const Header = () => {
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
         { label: 'LOGIN', path: '/login' },
       ];
+
+  const isPathActive = (path: string) => {
+    const [p] = path.split('?');
+    return location.pathname === p;
+  };
 
   return (
     <>
@@ -76,19 +96,43 @@ const Header = () => {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`px-4 py-2 rounded-md text-sm font-semibold tracking-wider transition-all duration-200 ${
-                location.pathname === item.path
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-primary hover:bg-primary/10'
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map(item => {
+            const active = isPathActive(item.path);
+            const hasSub = item.subItems && item.subItems.length > 0;
+            const triggerClass = `px-4 py-2 rounded-md text-sm font-semibold tracking-wider transition-all duration-200 flex items-center gap-1 ${
+              active ? 'bg-primary text-primary-foreground' : 'text-primary hover:bg-primary/10'
+            }`;
+
+            if (hasSub) {
+              return (
+                <div key={item.path} className="relative group">
+                  <Link to={item.path} className={triggerClass}>
+                    {item.label}
+                    <ChevronDown size={14} className="transition-transform group-hover:rotate-180" />
+                  </Link>
+                  <div className="absolute left-0 top-full pt-1 min-w-[240px] hidden group-hover:block z-50">
+                    <div className="bg-primary text-primary-foreground rounded-md shadow-xl overflow-hidden py-1">
+                      {item.subItems!.map(sub => (
+                        <Link
+                          key={sub.path}
+                          to={sub.path}
+                          className="block px-4 py-2 text-sm font-medium hover:bg-primary-foreground/15 transition-colors"
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <Link key={item.path} to={item.path} className={triggerClass}>
+                {item.label}
+              </Link>
+            );
+          })}
           {showAsLogged && isLoggedIn && (
             <>
               <NotificacoesBell />
@@ -119,18 +163,27 @@ const Header = () => {
       {menuOpen && (
         <nav className="md:hidden bg-white border-t border-border/30 px-4 pb-4">
           {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setMenuOpen(false)}
-              className={`block px-4 py-3 rounded-md text-sm font-semibold tracking-wider ${
-                location.pathname === item.path
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-primary hover:bg-primary/10'
-              }`}
-            >
-              {item.label}
-            </Link>
+            <div key={item.path}>
+              <Link
+                to={item.path}
+                onClick={() => setMenuOpen(false)}
+                className={`block px-4 py-3 rounded-md text-sm font-semibold tracking-wider ${
+                  isPathActive(item.path) ? 'bg-primary text-primary-foreground' : 'text-primary hover:bg-primary/10'
+                }`}
+              >
+                {item.label}
+              </Link>
+              {item.subItems && item.subItems.map(sub => (
+                <Link
+                  key={sub.path}
+                  to={sub.path}
+                  onClick={() => setMenuOpen(false)}
+                  className="block pl-8 pr-4 py-2 text-sm text-primary/80 hover:bg-primary/10 rounded-md"
+                >
+                  {sub.label}
+                </Link>
+              ))}
+            </div>
           ))}
           {showAsLogged && isLoggedIn && (
             <button
