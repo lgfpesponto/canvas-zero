@@ -192,6 +192,8 @@ const ModelosPage = () => {
     setComprarOpen(false);
     setComprarModelo(null);
     setVGradeItems([]);
+    setEspelhoOpen(false);
+    setEspelhoOverrides(null);
   }
 
   // Tamanhos disponíveis para o modelo — vem do cadastro do modelo (tamanhos_skus).
