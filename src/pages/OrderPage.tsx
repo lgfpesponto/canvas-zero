@@ -185,6 +185,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   /* form state */
   const isAdminProducao = user?.role === 'admin_producao';
+  const isVendedorComum = !isAdmin && (user?.role === 'vendedor' || user?.role === 'vendedor_comissao');
   const [vendedorSelecionado, setVendedorSelecionado] = useState(isAdminProducao ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
