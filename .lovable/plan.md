@@ -1,18 +1,20 @@
-## Objetivo
-Ocultar o campo "WhatsApp do Cliente" nas páginas "Faça seu Pedido" (Bota e Cinto) para todos, exceto:
-- `vendedor_comissao`
-- Juliana (`admin_master`)
+## Mudanças em `src/components/template/TemplatesDialog.tsx`
 
-## Mudanças
-1. **`src/pages/OrderPage.tsx`**
-   - Criar helper `podeVerWhatsapp = user?.role === 'vendedor_comissao' || user?.role === 'admin_master'`.
-   - Envolver o bloco do label + input de WhatsApp (linhas ~1582-1587) em `{podeVerWhatsapp && (...)}`.
-   - No submit (linha 1004), quando não puder ver, forçar `clienteWhatsapp: undefined` (já é o caso se estado ficar vazio; garantir que o estado inicial não venha preenchido de draft para quem não pode ver — filtrar no `useState` inicial).
-
-2. **`src/pages/BeltOrderPage.tsx`**
-   - Mesmo helper e mesmo `{podeVerWhatsapp && (...)}` no bloco (linha ~650).
-   - Garantir envio `undefined` quando oculto.
+1. **Dialog largo**: `DialogContent` → `max-w-5xl` (era `max-w-md`) para caber 3 colunas.
+2. **Grid 3×2 (6/página)**:
+   - `PAGE_SIZE = 6`.
+   - Container de cards: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3` (em vez de `space-y-2`).
+3. **Card redesenhado** (`TemplateCard`):
+   - Foto grande no topo ocupando a largura toda do card (altura `h-40`, `object-cover`) — mesmo tratamento visual de quando cola link.
+   - QR code centralizado logo abaixo da foto (ainda dentro do card, `mx-auto`, fundo branco), acima do nome.
+   - Nome abaixo do QR (com checkbox à esquerda do nome, badge "Novo" à direita se aplicável).
+   - Botão "Preencher" + menu `⋮` mantidos abaixo do nome.
+4. **Paginação nas laterais** (não embaixo):
+   - Envolver a grid num wrapper `flex items-center gap-2`.
+   - Botão `<` à esquerda da grid, botão `>` à direita, ambos com `h-full` (altura da grid) e centralizados verticalmente.
+   - Rótulo "Página X de Y" fica abaixo da grid, discreto e centralizado (só rótulo, sem setas).
+5. Manter scanner físico, seleção múltipla e demais comportamentos intactos.
 
 ## Fora de escopo
-- `EditBeltPage`, `EditOrderPage`, `ExtrasPage`, `OrderDetailPage`: continuam mostrando/permitindo WhatsApp normalmente (usuário só pediu na tela "faça seu pedido" de bota e cinto).
-- Nenhuma mudança em banco, schema, PDF, ou lógica de envio via `WhatsappShareButton`.
+- Sem mudanças em `OrderPage.tsx` / `BeltOrderPage.tsx`.
+- Sem alteração no modelo de dados nem no PDF.

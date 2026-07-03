@@ -16,7 +16,7 @@ import {
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 
 export const MODEL_SCAN_PREFIX = '7EMODEL:';
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 6;
 
 export interface TemplateItem {
   id: string;
@@ -67,9 +67,9 @@ function TemplateCard({
   const qrValue = `${MODEL_SCAN_PREFIX}${t.id}`;
 
   return (
-    <div className="bg-muted rounded-lg overflow-hidden border border-border">
+    <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
       {hasPhoto && (
-        <div className="w-full h-32 bg-background relative flex items-center justify-center overflow-hidden">
+        <div className="w-full h-40 bg-background relative flex items-center justify-center overflow-hidden">
           {imgSrc && !imgErr ? (
             <img
               src={imgSrc}
@@ -83,46 +83,46 @@ function TemplateCard({
           )}
         </div>
       )}
-      <div className="p-3 flex items-start gap-3">
-        {hasPhoto && (
-          <div className="shrink-0 bg-white p-1 rounded border border-border" title="Escaneie para preencher">
-            <QRCodeSVG value={qrValue} size={64} level="M" />
+      {hasPhoto && (
+        <div className="flex justify-center pt-3">
+          <div className="bg-white p-1.5 rounded border border-border" title="Escaneie para preencher">
+            <QRCodeSVG value={qrValue} size={72} level="M" />
           </div>
-        )}
-        <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <div className="flex items-start gap-2">
-            <Checkbox
-              checked={isChecked}
-              onCheckedChange={onToggleSelect}
-              title="Selecionar para envio em lote"
-              className="mt-0.5"
-            />
-            <span className="font-semibold text-sm break-words flex-1">{t.nome}</span>
-            {t.seen === false && (
-              <Badge variant="destructive" className="text-[10px] py-0 px-1.5 shrink-0">Novo</Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Button size="sm" onClick={onUse} className="flex-1">Preencher</Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="h-9 w-9 p-0" title="Mais opções">
-                  <MoreVertical size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onSend}>
-                  <Send size={14} className="mr-2" /> Enviar modelo
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil size={14} className="mr-2" /> Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
-                  <Trash2 size={14} className="mr-2" /> Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        </div>
+      )}
+      <div className="p-3 flex flex-col gap-2 flex-1">
+        <div className="flex items-start gap-2">
+          <Checkbox
+            checked={isChecked}
+            onCheckedChange={onToggleSelect}
+            title="Selecionar para envio em lote"
+            className="mt-0.5"
+          />
+          <span className="font-semibold text-sm break-words flex-1">{t.nome}</span>
+          {t.seen === false && (
+            <Badge variant="destructive" className="text-[10px] py-0 px-1.5 shrink-0">Novo</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 mt-auto">
+          <Button size="sm" onClick={onUse} className="flex-1">Preencher</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-9 w-9 p-0" title="Mais opções">
+                <MoreVertical size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onSend}>
+                <Send size={14} className="mr-2" /> Enviar modelo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil size={14} className="mr-2" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                <Trash2 size={14} className="mr-2" /> Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
@@ -162,7 +162,6 @@ export function TemplatesDialog({
   useEffect(() => {
     if (!open) { scanBufferRef.current = ''; return; }
     const handler = (e: KeyboardEvent) => {
-      // Ignora se usuário está digitando em input/textarea que não seja o próprio scanner
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       const isTypingInput = target && (tag === 'INPUT' || tag === 'TEXTAREA') && target !== scanInputRef.current;
@@ -191,10 +190,11 @@ export function TemplatesDialog({
   }, [open, templates, onUse]);
 
   const bulkTemplates = templates.filter(t => selectedIds.includes(t.id));
+  const showPager = filtered.length > PAGE_SIZE;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Modelos Salvos</DialogTitle>
         </DialogHeader>
@@ -211,45 +211,51 @@ export function TemplatesDialog({
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>
         )}
         {pageItems.length > 0 && (
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-            {pageItems.map(t => (
-              <TemplateCard
-                key={t.id}
-                t={t}
-                isChecked={selectedIds.includes(t.id)}
-                onToggleSelect={() => onToggleSelect(t.id)}
-                onUse={() => onUse(t)}
-                onEdit={() => onEdit(t)}
-                onDelete={() => onDelete(t.id)}
-                onSend={() => onSendMany([t])}
-              />
-            ))}
+          <div className="flex items-stretch gap-2">
+            {showPager && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="h-auto w-10 shrink-0 self-stretch"
+                aria-label="Página anterior"
+              >
+                <ChevronLeft size={20} />
+              </Button>
+            )}
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto pr-1">
+              {pageItems.map(t => (
+                <TemplateCard
+                  key={t.id}
+                  t={t}
+                  isChecked={selectedIds.includes(t.id)}
+                  onToggleSelect={() => onToggleSelect(t.id)}
+                  onUse={() => onUse(t)}
+                  onEdit={() => onEdit(t)}
+                  onDelete={() => onDelete(t.id)}
+                  onSend={() => onSendMany([t])}
+                />
+              ))}
+            </div>
+            {showPager && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="h-auto w-10 shrink-0 self-stretch"
+                aria-label="Próxima página"
+              >
+                <ChevronRight size={20} />
+              </Button>
+            )}
           </div>
         )}
 
-        {filtered.length > PAGE_SIZE && (
-          <div className="flex items-center justify-center gap-2 pt-2 border-t border-border mt-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={currentPage <= 1}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Página {currentPage} de {totalPages}
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage >= totalPages}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronRight size={16} />
-            </Button>
+        {showPager && (
+          <div className="text-center text-xs text-muted-foreground pt-2">
+            Página {currentPage} de {totalPages}
           </div>
         )}
 
