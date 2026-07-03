@@ -463,6 +463,25 @@ const ModelosPage = () => {
           }}
         />
       )}
+
+      {/* Espelho embarcado: monta a página de pedido correspondente que abre o mirror por cima */}
+      {espelhoOpen && comprarModelo && espelhoOverrides && (
+        <div className="hidden-embed-root" aria-hidden="true">
+          {espelhoTipo === 'cinto' ? (
+            <BeltOrderPage
+              comprarModeloOverride={{ templateId: comprarModelo.id, overrides: espelhoOverrides as any }}
+              onComprarSaved={() => { closeComprar(); }}
+              onComprarEditar={() => { setEspelhoOpen(false); }}
+            />
+          ) : (
+            <OrderPage
+              comprarModeloOverride={{ templateId: comprarModelo.id, overrides: espelhoOverrides }}
+              onComprarSaved={() => { closeComprar(); }}
+              onComprarEditar={() => { setEspelhoOpen(false); }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };
