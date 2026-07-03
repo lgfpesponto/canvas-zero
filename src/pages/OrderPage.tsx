@@ -748,12 +748,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   }, [bagyPrefill, fichaLoading]);
 
 
-  const canInheritTemplateFoto = () => {
-    if (!user) return false;
-    if (user.role === 'admin_master' || user.role === 'admin_producao') return true;
-    if ((user.nomeUsuario || '').toLowerCase() === 'site') return true;
-    return false;
-  };
 
   const handleUseTemplate = (
     template: { nome: string; form_data: Record<string, string>; sku?: string | null; genero?: string | null; foto_url?: string | null; tamanhos_skus?: { tamanho: string; sku: string }[] | null },
@@ -767,7 +761,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     validateAndPopulateTemplate({ ...template.form_data });
     setProductChoice('bota');
     if (template.genero) setGenero(template.genero);
-    if (template.foto_url && canInheritTemplateFoto()) {
+    if (template.foto_url) {
       setFotoUrl(template.foto_url);
       if (isHttpUrl(template.foto_url)) setMostrarFotoPainel(true);
     }
