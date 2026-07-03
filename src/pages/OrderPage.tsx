@@ -1544,9 +1544,16 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               )}
 
               <div className="grid sm:grid-cols-3 gap-4">
-                {isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro') ? (
+                {(isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum ? (
                   <div>
-                    <label className={cls.label}>Tamanho / Grade</label>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <label className={cls.label + ' mb-0'}>{isVendedorComum && gradeItems.length === 0 ? 'Tamanho' : 'Tamanho / Grade'}{isVendedorComum && gradeItems.length === 0 && <span className="text-destructive ml-0.5">*</span>}</label>
+                      {isVendedorComum && gradeItems.length === 0 && (
+                        <button type="button" onClick={() => setShowGrade(true)} className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+                          <Grid3X3 size={12} /> Gerar Grade
+                        </button>
+                      )}
+                    </div>
                     {gradeItems.length > 0 ? (
                       <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border hover:border-primary text-left flex items-center justify-between gap-2">
                         <span className="flex items-center gap-2">
@@ -1556,6 +1563,16 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                         </span>
                         <span className="text-xs text-primary font-medium">Editar</span>
                       </button>
+                    ) : isVendedorComum ? (
+                      <select
+                        value={tamanho}
+                        onChange={e => { const v = e.target.value; setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }}
+                        className={cls.select}
+                        required
+                      >
+                        <option value="">Selecione...</option>
+                        {TAMANHOS.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     ) : (
                       <button type="button" onClick={() => setShowGrade(true)} className="w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-dashed border-primary/50 hover:border-primary text-primary font-semibold flex items-center justify-center gap-2 transition-colors">
                         <Grid3X3 size={16} /> Gerar Grade
