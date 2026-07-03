@@ -780,6 +780,47 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bagyPrefill, fichaLoading]);
 
+  /* ───── Comprar Modelo prefill: vem de /modelos → "Comprar" ───── */
+  const comprarAppliedRef = useRef(false);
+  useEffect(() => {
+    if (comprarAppliedRef.current || !comprarModelo || fichaLoading) return;
+    comprarAppliedRef.current = true;
+    (async () => {
+      const { data: tmplRow } = await supabase
+        .from('order_templates')
+        .select('id, nome, form_data, genero, sku, tamanhos_skus, foto_url')
+        .eq('id', comprarModelo.templateId)
+        .maybeSingle();
+      if (!tmplRow) {
+        toast.error('Modelo não encontrado.');
+        navigate('/modelos', { replace: true });
+        return;
+      }
+      setProductChoice('bota');
+      setMode('order');
+      appliedTemplateRef.current = {
+        nome: (tmplRow as any).nome,
+        sku: (tmplRow as any).sku,
+        tamanhosSkus: Array.isArray((tmplRow as any).tamanhos_skus) ? (tmplRow as any).tamanhos_skus : [],
+      };
+      validateAndPopulateTemplate({ ...((tmplRow as any).form_data || {}) });
+      if ((tmplRow as any).genero) setGenero((tmplRow as any).genero);
+      if ((tmplRow as any).foto_url) setFotoUrl((tmplRow as any).foto_url);
+      const ov = comprarModelo.overrides || {};
+      if (ov.cliente !== undefined) setCliente(ov.cliente);
+      if (ov.clienteWhatsapp !== undefined) setClienteWhatsapp(ov.clienteWhatsapp);
+      if (ov.tamanho !== undefined) setTamanho(ov.tamanho);
+      if (ov.vendedor !== undefined && ov.vendedor) setVendedorSelecionado(ov.vendedor);
+      if (ov.observacao !== undefined) setObservacao(ov.observacao);
+      if (ov.sobMedida !== undefined) setSobMedida(!!ov.sobMedida);
+      if (ov.sobMedidaDesc !== undefined) setSobMedidaDesc(ov.sobMedidaDesc);
+      setTimeout(() => setShowMirror(true), 60);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprarModelo, fichaLoading]);
+
+
+
 
 
   const handleUseTemplate = (
