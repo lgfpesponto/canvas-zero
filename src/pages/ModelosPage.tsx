@@ -25,6 +25,7 @@ interface ModeloRow {
   nome: string;
   form_data: Record<string, any>;
   foto_url: string | null;
+  genero: string | null;
   tipo: Tipo;
   sku: string | null;
   tamanhos_skus: { tamanho: string; sku: string }[] | null;
@@ -133,18 +134,19 @@ const ModelosPage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('order_templates')
-        .select('id, nome, form_data, foto_url, tipo, sku, tamanhos_skus, created_at')
+        .select('id, nome, form_data, foto_url, genero, tipo, sku, tamanhos_skus, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) {
         toast.error('Erro ao carregar modelos');
         console.error(error);
       }
-      // Só entram modelos "completos": precisam ter foto_url e form_data.genero preenchidos.
+      // Só entram modelos "completos": precisam ter foto_url e genero preenchidos.
       const completos = ((data as any[]) || []).filter(r => {
         const foto = (r.foto_url ?? '').toString().trim();
-        const genero = ((r.form_data ?? {}).genero ?? '').toString().trim();
-        return !!foto && !!genero;
+        const genero = (r.genero ?? '').toString().trim();
+        const generoFallback = ((r.form_data ?? {}).genero ?? '').toString().trim();
+        return !!foto && !!(genero || generoFallback);
       });
       setModelos(completos.map(r => ({
         ...r,
