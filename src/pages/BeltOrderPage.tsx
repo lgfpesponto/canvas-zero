@@ -44,6 +44,11 @@ const BeltOrderPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const draftData = (location.state as any)?.draft;
+  const comprarModelo = (location.state as any)?.comprarModelo as null | {
+    templateId: string;
+    overrides?: { cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
+  };
+  const [comprarMode] = useState<boolean>(!!comprarModelo);
 
   const isAdminUser = isAdmin;
   const tmpl = useTemplateManagement();
