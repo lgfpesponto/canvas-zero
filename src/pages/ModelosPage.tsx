@@ -380,7 +380,10 @@ const ModelosPage = () => {
                   {podeGerarGrade && vGradeItems.length === 0 && (
                     <button
                       type="button"
-                      onClick={() => setShowGrade(true)}
+                      onClick={() => {
+                        if (!vNumeroPedido.trim()) { toast.error('Informe o Número do pedido antes de gerar a grade'); return; }
+                        setShowGrade(true);
+                      }}
                       className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
                     >
                       <Grid3X3 size={12} /> Gerar Grade
