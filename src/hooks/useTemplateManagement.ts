@@ -54,7 +54,7 @@ export function useTemplateManagement() {
       .map(t => ({ tamanho: (t.tamanho || '').trim(), sku: (t.sku || '').trim() }))
       .filter(t => t.tamanho || t.sku);
 
-  const saveTemplate = useCallback(async (userId: string, formData: Record<string, string>) => {
+  const saveTemplate = useCallback(async (userId: string, formData: Record<string, string>, tipo?: 'bota' | 'cinto') => {
     if (!templateName.trim()) {
       toast.error('Preencha o nome do modelo');
       return false;
@@ -63,9 +63,11 @@ export function useTemplateManagement() {
     const genero = templateGenero.trim() || null;
     const foto_url = templateFotoUrl.trim() || null;
     const tamanhos_skus = sanitizeTamanhos(templateTamanhosSkus);
+    const payload: any = { user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero, foto_url, tamanhos_skus };
+    if (tipo) payload.tipo = tipo;
     const { error } = await supabase
       .from('order_templates')
-      .insert({ user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero, foto_url, tamanhos_skus } as any);
+      .insert(payload);
     if (error) {
       toast.error('Erro ao salvar modelo');
       console.error(error);
