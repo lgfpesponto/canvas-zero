@@ -809,6 +809,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       if ((tmplRow as any).genero) setGenero((tmplRow as any).genero);
       if ((tmplRow as any).foto_url) setFotoUrl((tmplRow as any).foto_url);
       const ov = comprarModelo.overrides || {};
+      if (ov.numeroPedido !== undefined) setNumeroPedido(ov.numeroPedido);
       if (ov.cliente !== undefined) setCliente(ov.cliente);
       if (ov.clienteWhatsapp !== undefined) setClienteWhatsapp(ov.clienteWhatsapp);
       if (ov.tamanho !== undefined) setTamanho(ov.tamanho);
@@ -816,6 +817,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       if (ov.observacao !== undefined) setObservacao(ov.observacao);
       if (ov.sobMedida !== undefined) setSobMedida(!!ov.sobMedida);
       if (ov.sobMedidaDesc !== undefined) setSobMedidaDesc(ov.sobMedidaDesc);
+      if (Array.isArray(ov.gradeItems) && ov.gradeItems.length > 0) {
+        setGradeItems(ov.gradeItems.map(g => ({ tamanho: g.tamanho, quantidade: g.quantidade, sku: g.sku || '' })));
+      }
       setTimeout(() => setShowMirror(true), 60);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
