@@ -92,7 +92,7 @@ export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, di
       </div>
 
       {(onFinalizar || onSaveDraft) && (
-        <div className="mt-3 flex justify-end gap-2">
+        <div className="mt-3 flex justify-start gap-2">
           {onFinalizar && (
             <button
               type="button"

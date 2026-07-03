@@ -13,6 +13,7 @@ import { isHttpUrl } from '@/lib/driveUrl';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
+import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1683,6 +1684,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* BORDADO */}
           <Section title="Bordado">
+            <ToggleField label="Desenvolvimento (+R$50)" value={desenvBordado} onChange={setDesenvBordado} textValue={desenvBordadoDesc} onTextChange={setDesenvBordadoDesc} textPlaceholder="Descreva o desenvolvimento..." />
             <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
@@ -1702,11 +1704,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <div><label className={cls.label}>Cor do Bordado da Taloneira</label><input type="text" value={corBordadoTaloneira} onChange={e => setCorBordadoTaloneira(e.target.value)} className={cls.input} /></div>
 
             <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
-            <ToggleField label="Desenvolvimento (+R$50)" value={desenvBordado} onChange={setDesenvBordado} textValue={desenvBordadoDesc} onTextChange={setDesenvBordadoDesc} textPlaceholder="Descreva o desenvolvimento..." />
           </Section>
 
           {/* LASER E RECORTES */}
           <Section title="Laser e Recortes">
+            <ToggleField label="Desenvolvimento (+R$100)" value={desenvLaser} onChange={setDesenvLaser} textValue={desenvLaserDesc} onTextChange={setDesenvLaserDesc} textPlaceholder="Descreva o desenvolvimento..." />
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
@@ -1741,14 +1743,14 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             )}
 
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
-            <ToggleField label="Desenvolvimento (+R$100)" value={desenvLaser} onChange={setDesenvLaser} textValue={desenvLaserDesc} onTextChange={setDesenvLaserDesc} textPlaceholder="Descreva o desenvolvimento..." />
           </Section>
 
           {/* ESTAMPA */}
           <Section title="Estampa">
-            <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
             <ToggleField label="Desenvolvimento (+R$150)" value={desenvEstampa} onChange={setDesenvEstampa} textValue={desenvEstampaDesc} onTextChange={setDesenvEstampaDesc} textPlaceholder="Descreva o desenvolvimento..." />
+            <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
           </Section>
+
 
           {/* METAIS */}
           <Section title="Metais">
@@ -1911,63 +1913,21 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       </div>
 
       {/* ───── Templates Dialog ───── */}
-      <Dialog open={tmpl.showTemplates} onOpenChange={tmpl.setShowTemplates}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Modelos Salvos</DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder="Pesquisar modelo..."
-            value={tmpl.templateSearch}
-            onChange={e => tmpl.setTemplateSearch(e.target.value)}
-            className="mb-2"
-          />
-          {(() => {
-            const bootTemplates = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto');
-            const filtered = bootTemplates.filter(t => t.nome.toLowerCase().includes(tmpl.templateSearch.toLowerCase()));
-            if (bootTemplates.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>;
-            if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo encontrado.</p>;
-            const bulkTemplates = bootTemplates.filter(t => bulkSelectedTemplateIds.includes(t.id));
-            return (
-            <>
-            <div className="space-y-2 max-h-[55vh] overflow-y-auto">
-              {filtered.map(t => {
-                const isChecked = bulkSelectedTemplateIds.includes(t.id);
-                return (
-                <div key={t.id} className="flex items-center justify-between bg-muted rounded-lg p-3 gap-2">
-                  <Checkbox checked={isChecked} onCheckedChange={() => toggleBulkTemplate(t.id)} title="Selecionar para envio em lote" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm break-words">{t.nome}</span>
-                      {t.seen === false && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Novo</Badge>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => openSendDialog([t])} title="Enviar para outro usuário"><Send size={14} /></Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditTemplate(t)} title="Editar modelo"><Pencil size={14} /></Button>
-                    <Button size="sm" onClick={() => handleUseTemplate(t)}>Preencher</Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeleteTemplate(t.id)}><Trash2 size={14} /></Button>
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-            {bulkSelectedTemplateIds.length > 0 && (
-              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
-                <span className="text-sm font-semibold">{bulkSelectedTemplateIds.length} modelo{bulkSelectedTemplateIds.length > 1 ? 's' : ''} selecionado{bulkSelectedTemplateIds.length > 1 ? 's' : ''}</span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setBulkSelectedTemplateIds([])}>Limpar</Button>
-                  <Button size="sm" onClick={() => openSendDialog(bulkTemplates)}>
-                    <Send size={14} /> Enviar selecionados
-                  </Button>
-                </div>
-              </div>
-            )}
-            </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
+      <TemplatesDialog
+        open={tmpl.showTemplates}
+        onOpenChange={tmpl.setShowTemplates}
+        templates={tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto') as any}
+        search={tmpl.templateSearch}
+        onSearchChange={tmpl.setTemplateSearch}
+        selectedIds={bulkSelectedTemplateIds}
+        onToggleSelect={toggleBulkTemplate}
+        onClearSelection={() => setBulkSelectedTemplateIds([])}
+        onUse={handleUseTemplate as any}
+        onEdit={handleEditTemplate as any}
+        onDelete={handleDeleteTemplate}
+        onSendMany={openSendDialog as any}
+      />
+
 
       {/* ───── Send Template Dialog ───── */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
