@@ -1707,6 +1707,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* LASER E RECORTES */}
           <Section title="Laser e Recortes">
+            <ToggleField label="Desenvolvimento (+R$100)" value={desenvLaser} onChange={setDesenvLaser} textValue={desenvLaserDesc} onTextChange={setDesenvLaserDesc} textPlaceholder="Descreva o desenvolvimento..." />
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
