@@ -47,7 +47,7 @@ const Header = () => {
         ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes' }] : []),
         
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
-        ...(hasNfeAccess ? [{ label: 'NF-E', path: '/configuracoes/nfe' }] : []),
+        
         { label: 'MEU PERFIL', path: '/perfil' },
       ]
     : [
