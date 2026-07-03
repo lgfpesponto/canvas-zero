@@ -241,6 +241,7 @@ const ModelosPage = () => {
     }
     setEspelhoOverrides(overrides);
     setEspelhoOpen(true);
+    setComprarOpen(false); // fecha modal de identificação; dados ficam preservados em state
   }
 
   if (authLoading) return <div className="min-h-[60vh]" />;
