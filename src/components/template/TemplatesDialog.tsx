@@ -64,7 +64,6 @@ function TemplateCard({
   const [imgErr, setImgErr] = useState(false);
   const hasPhoto = !!t.foto_url;
   const imgSrc = hasPhoto ? (isDriveUrl(t.foto_url!) ? toDriveImageUrl(t.foto_url!) : t.foto_url!) : null;
-  
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
