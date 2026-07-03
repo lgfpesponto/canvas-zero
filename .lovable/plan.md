@@ -1,22 +1,25 @@
 ## Objetivo
-Considerar o status "Baixa Estoque" como etapa final/concluída para o prazo de produção, igualando o comportamento de "Baixa Site (Despachado)".
+O card "Pendente" (vendedor) e "A Receber" (admin master) deve somar apenas pedidos com status **"Cobrado"** — não mais Conferido + Cobrado.
 
 ## Alteração
-Em `src/lib/orderDeadline.ts`, adicionar `'Baixa Estoque'` na constante `FINAL_STAGES`:
+Migration atualizando a função `public.get_pending_value(vendor text)`:
 
-```ts
-export const FINAL_STAGES = [
-  'Baixa Estoque',
-  'Baixa Site (Despachado)',
-  'Expedição', 'Entregue', 'Conferido', 'Cobrado', 'Pago', 'Cancelado'
-];
+```sql
+CREATE OR REPLACE FUNCTION public.get_pending_value(vendor text DEFAULT NULL)
+RETURNS numeric
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT COALESCE(SUM(COALESCE(preco, 0)), 0)
+  FROM orders
+  WHERE status = 'Cobrado'
+    AND (vendor IS NULL OR vendedor = vendor);
+$$;
 ```
 
-## Impacto (automático via FINAL_STAGES)
-- Pedidos em "Baixa Estoque" param de contar prazo/atrasos.
-- Dashboard admin (contagem de "em produção") passa a excluir "Baixa Estoque".
-- ReportsPage exclui "Baixa Estoque" dos filtros de pendentes.
-- `isAlertOrder` deixa de sinalizar pedidos já baixados no estoque.
+## Impacto
+- `VendedorDashboard` e `AdminDashboard` já chamam essa RPC — refletem automaticamente.
+- Pedidos apenas Conferidos deixam de aparecer no valor pendente.
+- Nenhum código de frontend precisa mudar.
 
 ## Fora de escopo
-Transições de status, permissões e demais telas continuam iguais.
+Financeiro > A Pagar/Receber, comissões, outras métricas.
