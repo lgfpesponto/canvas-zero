@@ -767,7 +767,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     validateAndPopulateTemplate({ ...template.form_data });
     setProductChoice('bota');
     if (template.genero) setGenero(template.genero);
-    if (template.foto_url && canInheritTemplateFoto()) {
+    if (template.foto_url) {
       setFotoUrl(template.foto_url);
       if (isHttpUrl(template.foto_url)) setMostrarFotoPainel(true);
     }
