@@ -833,7 +833,13 @@ const BeltOrderPage = () => {
         </form>
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel url={currentFotoUrl} onClose={() => setMostrarFotoPainel(false)} />
+          <FotoPedidoSidePanel
+            url={currentFotoUrl}
+            onClose={() => setMostrarFotoPainel(false)}
+            onFinalizar={!isTemplate ? () => formRef.current?.requestSubmit() : undefined}
+            onSaveDraft={!isTemplate ? handleSaveDraft : undefined}
+            disabled={orderDuplicate}
+          />
         )}
       </div>
 
