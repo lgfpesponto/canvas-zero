@@ -146,9 +146,24 @@ export interface OrderPageProps {
   onBagyCancel?: () => void;
   /** Texto extra mostrado no botão "OK — Finalizar" (ex: "(3/5)"). */
   finalizeBadge?: string;
+  /** Override do comprarModelo (usado ao embarcar a página em /modelos). */
+  comprarModeloOverride?: {
+    templateId: string;
+    overrides?: {
+      numeroPedido?: string;
+      cliente?: string; clienteWhatsapp?: string; tamanho?: string;
+      vendedor?: string; observacao?: string;
+      sobMedida?: boolean; sobMedidaDesc?: string;
+      gradeItems?: { tamanho: string; quantidade: number; sku?: string }[];
+    };
+  } | null;
+  /** Callback após salvar com sucesso o pedido do fluxo Comprar embarcado. */
+  onComprarSaved?: () => void;
+  /** Callback quando o usuário clica EDITAR no espelho durante o fluxo Comprar embarcado. */
+  onComprarEditar?: () => void;
 }
 
-const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge }: OrderPageProps = {}) => {
+const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
@@ -183,13 +198,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   } | null;
   const bagyPrefill = bagyPrefillOverride ?? locState?.bagyPrefill ?? null;
   const bagyPrefillRef = useRef(bagyPrefill);
-  const comprarModelo = locState?.comprarModelo ?? null;
+  const comprarModelo = comprarModeloOverride ?? locState?.comprarModelo ?? null;
   const [comprarMode] = useState<boolean>(!!comprarModelo);
   const draftState = locState?.draft;
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
   const [draftId, setDraftId] = useState(draftId_init);
-  const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
+  const [productChoice, setProductChoice] = useState<'bota' | null>(
+    (draftState || comprarModelo) ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null),
+  );
   const [mode, setMode] = useState<'order' | 'template'>('order');
   const tmpl = useTemplateManagement();
   // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
@@ -1188,7 +1205,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim();
           toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
-          resetForm();
+          if (comprarMode && onComprarSaved) onComprarSaved();
+          else resetForm();
         }
       } else {
         const success = await addOrder({
@@ -1225,6 +1243,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           toast.success(`Pedido ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
           if (embedded && onBagySaved) {
             onBagySaved();
+          } else if (comprarMode && onComprarSaved) {
+            onComprarSaved();
           } else {
             resetForm();
           }
@@ -2081,7 +2101,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       {showMirror && (
         <div className="fixed inset-0 z-50 bg-foreground/60 flex items-center justify-center p-4" onClick={() => {
           if (comprarMode) {
-            navigate('/modelos', { state: { editComprar: comprarModelo } });
+            if (onComprarEditar) onComprarEditar();
+            else navigate('/modelos', { state: { editComprar: comprarModelo } });
           } else {
             setShowMirror(false);
           }
@@ -2150,7 +2171,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <div className="flex gap-3">
               <button onClick={() => {
                 if (comprarMode) {
-                  navigate('/modelos', { state: { editComprar: comprarModelo } });
+                  if (onComprarEditar) onComprarEditar();
+                  else navigate('/modelos', { state: { editComprar: comprarModelo } });
                 } else {
                   setShowMirror(false);
                 }

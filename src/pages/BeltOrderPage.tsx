@@ -39,15 +39,24 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
   </div>
 );
 
-const BeltOrderPage = () => {
+export interface BeltOrderPageProps {
+  comprarModeloOverride?: {
+    templateId: string;
+    overrides?: { numeroPedido?: string; cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
+  } | null;
+  onComprarSaved?: () => void;
+  onComprarEditar?: () => void;
+}
+
+const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const draftData = (location.state as any)?.draft;
-  const comprarModelo = (location.state as any)?.comprarModelo as null | {
+  const comprarModelo = comprarModeloOverride ?? ((location.state as any)?.comprarModelo as null | {
     templateId: string;
     overrides?: { numeroPedido?: string; cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
-  };
+  });
   const [comprarMode] = useState<boolean>(!!comprarModelo);
 
   const isAdminUser = isAdmin;
@@ -480,7 +489,8 @@ const BeltOrderPage = () => {
         if (loadedDraftId) deleteDraft(loadedDraftId);
         const numeroSalvo = numeroPedido.trim() || '(novo)';
         toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
-        resetForm();
+        if (comprarMode && onComprarSaved) onComprarSaved();
+        else resetForm();
       } else {
         toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
       }
@@ -966,8 +976,10 @@ const BeltOrderPage = () => {
       {/* Mirror */}
       {showMirror && (
         <div className="fixed inset-0 z-50 bg-foreground/60 flex items-center justify-center p-4" onClick={() => {
-          if (comprarMode) navigate('/modelos', { state: { editComprar: comprarModelo } });
-          else setShowMirror(false);
+          if (comprarMode) {
+            if (onComprarEditar) onComprarEditar();
+            else navigate('/modelos', { state: { editComprar: comprarModelo } });
+          } else setShowMirror(false);
         }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card rounded-xl p-6 md:p-8 western-shadow max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-2xl font-display font-bold mb-1 text-center">ESPELHO — CINTO</h2>
@@ -1041,8 +1053,10 @@ const BeltOrderPage = () => {
 
             <div className="flex gap-3">
               <button onClick={() => {
-                if (comprarMode) navigate('/modelos', { state: { editComprar: comprarModelo } });
-                else setShowMirror(false);
+                if (comprarMode) {
+                  if (onComprarEditar) onComprarEditar();
+                  else navigate('/modelos', { state: { editComprar: comprarModelo } });
+                } else setShowMirror(false);
               }} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
               <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : 'OK — FINALIZAR'}</button>
             </div>
