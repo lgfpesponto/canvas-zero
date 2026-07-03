@@ -1693,9 +1693,11 @@ const ReportsPage = () => {
                         setBulkProgress({ current: 0, total: regressionItems.length });
                         try {
                           for (const item of regressionItems) {
+                            const motivoOpt = regressionReason.trim();
                             const { error } = await supabase.rpc('montagem_marcar_erro' as any, {
                               _order_id: item.id,
                               _destino: selectedProgress,
+                              _motivo: motivoOpt || null,
                             } as any);
                             if (error) blocked.push({ numero: item.numero, statusAtual: item.current });
                             else okCount++;
@@ -1714,7 +1716,7 @@ const ReportsPage = () => {
                       disabled={!!bulkProgress}
                       className="w-full px-4 py-2 rounded-lg bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 disabled:opacity-50"
                     >
-                      ERRO MONTAGEM (sem justificativa — não cobra novamente)
+                      ERRO MONTAGEM (motivo opcional — não cobra novamente)
                     </button>
                   )}
                 </DialogFooter>
