@@ -100,9 +100,6 @@ function TemplateCard({ modelo, onComprar }: { modelo: ModeloRow; onComprar: () 
 
 const ModelosPage = () => {
   const { isLoggedIn, user, role, isAdmin, allProfiles, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const editState = (location.state as any)?.editComprar as EditComprarState | undefined;
   const isAdminProducao = role === 'admin_producao';
 
   const [modelos, setModelos] = useState<ModeloRow[]>([]);
@@ -125,7 +122,10 @@ const ModelosPage = () => {
   const [vGradeItems, setVGradeItems] = useState<GradeItem[]>([]);
   const [showGrade, setShowGrade] = useState(false);
 
-  const restoredFromEditRef = useRef(false);
+  // Fluxo Comprar embarcado: espelho abre em cima de /modelos.
+  const [espelhoOpen, setEspelhoOpen] = useState(false);
+  const [espelhoOverrides, setEspelhoOverrides] = useState<EditComprarState['overrides'] | null>(null);
+  const espelhoTipo: Tipo | null = comprarModelo?.tipo ?? null;
 
   useEffect(() => {
     if (!user) return;
@@ -140,7 +140,13 @@ const ModelosPage = () => {
         toast.error('Erro ao carregar modelos');
         console.error(error);
       }
-      setModelos(((data as any[]) || []).map(r => ({
+      // Só entram modelos "completos": precisam ter foto_url e form_data.genero preenchidos.
+      const completos = ((data as any[]) || []).filter(r => {
+        const foto = (r.foto_url ?? '').toString().trim();
+        const genero = ((r.form_data ?? {}).genero ?? '').toString().trim();
+        return !!foto && !!genero;
+      });
+      setModelos(completos.map(r => ({
         ...r,
         tipo: (r.tipo === 'cinto' ? 'cinto' : 'bota') as Tipo,
         tamanhos_skus: Array.isArray(r.tamanhos_skus) ? r.tamanhos_skus : [],
@@ -148,17 +154,6 @@ const ModelosPage = () => {
       setLoading(false);
     })();
   }, [user?.id]);
-
-  // Reabrir dialog quando voltar do espelho via "Editar"
-  useEffect(() => {
-    if (!editState || modelos.length === 0 || restoredFromEditRef.current) return;
-    const m = modelos.find(x => x.id === editState.templateId);
-    if (!m) return;
-    restoredFromEditRef.current = true;
-    openComprar(m, editState.overrides);
-    navigate(location.pathname, { replace: true, state: null });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editState, modelos]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
