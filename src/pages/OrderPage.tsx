@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox, Eraser } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { TemplateHeaderFields } from '@/components/template/TemplateHeaderFields';
 import { isHttpUrl } from '@/lib/driveUrl';
@@ -209,8 +209,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [tipoCouroTaloneira, setTipoCouroTaloneira] = useState(df.tipoCouroTaloneira || '');
   const [corCouroTaloneira, setCorCouroTaloneira] = useState(df.corCouroTaloneira || '');
 
-  // desenvolvimento (moved before bordados)
+  // desenvolvimento LEGACY (pedidos antigos com Bordado/Laser/Estampa como valor único)
   const [desenvolvimento, setDesenvolvimento] = useState(df.desenvolvimento || '');
+  // desenvolvimento NOVO: 3 categorias independentes com descrição opcional
+  const [desenvBordado, setDesenvBordado] = useState(df.desenvBordado === 'true');
+  const [desenvBordadoDesc, setDesenvBordadoDesc] = useState(df.desenvBordadoDesc || '');
+  const [desenvLaser, setDesenvLaser] = useState(df.desenvLaser === 'true');
+  const [desenvLaserDesc, setDesenvLaserDesc] = useState(df.desenvLaserDesc || '');
+  const [desenvEstampa, setDesenvEstampa] = useState(df.desenvEstampa === 'true');
+  const [desenvEstampaDesc, setDesenvEstampaDesc] = useState(df.desenvEstampaDesc || '');
 
   // bordados
   const [bordadoCano, setBordadoCano] = useState<string[]>(df.bordadoCano ? df.bordadoCano.split('||') : []);
@@ -384,6 +391,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     acessorios: acessorios.join('||'),
     tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira,
     desenvolvimento,
+    desenvBordado: String(desenvBordado), desenvBordadoDesc,
+    desenvLaser: String(desenvLaser), desenvLaserDesc,
+    desenvEstampa: String(desenvEstampa), desenvEstampaDesc,
     bordadoCano: bordadoCano.join('||'), corBordadoCano,
     bordadoGaspea: bordadoGaspea.join('||'), corBordadoGaspea,
     bordadoTaloneira: bordadoTaloneira.join('||'), corBordadoTaloneira,
@@ -414,7 +424,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     recorteCano, corRecorteCano,
     recorteGaspea, corRecorteGaspea,
     recorteTaloneira, corRecorteTaloneira,
-  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, bolaGrande, bolaGrandeQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida, recorteCano, corRecorteCano, recorteGaspea, corRecorteGaspea, recorteTaloneira, corRecorteTaloneira]);
+  }), [modelo, sobMedidaDesc, acessorios, tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira, desenvolvimento, desenvBordado, desenvBordadoDesc, desenvLaser, desenvLaserDesc, desenvEstampa, desenvEstampaDesc, bordadoCano, corBordadoCano, bordadoGaspea, corBordadoGaspea, bordadoTaloneira, corBordadoTaloneira, bordadoVariadoDescCano, bordadoVariadoDescGaspea, bordadoVariadoDescTaloneira, nomeBordado, nomeBordadoDesc, laserCano, corGlitterCano, laserGaspea, corGlitterGaspea, laserTaloneira, corGlitterTaloneira, laserOutroCanoText, laserOutroGaspeaText, laserOutroTaloneiraText, pintura, pinturaDesc, estampa, estampaDesc, corLinha, corBorrachinha, corVivo, areaMetal, tipoMetal, corMetal, strass, strassQtd, bolaGrande, bolaGrandeQtd, cruzMetal, cruzMetalQtd, bridaoMetal, bridaoMetalQtd, cavaloMetal, cavaloMetalQtd, trice, triceDesc, tiras, tirasDesc, franja, franjaCouro, franjaCor, corrente, correnteCor, corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira, solado, formatoBico, corSola, corVira, costuraAtras, carimbo, carimboDesc, adicionalDesc, adicionalValor, observacao, sobMedida, recorteCano, corRecorteCano, recorteGaspea, corRecorteGaspea, recorteTaloneira, corRecorteTaloneira]);
 
   // Populate all form fields from template data
   const populateFormFromTemplate = useCallback((fd: Record<string, string>) => {
@@ -429,6 +439,12 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     setTipoCouroTaloneira(fd.tipoCouroTaloneira || '');
     setCorCouroTaloneira(fd.corCouroTaloneira || '');
     setDesenvolvimento(fd.desenvolvimento || '');
+    setDesenvBordado(fd.desenvBordado === 'true');
+    setDesenvBordadoDesc(fd.desenvBordadoDesc || '');
+    setDesenvLaser(fd.desenvLaser === 'true');
+    setDesenvLaserDesc(fd.desenvLaserDesc || '');
+    setDesenvEstampa(fd.desenvEstampa === 'true');
+    setDesenvEstampaDesc(fd.desenvEstampaDesc || '');
     setBordadoCano(fd.bordadoCano ? fd.bordadoCano.split('||') : []);
     setCorBordadoCano(fd.corBordadoCano || '');
     setBordadoGaspea(fd.bordadoGaspea ? fd.bordadoGaspea.split('||') : []);
@@ -854,7 +870,12 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const glitterTaloneiraPreco = corGlitterTaloneira ? GLITTER_TALONEIRA_PRECO : 0;
   const totalLaserPreco = laserCanoPreco + glitterCanoPreco + laserGaspeaPreco + glitterGaspeaPreco + laserTaloneiraPreco + glitterTaloneiraPreco;
 
-  const desenvPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
+  // Desenvolvimento: legacy (campo único) + novos 3 booleans
+  const desenvLegacyPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
+  const desenvBordadoPreco = desenvBordado ? 50 : 0;
+  const desenvLaserPreco = desenvLaser ? 100 : 0;
+  const desenvEstampaPreco = desenvEstampa ? 150 : 0;
+  const desenvPreco = desenvLegacyPreco + desenvBordadoPreco + desenvLaserPreco + desenvEstampaPreco;
   const areaMetalPreco = AREA_METAL.find(a => a.label === areaMetal)?.preco || 0;
   const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
   const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * BOLA_GRANDE_PRECO : 0;
@@ -1027,6 +1048,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       franja, franjaCouro, franjaCor,
       corrente, correnteCor,
       corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,
+      desenvBordado, desenvBordadoDesc: desenvBordado ? desenvBordadoDesc : '',
+      desenvLaser, desenvLaserDesc: desenvLaser ? desenvLaserDesc : '',
+      desenvEstampa, desenvEstampaDesc: desenvEstampa ? desenvEstampaDesc : '',
     },
     };
   };
@@ -1044,6 +1068,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     setTipoCouroGaspea(''); setCorCouroGaspea('');
     setTipoCouroTaloneira(''); setCorCouroTaloneira('');
     setDesenvolvimento('');
+    setDesenvBordado(false); setDesenvBordadoDesc('');
+    setDesenvLaser(false); setDesenvLaserDesc('');
+    setDesenvEstampa(false); setDesenvEstampaDesc('');
     setBordadoCano([]); setCorBordadoCano('');
     setBordadoGaspea([]); setCorBordadoGaspea('');
     setBordadoTaloneira([]); setCorBordadoTaloneira('');
@@ -1162,6 +1189,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       acessorios: acessorios.join('||'),
       tipoCouroCano, corCouroCano, tipoCouroGaspea, corCouroGaspea, tipoCouroTaloneira, corCouroTaloneira,
       desenvolvimento,
+      desenvBordado: String(desenvBordado), desenvBordadoDesc,
+      desenvLaser: String(desenvLaser), desenvLaserDesc,
+      desenvEstampa: String(desenvEstampa), desenvEstampaDesc,
       bordadoCano: bordadoCano.join('||'), corBordadoCano,
       bordadoGaspea: bordadoGaspea.join('||'), corBordadoGaspea,
       bordadoTaloneira: bordadoTaloneira.join('||'), corBordadoTaloneira,
@@ -1217,7 +1247,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       const p = findFichaPrice(t, cat) ?? COURO_PRECOS[t] ?? 0;
       if (p) items.push(['Couro: ' + t, p]);
     });
-    if (desenvPreco) items.push(['Desenvolvimento: ' + desenvolvimento, desenvPreco]);
+    if (desenvLegacyPreco) items.push(['Desenvolvimento: ' + desenvolvimento, desenvLegacyPreco]);
     const bordadoTriples: [string[], string, { label: string; preco: number }[]][] = [
       [bordadoCano, 'bordado_cano', BORDADOS_CANO],
       [bordadoGaspea, 'bordado_gaspea', BORDADOS_GASPEA],
@@ -1230,6 +1260,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       });
     });
     if (nomeBordado) items.push(['Nome Bordado', NOME_BORDADO_PRECO]);
+    if (desenvBordado) items.push([`Desenvolvimento Bordado${desenvBordadoDesc ? ': ' + desenvBordadoDesc : ''}`, 50]);
     if (laserCano.length) items.push(['Laser Cano', laserCanoPreco || LASER_CANO_PRECO]);
     if (corGlitterCano) items.push(['Glitter/Tecido Cano', GLITTER_CANO_PRECO]);
     if (laserGaspea.length) items.push(['Laser Gáspea', laserGaspeaPreco || LASER_GASPEA_PRECO]);
@@ -1250,7 +1281,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       if (p) items.push(['Recorte Taloneira: ' + recorteTaloneira, p]);
     }
     if (pintura) items.push(['Pintura', PINTURA_PRECO]);
+    if (desenvLaser) items.push([`Desenvolvimento Laser${desenvLaserDesc ? ': ' + desenvLaserDesc : ''}`, 100]);
     if (estampa) items.push(['Estampa', ESTAMPA_PRECO]);
+    if (desenvEstampa) items.push([`Desenvolvimento Estampa${desenvEstampaDesc ? ': ' + desenvEstampaDesc : ''}`, 150]);
     if (areaMetalPreco) items.push(['Área Metal: ' + areaMetal, areaMetalPreco]);
     if (strass && strassQtd) items.push([`Strass (${strassQtd} un.)`, strassQtd * STRASS_PRECO]);
     if (bolaGrande && bolaGrandeQtd) items.push([`Bola Grande (${bolaGrandeQtd} un.)`, bolaGrandeQtd * BOLA_GRANDE_PRECO]);
@@ -1285,6 +1318,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         ['Modelo', modelo],
         ['Sob Medida', sobMedida ? `Sim${sobMedidaDesc ? ' — ' + sobMedidaDesc : ''}` : ''],
         ['Desenvolvimento', desenvolvimento],
+        ['Observação', observacao],
         ['Acessórios', acessorios.join(', ')],
       ]),
     },
@@ -1309,6 +1343,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         ['Bordado Taloneira', bordadoTaloneira.join(', ')],
         ['Cor Bordado Taloneira', corBordadoTaloneira],
         ['Nome Bordado', nomeBordado ? nomeBordadoDesc || 'Sim' : ''],
+        ['Desenv. Bordado', desenvBordado ? `Sim${desenvBordadoDesc ? ' — ' + desenvBordadoDesc : ''} (R$50)` : ''],
       ]),
     },
     {
@@ -1330,7 +1365,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         ['Cor Bordado Laser Gáspea', corBordadoLaserGaspea],
         ['Cor Bordado Laser Taloneira', corBordadoLaserTaloneira],
         ['Pintura', pintura ? pinturaDesc || 'Sim' : ''],
+        ['Desenv. Laser', desenvLaser ? `Sim${desenvLaserDesc ? ' — ' + desenvLaserDesc : ''} (R$100)` : ''],
         ['Estampa', estampa ? (estampaDesc ? `Sim — ${estampaDesc}` : 'Sim') : ''],
+        ['Desenv. Estampa', desenvEstampa ? `Sim${desenvEstampaDesc ? ' — ' + desenvEstampaDesc : ''} (R$150)` : ''],
       ]),
     },
     {
@@ -1405,6 +1442,20 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </h1>
           {mode === 'order' && (
             <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
+                    resetForm();
+                    toast.success('Ficha limpa.');
+                  }
+                }}
+                title="Limpar todos os campos da ficha"
+              >
+                <Eraser size={16} /> Limpar
+              </Button>
               <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
                 <Plus size={16} /> Criar Modelo
               </Button>

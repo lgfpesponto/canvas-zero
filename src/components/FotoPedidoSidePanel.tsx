@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Loader2, X } from 'lucide-react';
+import { ExternalLink, Loader2, X, Eye, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isDriveUrl, toDriveImageUrl, toDrivePreviewUrl } from '@/lib/driveUrl';
 
 interface Props {
   url: string | null;
   onClose: () => void;
+  onFinalizar?: () => void;
+  onSaveDraft?: () => void;
+  disabled?: boolean;
 }
 
 /**
  * Painel lateral fixo (sticky) com a foto do pedido.
- * Não usa Dialog/overlay — não bloqueia a edição da ficha ao lado.
+ * Opcionalmente exibe botões flutuantes "olho" (finalizar/conferir) e "página" (salvar rascunho)
+ * logo abaixo do painel — acompanham a rolagem porque o aside é sticky.
  */
-export const FotoPedidoSidePanel = ({ url, onClose }: Props) => {
+export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, disabled }: Props) => {
   const [imgFailed, setImgFailed] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -86,6 +90,35 @@ export const FotoPedidoSidePanel = ({ url, onClose }: Props) => {
           )}
         </div>
       </div>
+
+      {(onFinalizar || onSaveDraft) && (
+        <div className="mt-3 flex justify-end gap-2">
+          {onFinalizar && (
+            <button
+              type="button"
+              onClick={onFinalizar}
+              disabled={disabled}
+              title="Conferir e finalizar pedido"
+              aria-label="Conferir e finalizar pedido"
+              className="h-14 w-14 rounded-full orange-gradient text-primary-foreground shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Eye size={22} />
+            </button>
+          )}
+          {onSaveDraft && (
+            <button
+              type="button"
+              onClick={onSaveDraft}
+              disabled={disabled}
+              title="Salvar rascunho"
+              aria-label="Salvar rascunho"
+              className="h-14 w-14 rounded-full bg-card border-2 border-primary text-primary shadow-lg hover:bg-primary/10 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FileText size={22} />
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   );
 };

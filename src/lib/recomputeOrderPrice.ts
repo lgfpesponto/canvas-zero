@@ -63,7 +63,14 @@ export function recomputeSubtotal(
     if (!t) return;
     push(findFichaPrice(t, cat) ?? COURO_PRECOS[t] ?? 0);
   });
+  // Desenvolvimento — legacy (campo único) e novo (3 booleans em extra_detalhes)
   push(DESENVOLVIMENTO.find(d => d.label === order.desenvolvimento)?.preco);
+  {
+    const det: any = order.extraDetalhes || {};
+    if (det.desenvBordado) items.push(50);
+    if (det.desenvLaser) items.push(100);
+    if (det.desenvEstampa) items.push(150);
+  }
 
   const findDetailPrice = (b: string, cat: string, fallback: { label: string; preco: number }[]) =>
     findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
