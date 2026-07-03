@@ -665,6 +665,11 @@ const BeltOrderPage = () => {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className={cls.label}>Observação</label>
+              <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
+            </div>
           </Section>
           )}
 
