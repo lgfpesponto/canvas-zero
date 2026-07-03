@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFichaTipos, useFichaCategorias, useStatusEtapas } from '@/hooks/useAdminConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw, Wallet } from 'lucide-react';
+import { Settings, Layers, ChevronRight, Plus, Trash2, BarChart3, Package, Activity, Users, RefreshCw, Wallet, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import {
 import FichaBuilder from '@/components/admin/FichaBuilder';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 import { FinanceiroInner } from './FinanceiroPage';
+import ConfiguracoesNFe from './ConfiguracoesNFe';
+import { useNfeAccess } from '@/hooks/useNfeAccess';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
@@ -27,6 +29,7 @@ export default function AdminConfigPage() {
   const { data: etapas } = useStatusEtapas();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const hasNfeAccess = useNfeAccess();
 
   useEffect(() => {
     if (user && user.role !== 'admin_master' && user.role !== 'admin_producao') {
@@ -50,7 +53,7 @@ export default function AdminConfigPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-auto max-w-5xl"
+        className="mx-auto max-w-7xl"
       >
         <div className="mb-8 flex items-center gap-3">
           <Settings className="h-6 w-6 text-primary" />
@@ -59,37 +62,71 @@ export default function AdminConfigPage() {
           </h1>
         </div>
 
-        <Tabs defaultValue="fichas" className="space-y-6">
-          <TabsList className="w-full justify-start overflow-x-auto">
-            <TabsTrigger value="fichas" className="gap-1.5 lowercase">
+        <Tabs defaultValue="fichas" orientation="vertical" className="flex flex-col md:flex-row gap-6">
+          <TabsList className="flex md:flex-col h-auto md:w-60 shrink-0 bg-primary text-primary-foreground p-2 rounded-lg gap-1 justify-start overflow-x-auto md:overflow-visible">
+            <TabsTrigger
+              value="fichas"
+              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+            >
               <Layers className="h-4 w-4" /> ficha de produção
             </TabsTrigger>
-            <TabsTrigger value="extras" className="gap-1.5 lowercase">
+            <TabsTrigger
+              value="extras"
+              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+            >
               <Package className="h-4 w-4" /> extras
             </TabsTrigger>
-            <TabsTrigger value="progresso" className="gap-1.5 lowercase">
+            <TabsTrigger
+              value="progresso"
+              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+            >
               <Activity className="h-4 w-4" /> progresso de produção
             </TabsTrigger>
-            <TabsTrigger value="relatorios" className="gap-1.5 lowercase">
+            <TabsTrigger
+              value="relatorios"
+              className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+            >
               <BarChart3 className="h-4 w-4" /> relatórios
             </TabsTrigger>
             {user.role === 'admin_master' && (
               <>
-                <TabsTrigger value="usuarios" className="gap-1.5 lowercase">
+                <TabsTrigger
+                  value="usuarios"
+                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+                >
                   <Users className="h-4 w-4" /> usuários
                 </TabsTrigger>
-                <TabsTrigger value="gestao" className="gap-1.5 lowercase">
+                <TabsTrigger
+                  value="gestao"
+                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+                >
                   <Activity className="h-4 w-4" /> gestão
                 </TabsTrigger>
-                <TabsTrigger value="atacado-sync" className="gap-1.5 lowercase">
+                <TabsTrigger
+                  value="atacado-sync"
+                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+                >
                   <RefreshCw className="h-4 w-4" /> sincronização atacado
                 </TabsTrigger>
-                <TabsTrigger value="financeiro" className="gap-1.5 lowercase">
+                <TabsTrigger
+                  value="financeiro"
+                  className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+                >
                   <Wallet className="h-4 w-4" /> financeiro
                 </TabsTrigger>
+                {hasNfeAccess && (
+                  <TabsTrigger
+                    value="nfe"
+                    className="w-full justify-start gap-2 lowercase text-primary-foreground data-[state=active]:bg-background data-[state=active]:text-primary hover:bg-primary-foreground/10"
+                  >
+                    <FileText className="h-4 w-4" /> nf-e
+                  </TabsTrigger>
+                )}
               </>
             )}
           </TabsList>
+
+          <div className="flex-1 min-w-0">
 
           {/* ─── Fichas de Produção ─── */}
           <TabsContent value="fichas">
@@ -177,8 +214,14 @@ export default function AdminConfigPage() {
               <TabsContent value="financeiro">
                 <FinanceiroInner />
               </TabsContent>
+              {hasNfeAccess && (
+                <TabsContent value="nfe">
+                  <ConfiguracoesNFe />
+                </TabsContent>
+              )}
             </>
           )}
+          </div>
         </Tabs>
       </motion.div>
 
