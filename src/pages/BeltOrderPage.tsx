@@ -39,15 +39,24 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
   </div>
 );
 
-const BeltOrderPage = () => {
+export interface BeltOrderPageProps {
+  comprarModeloOverride?: {
+    templateId: string;
+    overrides?: { numeroPedido?: string; cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
+  } | null;
+  onComprarSaved?: () => void;
+  onComprarEditar?: () => void;
+}
+
+const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const draftData = (location.state as any)?.draft;
-  const comprarModelo = (location.state as any)?.comprarModelo as null | {
+  const comprarModelo = comprarModeloOverride ?? ((location.state as any)?.comprarModelo as null | {
     templateId: string;
     overrides?: { numeroPedido?: string; cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
-  };
+  });
   const [comprarMode] = useState<boolean>(!!comprarModelo);
 
   const isAdminUser = isAdmin;
