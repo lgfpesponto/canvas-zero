@@ -1577,7 +1577,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 )}
               </div>
 
-              {vendedorSelecionado !== 'Estoque' && (
+              {vendedorSelecionado !== 'Estoque' && (user?.role === 'vendedor_comissao' || user?.role === 'admin_master') && (
                 <div>
                   <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
                   <input
