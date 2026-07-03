@@ -237,7 +237,7 @@ const BeltOrderPage = () => {
       tamanhosSkus: Array.isArray(template.tamanhos_skus) ? template.tamanhos_skus : [],
     };
     populateFromTemplate(template.form_data);
-    if (template.foto_url && canInheritTemplateFoto()) {
+    if (template.foto_url) {
       setFotoUrl(template.foto_url);
       if (isHttpUrl(template.foto_url)) setMostrarFotoPainel(true);
     }
