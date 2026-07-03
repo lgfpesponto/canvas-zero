@@ -1716,7 +1716,7 @@ const ReportsPage = () => {
                       disabled={!!bulkProgress}
                       className="w-full px-4 py-2 rounded-lg bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 disabled:opacity-50"
                     >
-                      ERRO MONTAGEM (sem justificativa — não cobra novamente)
+                      ERRO MONTAGEM (motivo opcional — não cobra novamente)
                     </button>
                   )}
                 </DialogFooter>
