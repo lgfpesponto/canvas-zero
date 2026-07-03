@@ -198,13 +198,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   } | null;
   const bagyPrefill = bagyPrefillOverride ?? locState?.bagyPrefill ?? null;
   const bagyPrefillRef = useRef(bagyPrefill);
-  const comprarModelo = locState?.comprarModelo ?? null;
+  const comprarModelo = comprarModeloOverride ?? locState?.comprarModelo ?? null;
   const [comprarMode] = useState<boolean>(!!comprarModelo);
   const draftState = locState?.draft;
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
   const [draftId, setDraftId] = useState(draftId_init);
-  const [productChoice, setProductChoice] = useState<'bota' | null>(draftState ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null));
+  const [productChoice, setProductChoice] = useState<'bota' | null>(
+    (draftState || comprarModelo) ? 'bota' : (locState?.productChoice === 'bota' ? 'bota' : null),
+  );
   const [mode, setMode] = useState<'order' | 'template'>('order');
   const tmpl = useTemplateManagement();
   // Modelo rascunho aplicado (nome + sku base + grade) — gravado no pedido ao salvar.
