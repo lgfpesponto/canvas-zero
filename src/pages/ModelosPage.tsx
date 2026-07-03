@@ -239,10 +239,8 @@ const ModelosPage = () => {
       overrides.sobMedida = vSobMedida;
       if (vSobMedida) overrides.sobMedidaDesc = vSobMedidaDesc.trim();
     }
-    const dest = comprarModelo.tipo === 'cinto' ? '/pedido-cinto' : '/pedido';
-    navigate(dest, {
-      state: { comprarModelo: { templateId: comprarModelo.id, overrides } },
-    });
+    setEspelhoOverrides(overrides);
+    setEspelhoOpen(true);
   }
 
   if (authLoading) return <div className="min-h-[60vh]" />;
