@@ -472,13 +472,13 @@ const ModelosPage = () => {
             <BeltOrderPage
               comprarModeloOverride={{ templateId: comprarModelo.id, overrides: espelhoOverrides as any }}
               onComprarSaved={() => { closeComprar(); }}
-              onComprarEditar={() => { setEspelhoOpen(false); }}
+              onComprarEditar={() => { setEspelhoOpen(false); setComprarOpen(true); }}
             />
           ) : (
             <OrderPage
               comprarModeloOverride={{ templateId: comprarModelo.id, overrides: espelhoOverrides }}
               onComprarSaved={() => { closeComprar(); }}
-              onComprarEditar={() => { setEspelhoOpen(false); }}
+              onComprarEditar={() => { setEspelhoOpen(false); setComprarOpen(true); }}
             />
           )}
         </div>
