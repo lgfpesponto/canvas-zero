@@ -146,9 +146,24 @@ export interface OrderPageProps {
   onBagyCancel?: () => void;
   /** Texto extra mostrado no botão "OK — Finalizar" (ex: "(3/5)"). */
   finalizeBadge?: string;
+  /** Override do comprarModelo (usado ao embarcar a página em /modelos). */
+  comprarModeloOverride?: {
+    templateId: string;
+    overrides?: {
+      numeroPedido?: string;
+      cliente?: string; clienteWhatsapp?: string; tamanho?: string;
+      vendedor?: string; observacao?: string;
+      sobMedida?: boolean; sobMedidaDesc?: string;
+      gradeItems?: { tamanho: string; quantidade: number; sku?: string }[];
+    };
+  } | null;
+  /** Callback após salvar com sucesso o pedido do fluxo Comprar embarcado. */
+  onComprarSaved?: () => void;
+  /** Callback quando o usuário clica EDITAR no espelho durante o fluxo Comprar embarcado. */
+  onComprarEditar?: () => void;
 }
 
-const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge }: OrderPageProps = {}) => {
+const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
   const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
