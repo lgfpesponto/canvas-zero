@@ -165,9 +165,24 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const locState = location.state as { draft?: Draft; templateData?: Record<string, string>; productChoice?: string; bagyPrefill?: { templateId: string; numero: string; cliente?: string; whatsapp?: string; tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string; bagyOrderId: string; quantidade?: number } } | null;
+  const locState = location.state as {
+    draft?: Draft;
+    templateData?: Record<string, string>;
+    productChoice?: string;
+    bagyPrefill?: { templateId: string; numero: string; cliente?: string; whatsapp?: string; tamanho?: string; fotoUrl?: string | null; bagyPedidoId: string; bagyItemId: string; bagyOrderId: string; quantidade?: number };
+    comprarModelo?: {
+      templateId: string;
+      overrides?: {
+        cliente?: string; clienteWhatsapp?: string; tamanho?: string;
+        vendedor?: string; observacao?: string;
+        sobMedida?: boolean; sobMedidaDesc?: string;
+      };
+    };
+  } | null;
   const bagyPrefill = bagyPrefillOverride ?? locState?.bagyPrefill ?? null;
   const bagyPrefillRef = useRef(bagyPrefill);
+  const comprarModelo = locState?.comprarModelo ?? null;
+  const [comprarMode] = useState<boolean>(!!comprarModelo);
   const draftState = locState?.draft;
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
@@ -521,7 +536,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   // Template handlers using hook
   const handleSaveTemplate = async () => {
     if (!user) return;
-    const success = await tmpl.saveTemplate(user.id, buildFormData());
+    const success = await tmpl.saveTemplate(user.id, buildFormData(), 'bota');
     if (success) {
       setMode('order');
       resetForm();
@@ -764,6 +779,47 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bagyPrefill, fichaLoading]);
+
+  /* ───── Comprar Modelo prefill: vem de /modelos → "Comprar" ───── */
+  const comprarAppliedRef = useRef(false);
+  useEffect(() => {
+    if (comprarAppliedRef.current || !comprarModelo || fichaLoading) return;
+    comprarAppliedRef.current = true;
+    (async () => {
+      const { data: tmplRow } = await supabase
+        .from('order_templates')
+        .select('id, nome, form_data, genero, sku, tamanhos_skus, foto_url')
+        .eq('id', comprarModelo.templateId)
+        .maybeSingle();
+      if (!tmplRow) {
+        toast.error('Modelo não encontrado.');
+        navigate('/modelos', { replace: true });
+        return;
+      }
+      setProductChoice('bota');
+      setMode('order');
+      appliedTemplateRef.current = {
+        nome: (tmplRow as any).nome,
+        sku: (tmplRow as any).sku,
+        tamanhosSkus: Array.isArray((tmplRow as any).tamanhos_skus) ? (tmplRow as any).tamanhos_skus : [],
+      };
+      validateAndPopulateTemplate({ ...((tmplRow as any).form_data || {}) });
+      if ((tmplRow as any).genero) setGenero((tmplRow as any).genero);
+      if ((tmplRow as any).foto_url) setFotoUrl((tmplRow as any).foto_url);
+      const ov = comprarModelo.overrides || {};
+      if (ov.cliente !== undefined) setCliente(ov.cliente);
+      if (ov.clienteWhatsapp !== undefined) setClienteWhatsapp(ov.clienteWhatsapp);
+      if (ov.tamanho !== undefined) setTamanho(ov.tamanho);
+      if (ov.vendedor !== undefined && ov.vendedor) setVendedorSelecionado(ov.vendedor);
+      if (ov.observacao !== undefined) setObservacao(ov.observacao);
+      if (ov.sobMedida !== undefined) setSobMedida(!!ov.sobMedida);
+      if (ov.sobMedidaDesc !== undefined) setSobMedidaDesc(ov.sobMedidaDesc);
+      setTimeout(() => setShowMirror(true), 60);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprarModelo, fichaLoading]);
+
+
 
 
 
@@ -1436,7 +1492,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   return (
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
-      <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
+      <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <h1 className="text-3xl font-display font-bold">
@@ -2017,7 +2073,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
       {/* ───── Mirror ───── */}
       {showMirror && (
-        <div className="fixed inset-0 z-50 bg-foreground/60 flex items-center justify-center p-4" onClick={() => setShowMirror(false)}>
+        <div className="fixed inset-0 z-50 bg-foreground/60 flex items-center justify-center p-4" onClick={() => {
+          if (comprarMode) {
+            navigate('/modelos', { state: { editComprar: comprarModelo } });
+          } else {
+            setShowMirror(false);
+          }
+        }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card rounded-xl p-6 md:p-8 western-shadow max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-2xl font-display font-bold mb-1 text-center">ESPELHO DA FICHA DE PRODUÇÃO</h2>
             <p className="text-sm text-muted-foreground text-center mb-6">Confira todas as informações antes de finalizar</p>
@@ -2080,7 +2142,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setShowMirror(false)} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
+              <button onClick={() => {
+                if (comprarMode) {
+                  navigate('/modelos', { state: { editComprar: comprarModelo } });
+                } else {
+                  setShowMirror(false);
+                }
+              }} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
               <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : `OK — FINALIZAR${finalizeBadge ? ' ' + finalizeBadge : ''}`}</button>
             </div>
           </motion.div>

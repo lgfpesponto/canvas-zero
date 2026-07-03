@@ -15,6 +15,7 @@ export interface TemplateRecord {
   genero?: string | null;
   foto_url?: string | null;
   tamanhos_skus?: TamanhoSku[] | null;
+  tipo?: 'bota' | 'cinto';
 }
 
 
@@ -42,7 +43,7 @@ export function useTemplateManagement() {
   const loadTemplates = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('order_templates')
-      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero, foto_url, tamanhos_skus')
+      .select('id, nome, form_data, sent_by, sent_by_name, seen, sku, genero, foto_url, tamanhos_skus, tipo')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     setTemplates((data as any) || []);
@@ -53,7 +54,7 @@ export function useTemplateManagement() {
       .map(t => ({ tamanho: (t.tamanho || '').trim(), sku: (t.sku || '').trim() }))
       .filter(t => t.tamanho || t.sku);
 
-  const saveTemplate = useCallback(async (userId: string, formData: Record<string, string>) => {
+  const saveTemplate = useCallback(async (userId: string, formData: Record<string, string>, tipo?: 'bota' | 'cinto') => {
     if (!templateName.trim()) {
       toast.error('Preencha o nome do modelo');
       return false;
@@ -62,9 +63,11 @@ export function useTemplateManagement() {
     const genero = templateGenero.trim() || null;
     const foto_url = templateFotoUrl.trim() || null;
     const tamanhos_skus = sanitizeTamanhos(templateTamanhosSkus);
+    const payload: any = { user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero, foto_url, tamanhos_skus };
+    if (tipo) payload.tipo = tipo;
     const { error } = await supabase
       .from('order_templates')
-      .insert({ user_id: userId, nome: templateName.trim(), form_data: formData, sku, genero, foto_url, tamanhos_skus } as any);
+      .insert(payload);
     if (error) {
       toast.error('Erro ao salvar modelo');
       console.error(error);
@@ -138,6 +141,7 @@ export function useTemplateManagement() {
       sent_by: senderId,
       sent_by_name: senderName || 'Usuário',
       seen: false,
+      ...(template.tipo ? { tipo: template.tipo } : {}),
     })));
     const { error } = await supabase.from('order_templates').insert(rows as any);
     if (error) {

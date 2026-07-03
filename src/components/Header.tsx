@@ -34,9 +34,11 @@ const Header = () => {
   }, [isAdmin, isJuliana, location.pathname]);
 
   const isBagyAccess = isAdmin || role === 'vendedor_comissao';
+  const canSeeModelos = showAsLogged && role !== 'bordado' && role !== 'montagem' && role !== 'admin_producao';
   const navItems = showAsLogged
     ? [
         { label: 'FAÇA SEU PEDIDO', path: '/pedido' },
+        ...(canSeeModelos ? [{ label: 'MODELOS', path: '/modelos' }] : []),
         { label: 'EXTRAS', path: '/extras' },
         { label: 'ESTOQUE', path: '/estoque' },
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
