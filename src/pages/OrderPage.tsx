@@ -181,6 +181,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   } | null;
   const bagyPrefill = bagyPrefillOverride ?? locState?.bagyPrefill ?? null;
   const bagyPrefillRef = useRef(bagyPrefill);
+  const comprarModelo = locState?.comprarModelo ?? null;
+  const [comprarMode] = useState<boolean>(!!comprarModelo);
   const draftState = locState?.draft;
   const templateInit = locState?.templateData;
   const draftId_init = draftState?.id || '';
