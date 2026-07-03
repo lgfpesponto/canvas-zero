@@ -2101,7 +2101,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       {showMirror && (
         <div className="fixed inset-0 z-50 bg-foreground/60 flex items-center justify-center p-4" onClick={() => {
           if (comprarMode) {
-            navigate('/modelos', { state: { editComprar: comprarModelo } });
+            if (onComprarEditar) onComprarEditar();
+            else navigate('/modelos', { state: { editComprar: comprarModelo } });
           } else {
             setShowMirror(false);
           }
