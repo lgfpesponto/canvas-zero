@@ -1740,11 +1740,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             )}
 
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
+            <ToggleField label="Desenvolvimento (+R$100)" value={desenvLaser} onChange={setDesenvLaser} textValue={desenvLaserDesc} onTextChange={setDesenvLaserDesc} textPlaceholder="Descreva o desenvolvimento..." />
           </Section>
 
           {/* ESTAMPA */}
           <Section title="Estampa">
             <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
+            <ToggleField label="Desenvolvimento (+R$150)" value={desenvEstampa} onChange={setDesenvEstampa} textValue={desenvEstampaDesc} onTextChange={setDesenvEstampaDesc} textPlaceholder="Descreva o desenvolvimento..." />
           </Section>
 
           {/* METAIS */}
