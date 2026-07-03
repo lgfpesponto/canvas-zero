@@ -799,10 +799,7 @@ const BeltOrderPage = () => {
             </div>
           </Section>
 
-          {/* Observação */}
-          <Section title="Observação">
-            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
-          </Section>
+          {/* Observação vive dentro da Identificação (topo) */}
 
           {!isTemplate && (
             <>
