@@ -1683,6 +1683,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* BORDADO */}
           <Section title="Bordado">
+            <ToggleField label="Desenvolvimento (+R$50)" value={desenvBordado} onChange={setDesenvBordado} textValue={desenvBordadoDesc} onTextChange={setDesenvBordadoDesc} textPlaceholder="Descreva o desenvolvimento..." />
             <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
