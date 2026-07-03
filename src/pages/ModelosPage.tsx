@@ -25,6 +25,7 @@ interface ModeloRow {
   nome: string;
   form_data: Record<string, any>;
   foto_url: string | null;
+  genero: string | null;
   tipo: Tipo;
   sku: string | null;
   tamanhos_skus: { tamanho: string; sku: string }[] | null;
