@@ -1,25 +1,26 @@
 ## Objetivo
-O card "Pendente" (vendedor) e "A Receber" (admin master) deve somar apenas pedidos com status **"Cobrado"** — não mais Conferido + Cobrado.
+Adicionar botão de atalho ao lado do botão "Modelos" em cada página "Faça seu pedido" para alternar rapidamente entre bota e cinto.
 
-## Alteração
-Migration atualizando a função `public.get_pending_value(vendor text)`:
+## Alterações
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_pending_value(vendor text DEFAULT NULL)
-RETURNS numeric
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT COALESCE(SUM(COALESCE(preco, 0)), 0)
-  FROM orders
-  WHERE status = 'Cobrado'
-    AND (vendor IS NULL OR vendedor = vendor);
-$$;
+### `src/pages/OrderPage.tsx` (rota `/pedido` — bota)
+Após o botão "Modelos" (linha ~1556), adicionar:
+```tsx
+<Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
+  Trocar para Cinto
+</Button>
 ```
 
-## Impacto
-- `VendedorDashboard` e `AdminDashboard` já chamam essa RPC — refletem automaticamente.
-- Pedidos apenas Conferidos deixam de aparecer no valor pendente.
-- Nenhum código de frontend precisa mudar.
+### `src/pages/BeltOrderPage.tsx` (rota `/pedido-cinto` — cinto)
+Após o botão "Modelos" (linha ~615), adicionar:
+```tsx
+<Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido')}>
+  Trocar para Bota
+</Button>
+```
+
+Ambos só aparecem no `mode === 'order'` (mesmo bloco de "Criar Modelo" / "Modelos"), respeitando o layout atual.
 
 ## Fora de escopo
-Financeiro > A Pagar/Receber, comissões, outras métricas.
+- Nenhuma alteração de lógica de pedido, formulários ou estado.
+- Página `/modelos` permanece igual.
