@@ -46,7 +46,7 @@ const BeltOrderPage = () => {
   const draftData = (location.state as any)?.draft;
   const comprarModelo = (location.state as any)?.comprarModelo as null | {
     templateId: string;
-    overrides?: { cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
+    overrides?: { numeroPedido?: string; cliente?: string; clienteWhatsapp?: string; tamanho?: string; vendedor?: string; observacao?: string };
   };
   const [comprarMode] = useState<boolean>(!!comprarModelo);
 
