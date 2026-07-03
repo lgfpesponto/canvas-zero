@@ -569,7 +569,7 @@ const BeltOrderPage = () => {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <form ref={formRef} onSubmit={handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
           {/* Cabeçalho do Modelo (foto, nome, gênero, SKU base, tamanhos+SKU) */}
           {isTemplate && (
