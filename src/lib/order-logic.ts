@@ -17,16 +17,14 @@ import type { Order, OrderAlteracao } from '@/contexts/AuthContext';
  * (preco_migrado_v2 = false) são corrigidos pelo runner de backfill ou
  * pela auto-correção silenciosa do detalhe.
  */
-export function getOrderBaseValue(order: Pick<Order, 'preco'> & { erroDePedidoId?: string }): number {
-  if (order.erroDePedidoId) return 0;
+export function getOrderBaseValue(order: Pick<Order, 'preco'>): number {
   return Number(order.preco) || 0;
 }
 
 export function getOrderFinalValue(
-  order: Pick<Order, 'preco' | 'desconto'> & { erroDePedidoId?: string },
+  order: Pick<Order, 'preco' | 'desconto'>,
   subtotalOverride?: number,
 ): number {
-  if (order.erroDePedidoId) return 0;
   if (subtotalOverride != null) {
     // Override = BRUTO da composição. Aplicamos o ajuste aqui.
     // ⚠️ Quem chama precisa passar bruto (sem desconto/acréscimo aplicado).

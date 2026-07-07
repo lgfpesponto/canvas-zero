@@ -912,12 +912,7 @@ const OrderDetailPage = () => {
             )}
           </div>
           <div className="border border-border rounded-lg p-4 mb-2">
-            {order.erroDePedidoId ? (
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-bold text-destructive">ERRO</span>
-                <span className="font-mono">R$ 0,00</span>
-              </div>
-            ) : order.tipoExtra ? (
+            {order.tipoExtra ? (
               <>
                 {(() => {
                   const extraPriceItems: [string, number][] = [];
