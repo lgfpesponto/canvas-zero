@@ -525,6 +525,7 @@ const OrderDetailPage = () => {
 
   // Última justificativa que afetou valor — exibida na Composição do Pedido (e PDF de cobrança)
   const ultimaJustificativaValor = [...alteracoesAgrupadas].reverse().find(g => g.afetouValor && g.justificativa);
+  const justificativaValorSalva = ultimaJustificativaValor?.justificativa || order.descontoJustificativa;
 
   const fotoEstoque = (order.extraDetalhes as any)?.origem_estoque ? (order.extraDetalhes as any)?.foto_url : null;
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? (fotoEstoque && isHttpUrl(fotoEstoque) ? fotoEstoque : null);
@@ -1134,6 +1135,19 @@ const OrderDetailPage = () => {
               isAdminMaster={role === 'admin_master'}
               onResolved={() => { void refetchOrder(); }}
             />
+            {justificativaValorSalva && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Última justificativa de alteração de valor</p>
+                <p className="text-xs text-muted-foreground">
+                  {ultimaJustificativaValor && (
+                    <>
+                      <span className="font-medium">{formatDateBR(ultimaJustificativaValor.data)} às {ultimaJustificativaValor.hora} — {ultimaJustificativaValor.usuario || '—'}:</span>{' '}
+                    </>
+                  )}
+                  <span className="italic">{justificativaValorSalva}</span>
+                </p>
+              </div>
+            )}
             {order.observacaoEntrega && (
               <div className="mt-3 pt-3 border-t border-border">
                 <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">
@@ -1147,15 +1161,6 @@ const OrderDetailPage = () => {
                   )}
                 </div>
                 <p className="text-sm">{order.observacaoEntrega}</p>
-              </div>
-            )}
-            {ultimaJustificativaValor && (
-              <div className="mt-3 pt-3 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Última justificativa de alteração de valor</p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium">{formatDateBR(ultimaJustificativaValor.data)} às {ultimaJustificativaValor.hora} — {ultimaJustificativaValor.usuario || '—'}:</span>{' '}
-                  <span className="italic">{ultimaJustificativaValor.justificativa}</span>
-                </p>
               </div>
             )}
           </div>
