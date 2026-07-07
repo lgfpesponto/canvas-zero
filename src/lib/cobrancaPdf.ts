@@ -298,10 +298,15 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
     const obsEntregaLines: string[] = (o as any).observacaoEntrega
       ? [`Obs. entrega: ${(o as any).observacaoEntrega}`]
       : [];
+    const solic = opts.ajusteSolicitacoes?.[o.id];
+    const solicLines: string[] = solic
+      ? [`Solicitação de ajuste (${solic.status === 'pendente' ? 'aguardando' : 'vista'}) — desconto ${formatCurrency(solic.desconto)}: ${solic.motivo}`]
+      : [];
     const compText = [
       ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
       ...divergLines,
       ...justifLines,
+      ...solicLines,
       ...obsEntregaLines,
     ]
       .join('\n')
