@@ -298,8 +298,11 @@ const AdminDashboard = () => {
         </Link>
       )}
       {isAdminMaster && ajustesPendentes > 0 && (
-        <div className="mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <Link
+          to="/admin/solicitacoes-ajuste"
+          className="block mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5 hover:bg-amber-100/60 dark:hover:bg-amber-500/20 transition-colors"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <DollarSign className="text-amber-600" size={28} />
               <div>
@@ -309,45 +312,13 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            <Link to="/admin/solicitacoes-ajuste" className="text-xs font-semibold text-amber-700 hover:underline">Ver página completa →</Link>
+            <span className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-bold">
+              Ver página completa →
+            </span>
           </div>
-          <div className="space-y-2">
-            {ajustesPendentesRows.slice(0, 8).map(r => {
-              const desc = Number(r.desconto_solicitado ?? r.valor_solicitado ?? 0);
-              const busy = ajusteActionId === r.id;
-              return (
-                <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-white/70 dark:bg-background/40 px-3 py-2">
-                  <div className="min-w-0 flex-1 text-xs">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link to={`/admin/solicitacoes-ajuste`} className="font-mono font-bold text-primary hover:underline">{r.numero}</Link>
-                      <span className="text-muted-foreground">— {r.vendedor}</span>
-                      <span className="font-semibold text-amber-700">Desc. {formatCurrency(desc)}</span>
-                    </div>
-                    <div className="italic text-muted-foreground truncate">"{r.motivo}"</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleAjusteAprovar(r.id)}
-                      disabled={busy}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50"
-                    >
-                      {busy ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} /> OK</>}
-                    </button>
-                    <button
-                      onClick={() => { setAjusteRejectId(r.id); setAjusteRejectMsg(''); }}
-                      disabled={busy}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-destructive hover:opacity-90 text-destructive-foreground text-xs font-bold disabled:opacity-50"
-                      title="Recusar"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        </Link>
       )}
+
       <AlertDialog open={!!ajusteRejectId} onOpenChange={(o) => { if (!o) setAjusteRejectId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -518,63 +489,8 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Pedidos de Alerta — only admin_master */}
-      {isAdminMaster && filteredAlertOrders.length > 0 && (
-        <div className="mt-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeIn} custom={2} className="bg-card rounded-xl p-4 western-shadow">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-display font-bold flex items-center gap-2">
-                  <AlertTriangle className="text-destructive" size={22} /> Pedidos de Alerta
-                </h2>
-                <span className="inline-flex items-center rounded-full bg-destructive/10 text-destructive px-2.5 py-0.5 text-xs font-bold">
-                  {filteredAlertOrders.length} pedido{filteredAlertOrders.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <button
-                onClick={() => setAlertCollapsed(c => !c)}
-                className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-muted text-muted-foreground hover:bg-primary/10 transition-colors flex items-center gap-1"
-              >
-                {alertCollapsed ? <><ChevronDown size={14} /> Expandir</> : <><ChevronUp size={14} /> Minimizar</>}
-              </button>
-            </div>
 
-            {!alertCollapsed && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
-                <p className="text-sm text-muted-foreground mb-3">Pedidos atrasados ou que regrediram na produção</p>
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {filteredAlertOrders.map(o => (
-                    <div key={o.id} className="flex items-center gap-2">
-                      <Link to={`/pedido/${o.id}`} className="flex-1 flex items-center justify-between p-3 bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors">
-                        <div>
-                          <span className="font-bold text-sm">{o.numero}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{'—'} {o.vendedor}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs font-semibold bg-destructive/20 text-destructive px-2 py-0.5 rounded">{o.status}</span>
-                          {(() => {
-                            const d = getOrderDeadlineInfo(o);
-                            return d.isOverdue
-                              ? <span className="text-xs text-destructive font-bold ml-2">+{d.daysOverdue}d atrasado</span>
-                              : null;
-                          })()}
-                        </div>
-                      </Link>
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleChecked(o.id); }}
-                        className="shrink-0 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                        title="Marcar como conferido"
-                      >
-                        <Check size={14} /> Conferido
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
-      )}
+
 
       {/* Specialized reports */}
       <div className="mt-8">
