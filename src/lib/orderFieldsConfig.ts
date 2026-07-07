@@ -415,17 +415,6 @@ export function getSoladosForModelo(modelo: string, formatoBico?: string): { lab
 export function getBicosForModeloSolado(modelo: string, solado?: string, tamanho?: string | number): string[] {
   const block = getBlockForModelo(modelo);
   if (!block) return [...FORMATO_BICO];
-  // Regra Botina: bicos "fino agulha" liberados em Couro Reta (34-44) e obrigatórios em PVC.
-  if (modelo === 'Botina') {
-    if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
-    if (solado === 'Rústica') return ['Quadrado'];
-    if (solado === 'Couro Reta') {
-      return botinaTamanhoAceitaFinoAgulha(tamanho)
-        ? ['Quadrado', 'Redondo', 'Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda']
-        : ['Quadrado', 'Redondo'];
-    }
-    return ['Quadrado', 'Redondo'];
-  }
   switch (block) {
     case 'infantil': return ['Quadrado'];
     case 'city': return ['Fino Ponta Redonda'];
@@ -435,6 +424,10 @@ export function getBicosForModeloSolado(modelo: string, solado?: string, tamanho
     case 'bicoFinoFeminino': return ['Fino Ponta Redonda'];
     case 'perfilado':
       if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
+      return ['Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda'];
+    case 'botinaBicoFino':
+      if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
+      if (solado === 'Couro Reta') return ['Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda'];
       return ['Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda'];
     default: return [...FORMATO_BICO];
   }
