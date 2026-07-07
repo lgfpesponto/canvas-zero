@@ -68,8 +68,8 @@ export function RegistrarErroDialog({ open, onOpenChange, order }: Props) {
         return;
       }
 
-      const dataHoje = formatBrasiliaDate(new Date());
-      const horaAgora = formatBrasiliaTime(new Date());
+      const dataHoje = formatBrasiliaDate();
+      const horaAgora = formatBrasiliaTime();
       const usuarioNome = user?.nomeCompleto || user?.email || 'usuário';
 
       // Clona a linha do banco tal qual, sobrescreve os campos do ERRO.
