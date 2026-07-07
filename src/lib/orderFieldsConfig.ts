@@ -436,10 +436,6 @@ export function getBicosForModeloSolado(modelo: string, solado?: string, tamanho
 export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: string): { label: string; preco: number }[] | null {
   const block = getBlockForModelo(modelo);
   if (!block) return COR_SOLA;
-  // Regra Botina + PVC: apenas Marrom, sem custo.
-  if (modelo === 'Botina' && solado === 'PVC') {
-    return [{ label: 'Marrom', preco: 0 }];
-  }
   switch (block) {
     case 'infantil': return null;
     case 'city': return [{ label: 'Preto', preco: 0 }];
