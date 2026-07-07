@@ -1533,6 +1533,8 @@ export type Database = {
           desconto_justificativa: string | null
           desenvolvimento: string
           dias_restantes: number
+          erro_de_pedido_id: string | null
+          erro_descricao: string | null
           estampa: string | null
           estampa_desc: string | null
           estoque_baixado: boolean
@@ -1644,6 +1646,8 @@ export type Database = {
           desconto_justificativa?: string | null
           desenvolvimento?: string
           dias_restantes?: number
+          erro_de_pedido_id?: string | null
+          erro_descricao?: string | null
           estampa?: string | null
           estampa_desc?: string | null
           estoque_baixado?: boolean
@@ -1755,6 +1759,8 @@ export type Database = {
           desconto_justificativa?: string | null
           desenvolvimento?: string
           dias_restantes?: number
+          erro_de_pedido_id?: string | null
+          erro_descricao?: string | null
           estampa?: string | null
           estampa_desc?: string | null
           estoque_baixado?: boolean
@@ -1813,7 +1819,15 @@ export type Database = {
           user_id?: string
           vendedor?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_erro_de_pedido_id_fkey"
+            columns: ["erro_de_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pdf_snapshots: {
         Row: {
@@ -2590,6 +2604,8 @@ export type Database = {
           desconto_justificativa: string | null
           desenvolvimento: string
           dias_restantes: number
+          erro_de_pedido_id: string | null
+          erro_descricao: string | null
           estampa: string | null
           estampa_desc: string | null
           estoque_baixado: boolean
