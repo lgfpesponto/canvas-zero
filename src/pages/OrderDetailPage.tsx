@@ -812,6 +812,27 @@ const OrderDetailPage = () => {
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-display font-bold">Composição do Pedido</h2>
+              {!order.erroDePedidoId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive h-8"
+                  onClick={() => setErroDialogOpen(true)}
+                  title="Registrar um erro para este pedido"
+                >
+                  <AlertTriangle size={14} className="mr-1" /> Registrar Erro
+                </Button>
+              )}
+              {!order.erroDePedidoId && linkedErro && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/pedido/${linkedErro.id}`)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold hover:bg-destructive/20"
+                  title="Ir para o pedido ERRO vinculado"
+                >
+                  <AlertTriangle size={12} /> ERRO {linkedErro.numero}
+                </button>
+              )}
               {!isAdmin && (
                 <AjusteValorSolicitacao
                   orderId={order.id}
