@@ -187,7 +187,7 @@ export default function SolicitacoesAjustePage() {
                 const statusColor = r.status === 'aprovado' ? 'bg-emerald-600 hover:bg-emerald-600' : r.status === 'negado' ? 'bg-destructive hover:bg-destructive' : '';
                 return (
                   <Fragment key={r.id}>
-                    <TableRow key={r.id} className={!isPendente ? 'bg-muted/20' : ''}>
+                    <TableRow className={!isPendente ? 'bg-muted/20' : ''}>
                       <TableCell>
                         <button onClick={() => setExpandedId(isExpanded ? null : r.id)} className="text-muted-foreground hover:text-foreground">
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
