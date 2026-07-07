@@ -11,6 +11,7 @@ export const MODELOS: { label: string; preco: number }[] = [
   { label: 'Capota Bico Fino Perfilado', preco: 230 },
   { label: 'Cano Médio', preco: 205 },
   { label: 'Botina', preco: 200 },
+  { label: 'Botina Bico Fino', preco: 200 },
   { label: 'Bota Infantil', preco: 170 },
   { label: 'Botina Infantil', preco: 160 },
   { label: 'Bota Over', preco: 270 },
