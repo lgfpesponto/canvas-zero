@@ -1704,7 +1704,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                     ) : isVendedorComum ? (
                       <select
                         value={tamanho}
-                        onChange={e => { const v = e.target.value; setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }}
+                        onChange={e => { const v = e.target.value; setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } else if (modelo && solado) { const bicos = getBicosForModeloSolado(modelo, solado, v); if (formatoBico && !bicos.includes(formatoBico)) { setFormatoBico(bicos.length === 1 ? bicos[0] : ''); setCorSola(''); } } }}
                         className={cls.select}
                         required
                       >
