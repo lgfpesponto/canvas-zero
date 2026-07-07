@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
+import { useLinkedErro } from '@/hooks/useLinkedErro';
+import { RegistrarErroDialog } from '@/components/orders/RegistrarErroDialog';
 import { getOrderFinalValue } from '@/lib/order-logic';
 import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recomputeOrderPrice';
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
