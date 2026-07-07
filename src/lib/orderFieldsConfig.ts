@@ -11,6 +11,7 @@ export const MODELOS: { label: string; preco: number }[] = [
   { label: 'Capota Bico Fino Perfilado', preco: 230 },
   { label: 'Cano Médio', preco: 205 },
   { label: 'Botina', preco: 200 },
+  { label: 'Botina Bico Fino', preco: 200 },
   { label: 'Bota Infantil', preco: 170 },
   { label: 'Botina Infantil', preco: 160 },
   { label: 'Bota Over', preco: 270 },
@@ -329,7 +330,7 @@ export const VIRA_HIDDEN = ['Bege', 'Neutra'];
 
 // ==================== PESPONTO CONDICIONAL ====================
 // Modelos que não exibem borrachinha/vivo (só cor da linha)
-export const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Infantil', 'Destroyer', 'Coturno'];
+export const HIDE_PESPONTO_EXTRAS = ['Botina', 'Botina Bico Fino', 'Botina Infantil', 'Destroyer', 'Coturno'];
 
 // ==================== VINCULAÇÃO TAMANHO → MODELO ====================
 export function getModelosForTamanho(tamanho: string): { label: string; preco: number }[] {
@@ -366,13 +367,17 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
   if (t >= 34 && t <= 40) {
     allowed.push('City');
   }
+  // 34-44: Botina Bico Fino
+  if (t >= 34 && t <= 44) {
+    allowed.push('Botina Bico Fino');
+  }
 
   if (allowed.length === 0) return MODELOS;
   return MODELOS.filter(m => allowed.includes(m.label));
 }
 
 // ==================== BLOCOS DE VINCULAÇÃO ====================
-export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino' | 'perfilado';
+export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino' | 'perfilado' | 'botinaBicoFino';
 
 const INFANTIL_MODELOS = ['Bota Infantil', 'Botina Infantil', 'Cano Médio Infantil'];
 const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano', 'Cano Inteiro'];
@@ -382,30 +387,16 @@ const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Over', 'Capota Bico
 export function getBlockForModelo(modelo: string): ModelBlock | null {
   if (INFANTIL_MODELOS.includes(modelo)) return 'infantil';
   if (modelo === 'City') return 'city';
+  if (modelo === 'Botina Bico Fino') return 'botinaBicoFino';
   if (TRADICIONAL_MODELOS.includes(modelo)) return 'tradicional';
   if (BF_FEMININO_MODELOS.includes(modelo)) return 'bicoFinoFeminino';
   if (PERFILADO_MODELOS.includes(modelo)) return 'perfilado';
   return null;
 }
 
-// Botina aceita bicos "fino agulha" (Quadrada/Redonda) somente nos tamanhos 34-44.
-function botinaTamanhoAceitaFinoAgulha(tamanho?: string | number): boolean {
-  if (tamanho === undefined || tamanho === null || tamanho === '') return true; // sem tamanho ainda, mostra tudo
-  const t = typeof tamanho === 'number' ? tamanho : parseInt(String(tamanho), 10);
-  if (isNaN(t)) return true;
-  return t >= 34 && t <= 44;
-}
-
 export function getSoladosForModelo(modelo: string, formatoBico?: string): { label: string; preco: number }[] {
   const block = getBlockForModelo(modelo);
   if (!block) return SOLADO;
-  // Regra Botina: além dos solados tradicionais, aceita PVC.
-  if (modelo === 'Botina') {
-    let result = SOLADO.filter(s => ['Borracha', 'Couro Reta', 'Couro Carrapeta', 'Couro Carrapeta com Espaço Espora', 'Jump', 'Rústica', 'PVC'].includes(s.label));
-    if (formatoBico === 'Redondo') result = result.filter(s => !['Jump', 'Rústica', 'PVC'].includes(s.label));
-    if (formatoBico === 'Quadrado') result = result.filter(s => s.label !== 'PVC');
-    return result;
-  }
   switch (block) {
     case 'infantil': return SOLADO.filter(s => s.label === 'Infantil');
     case 'city': return SOLADO.filter(s => s.label === 'Borracha City');
@@ -416,6 +407,7 @@ export function getSoladosForModelo(modelo: string, formatoBico?: string): { lab
     }
     case 'bicoFinoFeminino': return SOLADO.filter(s => ['PVC', 'Couro Reta'].includes(s.label));
     case 'perfilado': return SOLADO.filter(s => ['PVC', 'Couro Reta'].includes(s.label));
+    case 'botinaBicoFino': return SOLADO.filter(s => ['Couro Reta', 'PVC'].includes(s.label));
     default: return SOLADO;
   }
 }
@@ -423,17 +415,6 @@ export function getSoladosForModelo(modelo: string, formatoBico?: string): { lab
 export function getBicosForModeloSolado(modelo: string, solado?: string, tamanho?: string | number): string[] {
   const block = getBlockForModelo(modelo);
   if (!block) return [...FORMATO_BICO];
-  // Regra Botina: bicos "fino agulha" liberados em Couro Reta (34-44) e obrigatórios em PVC.
-  if (modelo === 'Botina') {
-    if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
-    if (solado === 'Rústica') return ['Quadrado'];
-    if (solado === 'Couro Reta') {
-      return botinaTamanhoAceitaFinoAgulha(tamanho)
-        ? ['Quadrado', 'Redondo', 'Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda']
-        : ['Quadrado', 'Redondo'];
-    }
-    return ['Quadrado', 'Redondo'];
-  }
   switch (block) {
     case 'infantil': return ['Quadrado'];
     case 'city': return ['Fino Ponta Redonda'];
@@ -444,6 +425,10 @@ export function getBicosForModeloSolado(modelo: string, solado?: string, tamanho
     case 'perfilado':
       if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
       return ['Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda'];
+    case 'botinaBicoFino':
+      if (solado === 'PVC') return ['Fino Agulha Ponta Quadrada'];
+      if (solado === 'Couro Reta') return ['Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda'];
+      return ['Fino Agulha Ponta Quadrada', 'Fino Agulha Ponta Redonda'];
     default: return [...FORMATO_BICO];
   }
 }
@@ -451,10 +436,6 @@ export function getBicosForModeloSolado(modelo: string, solado?: string, tamanho
 export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: string): { label: string; preco: number }[] | null {
   const block = getBlockForModelo(modelo);
   if (!block) return COR_SOLA;
-  // Regra Botina + PVC: apenas Marrom, sem custo.
-  if (modelo === 'Botina' && solado === 'PVC') {
-    return [{ label: 'Marrom', preco: 0 }];
-  }
   switch (block) {
     case 'infantil': return null;
     case 'city': return [{ label: 'Preto', preco: 0 }];
@@ -476,6 +457,10 @@ export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: 
     case 'perfilado':
       if (solado === 'PVC') return [{ label: 'Marrom', preco: 0 }];
       if (solado === 'Couro Reta') return COR_SOLA.filter(c => ['Madeira', 'Avermelhada', 'Pintada de Preto'].includes(c.label));
+      return COR_SOLA;
+    case 'botinaBicoFino':
+      if (solado === 'PVC') return [{ label: 'Marrom', preco: 0 }];
+      if (solado === 'Couro Reta') return COR_SOLA.filter(c => ['Madeira', 'Pintada de Preto'].includes(c.label));
       return COR_SOLA;
     default: return COR_SOLA;
   }
@@ -512,6 +497,7 @@ export function getCorViraOptions(modelo: string, solado?: string): { label: str
       return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'bicoFinoFeminino': return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'perfilado': return COR_VIRA.filter(c => c.label === 'Neutra');
+    case 'botinaBicoFino': return COR_VIRA.filter(c => c.label === 'Neutra');
     default: return COR_VIRA;
   }
 }
@@ -525,6 +511,7 @@ export function getForma(modelo: string, formatoBico?: string): string {
     case 'tradicional': return formatoBico === 'Redondo' ? '7576' : '2300';
     case 'bicoFinoFeminino': return '6761';
     case 'perfilado': return '4394';
+    case 'botinaBicoFino': return '4394';
     default: return '';
   }
 }
