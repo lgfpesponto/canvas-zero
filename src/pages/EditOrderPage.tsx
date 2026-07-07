@@ -585,6 +585,28 @@ const EditOrderPage = () => {
             </div>
           </Section>
 
+          <Section title="Pesponto">
+            <div className="grid sm:grid-cols-3 gap-4">
+              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} />
+              <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} />
+              <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} />
+            </div>
+          </Section>
+
+          <Section title="Solados">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} />
+              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} />
+              {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
+                <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} />
+              )}
+              {getCorViraOptions(modelo, solado).length > 1 && (
+                <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={getCorViraOptions(modelo, solado)} />
+              )}
+            </div>
+            <ToggleField label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} value={costuraAtras} onChange={setCosturaAtras} />
+          </Section>
+
           {/* Desenvolvimento before Bordados */}
           <SelectField label="Desenvolvimento" value={desenvolvimento} onChange={setDesenvolvimento} options={DESENVOLVIMENTO} />
 
@@ -646,14 +668,6 @@ const EditOrderPage = () => {
 
           <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
 
-          <Section title="Pesponto">
-            <div className="grid sm:grid-cols-3 gap-4">
-              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} />
-              <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} />
-              <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} />
-            </div>
-          </Section>
-
           <Section title="Metais">
             <div className="grid sm:grid-cols-3 gap-4">
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={AREA_METAL} />
@@ -690,8 +704,9 @@ const EditOrderPage = () => {
 
           <Section title="Extras">
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
-            <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
+            <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTiras} textPlaceholder="Cor das tiras..." />
           </Section>
+
 
           <Section title="Solados">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
