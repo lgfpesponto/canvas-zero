@@ -668,6 +668,15 @@ const OrderDetailPage = () => {
 
         <div className="space-y-6">
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
+          {order.erroDePedidoId && (
+            <ErroBanner
+              erroDePedidoId={order.erroDePedidoId}
+              erroDescricao={order.erroDescricao}
+              dataCriacao={order.dataCriacao}
+              horaCriacao={order.horaCriacao}
+              onNavigate={(oid) => navigate(`/pedido/${oid}`)}
+            />
+          )}
           {/* ═══ Cabeçalho do Pedido — grid 2×2 + linha do prazo ═══ */}
           {(() => {
             const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
