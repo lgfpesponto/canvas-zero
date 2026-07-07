@@ -264,6 +264,8 @@ export function dbRowToOrder(row: any): Order {
     estoqueProdutoId: row.estoque_produto_id || undefined,
     templateNome: row.template_nome || undefined,
     templateSku: row.template_sku || undefined,
+    erroDePedidoId: row.erro_de_pedido_id || undefined,
+    erroDescricao: row.erro_descricao || undefined,
   };
 }
 
@@ -362,6 +364,8 @@ export function orderToDbRow(order: any, userId: string) {
     nome_produto_estoque: order.nomeProdutoEstoque || null,
     template_nome: order.templateNome || null,
     template_sku: order.templateSku || null,
+    erro_de_pedido_id: order.erroDePedidoId || null,
+    erro_descricao: order.erroDescricao || null,
   };
 }
 
@@ -393,6 +397,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   skuEstoque: 'sku_estoque', nomeProdutoEstoque: 'nome_produto_estoque',
   estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
   templateNome: 'template_nome', templateSku: 'template_sku',
+  erroDePedidoId: 'erro_de_pedido_id', erroDescricao: 'erro_descricao',
 };
 
 /** Field labels for change tracking */

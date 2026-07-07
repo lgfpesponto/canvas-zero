@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
 import { useLinkedBoot } from '@/hooks/useLinkedBoot';
+import { useLinkedErro } from '@/hooks/useLinkedErro';
+import { RegistrarErroDialog } from '@/components/orders/RegistrarErroDialog';
 import { getOrderFinalValue } from '@/lib/order-logic';
 import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recomputeOrderPrice';
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
@@ -17,7 +19,7 @@ import { TemplateTag } from '@/components/orders/TemplateTag';
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle, AlertTriangle } from 'lucide-react';
 import { BagySyncButton } from '@/components/BagySyncButton';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl, maskPhoneBR } from '@/lib/whatsappSend';
 import { WhatsappShareButton } from '@/components/WhatsappShareButton';
@@ -63,6 +65,7 @@ const OrderDetailPage = () => {
   const location = useLocation();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const linkedBoot = useLinkedBoot(order);
+  const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
@@ -94,6 +97,7 @@ const OrderDetailPage = () => {
   const [expAlteracoes, setExpAlteracoes] = useState(false);
   const [expImpressao, setExpImpressao] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
+  const [erroDialogOpen, setErroDialogOpen] = useState(false);
 
   // Edição de data do pedido — restrito ao vendedor Rancho Chique
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
@@ -664,6 +668,15 @@ const OrderDetailPage = () => {
 
         <div className="space-y-6">
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
+          {order.erroDePedidoId && (
+            <ErroBanner
+              erroDePedidoId={order.erroDePedidoId}
+              erroDescricao={order.erroDescricao}
+              dataCriacao={order.dataCriacao}
+              horaCriacao={order.horaCriacao}
+              onNavigate={(oid) => navigate(`/pedido/${oid}`)}
+            />
+          )}
           {/* ═══ Cabeçalho do Pedido — grid 2×2 + linha do prazo ═══ */}
           {(() => {
             const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
@@ -808,6 +821,27 @@ const OrderDetailPage = () => {
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-display font-bold">Composição do Pedido</h2>
+              {!order.erroDePedidoId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive h-8"
+                  onClick={() => setErroDialogOpen(true)}
+                  title="Registrar um erro para este pedido"
+                >
+                  <AlertTriangle size={14} className="mr-1" /> Registrar Erro
+                </Button>
+              )}
+              {!order.erroDePedidoId && linkedErro && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/pedido/${linkedErro.id}`)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold hover:bg-destructive/20"
+                  title="Ir para o pedido ERRO vinculado"
+                >
+                  <AlertTriangle size={12} /> ERRO {linkedErro.numero}
+                </button>
+              )}
               {!isAdmin && (
                 <AjusteValorSolicitacao
                   orderId={order.id}
@@ -878,7 +912,22 @@ const OrderDetailPage = () => {
             )}
           </div>
           <div className="border border-border rounded-lg p-4 mb-2">
-            {order.tipoExtra ? (
+            {order.erroDePedidoId ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-destructive">ERRO</span>
+                  <span className="font-mono">R$ 0,00</span>
+                </div>
+                <div className="pt-3 border-t border-border flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span className="font-mono">R$ 0,00</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total</span>
+                  <span className="text-primary">R$ 0,00</span>
+                </div>
+              </div>
+            ) : order.tipoExtra ? (
               <>
                 {(() => {
                   const extraPriceItems: [string, number][] = [];
@@ -1595,8 +1644,68 @@ const OrderDetailPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {order && !order.erroDePedidoId && (
+        <RegistrarErroDialog
+          open={erroDialogOpen}
+          onOpenChange={setErroDialogOpen}
+          order={order}
+        />
+      )}
     </div>
   );
 };
 
+/** Banner exibido no topo do detalhe quando o pedido é um ERRO — mostra link para o original. */
+function ErroBanner({
+  erroDePedidoId,
+  erroDescricao,
+  dataCriacao,
+  horaCriacao,
+  onNavigate,
+}: {
+  erroDePedidoId: string;
+  erroDescricao?: string;
+  dataCriacao?: string;
+  horaCriacao?: string;
+  onNavigate: (id: string) => void;
+}) {
+  const [orig, setOrig] = useState<{ id: string; numero: string } | null>(null);
+  useEffect(() => {
+    supabase.from('orders').select('id, numero').eq('id', erroDePedidoId).maybeSingle()
+      .then(({ data }) => setOrig(data ? { id: data.id, numero: data.numero } : null));
+  }, [erroDePedidoId]);
+  const dataHora = [dataCriacao, horaCriacao].filter(Boolean).join(' — ');
+  return (
+    <div className="mb-4 p-4 rounded-lg border border-destructive/40 bg-destructive/5">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <div className="flex items-center gap-2 text-destructive font-bold">
+          <AlertTriangle size={16} />
+          Pedido de ERRO
+          {orig && (
+            <>
+              <span className="text-muted-foreground font-normal">do</span>
+              <button
+                type="button"
+                onClick={() => onNavigate(orig.id)}
+                className="underline underline-offset-2 hover:text-destructive/80 font-mono"
+                title="Ir para o pedido original"
+              >
+                #{orig.numero}
+              </button>
+            </>
+          )}
+        </div>
+        {dataHora && <span className="text-xs text-muted-foreground">Registrado em {dataHora}</span>}
+      </div>
+      {erroDescricao && (
+        <div className="text-sm whitespace-pre-wrap text-foreground/90">
+          <span className="text-xs uppercase text-muted-foreground block mb-1">Descrição do erro</span>
+          {erroDescricao}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default OrderDetailPage;
+
