@@ -1096,7 +1096,7 @@ const OrderDetailPage = () => {
 
 
           {/* Edição de Valor — admin_master only */}
-          {role === 'admin_master' && (
+          {role === 'admin_master' && !order.erroDePedidoId && (
             <div className="border border-border rounded-lg p-4 mt-4 mb-6">
               <h3 className="text-sm font-bold mb-3">Edição de Valor</h3>
               <div className="space-y-3">
