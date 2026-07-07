@@ -31,50 +31,14 @@ const fmt = (v: number) => Number(v || 0).toLocaleString('pt-BR', { style: 'curr
 const descontoDe = (r: Row) => Number(r.desconto_solicitado ?? r.valor_solicitado ?? 0);
 
 function OrderInlinePreview({ orderId }: { orderId: string }) {
-  const { order, loading } = useOrderById(orderId);
-  if (loading) return <div className="p-4 text-center text-xs text-muted-foreground"><Loader2 className="inline animate-spin h-4 w-4" /></div>;
-  if (!order) return <div className="p-4 text-center text-xs text-muted-foreground">Pedido não encontrado.</div>;
-  const total = getOrderFinalValue(order);
-  const desconto = Number((order as any).desconto || 0);
-  const subtotal = total + desconto;
-  const extraLabel = order.tipoExtra ? (EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra) : null;
-  const detalhes = (order as any).extraDetalhes || {};
-
   return (
-    <div className="p-4 bg-muted/30 border-t space-y-3 text-sm">
-      <div className="flex flex-wrap gap-x-6 gap-y-1">
-        <div><span className="text-muted-foreground">Nº </span><b>{order.numero}</b></div>
-        <div><span className="text-muted-foreground">Vendedor: </span>{order.vendedor}</div>
-        {(order as any).cliente && <div><span className="text-muted-foreground">Cliente: </span>{(order as any).cliente}</div>}
-        <div><span className="text-muted-foreground">Status: </span><Badge variant="secondary">{order.status}</Badge></div>
-        {extraLabel && <div><span className="text-muted-foreground">Tipo: </span>{extraLabel}</div>}
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-        {order.modelo && <div><b>Modelo:</b> {order.modelo}</div>}
-        {order.tamanho && <div><b>Tamanho:</b> {order.tamanho}</div>}
-        {order.quantidade && <div><b>Qtd:</b> {order.quantidade}</div>}
-        {(order as any).bordado && <div><b>Bordado:</b> {(order as any).bordado}</div>}
-        {(order as any).corCano && <div><b>Cor Cano:</b> {(order as any).corCano}</div>}
-        {(order as any).corGaspea && <div><b>Cor Gáspea:</b> {(order as any).corGaspea}</div>}
-        {(order as any).solado && <div><b>Solado:</b> {(order as any).solado}</div>}
-        {(order as any).bico && <div><b>Bico:</b> {(order as any).bico}</div>}
-      </div>
-      {detalhes && Object.keys(detalhes).length > 0 && (
-        <details className="text-xs">
-          <summary className="cursor-pointer text-muted-foreground">Ver todos os detalhes</summary>
-          <pre className="mt-2 bg-background p-2 rounded border max-h-48 overflow-auto text-[11px]">{JSON.stringify(detalhes, null, 2)}</pre>
-        </details>
-      )}
-      {(order as any).observacaoEntrega && (
-        <div className="text-xs">
-          <b>Observação de entrega:</b> {(order as any).observacaoEntrega}
-        </div>
-      )}
-      <div className="flex items-center gap-6 pt-2 border-t">
-        <div><span className="text-muted-foreground text-xs">Subtotal: </span><b>{fmt(subtotal)}</b></div>
-        {desconto > 0 && <div><span className="text-muted-foreground text-xs">Desconto atual: </span><b className="text-destructive">−{fmt(desconto)}</b></div>}
-        <div><span className="text-muted-foreground text-xs">Total: </span><b className="text-primary text-base">{fmt(total)}</b></div>
-      </div>
+    <div className="bg-muted/20 border-t">
+      <iframe
+        src={`/pedido/${orderId}?preview=1`}
+        title="Preview do pedido"
+        className="w-full block"
+        style={{ height: 720, border: 0 }}
+      />
     </div>
   );
 }
