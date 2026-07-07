@@ -293,10 +293,14 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
     const divergLines: string[] = tabelaDivergente
       ? [`(valor gravado no pedido — soma da tabela atual: ${formatCurrency(subtotalCalc)})`]
       : [];
+    const obsEntregaLines: string[] = (o as any).observacaoEntrega
+      ? [`Obs. entrega: ${(o as any).observacaoEntrega}`]
+      : [];
     const compText = [
       ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
       ...divergLines,
       ...justifLines,
+      ...obsEntregaLines,
     ]
       .join('\n')
       .replace(/→/g, '->').replace(/←/g, '<-')
