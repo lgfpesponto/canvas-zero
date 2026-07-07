@@ -1,54 +1,41 @@
-# Pendente = soma dos pedidos em "Cobrado" (sem descontar saldo)
+## Objetivo
+No formulário de Pedido → Bota, quando o modelo for **Botina**, liberar novas combinações de Solado, Formato do Bico e Cor da Sola — reaproveitando variações que já existem no sistema (Fino Agulha Ponta Quadrada/Redonda, PVC, Marrom), apenas vinculando-as à Botina com as regras abaixo.
 
-## Regra final
+## Regras
 
-- **Pendente exibido** para cada vendedor = soma de `preco × quantidade` dos pedidos com `status = 'Cobrado'`. Ponto. Não desconta saldo, não desconta baixa antiga, não faz mágica.
-- **Saldo** continua sendo o que já é: comprovantes − baixas + estornos + ajustes. R$40 da Denise fica intocado.
-- **Baixa automática** continua funcionando igual: quando entra comprovante novo, soma no saldo e a rotina tenta cobrir pedidos em Cobrado; se cobre um, pedido vira Pago e cria baixa; sobra fica no saldo pra próxima.
+**Solado (Botina)**
+- Manter os solados tradicionais atuais (Borracha, Couro Reta, Couro Carrapeta, Couro Carrapeta com Espaço Espora, Jump, Rústica).
+- **Adicionar PVC** como opção.
 
-## Caso Denise (o que consertar agora)
+**Formato do Bico (Botina)**
+- Solado = **Couro Reta**:
+  - Sempre: Quadrado, Redondo (comportamento atual).
+  - **Adicionar Fino Agulha Ponta Quadrada e Fino Agulha Ponta Redonda apenas quando o tamanho for 34 a 44.** No 45, apenas Quadrado/Redondo.
+- Solado = **PVC**:
+  - Apenas **Fino Agulha Ponta Quadrada** (implica também tamanho 34-44).
+- Demais solados: sem mudança.
 
-Existem **11 pedidos** dela em `status='Cobrado'` que **já têm registro em `revendedor_baixas_pedido`** (R$ 3.720 pelo preço atual). Essas baixas são "fantasmas" — o pedido voltou pra Cobrado depois de já ter sido pago uma vez, mas o registro da baixa ficou lá. É por causa delas que o pendente aparece R$ 4.090 em vez de R$ 7.810.
+**Cor da Sola (Botina)**
+- Solado = **PVC**: apenas **Marrom**, sem custo adicional (R$ 0).
+- Demais solados: sem mudança.
 
-Para deixar consistente com a regra ("Cobrado = pendente puro"), a data-fix é:
+## Onde alterar
 
-**Opção A (recomendada):** apagar as 11 baixas fantasmas da Denise. Motivo: se o pedido está em Cobrado, ele não foi pago — não pode existir baixa pra ele. O saldo dela vai continuar R$40 (as baixas apagadas não geram estorno; foram inválidas desde o começo). Pendente passa a mostrar R$ 7.810 corretamente.
+Alterações concentradas em `src/lib/orderFieldsConfig.ts`, adicionando ramo especial para `modelo === 'Botina'` antes/dentro do bloco `tradicional`:
 
-Fazer o mesmo varredura em **todos os vendedores**: apagar qualquer `revendedor_baixas_pedido` cujo pedido esteja em status diferente de `Pago`.
+1. `getSoladosForModelo(modelo, formatoBico)` — para Botina, incluir `PVC` além dos solados tradicionais.
+2. `getBicosForModeloSolado(modelo, solado, tamanho?)` — adicionar parâmetro opcional `tamanho`; ramo Botina:
+   - `PVC` → `['Fino Agulha Ponta Quadrada']`
+   - `Couro Reta` + tamanho 34-44 → `['Quadrado','Redondo','Fino Agulha Ponta Quadrada','Fino Agulha Ponta Redonda']`
+   - `Couro Reta` + outros tamanhos → `['Quadrado','Redondo']`
+   - Demais solados → comportamento tradicional atual.
+3. `getCorSolaOptions(modelo, solado, formatoBico)` — Botina + PVC → `[{ label: 'Marrom', preco: 0 }]`.
+4. `getCorSolaPrecoContextual` já deriva o preço via `getCorSolaOptions`, então retornará R$ 0 automaticamente para Botina+PVC+Marrom (sem cobrar).
 
-## Mudanças no código
+## Passar `tamanho` para o filtro de bicos
 
-### 1. Cálculo do pendente
-Em `src/lib/revendedorSaldo.ts` (e onde mais o "pendente" for calculado), garantir que a fonte é: `SELECT SUM(preco*quantidade) FROM orders WHERE vendedor=? AND status='Cobrado'`. Sem cruzar com baixas.
+Atualizar as 4 chamadas de `getBicosForModeloSolado` (2 em `src/pages/OrderPage.tsx`, 2 em `src/pages/EditOrderPage.tsx`) para incluir o `tamanho` atual do formulário, e recalcular o bico quando o tamanho mudar (handler de tamanho já existe — só garantir revalidação; se o bico atual não estiver mais permitido, resetar).
 
-### 2. Trigger preventivo
-Quando um pedido sai de `Pago` para qualquer outro status (via `updateOrderStatus`), apagar automaticamente a `revendedor_baixas_pedido` correspondente. Assim não se cria mais baixa fantasma no futuro.
-Local: nova função DB `limpar_baixa_ao_sair_de_pago()` + trigger em `orders` (AFTER UPDATE OF status).
-
-### 3. Cancelamento de pedido Pago (regra do turno anterior, mantida)
-Continua valendo: cancelar um pedido que estava em `Pago` gera movimento `estorno` no valor da baixa antes de a trigger acima apagar o registro. Ou seja, o vendedor recupera o valor como saldo.
-Sequência dentro de `updateOrderStatus`: se novo status = `Cancelado` e status atual = `Pago` e existe baixa → inserir movimento `estorno` primeiro, aí trigger apaga a baixa. Cancelar de `Cobrado` (sem baixa) apenas zera o pedido, nada a estornar.
-
-### 4. Ajuste de preço em pedido Pago
-Continua igual ao acordado: desconto vira `estorno` (saldo), acréscimo vira nova entrada em `revendedor_baixas_pedido` + movimento `baixa_pedido` pela diferença.
-
-## Migration de correção (será enviada para aprovação separada)
-
-```sql
--- 1. apaga baixas fantasmas (pedido não está em Pago)
-DELETE FROM revendedor_baixas_pedido b
-USING orders o
-WHERE b.order_id = o.id AND o.status <> 'Pago';
-
--- 2. trigger preventiva
-CREATE FUNCTION limpar_baixa_ao_sair_de_pago() ...
-CREATE TRIGGER ...
-```
-
-Antes de rodar, te mostro a lista completa (vendedor, número do pedido, valor) do que vai ser apagado — nada é executado sem tua confirmação.
-
-## Fora de escopo
-
-- Não mexo em saldo, comprovantes ou movimentos da Denise além do que o item 1 do fix já resolve (R$40 continua).
-- Não altero a UI da tela de saldo — só a fonte de dados.
-- Não mexo em pedidos Pago sem baixa (histórico antigo).
+## Fora do escopo
+- Nenhuma alteração em preços cadastrados, PDFs, banco ou admin de fichas — as variações já existem, só está sendo vinculada a combinação ao modelo Botina.
+- Nenhuma mudança em outros modelos.
