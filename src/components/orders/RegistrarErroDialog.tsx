@@ -79,6 +79,15 @@ export function RegistrarErroDialog({ open, onOpenChange, order }: Props) {
       delete payload.created_at;
       delete payload.updated_at;
 
+      // Bruto por unidade do pedido original (preco v2 já é total final; somamos
+      // de volta desconto se houver e dividimos pela quantidade).
+      const origPreco = Number(originalRow.preco) || 0;
+      const origDesc = Number(originalRow.desconto) || 0;
+      const origQtd = Math.max(1, Number(originalRow.quantidade) || 1);
+      const brutoPorUnidade = (origPreco + origDesc) / origQtd;
+      const descontoAuto = Math.round(brutoPorUnidade * 100) / 100;
+      const justificativaAuto = `ERRO automático: ${desc}`;
+
       payload.numero = numeroErro;
       payload.preco = 0;
       payload.quantidade = 1;
@@ -93,13 +102,26 @@ export function RegistrarErroDialog({ open, onOpenChange, order }: Props) {
         descricao: `Pedido ERRO registrado a partir de #${order.numero}: ${desc}`,
         usuario: usuarioNome,
       }];
-      payload.alteracoes = [];
+      // Registra o zeramento como uma alteração de valor (mesmo padrão do
+      // fluxo manual "Edição de Valor"), para aparecer em auditoria e na
+      // "Última justificativa de alteração de valor".
+      payload.alteracoes = [{
+        data: dataHoje,
+        hora: horaAgora,
+        usuario: usuarioNome,
+        campo: 'desconto',
+        de: '0',
+        para: descontoAuto.toFixed(2),
+        descricao: `Desconto automático de R$ ${descontoAuto.toFixed(2).replace('.', ',')} aplicado (ERRO)`,
+        justificativa: justificativaAuto,
+        afetouValor: true,
+      }];
       payload.impressoes = [];
       payload.conferido = false;
       payload.conferido_em = null;
       payload.conferido_por = null;
-      payload.desconto = null;
-      payload.desconto_justificativa = null;
+      payload.desconto = descontoAuto;
+      payload.desconto_justificativa = justificativaAuto;
       payload.adicional_valor = null;
       payload.adicional_desc = null;
       payload.preco_congelado = false;
