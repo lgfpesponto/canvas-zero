@@ -1196,11 +1196,31 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   };
 
   // ── Expedição: tabular A4 layout with composition + data ──
-  const generateExpedicaoPDF = () => {
+  const generateExpedicaoPDF = async () => {
     const filtered = sourceOrders.filter(o =>
       o.status.toLowerCase() === 'expedição' &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
     ).sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
+
+    // Pré-carrega solicitações de ajuste (pendentes ou vistas)
+    const solicMap: Record<string, { desconto: number; motivo: string; status: string }> = {};
+    if (filtered.length > 0) {
+      const { data: solics } = await supabase
+        .from('order_ajuste_solicitacoes')
+        .select('order_id,desconto_solicitado,valor_solicitado,motivo,status,created_at')
+        .in('order_id', filtered.map(o => o.id))
+        .in('status', ['pendente', 'visto', 'aprovado', 'negado'])
+        .order('created_at', { ascending: false });
+      (solics || []).forEach((s: any) => {
+        if (!solicMap[s.order_id]) {
+          solicMap[s.order_id] = {
+            desconto: Number(s.desconto_solicitado ?? s.valor_solicitado ?? 0),
+            motivo: s.motivo || '',
+            status: s.status === 'pendente' ? 'pendente' : 'visto',
+          };
+        }
+      });
+    }
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const pw = 210;
