@@ -1,44 +1,27 @@
-## Objetivo
+## Ajustes na Observação de Entrega
 
-Criar campo "Observação de Entrega" preenchido por admins de produção, exibido para vendedores/admin_master na Composição do Pedido e nos PDFs de Expedição/Cobrança, com notificação automática ao vendedor.
+### 1. Editor visível só para `admin_producao`
+- `src/pages/OrderDetailPage.tsx`: mudar a condição do bloco "OBSERVAÇÃO DE ENTREGA" (textarea + botão Salvar) para renderizar apenas quando `role === 'admin_producao'`.
+- `admin_master` e vendedores continuam vendo somente a linha na "Composição do Pedido".
 
-## Mudanças
+### 2. Exibir autor + data na composição
+- `src/pages/OrderDetailPage.tsx`: na linha "OBSERVAÇÃO DE ENTREGA" dentro da Composição do Pedido, acrescentar `— por {observacaoEntregaPor} em {DD/MM/AAAA HH:mm}` ao lado (ou logo abaixo) do texto, formatando `observacaoEntregaEm` em pt-BR.
+- Mesma info aparece para vendedores e admin_master (o admin_producao também vê, já que a composição é comum).
 
-### 1. Banco (migration)
-- Adicionar coluna `observacao_entrega text` (nullable) em `public.orders`.
-- Adicionar coluna `observacao_entrega_por text` e `observacao_entrega_em timestamptz` para auditoria (opcional mas útil).
-- Criar RPC `registrar_observacao_entrega(_order_id uuid, _texto text)` SECURITY DEFINER que:
-  - valida role do caller (`admin_producao` ou `admin_master`);
-  - grava as três colunas em `orders`;
-  - se `_texto` não vazio E vendedor válido (≠ vazio/'Estoque'), insere em `order_notificacoes` com descrição `Nova observação de entrega: "<texto>"` — **sem** o filtro de status Entregue/Cobrado/Pago da RPC existente, para funcionar em qualquer etapa.
+### 3. Registrar cada salvamento no histórico de alterações
+- Migration nova ajustando a RPC `registrar_observacao_entrega`:
+  - Após atualizar `orders.observacao_entrega/_por/_em`, fazer `UPDATE orders SET alteracoes = alteracoes || jsonb_build_object(...)` adicionando um item com:
+    - `campo`: `'Observação de entrega'`
+    - `de`: valor anterior (ou vazio)
+    - `para`: novo texto
+    - `por`: nome do autor (via `current_user_nome_completo()`)
+    - `em`: `now()`
+  - Continua inserindo em `order_notificacoes` (sino) como já faz.
+- Assim cada save vira uma nova entrada em "Histórico de Alterações", preservando os anteriores.
 
-### 2. `src/pages/OrderDetailPage.tsx`
-- Novo bloco "Observação de Entrega" logo **abaixo das informações base** (após o card com Número/Vendedor/Data/Prazo, antes de "Detalhes da Bota"):
-  - Se `role === 'admin_producao'` ou `'admin_master'`: textarea editável + botão "Salvar" que chama a RPC; visível em qualquer status do pedido.
-  - Se vendedor/outros: bloco não aparece aqui (só na Composição).
-- Dentro do card "Composição do Pedido" (após subtotal / desconto / total), renderizar linha "Observação de Entrega: <texto>" quando `observacao_entrega` estiver preenchida — visível para admin_master e vendedores. Admin_producao vê no editor de cima; opcionalmente também aqui como confirmação.
+### PDFs / Notificações
+- Sem mudanças: PDFs de Expedição/Cobrança já mostram a última observação; notificações continuam pelo mesmo caminho.
 
-### 3. Tipo `Order` e mapeamento
-- `src/contexts/AuthContext.tsx`: adicionar `observacaoEntrega?: string` (e campos de auditoria) em `Order`.
-- `src/lib/order-logic.ts` (`dbRowToOrder`): mapear `row.observacao_entrega` → `observacaoEntrega`.
-
-### 4. PDFs de Expedição e Cobrança
-- `src/components/SpecializedReports.tsx` (PDF Expedição): dentro da coluna "COMPOSIÇÃO", após listar os itens, adicionar linha extra `Obs. entrega: <texto>` quando presente.
-- `src/lib/cobrancaPdf.ts` (PDF Cobrança): mesma inclusão na coluna "COMPOSIÇÃO".
-- Espelho na tela do OrderDetail (`mirrorPriceItems`, se usado) segue automaticamente por já renderizar a mesma seção.
-
-### 5. Sino de notificações
-- Nenhuma mudança de frontend necessária: o hook `useNotificacoes` já lê `order_notificacoes` e reage via Realtime. A nova RPC insere a notificação que aparece no sino do vendedor.
-
-## Fora de escopo
-
-- Histórico de edições da observação (guardaremos apenas o último autor/data).
-- Edição da observação por vendedores (só admin_producao/admin_master).
-- Alteração da RPC `registrar_alteracoes_pos_entrega` existente.
-
-## Detalhes técnicos
-
-- Coluna nova preserva pedidos existentes (default NULL).
-- Não precisa `GRANT` extra: `orders` já tem grants; a RPC é `SECURITY DEFINER` e faz o insert em `order_notificacoes` (que bloqueia insert direto por RLS, por isso precisa ser via RPC).
-- A RPC ignora o filtro de status para atender ao requisito "independente do progresso".
-- O texto exibido na Composição usa o mesmo estilo tipográfico das linhas existentes (label bold, valor regular), sem alterar totais.
+### Fora de escopo
+- Editar/excluir entradas antigas do histórico.
+- Permitir vendedor escrever observação de entrega.
