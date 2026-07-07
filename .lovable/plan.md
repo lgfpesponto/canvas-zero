@@ -1,41 +1,21 @@
 ## Objetivo
-No formulário de Pedido → Bota, quando o modelo for **Botina**, liberar novas combinações de Solado, Formato do Bico e Cor da Sola — reaproveitando variações que já existem no sistema (Fino Agulha Ponta Quadrada/Redonda, PVC, Marrom), apenas vinculando-as à Botina com as regras abaixo.
-
-## Regras
-
-**Solado (Botina)**
-- Manter os solados tradicionais atuais (Borracha, Couro Reta, Couro Carrapeta, Couro Carrapeta com Espaço Espora, Jump, Rústica).
-- **Adicionar PVC** como opção.
-
-**Formato do Bico (Botina)**
-- Solado = **Couro Reta**:
-  - Sempre: Quadrado, Redondo (comportamento atual).
-  - **Adicionar Fino Agulha Ponta Quadrada e Fino Agulha Ponta Redonda apenas quando o tamanho for 34 a 44.** No 45, apenas Quadrado/Redondo.
-- Solado = **PVC**:
-  - Apenas **Fino Agulha Ponta Quadrada** (implica também tamanho 34-44).
-- Demais solados: sem mudança.
-
-**Cor da Sola (Botina)**
-- Solado = **PVC**: apenas **Marrom**, sem custo adicional (R$ 0).
-- Demais solados: sem mudança.
+Nos campos de "Tipo do Couro" / "Cor do Couro" da Bota, Cinto e Extras, quando o tipo selecionado for **Látego**, disponibilizar as cores **Whisky** e **Caramelo** (além das cores já existentes hoje para Látego, incluindo Marrom).
 
 ## Onde alterar
+Tudo se resolve em `src/lib/orderFieldsConfig.ts` — Bota (Cano/Gáspea/Taloneira), Cinto e Extras consomem a mesma função `getCoresCouroFiltradas`, então uma única mudança cobre os três fluxos.
 
-Alterações concentradas em `src/lib/orderFieldsConfig.ts`, adicionando ramo especial para `modelo === 'Botina'` antes/dentro do bloco `tradicional`:
+## Mudanças
 
-1. `getSoladosForModelo(modelo, formatoBico)` — para Botina, incluir `PVC` além dos solados tradicionais.
-2. `getBicosForModeloSolado(modelo, solado, tamanho?)` — adicionar parâmetro opcional `tamanho`; ramo Botina:
-   - `PVC` → `['Fino Agulha Ponta Quadrada']`
-   - `Couro Reta` + tamanho 34-44 → `['Quadrado','Redondo','Fino Agulha Ponta Quadrada','Fino Agulha Ponta Redonda']`
-   - `Couro Reta` + outros tamanhos → `['Quadrado','Redondo']`
-   - Demais solados → comportamento tradicional atual.
-3. `getCorSolaOptions(modelo, solado, formatoBico)` — Botina + PVC → `[{ label: 'Marrom', preco: 0 }]`.
-4. `getCorSolaPrecoContextual` já deriva o preço via `getCorSolaOptions`, então retornará R$ 0 automaticamente para Botina+PVC+Marrom (sem cobrar).
+1. **`CORES_COURO`**: adicionar `'Whisky'` (não existe hoje). `'Caramelo'` já existe.
+2. **`CORES_EXCLUSIVAS_REAIS`**: incluir `'Whisky'` para que ela nunca apareça em outros tipos que não Látego. `'Caramelo'` continua na lista (hoje ligada a Vaca Pintada) e passa a ganhar Látego como segundo tipo permitido.
+3. **`CORES_RESTRITAS`**: adicionar duas entradas:
+   - `'Whisky': ['Látego']`
+   - `'Caramelo': ['Látego']` (Vaca Pintada continua funcionando via lista fechada em `COURO_CORES_EXCLUSIVAS`, que é consultada antes das restritas).
 
-## Passar `tamanho` para o filtro de bicos
-
-Atualizar as 4 chamadas de `getBicosForModeloSolado` (2 em `src/pages/OrderPage.tsx`, 2 em `src/pages/EditOrderPage.tsx`) para incluir o `tamanho` atual do formulário, e recalcular o bico quando o tamanho mudar (handler de tamanho já existe — só garantir revalidação; se o bico atual não estiver mais permitido, resetar).
+Resultado prático:
+- Látego → mostra as cores gerais + `Marrom` + `Whisky` + `Caramelo`.
+- Vaca Pintada → continua mostrando apenas `Caramelo` e `Preto e Branco` (inalterado).
+- Demais tipos → não mostram `Whisky` nem `Caramelo`.
 
 ## Fora do escopo
-- Nenhuma alteração em preços cadastrados, PDFs, banco ou admin de fichas — as variações já existem, só está sendo vinculada a combinação ao modelo Botina.
-- Nenhuma mudança em outros modelos.
+- Sem mudanças em preços, PDFs, admin de fichas, banco ou lógica de bordado — só a lista de cores permitidas por tipo.
