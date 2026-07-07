@@ -1130,6 +1130,12 @@ const OrderDetailPage = () => {
               <span>Total</span>
               <span className="text-primary">{formatCurrency(order.erroDePedidoId ? 0 : displayTotal)}</span>
             </div>
+            {order.observacaoEntrega && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Observação de entrega</p>
+                <p className="text-sm">{order.observacaoEntrega}</p>
+              </div>
+            )}
             {ultimaJustificativaValor && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Última justificativa de alteração de valor</p>
