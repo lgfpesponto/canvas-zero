@@ -264,6 +264,8 @@ export function dbRowToOrder(row: any): Order {
     estoqueProdutoId: row.estoque_produto_id || undefined,
     templateNome: row.template_nome || undefined,
     templateSku: row.template_sku || undefined,
+    erroDePedidoId: row.erro_de_pedido_id || undefined,
+    erroDescricao: row.erro_descricao || undefined,
   };
 }
 
