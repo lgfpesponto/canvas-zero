@@ -377,7 +377,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
 }
 
 // ==================== BLOCOS DE VINCULAÇÃO ====================
-export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino' | 'perfilado';
+export type ModelBlock = 'infantil' | 'city' | 'tradicional' | 'bicoFinoFeminino' | 'perfilado' | 'botinaBicoFino';
 
 const INFANTIL_MODELOS = ['Bota Infantil', 'Botina Infantil', 'Cano Médio Infantil'];
 const TRADICIONAL_MODELOS = ['Bota Tradicional', 'Bota Feminino', 'Bota Peão', 'Bota Montaria (40)', 'Coturno', 'Destroyer', 'Capota', 'Cano Médio', 'Botina', 'Urbano', 'Cano Inteiro'];
@@ -387,18 +387,11 @@ const PERFILADO_MODELOS = ['Bota Bico Fino Perfilado', 'Bota Over', 'Capota Bico
 export function getBlockForModelo(modelo: string): ModelBlock | null {
   if (INFANTIL_MODELOS.includes(modelo)) return 'infantil';
   if (modelo === 'City') return 'city';
+  if (modelo === 'Botina Bico Fino') return 'botinaBicoFino';
   if (TRADICIONAL_MODELOS.includes(modelo)) return 'tradicional';
   if (BF_FEMININO_MODELOS.includes(modelo)) return 'bicoFinoFeminino';
   if (PERFILADO_MODELOS.includes(modelo)) return 'perfilado';
   return null;
-}
-
-// Botina aceita bicos "fino agulha" (Quadrada/Redonda) somente nos tamanhos 34-44.
-function botinaTamanhoAceitaFinoAgulha(tamanho?: string | number): boolean {
-  if (tamanho === undefined || tamanho === null || tamanho === '') return true; // sem tamanho ainda, mostra tudo
-  const t = typeof tamanho === 'number' ? tamanho : parseInt(String(tamanho), 10);
-  if (isNaN(t)) return true;
-  return t >= 34 && t <= 44;
 }
 
 export function getSoladosForModelo(modelo: string, formatoBico?: string): { label: string; preco: number }[] {
