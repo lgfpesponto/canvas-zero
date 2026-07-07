@@ -820,8 +820,8 @@ const OrderDetailPage = () => {
             );
           })()}
 
-          {/* ═══ Observação de Entrega — editor (admin_producao / admin_master) ═══ */}
-          {(role === 'admin_producao' || role === 'admin_master') && (
+          {/* ═══ Observação de Entrega — editor (somente admin_producao) ═══ */}
+          {role === 'admin_producao' && (
             <div className="border border-border rounded-lg p-4 mb-6 bg-muted/20">
               <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                 <h3 className="text-sm font-bold uppercase tracking-wide">Observação de Entrega</h3>
@@ -1132,7 +1132,16 @@ const OrderDetailPage = () => {
             </div>
             {order.observacaoEntrega && (
               <div className="mt-3 pt-3 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Observação de entrega</p>
+                <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Observação de entrega</p>
+                  {(order.observacaoEntregaPor || order.observacaoEntregaEm) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {order.observacaoEntregaPor ? `por ${order.observacaoEntregaPor}` : ''}
+                      {order.observacaoEntregaPor && order.observacaoEntregaEm ? ' — ' : ''}
+                      {order.observacaoEntregaEm ? new Date(order.observacaoEntregaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : ''}
+                    </p>
+                  )}
+                </div>
                 <p className="text-sm">{order.observacaoEntrega}</p>
               </div>
             )}
