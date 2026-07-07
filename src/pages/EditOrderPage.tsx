@@ -341,7 +341,7 @@ const EditOrderPage = () => {
     const sols = getSoladosForModelo(newModelo);
     const newSolado = sols.length === 1 ? sols[0].label : (sols.find(s => s.label === solado) ? solado : '');
     setSolado(newSolado);
-    const bicos = getBicosForModeloSolado(newModelo, newSolado);
+    const bicos = getBicosForModeloSolado(newModelo, newSolado, tamanho);
     const newBico = bicos.length === 1 ? bicos[0] : (bicos.includes(formatoBico) ? formatoBico : '');
     setFormatoBico(newBico);
     const cso = getCorSolaOptions(newModelo, newSolado, newBico);
@@ -352,7 +352,7 @@ const EditOrderPage = () => {
 
   const handleSoladoChange = (newSolado: string) => {
     setSolado(newSolado);
-    const bicos = getBicosForModeloSolado(modelo, newSolado);
+    const bicos = getBicosForModeloSolado(modelo, newSolado, tamanho);
     const newBico = bicos.length === 1 ? bicos[0] : (bicos.includes(formatoBico) ? formatoBico : '');
     setFormatoBico(newBico);
     const cso = getCorSolaOptions(modelo, newSolado, newBico);
@@ -563,7 +563,7 @@ const EditOrderPage = () => {
             </div>
 
             <div className="grid sm:grid-cols-3 gap-4">
-              <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} />
+              <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } else if (modelo && solado) { const bicos = getBicosForModeloSolado(modelo, solado, v); if (formatoBico && !bicos.includes(formatoBico)) { setFormatoBico(bicos.length === 1 ? bicos[0] : ''); setCorSola(''); } } }} options={TAMANHOS} />
               <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} />
               <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} />
             </div>
@@ -696,7 +696,7 @@ const EditOrderPage = () => {
           <Section title="Solados">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} />
-              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado)} />
+              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} />
               {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
                 <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} />
               )}
