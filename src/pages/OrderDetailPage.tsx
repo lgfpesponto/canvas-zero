@@ -63,6 +63,7 @@ const OrderDetailPage = () => {
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const location = useLocation();
+  const isPreview = new URLSearchParams(location.search).get('preview') === '1';
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const linkedBoot = useLinkedBoot(order);
   const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
@@ -533,6 +534,7 @@ const OrderDetailPage = () => {
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-3xl'} transition-[max-width] duration-300`}>
       <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
+        {!isPreview && (<>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => navigate(`/relatorios${location.search}`)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -670,6 +672,9 @@ const OrderDetailPage = () => {
             )}
           </div>
         )}
+        </>)}
+
+
 
         <div className="space-y-6">
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
@@ -1158,7 +1163,7 @@ const OrderDetailPage = () => {
 
 
           {/* Edição de Valor — admin_master only */}
-          {role === 'admin_master' && !order.erroDePedidoId && (
+          {!isPreview && role === 'admin_master' && !order.erroDePedidoId && (
             <div className="border border-border rounded-lg p-4 mt-4 mb-6">
               <h3 className="text-sm font-bold mb-3">Edição de Valor</h3>
               <div className="space-y-3">
@@ -1248,6 +1253,7 @@ const OrderDetailPage = () => {
           )}
 
         </div>
+        {!isPreview && (<>
         {/* ═══ BLOCO 2 — Detalhes (estilo Ficha) ═══ */}
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
           {/* Detalhes */}
@@ -1608,12 +1614,14 @@ const OrderDetailPage = () => {
             );
           })()}
         </div>
+        </>)}
         </div>
       </motion.div>
         {showFotoPanel && (
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={() => setFotoOpen(false)} />
         )}
       </div>
+      {!isPreview && (<>
       <BulkBlockedDialog
         open={bulkBlocked.open}
         destino={bulkBlocked.destino}
@@ -1703,6 +1711,7 @@ const OrderDetailPage = () => {
           order={order}
         />
       )}
+      </>)}
     </div>
   );
 };

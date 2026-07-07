@@ -72,7 +72,8 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const isAdminProducao = role === 'admin_producao';
   const isPublicRoute = location.pathname.startsWith('/rastreio/');
   const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
-  const hideChrome = location.pathname === '/login' || isBordado || isMontagem || isPublicRoute;
+  const isPreview = new URLSearchParams(location.search).get('preview') === '1';
+  const hideChrome = location.pathname === '/login' || isBordado || isMontagem || isPublicRoute || isPreview;
 
   // Force redirect bordado users out of disallowed routes (mas /rastreio é público)
   if (isBordado && !isBordadoRoute && !isPublicRoute && !BORDADO_ALLOWED.has(location.pathname) && location.pathname !== '/login') {
