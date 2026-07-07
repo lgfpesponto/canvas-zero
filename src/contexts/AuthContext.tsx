@@ -146,6 +146,10 @@ export interface Order {
   templateNome?: string;
   /** SKU resolvido a partir do modelo rascunho (base ou da grade do tamanho). */
   templateSku?: string;
+  /** Se preenchido, este pedido é um ERRO gerado a partir do pedido original com este id. */
+  erroDePedidoId?: string;
+  /** Descrição livre do erro registrado (obrigatória ao criar pedido ERRO). */
+  erroDescricao?: string;
 }
 
 // Re-export statuses from centralized module for backward compatibility
