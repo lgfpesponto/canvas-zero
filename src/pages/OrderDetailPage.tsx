@@ -1644,8 +1644,68 @@ const OrderDetailPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {order && !order.erroDePedidoId && (
+        <RegistrarErroDialog
+          open={erroDialogOpen}
+          onOpenChange={setErroDialogOpen}
+          order={order}
+        />
+      )}
     </div>
   );
 };
 
+/** Banner exibido no topo do detalhe quando o pedido é um ERRO — mostra link para o original. */
+function ErroBanner({
+  erroDePedidoId,
+  erroDescricao,
+  dataCriacao,
+  horaCriacao,
+  onNavigate,
+}: {
+  erroDePedidoId: string;
+  erroDescricao?: string;
+  dataCriacao?: string;
+  horaCriacao?: string;
+  onNavigate: (id: string) => void;
+}) {
+  const [orig, setOrig] = useState<{ id: string; numero: string } | null>(null);
+  useEffect(() => {
+    supabase.from('orders').select('id, numero').eq('id', erroDePedidoId).maybeSingle()
+      .then(({ data }) => setOrig(data ? { id: data.id, numero: data.numero } : null));
+  }, [erroDePedidoId]);
+  const dataHora = [dataCriacao, horaCriacao].filter(Boolean).join(' — ');
+  return (
+    <div className="mb-4 p-4 rounded-lg border border-destructive/40 bg-destructive/5">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <div className="flex items-center gap-2 text-destructive font-bold">
+          <AlertTriangle size={16} />
+          Pedido de ERRO
+          {orig && (
+            <>
+              <span className="text-muted-foreground font-normal">do</span>
+              <button
+                type="button"
+                onClick={() => onNavigate(orig.id)}
+                className="underline underline-offset-2 hover:text-destructive/80 font-mono"
+                title="Ir para o pedido original"
+              >
+                #{orig.numero}
+              </button>
+            </>
+          )}
+        </div>
+        {dataHora && <span className="text-xs text-muted-foreground">Registrado em {dataHora}</span>}
+      </div>
+      {erroDescricao && (
+        <div className="text-sm whitespace-pre-wrap text-foreground/90">
+          <span className="text-xs uppercase text-muted-foreground block mb-1">Descrição do erro</span>
+          {erroDescricao}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default OrderDetailPage;
+
