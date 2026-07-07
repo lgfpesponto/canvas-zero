@@ -11,9 +11,6 @@ import { Loader2, Check, X, Search, ExternalLink, ChevronDown, ChevronRight } fr
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useOrderById } from '@/hooks/useOrderById';
-import { getOrderFinalValue } from '@/lib/order-logic';
-import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 
 type Row = {
   id: string;
