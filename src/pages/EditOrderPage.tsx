@@ -696,7 +696,7 @@ const EditOrderPage = () => {
           <Section title="Solados">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} />
-              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado)} />
+              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} />
               {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
                 <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} />
               )}
