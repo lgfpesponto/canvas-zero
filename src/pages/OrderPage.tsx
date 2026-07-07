@@ -409,7 +409,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   const handleSoladoChange = (newSolado: string) => {
     setSolado(newSolado);
-    const bicos = getBicosForModeloSolado(modelo, newSolado);
+    const bicos = getBicosForModeloSolado(modelo, newSolado, tamanho);
     const newBico = bicos.length === 1 ? bicos[0] : (bicos.includes(formatoBico) ? formatoBico : '');
     setFormatoBico(newBico);
     const cso = getCorSolaOptions(modelo, newSolado, newBico);
