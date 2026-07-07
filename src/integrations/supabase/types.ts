@@ -1323,6 +1323,7 @@ export type Database = {
           created_by: string
           decidido_em: string | null
           decidido_por: string | null
+          desconto_solicitado: number
           id: string
           motivo: string
           numero: string
@@ -1330,7 +1331,7 @@ export type Database = {
           resposta_admin: string | null
           status: string
           valor_atual: number
-          valor_solicitado: number
+          valor_solicitado: number | null
           vendedor: string
         }
         Insert: {
@@ -1338,6 +1339,7 @@ export type Database = {
           created_by?: string
           decidido_em?: string | null
           decidido_por?: string | null
+          desconto_solicitado?: number
           id?: string
           motivo: string
           numero: string
@@ -1345,7 +1347,7 @@ export type Database = {
           resposta_admin?: string | null
           status?: string
           valor_atual?: number
-          valor_solicitado: number
+          valor_solicitado?: number | null
           vendedor: string
         }
         Update: {
@@ -1353,6 +1355,7 @@ export type Database = {
           created_by?: string
           decidido_em?: string | null
           decidido_por?: string | null
+          desconto_solicitado?: number
           id?: string
           motivo?: string
           numero?: string
@@ -1360,7 +1363,7 @@ export type Database = {
           resposta_admin?: string | null
           status?: string
           valor_atual?: number
-          valor_solicitado?: number
+          valor_solicitado?: number | null
           vendedor?: string
         }
         Relationships: []
@@ -2792,6 +2795,10 @@ export type Database = {
           nome_completo: string
           nome_usuario: string
         }[]
+      }
+      marcar_ajuste_visto: {
+        Args: { _solicitacao_id: string }
+        Returns: undefined
       }
       marcar_comprovante_notificacao_lida: {
         Args: { _id: string }
