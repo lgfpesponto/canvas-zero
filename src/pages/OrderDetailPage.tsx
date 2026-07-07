@@ -1614,6 +1614,7 @@ const OrderDetailPage = () => {
             );
           })()}
         </div>
+        </>)}
         </div>
       </motion.div>
         {showFotoPanel && (
