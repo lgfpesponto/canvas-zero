@@ -1718,7 +1718,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                     )}
                   </div>
                 ) : (
-                  <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } }} options={TAMANHOS} required />
+                  <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } else if (modelo && solado) { const bicos = getBicosForModeloSolado(modelo, solado, v); if (formatoBico && !bicos.includes(formatoBico)) { setFormatoBico(bicos.length === 1 ? bicos[0] : ''); setCorSola(''); } } }} options={TAMANHOS} required />
                 )}
                 <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
                 <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
