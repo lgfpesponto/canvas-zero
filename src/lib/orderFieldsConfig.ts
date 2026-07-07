@@ -497,6 +497,7 @@ export function getCorViraOptions(modelo: string, solado?: string): { label: str
       return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'bicoFinoFeminino': return COR_VIRA.filter(c => c.label === 'Neutra');
     case 'perfilado': return COR_VIRA.filter(c => c.label === 'Neutra');
+    case 'botinaBicoFino': return COR_VIRA.filter(c => c.label === 'Neutra');
     default: return COR_VIRA;
   }
 }
@@ -510,6 +511,7 @@ export function getForma(modelo: string, formatoBico?: string): string {
     case 'tradicional': return formatoBico === 'Redondo' ? '7576' : '2300';
     case 'bicoFinoFeminino': return '6761';
     case 'perfilado': return '4394';
+    case 'botinaBicoFino': return '4394';
     default: return '';
   }
 }
