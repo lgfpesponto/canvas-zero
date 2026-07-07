@@ -298,9 +298,8 @@ const AdminDashboard = () => {
         </Link>
       )}
       {isAdminMaster && ajustesPendentes > 0 && (
-        <Link to="/admin/solicitacoes-ajuste"
-          className="block mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
               <DollarSign className="text-amber-600" size={28} />
               <div>
@@ -310,10 +309,68 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            <span className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-bold">Revisar →</span>
+            <Link to="/admin/solicitacoes-ajuste" className="text-xs font-semibold text-amber-700 hover:underline">Ver página completa →</Link>
           </div>
-        </Link>
+          <div className="space-y-2">
+            {ajustesPendentesRows.slice(0, 8).map(r => {
+              const desc = Number(r.desconto_solicitado ?? r.valor_solicitado ?? 0);
+              const busy = ajusteActionId === r.id;
+              return (
+                <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-white/70 dark:bg-background/40 px-3 py-2">
+                  <div className="min-w-0 flex-1 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link to={`/admin/solicitacoes-ajuste`} className="font-mono font-bold text-primary hover:underline">{r.numero}</Link>
+                      <span className="text-muted-foreground">— {r.vendedor}</span>
+                      <span className="font-semibold text-amber-700">Desc. {formatCurrency(desc)}</span>
+                    </div>
+                    <div className="italic text-muted-foreground truncate">"{r.motivo}"</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleAjusteAprovar(r.id)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50"
+                    >
+                      {busy ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} /> OK</>}
+                    </button>
+                    <button
+                      onClick={() => { setAjusteRejectId(r.id); setAjusteRejectMsg(''); }}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-destructive hover:opacity-90 text-destructive-foreground text-xs font-bold disabled:opacity-50"
+                      title="Recusar"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
+      <AlertDialog open={!!ajusteRejectId} onOpenChange={(o) => { if (!o) setAjusteRejectId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recusar solicitação de ajuste</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opcional: escreva uma resposta para o vendedor. Ele receberá uma notificação de recusa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <textarea
+            value={ajusteRejectMsg}
+            onChange={(e) => setAjusteRejectMsg(e.target.value)}
+            rows={3}
+            placeholder="Motivo da recusa (opcional)..."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAjusteRecusar} className="bg-destructive text-destructive-foreground hover:opacity-90">
+              Confirmar recusa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left column */}
         <div className="space-y-6">
