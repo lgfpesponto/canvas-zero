@@ -49,6 +49,8 @@ export interface BuildCobrancaOpts {
   statusLabel: string;
   geradoEm: string; // dd/mm/yyyy
   tituloPrefixo?: string; // ex.: 'Cobrança' (default) ou 'Cobrança (preços atuais)'
+  /** Mapa opcional order_id → solicitação de ajuste (pendente ou vista) para exibir na composição */
+  ajusteSolicitacoes?: Record<string, { desconto: number; motivo: string; status: string }>;
 }
 
 export interface BuildCobrancaResult {
@@ -296,10 +298,15 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
     const obsEntregaLines: string[] = (o as any).observacaoEntrega
       ? [`Obs. entrega: ${(o as any).observacaoEntrega}`]
       : [];
+    const solic = opts.ajusteSolicitacoes?.[o.id];
+    const solicLines: string[] = solic
+      ? [`Solicitação de ajuste (${solic.status === 'pendente' ? 'aguardando' : 'vista'}) — desconto ${formatCurrency(solic.desconto)}: ${solic.motivo}`]
+      : [];
     const compText = [
       ...priceItems.map(([name, val]) => `${name} ${formatCurrency(val)}`),
       ...divergLines,
       ...justifLines,
+      ...solicLines,
       ...obsEntregaLines,
     ]
       .join('\n')

@@ -890,14 +890,6 @@ const OrderDetailPage = () => {
                   <AlertTriangle size={12} /> {e.numero}
                 </button>
               ))}
-              {!isAdmin && (
-                <AjusteValorSolicitacao
-                  orderId={order.id}
-                  orderStatus={order.status}
-                  valorAtual={Number(displayTotal || 0)}
-                  isOwner={!!user?.nomeCompleto && user.nomeCompleto === order.vendedor}
-                />
-              )}
             </div>
             {role === 'admin_master' && (
               <label
@@ -1130,6 +1122,12 @@ const OrderDetailPage = () => {
               <span>Total</span>
               <span className="text-primary">{formatCurrency(order.erroDePedidoId ? 0 : displayTotal)}</span>
             </div>
+            <AjusteValorSolicitacao
+              orderId={order.id}
+              hasErro={!!order.erroDePedidoId}
+              isOwner={!!user?.nomeCompleto && user.nomeCompleto === order.vendedor}
+              isAdminMaster={role === 'admin_master'}
+            />
             {order.observacaoEntrega && (
               <div className="mt-3 pt-3 border-t border-border">
                 <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">

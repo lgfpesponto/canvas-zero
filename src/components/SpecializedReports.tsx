@@ -1196,11 +1196,31 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   };
 
   // ── Expedição: tabular A4 layout with composition + data ──
-  const generateExpedicaoPDF = () => {
+  const generateExpedicaoPDF = async () => {
     const filtered = sourceOrders.filter(o =>
       o.status.toLowerCase() === 'expedição' &&
       (filterVendedor === 'todos' || o.vendedor === filterVendedor)
     ).sort((a, b) => { const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0; const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0; if (numB !== numA) return numB - numA; return new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime(); });
+
+    // Pré-carrega solicitações de ajuste (pendentes ou vistas)
+    const solicMap: Record<string, { desconto: number; motivo: string; status: string }> = {};
+    if (filtered.length > 0) {
+      const { data: solics } = await supabase
+        .from('order_ajuste_solicitacoes')
+        .select('order_id,desconto_solicitado,valor_solicitado,motivo,status,created_at')
+        .in('order_id', filtered.map(o => o.id))
+        .in('status', ['pendente', 'visto', 'aprovado', 'negado'])
+        .order('created_at', { ascending: false });
+      (solics || []).forEach((s: any) => {
+        if (!solicMap[s.order_id]) {
+          solicMap[s.order_id] = {
+            desconto: Number(s.desconto_solicitado ?? s.valor_solicitado ?? 0),
+            motivo: s.motivo || '',
+            status: s.status === 'pendente' ? 'pendente' : 'visto',
+          };
+        }
+      });
+    }
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const pw = 210;
@@ -1236,6 +1256,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const compItems = buildCompositionItems(o);
       const compLines = compItems.map(([name]) => name);
       if ((o as any).observacaoEntrega) compLines.push('Obs. entrega: ' + (o as any).observacaoEntrega);
+      const solic = solicMap[o.id];
+      if (solic) compLines.push(`Solic. ajuste (${solic.status === 'pendente' ? 'aguardando' : 'vista'}) desconto ${solic.desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}: ${solic.motivo}`);
       const compText = compLines.join('\n');
       doc.setFontSize(5);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);
@@ -1286,7 +1308,7 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   };
 
   // ── Cobrança: tabular A4 layout (helper compartilhado) ──
-  const generateCobrancaPDF = () => {
+  const generateCobrancaPDF = async () => {
     const DEFAULT_COBRANCA = ['Entregue', 'Conferido', 'Cobrado', 'Pago'];
     const selecionados = filterProgresso.size === 0 ? DEFAULT_COBRANCA : [...filterProgresso];
     const statusSetLower = new Set(selecionados.map(s => s.trim().toLowerCase()));
@@ -1299,8 +1321,28 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const vendedorLabel = filterVendedor === 'todos' ? 'Todos vendedores' : filterVendedor;
     const statusLabel = selecionados.join(' / ');
 
+    // Pré-carrega solicitações de ajuste para exibir na composição
+    const ajusteSolicitacoes: Record<string, { desconto: number; motivo: string; status: string }> = {};
+    if (filtered.length > 0) {
+      const { data: solics } = await supabase
+        .from('order_ajuste_solicitacoes')
+        .select('order_id,desconto_solicitado,valor_solicitado,motivo,status,created_at')
+        .in('order_id', filtered.map(o => o.id))
+        .in('status', ['pendente', 'visto', 'aprovado', 'negado'])
+        .order('created_at', { ascending: false });
+      (solics || []).forEach((s: any) => {
+        if (!ajusteSolicitacoes[s.order_id]) {
+          ajusteSolicitacoes[s.order_id] = {
+            desconto: Number(s.desconto_solicitado ?? s.valor_solicitado ?? 0),
+            motivo: s.motivo || '',
+            status: s.status === 'pendente' ? 'pendente' : 'visto',
+          };
+        }
+      });
+    }
+
     const { doc, totalValor, totalQtd } = buildCobrancaPdfDoc(filtered, {
-      vendedorLabel, statusLabel, geradoEm,
+      vendedorLabel, statusLabel, geradoEm, ajusteSolicitacoes,
     });
 
     const cobrancaNome = buildCobrancaFileName({ vendedorLabel, geradoEm, totalValor, totalQtd });

@@ -2523,7 +2523,7 @@ export type Database = {
             Returns: Json
           }
       criar_ajuste_solicitacao: {
-        Args: { _motivo: string; _order_id: string; _valor_solicitado: number }
+        Args: { _desconto: number; _motivo: string; _order_id: string }
         Returns: string
       }
       criar_estoque_produto: {
