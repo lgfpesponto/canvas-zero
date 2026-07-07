@@ -534,6 +534,7 @@ const OrderDetailPage = () => {
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-3xl'} transition-[max-width] duration-300`}>
       <div className={showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
+        {!isPreview && (<>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => navigate(`/relatorios${location.search}`)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
