@@ -1560,6 +1560,9 @@ export type Database = {
           numero: string
           numero_pedido_bota: string | null
           observacao: string
+          observacao_entrega: string | null
+          observacao_entrega_em: string | null
+          observacao_entrega_por: string | null
           personalizacao_bordado: string
           personalizacao_nome: string
           pintura: string | null
@@ -1673,6 +1676,9 @@ export type Database = {
           numero: string
           numero_pedido_bota?: string | null
           observacao?: string
+          observacao_entrega?: string | null
+          observacao_entrega_em?: string | null
+          observacao_entrega_por?: string | null
           personalizacao_bordado?: string
           personalizacao_nome?: string
           pintura?: string | null
@@ -1786,6 +1792,9 @@ export type Database = {
           numero?: string
           numero_pedido_bota?: string | null
           observacao?: string
+          observacao_entrega?: string | null
+          observacao_entrega_em?: string | null
+          observacao_entrega_por?: string | null
           personalizacao_bordado?: string
           personalizacao_nome?: string
           pintura?: string | null
@@ -2631,6 +2640,9 @@ export type Database = {
           numero: string
           numero_pedido_bota: string | null
           observacao: string
+          observacao_entrega: string | null
+          observacao_entrega_em: string | null
+          observacao_entrega_por: string | null
           personalizacao_bordado: string
           personalizacao_nome: string
           pintura: string | null
@@ -2813,6 +2825,10 @@ export type Database = {
       registrar_alteracoes_pos_entrega: {
         Args: { _descricoes: string[]; _order_id: string }
         Returns: number
+      }
+      registrar_observacao_entrega: {
+        Args: { _order_id: string; _texto: string }
+        Returns: undefined
       }
       reprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string; _motivo: string }
