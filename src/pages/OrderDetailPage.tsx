@@ -94,6 +94,7 @@ const OrderDetailPage = () => {
   const [expAlteracoes, setExpAlteracoes] = useState(false);
   const [expImpressao, setExpImpressao] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
+  const [erroDialogOpen, setErroDialogOpen] = useState(false);
 
   // Edição de data do pedido — restrito ao vendedor Rancho Chique
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
