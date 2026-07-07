@@ -49,6 +49,8 @@ export interface BuildCobrancaOpts {
   statusLabel: string;
   geradoEm: string; // dd/mm/yyyy
   tituloPrefixo?: string; // ex.: 'Cobrança' (default) ou 'Cobrança (preços atuais)'
+  /** Mapa opcional order_id → solicitação de ajuste (pendente ou vista) para exibir na composição */
+  ajusteSolicitacoes?: Record<string, { desconto: number; motivo: string; status: string }>;
 }
 
 export interface BuildCobrancaResult {
