@@ -820,8 +820,50 @@ const OrderDetailPage = () => {
             );
           })()}
 
+          {/* ═══ Observação de Entrega — editor (admin_producao / admin_master) ═══ */}
+          {(role === 'admin_producao' || role === 'admin_master') && (
+            <div className="border border-border rounded-lg p-4 mb-6 bg-muted/20">
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <h3 className="text-sm font-bold uppercase tracking-wide">Observação de Entrega</h3>
+                {order.observacaoEntregaPor && order.observacaoEntregaEm && (
+                  <span className="text-[11px] text-muted-foreground">
+                    por {order.observacaoEntregaPor} — {new Date(order.observacaoEntregaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                  </span>
+                )}
+              </div>
+              <Textarea
+                value={obsEntregaInput}
+                onChange={e => setObsEntregaInput(e.target.value)}
+                rows={3}
+                placeholder="Ex.: entregar apenas na sexta, cliente pediu embalagem extra..."
+              />
+              <div className="flex justify-end mt-2 gap-2">
+                <Button
+                  size="sm"
+                  disabled={obsEntregaSaving || (obsEntregaInput.trim() === (order.observacaoEntrega || '').trim())}
+                  onClick={async () => {
+                    setObsEntregaSaving(true);
+                    const { error } = await supabase.rpc('registrar_observacao_entrega' as any, {
+                      _order_id: order.id,
+                      _texto: obsEntregaInput.trim() || null,
+                    });
+                    setObsEntregaSaving(false);
+                    if (error) {
+                      toast.error('Falha ao salvar observação: ' + error.message);
+                      return;
+                    }
+                    await refetchOrder();
+                    toast.success(obsEntregaInput.trim() ? 'Observação salva — vendedor notificado' : 'Observação removida');
+                  }}
+                >
+                  {obsEntregaSaving ? 'Salvando…' : 'Salvar'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {canSeeValues && (<>
+
           {/* ═══ Composição do Pedido (acima dos Detalhes) ═══ */}
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
