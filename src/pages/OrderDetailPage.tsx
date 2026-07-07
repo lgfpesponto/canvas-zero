@@ -1062,7 +1062,12 @@ const OrderDetailPage = () => {
               </>
             )}
             {/* Linha de ajuste (Desconto / Acréscimo) — só aparece quando há ajuste */}
-            {ajusteValor !== 0 && (() => {
+            {order.erroDePedidoId ? (
+              <div className="flex justify-between pt-1 text-destructive">
+                <span className="text-sm font-semibold">Desconto automático (ERRO)</span>
+                <span className="text-sm font-semibold">− {formatCurrency(subtotalReal)}</span>
+              </div>
+            ) : ajusteValor !== 0 && (() => {
               const isAcr = ajusteValor < 0;
               const abs = Math.abs(ajusteValor);
               return (
@@ -1075,7 +1080,7 @@ const OrderDetailPage = () => {
             {/* Total final — fonte única de verdade */}
             <div className="flex justify-between pt-2 mt-2 border-t-2 border-border font-bold text-lg">
               <span>Total</span>
-              <span className="text-primary">{formatCurrency(displayTotal)}</span>
+              <span className="text-primary">{formatCurrency(order.erroDePedidoId ? 0 : displayTotal)}</span>
             </div>
             {ultimaJustificativaValor && (
               <div className="mt-3 pt-3 border-t border-border">
