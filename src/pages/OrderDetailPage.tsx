@@ -98,6 +98,11 @@ const OrderDetailPage = () => {
   const [expImpressao, setExpImpressao] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const [erroDialogOpen, setErroDialogOpen] = useState(false);
+  const [obsEntregaInput, setObsEntregaInput] = useState('');
+  const [obsEntregaSaving, setObsEntregaSaving] = useState(false);
+  useEffect(() => {
+    setObsEntregaInput(order?.observacaoEntrega || '');
+  }, [order?.id, order?.observacaoEntrega]);
 
   // Edição de data do pedido — restrito ao vendedor Rancho Chique
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
