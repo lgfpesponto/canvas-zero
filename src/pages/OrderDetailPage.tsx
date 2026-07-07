@@ -913,19 +913,9 @@ const OrderDetailPage = () => {
           </div>
           <div className="border border-border rounded-lg p-4 mb-2">
             {order.erroDePedidoId ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-bold text-destructive">ERRO</span>
-                  <span className="font-mono">R$ 0,00</span>
-                </div>
-                <div className="pt-3 border-t border-border flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span className="font-mono">R$ 0,00</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span className="text-primary">R$ 0,00</span>
-                </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-bold text-destructive">ERRO</span>
+                <span className="font-mono">R$ 0,00</span>
               </div>
             ) : order.tipoExtra ? (
               <>
@@ -1106,7 +1096,7 @@ const OrderDetailPage = () => {
 
 
           {/* Edição de Valor — admin_master only */}
-          {role === 'admin_master' && (
+          {role === 'admin_master' && !order.erroDePedidoId && (
             <div className="border border-border rounded-lg p-4 mt-4 mb-6">
               <h3 className="text-sm font-bold mb-3">Edição de Valor</h3>
               <div className="space-y-3">
