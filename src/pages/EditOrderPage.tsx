@@ -704,23 +704,10 @@ const EditOrderPage = () => {
 
           <Section title="Extras">
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
-            <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTiras} textPlaceholder="Cor das tiras..." />
+            <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
           </Section>
 
 
-          <Section title="Solados">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} />
-              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} />
-              {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
-                <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} />
-              )}
-              {getCorViraOptions(modelo, solado).length > 1 && (
-                <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={getCorViraOptions(modelo, solado)} />
-              )}
-            </div>
-            <ToggleField label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} value={costuraAtras} onChange={setCosturaAtras} />
-          </Section>
 
           <Section title="Carimbo a Fogo">
             <div className="flex flex-wrap items-center gap-3">
