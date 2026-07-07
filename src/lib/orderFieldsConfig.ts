@@ -64,7 +64,7 @@ export const CORES_COURO = [
   'Vermelho','Rosa','Branco','Off White','Pinhão','Verde','Amarelo',
   'Brasileiro','Americano','Cappuccino','Areia','Mustang','Rosa Neon',
   'Laranja','Cru','Havana','Petróleo','Malhado','Chocolate','Castor',
-  'Caramelo','Preto e Branco','Nescau Chapado',
+  'Caramelo','Preto e Branco','Nescau Chapado','Whisky',
 ];
 
 // ==================== VINCULAÇÃO TIPO COURO → COR ====================
@@ -82,6 +82,8 @@ const CORES_RESTRITAS: Record<string, string[]> = {
   'Nescau Chapado': ['Crazy Horse'],
   'Chocolate': ['Nobuck', 'Estilizado em Tilápia'],
   'Marrom': ['Látego', 'Estilizado em Cobra', 'Estilizado em Jacaré', 'Estilizado em Avestruz', 'Estilizado em Dinossauro', 'Estilizado em Tatu'],
+  'Whisky': ['Látego'],
+  'Caramelo': ['Látego'],
 };
 
 const TODAS_CORES_RESTRITAS = Object.keys(CORES_RESTRITAS);
@@ -89,7 +91,7 @@ const TODAS_CORES_RESTRITAS = Object.keys(CORES_RESTRITAS);
 // Cores que SÓ existem em listas fechadas (jamais aparecem na lista geral).
 // Preto, Branco e Mostarda também figuram em listas fechadas, mas são universais
 // e DEVEM continuar na lista geral.
-const CORES_EXCLUSIVAS_REAIS = ['Malhado', 'Caramelo', 'Preto e Branco', 'Rosa Neon'];
+const CORES_EXCLUSIVAS_REAIS = ['Malhado', 'Caramelo', 'Preto e Branco', 'Rosa Neon', 'Whisky'];
 
 export function getCoresCouroFiltradas(tipoCouro: string): string[] {
   // Se tipo tem lista fechada, retorna somente suas cores exclusivas
