@@ -891,7 +891,6 @@ const OrderDetailPage = () => {
                 </button>
               ))}
             </div>
-            </div>
             {role === 'admin_master' && (
               <label
                 htmlFor="conferido-checkbox"
