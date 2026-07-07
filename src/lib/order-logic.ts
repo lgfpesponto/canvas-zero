@@ -364,6 +364,8 @@ export function orderToDbRow(order: any, userId: string) {
     nome_produto_estoque: order.nomeProdutoEstoque || null,
     template_nome: order.templateNome || null,
     template_sku: order.templateSku || null,
+    erro_de_pedido_id: order.erroDePedidoId || null,
+    erro_descricao: order.erroDescricao || null,
   };
 }
 
