@@ -63,6 +63,7 @@ const OrderDetailPage = () => {
   const { toggle, isSelected, count, clear, selectedIds } = useSelectedOrders();
   const navigate = useNavigate();
   const location = useLocation();
+  const isPreview = new URLSearchParams(location.search).get('preview') === '1';
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const linkedBoot = useLinkedBoot(order);
   const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
