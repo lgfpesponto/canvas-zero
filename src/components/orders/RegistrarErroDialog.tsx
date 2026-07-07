@@ -128,8 +128,10 @@ export function RegistrarErroDialog({ open, onOpenChange, order }: Props) {
       payload.estoque_baixado = false;
       payload.erro_de_pedido_id = order.id;
       payload.erro_descricao = desc;
-      // Mantém user_id como quem está criando (dono do pedido ERRO)
-      if (user?.id) payload.user_id = user.id;
+      // Mantém user_id / vendedor do pedido ORIGINAL (herdados via spread de originalRow),
+      // para que o vendedor responsável veja o ERRO em suas listagens.
+      // A autoria da ação de registrar o erro fica preservada em historico[0].usuario
+      // e alteracoes[0].usuario.
 
       const { data: inserted, error: insErr } = await supabase
         .from('orders')
