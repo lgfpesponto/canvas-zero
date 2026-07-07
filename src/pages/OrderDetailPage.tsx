@@ -890,14 +890,7 @@ const OrderDetailPage = () => {
                   <AlertTriangle size={12} /> {e.numero}
                 </button>
               ))}
-              {!isAdmin && (
-                <AjusteValorSolicitacao
-                  orderId={order.id}
-                  orderStatus={order.status}
-                  valorAtual={Number(displayTotal || 0)}
-                  isOwner={!!user?.nomeCompleto && user.nomeCompleto === order.vendedor}
-                />
-              )}
+            </div>
             </div>
             {role === 'admin_master' && (
               <label
