@@ -11,7 +11,7 @@ type TabValue = typeof VALID_TABS[number];
 
 export const FinanceiroInner = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get('tab');
+  const tabFromUrl = searchParams.get('subtab');
   const initialTab: TabValue = (VALID_TABS as readonly string[]).includes(tabFromUrl || '')
     ? (tabFromUrl as TabValue)
     : 'receber';
@@ -30,7 +30,7 @@ export const FinanceiroInner = () => {
   const handleTabChange = (v: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set('tab', v);
+      next.set('subtab', v);
       return next;
     }, { replace: true });
   };

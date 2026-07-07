@@ -1,24 +1,18 @@
 ## Diagnóstico
 
-O ERRO da tela é anterior à mudança do dialog — foi salvo sem `desconto`. Por isso a composição mostra Subtotal R$ 409,60 e Total R$ 409,60, sem a linha de desconto.
+`AdminConfigPage` usa `?tab=financeiro` para saber qual seção mostrar. Dentro dela, `FinanceiroInner` também usa `?tab=receber|pagar|saldo` — ao clicar numa aba, o `setSearchParams` sobrescreve `tab=financeiro` por `tab=pagar`, e a página volta para o menu de configurações porque não existe seção `pagar`.
 
-Além disso, mesmo em ERROs novos, se o `subtotalReal` recomputado no detalhe divergir alguns centavos do `desconto` gravado, a linha ficaria com resto.
+## Correção
 
-## Correção (apresentação — resolve novos e antigos)
+**`src/pages/FinanceiroPage.tsx`** — trocar o nome do query param das abas internas de `tab` para `subtab`:
 
-Fazer a composição do detalhe tratar ERRO como caso especial de exibição, sem depender do que está gravado em `desconto`:
+- Ler `searchParams.get('subtab')` no lugar de `'tab'`.
+- Em `handleTabChange`, gravar `next.set('subtab', v)` em vez de `'tab'`.
 
-**`src/pages/OrderDetailPage.tsx`** — no bloco da composição:
-
-1. **Linha de desconto** (hoje: `{ajusteValor !== 0 && ...}`): quando `order.erroDePedidoId`, forçar a exibição de:
-   - Rótulo: `Desconto automático (ERRO)`
-   - Valor: `− formatCurrency(subtotalReal)` (mesmo bruto que aparece no Subtotal acima).
-2. **Total final** (hoje: `formatCurrency(displayTotal)`): quando `order.erroDePedidoId`, forçar `R$ 0,00`.
-3. Não gravar nada no banco — é só apresentação. O `preco = 0` gravado no ERRO já garante que listagens, dashboards e PDF de cobrança continuam somando zero.
+Assim `/admin/configuracoes?tab=financeiro&subtab=pagar` preserva a seção do admin e a aba interna funciona; `/financeiro?subtab=saldo` continua funcionando na página standalone.
 
 ## Fora do escopo
-- Backfill do `desconto` nos ERROs antigos (não é necessário — o preço final já é 0 no banco).
-- Mudanças no dialog de criação (já grava o desconto correto para novos ERROs; a apresentação passa a ignorar esse valor gravado em favor do `subtotalReal` recomputado, o que também elimina divergências de centavos).
+- Deep links antigos que usavam `?tab=receber` na URL `/financeiro` — a aba inicial cai no default "A Receber" (comportamento equivalente ao anterior sem parâmetro).
 
 ## Arquivo afetado
-- `src/pages/OrderDetailPage.tsx` (apenas duas condicionais no render da composição)
+- `src/pages/FinanceiroPage.tsx`
