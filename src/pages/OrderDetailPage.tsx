@@ -1621,6 +1621,7 @@ const OrderDetailPage = () => {
           <FotoPedidoSidePanel url={fotoUrlAtual} onClose={() => setFotoOpen(false)} />
         )}
       </div>
+      {!isPreview && (<>
       <BulkBlockedDialog
         open={bulkBlocked.open}
         destino={bulkBlocked.destino}
@@ -1710,6 +1711,7 @@ const OrderDetailPage = () => {
           order={order}
         />
       )}
+      </>)}
     </div>
   );
 };
