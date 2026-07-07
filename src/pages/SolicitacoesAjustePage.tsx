@@ -157,11 +157,8 @@ export default function SolicitacoesAjustePage() {
                       <TableCell className="text-xs whitespace-nowrap">{new Date(r.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</TableCell>
                       <TableCell>{r.vendedor}</TableCell>
                       <TableCell>
-                        <button onClick={() => setExpandedId(isExpanded ? null : r.id)} className="text-primary hover:underline font-mono text-sm">
+                        <Link to={`/pedido/${r.order_id}`} className="text-primary hover:underline font-mono text-sm">
                           {r.numero}
-                        </button>
-                        <Link to={`/pedido/${r.order_id}`} className="ml-2 text-muted-foreground hover:text-primary inline-block" title="Abrir pedido completo">
-                          <ExternalLink size={12} />
                         </Link>
                       </TableCell>
                       <TableCell className="text-right font-semibold">{fmt(descontoDe(r))}</TableCell>
