@@ -397,13 +397,6 @@ export function getBlockForModelo(modelo: string): ModelBlock | null {
 export function getSoladosForModelo(modelo: string, formatoBico?: string): { label: string; preco: number }[] {
   const block = getBlockForModelo(modelo);
   if (!block) return SOLADO;
-  // Regra Botina: além dos solados tradicionais, aceita PVC.
-  if (modelo === 'Botina') {
-    let result = SOLADO.filter(s => ['Borracha', 'Couro Reta', 'Couro Carrapeta', 'Couro Carrapeta com Espaço Espora', 'Jump', 'Rústica', 'PVC'].includes(s.label));
-    if (formatoBico === 'Redondo') result = result.filter(s => !['Jump', 'Rústica', 'PVC'].includes(s.label));
-    if (formatoBico === 'Quadrado') result = result.filter(s => s.label !== 'PVC');
-    return result;
-  }
   switch (block) {
     case 'infantil': return SOLADO.filter(s => s.label === 'Infantil');
     case 'city': return SOLADO.filter(s => s.label === 'Borracha City');
@@ -414,6 +407,7 @@ export function getSoladosForModelo(modelo: string, formatoBico?: string): { lab
     }
     case 'bicoFinoFeminino': return SOLADO.filter(s => ['PVC', 'Couro Reta'].includes(s.label));
     case 'perfilado': return SOLADO.filter(s => ['PVC', 'Couro Reta'].includes(s.label));
+    case 'botinaBicoFino': return SOLADO.filter(s => ['Couro Reta', 'PVC'].includes(s.label));
     default: return SOLADO;
   }
 }
