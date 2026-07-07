@@ -153,17 +153,43 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchComprovantesPendentes(); }, [fetchComprovantesPendentes]);
 
-  // Solicitações de ajuste pendentes
-  useEffect(() => {
+  // Solicitações de ajuste pendentes (com detalhes para ações inline)
+  const loadAjustesPendentes = useCallback(async () => {
     if (!isAdminMaster) return;
-    (async () => {
-      const { count } = await supabase
-        .from('order_ajuste_solicitacoes' as any)
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pendente');
-      setAjustesPendentes(count || 0);
-    })();
+    const { data } = await supabase
+      .from('order_ajuste_solicitacoes' as any)
+      .select('id, order_id, numero, vendedor, motivo, desconto_solicitado, valor_solicitado')
+      .eq('status', 'pendente')
+      .order('created_at', { ascending: false });
+    const rows = (data as any[]) || [];
+    setAjustesPendentesRows(rows);
+    setAjustesPendentes(rows.length);
   }, [isAdminMaster]);
+  useEffect(() => { void loadAjustesPendentes(); }, [loadAjustesPendentes]);
+
+  const handleAjusteAprovar = async (id: string) => {
+    setAjusteActionId(id);
+    const { error } = await supabase.rpc('aprovar_ajuste_solicitacao' as any, { _solicitacao_id: id });
+    setAjusteActionId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Ajuste aprovado e aplicado');
+    void loadAjustesPendentes();
+  };
+  const handleAjusteRecusar = async () => {
+    if (!ajusteRejectId) return;
+    const id = ajusteRejectId;
+    setAjusteActionId(id);
+    const { error } = await supabase.rpc('recusar_ajuste_solicitacao' as any, {
+      _solicitacao_id: id,
+      _resposta: ajusteRejectMsg.trim() || null,
+    });
+    setAjusteActionId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Solicitação recusada');
+    setAjusteRejectId(null); setAjusteRejectMsg('');
+    void loadAjustesPendentes();
+  };
+
 
   // Solado board queries via useOrdersQuery
   const { orders: solaCouroOrders } = useOrdersQuery({
