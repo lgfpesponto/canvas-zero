@@ -1,33 +1,54 @@
-## Plano
+# Pendente = soma dos pedidos em "Cobrado" (sem descontar saldo)
 
-1. **Ajustar a aprovação da solicitação de valor no banco**
-   - Atualizar a RPC `aprovar_ajuste_solicitacao(_solicitacao_id uuid)`.
-   - Ao aprovar, salvar no pedido:
-     - `desconto` atualizado
-     - `preco` atualizado
-     - `desconto_justificativa = "solicitação de ajuste motivo: " + motivo do vendedor`
-   - Registrar também em `historico` como uma alteração de valor, igual ao fluxo manual do admin, incluindo o motivo com o mesmo prefixo.
-   - Registrar em `alteracoes` um item estruturado de auditoria para o histórico de alterações, com valor antes/depois, desconto aplicado e motivo prefixado.
+## Regra final
 
-2. **Evitar notificações duplicadas ao vendedor**
-   - A aprovação de solicitação vai gerar apenas **uma** notificação ao vendedor.
-   - Essa única notificação dirá que a solicitação foi aprovada e qual ajuste foi aplicado.
-   - Não haverá notificação separada para “desconto adicionado” e outra para “valor alterado”.
+- **Pendente exibido** para cada vendedor = soma de `preco × quantidade` dos pedidos com `status = 'Cobrado'`. Ponto. Não desconta saldo, não desconta baixa antiga, não faz mágica.
+- **Saldo** continua sendo o que já é: comprovantes − baixas + estornos + ajustes. R$40 da Denise fica intocado.
+- **Baixa automática** continua funcionando igual: quando entra comprovante novo, soma no saldo e a rotina tenta cobrir pedidos em Cobrado; se cobre um, pedido vira Pago e cria baixa; sobra fica no saldo pra próxima.
 
-3. **Manter recusa com uma única notificação**
-   - Revisar `recusar_ajuste_solicitacao(_solicitacao_id uuid, _resposta text)` para manter só uma notificação dizendo que a solicitação foi negada, com resposta do admin quando existir.
+## Caso Denise (o que consertar agora)
 
-4. **Corrigir compatibilidade com fluxo antigo, se existir**
-   - Há uma RPC antiga chamada `decidir_ajuste_solicitacao(...)` que também mexe em ajuste e notificação.
-   - Vou atualizá-la para seguir a mesma regra caso alguma tela antiga ainda chame esse fluxo: motivo prefixado quando vier do vendedor e apenas uma notificação.
+Existem **11 pedidos** dela em `status='Cobrado'` que **já têm registro em `revendedor_baixas_pedido`** (R$ 3.720 pelo preço atual). Essas baixas são "fantasmas" — o pedido voltou pra Cobrado depois de já ter sido pago uma vez, mas o registro da baixa ficou lá. É por causa delas que o pendente aparece R$ 4.090 em vez de R$ 7.810.
 
-5. **Verificação**
-   - Conferir no pedido usado no teste que o campo `desconto_justificativa` recebe o motivo prefixado.
-   - Conferir que o `historico`/`alteracoes` registram o ajuste.
-   - Conferir que só uma linha nova é criada em `order_notificacoes` para aprovação/recusa.
+Para deixar consistente com a regra ("Cobrado = pendente puro"), a data-fix é:
 
-## Detalhes técnicos
+**Opção A (recomendada):** apagar as 11 baixas fantasmas da Denise. Motivo: se o pedido está em Cobrado, ele não foi pago — não pode existir baixa pra ele. O saldo dela vai continuar R$40 (as baixas apagadas não geram estorno; foram inválidas desde o começo). Pendente passa a mostrar R$ 7.810 corretamente.
 
-- Será uma migration Supabase, sem alteração visual obrigatória.
-- Não vou alterar ajuste manual feito direto pelo admin master: ele continua salvando justificativa como já salva hoje.
-- Não vou criar tabela nova nem alterar permissões/RLS.
+Fazer o mesmo varredura em **todos os vendedores**: apagar qualquer `revendedor_baixas_pedido` cujo pedido esteja em status diferente de `Pago`.
+
+## Mudanças no código
+
+### 1. Cálculo do pendente
+Em `src/lib/revendedorSaldo.ts` (e onde mais o "pendente" for calculado), garantir que a fonte é: `SELECT SUM(preco*quantidade) FROM orders WHERE vendedor=? AND status='Cobrado'`. Sem cruzar com baixas.
+
+### 2. Trigger preventivo
+Quando um pedido sai de `Pago` para qualquer outro status (via `updateOrderStatus`), apagar automaticamente a `revendedor_baixas_pedido` correspondente. Assim não se cria mais baixa fantasma no futuro.
+Local: nova função DB `limpar_baixa_ao_sair_de_pago()` + trigger em `orders` (AFTER UPDATE OF status).
+
+### 3. Cancelamento de pedido Pago (regra do turno anterior, mantida)
+Continua valendo: cancelar um pedido que estava em `Pago` gera movimento `estorno` no valor da baixa antes de a trigger acima apagar o registro. Ou seja, o vendedor recupera o valor como saldo.
+Sequência dentro de `updateOrderStatus`: se novo status = `Cancelado` e status atual = `Pago` e existe baixa → inserir movimento `estorno` primeiro, aí trigger apaga a baixa. Cancelar de `Cobrado` (sem baixa) apenas zera o pedido, nada a estornar.
+
+### 4. Ajuste de preço em pedido Pago
+Continua igual ao acordado: desconto vira `estorno` (saldo), acréscimo vira nova entrada em `revendedor_baixas_pedido` + movimento `baixa_pedido` pela diferença.
+
+## Migration de correção (será enviada para aprovação separada)
+
+```sql
+-- 1. apaga baixas fantasmas (pedido não está em Pago)
+DELETE FROM revendedor_baixas_pedido b
+USING orders o
+WHERE b.order_id = o.id AND o.status <> 'Pago';
+
+-- 2. trigger preventiva
+CREATE FUNCTION limpar_baixa_ao_sair_de_pago() ...
+CREATE TRIGGER ...
+```
+
+Antes de rodar, te mostro a lista completa (vendedor, número do pedido, valor) do que vai ser apagado — nada é executado sem tua confirmação.
+
+## Fora de escopo
+
+- Não mexo em saldo, comprovantes ou movimentos da Denise além do que o item 1 do fix já resolve (R$40 continua).
+- Não altero a UI da tela de saldo — só a fonte de dados.
+- Não mexo em pedidos Pago sem baixa (histórico antigo).
