@@ -1460,6 +1460,7 @@ const ReportsPage = () => {
               formatCurrency={formatCurrency}
               formatDateBR={formatDateBR}
               showConferidoTag={user?.role === 'admin_master'}
+              temAjustePendente={ajustesPendentesIds.has(order.id)}
             />
           ))}
         </div>
