@@ -397,6 +397,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   skuEstoque: 'sku_estoque', nomeProdutoEstoque: 'nome_produto_estoque',
   estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
   templateNome: 'template_nome', templateSku: 'template_sku',
+  erroDePedidoId: 'erro_de_pedido_id', erroDescricao: 'erro_descricao',
 };
 
 /** Field labels for change tracking */
