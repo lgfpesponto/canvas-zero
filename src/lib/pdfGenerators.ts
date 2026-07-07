@@ -534,7 +534,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     renderCats(colCats[2], col3X);
 
     // ─── STUB ÚNICO em 3 partes: barcode | barcode | infos ───
-    const stubTop = ph - 34;
+    const stubTop = ph - 40;
     doc.setLineWidth(0.3);
     (doc as any).setLineDash([1, 1]);
     doc.line(m, stubTop - 2, pw - m, stubTop - 2);
@@ -550,17 +550,18 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     doc.line(m + thirdW, stubTop, m + thirdW, ph - m);
     doc.line(m + 2 * thirdW, stubTop, m + 2 * thirdW, ph - m);
 
-    // Helper: desenha bloco de barcode + número (usado em 2 colunas)
+    // Helper: desenha bloco de número + barcode (usado em 2 colunas)
+    // Nº do pedido em cima do código de barras, mantendo o mesmo espaço vertical.
     const drawBarcodeBlock = (xLeft: number) => {
       const innerMargin = 4; // mm
       const bcW = thirdW - innerMargin * 2;
       const bcH = 16;
-      if (bcUrl) {
-        try { doc.addImage(bcUrl, 'PNG', xLeft + innerMargin, stubTop + 5, bcW, bcH); } catch {}
-      }
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text(orderNumClean, xLeft + thirdW / 2, stubTop + 28, { align: 'center' });
+      doc.text(orderNumClean, xLeft + thirdW / 2, stubTop + 4, { align: 'center' });
+      if (bcUrl) {
+        try { doc.addImage(bcUrl, 'PNG', xLeft + innerMargin, stubTop + 6, bcW, bcH); } catch {}
+      }
     };
 
     // Blocos 1 e 2: barcodes idênticos
@@ -614,7 +615,7 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
       doc.setFontSize(l.size);
       doc.setFont('helvetica', 'bold');
       doc.text(l.upper ? l.text.toUpperCase() : l.text, leftX, cy, { align: 'left', maxWidth: maxW });
-      cy += 7;
+      cy += 5.5;
     });
   }
 
