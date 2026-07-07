@@ -1256,6 +1256,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       const compItems = buildCompositionItems(o);
       const compLines = compItems.map(([name]) => name);
       if ((o as any).observacaoEntrega) compLines.push('Obs. entrega: ' + (o as any).observacaoEntrega);
+      const solic = solicMap[o.id];
+      if (solic) compLines.push(`Solic. ajuste (${solic.status === 'pendente' ? 'aguardando' : 'vista'}) desconto ${solic.desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}: ${solic.motivo}`);
       const compText = compLines.join('\n');
       doc.setFontSize(5);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);
