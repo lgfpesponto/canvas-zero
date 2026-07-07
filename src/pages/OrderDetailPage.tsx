@@ -1253,6 +1253,7 @@ const OrderDetailPage = () => {
           )}
 
         </div>
+        {!isPreview && (<>
         {/* ═══ BLOCO 2 — Detalhes (estilo Ficha) ═══ */}
         <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
           {/* Detalhes */}
