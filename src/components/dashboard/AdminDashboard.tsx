@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Check, ChevronDown, ChevronUp, Trash2, HardDrive, Loader2, Wallet } from 'lucide-react';
+import { BarChart3, DollarSign, AlertTriangle, AlignStartVertical, Check, ChevronDown, ChevronUp, Trash2, HardDrive, Loader2, Wallet, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -62,6 +62,10 @@ const AdminDashboard = () => {
   const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number } | null>(null);
   const [comprovantesLoading, setComprovantesLoading] = useState(true);
   const [ajustesPendentes, setAjustesPendentes] = useState<number>(0);
+  const [ajustesPendentesRows, setAjustesPendentesRows] = useState<Array<{ id: string; order_id: string; numero: string; vendedor: string; motivo: string; desconto_solicitado: number | null; valor_solicitado: number | null }>>([]);
+  const [ajusteActionId, setAjusteActionId] = useState<string | null>(null);
+  const [ajusteRejectId, setAjusteRejectId] = useState<string | null>(null);
+  const [ajusteRejectMsg, setAjusteRejectMsg] = useState('');
 
   // Fetch vendedores list (via RPC distinct — barato e indexado)
   useEffect(() => {
@@ -149,17 +153,43 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchComprovantesPendentes(); }, [fetchComprovantesPendentes]);
 
-  // Solicitações de ajuste pendentes
-  useEffect(() => {
+  // Solicitações de ajuste pendentes (com detalhes para ações inline)
+  const loadAjustesPendentes = useCallback(async () => {
     if (!isAdminMaster) return;
-    (async () => {
-      const { count } = await supabase
-        .from('order_ajuste_solicitacoes' as any)
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pendente');
-      setAjustesPendentes(count || 0);
-    })();
+    const { data } = await supabase
+      .from('order_ajuste_solicitacoes' as any)
+      .select('id, order_id, numero, vendedor, motivo, desconto_solicitado, valor_solicitado')
+      .eq('status', 'pendente')
+      .order('created_at', { ascending: false });
+    const rows = (data as any[]) || [];
+    setAjustesPendentesRows(rows);
+    setAjustesPendentes(rows.length);
   }, [isAdminMaster]);
+  useEffect(() => { void loadAjustesPendentes(); }, [loadAjustesPendentes]);
+
+  const handleAjusteAprovar = async (id: string) => {
+    setAjusteActionId(id);
+    const { error } = await supabase.rpc('aprovar_ajuste_solicitacao' as any, { _solicitacao_id: id });
+    setAjusteActionId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Ajuste aprovado e aplicado');
+    void loadAjustesPendentes();
+  };
+  const handleAjusteRecusar = async () => {
+    if (!ajusteRejectId) return;
+    const id = ajusteRejectId;
+    setAjusteActionId(id);
+    const { error } = await supabase.rpc('recusar_ajuste_solicitacao' as any, {
+      _solicitacao_id: id,
+      _resposta: ajusteRejectMsg.trim() || null,
+    });
+    setAjusteActionId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Solicitação recusada');
+    setAjusteRejectId(null); setAjusteRejectMsg('');
+    void loadAjustesPendentes();
+  };
+
 
   // Solado board queries via useOrdersQuery
   const { orders: solaCouroOrders } = useOrdersQuery({
@@ -268,9 +298,8 @@ const AdminDashboard = () => {
         </Link>
       )}
       {isAdminMaster && ajustesPendentes > 0 && (
-        <Link to="/admin/solicitacoes-ajuste"
-          className="block mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-6 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-500/10 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
               <DollarSign className="text-amber-600" size={28} />
               <div>
@@ -280,10 +309,68 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            <span className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-bold">Revisar →</span>
+            <Link to="/admin/solicitacoes-ajuste" className="text-xs font-semibold text-amber-700 hover:underline">Ver página completa →</Link>
           </div>
-        </Link>
+          <div className="space-y-2">
+            {ajustesPendentesRows.slice(0, 8).map(r => {
+              const desc = Number(r.desconto_solicitado ?? r.valor_solicitado ?? 0);
+              const busy = ajusteActionId === r.id;
+              return (
+                <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-white/70 dark:bg-background/40 px-3 py-2">
+                  <div className="min-w-0 flex-1 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link to={`/admin/solicitacoes-ajuste`} className="font-mono font-bold text-primary hover:underline">{r.numero}</Link>
+                      <span className="text-muted-foreground">— {r.vendedor}</span>
+                      <span className="font-semibold text-amber-700">Desc. {formatCurrency(desc)}</span>
+                    </div>
+                    <div className="italic text-muted-foreground truncate">"{r.motivo}"</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleAjusteAprovar(r.id)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50"
+                    >
+                      {busy ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} /> OK</>}
+                    </button>
+                    <button
+                      onClick={() => { setAjusteRejectId(r.id); setAjusteRejectMsg(''); }}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-destructive hover:opacity-90 text-destructive-foreground text-xs font-bold disabled:opacity-50"
+                      title="Recusar"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
+      <AlertDialog open={!!ajusteRejectId} onOpenChange={(o) => { if (!o) setAjusteRejectId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recusar solicitação de ajuste</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opcional: escreva uma resposta para o vendedor. Ele receberá uma notificação de recusa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <textarea
+            value={ajusteRejectMsg}
+            onChange={(e) => setAjusteRejectMsg(e.target.value)}
+            rows={3}
+            placeholder="Motivo da recusa (opcional)..."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAjusteRecusar} className="bg-destructive text-destructive-foreground hover:opacity-90">
+              Confirmar recusa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left column */}
         <div className="space-y-6">

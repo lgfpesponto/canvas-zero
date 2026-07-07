@@ -2463,6 +2463,10 @@ export type Database = {
             Returns: Json
           }
       aplicar_mudancas_futuras_pendentes: { Args: never; Returns: number }
+      aprovar_ajuste_solicitacao: {
+        Args: { _solicitacao_id: string }
+        Returns: undefined
+      }
       aprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string }
         Returns: Json
@@ -2828,6 +2832,10 @@ export type Database = {
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }
         Returns: Json
+      }
+      recusar_ajuste_solicitacao: {
+        Args: { _resposta?: string; _solicitacao_id: string }
+        Returns: undefined
       }
       registrar_alteracoes_pos_entrega: {
         Args: { _descricoes: string[]; _order_id: string }

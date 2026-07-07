@@ -1127,6 +1127,7 @@ const OrderDetailPage = () => {
               hasErro={!!order.erroDePedidoId}
               isOwner={!!user?.nomeCompleto && user.nomeCompleto === order.vendedor}
               isAdminMaster={role === 'admin_master'}
+              onResolved={() => { void refetchOrder(); }}
             />
             {order.observacaoEntrega && (
               <div className="mt-3 pt-3 border-t border-border">

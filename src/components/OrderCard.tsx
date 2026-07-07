@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle, Pencil, Trash2, DollarSign } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
 import { getOrderDeadlineInfo } from '@/lib/orderDeadline';
 import { getOrderFinalValue } from '@/lib/order-logic';
@@ -22,12 +22,13 @@ interface OrderCardProps {
   formatCurrency: (v: number) => string;
   formatDateBR: (date: string, time?: string) => string;
   showConferidoTag?: boolean;
+  temAjustePendente?: boolean;
 }
 
 const OrderCard = React.memo(({
   order, isAdmin, canDelete = false, isSelected, onToggle,
   confirmDeleteId, onConfirmDelete, onDelete,
-  formatCurrency, formatDateBR, showConferidoTag = false,
+  formatCurrency, formatDateBR, showConferidoTag = false, temAjustePendente = false,
 }: OrderCardProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,6 +46,11 @@ const OrderCard = React.memo(({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="font-display font-bold">{order.numero}</span>
+            {temAjustePendente && (
+              <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold align-middle border border-amber-300" title="Solicitação de ajuste de preço pendente">
+                <DollarSign size={10} /> AJUSTE
+              </span>
+            )}
             <TemplateTag nome={order.templateNome} sku={order.templateSku} className="ml-2" />
             {showConferidoTag && order.conferido && (
               <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold inline-flex items-center gap-1 align-middle">

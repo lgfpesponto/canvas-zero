@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, CircleDollarSign, Clock, CheckCircle2 } from 'lucide-react';
+import { Loader2, CircleDollarSign, Clock, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,8 +13,9 @@ type Status = 'pendente' | 'aprovado' | 'negado' | 'visto';
 interface Props {
   orderId: string;
   hasErro: boolean;
-  isOwner: boolean;      // usuário é o vendedor do pedido
+  isOwner: boolean;
   isAdminMaster: boolean;
+  onResolved?: () => void;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -27,14 +28,16 @@ interface Existing {
   motivo: string;
 }
 
-export function AjusteValorSolicitacao({ orderId, hasErro, isOwner, isAdminMaster }: Props) {
+export function AjusteValorSolicitacao({ orderId, hasErro, isOwner, isAdminMaster, onResolved }: Props) {
   const [open, setOpen] = useState(false);
   const [desconto, setDesconto] = useState('');
   const [motivo, setMotivo] = useState('');
   const [saving, setSaving] = useState(false);
   const [existing, setExisting] = useState<Existing | null>(null);
   const [loading, setLoading] = useState(true);
-  const [okSaving, setOkSaving] = useState(false);
+  const [actioning, setActioning] = useState<'ok' | 'x' | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectMsg, setRejectMsg] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -42,6 +45,7 @@ export function AjusteValorSolicitacao({ orderId, hasErro, isOwner, isAdminMaste
       .from('order_ajuste_solicitacoes')
       .select('id,status,desconto_solicitado,valor_solicitado,motivo')
       .eq('order_id', orderId)
+      .eq('status', 'pendente')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -53,11 +57,7 @@ export function AjusteValorSolicitacao({ orderId, hasErro, isOwner, isAdminMaste
 
   if (loading) return null;
   if (hasErro) return null;
-
-  // Nem vendedor dono nem admin master: nada a mostrar
-  if (!isOwner && !isAdminMaster) {
-    if (!existing) return null;
-  }
+  if (!isOwner && !isAdminMaster && !existing) return null;
 
   const handleEnviar = async () => {
     const v = Number(String(desconto).replace(',', '.'));
@@ -74,53 +74,83 @@ export function AjusteValorSolicitacao({ orderId, hasErro, isOwner, isAdminMaste
     void load();
   };
 
-  const handleOk = async () => {
+  const handleAprovar = async () => {
     if (!existing) return;
-    setOkSaving(true);
-    const { error } = await supabase.rpc('marcar_ajuste_visto' as any, { _id: existing.id });
-    setOkSaving(false);
+    setActioning('ok');
+    const { error } = await supabase.rpc('aprovar_ajuste_solicitacao' as any, { _solicitacao_id: existing.id });
+    setActioning(null);
     if (error) { toast.error(error.message); return; }
-    toast.success('Solicitação marcada como vista');
-    void load();
+    toast.success('Ajuste aprovado e aplicado ao pedido');
+    setExisting(null);
+    onResolved?.();
+  };
+
+  const handleRecusarConfirm = async () => {
+    if (!existing) return;
+    setActioning('x');
+    const { error } = await supabase.rpc('recusar_ajuste_solicitacao' as any, {
+      _solicitacao_id: existing.id,
+      _resposta: rejectMsg.trim() || null,
+    });
+    setActioning(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Solicitação recusada — vendedor notificado');
+    setRejectOpen(false); setRejectMsg('');
+    setExisting(null);
+    onResolved?.();
   };
 
   const descontoAtual = Number(existing?.desconto_solicitado ?? existing?.valor_solicitado ?? 0);
-  const isPendente = existing?.status === 'pendente';
-  const isVisto = existing?.status === 'visto' || existing?.status === 'aprovado' || existing?.status === 'negado';
 
-  // Renderização como "comentário" na composição
-  if (existing && (isPendente || isVisto)) {
-    const cor = isPendente
-      ? 'bg-amber-50 border-amber-200 text-amber-900'
-      : 'bg-emerald-50 border-emerald-200 text-emerald-900';
-    const Icon = isPendente ? Clock : CheckCircle2;
+  if (existing) {
     return (
-      <div className={`mt-3 pt-3 border-t border-border`}>
-        <div className={`rounded-md border px-3 py-2 ${cor}`}>
+      <div className="mt-3 pt-3 border-t border-border">
+        <div className="rounded-md border px-3 py-2 bg-amber-50 border-amber-200 text-amber-900">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 min-w-0">
-              <Icon size={14} className="mt-0.5 flex-shrink-0" />
+              <Clock size={14} className="mt-0.5 flex-shrink-0" />
               <div className="text-xs">
-                <div className="font-semibold">
-                  {isPendente ? 'Solicitação de ajuste — aguardando admin' : 'Solicitação vista pelo admin'}
-                </div>
+                <div className="font-semibold">Solicitação de ajuste — aguardando admin</div>
                 <div>Desconto solicitado: <b>{fmt(descontoAtual)}</b></div>
                 <div className="italic mt-0.5">"{existing.motivo}"</div>
               </div>
             </div>
-            {isAdminMaster && isPendente && (
-              <Button size="sm" onClick={handleOk} disabled={okSaving} className="h-7 text-xs">
-                {okSaving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                OK
-              </Button>
+            {isAdminMaster && (
+              <div className="flex items-center gap-1">
+                <Button size="sm" onClick={handleAprovar} disabled={actioning !== null} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  {actioning === 'ok' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check size={14} className="mr-1" /> OK</>}
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => setRejectOpen(true)} disabled={actioning !== null} className="h-7 text-xs">
+                  <X size={14} className="mr-1" /> Recusar
+                </Button>
+              </div>
             )}
           </div>
         </div>
+
+        <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Recusar solicitação</DialogTitle>
+              <DialogDescription>
+                Opcional: escreva uma resposta para o vendedor. Ele receberá uma notificação.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea value={rejectMsg} onChange={(e) => setRejectMsg(e.target.value)}
+              placeholder="Motivo da recusa (opcional)..." rows={3} />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRejectOpen(false)} disabled={actioning === 'x'}>Cancelar</Button>
+              <Button variant="destructive" onClick={handleRecusarConfirm} disabled={actioning === 'x'}>
+                {actioning === 'x' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirmar recusa
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
-  // Sem solicitação: só o dono pode iniciar
   if (!isOwner) return null;
 
   return (
@@ -133,7 +163,7 @@ export function AjusteValorSolicitacao({ orderId, hasErro, isOwner, isAdminMaste
           <DialogHeader>
             <DialogTitle>Solicitar ajuste de preço</DialogTitle>
             <DialogDescription>
-              Descreva o desconto desejado e o motivo. O admin master receberá para visualizar.
+              Descreva o desconto desejado e o motivo. O admin master receberá para aprovar ou recusar.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
