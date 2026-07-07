@@ -19,7 +19,7 @@ import { TemplateTag } from '@/components/orders/TemplateTag';
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle, AlertTriangle } from 'lucide-react';
 import { BagySyncButton } from '@/components/BagySyncButton';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl, maskPhoneBR } from '@/lib/whatsappSend';
 import { WhatsappShareButton } from '@/components/WhatsappShareButton';
