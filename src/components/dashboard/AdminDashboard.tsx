@@ -62,6 +62,10 @@ const AdminDashboard = () => {
   const [comprovantesRevendedor, setComprovantesRevendedor] = useState<{ count: number; total: number } | null>(null);
   const [comprovantesLoading, setComprovantesLoading] = useState(true);
   const [ajustesPendentes, setAjustesPendentes] = useState<number>(0);
+  const [ajustesPendentesRows, setAjustesPendentesRows] = useState<Array<{ id: string; order_id: string; numero: string; vendedor: string; motivo: string; desconto_solicitado: number | null; valor_solicitado: number | null }>>([]);
+  const [ajusteActionId, setAjusteActionId] = useState<string | null>(null);
+  const [ajusteRejectId, setAjusteRejectId] = useState<string | null>(null);
+  const [ajusteRejectMsg, setAjusteRejectMsg] = useState('');
 
   // Fetch vendedores list (via RPC distinct — barato e indexado)
   useEffect(() => {
