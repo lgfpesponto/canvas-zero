@@ -116,6 +116,11 @@
     pointer-events: none;
   }
 
+  /* Safety: previne body travado com pointer-events:none residual do Radix
+     quando um DropdownMenu fecha junto com um Dialog. */
+  body[style*="pointer-events: none"] { pointer-events: auto !important; }
+
+
   .leather-gradient {
     background: linear-gradient(135deg, hsl(28 45% 35%), hsl(28 45% 25%));
   }
