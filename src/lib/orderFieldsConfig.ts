@@ -367,6 +367,10 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
   if (t >= 34 && t <= 40) {
     allowed.push('City');
   }
+  // 34-44: Botina Bico Fino
+  if (t >= 34 && t <= 44) {
+    allowed.push('Botina Bico Fino');
+  }
 
   if (allowed.length === 0) return MODELOS;
   return MODELOS.filter(m => allowed.includes(m.label));
