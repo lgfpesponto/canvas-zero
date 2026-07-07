@@ -1234,7 +1234,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     doc.setFont('helvetica', 'normal');
     filtered.forEach(o => {
       const compItems = buildCompositionItems(o);
-      const compText = compItems.map(([name]) => name).join('\n');
+      const compLines = compItems.map(([name]) => name);
+      if ((o as any).observacaoEntrega) compLines.push('Obs. entrega: ' + (o as any).observacaoEntrega);
+      const compText = compLines.join('\n');
       doc.setFontSize(5);
       const lines = doc.splitTextToSize(compText, cols[2] - 4);
       const rowH = Math.max(12, lines.length * 2.8 + 4);

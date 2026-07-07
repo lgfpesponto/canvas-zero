@@ -107,6 +107,9 @@ export interface Order {
   conferido?: boolean;
   conferidoEm?: string;
   conferidoPor?: string;
+  observacaoEntrega?: string;
+  observacaoEntregaPor?: string;
+  observacaoEntregaEm?: string;
   laserCano?: string;
   corGlitterCano?: string;
   laserGaspea?: string;
