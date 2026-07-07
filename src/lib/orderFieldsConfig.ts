@@ -462,6 +462,10 @@ export function getCorSolaOptions(modelo: string, solado: string, formatoBico?: 
       if (solado === 'PVC') return [{ label: 'Marrom', preco: 0 }];
       if (solado === 'Couro Reta') return COR_SOLA.filter(c => ['Madeira', 'Avermelhada', 'Pintada de Preto'].includes(c.label));
       return COR_SOLA;
+    case 'botinaBicoFino':
+      if (solado === 'PVC') return [{ label: 'Marrom', preco: 0 }];
+      if (solado === 'Couro Reta') return COR_SOLA.filter(c => ['Madeira', 'Pintada de Preto'].includes(c.label));
+      return COR_SOLA;
     default: return COR_SOLA;
   }
 }
