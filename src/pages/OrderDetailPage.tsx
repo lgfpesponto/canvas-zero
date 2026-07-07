@@ -832,16 +832,17 @@ const OrderDetailPage = () => {
                   <AlertTriangle size={14} className="mr-1" /> Registrar Erro
                 </Button>
               )}
-              {!order.erroDePedidoId && linkedErro && (
+              {!order.erroDePedidoId && linkedErro.map((e) => (
                 <button
+                  key={e.id}
                   type="button"
-                  onClick={() => navigate(`/pedido/${linkedErro.id}`)}
+                  onClick={() => navigate(`/pedido/${e.id}`)}
                   className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold hover:bg-destructive/20"
                   title="Ir para o pedido ERRO vinculado"
                 >
-                  <AlertTriangle size={12} /> ERRO {linkedErro.numero}
+                  <AlertTriangle size={12} /> {e.numero}
                 </button>
-              )}
+              ))}
               {!isAdmin && (
                 <AjusteValorSolicitacao
                   orderId={order.id}
