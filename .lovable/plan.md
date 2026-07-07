@@ -1,22 +1,45 @@
 ## Objetivo
-Corrigir o corte das últimas informações do canhoto da ficha impressa (A5 paisagem) e reposicionar o número do pedido para ficar **em cima** do código de barras nos dois canhotos de barcode, sem aumentar o espaço total do canhoto.
 
-## Mudanças em `src/lib/pdfGenerators.ts` (função da ficha A5, bloco "STUB ÚNICO em 3 partes")
+Ajustar o "Faça seu pedido - Bota":
 
-1. **Subir a linha dos canhotos**
-   - `stubTop = ph - 34` → `stubTop = ph - 40` (6 mm mais alto).
-   - A linha tracejada superior e as divisórias verticais acompanham automaticamente.
+1. Criar novo modelo **Botina Bico Fino** (R$ 200), disponível somente nos tamanhos 34-44.
+2. Reverter regras extras adicionadas à **Botina** original (voltar ao comportamento anterior).
 
-2. **Diminuir espaçamento entre linhas do 3º canhoto (infos da bota)**
-   - Passo entre linhas de `cy += 7` → `cy += 5.5`.
-   - `cy` inicial permanece `stubTop + 6`.
-   - Como a região vertical agora é maior (canhoto subiu) e o passo menor, as 4 linhas (Nº pedido / tamanho+solado+cor / bico+vira / FORMA) cabem sem encostar na margem inferior.
+Todas as alterações ficam em `src/lib/orderFieldsConfig.ts`. Nenhuma mudança em banco, backend ou outros PDFs além do já existente `getForma` usado na ficha impressa.
 
-3. **Nº do pedido acima do código de barras (canhotos 1 e 2)**
-   - Em `drawBarcodeBlock`, inverter a ordem sem crescer o bloco:
-     - Número (`orderNumClean`, fonte 11 bold, centralizado) desenhado em ~`stubTop + 4`.
-     - Barcode desenhado logo abaixo, começando em ~`stubTop + 6` com a mesma altura de 16 mm.
-   - Nada é adicionado ao layout; só reordena o que já existe dentro do mesmo espaço vertical.
+---
+
+## Botina Bico Fino (novo modelo)
+
+- **MODELOS**: incluir `{ label: 'Botina Bico Fino', preco: 200 }`.
+- **getModelosForTamanho**: liberar apenas para tamanhos 34-44.
+- **Bloco de vinculação**: criar novo `ModelBlock = 'botinaBicoFino'` e mapear em `getBlockForModelo`.
+- **Solados** (`getSoladosForModelo`): apenas `Couro Reta` e `PVC`.
+- **Formato do bico** (`getBicosForModeloSolado`):
+  - `Couro Reta` → `Fino Agulha Ponta Quadrada`, `Fino Agulha Ponta Redonda`.
+  - `PVC` → `Fino Agulha Ponta Quadrada`.
+- **Cor da sola** (`getCorSolaOptions`):
+  - `Couro Reta` → `Madeira`, `Pintada de Preto`.
+  - `PVC` → `Marrom` (preço R$ 0 — usar override no bloco).
+- **Cor da vira** (`getCorViraOptions`): `Neutra` (mesmo padrão dos outros bico fino).
+- **HIDE_PESPONTO_EXTRAS**: incluir `'Botina Bico Fino'` (mesmo tratamento da Botina).
+- **getForma** (usado na ficha impressa): retornar `'4394'` para Botina Bico Fino, independente do solado (confirmado pelo usuário).
+
+---
+
+## Reverter Botina (voltar ao anterior)
+
+Na Botina padrão:
+
+- **getSoladosForModelo**: remover o `if (modelo === 'Botina')` que adicionava PVC. Passa a cair no bloco `tradicional` normal (Borracha, Couro Reta, Couro Carrapeta, Couro Carrapeta com Espaço Espora, Jump, Rústica).
+- **getBicosForModeloSolado**: remover o `if (modelo === 'Botina')` que adicionava `Fino Agulha Ponta Quadrada/Redonda` e a variação PVC. Passa a cair no bloco `tradicional` (Quadrado / Redondo, com Rústica = só Quadrado).
+- **getCorSolaOptions**: remover o `if (modelo === 'Botina' && solado === 'PVC')`. Volta ao bloco `tradicional`.
+- Remover o helper interno `botinaTamanhoAceitaFinoAgulha` (não é mais usado).
+
+Resultado: Botina fica idêntica ao que era antes das últimas alterações; toda a lógica de "bico fino agulha + PVC" fica isolada no novo modelo **Botina Bico Fino**.
+
+---
 
 ## Fora do escopo
-- Nenhuma alteração no conteúdo das informações, no valor do código de barras, no cabeçalho da ficha, nas outras seções (Couros/Pesponto/Solados/Metais/OBS), nem em outros PDFs (relatórios, cobrança, produção).
+
+- Nenhuma mudança em preços de outros modelos, em outros campos (couro, bordado, laser, metais, etc.), em edge functions, em banco ou em outros PDFs. O `pdfGenerators` continua consumindo `getForma` normalmente.
