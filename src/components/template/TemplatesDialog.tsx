@@ -110,13 +110,13 @@ function TemplateCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onSend}>
+              <DropdownMenuItem onClick={() => setTimeout(onSend, 0)}>
                 <Send size={14} className="mr-2" /> Enviar modelo
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEdit}>
+              <DropdownMenuItem onClick={() => setTimeout(onEdit, 0)}>
                 <Pencil size={14} className="mr-2" /> Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={() => setTimeout(onDelete, 0)} className="text-destructive focus:text-destructive">
                 <Trash2 size={14} className="mr-2" /> Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>

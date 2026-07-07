@@ -1,24 +1,31 @@
-## Objetivo
-Na página **Modelos**, adicionar um botão com ícone de olho ao lado do botão "Comprar" de cada card. Ao clicar, abre um modal mostrando a **foto em tamanho maior** e o **nome completo** do modelo (sem quebra/limite de linhas), apenas para visualização.
+## Problema
 
-## Alterações — `src/pages/ModelosPage.tsx`
+Ao clicar em **Editar** no menu (⋮) de um modelo salvo dentro do dialog "Modelos Salvos", o formulário "Editar Modelo" abre corretamente com os dados preenchidos, mas fica **congelado**: não é possível alterar campos, salvar nem clicar em "Voltar para Pedido".
 
-1. **Import**: adicionar `Eye` em `lucide-react`.
+## Causa
 
-2. **`TemplateCard`**: aceitar nova prop `onVisualizar` e trocar o botão único "Comprar" por uma linha com dois botões lado a lado:
-   - `Comprar` (mantém `flex-1`, cor primária).
-   - Botão outline quadrado (`h-9 w-9`, ícone `<Eye />`, `title="Visualizar modelo"`), que dispara `onVisualizar`.
+Bug conhecido do Radix UI quando um **DropdownMenu** é fechado ao mesmo tempo em que o **Dialog** pai é fechado (o `startEditing` fecha o dialog `Modelos Salvos` imediatamente ao clicar em "Editar"). Nesse race condition o Radix não restaura o `pointer-events: none` que aplica no `<body>` durante o modal, deixando a página inteira sem receber cliques.
 
-3. **Estado do modal de visualização** no componente `ModelosPage`:
-   - `visualizarModelo: ModeloRow | null` + `visualizarOpen: boolean`.
-   - Passar `onVisualizar={() => { setVisualizarModelo(m); setVisualizarOpen(true); }}` ao `TemplateCard`.
+O mesmo problema não acontece com "Preencher" (botão fora do dropdown) nem com "Enviar/Excluir" (não trocam de tela).
 
-4. **Modal de visualização** (novo `<Dialog>`):
-   - `DialogContent` com `max-w-2xl`.
-   - Foto grande: container `w-full aspect-square sm:aspect-[4/3] bg-background` com `<img className="w-full h-full object-contain" />` (mesma resolução de URL/Drive já usada). Fallback com `ImageOff` se erro.
-   - Abaixo: `<DialogTitle>` (ou `<h2>`) com o **nome completo**, sem `line-clamp`, `text-center`, `text-base sm:text-lg font-semibold break-words`.
-   - Sem outras informações (tipo, SKU, tamanhos, etc.) — só foto + nome, conforme pedido.
+## Correção
 
-## Fora de escopo
-- Não altera o fluxo do botão "Comprar".
-- Não altera dados, filtros, paginação nem cards em outras páginas (TemplatesDialog etc.).
+Em `src/components/template/TemplatesDialog.tsx`:
+
+- No `DropdownMenuItem` de **Editar**, adiar `onEdit(t)` para o próximo tick com `setTimeout(..., 0)` (ou `requestAnimationFrame`). Isso deixa o Radix desmontar o dropdown e liberar o `pointer-events` do body antes do Dialog fechar e do modo template abrir.
+- Aplicar o mesmo padrão em **Enviar modelo** e **Excluir** por consistência (evita o mesmo travamento futuro caso o handler passe a fechar o dialog).
+
+Como reforço defensivo, adicionar em `src/index.css` uma regra:
+
+```css
+body[style*="pointer-events: none"] { pointer-events: auto !important; }
+```
+
+Isso garante que, mesmo se o Radix falhar em outra situação parecida, a página nunca fica congelada.
+
+## Arquivos afetados
+
+- `src/components/template/TemplatesDialog.tsx` — envolver `onEdit`/`onSend`/`onDelete` do dropdown em `setTimeout(fn, 0)`.
+- `src/index.css` — regra de segurança contra `pointer-events: none` residual no `body`.
+
+Nenhuma lógica de negócio ou dados é alterada — apenas a ordem de fechamento dos overlays.
