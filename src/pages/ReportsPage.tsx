@@ -18,6 +18,7 @@ import SpecializedReports from '@/components/SpecializedReports';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 import { ReportConfirmSummary, fmtSet, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
 import OrderCard from '@/components/OrderCard';
+import { useAjustesPendentesIds } from '@/hooks/useAjustesPendentesIds';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { isTransitionAllowed } from '@/lib/statusTransitions';
@@ -87,6 +88,7 @@ const formatDateBR = (date: string, time?: string) => {
 const ReportsPage = () => {
   const { isLoggedIn, isAdmin, isFernanda, user, deleteOrder, deleteOrderBatch, updateOrderStatus, loading: authLoading } = useAuth();
   const canSeeValues = useCanSeeValues();
+  const ajustesPendentesIds = useAjustesPendentesIds();
 
   const navigate = useNavigate();
   const location = useLocation();
