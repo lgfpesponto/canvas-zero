@@ -65,6 +65,7 @@ const OrderDetailPage = () => {
   const location = useLocation();
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const linkedBoot = useLinkedBoot(order);
+  const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
   const { findFichaPrice } = useFichaVariacoesLookup();
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
