@@ -63,9 +63,11 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
         return;
       }
 
-      // Build main query
-      let query = supabase.from('orders').select('*', { count: 'exact' });
+      // Build main query — SEMPRE oculta pedidos marcados como "Estoque Pronto"
+      let query = supabase.from('orders').select('*', { count: 'exact' })
+        .eq('estoque_pronto', false);
       if (idsMudou !== null) query = query.in('id', idsMudou);
+
 
       // Search filter
       if (filters.searchQuery) {
