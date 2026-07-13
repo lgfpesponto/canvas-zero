@@ -64,6 +64,8 @@ export interface BeltOrderPageProps {
 
 const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
+  const { findFotoByName } = useFichaVariacoesLookup();
+
   const navigate = useNavigate();
   const location = useLocation();
   const draftData = (location.state as any)?.draft;
