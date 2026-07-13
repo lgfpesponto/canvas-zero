@@ -1,61 +1,100 @@
-## Ajustes no fluxo Estoque
+## Plano: sincronização correta Estoque ↔ Bagy
 
-### 1. Botão "Estoque Pronto" ao lado dos ícones abaixo da foto
+### Decisão confirmada
 
-**Arquivo:** `src/components/FotoPedidoSidePanel.tsx`
-- Adicionar props opcionais `onEstoquePronto?: () => void` e `showEstoquePronto?: boolean`.
-- Renderizar um terceiro botão circular verde (esmeralda) com ícone `Package` (lucide), no mesmo grupo dos botões olho/documento, só quando `showEstoquePronto && onEstoquePronto` estiverem definidos.
-- Estilo: `h-14 w-14 rounded-full` verde com hover consistente, tooltip "Criar direto no Estoque".
+- Manter a exclusão de produto de estoque como está: **pode apagar do banco também** (`DELETE` físico em `estoque_produtos`).
+- Continuar preservando o rastro em `estoque_ajustes_log` e liberando pedidos vinculados.
+- Não vou trocar para `ativo=false`.
 
-**Arquivos:** `src/pages/OrderPage.tsx` e `src/pages/BeltOrderPage.tsx`
-- Passar `showEstoquePronto={vendedorSelecionado === 'Estoque'}` e `onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}` para o `FotoPedidoSidePanel`.
-- Manter o botão grande do rodapé como redundância.
+### 1. Corrigir a fila real de sincronização com a Bagy
 
-### 2. Compras de estoque entram como "Em aberto"
+Hoje existem duas filas:
 
-**Migration:** atualizar as RPCs `public.comprar_estoque(...)` e `public.comprar_estoque_bagy(...)` para inserir `status = 'Em aberto'` no lugar do atual `'Pendente'`, com a entrada correspondente no `historico`. Assim toda compra vinda do site ou do estoque cai direto no fluxo normal de produção.
+- `estoque_bagy_sync_pendente`: usada para mostrar o botão na tela.
+- `bagy_stock_sync_queue`: fila real que a edge function `bagy-stock-sync` processa.
 
-### 3. Excluir produto inteiro do Estoque (admin_master / admin_producao)
+O problema é que o botão e a sincronização não estão totalmente alinhados. Vou padronizar o fluxo para que toda alteração importante do estoque alimente a fila real `bagy_stock_sync_queue`.
 
-**Migration:** nova RPC `public.excluir_estoque_produto_completo(_sku_base text)` protegida por `has_role(auth.uid(),'admin_master') OR has_role(auth.uid(),'admin_producao')` que:
-- Marca `ativo = false` em todos os `estoque_produtos` com o mesmo `sku_base` (todos os tamanhos).
-- Libera pedidos ligados (mesma lógica de `excluir_estoque_produto`).
-- Registra a exclusão em `estoque_ajustes_log`.
+A migration vai recriar/ajustar o trigger de `estoque_produtos` para enfileirar na Bagy quando acontecer:
 
-**Arquivo:** `src/pages/EstoquePage.tsx`
-- Botão "Excluir produto" (ícone `Trash2` vermelho) no cabeçalho de cada card de produto agrupado, visível só para admin_master/admin_producao, com confirmação forte.
+- Produto novo criado no estoque.
+- Quantidade aumentada manualmente no portal.
+- Quantidade reduzida por venda no portal.
+- Quantidade reduzida por pedido importado da Bagy.
+- SKU alterado em um produto existente.
 
-### 4. Sincronização com a Bagy pelo SKU
+O saldo enviado será sempre o saldo atual final do portal (`novo_saldo = estoque_produtos.quantidade`), usando `sku_base` exatamente igual ao SKU da Bagy.
 
-**Diagnóstico:** hoje a fila real usada por `bagy-stock-sync` é `bagy_stock_sync_queue`, mas as rotinas novas ("estoque pronto", ajuste manual) só enfileiram em `estoque_bagy_sync_pendente`. Resultado: SKUs novos não chegam à edge function e não sobem para a Bagy.
+### 2. Corrigir compra de estoque para baixar na Bagy
 
-**Migration:**
-- Ampliar o trigger `trg_estoque_marca_pendente_bagy` (em `estoque_produtos`) para **também** inserir/atualizar `bagy_stock_sync_queue` com a `quantidade` atual em todo INSERT/UPDATE de `quantidade`, com `onConflict(estoque_produto_id)` para não duplicar.
-- Cobrir os deltas gerados por `ajustar_estoque_manual`, `criar_estoque_produto` e `comprar_estoque`.
-- SKU enviado = `sku_base` exato (a edge function `bagy-stock-sync` já faz o lookup por SKU idêntico).
-- Backfill single-shot: enfileirar todos `estoque_produtos` ativos que ainda não sincronizaram.
+As RPCs que reduzem estoque já alteram `estoque_produtos.quantidade`:
 
-**Arquivo:** `src/components/estoque/BagySyncPendingButton.tsx`
-- Manter o botão manual, mas ao clicar chamar `bagy-stock-sync` **sem** `retry_produto_id` (drena a fila real em batch).
-- Marcar `estoque_bagy_sync_pendente.sincronizado_em` apenas quando cada SKU volta como sucesso.
+- `comprar_estoque(...)`
+- `comprar_estoque_bagy(...)`
+- `ajustar_estoque_manual(...)`
 
-### 5. Badge "✓ Sincronizado com Bagy" — visibilidade
+Com o trigger corrigido, qualquer redução/aumento nessas funções vai criar ou atualizar uma entrada pendente na `bagy_stock_sync_queue`.
 
-**Arquivo:** `src/pages/EstoquePage.tsx`
-- Mensagens (verde/amarelo/vermelho) já são gated por `canSeeBagySync` (admin_master, admin_producao, vendedor_comissao). Manter.
-- Só exibir "✓ Sincronizado com Bagy" quando **todos** os tamanhos tiverem `bagy_sync_status === 'ok'` **e** `bagy_sync_at` não nulo. Se algum estiver `null`/vazio, não mostrar nada (evita falso positivo antes da 1ª sync real).
+Resultado esperado:
 
-### 6. Cancelamento vindo da Bagy propaga para o portal
+- Comprou produto de estoque no portal → baixa no portal → entra na fila → baixa na Bagy pelo SKU igual.
+- Entrou pedido da Bagy no portal → baixa no portal → mantém o saldo sincronizado.
+- Admin adicionou estoque no portal → entra na fila → aumenta/atualiza saldo na Bagy pelo SKU igual.
 
-**Arquivo:** `supabase/functions/bagy-webhook/index.ts`
-- No trecho que trata `isRefund`/cancelamento (linha ~638), quando existir `pedidoExistente?.order_id_portal`:
-  - Atualizar o pedido do portal para `status = 'Cancelado'`, definir `motivo_cancelamento = 'Cancelado na Bagy'` (ou motivo textual vindo do payload, se disponível), preservar `preco`/`quantidade` no snapshot conforme regra já existente para Cancelado.
-  - Apendar uma entrada em `historico` com data/hora São Paulo, `de = status_atual`, `para = 'Cancelado'`, `motivo = 'Cancelado na Bagy'`, `usuario = 'Bagy (webhook)'`.
-  - Registrar linha em `order_status_changes` para o pedido para manter o índice de mudanças em dia.
-  - Não regride se o pedido já estiver `Cancelado` (idempotente). Não mexe em estoque (a reversão de estoque continua sendo decisão manual do admin, como já documentado no código).
+### 3. Corrigir o botão “Sincronizar com Bagy”
 
-### Detalhes técnicos
+Vou alterar `BagySyncPendingButton.tsx` para não depender só de `estoque_bagy_sync_pendente`.
 
-- **Sem mudanças** em PDFs, cálculo de preço, comissão, permissões existentes.
-- **Realtime**: continuar ouvindo `estoque_produtos` e `estoque_bagy_sync_pendente`.
-- **Idempotência**: todas as ações do webhook (cancelamento incluso) precisam ser seguras contra re-entrega — checar status atual antes de sobrescrever.
+O botão passará a considerar produtos ativos que estejam:
+
+- `bagy_sync_status` vazio/nulo;
+- `bagy_sync_status = 'pendente'`;
+- `bagy_sync_status = 'erro'`;
+- `bagy_sync_status = 'nao_encontrado_na_bagy'`;
+- ou sem `bagy_sync_at`.
+
+Ao clicar, ele vai chamar a edge function com um modo de re-sincronização de pendentes/não sincronizados, para resolver este caso:
+
+1. Produto foi criado no portal.
+2. Naquele momento o SKU ainda não existia na Bagy.
+3. A Bagy retornou “SKU não encontrado”.
+4. Depois o produto foi criado na Bagy com o mesmo SKU.
+5. Admin clica em “Sincronizar com Bagy”.
+6. A função procura novamente o SKU, encontra, salva `bagy_variation_id` e envia o saldo atual.
+
+### 4. Ajustar a edge function `bagy-stock-sync`
+
+Vou melhorar a função para aceitar um modo tipo `retry_unsynced`/`sync_unsynced`, que reenfileira somente produtos ativos ainda não sincronizados corretamente, sem ficar reenfileirando todos os produtos já OK.
+
+Também vou manter:
+
+- lookup por SKU igual;
+- cache em `bagy_variation_id` quando encontrar;
+- atualização de `bagy_sync_status`, `bagy_sync_erro` e `bagy_sync_at`;
+- limite de lote seguro.
+
+### 5. Evitar falso “Sincronizado com Bagy”
+
+A tela de estoque já foi ajustada parcialmente para só mostrar como sincronizado quando:
+
+- todos os tamanhos têm `bagy_sync_status = 'ok'`;
+- e todos têm `bagy_sync_at` preenchido.
+
+Vou manter essa regra.
+
+### 6. Verificações
+
+Depois da implementação, vou validar:
+
+- se o trigger enfileira compra, criação e ajuste manual;
+- se o botão aparece para itens pendentes/erro/não encontrados;
+- se o botão tenta novamente SKU que antes não existia na Bagy;
+- se o delete continua físico no banco;
+- se a edge function não marca a fila auxiliar como sincronizada quando houve erro.
+
+### Arquivos/recursos que serão alterados
+
+- Migration Supabase para trigger/fila/RPCs relacionadas.
+- `supabase/functions/bagy-stock-sync/index.ts`
+- `src/components/estoque/BagySyncPendingButton.tsx`
+- Possivelmente pequenos ajustes em `src/pages/EstoquePage.tsx` apenas se necessário para o estado visual da sincronização.
