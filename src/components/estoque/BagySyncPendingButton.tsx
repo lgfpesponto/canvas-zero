@@ -42,30 +42,22 @@ const BagySyncPendingButton = ({ canSync, currentUserId, currentUserNome }: Prop
   const handleSync = async () => {
     setRunning(true);
     try {
-      // Puxa pendentes atuais
-      const { data: pend, error: e0 } = await supabase
-        .from('estoque_bagy_sync_pendente' as any)
-        .select('id, produto_id')
-        .is('sincronizado_em', null);
-      if (e0) throw e0;
-      const ids = (pend || []).map((p: any) => p.produto_id);
-      if (ids.length === 0) { toast.info('Nada a sincronizar.'); return; }
+      // Drena a fila real (bagy_stock_sync_queue) em batch; edge function processa até 50 por chamada
+      const { data, error } = await supabase.functions.invoke('bagy-stock-sync', { body: {} });
+      if (error) throw error;
+      const results: any[] = (data as any)?.results || [];
+      const ok = results.filter(r => r.ok).length;
+      const fail = results.length - ok;
 
-      // Chama uma tentativa por produto (edge function bagy-stock-sync já existe e aceita retry_produto_id)
-      let ok = 0, fail = 0;
-      for (const pid of ids) {
-        const { error } = await supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: pid } });
-        if (error) fail++; else ok++;
-      }
-
-      // Marca fila como sincronizada
+      // Marca fila auxiliar (estoque_bagy_sync_pendente) como sincronizada
       await supabase.from('estoque_bagy_sync_pendente' as any).update({
         sincronizado_em: new Date().toISOString(),
         sincronizado_por: currentUserId || null,
         sincronizado_por_nome: currentUserNome || null,
       }).is('sincronizado_em', null);
 
-      if (fail === 0) toast.success(`Bagy sincronizada (${ok} SKU).`);
+      if (results.length === 0) toast.info('Nada a sincronizar.');
+      else if (fail === 0) toast.success(`Bagy sincronizada (${ok} SKU).`);
       else toast.warning(`Bagy: ${ok} OK, ${fail} com erro (veja o card de cada produto).`);
       fetchPend();
     } catch (e: any) {

@@ -2739,7 +2739,7 @@ export type Database = {
       }
       excluir_estoque_produto: { Args: { _produto_id: string }; Returns: Json }
       excluir_estoque_produto_completo: {
-        Args: { _sku_base: string }
+        Args: { _ids: string[] }
         Returns: Json
       }
       find_order_by_id_suffix: {

@@ -87,12 +87,8 @@ const EstoquePage = () => {
       `Todos os tamanhos serão removidos do estoque e os pedidos originais serão liberados para recriar estoque.\n\nEssa ação não pode ser desfeita.`
     );
     if (!ok) return;
-    const skuBase = g.tamanhos[0]?.sku_base?.split('-').slice(0, -1).join('-') || g.tamanhos[0]?.sku_base;
-    // usa o sku_base exato de qualquer linha (todos têm o mesmo sku_base do produto)
-    const skuExato = g.tamanhos[0]?.sku_base;
-    if (!skuExato) return;
-    // A RPC usa sku_base exato de UMA linha para identificar todos os tamanhos (que compartilham sku_base)
-    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto_completo', { _sku_base: skuExato });
+    const ids = g.tamanhos.map(t => t.id);
+    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto_completo', { _ids: ids });
     if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
     const removidos = (data as any)?.tamanhos_removidos ?? 0;
     const liberados = (data as any)?.pedidos_liberados ?? 0;
@@ -353,10 +349,23 @@ const EstoquePage = () => {
               <div className="p-3 flex-1 flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-sm leading-tight line-clamp-2 flex-1">{g.nome}</h3>
-                  {canManageEmprestimos && g.tamanhos[0] && (
-                    <EstoqueProdutoConfigButton produto={g.tamanhos[0] as any} onDone={fetchRows} />
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {canManageEmprestimos && g.tamanhos[0] && (
+                      <EstoqueProdutoConfigButton produto={g.tamanhos[0] as any} onDone={fetchRows} />
+                    )}
+                    {canManageEmprestimos && (
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirProdutoCompleto(g)}
+                        title="Excluir produto inteiro do estoque (todos os tamanhos)"
+                        className="h-7 w-7 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive flex items-center justify-center transition"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
+
 
                 <div className="flex flex-wrap gap-2">
                   {g.tamanhos.map(t => (
@@ -384,7 +393,7 @@ const EstoquePage = () => {
                   const naoEncontrados = g.tamanhos.filter(t => t.bagy_sync_status === 'nao_encontrado_na_bagy');
                   const comErro = g.tamanhos.filter(t => t.bagy_sync_status === 'erro');
                   const pendentes = g.tamanhos.filter(t => t.bagy_sync_status === 'pendente');
-                  const okCount = g.tamanhos.filter(t => t.bagy_sync_status === 'ok').length;
+                  const okCount = g.tamanhos.filter(t => t.bagy_sync_status === 'ok' && !!t.bagy_sync_at).length;
                   const problemas = [...naoEncontrados, ...comErro];
                   if (problemas.length > 0) {
                     return (
