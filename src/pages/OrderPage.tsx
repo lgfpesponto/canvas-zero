@@ -197,6 +197,8 @@ const MultiSelect = ({
         items={items}
         selected={selected}
         onToggle={toggle}
+        onClearAll={() => onChange([])}
+
       />
     </div>
   );
