@@ -91,14 +91,23 @@ const ToggleField = ({
 const MultiSelect = ({
   label, items, selected, onChange,
 }: {
-  label: string; items: { label: string; preco: number }[]; selected: string[]; onChange: (v: string[]) => void;
+  label: string;
+  items: { label: string; preco: number; foto_url?: string | null }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
 }) => {
   const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const hasSearch = label.toLowerCase().includes('bordado') || label.toLowerCase().includes('laser');
   const filtered = search
     ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
     : items;
   const firstVariadoIdx = filtered.findIndex(i => i.label.startsWith('Bordado Variado'));
+
+  const toggle = (l: string, checked: boolean) => {
+    if (checked) onChange([...selected, l]);
+    else onChange(selected.filter(s => s !== l));
+  };
 
   return (
     <div>
@@ -112,6 +121,14 @@ const MultiSelect = ({
           )}
           <FichaFieldControls labelText={label} defaultTipo="multipla" />
         </label>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="ml-auto text-[11px] text-primary hover:underline"
+          title="expandir visualização com fotos"
+        >
+          expandir
+        </button>
       </div>
       {hasSearch && (
         <div className="relative mb-1">
@@ -132,18 +149,27 @@ const MultiSelect = ({
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
             <label className={cls.checkItem}>
-              <input type="checkbox" checked={selected.includes(item.label)} onChange={e => {
-                if (e.target.checked) onChange([...selected, item.label]);
-                else onChange(selected.filter(s => s !== item.label));
-              }} className="accent-primary w-4 h-4" />
-              <span>{item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}</span>
+              <input type="checkbox" checked={selected.includes(item.label)} onChange={e => toggle(item.label, e.target.checked)} className="accent-primary w-4 h-4" />
+              <span>
+                {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
+              </span>
+              <VariacaoFotoIcon fotoUrl={item.foto_url} nome={item.label} />
             </label>
           </React.Fragment>
         ))}
       </div>
+      <VariacaoExpandirDialog
+        open={expanded}
+        onOpenChange={setExpanded}
+        title={label}
+        items={items}
+        selected={selected}
+        onToggle={toggle}
+      />
     </div>
   );
 };
+
 
 /* ───── main component ───── */
 export interface OrderPageProps {
