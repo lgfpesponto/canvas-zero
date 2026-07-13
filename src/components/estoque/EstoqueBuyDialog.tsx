@@ -188,7 +188,7 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       }
     } else {
       // n=0: libera reserva desse produto
-      supabase.rpc('liberar_reservas_usuario' as any, { _produto_ids: [t.id] }).catch(() => {});
+      (supabase.rpc as any)('liberar_reservas_usuario', { _produto_ids: [t.id] }).then(() => {}, () => {});
     }
   };
 
