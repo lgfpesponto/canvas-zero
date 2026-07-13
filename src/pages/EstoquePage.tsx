@@ -87,12 +87,8 @@ const EstoquePage = () => {
       `Todos os tamanhos serão removidos do estoque e os pedidos originais serão liberados para recriar estoque.\n\nEssa ação não pode ser desfeita.`
     );
     if (!ok) return;
-    const skuBase = g.tamanhos[0]?.sku_base?.split('-').slice(0, -1).join('-') || g.tamanhos[0]?.sku_base;
-    // usa o sku_base exato de qualquer linha (todos têm o mesmo sku_base do produto)
-    const skuExato = g.tamanhos[0]?.sku_base;
-    if (!skuExato) return;
-    // A RPC usa sku_base exato de UMA linha para identificar todos os tamanhos (que compartilham sku_base)
-    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto_completo', { _sku_base: skuExato });
+    const ids = g.tamanhos.map(t => t.id);
+    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto_completo', { _ids: ids });
     if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
     const removidos = (data as any)?.tamanhos_removidos ?? 0;
     const liberados = (data as any)?.pedidos_liberados ?? 0;
