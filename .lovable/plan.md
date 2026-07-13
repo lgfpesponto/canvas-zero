@@ -1,40 +1,55 @@
-## Fotos nas Variações da Ficha (Bota / Cinto)
+## Ajustes solicitados
 
-Adicionar suporte a URL de foto em cada variação, com visualização por QR code "auto-escaneado" e modo expandido paginado para campos multi-seleção.
+### 1. Dialog do QR (olhinho) — "auto-escaneado"
 
-### 1. Banco de dados
-- Adicionar coluna `foto_url TEXT NULL` em `ficha_variacoes`.
-- Sem mudança de RLS (permissões atuais já cobrem admin edita / todos leem).
+Arquivo: `src/components/ficha/VariacaoFotoIcon.tsx`
 
-### 2. Editor da ficha (`FichaFieldControls.tsx`)
-- Novo campo "URL da foto" nos drafts (criar variação) e em `VarLine` (editar variação existente), ao lado do nome/preço.
-- Salvar via `useInsertVariacao` / `useUpdateVariacao` (já genéricos).
-- Também disponível no popover de checkbox (Tem/Não Tem) — 1 URL por opção "sim".
-- Para produtos extras (`ExtraProdutoEditPopover`) — mesma coluna URL nas linhas de variação do JSONB.
+- Manter o QR renderizado como fundo.
+- Adicionar sobre o QR um "botão Escanear" no centro que fica sempre no estado apertado e invisível (opacity 0 / sr-only), disparando automaticamente a renderização da foto por cima do QR ao abrir.
+- Efeito visual final: usuário abre → vê a foto renderizada em cima do QR (o "scanner" é o próprio `<img>` overlay). Se a foto falhar (`onError`), o botão continua invisível mas o QR fica visível como fallback.
+- Mesma lógica replicada dentro de `VariacaoExpandirDialog` nos cards.
 
-### 3. Componentes novos
-- `src/components/ficha/VariacaoFotoIcon.tsx` — ícone 👁 (Eye) clicável ao lado do nome, abre dialog com QR code (usa lib `qrcode.react` já presente ou instalar `qrcode.react`) da URL da foto. Sobre o QR, um `<img src={fotoUrl}>` cobrindo 100% (o "botão escanear" fica invisível/sempre acionado — a imagem carregada representa o "resultado do scan"). Fallback: se a imagem falhar, mostra o QR puro para escanear manualmente.
-- `src/components/ficha/VariacaoExpandirDialog.tsx` — dialog paginado (3 variações por página, layout igual `TemplatesDialog`), cada card com foto (QR+overlay), checkbox, nome e preço. Usa o mesmo estado de seleção do campo pai (via props `selected` + `onToggle`).
+### 2. Dialog "Expandir" (multi-seleção de bordados/laser/etc)
 
-### 4. Renderização nos formulários de pedido
-Nos campos gerados dinamicamente (bota `DynamicOrderPage`, cinto `BeltOrderPage`, e checkbox tem/não tem):
-- Ao lado do nome de cada variação com `foto_url`, renderizar `<VariacaoFotoIcon>`.
-- Em campos `multipla` (multi-seleção como "Bordado do Cano", "Bordado da Gáspea" etc.), adicionar botão **"Expandir"** no header do campo que abre `VariacaoExpandirDialog`.
-- Em `selecao` (1 variação) e `checkbox`, apenas o olhinho ao lado do nome.
+Arquivo: `src/components/ficha/VariacaoExpandirDialog.tsx`
 
-### 5. Dependência
-- Instalar `qrcode.react` (leve, ~10kb) para gerar QR client-side.
+- **Busca por nome**: adicionar `<Input>` no topo (`Pesquisar bordado…`) que filtra `items` por substring case-insensitive. Ao digitar, reseta `page` para 0.
+- **Grid responsivo**:
+  - Desktop (`sm:` ≥640px): 3 colunas × 2 linhas = **6 por página**.
+  - Mobile: 1 coluna × 2 linhas = **2 por página**.
+  - Constante `PAGE_SIZE` vira dinâmica via `useIsMobile()` (hook já existente `use-mobile.tsx`): 2 no mobile, 6 no desktop.
+- **QR + foto auto-escaneada** em cada card (mesma técnica do item 1).
+- Paginação continua igual (anterior / X de Y / próxima), mas recalculada sobre a lista filtrada.
 
-### 6. Fora do escopo
-- Upload direto de foto (só URL manual por enquanto).
-- Não afeta preços, histórico já é capturado pelos triggers existentes de versão da ficha.
+### 3. Edição de preços de variações nos produtos extras
+
+Arquivos: `src/components/extras/ExtraProdutoEditPopover.tsx` (principal), possivelmente `src/lib/extraProductSchema.ts` para expor os grupos editáveis.
+
+Hoje o popover só permite editar nome/preço base. Precisamos permitir editar o **preço unitário** das variações internas dos produtos cujo `EXTRA_SCHEMA` referencia `source: 'variacoes'`.
+
+Casos alvo citados pelo usuário:
+- **Kit Canivete** e **Kit Faca**: hoje `EXTRA_SCHEMA` deles usa `source: 'shared'` para Tipo/Cor de couro (herdado da ficha, não editável no card — manter como está). A opção nova é o campo **"Vai o canivete?" / "Vai a faca?"** (Sim/Não). Esses valores ainda não existem no schema como variação editável. Adicionar no `EXTRA_SCHEMA`:
+  - `kit_canivete`: campo `{ key: 'vaiCanivete', label: 'Vai o canivete?', kind: 'select', source: 'variacoes', group: 'vai_canivete' }` com opções `Sim` / `Não` e preço editável (fallback R$ 30 para "Sim", R$ 0 para "Não").
+  - `kit_faca`: mesma coisa (`vaiFaca` / `vai_faca`, fallback R$ 35).
+  - Ajustar o formulário do ExtraCard para ler essas variações via `getExtraOptionsFromDB` (já existe).
+- **Desmanchar**: já tem campos `qual_sola` e `troca_gaspea` em `EXTRA_SCHEMA` como `source: 'variacoes'`. Basta expor a edição no popover.
+
+**Mudança no popover (todos os extras com `source: 'variacoes'`)**:
+- Para cada campo do schema desse tipo, renderizar uma seção "Variações do campo X" com:
+  - Lista de itens atuais (nome + input `R$`) editáveis inline.
+  - Botão **"+ variação"** para adicionar novo (nome + preço).
+  - Botão excluir (🗑) por linha.
+- Ao salvar, montar novo objeto `variacoes` combinando os grupos existentes + os editados e chamar `updateExtra.mutateAsync({ id, variacoes: novoObj })` (`useUpdateExtraProduto` já aceita `variacoes` no patch).
+- Para Kit Canivete/Faca, permitir editar o preço de "Sim" e "Não" no grupo `vai_canivete`/`vai_faca`. Para Desmanchar, permitir editar preços de cada sola em `qual_sola` e de Sim/Não em `troca_gaspea`.
+
+Fora de escopo: mexer nos campos herdados de Ficha (`Tipo de couro`/`Cor do couro` do Kit Canivete/Faca continuam sendo editados em Configurações > Ficha da Bota, como já indicado no popover).
 
 ### Arquivos afetados
-- migration nova (add column)
-- `src/components/ficha-edit/FichaFieldControls.tsx` (drafts + VarLine + checkbox)
-- `src/components/extras/ExtraProdutoEditPopover.tsx` (URL nas variações do JSONB)
-- `src/components/ficha/VariacaoFotoIcon.tsx` (novo)
-- `src/components/ficha/VariacaoExpandirDialog.tsx` (novo)
-- `src/pages/DynamicOrderPage.tsx` e `src/pages/BeltOrderPage.tsx` (renderizar olhinho + botão expandir)
-- `src/hooks/useAdminConfig.ts` (garantir que `foto_url` passa nos mutations — já é genérico via spread)
-- `package.json` (`qrcode.react`)
+
+- `src/components/ficha/VariacaoFotoIcon.tsx` (botão escanear invisível auto-ativo)
+- `src/components/ficha/VariacaoExpandirDialog.tsx` (busca + grid 6/2 responsivo + auto-scan nos cards)
+- `src/components/extras/ExtraProdutoEditPopover.tsx` (editor de variações + preços por grupo)
+- `src/lib/extraProductSchema.ts` (novos campos `vai_canivete` / `vai_faca` e helpers)
+- Onde o formulário de compra do Kit Canivete/Faca é renderizado (verificar `ExtrasPage.tsx` / `EstoqueBuyDialog.tsx` para adicionar o novo select "Vai o canivete/faca?" lendo do DB)
+
+Sem migração de banco — tudo cabe no JSONB `extra_produtos.variacoes` que já existe.
