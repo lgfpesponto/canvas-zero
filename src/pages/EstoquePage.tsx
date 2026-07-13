@@ -80,6 +80,26 @@ const EstoquePage = () => {
     fetchRows();
   };
 
+  const handleExcluirProdutoCompleto = async (g: ProductGroup) => {
+    const totalUn = g.tamanhos.reduce((s, t) => s + t.quantidade, 0);
+    const ok = window.confirm(
+      `EXCLUIR PRODUTO COMPLETO?\n\n"${g.nome}"\n${g.tamanhos.length} tamanho(s) · ${totalUn} unidade(s)\n\n` +
+      `Todos os tamanhos serão removidos do estoque e os pedidos originais serão liberados para recriar estoque.\n\nEssa ação não pode ser desfeita.`
+    );
+    if (!ok) return;
+    const skuBase = g.tamanhos[0]?.sku_base?.split('-').slice(0, -1).join('-') || g.tamanhos[0]?.sku_base;
+    // usa o sku_base exato de qualquer linha (todos têm o mesmo sku_base do produto)
+    const skuExato = g.tamanhos[0]?.sku_base;
+    if (!skuExato) return;
+    // A RPC usa sku_base exato de UMA linha para identificar todos os tamanhos (que compartilham sku_base)
+    const { data, error } = await (supabase.rpc as any)('excluir_estoque_produto_completo', { _sku_base: skuExato });
+    if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
+    const removidos = (data as any)?.tamanhos_removidos ?? 0;
+    const liberados = (data as any)?.pedidos_liberados ?? 0;
+    toast.success(`Produto removido (${removidos} tamanho(s)). ${liberados} pedido(s) liberado(s).`);
+    fetchRows();
+  };
+
   const handleRetryBagySync = async (row: EstoqueRow, nomeProduto: string) => {
     toast.loading(`Reenviando "${nomeProduto} tam ${row.tamanho}" para Bagy...`, { id: `bagy-retry-${row.id}` });
     const { error } = await supabase.functions.invoke('bagy-stock-sync', {
