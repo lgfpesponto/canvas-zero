@@ -45,7 +45,13 @@ export function getExtraLeadTime(tipoExtra: string): number {
 const BOTA_25DU_CUTOFF = new Date('2026-05-18T00:00:00');
 
 /** Lead time padrão por tipo de produto (dias úteis). */
-export function getTotalBizDays(order: { tipoExtra?: string | null; extraDetalhes?: any; dataCriacao?: string; horaCriacao?: string }): number {
+export function getTotalBizDays(order: { tipoExtra?: string | null; extraDetalhes?: any; dataCriacao?: string; horaCriacao?: string; leadTimeSnapshot?: number | null }): number {
+  // Snapshot congelado no momento da criação do pedido (novos pedidos).
+  if (typeof order.leadTimeSnapshot === 'number' && order.leadTimeSnapshot > 0) {
+    return order.leadTimeSnapshot;
+  }
+
+  // Fallback para pedidos antigos (sem snapshot).
   if (order.tipoExtra === 'cinto') return 20;
   if (!order.tipoExtra) {
     // bota (ficha): 25du a partir de 18/05/2026, 20du antes

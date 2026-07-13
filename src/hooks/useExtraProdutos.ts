@@ -13,6 +13,7 @@ export interface ExtraProdutoDB {
   variacoes: ExtraVariacoes;
   ordem: number;
   ativo: boolean;
+  lead_time_dias: number;
 }
 
 export function useExtraProdutos() {

@@ -25,6 +25,7 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
   const [nome, setNome] = useState(produto.nome);
   const [precoBase, setPrecoBase] = useState<string>(produto.preco_base?.toString() ?? '');
   const [precoLabel, setPrecoLabel] = useState(produto.preco_label);
+  const [leadTimeDias, setLeadTimeDias] = useState<string>(String(produto.lead_time_dias ?? 1));
   const [variacoes, setVariacoes] = useState<ExtraVariacoes>(produto.variacoes || {});
 
   const updateMut = useUpdateExtraProduto();
@@ -36,6 +37,7 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
     setNome(produto.nome);
     setPrecoBase(produto.preco_base?.toString() ?? '');
     setPrecoLabel(produto.preco_label);
+    setLeadTimeDias(String(produto.lead_time_dias ?? 1));
     // Pré-popula grupos conhecidos com defaults quando vazio, para o admin
     // conseguir editar preços sem precisar clicar "+ variação" antes.
     const seeded = { ...(produto.variacoes || {}) };
@@ -74,7 +76,8 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
         preco_base: precoBase === '' ? null : parseFloat(precoBase) || 0,
         preco_label: precoLabel.trim(),
         variacoes,
-      });
+        lead_time_dias: Math.max(1, parseInt(leadTimeDias, 10) || 1),
+      } as any);
       toast.success('Produto atualizado');
       setOpen(false);
     } catch (e: any) {
@@ -146,6 +149,19 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
             <Label className="text-xs">Rótulo de preço</Label>
             <Input value={precoLabel} onChange={e => setPrecoLabel(e.target.value)} className="h-8" />
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Prazo de produção (dias úteis)</Label>
+          <Input
+            type="number" min={1} step={1}
+            value={leadTimeDias}
+            onChange={e => setLeadTimeDias(e.target.value)}
+            className="h-8"
+          />
+          <p className="text-[10px] text-muted-foreground italic">
+            Aplica-se apenas a pedidos novos deste extra. Pedidos já criados mantêm o prazo antigo.
+          </p>
         </div>
 
         {!showBasePrice && (

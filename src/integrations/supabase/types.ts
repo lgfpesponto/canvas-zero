@@ -866,6 +866,7 @@ export type Database = {
           created_at: string
           descricao: string | null
           id: string
+          lead_time_dias: number
           nome: string
           ordem: number
           preco_base: number | null
@@ -878,6 +879,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id: string
+          lead_time_dias?: number
           nome: string
           ordem?: number
           preco_base?: number | null
@@ -890,6 +892,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
+          lead_time_dias?: number
           nome?: string
           ordem?: number
           preco_base?: number | null
@@ -1036,6 +1039,7 @@ export type Database = {
           campos_nativos: boolean | null
           created_at: string | null
           id: string
+          lead_time_dias: number
           nome: string
           slug: string
           tipo_ficha: string | null
@@ -1045,6 +1049,7 @@ export type Database = {
           campos_nativos?: boolean | null
           created_at?: string | null
           id?: string
+          lead_time_dias?: number
           nome: string
           slug: string
           tipo_ficha?: string | null
@@ -1054,6 +1059,7 @@ export type Database = {
           campos_nativos?: boolean | null
           created_at?: string | null
           id?: string
+          lead_time_dias?: number
           nome?: string
           slug?: string
           tipo_ficha?: string | null
@@ -1912,6 +1918,7 @@ export type Database = {
           laser_cano: string | null
           laser_gaspea: string | null
           laser_taloneira: string | null
+          lead_time_snapshot: number | null
           metais: string
           modelo: string
           nome_bordado_desc: string | null
@@ -2030,6 +2037,7 @@ export type Database = {
           laser_cano?: string | null
           laser_gaspea?: string | null
           laser_taloneira?: string | null
+          lead_time_snapshot?: number | null
           metais?: string
           modelo?: string
           nome_bordado_desc?: string | null
@@ -2148,6 +2156,7 @@ export type Database = {
           laser_cano?: string | null
           laser_gaspea?: string | null
           laser_taloneira?: string | null
+          lead_time_snapshot?: number | null
           metais?: string
           modelo?: string
           nome_bordado_desc?: string | null
@@ -3027,6 +3036,7 @@ export type Database = {
           laser_cano: string | null
           laser_gaspea: string | null
           laser_taloneira: string | null
+          lead_time_snapshot: number | null
           metais: string
           modelo: string
           nome_bordado_desc: string | null
