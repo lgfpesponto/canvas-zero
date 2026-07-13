@@ -612,6 +612,20 @@ Deno.serve(async (req) => {
           bagy_order_id: bagyOrderId,
           target_status: "separated",
         });
+
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/bagy-stock-sync`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_ROLE}`,
+              apikey: SERVICE_ROLE,
+            },
+            body: JSON.stringify({}),
+          });
+        } catch (syncErr) {
+          console.error("Erro ao disparar sync de estoque Bagy", syncErr);
+        }
       }
     }
 

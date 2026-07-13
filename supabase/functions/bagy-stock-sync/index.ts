@@ -13,7 +13,6 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BAGY_TOKEN = Deno.env.get("BAGY_API_TOKEN") || "";
 const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
   .replace(/\/$/, "");
-const EDGE_FUNCTION_BASE = `${SUPABASE_URL}/functions/v1`;
 
 const MAX_BATCH = 50;
 const MAX_TENTATIVAS = 5;
