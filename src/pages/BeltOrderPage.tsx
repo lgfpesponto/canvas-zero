@@ -490,6 +490,31 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       if (success) {
         if (loadedDraftId) deleteDraft(loadedDraftId);
         const numeroSalvo = numeroPedido.trim() || '(novo)';
+        if (estoquePronto && numeroSalvo !== '(novo)') {
+          // Backfill SKU + marca estoque_pronto + Baixa Estoque + cria estoque
+          const slug = (s: string) => (s || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const { data: row } = await supabase.from('orders')
+            .select('id, sku_estoque, modelo, tamanho, nome_produto_estoque')
+            .eq('numero', numeroSalvo).maybeSingle();
+          if (row) {
+            if (!row.sku_estoque || !row.sku_estoque.trim()) {
+              const base = slug(row.nome_produto_estoque || row.modelo || 'cinto');
+              const sku = `${base}-${row.tamanho || tamanho || 'un'}`.replace(/-$/, '');
+              await supabase.from('orders').update({ sku_estoque: sku }).eq('id', row.id);
+            }
+            await supabase.from('orders')
+              .update({ estoque_pronto: true, status: 'Baixa Estoque' } as any)
+              .eq('id', row.id);
+            const { error: rpcErr } = await (supabase.rpc as any)('criar_estoque_produto', { _order_id: row.id });
+            if (rpcErr) console.error('criar_estoque_produto err', rpcErr);
+          }
+          toast.success(`Estoque criado a partir do cinto ${numeroSalvo}.`, { position: 'bottom-right' });
+          resetForm();
+          navigate('/estoque');
+          return;
+        }
         toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
         if (comprarMode && onComprarSaved) onComprarSaved();
         else resetForm();
@@ -501,8 +526,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       toast.error('Erro inesperado ao salvar o pedido.');
     } finally {
       setSubmitting(false);
+      setEstoquePronto(false);
     }
   };
+
 
   const handleSaveDraft = () => {
     if (!user) return;
