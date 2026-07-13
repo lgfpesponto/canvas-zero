@@ -92,8 +92,8 @@ function VersoesList({ fichaTipoId }: { fichaTipoId: string }) {
       {versoes.map((v: any, idx: number) => {
         const prev = versoes[idx + 1];
         const d = diffSnapshots(
-          (prev?.snapshot as FichaSnapshot) || null,
-          v.snapshot as FichaSnapshot,
+          (prev?.snapshot as unknown as FichaSnapshot) || null,
+          v.snapshot as unknown as FichaSnapshot,
         );
         return (
           <Card key={v.id} className={v.ativa ? 'border-primary/60' : ''}>
