@@ -678,13 +678,14 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
 
   /* ───── items from DB (with static fallback) ───── */
-  const sortAlpha = (arr: {label:string;preco:number}[]) => {
+  const sortAlpha = <T extends { label: string }>(arr: T[]): T[] => {
     const normal = arr.filter(i => !i.label.toLowerCase().startsWith('bordado variado'));
     const variado = arr.filter(i => i.label.toLowerCase().startsWith('bordado variado'));
     normal.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
     variado.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
     return [...normal, ...variado];
   };
+
   const getDbItems = (cat: string, fallback: {label:string;preco:number}[]) => {
     const ficha = getByCustomCategory(cat);
     if (ficha.length > 0) return sortAlpha(ficha);
