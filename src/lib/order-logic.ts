@@ -372,6 +372,7 @@ export function orderToDbRow(order: any, userId: string) {
     erro_de_pedido_id: order.erroDePedidoId || null,
     erro_descricao: order.erroDescricao || null,
     estoque_pronto: order.estoquePronto ?? false,
+    ficha_versao_id: order.fichaVersaoId || null,
   };
 }
 
