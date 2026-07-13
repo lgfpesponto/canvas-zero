@@ -628,6 +628,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         alteracoes: [],
         numero,
         fichaVersaoId,
+        leadTimeSnapshot: totalBizDays,
       };
 
       let targetUserId = user.id;
