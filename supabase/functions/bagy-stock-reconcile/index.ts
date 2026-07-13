@@ -114,8 +114,15 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 
+  // Sincroniza CRON_SECRET no internal_config para que o pg_cron consiga incluir o header
+  const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
+  if (CRON_SECRET) {
+    admin.from("internal_config").upsert({ key: "cron_secret_reconcile", value: CRON_SECRET, updated_at: new Date().toISOString() } as any, { onConflict: "key" }).then(() => {}, () => {});
+  }
+
   const authResp = await authorize(req, admin);
   if (authResp) return authResp;
+
 
   let body: any = {};
   try { body = await req.json(); } catch { /* ok */ }
