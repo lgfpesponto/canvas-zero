@@ -1,52 +1,92 @@
-## Correções no popover de edição da ficha (modo edição)
+## Restringir edição a admin_master + lápis para produtos extras
 
-Quatro melhorias para o comportamento do lápis (✎) do modo edição, sem tocar em lógica de pedidos antigos.
+### 1. Modo edição da ficha exclusivo do admin_master
 
-### 1. Pré-carregar preço atual dos metais / extras "tem/não tem"
+Em `src/contexts/FichaEditContext.tsx`:
+- Trocar `isAdmin = role === 'admin_master' || 'admin_producao'` por **apenas `admin_master`**.
+- Efeito colateral: `admin_producao` deixa de ver o toggle "modo edição" na bota/cinto — mantém tudo funcionando para admin_master.
 
-Hoje o popover abre com "Preço quando 'Tem' (R$)" em **0** quando o campo `ficha_campos.opcoes` ainda não foi semeado no banco (é o caso de `bola_grande`, `cruz_metal`, `bridao_metal`, `cavalo_metal`, `strass` e alguns extras).
+Também no `FichaEditToggle` (verificar se ele reusa `isAdmin` do contexto — se sim, nada a fazer).
 
-Correção:
-- No `FichaFieldControls`, quando o campo é do tipo `checkbox` e `opcoes` estiver vazio/zerado, exibir o **fallback hardcoded** (`getDynamicUnitPrice(slug, 0)` já dá acesso a esse valor) como valor inicial editável. Salvar continua gravando em `opcoes[0].preco_adicional`.
-- Assim o admin vê imediatamente o preço vigente (ex.: Bola Grande = R$0,60) e pode alterar sem digitar do zero.
+### 2. Lápis de edição nos cards de produtos extras (`/extras`)
 
-### 2. Cinto: variações de Tamanho, Tipo de Couro, Cor do Couro, Fivela, Cor do Bordado
+Adicionar controle inline visível **só para admin_master** em cada card de `EXTRA_PRODUCTS`, com um popover no mesmo estilo do `FichaFieldControls`:
 
-Os campos existem no formulário, mas as variações não aparecem porque **os `ficha_campos` correspondentes ainda não têm registros de `ficha_variacoes`** para o tipo `cinto`. As opções ficam só nas constantes de `extrasConfig.ts` / `orderFieldsConfig.ts`.
+Campos editáveis no popover:
+- **Nome** (`nome`) — texto livre.
+- **Preço base** (`precoBase`) — número; quando `null` mantém rótulo "Variável" e desabilita input.
+- **Rótulo de preço** (`precoLabel`) — texto livre (ex.: "R$ 15,00", "A partir de R$ 30,00").
+- **Variações do produto** (quando existem — ver seção 3): lista editável com nome + preço + botão "adicionar variação" + excluir, idêntica ao `EditPopover` da ficha.
+- **Botão "excluir produto"** no rodapé (destructive) — abre `<AlertDialog>` com o texto: *"Excluir o produto X remove-o do banco e da lista. Pedidos antigos permanecem intactos. Confirmar?"*. Só apaga do banco após confirmação.
 
-Correção (migration):
-- Garantir que exista um `ficha_campos` `selecao` para cada slug abaixo dentro da `ficha_tipos` do cinto e semear `ficha_variacoes` a partir das constantes atuais, com preço = valor da constante quando aplicável:
-  - `tamanho` ← `BELT_SIZES`
-  - `tipo_couro` ← `TIPOS_COURO` (compartilhado, mas filtrado para o que faz sentido em cinto)
-  - `cor_couro` ← `CORES_COURO`
-  - `fivela` ← `FIVELA_OPTIONS`
-  - `cor_bordado` (dentro da categoria "Bordado P") ← paleta padrão de cores de bordado já usada na bota
-- Nenhum pedido antigo muda: os preços vêm iguais aos das constantes; a UI passa a ler do banco por meio dos hooks já existentes.
+### 3. Persistência dos extras no banco
 
-### 3. Carimbo a Fogo (bota e cinto): editável + variações
+Hoje `EXTRA_PRODUCTS` é uma constante hardcoded em `src/lib/extrasConfig.ts`. Para permitir editar/excluir precisamos de fonte de verdade no banco.
 
-Hoje "Carimbo a Fogo" na `OrderPage` (bota) sequer tem `<FichaFieldControls>` acoplado, e na `BeltOrderPage` só existe o subcampo "Quais carimbos" (`texto`).
+**Migração (nova tabela `extra_produtos`)**:
+```sql
+CREATE TABLE public.extra_produtos (
+  id text PRIMARY KEY,               -- mesmo id do EXTRA_PRODUCTS (tiras_laterais…)
+  nome text NOT NULL,
+  descricao text,
+  preco_base numeric,                -- null = "Variável"
+  preco_label text NOT NULL,
+  ordem int NOT NULL DEFAULT 0,
+  ativo boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.extra_produtos TO anon, authenticated;
+GRANT ALL ON public.extra_produtos TO service_role, authenticated;  -- admin_master edita via UI
+ALTER TABLE public.extra_produtos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "todos leem" ON public.extra_produtos FOR SELECT USING (true);
+CREATE POLICY "só admin_master escreve" ON public.extra_produtos
+  FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'admin_master'))
+  WITH CHECK (public.has_role(auth.uid(), 'admin_master'));
+-- trigger updated_at (usa update_updated_at_column existente)
+```
+Seed: `INSERT` de todos os 17 itens de `EXTRA_PRODUCTS` com `ordem` sequencial. Idempotente via `ON CONFLICT (id) DO NOTHING`.
 
-Correção:
-- Adicionar `<FichaFieldControls labelText="Carimbo a Fogo" defaultTipo="selecao" defaultCategoriaSlug="carimbo" />` no label principal em `OrderPage.tsx` e `BeltOrderPage.tsx`.
-- Incluir no `labelSlugMap` (bota e cinto) o mapeamento `carimbo a fogo → carimbo`.
-- Migration: criar `ficha_campos` `selecao` `carimbo` para cinto e bota (se ainda não existir) e semear `ficha_variacoes` a partir de `CARIMBO` / `BELT_CARIMBO`.
+**Nova pasta/lógica no frontend**:
+- Hook `useExtraProdutos()` em `src/hooks/useExtraProdutos.ts` — SELECT ordenado por `ordem`, filtrado por `ativo=true`.
+- `ExtrasPage` passa a mapear os cards e modals sobre `useExtraProdutos()` em vez de `EXTRA_PRODUCTS`. **A constante `EXTRA_PRODUCTS` continua exportada** e é usada como fallback para `PRODUCT_FIELDS`, `calcPrice`, `renderForm` (que dependem de `productId` fixo) — nada muda na lógica de pedido.
+- `openModal`, `handleSubmit` etc. seguem usando `product.id` (o mesmo string), então cálculos e rótulos internos permanecem íntegros.
 
-### 4. Todos os campos: nome + obrigatoriedade sempre editáveis
+### 4. Variações dos produtos extras
 
-Já é possível para a maioria; ajustes:
-- No `FichaFieldControls`/`EditPopover`, sempre exibir o **switch "obrigatório"** (inclusive nos tipos `texto`/`textarea`/`numero`) e persistir em `ficha_campos.obrigatorio`. O valor inicial já vem de `campo?.obrigatorio` — nenhuma mudança extra necessária, só remover o `!isTexto` que esconde o switch hoje.
-- Campos condicionais (que só aparecem depois de selecionar algo, ex.: "Descrever fivela", "Cor do Bordado", "Descrição do Bordado", subcampos de carimbo etc.) usam o mesmo componente — o popover continua funcionando via lápis mesmo quando o campo está oculto porque o toggle é renderizado no `<label>`, que já existe em edit mode. Adicionar os slugs faltantes ao `labelSlugMap` para que o lápis apareça:
-  - Bota/Cinto: `descrever fivela → fivela_desc`, `descrição do bordado → bordado_desc`, `descrição → nome_bordado_desc`, `cor → nome_bordado_cor`, `fonte → nome_bordado_fonte`, `quais carimbos → carimbo_desc`, `onde será aplicado → carimbo_onde`, `valor do adicional → adicional_valor`, etc.
+Reusar o mesmo mecanismo de `ficha_tipos` para os produtos que hoje têm listas hardcoded:
 
-Semântica de "obrigatório em campo condicional": nada muda na validação atual dos formulários — o campo condicional já só é renderizado quando a condição é satisfeita, então marcá-lo `obrigatorio` no banco naturalmente só o exige quando ele aparece. Documentar isso em comentário no `FichaFieldControls`.
+| Produto | Variações a semear (campo → constantes atuais) |
+|---|---|
+| gravata_country / gravata_pronta_entrega | Cor da tira ← `GRAVATA_COR_TIRA`; Tipo de metal ← `GRAVATA_TIPO_METAL`; Cor do brilho ← `COR_BRILHO_GRAVATA` |
+| adicionar_metais | Itens ← `[Bola grande R$0,60, Strass R$0,60]` (checkbox unitário) |
+| palmilha | Formato do bico ← `PALMILHA_FORMATO_BICO`; Tamanho ← `TAMANHOS` |
+| carimbo_fogo | Faixas ← `[1–3 carimbos R$20, 4+ R$40]` |
+| revitalizador / kit_revitalizador | Tipo (livre — sem seed) |
+| demais (bainha, chaveiro, kit_faca, kit_canivete) | Reusam `TIPOS_COURO`/`CORES_COURO` da bota — sem seed próprio |
 
-### Detalhes técnicos
+Migração cria um `ficha_tipos` "extras" (slug `extras`) contendo uma **categoria por produto extra** e um **campo por variação** semeado a partir das constantes acima. Preços = valores atuais → nenhum pedido antigo muda.
 
-Arquivos alterados:
-- `src/components/ficha-edit/FichaFieldControls.tsx` — fallback de preço para checkbox; remover `!isTexto` do switch de obrigatoriedade.
-- `src/components/ficha-edit/labelSlugMap.ts` — novos slugs (carimbo a fogo, subcampos condicionais de cinto/bota).
-- `src/pages/OrderPage.tsx`, `src/pages/BeltOrderPage.tsx` — acoplar `<FichaFieldControls>` no label "Carimbo a Fogo".
-- Migration Supabase: upsert de `ficha_campos` (`carimbo`, `tamanho`, `tipo_couro`, `cor_couro`, `fivela`, `cor_bordado` no cinto) + insert idempotente de `ficha_variacoes` a partir das constantes.
+No modal do produto, envolver o conteúdo com `<FichaEditProvider fichaSlug="extras">` e acoplar `<FichaFieldControls>` em cada `<Label>` de campo variável, exatamente como já foi feito em `OrderPage` e `BeltOrderPage`.
 
-Compatibilidade com pedidos antigos: preços semeados = constantes atuais; `getDynamicUnitPrice` mantém fallback; nenhuma alteração em `recomputeOrderPrice`.
+`useDynamicFieldFilter` / `getDynamicUnitPrice` já sabem ler de `ficha_variacoes` — assim que houver override o extra passa a usar o preço do banco. Sem override, cai no fallback (constante atual).
+
+### 5. Segurança / RBAC
+- Ícone lápis nos cards só renderiza se `user?.role === 'admin_master'`.
+- Backend: RLS na `extra_produtos` bloqueia qualquer role != admin_master.
+- Toggle "modo edição" na bota/cinto: mesma regra.
+
+### 6. Arquivos alterados
+
+- `src/contexts/FichaEditContext.tsx` — restringir `isAdmin`.
+- `src/lib/extrasConfig.ts` — mantém constantes (fallback).
+- `src/hooks/useExtraProdutos.ts` — **novo** (query + mutations `upsert`/`delete`).
+- `src/pages/ExtrasPage.tsx` — cards e modals a partir do hook; render de lápis + AlertDialog de exclusão; envolver conteúdo do modal com `FichaEditProvider` para expor os `FichaFieldControls`.
+- `src/components/extras/ExtraProdutoEditPopover.tsx` — **novo**, análogo ao `EditPopover` da ficha (nome, preço, label, excluir).
+- Migração Supabase: `extra_produtos` + seed dos 17 registros + `ficha_tipos` "extras" com categorias/campos/variações a partir das constantes atuais.
+
+### Notas de compatibilidade
+- Nenhuma alteração em `PRODUCT_FIELDS`, `calcPrice`, `renderForm`, RPC `decrement_stock`.
+- Excluir um extra do banco apenas o remove da listagem — pedidos existentes com aquele `tipoExtra` continuam válidos (o histórico usa o snapshot já salvo em `orders.modelo` e `extra_detalhes`).
+- admin_producao perde acesso à edição inline em toda a plataforma (fichas + extras); permanece com acesso ao restante do painel admin.

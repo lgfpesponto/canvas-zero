@@ -17,7 +17,7 @@ export function FichaEditProvider({ fichaSlug, children }: { fichaSlug: string; 
   const { data: tipo } = useFichaTipoBySlug(fichaSlug);
   const [editMode, setEditModeRaw] = useState(false);
 
-  const isAdmin = !!user && (user.role === 'admin_master' || user.role === 'admin_producao');
+  const isAdmin = !!user && user.role === 'admin_master';
 
   const setEditMode = useCallback((v: boolean) => {
     if (!isAdmin) { setEditModeRaw(false); return; }
