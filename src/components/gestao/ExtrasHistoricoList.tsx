@@ -67,13 +67,13 @@ export default function ExtrasHistoricoList() {
       if (delErr) throw delErr;
       const rows = snap.map((r: any) => ({
         id: r.id,
-        slug: r.slug,
         nome: r.nome,
-        preco_base: r.preco_base,
-        preco_label: r.preco_label,
-        variacoes: r.variacoes,
-        ordem: r.ordem,
-        ativo: r.ativo,
+        preco_base: r.preco_base ?? null,
+        preco_label: r.preco_label ?? '',
+        variacoes: r.variacoes ?? {},
+        ordem: r.ordem ?? 0,
+        ativo: r.ativo ?? true,
+        descricao: r.descricao ?? null,
       }));
       const { error: insErr } = await supabase.from('extra_produtos').insert(rows);
       if (insErr) throw insErr;
