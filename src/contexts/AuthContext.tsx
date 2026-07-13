@@ -551,31 +551,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { numeroPedido, ...rest } = orderData;
       const dataHoje = formatBrasiliaDate();
       const horaAgora = formatBrasiliaTime();
-      // Lead time inicial — espelha getTotalBizDays() de @/lib/orderDeadline.
-      // Inline aqui para evitar ciclo de import (orderDeadline importa deste arquivo).
-      const EXTRA_LEAD_TIMES_INIT: Record<string, number> = {
+
+      // Lead time atual — busca de ficha_tipos (bota/cinto) ou extra_produtos (extras).
+      // Fallback para tabela hardcoded se o registro não existir no banco.
+      const EXTRA_LEAD_TIMES_FALLBACK: Record<string, number> = {
         tiras_laterais: 2, desmanchar: 7, gravata_country: 7, kit_canivete: 4, kit_faca: 4,
         carimbo_fogo: 5, revitalizador: 1, kit_revitalizador: 1, adicionar_metais: 7,
         chaveiro_carimbo: 5, bainha_cartao: 7, bainha_celular: 7, regata: 20, regata_pronta_entrega: 1,
-        bota_pronta_entrega: 1, gravata_pronta_entrega: 1,
+        bota_pronta_entrega: 1, gravata_pronta_entrega: 1, palmilha: 1,
       };
       let totalBizDays: number;
       if (!rest.tipoExtra || rest.tipoExtra === 'cinto') {
-        totalBizDays = 20;
+        const slug = rest.tipoExtra || 'bota';
+        const { data: ft } = await supabase
+          .from('ficha_tipos').select('lead_time_dias').eq('slug', slug).maybeSingle();
+        totalBizDays = (ft as any)?.lead_time_dias ?? (slug === 'bota' ? 25 : 20);
       } else if (rest.tipoExtra === 'bota_pronta_entrega') {
         const det: any = rest.extraDetalhes || {};
         const botas: any[] = Array.isArray(det.botas) ? det.botas : [];
-        let maxExtra = 0;
+        const tiposExtras = new Set<string>();
         for (const b of botas) {
           const extras: any[] = Array.isArray(b?.extras) ? b.extras : [];
-          for (const ex of extras) {
-            const lt = EXTRA_LEAD_TIMES_INIT[ex?.tipo || ''] ?? 1;
-            if (lt > maxExtra) maxExtra = lt;
-          }
+          for (const ex of extras) if (ex?.tipo) tiposExtras.add(ex.tipo);
+        }
+        const ltMap = new Map<string, number>();
+        if (tiposExtras.size > 0) {
+          const { data: eps } = await supabase
+            .from('extra_produtos').select('id, lead_time_dias').in('id', [...tiposExtras]);
+          for (const ep of eps || []) ltMap.set((ep as any).id, (ep as any).lead_time_dias);
+        }
+        let maxExtra = 0;
+        for (const t of tiposExtras) {
+          const lt = ltMap.get(t) ?? EXTRA_LEAD_TIMES_FALLBACK[t] ?? 1;
+          if (lt > maxExtra) maxExtra = lt;
         }
         totalBizDays = 1 + maxExtra;
       } else {
-        totalBizDays = EXTRA_LEAD_TIMES_INIT[rest.tipoExtra] ?? 1;
+        const { data: ep } = await supabase
+          .from('extra_produtos').select('lead_time_dias').eq('id', rest.tipoExtra).maybeSingle();
+        totalBizDays = (ep as any)?.lead_time_dias ?? EXTRA_LEAD_TIMES_FALLBACK[rest.tipoExtra] ?? 1;
       }
 
       const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
