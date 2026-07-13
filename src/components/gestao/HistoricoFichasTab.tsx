@@ -46,7 +46,7 @@ export default function HistoricoFichasTab() {
         </TabsList>
         {tiposAtivos.map(t => (
           <TabsContent key={t.id} value={t.id}>
-            <VersoesList fichaTipoId={t.id} />
+            {t.slug === 'extra' ? <ExtrasHistoricoList /> : <VersoesList fichaTipoId={t.id} />}
           </TabsContent>
         ))}
       </Tabs>
