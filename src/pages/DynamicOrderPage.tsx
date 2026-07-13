@@ -124,6 +124,9 @@ export default function DynamicOrderPage() {
         }
       }
 
+      // Stamp da versão ativa da ficha
+      const versaoAtiva = tipo?.id ? await getVersaoAtiva(tipo.id) : null;
+
       const row = {
         numero,
         user_id: user.id,
@@ -139,6 +142,7 @@ export default function DynamicOrderPage() {
         status: 'Em aberto',
         tipo_extra: slug,
         extra_detalhes: snapshot,
+        ficha_versao_id: versaoAtiva?.id || null,
         historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado' }],
         alteracoes: [],
         observacao,
