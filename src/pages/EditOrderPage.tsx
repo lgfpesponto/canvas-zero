@@ -26,6 +26,7 @@ import {
   getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorViraOptions, getForma,
   HIDE_PESPONTO_EXTRAS,
 } from '@/lib/orderFieldsConfig';
+import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 
 const cls = {
   label: 'block text-sm font-semibold mb-1',
@@ -468,11 +469,11 @@ const EditOrderPage = () => {
   const desenvLegacyPreco = DESENVOLVIMENTO.find(d => d.label === desenvolvimento)?.preco || 0;
   const desenvPreco = desenvLegacyPreco + (desenvBordado ? 50 : 0) + (desenvLaser ? 100 : 0) + (desenvEstampa ? 150 : 0);
   const areaMetalPreco = AREA_METAL.find(a => a.label === areaMetal)?.preco || 0;
-  const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
-  const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * BOLA_GRANDE_PRECO : 0;
-  const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * CRUZ_METAL_PRECO : 0;
-  const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * BRIDAO_METAL_PRECO : 0;
-  const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * CAVALO_METAL_PRECO : 0;
+  const strassPreco = strass ? strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO) : 0;
+  const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO) : 0;
+  const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO) : 0;
+  const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO) : 0;
+  const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
   const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
   const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
