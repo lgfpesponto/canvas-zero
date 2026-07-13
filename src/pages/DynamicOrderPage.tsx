@@ -195,7 +195,9 @@ export default function DynamicOrderPage() {
   }
 
   return (
+    <FichaEditProvider fichaSlug={slug || ''}>
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
+      <FichaEditBar />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -213,6 +215,7 @@ export default function DynamicOrderPage() {
             {tipo.nome.toLowerCase()}
           </h1>
           {slug && <EditFichaButton fichaSlug={slug} />}
+          <FichaEditToggle />
         </div>
 
         <Card>
