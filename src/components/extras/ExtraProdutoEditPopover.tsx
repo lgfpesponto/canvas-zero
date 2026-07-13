@@ -76,7 +76,8 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
         preco_base: precoBase === '' ? null : parseFloat(precoBase) || 0,
         preco_label: precoLabel.trim(),
         variacoes,
-      });
+        lead_time_dias: Math.max(1, parseInt(leadTimeDias, 10) || 1),
+      } as any);
       toast.success('Produto atualizado');
       setOpen(false);
     } catch (e: any) {
