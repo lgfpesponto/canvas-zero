@@ -420,17 +420,24 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
             <Label className="text-xs font-semibold">Tamanhos e quantidades *</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
               {tamanhosOrdenados.map(t => {
-                const esgotado = t.quantidade === 0;
+                const disp = disponivelReal(t);
+                const esgotado = disp === 0;
+                const reservadoOutros = reservasOutros[t.id] || 0;
                 return (
                   <div key={t.id} className={`p-2 rounded border ${esgotado ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-muted/40'}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-bold">{t.tamanho}</span>
-                      <span className="text-[10px] text-muted-foreground">{esgotado ? 'esgotado' : `${t.quantidade} disp.`}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {esgotado ? 'esgotado' : `${disp} disp.`}
+                        {reservadoOutros > 0 && !esgotado && (
+                          <span className="ml-1 text-amber-600" title={`${reservadoOutros} reservado(s) por outro vendedor`}>·{reservadoOutros}res</span>
+                        )}
+                      </span>
                     </div>
                     <Input
                       type="number"
                       min={0}
-                      max={t.quantidade}
+                      max={disp}
                       value={quantidades[t.id] ?? 0}
                       onChange={e => setQtd(t, e.target.value)}
                       disabled={esgotado}
@@ -439,6 +446,7 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
                   </div>
                 );
               })}
+
             </div>
           </div>
 
