@@ -10,6 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const BAGY_TOKEN = Deno.env.get("BAGY_API_TOKEN") || "";
 const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
   .replace(/\/$/, "");
@@ -42,6 +43,47 @@ async function enqueueStockSync(admin: any, produtoId: string, sku: string, sald
     .insert({ estoque_produto_id: produtoId, ...payload } as any);
 
   return { error: insertError };
+}
+
+async function authorizeRequest(req: Request, admin: any, body: any): Promise<Response | null> {
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (token === SERVICE_ROLE) return null;
+
+  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const { data: claimsData, error: claimsError } = await anon.auth.getClaims(token);
+  const userId = claimsData?.claims?.sub;
+  if (claimsError || !userId) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const needsPrivilegedAccess = Boolean(body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced);
+  if (!needsPrivilegedAccess) return null;
+
+  const { data: roles, error: rolesError } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin_master", "admin_producao", "vendedor_comissao"]);
+
+  if (rolesError || !roles || roles.length === 0) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return null;
 }
 
 async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
@@ -134,6 +176,9 @@ Deno.serve(async (req) => {
   // Optional body: { retry_produto_id?: string, retry_all_errors?: boolean, force_all_active?: boolean, retry_unsynced?: boolean }
   let body: any = {};
   try { body = await req.json(); } catch { /* empty body ok */ }
+
+  const authResponse = await authorizeRequest(req, admin, body);
+  if (authResponse) return authResponse;
 
   // Retry: reenfileira itens específicos
   if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced) {
