@@ -1358,7 +1358,10 @@ const OrderDetailPage = () => {
                         {grupo.itens.map(([label, value]) => (
                           <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
                             <span className="text-sm text-muted-foreground">{label}</span>
-                            <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                            <span className="text-sm font-semibold text-right max-w-[60%] inline-flex items-center justify-end gap-1">
+                              {value}
+                              <InlineVariacaoOlhos names={String(value).split(/[,|/]|\s—\s/).map(s => s.trim())} size={12} />
+                            </span>
                           </div>
                         ))}
                       </div>
