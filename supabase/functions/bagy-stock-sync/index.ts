@@ -391,7 +391,19 @@ Deno.serve(async (req) => {
     }
 
     // PUT do saldo
-    const put = await bagyPutBalance(variationId!, item.novo_saldo);
+    let put = await bagyPutBalance(variationId!, item.novo_saldo);
+    // Se 404, o cache está furado: limpa, redescobre por SKU e tenta de novo na mesma passada
+    if (!put.ok && (put.error || "").includes("HTTP 404")) {
+      console.warn("bagy-stock-sync PUT 404, redescobrindo por SKU", { sku: item.sku, staleVariationId: variationId });
+      await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", item.estoque_produto_id);
+      const r2 = await bagyGetVariationIdBySku(item.sku);
+      if (r2.id && r2.id !== variationId) {
+        variationId = r2.id;
+        await admin.from("estoque_produtos").update({ bagy_variation_id: variationId }).eq("id", item.estoque_produto_id);
+        console.log("bagy-stock-sync retry PUT com id novo", { sku: item.sku, variationId });
+        put = await bagyPutBalance(variationId!, item.novo_saldo);
+      }
+    }
     if (put.ok) {
       await admin.from("bagy_stock_sync_queue").update({
         tentativas: (item.tentativas || 0) + 1,
