@@ -67,7 +67,7 @@ async function authorizeRequest(req: Request, admin: any, body: any): Promise<Re
     });
   }
 
-  const needsPrivilegedAccess = Boolean(body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced);
+  const needsPrivilegedAccess = Boolean(body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced || body?.force_rediscover);
   if (!needsPrivilegedAccess) return null;
 
   const { data: roles, error: rolesError } = await admin
@@ -168,12 +168,13 @@ function pickSkuFromVariation(json: any): string | null {
   return null;
 }
 
-async function bagyGetSkuByVariationId(variationId: string): Promise<string | null> {
+async function bagyGetSkuByVariationId(variationId: string): Promise<{ sku: string | null; notFound: boolean }> {
   const candidates = [
     `${BAGY_BASE}/variations/${encodeURIComponent(variationId)}`,
     `${BAGY_BASE}/products/variations/${encodeURIComponent(variationId)}`,
   ];
 
+  let all404 = true;
   for (const url of candidates) {
     try {
       const res = await fetch(url, {
@@ -182,15 +183,16 @@ async function bagyGetSkuByVariationId(variationId: string): Promise<string | nu
           Accept: "application/json",
         },
       });
+      if (res.status !== 404) all404 = false;
       if (!res.ok) continue;
       const json = await res.json();
       const sku = pickSkuFromVariation(json);
-      if (sku) return sku;
+      if (sku) return { sku, notFound: false };
     } catch (_e) {
-      // segue para o próximo endpoint
+      all404 = false; // network err ≠ inexistente
     }
   }
-  return null;
+  return { sku: null, notFound: all404 };
 }
 
 async function bagyPutBalance(variationId: string, balance: number): Promise<{ ok: boolean; error?: string }> {
@@ -268,6 +270,10 @@ Deno.serve(async (req) => {
     }
     for (const p of prods || []) {
       if (!p.sku_base) continue;
+      // Se force_rediscover, limpa o cache do variation_id antes de enfileirar
+      if (body?.force_rediscover) {
+        await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", p.id);
+      }
       // limpa pendente anterior do mesmo produto + reseta status
       const queued = await enqueueStockSync(admin, p.id, p.sku_base, p.quantidade ?? 0);
       if (queued.error) {
@@ -328,12 +334,14 @@ Deno.serve(async (req) => {
     });
 
     if (variationId) {
-      const cachedSku = await bagyGetSkuByVariationId(variationId);
-      if (cachedSku && cachedSku.toLowerCase() !== String(item.sku).toLowerCase()) {
-        console.warn("bagy-stock-sync cached variation mismatch", {
+      const check = await bagyGetSkuByVariationId(variationId);
+      const mismatch = check.sku && check.sku.toLowerCase() !== String(item.sku).toLowerCase();
+      if (mismatch || check.notFound) {
+        console.warn("bagy-stock-sync cached variation invalid", {
           sku: item.sku,
           cachedVariationId: variationId,
-          cachedSku,
+          cachedSku: check.sku,
+          notFound: check.notFound,
         });
         variationId = null;
         await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", item.estoque_produto_id);
@@ -383,7 +391,19 @@ Deno.serve(async (req) => {
     }
 
     // PUT do saldo
-    const put = await bagyPutBalance(variationId!, item.novo_saldo);
+    let put = await bagyPutBalance(variationId!, item.novo_saldo);
+    // Se 404, o cache está furado: limpa, redescobre por SKU e tenta de novo na mesma passada
+    if (!put.ok && (put.error || "").includes("HTTP 404")) {
+      console.warn("bagy-stock-sync PUT 404, redescobrindo por SKU", { sku: item.sku, staleVariationId: variationId });
+      await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", item.estoque_produto_id);
+      const r2 = await bagyGetVariationIdBySku(item.sku);
+      if (r2.id && r2.id !== variationId) {
+        variationId = r2.id;
+        await admin.from("estoque_produtos").update({ bagy_variation_id: variationId }).eq("id", item.estoque_produto_id);
+        console.log("bagy-stock-sync retry PUT com id novo", { sku: item.sku, variationId });
+        put = await bagyPutBalance(variationId!, item.novo_saldo);
+      }
+    }
     if (put.ok) {
       await admin.from("bagy_stock_sync_queue").update({
         tentativas: (item.tentativas || 0) + 1,
