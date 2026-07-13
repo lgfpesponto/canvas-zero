@@ -1874,15 +1874,27 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           {/* SOLADO */}
           <Section title="Solado">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={getSoladosForModelo(modelo, formatoBico)} required />
-              <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} required />
-              {getCorSolaOptions(modelo, solado, formatoBico) !== null && (
-                <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={getCorSolaOptions(modelo, solado, formatoBico)!} required />
-              )}
-              {getCorViraOptions(modelo, solado).length > 1 && (
-                <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={getCorViraOptions(modelo, solado)} />
-              )}
+              {(() => {
+                const withDbPrice = (opts: { label: string; preco: number }[], cat: string) =>
+                  opts.map(o => ({ ...o, preco: findFichaPrice(o.label, cat) ?? o.preco }));
+                const soladoOpts = withDbPrice(getSoladosForModelo(modelo, formatoBico), 'solado');
+                const corSolaOpts = getCorSolaOptions(modelo, solado, formatoBico);
+                const corViraOpts = getCorViraOptions(modelo, solado);
+                return (
+                  <>
+                    <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={soladoOpts} required />
+                    <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} required />
+                    {corSolaOpts !== null && (
+                      <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={withDbPrice(corSolaOpts, 'cor_sola')} required />
+                    )}
+                    {corViraOpts.length > 1 && (
+                      <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={withDbPrice(corViraOpts, 'cor_vira')} />
+                    )}
+                  </>
+                );
+              })()}
             </div>
+
             <ToggleField label={`Costura Atrás (+R$${COSTURA_ATRAS_PRECO})`} value={costuraAtras} onChange={setCosturaAtras} />
           </Section>
 
