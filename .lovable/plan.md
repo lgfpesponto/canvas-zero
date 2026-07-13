@@ -1,38 +1,43 @@
-## Ajustes no modo edição inline da ficha
+## Objetivo
+Preço editado no popover entra na soma final. Pedidos antigos mantêm o mesmo preço via cascata (nada muda até você editar). Fichas versionadas continuam apontando para a versão salva no pedido.
 
-### 1. Remover botão duplicado "editar ficha"
-Em `OrderPage.tsx` (linha 1631), `BeltOrderPage.tsx` (658) e `DynamicOrderPage.tsx` (217), remover `<EditFichaButton …/>` mantendo apenas `<FichaEditToggle />`. Também remover o import de `EditFichaButton` nesses 3 arquivos.
+- Metais quantificáveis (Strass, Bola Grande, Cruz, Bridão, Cavalo) → popover mostra **"Preço quando 'Tem' unitário (R$)"**; soma = unitário × qtd, com unitário lido do banco.
+- Extras tem/não tem (Tricê, Tiras, Franja, Corrente, Costura Atrás, Pintura, Estampa) → popover já vem com o valor atual preenchido; edição entra na soma.
+- Bug do "Tipo do Metal" listar **Bola Grande** ao lado de **Rebite** → apagar essa variação do banco. Bola Grande fica só no bloco de metais quantificáveis.
 
-### 2. Adicionar variação inline (sem `window.prompt`)
-Em `FichaFieldControls.tsx`:
-- Substituir os dois `handleQuickAdd` / `handleAddVar` (que usam `window.prompt`) por inserção de uma **linha nova em branco** direto na lista do popover — inputs de nome + preço já editáveis + botão "ok" para salvar (mesma UI do `VarLine` em modo `editing`).
-- No popover principal (✏️), o clique em "+ variação" adiciona um item local em estado `draftVars` renderizado no topo da lista; ao confirmar, chama `insertVar.mutateAsync` e limpa o draft.
-- O ➕ inline (fora do popover) passa a **abrir o popover já com uma linha draft nova**, em vez de disparar `prompt`.
+## Cascata de preço (sem quebrar pedidos antigos)
+```
+preço unitário = ficha_campos.opcoes[0].preco_adicional  (se admin salvou > 0)
+              ↓ senão
+              constante hardcoded original (STRASS_PRECO, TRICE_PRECO, …)
+```
+Enquanto o admin não editar, o valor permanece o do código = pedidos antigos ficam idênticos. Editou uma vez → é uma nova versão da ficha; pedidos novos usam o novo, pedidos antigos continuam com o preço já materializado no `preco` deles (o reconciliador só refaz quando algo do pedido muda).
 
-### 3. Popover não mostra valores atuais ao editar
-Investigar e corrigir em `EditPopover`:
-- `obrigatorio`: o `useEffect` depende de `campo?.obrigatorio` mas o valor inicial usa `!!campo?.obrigatorio` na 1ª render. Garantir sincronização quando `campo` chega assincronamente (react-query) — usar `campo?.id` como key do popover ou resetar states no `onOpenChange(true)` lendo `campo` fresh.
-- Checkbox price ("Tem/Não tem"): mesmo problema — ler `campo.opcoes[0].preco_adicional` no abrir. Adicionar log e conferir se o schema salva em `opcoes` (array) mesmo — pode estar salvando como `opcoes: [{label,preco_adicional}]` mas leitura tratando `preco_adicional` como string. Fazer `Number(...) || 0` robusto.
-- Nome: idem — reler no open.
+## Alterações
 
-Correção: converter states para função de reset chamada em `onOpenChange` quando abre, garantindo sempre valores do banco.
+**1. Novo `src/lib/dynamicUnitPrice.ts`**
+- Map em memória + `getDynamicUnitPrice(slug, fallback)`.
+- Hook `useSyncDynamicUnitPrices()` carrega `ficha_campos.opcoes` para os slugs cobertos e popula o map.
+- Constante `QUANTIFIABLE_METAL_SLUGS` p/ label contextual.
 
-### 4. Metais editáveis (nome + preço)
-Atualmente Strass / Bola Grande / Cruz / Bridão / Cavalo usam constantes hardcoded (`STRASS_PRECO` etc.) em `OrderPage.tsx`. Para permitir edição inline:
-- Adicionar entradas em `labelSlugMap.ts` para bota: `strass`, `bola_grande`, `cruz_metal`, `bridao_metal`, `cavalo_metal` (categoria `metais`, tipo `checkbox` com preço unitário no `opcoes[0].preco_adicional`).
-- Envolver os labels em `OrderPage.tsx` (linhas ~1941–1945) com `<FichaFieldControls labelText="Strass" defaultTipo="checkbox" defaultCategoriaSlug="metais" />`.
-- Ler o preço via `useFichaVariacoesLookup` / `ficha_campos.opcoes` com fallback para a constante antiga, para não quebrar pedidos existentes até a ficha ter os campos criados.
+**2. Montar hook uma vez** em `src/App.tsx` (dentro do `ChromeWrapper`).
 
-### 5. "Tipo do Metal" editável + adicionar novos
-O select "Tipo do Metal" (label linha 1919) precisa receber `<FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" />`. As opções renderizadas (hoje hardcoded) devem passar a ler de `ficha_variacoes` (categoria/campo `tipo_metal`) com merge sobre a lista hardcoded para retro-compatibilidade. Novas variações criadas via popover aparecem imediatamente na lista.
+**3. Trocar leitura das constantes** por `getDynamicUnitPrice('slug', CONSTANTE)` em:
+- `src/lib/recomputeOrderPrice.ts` (fonte canônica)
+- `src/pages/OrderPage.tsx` (preview + save)
+- `src/pages/EditOrderPage.tsx` (idem)
+- `src/pages/OrderDetailPage.tsx` (breakdown)
+- `src/lib/cobrancaPdf.ts`, `src/lib/pdfGenerators.ts` (PDFs)
 
-### Arquivos afetados
-- `src/pages/OrderPage.tsx` — remover botão duplicado, wrappar metais, ler preços via lookup
-- `src/pages/BeltOrderPage.tsx` — remover botão duplicado
-- `src/pages/DynamicOrderPage.tsx` — remover botão duplicado
-- `src/components/ficha-edit/FichaFieldControls.tsx` — remover prompts, adicionar draft rows inline, corrigir hydratação de estado ao abrir popover
-- `src/components/ficha-edit/labelSlugMap.ts` — adicionar slugs dos metais
+**4. Popover contextual** em `src/components/ficha-edit/FichaFieldControls.tsx`:
+- Se slug ∈ `QUANTIFIABLE_METAL_SLUGS` → rótulo "Preço quando 'Tem' unitário (R$)" + dica "soma = unitário × quantidade".
+- Caso contrário → mantém "Preço quando 'Tem' (R$)".
 
-### Fora de escopo
-- Nenhuma mudança em lógica de preço final / recompute — apenas leitura passa a ter fallback ao banco.
-- Sem mudança em migrations (campos são criados on-demand pelo popover, como já funciona).
+**5. Migração de dados (via `insert`)**
+- `DELETE FROM ficha_variacoes WHERE id = 'ff434f3a-9015-4be5-aeb3-b8ed4579465a'` (Bola Grande em `tipo_metal`).
+- `UPDATE ficha_campos SET opcoes = jsonb_build_array(jsonb_build_object('label','sim','preco_adicional', <constante>))` para os 12 slugs, quando `opcoes` estiver vazio. Assim o popover abre com o valor atual pré-preenchido no primeiro clique.
+
+## Fora de escopo
+- Sem mudança na lógica de soma (continua unitário × qtd, ou preço × 1).
+- Sem tocar em fichas versionadas de pedidos antigos.
+- Sem mudar Cor da Sola / Modelo / Solado / Bordados (já dinâmicos).
