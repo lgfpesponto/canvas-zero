@@ -1586,7 +1586,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
 
   return (
+    <FichaEditProvider fichaSlug="bota">
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+      <FichaEditBar />
       <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -2272,6 +2274,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </div>
       )}
     </div>
+    </FichaEditProvider>
   );
 };
 
