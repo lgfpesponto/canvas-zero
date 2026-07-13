@@ -214,7 +214,6 @@ export default function DynamicOrderPage() {
           <h1 className="font-montserrat text-2xl font-bold text-foreground lowercase">
             {tipo.nome.toLowerCase()}
           </h1>
-          {slug && <EditFichaButton fichaSlug={slug} />}
           <FichaEditToggle />
         </div>
 
