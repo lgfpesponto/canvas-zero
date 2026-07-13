@@ -93,7 +93,7 @@ export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, on
         </div>
       </div>
 
-      {(onFinalizar || onSaveDraft) && (
+      {(onFinalizar || onSaveDraft || (showEstoquePronto && onEstoquePronto)) && (
         <div className="mt-3 flex justify-start gap-2">
           {onFinalizar && (
             <button
@@ -117,6 +117,18 @@ export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, on
               className="h-14 w-14 rounded-full bg-card border-2 border-primary text-primary shadow-lg hover:bg-primary/10 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText size={22} />
+            </button>
+          )}
+          {showEstoquePronto && onEstoquePronto && (
+            <button
+              type="button"
+              onClick={onEstoquePronto}
+              disabled={disabled}
+              title="Criar direto no Estoque"
+              aria-label="Criar direto no Estoque"
+              className="h-14 w-14 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Package size={22} />
             </button>
           )}
         </div>
