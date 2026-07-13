@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, X, Check } from 'lucide-react';
 import { ScannedQr } from '@/components/ficha/VariacaoFotoIcon';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -45,8 +45,18 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPage(0); setQuery(''); } }}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-base">{title}</DialogTitle>
+        <DialogHeader className="pr-16">
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="text-base">{title}</DialogTitle>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="h-7 px-3 gap-1 mr-6"
+            >
+              <Check className="h-3.5 w-3.5" /> OK
+            </Button>
+          </div>
         </DialogHeader>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -57,6 +67,31 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
             className="pl-8 h-8 text-sm"
           />
         </div>
+
+        {selected.length > 0 && (
+          <div className="border rounded-md p-2 bg-muted/40">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[11px] font-bold px-2 py-0.5">
+                {selected.length} selecionada{selected.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {selected.map(name => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => onToggle(name, false)}
+                  className="inline-flex items-center gap-1 bg-background border border-border rounded-full px-2 py-0.5 text-[11px] hover:bg-destructive/10 hover:border-destructive/40 transition-colors"
+                  title="Remover"
+                >
+                  <span className="truncate max-w-[160px]">{name}</span>
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
           {pageItems.length === 0 && (
             <p className="col-span-full text-center text-sm text-muted-foreground py-6">
