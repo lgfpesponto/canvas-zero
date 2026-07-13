@@ -17,6 +17,33 @@ const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
 const MAX_BATCH = 50;
 const MAX_TENTATIVAS = 5;
 
+async function enqueueStockSync(admin: any, produtoId: string, sku: string, saldo: number) {
+  const payload = {
+    sku,
+    novo_saldo: saldo,
+    tentativas: 0,
+    ultimo_erro: null,
+    processado_em: null,
+    criado_em: new Date().toISOString(),
+  };
+
+  const { data: updated, error: updateError } = await admin
+    .from("bagy_stock_sync_queue")
+    .update(payload as any)
+    .eq("estoque_produto_id", produtoId)
+    .is("processado_em", null)
+    .select("id");
+
+  if (updateError) return { error: updateError };
+  if (updated && updated.length > 0) return { error: null };
+
+  const { error: insertError } = await admin
+    .from("bagy_stock_sync_queue")
+    .insert({ estoque_produto_id: produtoId, ...payload } as any);
+
+  return { error: insertError };
+}
+
 async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
   // Tenta múltiplos caminhos da API Dooca/Bagy
   const candidates = [
@@ -125,16 +152,11 @@ Deno.serve(async (req) => {
     for (const p of prods || []) {
       if (!p.sku_base) continue;
       // limpa pendente anterior do mesmo produto + reseta status
-      await admin.from("bagy_stock_sync_queue")
-        .upsert({
-          estoque_produto_id: p.id,
-          sku: p.sku_base,
-          novo_saldo: p.quantidade ?? 0,
-          tentativas: 0,
-          ultimo_erro: null,
-          processado_em: null,
-          criado_em: new Date().toISOString(),
-        } as any, { onConflict: "estoque_produto_id" });
+      const queued = await enqueueStockSync(admin, p.id, p.sku_base, p.quantidade ?? 0);
+      if (queued.error) {
+        console.error("Erro ao reenfileirar estoque Bagy", p.id, queued.error.message);
+        continue;
+      }
       await admin.from("estoque_produtos")
         .update({ bagy_sync_status: "pendente", bagy_sync_erro: null, bagy_sync_at: null })
         .eq("id", p.id);
