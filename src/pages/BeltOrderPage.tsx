@@ -940,6 +940,8 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             onClose={() => setMostrarFotoPainel(false)}
             onFinalizar={!isTemplate ? () => formRef.current?.requestSubmit() : undefined}
             onSaveDraft={!isTemplate ? handleSaveDraft : undefined}
+            showEstoquePronto={!isTemplate && vendedor === 'Estoque' && isAdminUser}
+            onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
             disabled={orderDuplicate}
           />
         )}
