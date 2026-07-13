@@ -446,14 +446,17 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         : undefined;
       const tplSku = tpl ? ((tplGrade?.sku || tpl.sku || '').trim() || null) : null;
 
+      const isEstoqueVend = isAdminUser && vendedor === 'Estoque';
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
-        cliente: cliente.trim(),
-        clienteWhatsapp: clienteWhatsapp.trim() || undefined,
+        cliente: isEstoqueVend ? '' : cliente.trim(),
+        clienteWhatsapp: isEstoqueVend ? undefined : (clienteWhatsapp.trim() || undefined),
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
+        nomeProdutoEstoque: isEstoqueVend ? (cliente.trim() || `Cinto ${numeroPedido.trim() || ''}`) : undefined,
         templateNome: tpl?.nome,
         templateSku: tplSku || undefined,
         tamanho: '-',
+
         modelo: '-',
         solado: '-',
         formatoBico: '-',
