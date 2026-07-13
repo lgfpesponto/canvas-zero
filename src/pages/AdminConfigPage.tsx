@@ -16,6 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import FichaBuilder from '@/components/admin/FichaBuilder';
+import HistoricoFichasTab from '@/components/gestao/HistoricoFichasTab';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 import { FinanceiroInner } from './FinanceiroPage';
 import ConfiguracoesNFe from './ConfiguracoesNFe';
