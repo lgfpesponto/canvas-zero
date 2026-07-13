@@ -62,7 +62,7 @@ const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`Ajuste aplicado (${delta > 0 ? '+' : ''}${delta}).`);
-    supabase.functions.invoke('bagy-stock-sync', { body: {} }).catch(() => {});
+    supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: produto.id } }).catch(() => {});
     setDelta(0); setMotivo('');
     onDone?.();
     setOpen(false);

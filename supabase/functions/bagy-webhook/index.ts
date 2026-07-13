@@ -17,6 +17,46 @@ const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store").r
 // Cache de SKU por id (variation/product) escopado à execução
 const skuCache = new Map<string, string | null>();
 
+function collectArrayCandidates(json: any): any[] {
+  const candidates = [
+    json,
+    json?.data,
+    json?.items,
+    json?.variations,
+    json?.result,
+    json?.results,
+    json?.data?.items,
+    json?.data?.variations,
+    json?.data?.data,
+    json?.result?.items,
+    json?.result?.variations,
+  ];
+
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+
+  const single = json?.data && !Array.isArray(json.data) ? json.data : json;
+  if (single && typeof single === "object") return [single];
+  return [];
+}
+
+function pickSkuFromAny(obj: any): string | null {
+  const candidates = [
+    obj,
+    obj?.data,
+    obj?.result,
+    obj?.variation,
+    obj?.variant,
+  ];
+
+  for (const c of candidates) {
+    const sku = c?.sku || c?.reference || c?.code;
+    if (sku && String(sku).trim()) return String(sku).trim();
+  }
+  return null;
+}
+
 async function bagyGetJson(url: string): Promise<any | null> {
   try {
     const res = await fetch(url, {
@@ -44,23 +84,29 @@ async function fetchBagySku(opts: { variationId?: string | number | null; produc
     const candidates = [
       `${BAGY_BASE}/variations/${encodeURIComponent(varId)}`,
       `${BAGY_BASE}/products/variations/${encodeURIComponent(varId)}`,
+      prodId ? `${BAGY_BASE}/products/${encodeURIComponent(prodId)}/variations/${encodeURIComponent(varId)}` : null,
     ];
-    for (const url of candidates) {
+    for (const url of candidates.filter(Boolean) as string[]) {
       const data = await bagyGetJson(url);
-      const s = data?.sku || data?.data?.sku || data?.reference || data?.data?.reference;
-      if (s && String(s).trim()) { sku = String(s).trim(); break; }
+      const s = pickSkuFromAny(data);
+      if (s) { sku = s; break; }
     }
   }
   if (!sku && prodId) {
     const data = await bagyGetJson(`${BAGY_BASE}/products/${encodeURIComponent(prodId)}`);
-    const s = data?.sku || data?.data?.sku || data?.reference || data?.data?.reference;
-    if (s && String(s).trim()) sku = String(s).trim();
+    const s = pickSkuFromAny(data);
+    if (s) sku = s;
     if (!sku) {
-      const vars = (Array.isArray(data?.variations) ? data.variations : Array.isArray(data?.data?.variations) ? data.data.variations : []) as any[];
-      const match = vars.find((v) => String(v?.id) === String(varId));
-      const vs = match?.sku || match?.reference;
-      if (vs && String(vs).trim()) sku = String(vs).trim();
+      const vars = collectArrayCandidates(data);
+      const match = vars.find((v) => String(v?.id ?? v?.variation_id ?? "") === String(varId));
+      const vs = pickSkuFromAny(match);
+      if (vs) sku = vs;
     }
+  }
+  if (!sku) {
+    console.warn("bagy-webhook: não conseguiu resolver SKU pela API", { variationId: varId || null, productId: prodId || null });
+  } else {
+    console.log("bagy-webhook: SKU resolvido pela API", { variationId: varId || null, productId: prodId || null, sku });
   }
   skuCache.set(cacheKey, sku);
   return sku;
@@ -448,7 +494,7 @@ Deno.serve(async (req) => {
 
     for (const it of rawItems) {
       let skuRaw = String(
-        pick(it, "sku", "variation.sku", "variant.sku", "variation_sku") ?? "",
+        pick(it, "sku", "reference", "code", "variation.sku", "variation.reference", "variation.code", "variant.sku", "variant.reference", "variant.code", "variation_sku") ?? "",
       ).trim();
       const nomeProd = pick<string>(it, "name", "product.name", "product_name") ||
         null;
