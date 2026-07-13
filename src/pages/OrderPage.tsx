@@ -124,6 +124,16 @@ const MultiSelect = ({
               {selected.length} selecionado{selected.length > 1 ? 's' : ''}
             </span>
           )}
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="text-[11px] text-destructive hover:underline"
+              title="Desmarcar todos"
+            >
+              limpar
+            </button>
+          )}
           <FichaFieldControls labelText={label} defaultTipo="multipla" />
         </label>
         <button
@@ -135,6 +145,22 @@ const MultiSelect = ({
           expandir
         </button>
       </div>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {selected.map(name => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => toggle(name, false)}
+              className="inline-flex items-center gap-1 bg-background border border-border rounded-full px-2 py-0.5 text-[11px] hover:bg-destructive/10 hover:border-destructive/40 transition-colors"
+              title="Remover"
+            >
+              <span className="truncate max-w-[160px]">{name}</span>
+              <X className="h-3 w-3 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
       {hasSearch && (
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -147,6 +173,7 @@ const MultiSelect = ({
           />
         </div>
       )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
         {filtered.map((item, idx) => (
           <React.Fragment key={item.label}>
@@ -170,6 +197,8 @@ const MultiSelect = ({
         items={items}
         selected={selected}
         onToggle={toggle}
+        onClearAll={() => onChange([])}
+
       />
     </div>
   );

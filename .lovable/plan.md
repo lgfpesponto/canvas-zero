@@ -1,19 +1,14 @@
-## Diagnóstico
-
-Corrigi o cálculo mas esqueci o **label das opções**. As listas renderizadas nos dropdowns "Tipo de Solado / Cor da Sola / Cor da Vira" ainda mostram o preço vindo das constantes hardcoded (`getSoladosForModelo`, `getCorSolaOptions`, `getCorViraOptions`), porque o `SelectField` faz `(R${item.preco})` a partir do objeto retornado por essas funções.
-
 ## Plano
 
-Sobrescrever o `preco` de cada opção com o valor do banco antes de passar pro `SelectField`, mantendo o array/relacionamentos vindos de `orderFieldsConfig.ts`:
+Ajustar `MultiSelect` (`src/pages/OrderPage.tsx`) e `VariacaoExpandirDialog.tsx`:
 
-```ts
-const withDbPrice = (opts, cat) =>
-  opts.map(o => ({ ...o, preco: findFichaPrice(o.label, cat) ?? o.preco }));
-```
+### 1. `MultiSelect` (visão normal — imagem 1)
+Abaixo do cabeçalho "N selecionados", renderizar linha de chips com os nomes selecionados (mesmo padrão do expandido: pill com nome + X pra remover). Também adicionar botão texto **"limpar"** ao lado do contador que chama `onChange([])`. Chips só aparecem quando `selected.length > 0`.
 
-Aplicar nas 3 linhas do JSX (~1877-1884) em `OrderPage.tsx`:
-- Tipo de Solado → `withDbPrice(getSoladosForModelo(...), 'solado')`
-- Cor da Sola → `withDbPrice(getCorSolaOptions(...)!, 'cor_sola')`
-- Cor da Vira → `withDbPrice(getCorViraOptions(...), 'cor_vira')`
+### 2. `VariacaoExpandirDialog` (visão expandida — imagem 2)
+No bloco "N selecionadas" adicionar botão **"limpar"** à direita do badge (mesma linha do contador) que dispara `onToggle(name, false)` pra cada selecionado — ou receber um novo prop opcional `onClearAll` do MultiSelect. Vou adicionar `onClearAll?: () => void` (opcional pra não quebrar outros usos) e, quando ausente, o botão chama `selected.forEach(n => onToggle(n, false))`.
 
-Nada muda nos relacionamentos (a estrutura vem intacta das funções originais) — só o número entre parênteses do label passa a refletir o banco. Rodar `tsgo` no fim.
+### 3. Sem regressões
+- Layout do dropdown normal preservado; chips ficam entre o header e o box com checkboxes.
+- Nenhuma outra tela consome `MultiSelect`/`VariacaoExpandirDialog` de forma que quebre com a adição opcional.
+- Rodar `tsgo` no final.
