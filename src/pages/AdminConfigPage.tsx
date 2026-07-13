@@ -116,38 +116,8 @@ export default function AdminConfigPage() {
         )}
 
         {/* ── Seções ── */}
-        {activeSection?.key === 'fichas' && (
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Gerencie as variações, categorias e etapas de produção de cada tipo de ficha.
-              </p>
-              <Button size="sm" className="gap-1.5" onClick={() => setBuilderOpen(true)}>
-                <Plus className="h-4 w-4" /> criar nova ficha
-              </Button>
-            </div>
-            {isLoading ? (
-              <div className="grid gap-4 md:grid-cols-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-36 animate-pulse rounded-xl bg-muted" />
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-3">
-                <AnimatePresence>
-                  {tipos?.map((tipo, i) => (
-                    <FichaTipoCard
-                      key={tipo.id}
-                      tipo={tipo}
-                      index={i}
-                      canDelete={isAdminMaster}
-                      onDelete={() => setDeleteTarget({ id: tipo.id, nome: tipo.nome })}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+        {activeSection?.key === 'historico-fichas' && (
+          <HistoricoFichasTab />
         )}
 
         {activeSection?.key === 'extras' && (
