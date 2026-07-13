@@ -72,11 +72,23 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
 
         {selected.length > 0 && (
           <div className="border rounded-md p-2 bg-muted/40">
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1.5 gap-2">
               <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[11px] font-bold px-2 py-0.5">
                 {selected.length} selecionada{selected.length > 1 ? 's' : ''}
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onClearAll) onClearAll();
+                  else selected.forEach(n => onToggle(n, false));
+                }}
+                className="text-[11px] text-destructive hover:underline"
+                title="Desmarcar todos"
+              >
+                limpar
+              </button>
             </div>
+
             <div className="flex flex-wrap gap-1">
               {selected.map(name => (
                 <button
