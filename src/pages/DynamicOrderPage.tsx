@@ -17,6 +17,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 import EditFichaButton from '@/components/orders/EditFichaButton';
 import { getVersaoAtiva } from '@/lib/fichaVersoes';
+import { FichaEditProvider } from '@/contexts/FichaEditContext';
+import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
+import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
+import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
 
 interface CampoOpcao {
   label: string;
