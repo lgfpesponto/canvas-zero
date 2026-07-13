@@ -1,7 +1,12 @@
 // Constrói as categorias da ficha da bota no mesmo formato/ordem do PDF
 // (src/lib/pdfGenerators.ts linhas ~339-443). Reutilizado na tela de detalhes.
 
-export type FichaField = { label: string; value: string };
+export type FichaField = {
+  label: string;
+  value: string;
+  /** Nomes de variações (para renderizar olhinho de foto). */
+  variationNames?: string[];
+};
 export type FichaCategory = { title: string; fields: FichaField[] };
 
 const lower = (s?: string | null) => (s || '').toString().toLowerCase();
@@ -13,6 +18,12 @@ const replaceBordadoVariado = (text: string | undefined, desc?: string) => {
     .map(b => (b.includes('Bordado Variado') && desc ? desc : b))
     .join(', ');
 };
+
+const splitNames = (s?: string | null): string[] =>
+  (s || '')
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
 
 export function buildBootFichaCategories(order: any, opts?: { showCliente?: boolean }): FichaCategory[] {
   const categories: FichaCategory[] = [];
@@ -30,24 +41,24 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
 
   // COUROS
   const couros: FichaField[] = [];
-  if (order.couroCano) couros.push({ label: 'Cano:', value: `${lower(order.couroCano)}${order.corCouroCano ? ' ' + lower(order.corCouroCano) : ''}` });
-  if (order.couroGaspea) couros.push({ label: 'Gáspea:', value: `${lower(order.couroGaspea)}${order.corCouroGaspea ? ' ' + lower(order.corCouroGaspea) : ''}` });
-  if (order.couroTaloneira) couros.push({ label: 'Taloneira:', value: `${lower(order.couroTaloneira)}${order.corCouroTaloneira ? ' ' + lower(order.corCouroTaloneira) : ''}` });
+  if (order.couroCano) couros.push({ label: 'Cano:', value: `${lower(order.couroCano)}${order.corCouroCano ? ' ' + lower(order.corCouroCano) : ''}`, variationNames: [order.couroCano, order.corCouroCano].filter(Boolean) });
+  if (order.couroGaspea) couros.push({ label: 'Gáspea:', value: `${lower(order.couroGaspea)}${order.corCouroGaspea ? ' ' + lower(order.corCouroGaspea) : ''}`, variationNames: [order.couroGaspea, order.corCouroGaspea].filter(Boolean) });
+  if (order.couroTaloneira) couros.push({ label: 'Taloneira:', value: `${lower(order.couroTaloneira)}${order.corCouroTaloneira ? ' ' + lower(order.corCouroTaloneira) : ''}`, variationNames: [order.couroTaloneira, order.corCouroTaloneira].filter(Boolean) });
   if (couros.length) categories.push({ title: 'COUROS', fields: couros });
 
   // PESPONTO
   const pesp: FichaField[] = [];
-  if (order.corLinha) pesp.push({ label: 'Linha:', value: lower(order.corLinha) });
-  if (order.corBorrachinha) pesp.push({ label: 'Borrachinha:', value: lower(order.corBorrachinha) });
-  if (order.corVivo) pesp.push({ label: 'Vivo:', value: lower(order.corVivo) });
+  if (order.corLinha) pesp.push({ label: 'Linha:', value: lower(order.corLinha), variationNames: [order.corLinha] });
+  if (order.corBorrachinha) pesp.push({ label: 'Borrachinha:', value: lower(order.corBorrachinha), variationNames: [order.corBorrachinha] });
+  if (order.corVivo) pesp.push({ label: 'Vivo:', value: lower(order.corVivo), variationNames: [order.corVivo] });
   if (pesp.length) categories.push({ title: 'PESPONTO', fields: pesp });
 
   // SOLADOS
   const solado: FichaField[] = [];
   const solaType = `${order.solado || 'Borracha'} ${order.formatoBico || 'quadrada'}`.toLowerCase();
-  solado.push({ label: 'Tipo:', value: solaType });
-  if (order.corSola) solado.push({ label: 'Cor:', value: lower(order.corSola) });
-  if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) solado.push({ label: 'Vira:', value: lower(order.corVira) });
+  solado.push({ label: 'Tipo:', value: solaType, variationNames: [order.solado].filter(Boolean) });
+  if (order.corSola) solado.push({ label: 'Cor:', value: lower(order.corSola), variationNames: [order.corSola] });
+  if (order.corVira && !['Bege', 'Neutra'].includes(order.corVira)) solado.push({ label: 'Vira:', value: lower(order.corVira), variationNames: [order.corVira] });
   categories.push({ title: 'SOLADOS', fields: solado });
 
   // BORDADOS
@@ -55,21 +66,21 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
   const bC = replaceBordadoVariado(order.bordadoCano, order.bordadoVariadoDescCano);
   const bG = replaceBordadoVariado(order.bordadoGaspea, order.bordadoVariadoDescGaspea);
   const bT = replaceBordadoVariado(order.bordadoTaloneira, order.bordadoVariadoDescTaloneira);
-  if (bC) bord.push({ label: 'Cano:', value: `${lower(bC)}${order.corBordadoCano ? ' ' + lower(order.corBordadoCano) : ''}` });
-  if (bG) bord.push({ label: 'Gáspea:', value: `${lower(bG)}${order.corBordadoGaspea ? ' ' + lower(order.corBordadoGaspea) : ''}` });
-  if (bT) bord.push({ label: 'Taloneira:', value: `${lower(bT)}${order.corBordadoTaloneira ? ' ' + lower(order.corBordadoTaloneira) : ''}` });
+  if (bC) bord.push({ label: 'Cano:', value: `${lower(bC)}${order.corBordadoCano ? ' ' + lower(order.corBordadoCano) : ''}`, variationNames: [...splitNames(bC), order.corBordadoCano].filter(Boolean) });
+  if (bG) bord.push({ label: 'Gáspea:', value: `${lower(bG)}${order.corBordadoGaspea ? ' ' + lower(order.corBordadoGaspea) : ''}`, variationNames: [...splitNames(bG), order.corBordadoGaspea].filter(Boolean) });
+  if (bT) bord.push({ label: 'Taloneira:', value: `${lower(bT)}${order.corBordadoTaloneira ? ' ' + lower(order.corBordadoTaloneira) : ''}`, variationNames: [...splitNames(bT), order.corBordadoTaloneira].filter(Boolean) });
   if (order.nomeBordadoDesc || order.personalizacaoNome) bord.push({ label: 'Nome:', value: lower(order.nomeBordadoDesc || order.personalizacaoNome) });
   if (det.desenvBordado) bord.push({ label: 'Desenv.:', value: lower(det.desenvBordadoDesc) || 'sim' });
   if (bord.length) categories.push({ title: 'BORDADOS', fields: bord });
 
   // LASER E RECORTES
   const laser: FichaField[] = [];
-  if (order.laserCano) laser.push({ label: 'Cano:', value: `${lower(order.laserCano)}${order.corGlitterCano ? ' ' + lower(order.corGlitterCano) : ''}` });
-  if (order.laserGaspea) laser.push({ label: 'Gáspea:', value: `${lower(order.laserGaspea)}${order.corGlitterGaspea ? ' ' + lower(order.corGlitterGaspea) : ''}` });
-  if (order.laserTaloneira) laser.push({ label: 'Taloneira:', value: `${lower(order.laserTaloneira)}${order.corGlitterTaloneira ? ' ' + lower(order.corGlitterTaloneira) : ''}` });
-  if (order.recorteCano) laser.push({ label: 'Recorte cano:', value: `${lower(order.recorteCano)}${order.corRecorteCano ? ' ' + lower(order.corRecorteCano) : ''}` });
-  if (order.recorteGaspea) laser.push({ label: 'Recorte gáspea:', value: `${lower(order.recorteGaspea)}${order.corRecorteGaspea ? ' ' + lower(order.corRecorteGaspea) : ''}` });
-  if (order.recorteTaloneira) laser.push({ label: 'Recorte taloneira:', value: `${lower(order.recorteTaloneira)}${order.corRecorteTaloneira ? ' ' + lower(order.corRecorteTaloneira) : ''}` });
+  if (order.laserCano) laser.push({ label: 'Cano:', value: `${lower(order.laserCano)}${order.corGlitterCano ? ' ' + lower(order.corGlitterCano) : ''}`, variationNames: [...splitNames(order.laserCano), order.corGlitterCano].filter(Boolean) });
+  if (order.laserGaspea) laser.push({ label: 'Gáspea:', value: `${lower(order.laserGaspea)}${order.corGlitterGaspea ? ' ' + lower(order.corGlitterGaspea) : ''}`, variationNames: [...splitNames(order.laserGaspea), order.corGlitterGaspea].filter(Boolean) });
+  if (order.laserTaloneira) laser.push({ label: 'Taloneira:', value: `${lower(order.laserTaloneira)}${order.corGlitterTaloneira ? ' ' + lower(order.corGlitterTaloneira) : ''}`, variationNames: [...splitNames(order.laserTaloneira), order.corGlitterTaloneira].filter(Boolean) });
+  if (order.recorteCano) laser.push({ label: 'Recorte cano:', value: `${lower(order.recorteCano)}${order.corRecorteCano ? ' ' + lower(order.corRecorteCano) : ''}`, variationNames: [order.recorteCano, order.corRecorteCano].filter(Boolean) });
+  if (order.recorteGaspea) laser.push({ label: 'Recorte gáspea:', value: `${lower(order.recorteGaspea)}${order.corRecorteGaspea ? ' ' + lower(order.corRecorteGaspea) : ''}`, variationNames: [order.recorteGaspea, order.corRecorteGaspea].filter(Boolean) });
+  if (order.recorteTaloneira) laser.push({ label: 'Recorte taloneira:', value: `${lower(order.recorteTaloneira)}${order.corRecorteTaloneira ? ' ' + lower(order.corRecorteTaloneira) : ''}`, variationNames: [order.recorteTaloneira, order.corRecorteTaloneira].filter(Boolean) });
   if (order.pintura === 'Sim') laser.push({ label: 'Pintura:', value: order.pinturaDesc || 'sim' });
   if (det.desenvLaser) laser.push({ label: 'Desenv.:', value: lower(det.desenvLaserDesc) || 'sim' });
   if (laser.length) categories.push({ title: 'LASER E RECORTES', fields: laser });

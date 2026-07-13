@@ -27,6 +27,8 @@ import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
+import { InlineVariacaoOlhos } from '@/components/ficha/InlineVariacaoOlhos';
+import { extractVariationName } from '@/lib/variationLabels';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -1082,7 +1084,10 @@ const OrderDetailPage = () => {
                     <>
                       {extraPriceItems.map(([label, value], i) => (
                         <div key={i} className="flex justify-between py-1 border-b border-border/30 last:border-0">
-                          <span className="text-sm">{label}</span>
+                          <span className="text-sm inline-flex items-center gap-1">
+                            {label}
+                            <InlineVariacaoOlhos names={extractVariationName(label)} />
+                          </span>
                           <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                         </div>
                       ))}
@@ -1098,7 +1103,10 @@ const OrderDetailPage = () => {
               <>
                 {priceItems.map(([label, value], i) => (
                   <div key={i} className="flex justify-between py-1 border-b border-border/30 last:border-0">
-                    <span className="text-sm">{label}</span>
+                    <span className="text-sm inline-flex items-center gap-1">
+                      {label}
+                      <InlineVariacaoOlhos names={extractVariationName(label)} />
+                    </span>
                     <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                   </div>
                 ))}
@@ -1350,7 +1358,10 @@ const OrderDetailPage = () => {
                         {grupo.itens.map(([label, value]) => (
                           <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
                             <span className="text-sm text-muted-foreground">{label}</span>
-                            <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                            <span className="text-sm font-semibold text-right max-w-[60%] inline-flex items-center justify-end gap-1">
+                              {value}
+                              <InlineVariacaoOlhos names={String(value).split(/[,|/]|\s—\s/).map(s => s.trim())} size={12} />
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -1362,7 +1373,10 @@ const OrderDetailPage = () => {
                   {extraDetails.map(([label, value]) => (
                     <div key={label} className="flex justify-between py-1.5 border-b border-border/50">
                       <span className="text-sm text-muted-foreground">{label}</span>
-                      <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                      <span className="text-sm font-semibold text-right max-w-[60%] inline-flex items-center justify-end gap-1">
+                        {value}
+                        <InlineVariacaoOlhos names={String(value).split(/[,|/]|\s—\s/).map(s => s.trim())} size={12} />
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1434,6 +1448,9 @@ const OrderDetailPage = () => {
                             <div key={i} className="text-xs leading-snug">
                               {f.label && <span className="font-bold">{f.label} </span>}
                               <span>{f.value}</span>
+                              {f.variationNames && f.variationNames.length > 0 && (
+                                <InlineVariacaoOlhos names={f.variationNames} size={12} />
+                              )}
                             </div>
                           ))}
                         </div>

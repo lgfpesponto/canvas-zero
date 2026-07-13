@@ -38,6 +38,8 @@ import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
 import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
+import { InlineVariacaoOlhos } from '@/components/ficha/InlineVariacaoOlhos';
+import { extractVariationName } from '@/lib/variationLabels';
 
 const cls = {
   label: 'block text-sm font-semibold mb-1',
@@ -1072,7 +1074,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                       {items.length === 0 && <p className="text-xs text-muted-foreground text-center italic">Nenhum item com preço selecionado ainda.</p>}
                       {items.map(([label, valor], i) => (
                         <div key={`${label}-${i}`} className="flex justify-between text-sm py-1 border-b border-border/30 last:border-0">
-                          <span className="text-foreground">{label}</span>
+                          <span className="text-foreground inline-flex items-center gap-1">
+                            {label}
+                            <InlineVariacaoOlhos names={extractVariationName(label)} />
+                          </span>
                           <span className="text-primary font-semibold whitespace-nowrap ml-2">{formatCurrency(valor)}</span>
                         </div>
                       ))}
@@ -1098,7 +1103,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                     {grupo.itens.map(([label, value]) => (
                       <div key={label} className="flex justify-between py-1 border-b border-border/30">
                         <span className="text-sm text-muted-foreground">{label}:</span>
-                        <span className="text-sm font-semibold text-right max-w-[60%]">{value}</span>
+                        <span className="text-sm font-semibold text-right max-w-[60%] inline-flex items-center justify-end gap-1">
+                          {value}
+                          <InlineVariacaoOlhos names={String(value).split(/[,|/]|\s—\s/).map(s => s.trim())} size={12} />
+                        </span>
                       </div>
                     ))}
                   </div>
