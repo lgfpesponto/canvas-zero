@@ -101,7 +101,7 @@ function EditPopover({
   const [nome, setNome] = useState('');
   const [obrigatorio, setObrigatorio] = useState(false);
   const [checkboxPreco, setCheckboxPreco] = useState<number>(0);
-  const [drafts, setDrafts] = useState<{ id: string; nome: string; preco: number }[]>([]);
+  const [drafts, setDrafts] = useState<{ id: string; nome: string; preco: number; foto_url: string }[]>([]);
 
   // Reset state whenever popover opens or the underlying campo changes.
   useEffect(() => {
@@ -115,10 +115,11 @@ function EditPopover({
     // o admin editar sobre o valor atual em vez de começar de zero.
     setCheckboxPreco(rawPreco > 0 ? rawPreco : getDynamicUnitPrice(slug, 0));
     if (autoAddDraft) {
-      setDrafts([{ id: `d${Date.now()}`, nome: '', preco: 0 }]);
+      setDrafts([{ id: `d${Date.now()}`, nome: '', preco: 0, foto_url: '' }]);
     } else {
       setDrafts([]);
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campo?.id, campo?.nome, campo?.obrigatorio, JSON.stringify(campo?.opcoes)]);
 
@@ -162,15 +163,35 @@ function EditPopover({
         nome: d.nome.trim(),
         preco_adicional: d.preco || 0,
         ordem: variacoes.length + 1,
+        foto_url: d.foto_url.trim() || null,
       });
     }
     toast.success('Campo salvo');
     onOpenChange(false);
   };
 
-  const addDraft = () => setDrafts(prev => [...prev, { id: `d${Date.now()}${prev.length}`, nome: '', preco: 0 }]);
-  const updateDraft = (id: string, patch: Partial<{ nome: string; preco: number }>) =>
+  const addDraft = () => setDrafts(prev => [...prev, { id: `d${Date.now()}${prev.length}`, nome: '', preco: 0, foto_url: '' }]);
+  const updateDraft = (id: string, patch: Partial<{ nome: string; preco: number; foto_url: string }>) =>
     setDrafts(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d));
+  const removeDraft = (id: string) => setDrafts(prev => prev.filter(d => d.id !== id));
+
+  const commitDraft = async (id: string) => {
+    const d = drafts.find(x => x.id === id);
+    if (!d || !d.nome.trim()) { toast.error('Informe o nome'); return; }
+    const c = await ensureCampo();
+    if (!c) return;
+    await insertVar.mutateAsync({
+      categoria_id: c.categoria_id!,
+      campo_id: c.id,
+      nome: d.nome.trim(),
+      preco_adicional: d.preco || 0,
+      ordem: variacoes.length + 1,
+      foto_url: d.foto_url.trim() || null,
+    });
+    removeDraft(id);
+    toast.success('Variação criada');
+  };
+
   const removeDraft = (id: string) => setDrafts(prev => prev.filter(d => d.id !== id));
 
   const commitDraft = async (id: string) => {
