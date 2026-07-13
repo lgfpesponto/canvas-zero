@@ -26,6 +26,7 @@ interface EstoqueRow {
   ativo: boolean;
   bagy_sync_status?: string | null;
   bagy_sync_erro?: string | null;
+  bagy_sync_at?: string | null;
 }
 
 interface ProductGroup {
