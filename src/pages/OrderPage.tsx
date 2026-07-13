@@ -1574,7 +1574,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   /* ───── select helper ───── */
   const SelectField = ({ label, value, onChange, options, required: req }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean }) => (
     <div>
-      <label className={cls.label}>{label}{req && <span className="text-destructive ml-0.5">*</span>}</label>
+      <label className={cls.label + ' inline-flex items-center'}>
+        {label}{req && <span className="text-destructive ml-0.5">*</span>}
+        <FichaFieldControls labelText={label} defaultTipo="selecao" />
+      </label>
       <SearchableSelect options={options} value={value} onValueChange={onChange} placeholder="Selecione..." />
     </div>
   );
