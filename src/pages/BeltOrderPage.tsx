@@ -862,6 +862,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
 
           {/* Carimbo a Fogo */}
           <Section title="Carimbo a Fogo">
+            <label className={cls.label + ' inline-flex items-center'}>Carimbo a Fogo<FichaFieldControls labelText="Carimbo a Fogo" defaultTipo="selecao" defaultCategoriaSlug="carimbo" /></label>
             <div className="flex flex-wrap items-start gap-3">
               <select value={carimbo} onChange={e => setCarimbo(e.target.value)} className={cls.inputSmall + ' w-52'}>
                 <option value="">Sem carimbo</option>
