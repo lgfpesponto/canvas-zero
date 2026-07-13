@@ -899,6 +899,39 @@ export type Database = {
         }
         Relationships: []
       }
+      extra_produtos_versoes: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          criado_por: string | null
+          descricao_mudanca: string | null
+          id: string
+          snapshot: Json
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          criado_por?: string | null
+          descricao_mudanca?: string | null
+          id?: string
+          snapshot: Json
+          updated_at?: string
+          versao: number
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          criado_por?: string | null
+          descricao_mudanca?: string | null
+          id?: string
+          snapshot?: Json
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: []
+      }
       ficha_campos: {
         Row: {
           ativo: boolean | null
