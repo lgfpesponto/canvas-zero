@@ -123,7 +123,7 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       supabase.removeChannel(chan);
       clearInterval(iv);
       // libera reservas do usuário ao fechar
-      supabase.rpc('liberar_reservas_usuario' as any, { _produto_ids: ids }).catch(() => {});
+      (supabase.rpc as any)('liberar_reservas_usuario', { _produto_ids: ids }).then(() => {}, () => {});
     };
   }, [open, produto, user]);
 
