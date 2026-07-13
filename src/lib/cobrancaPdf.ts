@@ -247,15 +247,15 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
       if (o.corGlitterCano) priceItems.push(['Glitter/Tecido Cano', GLITTER_CANO_PRECO]);
       if (o.laserGaspea) priceItems.push(['Laser Gáspea', LASER_GASPEA_PRECO]);
       if (o.corGlitterGaspea) priceItems.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
-      if (o.pintura === 'Sim') priceItems.push(['Pintura', PINTURA_PRECO]);
-      if (o.estampa === 'Sim') priceItems.push(['Estampa', ESTAMPA_PRECO]);
+      if (o.pintura === 'Sim') priceItems.push(['Pintura', getDynamicUnitPrice('pintura', PINTURA_PRECO)]);
+      if (o.estampa === 'Sim') priceItems.push(['Estampa', getDynamicUnitPrice('estampa', ESTAMPA_PRECO)]);
       const areaP = AREA_METAL.find(a => a.label === o.metais)?.preco;
       if (areaP) priceItems.push(['Área Metal: ' + o.metais, areaP]);
-      if (o.strassQtd) priceItems.push([`Strass (${o.strassQtd} un.)`, o.strassQtd * STRASS_PRECO]);
-      if (o.cruzMetalQtd) priceItems.push([`Cruz metal (${o.cruzMetalQtd} un.)`, o.cruzMetalQtd * CRUZ_METAL_PRECO]);
-      if (o.bridaoMetalQtd) priceItems.push([`Bridão metal (${o.bridaoMetalQtd} un.)`, o.bridaoMetalQtd * BRIDAO_METAL_PRECO]);
-      if (o.trisce === 'Sim') priceItems.push(['Tricê', TRICE_PRECO]);
-      if (o.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
+      if (o.strassQtd) priceItems.push([`Strass (${o.strassQtd} un.)`, o.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO)]);
+      if (o.cruzMetalQtd) priceItems.push([`Cruz metal (${o.cruzMetalQtd} un.)`, o.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO)]);
+      if (o.bridaoMetalQtd) priceItems.push([`Bridão metal (${o.bridaoMetalQtd} un.)`, o.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO)]);
+      if (o.trisce === 'Sim') priceItems.push(['Tricê', getDynamicUnitPrice('trice', TRICE_PRECO)]);
+      if (o.tiras === 'Sim') priceItems.push(['Tiras', getDynamicUnitPrice('tiras', TIRAS_PRECO)]);
       const soladoP = SOLADO.find(s => s.label === o.solado)?.preco;
       if (soladoP) priceItems.push(['Solado: ' + o.solado, soladoP]);
       if (o.solado !== 'Rústica') {
@@ -264,7 +264,7 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
         const corViraP = COR_VIRA.find(c => c.label === o.corVira)?.preco || 0;
         if (corViraP > 0) priceItems.push(['Cor Vira: ' + o.corVira, corViraP]);
       }
-      if (o.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
+      if (o.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
       const carimboP = CARIMBO.find(c => c.label === o.carimbo)?.preco;
       if (carimboP) priceItems.push([o.carimbo!, carimboP]);
       if (o.adicionalValor && o.adicionalValor > 0) priceItems.push(['Adicional: ' + (o.adicionalDesc || ''), o.adicionalValor]);
