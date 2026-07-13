@@ -23,6 +23,7 @@ import {
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
 } from './extrasConfig';
+import { getDynamicUnitPrice } from './dynamicUnitPrice';
 
 export type FindFichaPrice = (nome: string, categoria: string) => number | undefined;
 export type GetByCategoria = (categoria: string) => { label: string; preco: number }[];
@@ -89,18 +90,18 @@ export function recomputeSubtotal(
   if (order.corGlitterCano) items.push(GLITTER_CANO_PRECO);
   if (order.laserGaspea) items.push(LASER_GASPEA_PRECO);
   if (order.corGlitterGaspea) items.push(GLITTER_GASPEA_PRECO);
-  if (order.pintura === 'Sim') items.push(PINTURA_PRECO);
-  if (order.estampa === 'Sim') items.push(ESTAMPA_PRECO);
+  if (order.pintura === 'Sim') items.push(getDynamicUnitPrice('pintura', PINTURA_PRECO));
+  if (order.estampa === 'Sim') items.push(getDynamicUnitPrice('estampa', ESTAMPA_PRECO));
   push(AREA_METAL.find(a => a.label === order.metais)?.preco);
-  if (order.strassQtd) items.push(order.strassQtd * STRASS_PRECO);
-  if (order.cruzMetalQtd) items.push(order.cruzMetalQtd * CRUZ_METAL_PRECO);
-  if (order.bridaoMetalQtd) items.push(order.bridaoMetalQtd * BRIDAO_METAL_PRECO);
+  if (order.strassQtd) items.push(order.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO));
+  if (order.cruzMetalQtd) items.push(order.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO));
+  if (order.bridaoMetalQtd) items.push(order.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO));
   const det: any = order.extraDetalhes || {};
-  if (det.cavaloMetal && det.cavaloMetalQtd) items.push(det.cavaloMetalQtd * CAVALO_METAL_PRECO);
-  if (order.trisce === 'Sim') items.push(TRICE_PRECO);
-  if (order.tiras === 'Sim') items.push(TIRAS_PRECO);
-  if (det.franja) items.push(FRANJA_PRECO);
-  if (det.corrente) items.push(CORRENTE_PRECO);
+  if (det.cavaloMetal && det.cavaloMetalQtd) items.push(det.cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO));
+  if (order.trisce === 'Sim') items.push(getDynamicUnitPrice('trice', TRICE_PRECO));
+  if (order.tiras === 'Sim') items.push(getDynamicUnitPrice('tiras', TIRAS_PRECO));
+  if (det.franja) items.push(getDynamicUnitPrice('franja', FRANJA_PRECO));
+  if (det.corrente) items.push(getDynamicUnitPrice('corrente', CORRENTE_PRECO));
   push(SOLADO.find(s => s.label === order.solado)?.preco);
   // Cor da Sola CONTEXTUAL (PVC = R$0, Borracha + Marrom/Branco = R$20, etc.)
   push(getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola));
