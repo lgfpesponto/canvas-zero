@@ -360,11 +360,10 @@ export function useUpdateFichaCampo() {
       const { error } = await supabase.from('ficha_campos').update(rest).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_campos'] }),
-  });
-}
-
-export function useDeleteFichaCampo() {
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ficha_campos'] });
+      qc.invalidateQueries({ queryKey: ['dynamic_unit_prices'] });
+    },
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
