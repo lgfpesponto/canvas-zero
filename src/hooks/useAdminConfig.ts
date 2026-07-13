@@ -360,7 +360,10 @@ export function useUpdateFichaCampo() {
       const { error } = await supabase.from('ficha_campos').update(rest).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ficha_campos'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ficha_campos'] });
+      qc.invalidateQueries({ queryKey: ['dynamic_unit_prices'] });
+    },
   });
 }
 

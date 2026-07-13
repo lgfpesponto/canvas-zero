@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFichaEdit } from '@/contexts/FichaEditContext';
 import { lookupSlug } from './labelSlugMap';
+import { QUANTIFIABLE_METAL_SLUGS } from '@/lib/dynamicUnitPrice';
 import {
   useFichaCampos, useAllVariacoesByFichaTipo,
   useUpdateFichaCampo, useInsertVariacao, useUpdateVariacao, useDeleteVariacao,
@@ -213,12 +214,17 @@ function EditPopover({
         )}
         {isCheckbox && (
           <div className="space-y-1">
-            <Label className="text-xs">Preço quando "Tem" (R$)</Label>
+            <Label className="text-xs">
+              {QUANTIFIABLE_METAL_SLUGS.has(slug) ? 'Preço quando "Tem" unitário (R$)' : 'Preço quando "Tem" (R$)'}
+            </Label>
             <Input
               type="number" step="0.01" value={checkboxPreco}
               onChange={e => setCheckboxPreco(parseFloat(e.target.value) || 0)}
               className="h-8"
             />
+            {QUANTIFIABLE_METAL_SLUGS.has(slug) && (
+              <p className="text-[10px] text-muted-foreground">soma = unitário × quantidade</p>
+            )}
           </div>
         )}
         {isTexto && (

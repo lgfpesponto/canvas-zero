@@ -44,6 +44,7 @@ import MontagemPortalPage from "./pages/MontagemPortalPage";
 import PublicTrackingPage from "./pages/PublicTrackingPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 import PrecoReconciler from "@/components/PrecoReconciler";
+import { useSyncDynamicUnitPrices } from "@/lib/dynamicUnitPrice";
 import NotFound from "./pages/NotFound.tsx";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -62,6 +63,7 @@ const VALUE_BLOCKED_PREFIXES = [
 const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { role, loading: authLoading, isLoggedIn } = useAuth();
+  useSyncDynamicUnitPrices();
   // Enquanto o role hidrata, não renderizar nada — evita flash do dashboard de
   // vendedor para usuários de portal restrito (bordado/montagem) logo após o login.
   if (authLoading && isLoggedIn && location.pathname !== '/login') {

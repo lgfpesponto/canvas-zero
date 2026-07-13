@@ -50,6 +50,7 @@ import {
   LASER_CANO_PRECO, LASER_GASPEA_PRECO, GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
   VIRA_HIDDEN, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
+import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
 import { BordadoOrderView } from '@/components/BordadoOrderView';
 import { AjusteValorSolicitacao } from '@/components/AjusteValorSolicitacao';
@@ -422,26 +423,26 @@ const OrderDetailPage = () => {
     const p = findFichaPrice(recTal, 'recorte_taloneira') ?? 0;
     if (p) priceItems.push(['Recorte Taloneira: ' + recTal, p]);
   }
-  if (order.pintura === 'Sim') priceItems.push(['Pintura', PINTURA_PRECO]);
-  if (order.estampa === 'Sim') priceItems.push(['Estampa', ESTAMPA_PRECO]);
+  if (order.pintura === 'Sim') priceItems.push(['Pintura', getDynamicUnitPrice('pintura', PINTURA_PRECO)]);
+  if (order.estampa === 'Sim') priceItems.push(['Estampa', getDynamicUnitPrice('estampa', ESTAMPA_PRECO)]);
   const areaP = AREA_METAL.find(a => a.label === order.metais)?.preco;
   if (areaP) priceItems.push(['Área Metal: ' + order.metais, areaP]);
-  if (order.strassQtd) priceItems.push([`Strass (${order.strassQtd} un.)`, order.strassQtd * STRASS_PRECO]);
-  if (order.cruzMetalQtd) priceItems.push([`Cruz metal (${order.cruzMetalQtd} un.)`, order.cruzMetalQtd * CRUZ_METAL_PRECO]);
-  if (order.bridaoMetalQtd) priceItems.push([`Bridão metal (${order.bridaoMetalQtd} un.)`, order.bridaoMetalQtd * BRIDAO_METAL_PRECO]);
+  if (order.strassQtd) priceItems.push([`Strass (${order.strassQtd} un.)`, order.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO)]);
+  if (order.cruzMetalQtd) priceItems.push([`Cruz metal (${order.cruzMetalQtd} un.)`, order.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO)]);
+  if (order.bridaoMetalQtd) priceItems.push([`Bridão metal (${order.bridaoMetalQtd} un.)`, order.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO)]);
   // detP already declared above for detailsGrouped
-  if (detP.cavaloMetal && detP.cavaloMetalQtd) priceItems.push([`Cavalo metal (${detP.cavaloMetalQtd} un.)`, detP.cavaloMetalQtd * CAVALO_METAL_PRECO]);
-  if (order.trisce === 'Sim') priceItems.push(['Tricê', TRICE_PRECO]);
-  if (order.tiras === 'Sim') priceItems.push(['Tiras', TIRAS_PRECO]);
-  if (detP.franja) priceItems.push(['Franja', FRANJA_PRECO]);
-  if (detP.corrente) priceItems.push(['Corrente', CORRENTE_PRECO]);
+  if (detP.cavaloMetal && detP.cavaloMetalQtd) priceItems.push([`Cavalo metal (${detP.cavaloMetalQtd} un.)`, detP.cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO)]);
+  if (order.trisce === 'Sim') priceItems.push(['Tricê', getDynamicUnitPrice('trice', TRICE_PRECO)]);
+  if (order.tiras === 'Sim') priceItems.push(['Tiras', getDynamicUnitPrice('tiras', TIRAS_PRECO)]);
+  if (detP.franja) priceItems.push(['Franja', getDynamicUnitPrice('franja', FRANJA_PRECO)]);
+  if (detP.corrente) priceItems.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
   const soladoP = SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
   const corSolaP = getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
   if (corSolaP) priceItems.push(['Cor Sola: ' + order.corSola, corSolaP]);
   const corViraP = COR_VIRA.find(c => c.label === order.corVira)?.preco;
   if (corViraP) priceItems.push(['Cor Vira: ' + order.corVira, corViraP]);
-  if (order.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
+  if (order.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
   const carimboP = CARIMBO.find(c => c.label === order.carimbo)?.preco;
   if (carimboP) priceItems.push([order.carimbo!, carimboP]);
   if (order.adicionalValor && order.adicionalValor > 0) priceItems.push(['Adicional: ' + (order.adicionalDesc || ''), order.adicionalValor]);

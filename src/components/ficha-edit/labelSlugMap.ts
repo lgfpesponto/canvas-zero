@@ -62,6 +62,7 @@ const BOTA_MAP: Record<string, string> = {
   'tipo do metal': 'tipo_metal',
   'cor do metal': 'cor_metal',
   'strass': 'strass',
+  'bola grande': 'bola_grande',
   'cruz': 'cruz_metal',
   'cruz (metal)': 'cruz_metal',
   'bridão': 'bridao_metal',
