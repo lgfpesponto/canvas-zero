@@ -36,7 +36,34 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
     setNome(produto.nome);
     setPrecoBase(produto.preco_base?.toString() ?? '');
     setPrecoLabel(produto.preco_label);
-    setVariacoes(produto.variacoes || {});
+    // Pré-popula grupos conhecidos com defaults quando vazio, para o admin
+    // conseguir editar preços sem precisar clicar "+ variação" antes.
+    const seeded = { ...(produto.variacoes || {}) };
+    const defaults: Record<string, { nome: string; preco: number }[]> = {
+      qual_sola: [
+        { nome: 'Preta borracha', preco: 25 },
+        { nome: 'De cor borracha', preco: 40 },
+        { nome: 'De couro', preco: 60 },
+      ],
+      troca_gaspea: [
+        { nome: 'Sim', preco: 35 },
+        { nome: 'Não', preco: 0 },
+      ],
+      vai_canivete: [
+        { nome: 'Sim', preco: 30 },
+        { nome: 'Não', preco: 0 },
+      ],
+      vai_faca: [
+        { nome: 'Sim', preco: 35 },
+        { nome: 'Não', preco: 0 },
+      ],
+    };
+    for (const f of EXTRA_SCHEMA[produto.id]?.fields || []) {
+      if (f.source === 'variacoes' && (!seeded[f.group] || seeded[f.group].length === 0) && defaults[f.group]) {
+        seeded[f.group] = defaults[f.group];
+      }
+    }
+    setVariacoes(seeded);
   }, [open, produto]);
 
   const salvar = async () => {
