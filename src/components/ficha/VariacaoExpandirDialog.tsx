@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { QRCodeSVG } from 'qrcode.react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ScannedQr } from '@/components/ficha/VariacaoFotoIcon';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface ExpandirItem {
   label: string;
@@ -20,23 +22,47 @@ interface Props {
   onToggle: (label: string, checked: boolean) => void;
 }
 
-const PAGE_SIZE = 3;
-
 export default function VariacaoExpandirDialog({ open, onOpenChange, title, items, selected, onToggle }: Props) {
+  const isMobile = useIsMobile();
+  const pageSize = isMobile ? 2 : 6;
   const [page, setPage] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const [query, setQuery] = useState('');
+
+  useEffect(() => { setPage(0); }, [query, isMobile]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(i => i.label.toLowerCase().includes(q));
+  }, [items, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = useMemo(
-    () => items.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
-    [items, page],
+    () => filtered.slice(page * pageSize, page * pageSize + pageSize),
+    [filtered, page, pageSize],
   );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setPage(0); }}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPage(0); setQuery(''); } }}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Pesquisar variação..."
+            className="pl-8 h-9"
+          />
+        </div>
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+          {pageItems.length === 0 && (
+            <p className="col-span-full text-center text-sm text-muted-foreground py-8">
+              Nenhuma variação encontrada.
+            </p>
+          )}
           {pageItems.map(it => (
             <VarCard
               key={it.label}
@@ -63,24 +89,15 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
 }
 
 function VarCard({ item, checked, onChange }: { item: ExpandirItem; checked: boolean; onChange: (c: boolean) => void }) {
-  const [imgOk, setImgOk] = useState(true);
   return (
     <div className="border rounded-lg p-2 flex flex-col items-center gap-2 bg-card">
-      <div className="relative w-full aspect-square bg-white rounded overflow-hidden border">
+      <div className="w-full aspect-square">
         {item.foto_url ? (
-          <>
-            <QRCodeSVG value={item.foto_url} size={256} className="absolute inset-0 w-full h-full" />
-            {imgOk && (
-              <img
-                src={item.foto_url}
-                alt={item.label}
-                onError={() => setImgOk(false)}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            )}
-          </>
+          <ScannedQr fotoUrl={item.foto_url} nome={item.label} className="w-full h-full" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">Sem foto</div>
+          <div className="w-full h-full bg-white rounded overflow-hidden border flex items-center justify-center text-xs text-muted-foreground">
+            Sem foto
+          </div>
         )}
       </div>
       <label className="flex items-center gap-2 w-full cursor-pointer">
