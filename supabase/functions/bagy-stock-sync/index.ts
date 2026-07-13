@@ -298,6 +298,17 @@ Deno.serve(async (req) => {
   const results: any[] = [];
 
   for (const item of pending || []) {
+    if (!item.estoque_produto_id) {
+      const nowIso = new Date().toISOString();
+      await admin.from("bagy_stock_sync_queue").update({
+        tentativas: (item.tentativas || 0) + 1,
+        ultimo_erro: "produto_excluido_antes_do_processamento",
+        processado_em: nowIso,
+      }).eq("id", item.id);
+      results.push({ sku: item.sku, ok: false, stage: "skip", error: "produto_excluido_antes_do_processamento" });
+      continue;
+    }
+
     // Lê produto pra pegar bagy_variation_id cacheado
     const { data: prod } = await admin
       .from("estoque_produtos")
