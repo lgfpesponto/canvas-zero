@@ -159,17 +159,14 @@ Deno.serve(async (req) => {
     if (localAntes > bagyAntes) {
       // Portal ficou pra trás; Bagy é fonte de verdade — puxa local pra baixo (SEM enfileirar push).
       if (!dryRun) {
-        await admin.rpc("set_config" as any, { setting_name: "app.skip_bagy_push", new_value: "on", is_local: true } as any).catch(() => {});
-        // Fallback direto: usa SQL via RPC customizada? Não temos. Como o trigger é AFTER UPDATE e a GUC é LOCAL da transação,
-        // set_config chamado por rpc não sobrevive. Solução: usar um UPDATE embutido numa função SECURITY DEFINER dedicada.
-        // Como não temos essa função ainda, vamos DELETAR a fila pendente que o trigger criar imediatamente após o UPDATE.
         const { error: upErr } = await admin.from("estoque_produtos").update({ quantidade: bagyAntes, updated_at: new Date().toISOString() }).eq("id", p.id);
         if (upErr) { erros++; results.push({ sku: p.sku_base, acao: "erro", erro: upErr.message }); continue; }
-        // Remove qualquer fila pendente que o trigger tenha criado (pra não empurrar de volta o valor que veio da Bagy).
+        // O trigger AFTER UPDATE de quantidade cria uma linha em bagy_stock_sync_queue mandando o mesmo saldo de volta.
+        // Remove imediatamente pra evitar eco Bagy→Portal→Bagy.
         await admin.from("bagy_stock_sync_queue").delete().eq("estoque_produto_id", p.id).is("processado_em", null);
-        // Marca o produto como sincronizado
         await admin.from("estoque_produtos").update({ bagy_sync_status: "ok", bagy_sync_erro: null, bagy_sync_at: new Date().toISOString() }).eq("id", p.id);
       }
+
       ajustesLocal++;
       await admin.from("bagy_stock_reconcile_log").insert({
         produto_id: p.id, sku: p.sku_base, variation_id: variationId,
