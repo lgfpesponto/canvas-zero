@@ -101,17 +101,19 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  // Optional body: { retry_produto_id?: string, retry_all_errors?: boolean, force_all_active?: boolean }
+  // Optional body: { retry_produto_id?: string, retry_all_errors?: boolean, force_all_active?: boolean, retry_unsynced?: boolean }
   let body: any = {};
   try { body = await req.json(); } catch { /* empty body ok */ }
 
   // Retry: reenfileira itens específicos
-  if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active) {
+  if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced) {
     let q = admin.from("estoque_produtos").select("id, sku_base, quantidade").eq("ativo", true);
     if (body.retry_produto_id) {
       q = q.eq("id", body.retry_produto_id);
     } else if (body.retry_all_errors) {
       q = q.in("bagy_sync_status", ["nao_encontrado_na_bagy", "erro"]);
+    } else if (body.retry_unsynced) {
+      q = q.or("bagy_sync_status.is.null,bagy_sync_status.in.(pendente,erro,nao_encontrado_na_bagy),bagy_sync_at.is.null");
     }
     const { data: prods, error } = await q;
     if (error) {
@@ -134,7 +136,7 @@ Deno.serve(async (req) => {
           criado_em: new Date().toISOString(),
         } as any, { onConflict: "estoque_produto_id" });
       await admin.from("estoque_produtos")
-        .update({ bagy_sync_status: "pendente", bagy_sync_erro: null })
+        .update({ bagy_sync_status: "pendente", bagy_sync_erro: null, bagy_sync_at: null })
         .eq("id", p.id);
     }
   }
