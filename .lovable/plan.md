@@ -1,75 +1,61 @@
+## Ajustes no fluxo Estoque
 
-## 1. Botão "Estoque Pronto" nos pedidos de vendedor = Estoque
+### 1. Botão "Estoque Pronto" ao lado dos ícones abaixo da foto
 
-Locais: `src/pages/OrderPage.tsx` (bota) e `src/pages/BeltOrderPage.tsx` (cinto).
+**Arquivo:** `src/components/FotoPedidoSidePanel.tsx`
+- Adicionar props opcionais `onEstoquePronto?: () => void` e `showEstoquePronto?: boolean`.
+- Renderizar um terceiro botão circular verde (esmeralda) com ícone `Package` (lucide), no mesmo grupo dos botões olho/documento, só quando `showEstoquePronto && onEstoquePronto` estiverem definidos.
+- Estilo: `h-14 w-14 rounded-full` verde com hover consistente, tooltip "Criar direto no Estoque".
 
-- Quando `vendedorSelecionado === 'Estoque'`, aparece um botão "Estoque Pronto" ao lado do submit.
-- Marca uma flag interna `estoquePronto` no payload. Ao salvar:
-  - Cria o pedido normalmente **mas** já com `status = 'Baixa Estoque'` e `estoque_pronto = true`.
-  - Chama `criar_estoque_produto` imediatamente após o insert (mesma lógica de agregar por SKU já existe — soma quantidade no tamanho, não sobrescreve nome/foto).
-  - Após conferir/finalizar, o botão de submit muda o rótulo para "Criar Estoque" e, ao concluir, redireciona para `/estoque` (não vai para `/meus-pedidos`).
-- Pedidos com `estoque_pronto = true` são **ocultados** de todas as listagens de pedidos (Meus Pedidos, Relatórios, Dashboard, Comissão, Cobrança, Bordado/Montagem etc.) via filtro central em `useOrders`/`useOrdersQuery` e no lado do servidor onde aplicável. Ficam acessíveis apenas via link direto/estoque para auditoria.
+**Arquivos:** `src/pages/OrderPage.tsx` e `src/pages/BeltOrderPage.tsx`
+- Passar `showEstoquePronto={vendedorSelecionado === 'Estoque'}` e `onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}` para o `FotoPedidoSidePanel`.
+- Manter o botão grande do rodapé como redundância.
 
-Migration: `ALTER TABLE public.orders ADD COLUMN estoque_pronto boolean NOT NULL DEFAULT false;` + índice.
+### 2. Compras de estoque entram como "Em aberto"
 
-## 2. SKU já existente = somar ao produto atual
+**Migration:** atualizar as RPCs `public.comprar_estoque(...)` e `public.comprar_estoque_bagy(...)` para inserir `status = 'Em aberto'` no lugar do atual `'Pendente'`, com a entrada correspondente no `historico`. Assim toda compra vinda do site ou do estoque cai direto no fluxo normal de produção.
 
-`criar_estoque_produto` (Postgres RPC): ajustar para, quando encontrar linha em `estoque_produtos` com mesmo `sku` + `tamanho`, apenas **incrementar `quantidade`** e **manter nome/foto/preço atuais**. Só cria novo registro se combinação SKU+tamanho não existir. Vale tanto para "Estoque Pronto" quanto para o fluxo atual de Baixa Estoque.
+### 3. Excluir produto inteiro do Estoque (admin_master / admin_producao)
 
-## 3. Ajuste manual de estoque (admin_producao / admin_master)
+**Migration:** nova RPC `public.excluir_estoque_produto_completo(_sku_base text)` protegida por `has_role(auth.uid(),'admin_master') OR has_role(auth.uid(),'admin_producao')` que:
+- Marca `ativo = false` em todos os `estoque_produtos` com o mesmo `sku_base` (todos os tamanhos).
+- Libera pedidos ligados (mesma lógica de `excluir_estoque_produto`).
+- Registra a exclusão em `estoque_ajustes_log`.
 
-Em `src/pages/EstoquePage.tsx`, ícone de engrenagem por linha abrindo diálogo com:
-- Nome/foto/SKU/preço editáveis.
-- Botões "+1 / −1" e input livre para ajustar `quantidade` diretamente.
-- Registro em log simples (`estoque_ajustes_log`: produto_id, delta, motivo opcional, user_id, timestamp).
-Visível/acionável **só** para `admin_master` e `admin_producao`.
+**Arquivo:** `src/pages/EstoquePage.tsx`
+- Botão "Excluir produto" (ícone `Trash2` vermelho) no cabeçalho de cada card de produto agrupado, visível só para admin_master/admin_producao, com confirmação forte.
 
-## 4. Empréstimos ("Adicionar emprestado")
+### 4. Sincronização com a Bagy pelo SKU
 
-Nova tabela `estoque_emprestimos`:
-- `produto_id` (FK), `tamanho`, `quantidade`, `vendedor_id`, `vendedor_nome`, `status` ('ativo'|'devolvido'), `criado_por`, timestamps.
-- GRANTs + RLS: SELECT liberado para authenticated (todos veem); INSERT/UPDATE só para admin_master/admin_producao (via `has_role`); vendedor consegue ver os próprios via mesma policy de SELECT.
+**Diagnóstico:** hoje a fila real usada por `bagy-stock-sync` é `bagy_stock_sync_queue`, mas as rotinas novas ("estoque pronto", ajuste manual) só enfileiram em `estoque_bagy_sync_pendente`. Resultado: SKUs novos não chegam à edge function e não sobem para a Bagy.
 
-UI em `EstoquePage.tsx`:
-- Botão "Adicionar emprestado" (topo esquerdo, acima da busca) — só admin_master/admin_producao — abre diálogo com: select vendedor, busca de produtos, seleção múltipla de produto+tamanho+quantidade, salvar.
-- Novo painel "Emprestados" listando ativos com botão "Devolvido" (marca `status='devolvido'`). Não mexe em `quantidade` do estoque.
-- Ao clicar em "Comprar" (`EstoqueBuyDialog`), se houver empréstimo ativo daquele produto+tamanho, mostrar aviso "Está com o vendedor X (qtd Y)".
-- Para o vendedor logado que possui empréstimos, badge/card fixo no topo esquerdo da `EstoquePage` listando seus itens (somente leitura).
+**Migration:**
+- Ampliar o trigger `trg_estoque_marca_pendente_bagy` (em `estoque_produtos`) para **também** inserir/atualizar `bagy_stock_sync_queue` com a `quantidade` atual em todo INSERT/UPDATE de `quantidade`, com `onConflict(estoque_produto_id)` para não duplicar.
+- Cobrir os deltas gerados por `ajustar_estoque_manual`, `criar_estoque_produto` e `comprar_estoque`.
+- SKU enviado = `sku_base` exato (a edge function `bagy-stock-sync` já faz o lookup por SKU idêntico).
+- Backfill single-shot: enfileirar todos `estoque_produtos` ativos que ainda não sincronizaram.
 
-## 5. Botão "Criar estoque" no scanner de código de barras
+**Arquivo:** `src/components/estoque/BagySyncPendingButton.tsx`
+- Manter o botão manual, mas ao clicar chamar `bagy-stock-sync` **sem** `retry_produto_id` (drena a fila real em batch).
+- Marcar `estoque_bagy_sync_pendente.sincronizado_em` apenas quando cada SKU volta como sucesso.
 
-Em `src/pages/RanchoChiquePedidosPage.tsx` (ou onde vive o dock de barcode/mudar progresso — verificar em Meus Pedidos): quando **todos** os pedidos escaneados forem `vendedor === 'Estoque'` e `status === 'Baixa Estoque'`, mostrar botão "Criar Estoque" ao lado de "Mudar Progresso". Ao clicar, chama `criarEstoqueEmMassa` já existente e exibe progresso.
+### 5. Badge "✓ Sincronizado com Bagy" — visibilidade
 
-## 6. Sincronização manual Bagy pós-entrada de estoque
+**Arquivo:** `src/pages/EstoquePage.tsx`
+- Mensagens (verde/amarelo/vermelho) já são gated por `canSeeBagySync` (admin_master, admin_producao, vendedor_comissao). Manter.
+- Só exibir "✓ Sincronizado com Bagy" quando **todos** os tamanhos tiverem `bagy_sync_status === 'ok'` **e** `bagy_sync_at` não nulo. Se algum estiver `null`/vazio, não mostrar nada (evita falso positivo antes da 1ª sync real).
 
-Nova tabela `estoque_bagy_sync_pendente` (produto_id, criado_em, sincronizado_por, sincronizado_em). Trigger em `estoque_produtos` na criação/incremento de quantidade insere/atualiza pendente.
+### 6. Cancelamento vindo da Bagy propaga para o portal
 
-- Botão "Sincronizar com Bagy" no topo da `EstoquePage`, visível para admin_master, admin_producao, vendedor_comissao — aparece **só quando existirem pendentes**.
-- Ao clicar: invoca edge function nova `bagy-stock-sync-manual` que percorre pendentes, envia push só desses SKUs e marca como sincronizados (some para todos os usuários — realtime na tabela).
+**Arquivo:** `supabase/functions/bagy-webhook/index.ts`
+- No trecho que trata `isRefund`/cancelamento (linha ~638), quando existir `pedidoExistente?.order_id_portal`:
+  - Atualizar o pedido do portal para `status = 'Cancelado'`, definir `motivo_cancelamento = 'Cancelado na Bagy'` (ou motivo textual vindo do payload, se disponível), preservar `preco`/`quantidade` no snapshot conforme regra já existente para Cancelado.
+  - Apendar uma entrada em `historico` com data/hora São Paulo, `de = status_atual`, `para = 'Cancelado'`, `motivo = 'Cancelado na Bagy'`, `usuario = 'Bagy (webhook)'`.
+  - Registrar linha em `order_status_changes` para o pedido para manter o índice de mudanças em dia.
+  - Não regride se o pedido já estiver `Cancelado` (idempotente). Não mexe em estoque (a reversão de estoque continua sendo decisão manual do admin, como já documentado no código).
 
-## 7. Backfill de SKU em pedidos "Estoque" existentes
+### Detalhes técnicos
 
-Migration data-fix (rodar 1x): para todos os `orders` com `vendedor='Estoque'` e `sku_estoque IS NULL`:
-- Agrupar por `numero` (grade); gerar `skuBase = slugify(modelo)` e aplicar `<base>-<tamanho>` a todos da grade. Deixar `nome_produto_estoque` em branco.
-- Em `CompletarSkusBulkPanel.tsx`, incluir botão "Preencher na grade" ao lado do campo Nome: replica o nome digitado para todos os pedidos com o mesmo `numero`.
-
-## 8. Prioridade Estoque nos imports Bagy
-
-Em `supabase/functions/bagy-webhook/index.ts` (fluxo de match por SKU):
-- **Ordem obrigatória**: (1) procurar `estoque_produtos` com mesmo SKU **e** `quantidade > 0`; se achar, criar pedido já baixando do estoque (fluxo atual). (2) Só se não houver, tentar match em modelos do Rancho Chique → gerar ficha. (3) Se nada bater, cai no fluxo genérico atual.
-- Ajustar helpers e mensagens do painel `BagyFichaDialog` para refletir a nova prioridade.
-
-## Detalhes técnicos
-
-- **Novas tabelas**: `estoque_emprestimos`, `estoque_bagy_sync_pendente`, `estoque_ajustes_log`. Cada uma com GRANTs completos + RLS + updated_at trigger (padrão do projeto).
-- **Nova coluna**: `orders.estoque_pronto boolean default false`.
-- **RPC alterada**: `criar_estoque_produto` — soma em SKU+tamanho existente ao invés de duplicar.
-- **Nova edge function**: `bagy-stock-sync-manual` (verify_jwt=false + validação de role via JWT interno).
-- **Realtime**: adicionar `estoque_emprestimos` e `estoque_bagy_sync_pendente` ao publication `supabase_realtime`.
-- **Filtros de listagem**: centralizar `estoque_pronto = false` em `useOrdersQuery` e `useOrders` para não vazar em nenhuma tela.
-- **Sem mudanças** em: PDFs de produção, cálculo de preço, comissão, permissões existentes (só adiciona restrições novas nos botões admin).
-
-## Fora do escopo (confirmar se quiser incluir)
-
-- Interface para editar/estornar itens do log de ajuste manual.
-- Notificação push quando empréstimo é devolvido.
+- **Sem mudanças** em PDFs, cálculo de preço, comissão, permissões existentes.
+- **Realtime**: continuar ouvindo `estoque_produtos` e `estoque_bagy_sync_pendente`.
+- **Idempotência**: todas as ações do webhook (cancelamento incluso) precisam ser seguras contra re-entrega — checar status atual antes de sobrescrever.
