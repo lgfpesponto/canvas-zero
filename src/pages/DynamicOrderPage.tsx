@@ -272,6 +272,7 @@ export default function DynamicOrderPage() {
         </Card>
       </motion.div>
     </div>
+    </FichaEditProvider>
   );
 }
 
