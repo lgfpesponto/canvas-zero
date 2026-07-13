@@ -2193,9 +2193,12 @@ export default function AdminConfigFichaPage() {
           )}
         </div>
 
-        <h1 className="mb-8 font-montserrat text-2xl font-bold text-foreground lowercase">
+        <h1 className="mb-4 font-montserrat text-2xl font-bold text-foreground lowercase">
           {tipo.nome.toLowerCase()}
         </h1>
+
+        <LeadTimeEditor fichaTipoId={tipo.id} valorAtual={(tipo as any).lead_time_dias ?? 20} />
+
 
         {/* ─── BOOT: Exact mirror of OrderPage form ─── */}
         {isBoot && categorias && sectionOrder.length > 0 && (
