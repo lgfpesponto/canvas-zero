@@ -2200,7 +2200,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   setShowMirror(false);
                 }
               }} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
-              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : `OK — FINALIZAR${finalizeBadge ? ' ' + finalizeBadge : ''}`}</button>
+              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : (estoquePronto ? 'CRIAR ESTOQUE' : `OK — FINALIZAR${finalizeBadge ? ' ' + finalizeBadge : ''}`)}</button>
             </div>
           </motion.div>
         </div>
