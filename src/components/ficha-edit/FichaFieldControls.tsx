@@ -192,23 +192,8 @@ function EditPopover({
     toast.success('Variação criada');
   };
 
-  const removeDraft = (id: string) => setDrafts(prev => prev.filter(d => d.id !== id));
 
-  const commitDraft = async (id: string) => {
-    const d = drafts.find(x => x.id === id);
-    if (!d || !d.nome.trim()) { toast.error('Informe o nome'); return; }
-    const c = await ensureCampo();
-    if (!c) return;
-    await insertVar.mutateAsync({
-      categoria_id: c.categoria_id!,
-      campo_id: c.id,
-      nome: d.nome.trim(),
-      preco_adicional: d.preco || 0,
-      ordem: variacoes.length + 1,
-    });
-    removeDraft(id);
-    toast.success('Variação criada');
-  };
+
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
