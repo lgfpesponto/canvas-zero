@@ -20,7 +20,9 @@ interface Props {
   items: ExpandirItem[];
   selected: string[];
   onToggle: (label: string, checked: boolean) => void;
+  onClearAll?: () => void;
 }
+
 
 export default function VariacaoExpandirDialog({ open, onOpenChange, title, items, selected, onToggle }: Props) {
   const isMobile = useIsMobile();
