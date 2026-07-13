@@ -372,6 +372,7 @@ export function orderToDbRow(order: any, userId: string) {
     erro_de_pedido_id: order.erroDePedidoId || null,
     erro_descricao: order.erroDescricao || null,
     estoque_pronto: order.estoquePronto ?? false,
+    ficha_versao_id: order.fichaVersaoId || null,
   };
 }
 
@@ -405,6 +406,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
   templateNome: 'template_nome', templateSku: 'template_sku',
   erroDePedidoId: 'erro_de_pedido_id', erroDescricao: 'erro_descricao',
+  fichaVersaoId: 'ficha_versao_id',
 };
 
 /** Field labels for change tracking */

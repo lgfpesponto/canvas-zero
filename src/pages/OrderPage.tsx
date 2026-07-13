@@ -23,6 +23,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
+import EditFichaButton from '@/components/orders/EditFichaButton';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -1614,6 +1615,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
                 Trocar para Cinto
               </Button>
+              <EditFichaButton fichaSlug="bota" />
+
             </>
           )}
           {mode === 'template' && (

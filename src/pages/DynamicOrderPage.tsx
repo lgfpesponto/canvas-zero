@@ -15,6 +15,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import EditFichaButton from '@/components/orders/EditFichaButton';
+import { getVersaoAtiva } from '@/lib/fichaVersoes';
 
 interface CampoOpcao {
   label: string;
@@ -122,6 +124,9 @@ export default function DynamicOrderPage() {
         }
       }
 
+      // Stamp da versão ativa da ficha
+      const versaoAtiva = tipo?.id ? await getVersaoAtiva(tipo.id) : null;
+
       const row = {
         numero,
         user_id: user.id,
@@ -137,6 +142,7 @@ export default function DynamicOrderPage() {
         status: 'Em aberto',
         tipo_extra: slug,
         extra_detalhes: snapshot,
+        ficha_versao_id: versaoAtiva?.id || null,
         historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado' }],
         alteracoes: [],
         observacao,
@@ -198,9 +204,12 @@ export default function DynamicOrderPage() {
           <ArrowLeft className="h-4 w-4" /> voltar
         </button>
 
-        <h1 className="mb-6 font-montserrat text-2xl font-bold text-foreground lowercase">
-          {tipo.nome.toLowerCase()}
-        </h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="font-montserrat text-2xl font-bold text-foreground lowercase">
+            {tipo.nome.toLowerCase()}
+          </h1>
+          {slug && <EditFichaButton fichaSlug={slug} />}
+        </div>
 
         <Card>
           <CardContent className="space-y-5 p-6">

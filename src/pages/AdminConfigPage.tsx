@@ -16,13 +16,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import FichaBuilder from '@/components/admin/FichaBuilder';
+import HistoricoFichasTab from '@/components/gestao/HistoricoFichasTab';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 import { FinanceiroInner } from './FinanceiroPage';
 import ConfiguracoesNFe from './ConfiguracoesNFe';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
 
 type SectionKey =
-  | 'fichas' | 'extras' | 'progresso' | 'relatorios'
+  | 'historico-fichas' | 'extras' | 'progresso' | 'relatorios'
   | 'usuarios' | 'gestao' | 'atacado-sync' | 'financeiro' | 'nfe';
 
 export default function AdminConfigPage() {
@@ -57,7 +58,7 @@ export default function AdminConfigPage() {
   };
 
   const sections: { key: SectionKey; label: string; Icon: typeof Layers; visible: boolean }[] = [
-    { key: 'fichas', label: 'ficha de produção', Icon: Layers, visible: true },
+    { key: 'historico-fichas', label: 'ficha de produção', Icon: Layers, visible: true },
     { key: 'extras', label: 'extras', Icon: Package, visible: true },
     { key: 'progresso', label: 'progresso de produção', Icon: Activity, visible: true },
     { key: 'relatorios', label: 'relatórios', Icon: BarChart3, visible: true },
@@ -115,38 +116,8 @@ export default function AdminConfigPage() {
         )}
 
         {/* ── Seções ── */}
-        {activeSection?.key === 'fichas' && (
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Gerencie as variações, categorias e etapas de produção de cada tipo de ficha.
-              </p>
-              <Button size="sm" className="gap-1.5" onClick={() => setBuilderOpen(true)}>
-                <Plus className="h-4 w-4" /> criar nova ficha
-              </Button>
-            </div>
-            {isLoading ? (
-              <div className="grid gap-4 md:grid-cols-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-36 animate-pulse rounded-xl bg-muted" />
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-3">
-                <AnimatePresence>
-                  {tipos?.map((tipo, i) => (
-                    <FichaTipoCard
-                      key={tipo.id}
-                      tipo={tipo}
-                      index={i}
-                      canDelete={isAdminMaster}
-                      onDelete={() => setDeleteTarget({ id: tipo.id, nome: tipo.nome })}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+        {activeSection?.key === 'historico-fichas' && (
+          <HistoricoFichasTab />
         )}
 
         {activeSection?.key === 'extras' && (
