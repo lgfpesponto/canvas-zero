@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Loader2, X, Eye, FileText } from 'lucide-react';
+import { ExternalLink, Loader2, X, Eye, FileText, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isDriveUrl, toDriveImageUrl, toDrivePreviewUrl } from '@/lib/driveUrl';
 
@@ -8,15 +8,17 @@ interface Props {
   onClose: () => void;
   onFinalizar?: () => void;
   onSaveDraft?: () => void;
+  onEstoquePronto?: () => void;
+  showEstoquePronto?: boolean;
   disabled?: boolean;
 }
 
 /**
  * Painel lateral fixo (sticky) com a foto do pedido.
- * Opcionalmente exibe botões flutuantes "olho" (finalizar/conferir) e "página" (salvar rascunho)
- * logo abaixo do painel — acompanham a rolagem porque o aside é sticky.
+ * Opcionalmente exibe botões flutuantes "olho" (finalizar/conferir), "página" (salvar rascunho)
+ * e "caixa" (criar direto no estoque) logo abaixo do painel.
  */
-export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, disabled }: Props) => {
+export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, onEstoquePronto, showEstoquePronto, disabled }: Props) => {
   const [imgFailed, setImgFailed] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -91,7 +93,7 @@ export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, di
         </div>
       </div>
 
-      {(onFinalizar || onSaveDraft) && (
+      {(onFinalizar || onSaveDraft || (showEstoquePronto && onEstoquePronto)) && (
         <div className="mt-3 flex justify-start gap-2">
           {onFinalizar && (
             <button
@@ -115,6 +117,18 @@ export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, di
               className="h-14 w-14 rounded-full bg-card border-2 border-primary text-primary shadow-lg hover:bg-primary/10 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText size={22} />
+            </button>
+          )}
+          {showEstoquePronto && onEstoquePronto && (
+            <button
+              type="button"
+              onClick={onEstoquePronto}
+              disabled={disabled}
+              title="Criar direto no Estoque"
+              aria-label="Criar direto no Estoque"
+              className="h-14 w-14 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Package size={22} />
             </button>
           )}
         </div>

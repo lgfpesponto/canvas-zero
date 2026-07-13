@@ -2061,6 +2061,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             onClose={() => setMostrarFotoPainel(false)}
             onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
             onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
+            showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
+            onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
             disabled={orderDuplicate}
           />
         )}
