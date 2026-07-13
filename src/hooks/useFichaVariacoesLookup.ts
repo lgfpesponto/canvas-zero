@@ -27,6 +27,10 @@ const CATEGORY_MAP: Record<string, string> = {
   'recorte_cano': 'recorte_cano',
   'recorte_gaspea': 'recorte_gaspea',
   'recorte_taloneira': 'recorte_taloneira',
+  'solado': 'solado',
+  'cor_sola': 'cor_sola',
+  'cor_vira': 'cor_vira',
+  'formato_bico': 'formato_bico',
 };
 
 export function useFichaVariacoesLookup() {
