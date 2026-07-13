@@ -96,8 +96,11 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
     `${BAGY_BASE}/variations?q=${encodeURIComponent(sku)}`,
   ];
   let lastError = "";
+  const skuLower = sku.toLowerCase();
+
   for (const url of candidates) {
     try {
+      console.log("bagy-stock-sync lookup", { sku, path: url.replace(BAGY_BASE, "") });
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${BAGY_TOKEN}`,
@@ -106,19 +109,24 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
       });
       if (!res.ok) {
         lastError = `GET ${url.replace(BAGY_BASE, "")} HTTP ${res.status}`;
+        console.error("bagy-stock-sync lookup failed", { sku, error: lastError });
         continue;
       }
       const json = await res.json();
-      const arr = Array.isArray(json) ? json : (json.data || json.items || []);
+      const arr = collectArrayCandidates(json);
       if (!Array.isArray(arr) || arr.length === 0) {
         lastError = "sku_nao_encontrado_na_bagy";
         continue;
       }
-      const skuLower = sku.toLowerCase();
       const hit = arr.find((v: any) =>
         String(v.sku || v.code || v.reference || "").toLowerCase() === skuLower
-      ) || arr[0];
+      );
+      if (!hit) {
+        lastError = "sku_nao_encontrado_na_bagy";
+        continue;
+      }
       const id = hit?.id ?? hit?.variation_id ?? null;
+      console.log("bagy-stock-sync lookup ok", { sku, variationId: id });
       return { id: id ? String(id) : null, raw: hit };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
@@ -126,6 +134,63 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
   }
   if (lastError === "sku_nao_encontrado_na_bagy") return { id: null };
   return { id: null, error: lastError || "no endpoint matched" };
+}
+
+function collectArrayCandidates(json: any): any[] {
+  const candidates = [
+    json,
+    json?.data,
+    json?.items,
+    json?.result,
+    json?.results,
+    json?.data?.items,
+    json?.data?.variations,
+    json?.data?.data,
+    json?.result?.items,
+    json?.result?.variations,
+  ];
+
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+
+  const single = json?.data && !Array.isArray(json.data) ? json.data : json;
+  if (single && typeof single === "object") return [single];
+  return [];
+}
+
+function pickSkuFromVariation(json: any): string | null {
+  const variants = [json, json?.data, json?.result];
+  for (const v of variants) {
+    const sku = v?.sku || v?.reference || v?.code;
+    if (sku && String(sku).trim()) return String(sku).trim();
+  }
+  return null;
+}
+
+async function bagyGetSkuByVariationId(variationId: string): Promise<string | null> {
+  const candidates = [
+    `${BAGY_BASE}/variations/${encodeURIComponent(variationId)}`,
+    `${BAGY_BASE}/products/variations/${encodeURIComponent(variationId)}`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${BAGY_TOKEN}`,
+          Accept: "application/json",
+        },
+      });
+      if (!res.ok) continue;
+      const json = await res.json();
+      const sku = pickSkuFromVariation(json);
+      if (sku) return sku;
+    } catch (_e) {
+      // segue para o próximo endpoint
+    }
+  }
+  return null;
 }
 
 async function bagyPutBalance(variationId: string, balance: number): Promise<{ ok: boolean; error?: string }> {
@@ -146,9 +211,13 @@ async function bagyPutBalance(variationId: string, balance: number): Promise<{ o
         },
         body: JSON.stringify({ balance }),
       });
-      if (res.ok) return { ok: true };
+      if (res.ok) {
+        console.log("bagy-stock-sync put ok", { variationId, balance, path: url.replace(BAGY_BASE, "") });
+        return { ok: true };
+      }
       const t = await res.text();
       lastError = `PUT ${url.replace(BAGY_BASE, "")} HTTP ${res.status}: ${t.slice(0, 300)}`;
+      console.error("bagy-stock-sync put failed", { variationId, balance, error: lastError });
       if (res.status !== 404) break; // só faz fallback em 404
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
@@ -229,6 +298,17 @@ Deno.serve(async (req) => {
   const results: any[] = [];
 
   for (const item of pending || []) {
+    if (!item.estoque_produto_id) {
+      const nowIso = new Date().toISOString();
+      await admin.from("bagy_stock_sync_queue").update({
+        tentativas: (item.tentativas || 0) + 1,
+        ultimo_erro: "produto_excluido_antes_do_processamento",
+        processado_em: nowIso,
+      }).eq("id", item.id);
+      results.push({ sku: item.sku, ok: false, stage: "skip", error: "produto_excluido_antes_do_processamento" });
+      continue;
+    }
+
     // Lê produto pra pegar bagy_variation_id cacheado
     const { data: prod } = await admin
       .from("estoque_produtos")
@@ -238,6 +318,27 @@ Deno.serve(async (req) => {
 
     let variationId: string | null = prod?.bagy_variation_id || null;
     const nowIso = new Date().toISOString();
+
+    console.log("bagy-stock-sync processing", {
+      queueId: item.id,
+      produtoId: item.estoque_produto_id,
+      sku: item.sku,
+      novoSaldo: item.novo_saldo,
+      cachedVariationId: variationId,
+    });
+
+    if (variationId) {
+      const cachedSku = await bagyGetSkuByVariationId(variationId);
+      if (cachedSku && cachedSku.toLowerCase() !== String(item.sku).toLowerCase()) {
+        console.warn("bagy-stock-sync cached variation mismatch", {
+          sku: item.sku,
+          cachedVariationId: variationId,
+          cachedSku,
+        });
+        variationId = null;
+        await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", item.estoque_produto_id);
+      }
+    }
 
     // Descobre o id se não tiver cache
     if (!variationId) {
@@ -296,6 +397,9 @@ Deno.serve(async (req) => {
       }).eq("id", item.estoque_produto_id);
       results.push({ sku: item.sku, ok: true, balance: item.novo_saldo });
     } else {
+      if ((put.error || "").includes("HTTP 404")) {
+        await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", item.estoque_produto_id);
+      }
       const novasTentativas = (item.tentativas || 0) + 1;
       const desistir = novasTentativas >= MAX_TENTATIVAS;
       await admin.from("bagy_stock_sync_queue").update({
