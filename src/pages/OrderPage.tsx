@@ -1944,7 +1944,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 { label: 'Cavalo', preco: '5/un', value: cavaloMetal, setValue: setCavaloMetal, qtd: cavaloMetalQtd, setQtd: setCavaloMetalQtd },
               ].map(item => (
                 <div key={item.label} className="flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30">
-                  <span className="text-xs font-semibold leading-tight">{item.label} <span className="text-muted-foreground font-normal">(R${item.preco})</span></span>
+                  <span className="text-xs font-semibold leading-tight">{item.label} <span className="text-muted-foreground font-normal">(R${item.preco})</span> <FichaFieldControls labelText={item.label} defaultTipo="checkbox" defaultCategoriaSlug="metais" /></span>
                   <select
                     value={item.value ? 'Sim' : 'Não'}
                     onChange={e => item.setValue(e.target.value === 'Sim')}
