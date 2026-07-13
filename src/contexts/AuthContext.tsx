@@ -145,6 +145,9 @@ export interface Order {
   nomeProdutoEstoque?: string;
   estoqueBaixado?: boolean;
   estoqueProdutoId?: string;
+  /** Pedido criado como "Estoque Pronto": entra direto no estoque e não aparece em Meus Pedidos. */
+  estoquePronto?: boolean;
+
   /** Nome do modelo rascunho usado para criar o pedido (quando aplicável). */
   templateNome?: string;
   /** SKU resolvido a partir do modelo rascunho (base ou da grade do tamanho). */

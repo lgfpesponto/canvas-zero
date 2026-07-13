@@ -109,6 +109,8 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   }, [mode, tmpl.templateFotoUrl]);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [estoquePronto, setEstoquePronto] = useState(false);
+
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
 
   // Load draft data
@@ -444,14 +446,17 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         : undefined;
       const tplSku = tpl ? ((tplGrade?.sku || tpl.sku || '').trim() || null) : null;
 
+      const isEstoqueVend = isAdminUser && vendedor === 'Estoque';
       const success = await addOrder({
         numeroPedido: numeroPedido.trim(),
-        cliente: cliente.trim(),
-        clienteWhatsapp: clienteWhatsapp.trim() || undefined,
+        cliente: isEstoqueVend ? '' : cliente.trim(),
+        clienteWhatsapp: isEstoqueVend ? undefined : (clienteWhatsapp.trim() || undefined),
         vendedor: isAdminUser ? vendedor : (user?.nomeCompleto || ''),
+        nomeProdutoEstoque: isEstoqueVend ? (cliente.trim() || `Cinto ${numeroPedido.trim() || ''}`) : undefined,
         templateNome: tpl?.nome,
         templateSku: tplSku || undefined,
         tamanho: '-',
+
         modelo: '-',
         solado: '-',
         formatoBico: '-',
@@ -488,6 +493,31 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       if (success) {
         if (loadedDraftId) deleteDraft(loadedDraftId);
         const numeroSalvo = numeroPedido.trim() || '(novo)';
+        if (estoquePronto && numeroSalvo !== '(novo)') {
+          // Backfill SKU + marca estoque_pronto + Baixa Estoque + cria estoque
+          const slug = (s: string) => (s || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const { data: row } = await supabase.from('orders')
+            .select('id, sku_estoque, modelo, tamanho, nome_produto_estoque')
+            .eq('numero', numeroSalvo).maybeSingle();
+          if (row) {
+            if (!row.sku_estoque || !row.sku_estoque.trim()) {
+              const base = slug(row.nome_produto_estoque || row.modelo || 'cinto');
+              const sku = `${base}-${row.tamanho || tamanho || 'un'}`.replace(/-$/, '');
+              await supabase.from('orders').update({ sku_estoque: sku }).eq('id', row.id);
+            }
+            await supabase.from('orders')
+              .update({ estoque_pronto: true, status: 'Baixa Estoque' } as any)
+              .eq('id', row.id);
+            const { error: rpcErr } = await (supabase.rpc as any)('criar_estoque_produto', { _order_id: row.id });
+            if (rpcErr) console.error('criar_estoque_produto err', rpcErr);
+          }
+          toast.success(`Estoque criado a partir do cinto ${numeroSalvo}.`, { position: 'bottom-right' });
+          resetForm();
+          navigate('/estoque');
+          return;
+        }
         toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
         if (comprarMode && onComprarSaved) onComprarSaved();
         else resetForm();
@@ -499,8 +529,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       toast.error('Erro inesperado ao salvar o pedido.');
     } finally {
       setSubmitting(false);
+      setEstoquePronto(false);
     }
   };
+
 
   const handleSaveDraft = () => {
     if (!user) return;
@@ -877,9 +909,21 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
               </button>
+              {vendedor === 'Estoque' && isAdminUser && (
+                <button
+                  type="button"
+                  onClick={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
+                  disabled={orderDuplicate}
+                  className="w-full border-2 border-emerald-600 text-emerald-700 dark:text-emerald-400 py-3 rounded-lg font-bold tracking-wider hover:bg-emerald-600/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Cria o cinto já como item de estoque pronto — vai direto para a página Estoque."
+                >
+                  📦 ESTOQUE PRONTO
+                </button>
+              )}
               <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 SALVAR RASCUNHO
               </button>
+
             </>
           )}
 
@@ -1061,7 +1105,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                   else navigate('/modelos', { state: { editComprar: comprarModelo } });
                 } else setShowMirror(false);
               }} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
-              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : 'OK — FINALIZAR'}</button>
+              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : (estoquePronto ? 'CRIAR ESTOQUE' : 'OK — FINALIZAR')}</button>
             </div>
           </motion.div>
         </div>

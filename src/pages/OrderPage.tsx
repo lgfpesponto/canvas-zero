@@ -352,6 +352,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [mostrarFotoPainel, setMostrarFotoPainel] = useState(false);
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [estoquePronto, setEstoquePronto] = useState(false);
+
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
   const [laserOutroTaloneiraText, setLaserOutroTaloneiraText] = useState(df.laserOutroTaloneiraText || '');
@@ -1203,6 +1205,34 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       const isGradeVendedor = (isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum;
       const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
 
+      // Helper: aplica flag estoque_pronto + status Baixa Estoque e cria estoque diretamente
+      const finalizeEstoquePronto = async (numeros: string[]) => {
+        if (numeros.length === 0) return;
+        // slugify helper para SKU derivado quando não informado
+        const slug = (s: string) => (s || '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const { data: rows } = await supabase.from('orders').select('id, numero, sku_estoque, tamanho, modelo, nome_produto_estoque').in('numero', numeros);
+        if (!rows || rows.length === 0) return;
+        // Backfill SKU derivado quando faltar
+        for (const r of rows) {
+          if (!r.sku_estoque || !r.sku_estoque.trim()) {
+            const base = slug(r.nome_produto_estoque || r.modelo || 'produto');
+            const sku = `${base}-${r.tamanho || ''}`.replace(/-$/,'');
+            await supabase.from('orders').update({ sku_estoque: sku }).eq('id', r.id);
+          }
+        }
+        // Marca como estoque_pronto + Baixa Estoque
+        await supabase.from('orders')
+          .update({ estoque_pronto: true, status: 'Baixa Estoque' } as any)
+          .in('id', rows.map(r => r.id));
+        // Cria estoque para cada
+        for (const r of rows) {
+          const { error: rpcErr } = await (supabase.rpc as any)('criar_estoque_produto', { _order_id: r.id });
+          if (rpcErr) console.error('criar_estoque_produto err', r.id, rpcErr);
+        }
+      };
+
       if (isEstoqueGrade) {
         const orderData = buildOrderData() as any;
         const success = await addOrderBatch(orderData, gradeItems, numeroPedido.trim());
@@ -1210,6 +1240,22 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           const totalPedidos = gradeItems.reduce((s, i) => s + i.quantidade, 0);
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim();
+          if (estoquePronto) {
+            // Reconstruir os números como addOrderBatch faz
+            const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
+            const nums: string[] = [];
+            for (const item of sorted) {
+              for (let i = 0; i < item.quantidade; i++) {
+                const seq = String(i + 1).padStart(2, '0');
+                nums.push(`${numeroSalvo}${item.tamanho}${seq}`);
+              }
+            }
+            await finalizeEstoquePronto(nums);
+            toast.success(`Estoque criado (${totalPedidos} item(ns)).`, { position: 'bottom-right' });
+            resetForm();
+            navigate('/estoque');
+            return;
+          }
           toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
           if (comprarMode && onComprarSaved) onComprarSaved();
           else resetForm();
@@ -1223,6 +1269,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         if (success) {
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim() || '(novo)';
+          if (estoquePronto && numeroSalvo !== '(novo)') {
+            await finalizeEstoquePronto([numeroSalvo]);
+            toast.success(`Estoque criado a partir do pedido ${numeroSalvo}.`, { position: 'bottom-right' });
+            resetForm();
+            navigate('/estoque');
+            return;
+          }
           // === Pós-save Bagy: liga pedido criado ao item Bagy + enfileira "production" ===
           const bp = bagyPrefillRef.current;
           if (bp && numeroSalvo && numeroSalvo !== '(novo)') {
@@ -1231,10 +1284,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 .from('orders').select('id').eq('numero', numeroSalvo).maybeSingle();
               if (ordErr) throw ordErr;
               if (ord?.id) {
-                // Apenas seta o bagy_order_id; o trigger DB
-                // (bagy_link_orders_after_save) atualiza item/pedido Bagy
-                // e enfileira "production" automaticamente — não depende de
-                // o cliente ter permissão pra escrever nessas tabelas.
                 const { error: e1 } = await supabase
                   .from('orders').update({ bagy_order_id: bp.bagyOrderId } as any).eq('id', ord.id);
                 if (e1) throw e1;
@@ -1264,8 +1313,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       toast.error('Erro inesperado ao salvar o pedido.');
     } finally {
       setSubmitting(false);
+      setEstoquePronto(false);
     }
   };
+
 
   const handleSaveDraft = () => {
     if (!user) return;
@@ -1979,11 +2030,23 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
               </button>
+              {vendedorSelecionado === 'Estoque' && (
+                <button
+                  type="button"
+                  onClick={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
+                  disabled={orderDuplicate}
+                  className="w-full border-2 border-emerald-600 text-emerald-700 dark:text-emerald-400 py-3 rounded-lg font-bold tracking-wider hover:bg-emerald-600/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Cria o pedido já como item de estoque pronto — não aparece em Meus Pedidos, entra direto na página Estoque."
+                >
+                  📦 ESTOQUE PRONTO
+                </button>
+              )}
               <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 SALVAR RASCUNHO
               </button>
             </>
           )}
+
 
           {mode === 'template' && (
             <button type="submit" className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2">
@@ -2186,7 +2249,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   setShowMirror(false);
                 }
               }} className="flex-1 bg-muted text-foreground py-3 rounded-lg font-bold hover:bg-muted/80 transition-colors">EDITAR</button>
-              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : `OK — FINALIZAR${finalizeBadge ? ' ' + finalizeBadge : ''}`}</button>
+              <button onClick={confirmOrder} disabled={submitting} className="flex-1 orange-gradient text-primary-foreground py-3 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">{submitting ? 'Salvando...' : (estoquePronto ? 'CRIAR ESTOQUE' : `OK — FINALIZAR${finalizeBadge ? ' ' + finalizeBadge : ''}`)}</button>
             </div>
           </motion.div>
         </div>

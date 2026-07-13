@@ -565,6 +565,162 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_ajustes_log: {
+        Row: {
+          created_at: string
+          delta: number
+          id: string
+          motivo: string | null
+          produto_id: string | null
+          produto_nome: string | null
+          quantidade_antes: number | null
+          quantidade_depois: number | null
+          sku_base: string | null
+          tamanho: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: string
+          motivo?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade_antes?: number | null
+          quantidade_depois?: number | null
+          sku_base?: string | null
+          tamanho?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: string
+          motivo?: string | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          quantidade_antes?: number | null
+          quantidade_depois?: number | null
+          sku_base?: string | null
+          tamanho?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_ajustes_log_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_bagy_sync_pendente: {
+        Row: {
+          criado_em: string
+          erro: string | null
+          id: string
+          produto_id: string
+          quantidade_atual: number
+          sincronizado_em: string | null
+          sincronizado_por: string | null
+          sincronizado_por_nome: string | null
+          sku_base: string
+          tamanho: string
+        }
+        Insert: {
+          criado_em?: string
+          erro?: string | null
+          id?: string
+          produto_id: string
+          quantidade_atual?: number
+          sincronizado_em?: string | null
+          sincronizado_por?: string | null
+          sincronizado_por_nome?: string | null
+          sku_base: string
+          tamanho: string
+        }
+        Update: {
+          criado_em?: string
+          erro?: string | null
+          id?: string
+          produto_id?: string
+          quantidade_atual?: number
+          sincronizado_em?: string | null
+          sincronizado_por?: string | null
+          sincronizado_por_nome?: string | null
+          sku_base?: string
+          tamanho?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_bagy_sync_pendente_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: true
+            referencedRelation: "estoque_produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_emprestimos: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          devolvido_em: string | null
+          devolvido_por: string | null
+          id: string
+          observacao: string | null
+          produto_id: string
+          quantidade: number
+          status: string
+          tamanho: string
+          updated_at: string
+          vendedor_id: string | null
+          vendedor_nome: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          devolvido_em?: string | null
+          devolvido_por?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id: string
+          quantidade: number
+          status?: string
+          tamanho: string
+          updated_at?: string
+          vendedor_id?: string | null
+          vendedor_nome: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          devolvido_em?: string | null
+          devolvido_por?: string | null
+          id?: string
+          observacao?: string | null
+          produto_id?: string
+          quantidade?: number
+          status?: string
+          tamanho?: string
+          updated_at?: string
+          vendedor_id?: string | null
+          vendedor_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_emprestimos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_produtos: {
         Row: {
           ativo: boolean
@@ -1542,6 +1698,7 @@ export type Database = {
           estampa_desc: string | null
           estoque_baixado: boolean
           estoque_produto_id: string | null
+          estoque_pronto: boolean
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
           forma: string | null
@@ -1658,6 +1815,7 @@ export type Database = {
           estampa_desc?: string | null
           estoque_baixado?: boolean
           estoque_produto_id?: string | null
+          estoque_pronto?: boolean
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
           forma?: string | null
@@ -1774,6 +1932,7 @@ export type Database = {
           estampa_desc?: string | null
           estoque_baixado?: boolean
           estoque_produto_id?: string | null
+          estoque_pronto?: boolean
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
           forma?: string | null
@@ -2432,6 +2591,10 @@ export type Database = {
       }
     }
     Functions: {
+      ajustar_estoque_manual: {
+        Args: { _delta: number; _motivo?: string; _produto_id: string }
+        Returns: number
+      }
       ajustar_saldo_revendedor: {
         Args: { _delta: number; _descricao: string; _vendedor: string }
         Returns: Json
@@ -2560,6 +2723,16 @@ export type Database = {
         Args: { _extra_detalhes: Json }
         Returns: Json
       }
+      editar_produto_estoque: {
+        Args: {
+          _foto_url?: string
+          _nome?: string
+          _preco?: number
+          _produto_id: string
+          _sku_base?: string
+        }
+        Returns: undefined
+      }
       estornar_baixa_revendedor: {
         Args: { _baixa_id: string; _motivo: string }
         Returns: undefined
@@ -2626,6 +2799,7 @@ export type Database = {
           estampa_desc: string | null
           estoque_baixado: boolean
           estoque_produto_id: string | null
+          estoque_pronto: boolean
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
           forma: string | null
@@ -2828,6 +3002,7 @@ export type Database = {
         Returns: Json
       }
       parse_historico_date: { Args: { _data: string }; Returns: string }
+      pode_sincronizar_bagy: { Args: { _uid: string }; Returns: boolean }
       processar_baixas_automaticas_geral: { Args: never; Returns: Json }
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }

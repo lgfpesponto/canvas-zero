@@ -269,7 +269,9 @@ export function dbRowToOrder(row: any): Order {
     templateSku: row.template_sku || undefined,
     erroDePedidoId: row.erro_de_pedido_id || undefined,
     erroDescricao: row.erro_descricao || undefined,
+    estoquePronto: !!row.estoque_pronto,
   };
+
 }
 
 /* ───── Order → DB row mapping ───── */
@@ -369,8 +371,10 @@ export function orderToDbRow(order: any, userId: string) {
     template_sku: order.templateSku || null,
     erro_de_pedido_id: order.erroDePedidoId || null,
     erro_descricao: order.erroDescricao || null,
+    estoque_pronto: order.estoquePronto ?? false,
   };
 }
+
 
 /* ───── camelCase → snake_case key map for partial updates ───── */
 export const CAMEL_TO_SNAKE: Record<string, string> = {

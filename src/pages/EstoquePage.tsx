@@ -9,6 +9,10 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
+import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
+import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
+import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
+
 
 interface EstoqueRow {
   id: string;
@@ -54,8 +58,10 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
-  const { isAdmin, role } = useAuth();
+  const { isAdmin, role, user } = useAuth();
   const canSeeBagySync = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
+  const canManageEmprestimos = role === 'admin_master' || role === 'admin_producao';
+
 
   const handleExcluirTamanho = async (row: EstoqueRow, nomeProduto: string) => {
     const ok = window.confirm(
@@ -223,6 +229,17 @@ const EstoquePage = () => {
         <h1 className="text-2xl md:text-3xl font-display font-bold">Estoque</h1>
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+      </div>
+
+      <EstoqueEmprestimosPanel
+        canManage={canManageEmprestimos}
+        currentUserId={user?.id}
+        currentUserNome={user?.nomeCompleto}
+      />
+
+
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           {/* Scanner-style: input sempre focado e quase invisível para QR */}
@@ -313,7 +330,13 @@ const EstoquePage = () => {
                 )}
               </div>
               <div className="p-3 flex-1 flex flex-col gap-2">
-                <h3 className="font-semibold text-sm leading-tight line-clamp-2">{g.nome}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-sm leading-tight line-clamp-2 flex-1">{g.nome}</h3>
+                  {canManageEmprestimos && g.tamanhos[0] && (
+                    <EstoqueProdutoConfigButton produto={g.tamanhos[0] as any} onDone={fetchRows} />
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {g.tamanhos.map(t => (
                     <div
