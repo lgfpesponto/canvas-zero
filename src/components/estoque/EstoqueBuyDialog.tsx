@@ -64,6 +64,10 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   const [whats, setWhats] = useState('');
   const [numero, setNumero] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Reservas ativas por outros vendedores (produto_id -> qtd reservada)
+  const [reservasOutros, setReservasOutros] = useState<Record<string, number>>({});
+  // Espelho local dos saldos (atualizado por realtime)
+  const [saldos, setSaldos] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (open && produto) {
@@ -73,7 +77,54 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       setCliente('');
       setWhats('');
       setNumero('');
+      // seeda saldos a partir do prop
+      const initSaldos: Record<string, number> = {};
+      produto.tamanhos.forEach(t => { initSaldos[t.id] = t.quantidade; });
+      setSaldos(initSaldos);
     }
+  }, [open, produto, user]);
+
+  // Realtime: atualiza saldos e reservas ativas de outros usuários enquanto o dialog está aberto
+  useEffect(() => {
+    if (!open || !produto || !user) return;
+    const ids = produto.tamanhos.map(t => t.id);
+    const filter = `id=in.(${ids.join(',')})`;
+
+    const chan = supabase
+      .channel(`estoque-buy-${ids.join('-').slice(0, 40)}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estoque_produtos', filter },
+        (payload: any) => {
+          const newRow = payload.new;
+          if (newRow?.id && typeof newRow.quantidade === 'number') {
+            setSaldos(prev => ({ ...prev, [newRow.id]: newRow.quantidade }));
+          }
+        })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_reservas' },
+        () => { loadReservasOutros(); })
+      .subscribe();
+
+    const loadReservasOutros = async () => {
+      const { data } = await supabase
+        .from('estoque_reservas' as any)
+        .select('produto_id, quantidade, user_id, expira_em')
+        .in('produto_id', ids)
+        .gt('expira_em', new Date().toISOString());
+      const map: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        if (r.user_id === user.id) return;
+        map[r.produto_id] = (map[r.produto_id] || 0) + (r.quantidade || 0);
+      });
+      setReservasOutros(map);
+    };
+    loadReservasOutros();
+    const iv = setInterval(loadReservasOutros, 15000);
+
+    return () => {
+      supabase.removeChannel(chan);
+      clearInterval(iv);
+      // libera reservas do usuário ao fechar
+      supabase.rpc('liberar_reservas_usuario' as any, { _produto_ids: ids }).catch(() => {});
+    };
   }, [open, produto, user]);
 
   // Reconciliar `itens` (1 por unidade) com `quantidades`, preservando extras já preenchidos
@@ -111,15 +162,36 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
 
   if (!produto) return null;
 
-  const setQtd = (t: EstoqueRow, raw: string) => {
+  // Disponível real considerando reservas de outros usuários e saldo atualizado
+  const disponivelReal = (t: EstoqueRow) => {
+    const base = saldos[t.id] ?? t.quantidade;
+    const outros = reservasOutros[t.id] || 0;
+    return Math.max(0, base - outros);
+  };
+
+  const setQtd = async (t: EstoqueRow, raw: string) => {
     const n = Math.max(0, parseInt(raw) || 0);
-    if (n > t.quantidade) {
-      toast.error(`Só temos ${t.quantidade} un. do tamanho ${t.tamanho}.`);
-      setQuantidades(prev => ({ ...prev, [t.id]: t.quantidade }));
+    const disp = disponivelReal(t);
+    if (n > disp) {
+      toast.error(`Só temos ${disp} un. do tamanho ${t.tamanho} agora (outro vendedor pode ter reservado).`);
+      setQuantidades(prev => ({ ...prev, [t.id]: disp }));
       return;
     }
     setQuantidades(prev => ({ ...prev, [t.id]: n }));
+    // Reserva/atualiza reserva
+    if (n > 0) {
+      const { data } = await supabase.rpc('reservar_estoque' as any, { _produto_id: t.id, _qtd: n });
+      const res = data as any;
+      if (res && res.ok === false) {
+        toast.error(`Não foi possível reservar ${n} un. — disponível: ${res.disponivel ?? 0}`);
+        setQuantidades(prev => ({ ...prev, [t.id]: res.disponivel ?? 0 }));
+      }
+    } else {
+      // n=0: libera reserva desse produto
+      supabase.rpc('liberar_reservas_usuario' as any, { _produto_ids: [t.id] }).catch(() => {});
+    }
   };
+
 
   const updateItemExtra = (itemIdx: number, eIdx: number, newDados: Record<string, any>, recalc = false) => {
     setItens(prev => prev.map((it, i) => {
