@@ -9,6 +9,10 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
+import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
+import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
+import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
+
 
 interface EstoqueRow {
   id: string;
