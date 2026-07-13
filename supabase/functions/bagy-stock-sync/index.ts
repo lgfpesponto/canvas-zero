@@ -270,6 +270,10 @@ Deno.serve(async (req) => {
     }
     for (const p of prods || []) {
       if (!p.sku_base) continue;
+      // Se force_rediscover, limpa o cache do variation_id antes de enfileirar
+      if (body?.force_rediscover) {
+        await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", p.id);
+      }
       // limpa pendente anterior do mesmo produto + reseta status
       const queued = await enqueueStockSync(admin, p.id, p.sku_base, p.quantidade ?? 0);
       if (queued.error) {
