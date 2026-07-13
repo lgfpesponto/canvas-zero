@@ -334,12 +334,14 @@ Deno.serve(async (req) => {
     });
 
     if (variationId) {
-      const cachedSku = await bagyGetSkuByVariationId(variationId);
-      if (cachedSku && cachedSku.toLowerCase() !== String(item.sku).toLowerCase()) {
-        console.warn("bagy-stock-sync cached variation mismatch", {
+      const check = await bagyGetSkuByVariationId(variationId);
+      const mismatch = check.sku && check.sku.toLowerCase() !== String(item.sku).toLowerCase();
+      if (mismatch || check.notFound) {
+        console.warn("bagy-stock-sync cached variation invalid", {
           sku: item.sku,
           cachedVariationId: variationId,
-          cachedSku,
+          cachedSku: check.sku,
+          notFound: check.notFound,
         });
         variationId = null;
         await admin.from("estoque_produtos").update({ bagy_variation_id: null }).eq("id", item.estoque_produto_id);
