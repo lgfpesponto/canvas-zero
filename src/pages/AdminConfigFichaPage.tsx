@@ -1814,7 +1814,55 @@ function CategoriaSection({
   );
 }
 
+/* ─── LeadTimeEditor: prazo de produção (dias úteis) editável por ficha ─── */
+function LeadTimeEditor({ fichaTipoId, valorAtual }: { fichaTipoId: string; valorAtual: number }) {
+  const [valor, setValor] = useState<string>(String(valorAtual ?? 20));
+  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => { setValor(String(valorAtual ?? 20)); }, [valorAtual]);
+
+  const salvar = async () => {
+    const n = Math.max(1, parseInt(valor, 10) || 1);
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('ficha_tipos').update({ lead_time_dias: n } as any).eq('id', fichaTipoId);
+      if (error) throw error;
+      toast.success(`Prazo atualizado para ${n} dias úteis. Pedidos novos usarão o novo prazo.`);
+      queryClient.invalidateQueries({ queryKey: ['ficha_tipos'] });
+    } catch (e: any) {
+      toast.error('Erro ao salvar prazo: ' + (e?.message || e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dirty = String(valorAtual) !== String(parseInt(valor, 10) || 0);
+
+  return (
+    <div className="mb-6 flex items-end gap-3 rounded-lg border border-border bg-card p-3">
+      <div className="space-y-1">
+        <Label className="text-xs font-semibold">Prazo de produção (dias úteis)</Label>
+        <Input
+          type="number" min={1} step={1}
+          value={valor}
+          onChange={e => setValor(e.target.value)}
+          className="h-9 w-32"
+        />
+      </div>
+      <Button size="sm" onClick={salvar} disabled={saving || !dirty}>
+        {saving ? 'Salvando...' : 'Salvar prazo'}
+      </Button>
+      <p className="ml-2 text-[11px] text-muted-foreground italic">
+        Contagem regressiva já desconta sábado, domingo e feriados. Pedidos antigos mantêm o prazo anterior.
+      </p>
+    </div>
+  );
+}
+
 /* ─── Main Page ─── */
+
 export default function AdminConfigFichaPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
