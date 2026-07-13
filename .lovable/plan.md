@@ -1,101 +1,87 @@
 ## Objetivo
 
-Permitir que **admin_master** e **admin_producao** editem a "ficha de produção" (bota/cinto) direto no formulário de fazer pedido, com **versionamento**: pedidos novos usam a versão vigente; pedidos antigos continuam vendo/respondendo a versão que estava ativa quando foram criados. E substituir a aba "ficha de produção" em `/admin/configuracoes` por um **histórico de versões** por tipo (bota/cinto).
+Substituir o dialog "Editar ficha" por **edição inline direto na ficha de produção** (bota/cinto). O admin_master/admin_producao ativa um "modo edição" clicando no lápis, e passa a ver ícones de + e ✏️ ao lado de cada campo e categoria da própria ficha real — não em uma tela separada.
 
----
+## Problemas atuais
 
-## 1. Botão de edição no formulário de pedido
+1. O `FichaVersaoEditorDialog` mostra uma versão paralela (e incompleta) da ficha — categorias/variações não batem com o que aparece na ficha real.
+2. Edição em modal desconecta o admin do contexto visual do formulário.
+3. Não há como renomear campos nativos (Vendedor, Nº do Pedido, Cliente, WhatsApp).
 
-Escopo: `src/pages/BeltOrderPage.tsx` (cinto), `src/pages/DynamicOrderPage.tsx` (bota) e telas de edição correspondentes (`EditOrderPage`, `EditBeltPage`) — quando o pedido está na versão vigente. Se role é `admin_master` ou `admin_producao`:
+## Solução
 
-- Ícone de **lápis** no topo do card da ficha ("modo edição").
-- Ao ligar, cada bloco de variação passa a exibir:
-  - Ícone **+** ao lado do campo → abre popover para criar nova variação (nome + preço + relacionamento opcional).
-  - Ícone **lápis** em cada opção → edita nome/preço/relacionamento.
-  - Ícone **lixeira** em cada opção → remove.
-- **Relacionamentos**: mesmo modelo já existente em `ficha_variacoes.relacionamento` (JSONB). Ex.: ao editar "Nobuck" em `couro_cano`, escolher quais valores de `cor_couro_cano` ficam permitidos. Também expõe as combinações Tamanho × Modelo × Sola (usa hoje o mesmo campo).
-- Botão fixo no rodapé: **"salvar no banco (nova versão)"**. Confirma → cria uma nova versão da ficha e volta ao modo leitura.
+### 1. Modo edição inline (sem dialog)
 
-Enquanto em modo edição, o formulário **não** cria pedido; ao sair sem salvar, mudanças são descartadas.
+- Botão "editar ficha" (lápis) no topo de `OrderPage` (bota), `BeltOrderPage` (cinto) e `DynamicOrderPage` (extras) vira **toggle** de um `FichaEditContext`.
+- Quando ativo:
+  - Borda tracejada laranja em cada bloco de categoria e cada campo.
+  - Barra fixa no rodapé com **"salvar nova versão"** / **"descartar"** / campo opcional de descrição da mudança.
+- Deletar `FichaVersaoEditorDialog` (não é mais usado).
 
-## 2. Versionamento
+### 2. Controles inline por elemento
 
-Nova tabela `ficha_versoes`:
+**Em cada categoria** (cabeçalho laranja tipo "IDENTIFICAÇÃO"):
+- ✏️ renomear categoria (popover pequeno com input do nome)
+- 🗑️ excluir categoria
+- **+ campo** no fim da categoria
 
-- `ficha_tipo_id`, `versao` (int auto), `snapshot` (JSONB com categorias/campos/variações/relacionamentos), `criado_por`, `descricao_mudanca` (texto opcional), `ativa` (só uma ativa por tipo), `created_at`.
+**Em cada campo (label acima do input)**:
+- ✏️ ao lado do nome → popover com:
+  - nome do campo (todos os tipos)
+  - se `checkbox` com valor: preço do "sim"
+  - se `selecao`/`multipla`: **lista das variações existentes** com nome + preço editáveis inline, botão 🗑️ por variação, e **+ variação** no fim
+  - relacionamento condicional: seletor que lista as variações de outros campos já criados (marcar quais liberam esta variação) — grava em `relacionamento` JSONB no formato já usado
+- ➕ ao lado do nome → adiciona nova variação (para selecao/multipla) OU nova opção sim/não (checkbox). Em campos tipo `texto` o ➕ fica oculto (só o ✏️ para renomear).
 
-Nova coluna `orders.ficha_versao_id` (nullable → pedidos antigos ficam "sem versão registrada" e continuam usando snapshot que já têm em `extra_detalhes`). Novos pedidos salvam o id da versão ativa no momento da criação.
+### 3. Renomear campos nativos
 
-Fluxo de leitura:
-- Formulário de **criar pedido**: sempre usa a versão `ativa` do tipo.
-- Formulário de **editar pedido**: se `orders.ficha_versao_id` existe, monta a ficha a partir do `snapshot` daquela versão; senão, usa a versão ativa (compat com pedidos anteriores).
-- "Salvar no banco" cria nova linha em `ficha_versoes` com `versao = max+1`, marca como `ativa=true` e as anteriores como `ativa=false`. Também aplica o snapshot em `ficha_categorias`/`ficha_campos`/`ficha_variacoes` para manter compatibilidade com o resto do sistema que hoje lê dessas tabelas (backfill/mirror), garantindo que preços e lookups atuais continuem funcionando.
+Campos "hardcoded" (Vendedor, Nº do Pedido, Cliente, WhatsApp, quantidade, preço base) hoje vivem no JSX, não em `ficha_campos`. Criar tabela leve `ficha_labels_overrides` **NÃO** — em vez disso, incluir esses labels no `snapshot` da versão via `ficha_campos` sintéticos com `tipo='nativo'` e `slug` fixo (`vendedor`, `numero_pedido`, `cliente`, `whatsapp`, `quantidade`, `preco_base`). O JSX passa a ler o label pelo slug do snapshot ativo, com fallback para o texto atual.
 
-Pedidos **passados não são afetados**: a leitura respeita `ficha_versao_id` do pedido.
+- Migration: inserir esses campos "nativos" na `ficha_campos` de cada ficha_tipo se não existirem, marcados com `tipo = 'nativo'` (não renderizam input dinâmico, só servem para o label).
+- Ficha em modo edição mostra ✏️ neles também, permitindo renomear.
+- Checkbox com preço (`trisce`, `tiras` etc.): editor permite mudar o valor do "sim" — grava em `opcoes` como `[{label:'sim', preco_adicional: X}]`.
 
-## 3. Substituir aba "ficha de produção" em `/admin/configuracoes`
+### 4. Salvamento
 
-- Remove os cards e a rota interna `?tab=fichas` do editor antigo (que o usuário disse que não funcionou).
-- Cria nova aba **"histórico de fichas"** (`?tab=historico-fichas`) com:
-  - Tabs internos por tipo: **bota** / **cinto** (dinâmico se surgirem outros).
-  - Lista de versões (mais recente no topo): nº da versão, data, autor, badge "ativa", resumo de mudanças (diff simples: nº de campos/variações adicionados/removidos/alterados).
-  - Botão "ver detalhe" → dialog com snapshot completo (read-only).
-  - Botão "reverter" (só admin_master) → cria nova versão a partir do snapshot antigo e torna ativa.
+- Todas as edições ficam em estado local do `FichaEditContext` (dirty).
+- Ao clicar "salvar nova versão":
+  1. Aplica os diffs nas tabelas `ficha_categorias`/`ficha_campos`/`ficha_variacoes` (upsert/delete conforme necessário).
+  2. Chama `salvarNovaVersao(ficha_tipo_id, descricao)` — snapshot já usa `buildSnapshotAtual`, então captura o estado novo.
+  3. Invalida queries de `useFichaCampos`, `useFichaCategorias`, `useFichaVariacoes`.
+  4. Toast + sai do modo edição.
 
-O editor `FichaBuilder` e páginas `AdminConfigFichaPage`/`AdminConfigVariacoesPage` deixam de ser linkados a partir dessa aba (não são apagadas do repo neste momento para não quebrar links diretos; podem ficar acessíveis via URL, mas o card some).
+### 5. Histórico
 
----
+- Aba "Histórico de Fichas" em `/admin/configuracoes` (já existe via `HistoricoFichasTab`) continua igual — só passa a listar as versões geradas pelo novo editor inline.
 
-## Detalhes técnicos
+## Arquivos afetados
 
-### Migração Supabase
-```sql
-CREATE TABLE public.ficha_versoes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ficha_tipo_id UUID NOT NULL REFERENCES public.ficha_tipos(id) ON DELETE CASCADE,
-  versao INT NOT NULL,
-  snapshot JSONB NOT NULL,
-  descricao_mudanca TEXT,
-  criado_por UUID REFERENCES auth.users(id),
-  ativa BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (ficha_tipo_id, versao)
-);
--- GRANT + RLS: leitura para authenticated; escrita só admin_master/admin_producao via has_role.
--- índice parcial garantindo 1 ativa por tipo.
-CREATE UNIQUE INDEX ficha_versoes_ativa_uniq
-  ON public.ficha_versoes(ficha_tipo_id) WHERE ativa;
+**Novos:**
+- `src/contexts/FichaEditContext.tsx` — estado global do modo edição + buffer de mudanças pendentes.
+- `src/components/ficha-edit/FichaEditToggle.tsx` — botão lápis no topo (substitui `EditFichaButton`).
+- `src/components/ficha-edit/FichaEditBar.tsx` — barra flutuante de salvar/descartar.
+- `src/components/ficha-edit/CategoriaEditControls.tsx` — ✏️/🗑️/+campo por categoria.
+- `src/components/ficha-edit/CampoEditControls.tsx` — ✏️/➕ por campo, popover com variações + relacionamento.
+- `src/components/ficha-edit/VariacaoRow.tsx` — linha editável nome/preço/🗑️.
 
-ALTER TABLE public.orders ADD COLUMN ficha_versao_id UUID
-  REFERENCES public.ficha_versoes(id);
-```
-Seed inicial: para cada `ficha_tipos` existente, cria `versao=1` com snapshot do estado atual e marca `ativa=true`.
+**Editados:**
+- `src/pages/OrderPage.tsx`, `src/pages/BeltOrderPage.tsx`, `src/pages/DynamicOrderPage.tsx` — envolver com `FichaEditProvider`, trocar `EditFichaButton` por `FichaEditToggle`, passar os labels nativos por `useFichaLabel(slug)`.
+- `src/hooks/useAdminConfig.ts` — hook `useFichaLabel(fichaTipoId, slug, fallback)`.
 
-### Snapshot format
-```json
-{
-  "categorias": [{ "id","slug","nome","ordem" }],
-  "campos":     [{ "id","categoria_id","slug","nome","tipo","obrigatorio","ordem","vinculo","desc_condicional","relacionamento" }],
-  "variacoes":  [{ "id","campo_id","categoria_id","nome","preco_adicional","ordem","relacionamento" }]
-}
-```
+**Excluídos:**
+- `src/components/admin/FichaVersaoEditorDialog.tsx`
+- `src/components/orders/EditFichaButton.tsx`
 
-### Componente novo
-- `src/components/orders/FichaInlineEditor.tsx` — wrapper que envolve os campos do formulário e, em `editMode`, injeta os botões +/lápis/lixeira e o rodapé "salvar no banco".
-- `src/hooks/useFichaVersao.ts` — carrega snapshot ativo OU snapshot do `ficha_versao_id` do pedido em edição.
-- `src/hooks/useSalvarFichaVersao.ts` — aplica edições (cria nova `ficha_versoes` + atualiza tabelas espelho).
+**Migration:**
+- Inserir campos nativos (`vendedor`, `numero_pedido`, `cliente`, `whatsapp`, `quantidade`, `preco_base`) com `tipo='nativo'` em cada `ficha_tipo` (bota/cinto), somente se não existirem, dentro de uma categoria `identificacao` (criando se preciso). Não altera renderização, só permite renomear.
 
-### Página histórico
-- `src/components/gestao/HistoricoFichasTab.tsx` renderizada em `AdminConfigPage` na aba `historico-fichas`.
-- Substitui o card antigo "ficha de produção" na listagem.
+## Fora de escopo
 
-### Não afeta
-- Pedidos existentes (leitura preservada via `ficha_versao_id` ou fallback).
-- `custom_options`, extras, preços cache, sync Bagy — nada muda.
+- Reordenação drag-and-drop (fica pra depois).
+- Editar campos "nativos" que envolvem lógica (quantidade, preço base) além do label.
 
-### Ordem de execução
-1. Migração (tabela `ficha_versoes` + coluna `orders.ficha_versao_id` + seed v1 ativa).
-2. Hooks de leitura/gravação de versão.
-3. `FichaInlineEditor` + integração no BeltOrderPage/DynamicOrderPage/EditOrderPage/EditBeltPage.
-4. Nova aba "histórico de fichas" e remoção do card antigo.
-5. Testes manuais: criar pedido novo → edita ficha → salva versão → confirma que pedido velho segue com versão antiga e pedido novo com versão nova.
+## Confirmação necessária
+
+Antes de implementar, uma dúvida:
+
+**Relacionamento condicional entre variações** — no editor atual isso é JSON cru. Quer que o popover mostre um seletor amigável tipo "esta variação aparece SE em [campo X] for selecionado [variação Y, Z]"? (Recomendo sim, senão continua difícil de usar.)

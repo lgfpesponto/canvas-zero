@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,16 +6,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Save, X, Link2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Pencil, Trash2, Save, X, Link2, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import {
-  useFichaCategorias, useFichaCampos,
+  useFichaCategorias, useFichaCampos, useAllVariacoesByFichaTipo,
   useInsertCategoria, useUpdateCategoria, useDeleteCategoria,
   useInsertFichaCampo, useUpdateFichaCampo, useDeleteFichaCampo,
   useInsertVariacao, useUpdateVariacao, useDeleteVariacao,
+  type FichaVariacao, type FichaCampo, type FichaCategoria,
 } from '@/hooks/useAdminConfig';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { salvarNovaVersao } from '@/lib/fichaVersoes';
 
 interface Props {
@@ -31,6 +34,9 @@ export default function FichaVersaoEditorDialog({ open, onOpenChange, fichaTipoI
   const [saving, setSaving] = useState(false);
 
   const { data: categorias = [] } = useFichaCategorias(fichaTipoId);
+  const { data: campos = [] } = useFichaCampos(fichaTipoId);
+  const { data: variacoes = [] } = useAllVariacoesByFichaTipo(fichaTipoId);
+
   const insertCat = useInsertCategoria();
   const updateCat = useUpdateCategoria();
   const deleteCat = useDeleteCategoria();
@@ -60,21 +66,21 @@ export default function FichaVersaoEditorDialog({ open, onOpenChange, fichaTipoI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="h-5 w-5 text-primary" />
             Editar ficha — {fichaTipoNome}
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Adicione, edite ou remova categorias, campos e variações. Ao salvar no banco, uma nova
-            versão é criada — pedidos novos usarão a versão atualizada; pedidos anteriores continuam intactos.
+            Cada categoria da ficha aparece abaixo com seus campos e variações. Use <b>+</b> para adicionar e <b>lápis</b> para editar
+            nome/preço. Ao salvar, uma <b>nova versão</b> é gerada — pedidos novos usam a versão atualizada; pedidos anteriores ficam intactos.
           </p>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Categorias</h3>
+            <h3 className="text-sm font-semibold">Categorias ({categorias.length})</h3>
             <Button size="sm" variant="outline" onClick={handleAddCategoria} className="gap-1">
               <Plus className="h-4 w-4" /> nova categoria
             </Button>
@@ -88,6 +94,9 @@ export default function FichaVersaoEditorDialog({ open, onOpenChange, fichaTipoI
                 key={cat.id}
                 categoria={cat}
                 fichaTipoId={fichaTipoId}
+                campos={campos.filter(c => c.categoria_id === cat.id)}
+                todosCampos={campos}
+                variacoes={variacoes}
                 onUpdate={async (patch) => { await updateCat.mutateAsync({ id: cat.id, ...patch }); }}
                 onDelete={async () => {
                   if (!window.confirm(`Excluir categoria "${cat.nome}" e todas as suas variações?`)) return;
@@ -124,16 +133,25 @@ export default function FichaVersaoEditorDialog({ open, onOpenChange, fichaTipoI
 }
 
 /* ────────── Categoria ────────── */
-function CategoriaBlock({ categoria, fichaTipoId, onUpdate, onDelete }: {
-  categoria: any; fichaTipoId: string;
+function CategoriaBlock({
+  categoria, fichaTipoId, campos, todosCampos, variacoes, onUpdate, onDelete,
+}: {
+  categoria: FichaCategoria; fichaTipoId: string;
+  campos: FichaCampo[]; todosCampos: FichaCampo[]; variacoes: FichaVariacao[];
   onUpdate: (patch: any) => Promise<void>; onDelete: () => Promise<void>;
 }) {
-  const { data: campos = [] } = useFichaCampos(fichaTipoId);
   const camposDaCat = useMemo(
-    () => campos.filter((c: any) => c.categoria_id === categoria.id).sort((a: any, b: any) => (a.ordem ?? 0) - (b.ordem ?? 0)),
-    [campos, categoria.id],
+    () => [...campos].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
+    [campos],
   );
 
+  // Variações "órfãs" (sem campo_id, mas dentro da categoria)
+  const variacoesOrfas = useMemo(
+    () => variacoes.filter(v => v.categoria_id === categoria.id && !v.campo_id),
+    [variacoes, categoria.id],
+  );
+
+  const [collapsed, setCollapsed] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nome, setNome] = useState(categoria.nome);
 
@@ -157,10 +175,22 @@ function CategoriaBlock({ categoria, fichaTipoId, onUpdate, onDelete }: {
     toast.success('Campo criado');
   };
 
+  const totalVars = camposDaCat.reduce(
+    (acc, c) => acc + variacoes.filter(v => v.campo_id === c.id).length,
+    variacoesOrfas.length,
+  );
+
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center gap-2">
+          <Button
+            size="icon" variant="ghost" className="h-6 w-6"
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? 'expandir' : 'recolher'}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
           {editingName ? (
             <>
               <Input value={nome} onChange={e => setNome(e.target.value)} className="h-8" />
@@ -171,58 +201,89 @@ function CategoriaBlock({ categoria, fichaTipoId, onUpdate, onDelete }: {
             <>
               <Badge variant="secondary" className="text-xs">{categoria.slug}</Badge>
               <span className="font-semibold">{categoria.nome}</span>
-              <Button size="icon" variant="ghost" className="h-7 w-7 ml-auto" onClick={() => setEditingName(true)} title="renomear">
+              <span className="text-xs text-muted-foreground">
+                · {camposDaCat.length} {camposDaCat.length === 1 ? 'campo' : 'campos'} · {totalVars} variações
+              </span>
+              <Button size="icon" variant="ghost" className="h-7 w-7 ml-auto" onClick={() => setEditingName(true)} title="renomear categoria">
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete} title="excluir">
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={onDelete} title="excluir categoria">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </>
           )}
         </div>
 
-        <div className="pl-3 border-l-2 border-border/50 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase text-muted-foreground">Campos</span>
-            <Button size="sm" variant="ghost" onClick={handleAddCampo} className="h-7 gap-1 text-xs">
-              <Plus className="h-3.5 w-3.5" /> campo
-            </Button>
+        {!collapsed && (
+          <div className="pl-3 border-l-2 border-border/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase text-muted-foreground">Campos</span>
+              <Button size="sm" variant="ghost" onClick={handleAddCampo} className="h-7 gap-1 text-xs">
+                <Plus className="h-3.5 w-3.5" /> campo
+              </Button>
+            </div>
+            {camposDaCat.length === 0 && variacoesOrfas.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Sem campos no banco. Se a ficha mostra campos desta categoria, eles estão hardcoded no formulário.
+              </p>
+            ) : (
+              <>
+                {camposDaCat.map((campo) => (
+                  <CampoBlock
+                    key={campo.id}
+                    campo={campo}
+                    todosCampos={todosCampos}
+                    variacoes={variacoes.filter(v => v.campo_id === campo.id)}
+                    todasVariacoes={variacoes}
+                  />
+                ))}
+                {variacoesOrfas.length > 0 && (
+                  <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-2 space-y-1">
+                    <p className="text-[11px] text-amber-900 dark:text-amber-200 flex items-center gap-1">
+                      <Info className="h-3 w-3" /> {variacoesOrfas.length} variações desta categoria não estão vinculadas a nenhum campo.
+                    </p>
+                    {variacoesOrfas.map(v => (
+                      <VariacaoRow key={v.id} variacao={v} todosCampos={todosCampos} todasVariacoes={variacoes} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
-          {camposDaCat.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">Sem campos.</p>
-          ) : (
-            camposDaCat.map((campo: any) => (
-              <CampoBlock key={campo.id} campo={campo} fichaTipoId={fichaTipoId} />
-            ))
-          )}
-        </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
 /* ────────── Campo ────────── */
-function CampoBlock({ campo, fichaTipoId }: { campo: any; fichaTipoId: string }) {
+function CampoBlock({
+  campo, todosCampos, variacoes, todasVariacoes,
+}: {
+  campo: FichaCampo; todosCampos: FichaCampo[]; variacoes: FichaVariacao[]; todasVariacoes: FichaVariacao[];
+}) {
   const updateCampo = useUpdateFichaCampo();
   const deleteCampo = useDeleteFichaCampo();
-  const [editing, setEditing] = useState(false);
+  const insertVar = useInsertVariacao();
+
+  const [editOpen, setEditOpen] = useState(false);
   const [nome, setNome] = useState(campo.nome);
   const [obrigatorio, setObrigatorio] = useState(!!campo.obrigatorio);
 
-  const { data: variacoes = [] } = useQuery({
-    queryKey: ['ficha_variacoes_campo', campo.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ficha_variacoes')
-        .select('*')
-        .eq('campo_id', campo.id)
-        .order('ordem');
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // Preço para tipo checkbox (armazenado em opcoes[0].preco_adicional)
+  const checkboxOpcao = Array.isArray(campo.opcoes) && campo.opcoes.length > 0 ? campo.opcoes[0] : null;
+  const [checkboxPreco, setCheckboxPreco] = useState<number>(
+    checkboxOpcao ? Number(checkboxOpcao.preco_adicional) || 0 : 0,
+  );
 
-  const insertVar = useInsertVariacao();
+  useEffect(() => {
+    setNome(campo.nome);
+    setObrigatorio(!!campo.obrigatorio);
+    if (checkboxOpcao) setCheckboxPreco(Number(checkboxOpcao.preco_adicional) || 0);
+  }, [campo.id, campo.nome, campo.obrigatorio, checkboxOpcao]);
+
+  const podeAdicionarVariacao = campo.tipo === 'selecao' || campo.tipo === 'multipla';
 
   const handleAddVar = async () => {
     const nomeVar = window.prompt('Nome da variação:');
@@ -230,7 +291,7 @@ function CampoBlock({ campo, fichaTipoId }: { campo: any; fichaTipoId: string })
     const precoStr = window.prompt('Preço adicional (R$):', '0') || '0';
     const preco = parseFloat(precoStr.replace(',', '.')) || 0;
     await insertVar.mutateAsync({
-      categoria_id: campo.categoria_id,
+      categoria_id: campo.categoria_id!,
       campo_id: campo.id,
       nome: nomeVar,
       preco_adicional: preco,
@@ -239,56 +300,87 @@ function CampoBlock({ campo, fichaTipoId }: { campo: any; fichaTipoId: string })
     toast.success('Variação criada');
   };
 
+  const handleSalvarCampo = async () => {
+    const patch: any = { id: campo.id, nome, obrigatorio };
+    if (campo.tipo === 'checkbox') {
+      patch.opcoes = [{ label: 'sim', preco_adicional: checkboxPreco }];
+    }
+    await updateCampo.mutateAsync(patch);
+    setEditOpen(false);
+    toast.success('Campo salvo');
+  };
+
   return (
     <div className="rounded-md bg-muted/30 p-3 space-y-2">
-      <div className="flex items-center gap-2">
-        {editing ? (
-          <>
-            <Input value={nome} onChange={e => setNome(e.target.value)} className="h-7 text-sm" />
-            <label className="flex items-center gap-1 text-xs">
-              <input type="checkbox" checked={obrigatorio} onChange={e => setObrigatorio(e.target.checked)} />
-              obrig.
-            </label>
-            <Button size="sm" onClick={async () => {
-              await updateCampo.mutateAsync({ id: campo.id, nome, obrigatorio });
-              setEditing(false);
-            }}>ok</Button>
-            <Button size="sm" variant="ghost" onClick={() => { setNome(campo.nome); setObrigatorio(!!campo.obrigatorio); setEditing(false); }}>x</Button>
-          </>
-        ) : (
-          <>
-            <span className="text-sm font-medium">{campo.nome}</span>
-            <Badge variant="outline" className="text-[10px]">{campo.tipo}</Badge>
-            {campo.obrigatorio && <Badge className="text-[10px] bg-primary/80">obrig.</Badge>}
-            <div className="ml-auto flex gap-1">
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleAddVar} title="adicionar variação">
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)} title="editar campo">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium">{campo.nome}</span>
+        <Badge variant="outline" className="text-[10px]">{campo.tipo}</Badge>
+        {campo.obrigatorio && <Badge className="text-[10px] bg-primary/80">obrig.</Badge>}
+        {podeAdicionarVariacao && (
+          <span className="text-[11px] text-muted-foreground">· {variacoes.length} variações</span>
+        )}
+        <div className="ml-auto flex gap-1">
+          {podeAdicionarVariacao && (
+            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleAddVar} title="adicionar variação">
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Popover open={editOpen} onOpenChange={setEditOpen}>
+            <PopoverTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-6 w-6" title="editar campo">
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 text-destructive"
-                onClick={async () => {
-                  if (!window.confirm(`Excluir campo "${campo.nome}"?`)) return;
-                  await deleteCampo.mutateAsync(campo.id);
-                  toast.success('Campo excluído');
-                }}
-                title="excluir"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </>
-        )}
+            </PopoverTrigger>
+            <PopoverContent className="w-72 space-y-3" align="end">
+              <div className="space-y-1">
+                <Label className="text-xs">Nome do campo</Label>
+                <Input value={nome} onChange={e => setNome(e.target.value)} className="h-8" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={obrigatorio} onCheckedChange={setObrigatorio} />
+                <Label className="text-xs">obrigatório</Label>
+              </div>
+              {campo.tipo === 'checkbox' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Preço quando marcado (R$)</Label>
+                  <Input
+                    type="number" step="0.01" value={checkboxPreco}
+                    onChange={e => setCheckboxPreco(parseFloat(e.target.value) || 0)}
+                    className="h-8"
+                  />
+                </div>
+              )}
+              {campo.tipo === 'texto' && (
+                <p className="text-[11px] text-muted-foreground">
+                  Campo de texto livre — só é possível renomear.
+                </p>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <Button size="sm" variant="ghost" onClick={() => setEditOpen(false)}>cancelar</Button>
+                <Button size="sm" onClick={handleSalvarCampo}>salvar</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-destructive"
+            onClick={async () => {
+              if (!window.confirm(`Excluir campo "${campo.nome}" e suas variações?`)) return;
+              await deleteCampo.mutateAsync(campo.id);
+              toast.success('Campo excluído');
+            }}
+            title="excluir campo"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       {variacoes.length > 0 && (
         <div className="grid gap-1 pl-2">
-          {variacoes.map((v: any) => (
-            <VariacaoRow key={v.id} variacao={v} campoSlug={campo.slug} />
+          {variacoes.map((v) => (
+            <VariacaoRow key={v.id} variacao={v} todosCampos={todosCampos} todasVariacoes={todasVariacoes} />
           ))}
         </div>
       )}
@@ -297,17 +389,46 @@ function CampoBlock({ campo, fichaTipoId }: { campo: any; fichaTipoId: string })
 }
 
 /* ────────── Variação ────────── */
-function VariacaoRow({ variacao, campoSlug }: { variacao: any; campoSlug: string }) {
+function VariacaoRow({
+  variacao, todosCampos, todasVariacoes,
+}: {
+  variacao: FichaVariacao & { relacionamento?: any };
+  todosCampos: FichaCampo[];
+  todasVariacoes: FichaVariacao[];
+}) {
   const updateVar = useUpdateVariacao();
   const deleteVar = useDeleteVariacao();
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(variacao.nome);
   const [preco, setPreco] = useState<number>(Number(variacao.preco_adicional) || 0);
-
   const [relOpen, setRelOpen] = useState(false);
-  const [relJson, setRelJson] = useState<string>(
-    JSON.stringify(variacao.relacionamento || {}, null, 2),
-  );
+
+  const relInicial: Record<string, string[]> = ((variacao as any).relacionamento && typeof (variacao as any).relacionamento === 'object')
+    ? (variacao as any).relacionamento
+    : {};
+  const [rel, setRel] = useState<Record<string, string[]>>(relInicial);
+
+  const camposComVariacoes = useMemo(() => {
+    const map = new Map<string, { campo: FichaCampo; vars: FichaVariacao[] }>();
+    for (const c of todosCampos) {
+      if (c.id === variacao.campo_id) continue; // não relacionar consigo mesmo
+      const vs = todasVariacoes.filter(v => v.campo_id === c.id);
+      if (vs.length > 0) map.set(c.slug, { campo: c, vars: vs });
+    }
+    return Array.from(map.values());
+  }, [todosCampos, todasVariacoes, variacao.campo_id]);
+
+  const toggleRel = (campoSlug: string, varName: string) => {
+    setRel(prev => {
+      const arr = new Set(prev[campoSlug] || []);
+      if (arr.has(varName)) arr.delete(varName); else arr.add(varName);
+      const next = { ...prev };
+      if (arr.size === 0) delete next[campoSlug]; else next[campoSlug] = Array.from(arr);
+      return next;
+    });
+  };
+
+  const totalRel = Object.values(rel).reduce((a, arr) => a + arr.length, 0);
 
   return (
     <div className="flex items-center gap-2 text-sm bg-background rounded px-2 py-1">
@@ -334,9 +455,57 @@ function VariacaoRow({ variacao, campoSlug }: { variacao: any; campoSlug: string
           <span className="text-xs text-muted-foreground w-20 text-right">
             {Number(variacao.preco_adicional) ? `R$ ${Number(variacao.preco_adicional).toFixed(2)}` : '—'}
           </span>
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setRelOpen(true)} title="editar relacionamento">
-            <Link2 className="h-3.5 w-3.5" />
-          </Button>
+          <Popover open={relOpen} onOpenChange={setRelOpen}>
+            <PopoverTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-6 w-6 relative" title="relacionamento condicional">
+                <Link2 className="h-3.5 w-3.5" />
+                {totalRel > 0 && (
+                  <span className="absolute -top-1 -right-1 h-3.5 min-w-3.5 rounded-full bg-primary text-[8px] text-primary-foreground px-1 flex items-center justify-center">
+                    {totalRel}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 max-h-96 overflow-y-auto space-y-3" align="end">
+              <div>
+                <p className="text-xs font-semibold">Aparece quando…</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Marque as variações de outros campos que <b>liberam</b> "{variacao.nome}". Sem nada marcado, aparece sempre.
+                </p>
+              </div>
+              {camposComVariacoes.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Nenhum outro campo com variações.</p>
+              ) : (
+                camposComVariacoes.map(({ campo, vars }) => (
+                  <div key={campo.id} className="space-y-1">
+                    <p className="text-[11px] font-medium">{campo.nome}</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {vars.map(v => {
+                        const checked = (rel[campo.slug] || []).includes(v.nome);
+                        return (
+                          <label key={v.id} className="flex items-center gap-1 text-[11px] cursor-pointer">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => toggleRel(campo.slug, v.nome)}
+                            />
+                            <span className="truncate">{v.nome}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button size="sm" variant="ghost" onClick={() => { setRel(relInicial); setRelOpen(false); }}>cancelar</Button>
+                <Button size="sm" onClick={async () => {
+                  await updateVar.mutateAsync({ id: variacao.id, relacionamento: rel });
+                  toast.success('Relacionamento salvo');
+                  setRelOpen(false);
+                }}>salvar</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)} title="editar">
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -355,39 +524,6 @@ function VariacaoRow({ variacao, campoSlug }: { variacao: any; campoSlug: string
           </Button>
         </>
       )}
-
-      <Dialog open={relOpen} onOpenChange={setRelOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Relacionamento — {variacao.nome}</DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Define quais valores de outros campos ficam permitidos quando esta variação for escolhida.
-              Formato JSON: <code className="text-[10px]">{'{"campo_slug": ["valor1", "valor2"]}'}</code>.
-              Ex.: se "{variacao.nome}" está em <code>{campoSlug}</code> e você quer limitar cores compatíveis,
-              use <code>{'{"cor_couro_cano": ["Preto","Marrom"]}'}</code>.
-            </p>
-          </DialogHeader>
-          <Textarea
-            rows={10}
-            value={relJson}
-            onChange={e => setRelJson(e.target.value)}
-            className="font-mono text-xs"
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRelOpen(false)}>cancelar</Button>
-            <Button onClick={async () => {
-              try {
-                const parsed = relJson.trim() ? JSON.parse(relJson) : {};
-                await updateVar.mutateAsync({ id: variacao.id, relacionamento: parsed });
-                toast.success('Relacionamento salvo');
-                setRelOpen(false);
-              } catch (err: any) {
-                toast.error('JSON inválido: ' + err.message);
-              }
-            }}>salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
