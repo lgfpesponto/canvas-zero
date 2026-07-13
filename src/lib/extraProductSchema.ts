@@ -47,6 +47,7 @@ export const EXTRA_SCHEMA: Record<string, ExtraSchema> = {
     fields: [
       { key: 'tipoCouro', label: 'Tipo de couro', kind: 'select', source: 'shared', sharedList: 'TIPOS_COURO' },
       { key: 'corCouro', label: 'Cor do couro', kind: 'select', source: 'shared', sharedList: 'CORES_COURO' },
+      { key: 'vaiCanivete', label: 'Vai o canivete? (preço do Sim)', kind: 'select', source: 'variacoes', group: 'vai_canivete' },
     ],
   },
   kit_faca: {
@@ -54,6 +55,7 @@ export const EXTRA_SCHEMA: Record<string, ExtraSchema> = {
     fields: [
       { key: 'tipoCouro', label: 'Tipo de couro', kind: 'select', source: 'shared', sharedList: 'TIPOS_COURO' },
       { key: 'corCouro', label: 'Cor do couro', kind: 'select', source: 'shared', sharedList: 'CORES_COURO' },
+      { key: 'vaiFaca', label: 'Vai a faca? (preço do Sim)', kind: 'select', source: 'variacoes', group: 'vai_faca' },
     ],
   },
   carimbo_fogo: {
