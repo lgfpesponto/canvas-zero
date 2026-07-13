@@ -13,6 +13,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BAGY_TOKEN = Deno.env.get("BAGY_API_TOKEN") || "";
 const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
   .replace(/\/$/, "");
+const EDGE_FUNCTION_BASE = `${SUPABASE_URL}/functions/v1`;
 
 const MAX_BATCH = 50;
 const MAX_TENTATIVAS = 5;
@@ -49,6 +50,8 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
   const candidates = [
     `${BAGY_BASE}/variations?sku=${encodeURIComponent(sku)}`,
     `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`,
+    `${BAGY_BASE}/variations?reference=${encodeURIComponent(sku)}`,
+    `${BAGY_BASE}/products/variations?reference=${encodeURIComponent(sku)}`,
     `${BAGY_BASE}/variations?q=${encodeURIComponent(sku)}`,
   ];
   let lastError = "";
@@ -67,12 +70,12 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
       const json = await res.json();
       const arr = Array.isArray(json) ? json : (json.data || json.items || []);
       if (!Array.isArray(arr) || arr.length === 0) {
-        // resposta válida mas vazio → não tente outros candidatos (a rota funciona, só não tem SKU)
-        return { id: null };
+        lastError = "sku_nao_encontrado_na_bagy";
+        continue;
       }
       const skuLower = sku.toLowerCase();
       const hit = arr.find((v: any) =>
-        String(v.sku || v.code || "").toLowerCase() === skuLower
+        String(v.sku || v.code || v.reference || "").toLowerCase() === skuLower
       ) || arr[0];
       const id = hit?.id ?? hit?.variation_id ?? null;
       return { id: id ? String(id) : null, raw: hit };
@@ -80,6 +83,7 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
       lastError = e instanceof Error ? e.message : String(e);
     }
   }
+  if (lastError === "sku_nao_encontrado_na_bagy") return { id: null };
   return { id: null, error: lastError || "no endpoint matched" };
 }
 
