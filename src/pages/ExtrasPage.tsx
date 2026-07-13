@@ -22,6 +22,7 @@ import { maskPhoneBR } from '@/lib/whatsappSend';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
 import { useExtraProdutos } from '@/hooks/useExtraProdutos';
 import ExtraProdutoEditPopover from '@/components/extras/ExtraProdutoEditPopover';
+import { getExtraOptionsFromDB, getExtraOptionPrice } from '@/lib/extraProductSchema';
 
 interface StockItem {
   id: string;
@@ -79,6 +80,11 @@ const ExtrasPage = () => {
   const displayProducts = (extraProdutosDB && extraProdutosDB.length > 0)
     ? extraProdutosDB.map(p => ({ id: p.id, nome: p.nome, descricao: p.descricao ?? '', precoBase: p.preco_base, precoLabel: p.preco_label, _db: p }))
     : EXTRA_PRODUCTS.map(p => ({ ...p, _db: undefined as any }));
+  const dbById = new Map((extraProdutosDB || []).map(p => [p.id, p]));
+  const getOpts = (productId: string, group: string, fallback: string[]) =>
+    getExtraOptionsFromDB(dbById.get(productId)?.variacoes as any, group, fallback);
+  const getOptPrice = (productId: string, group: string, nome: string, fallback: number) =>
+    getExtraOptionPrice(dbById.get(productId)?.variacoes as any, group, nome, fallback);
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
@@ -139,40 +145,51 @@ const ExtrasPage = () => {
   };
 
   const calcPrice = (productId: string): number => {
+    const db = dbById.get(productId);
+    const base = db?.preco_base ?? undefined;
     switch (productId) {
-      case 'tiras_laterais': return 15;
+      case 'tiras_laterais': return base ?? 15;
       case 'desmanchar': {
-        let total = 65;
-        if (form.qualSola === 'Preta borracha') total += 25;
-        else if (form.qualSola === 'De cor borracha') total += 40;
-        else if (form.qualSola === 'De couro') total += 60;
-        if (form.trocaGaspea === 'Sim') total += 35;
+        let total = base ?? 65;
+        // sola: usa preço da variação se admin cadastrou preço >0; senão fallback hardcoded.
+        const solaPreco = getOptPrice(productId, 'qual_sola', form.qualSola, {
+          'Preta borracha': 25,
+          'De cor borracha': 40,
+          'De couro': 60,
+        }[form.qualSola] ?? 0);
+        total += solaPreco;
+        const trocaPreco = form.trocaGaspea === 'Sim'
+          ? getOptPrice(productId, 'troca_gaspea', 'Sim', 35)
+          : 0;
+        total += trocaPreco;
         return total;
       }
-      case 'kit_canivete': return 30 + (form.vaiCanivete === 'Sim' ? 30 : 0);
-      case 'kit_faca': return 35 + (form.vaiCanivete === 'Sim' ? 35 : 0);
+      case 'kit_canivete': return (base ?? 30) + (form.vaiCanivete === 'Sim' ? (base ?? 30) : 0);
+      case 'kit_faca': return (base ?? 35) + (form.vaiCanivete === 'Sim' ? (base ?? 35) : 0);
       case 'carimbo_fogo': {
         const qty = parseInt(form.qtdCarimbos) || 1;
-        return qty >= 4 ? 40 : 20;
+        // Se o admin cadastrou faixas em variacoes.faixas com nome contendo "4", usa aquele preço.
+        const faixaNome = qty >= 4 ? '4 ou mais carimbos' : '1 a 3 carimbos';
+        return getOptPrice(productId, 'faixas', faixaNome, qty >= 4 ? 40 : 20);
       }
-      case 'revitalizador': return 10 * (parseInt(form.quantidade) || 1);
-      case 'kit_revitalizador': return 26 * (parseInt(form.quantidade) || 1);
-      case 'gravata_country': return 30;
-      case 'gravata_pronta_entrega': return 30;
+      case 'revitalizador': return (base ?? 10) * (parseInt(form.quantidade) || 1);
+      case 'kit_revitalizador': return (base ?? 26) * (parseInt(form.quantidade) || 1);
+      case 'gravata_country': return base ?? 30;
+      case 'gravata_pronta_entrega': return base ?? 30;
       case 'adicionar_metais': {
         let total = 0;
         const sel = form.metaisSelecionados as string[];
-        if (sel.includes('Bola grande')) total += 0.60 * (parseInt(form.qtdBolaGrande) || 1);
-        if (sel.includes('Strass')) total += 0.60 * (parseInt(form.qtdStrass) || 1);
+        if (sel.includes('Bola grande')) total += getOptPrice(productId, 'itens', 'Bola grande', 0.60) * (parseInt(form.qtdBolaGrande) || 1);
+        if (sel.includes('Strass')) total += getOptPrice(productId, 'itens', 'Strass', 0.60) * (parseInt(form.qtdStrass) || 1);
         return total;
       }
-      case 'chaveiro_carimbo': return 50;
-      case 'bainha_cartao': return 15;
-      case 'bainha_celular': return 50;
-      case 'regata': return 50;
-      case 'regata_pronta_entrega': return 50;
+      case 'chaveiro_carimbo': return base ?? 50;
+      case 'bainha_cartao': return base ?? 15;
+      case 'bainha_celular': return base ?? 50;
+      case 'regata': return base ?? 50;
+      case 'regata_pronta_entrega': return base ?? 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
-      case 'palmilha': return PALMILHA_PRECO_UNITARIO * (parseInt(form.quantidade) || 1);
+      case 'palmilha': return (base ?? PALMILHA_PRECO_UNITARIO) * (parseInt(form.quantidade) || 1);
       default: return 0;
     }
   };
@@ -616,7 +633,7 @@ const ExtrasPage = () => {
             </div>
             <div>
               <Label>Formato do bico *</Label>
-              <SearchableSelect options={PALMILHA_FORMATO_BICO} value={form.formatoBicoPalmilha} onValueChange={v => set('formatoBicoPalmilha', v)} placeholder="Selecione" />
+              <SearchableSelect options={getOpts('palmilha','formato_bico',PALMILHA_FORMATO_BICO)} value={form.formatoBicoPalmilha} onValueChange={v => set('formatoBicoPalmilha', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Quantidade *</Label>
@@ -630,11 +647,11 @@ const ExtrasPage = () => {
           <>
             <div>
               <Label>Cor da tira *</Label>
-              <SearchableSelect options={GRAVATA_COR_TIRA} value={form.corTira} onValueChange={v => set('corTira', v)} placeholder="Selecione" />
+              <SearchableSelect options={getOpts('gravata_country','cor_tira',GRAVATA_COR_TIRA)} value={form.corTira} onValueChange={v => set('corTira', v)} placeholder="Selecione" />
             </div>
             <div>
               <Label>Tipo de metal *</Label>
-              <SearchableSelect options={GRAVATA_TIPO_METAL} value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }} placeholder="Selecione" />
+              <SearchableSelect options={getOpts('gravata_country','tipo_metal',GRAVATA_TIPO_METAL)} value={form.tipoMetal} onValueChange={v => { set('tipoMetal', v); if (!v.startsWith('Bridão')) set('corBridao', ''); }} placeholder="Selecione" />
             </div>
             {form.tipoMetal?.startsWith('Bridão') && (
               <div>
@@ -722,18 +739,24 @@ const ExtrasPage = () => {
           <>
             <div className="space-y-2">
               <Label>Tipo do metal (multi seleção) *</Label>
-              {[{ label: 'Bola grande (R$ 0,60/un)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }].map(item => (
-                <div key={item.value} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={(form.metaisSelecionados as string[]).includes(item.value)}
-                    onCheckedChange={(checked) => {
-                      const sel = form.metaisSelecionados as string[];
-                      set('metaisSelecionados', checked ? [...sel, item.value] : sel.filter(s => s !== item.value));
-                    }}
-                  />
-                  <span className="text-sm">{item.label}</span>
-                </div>
-              ))}
+              {(() => {
+                const dbItems = dbById.get('adicionar_metais')?.variacoes?.itens as { nome: string; preco: number }[] | undefined;
+                const items = (dbItems && dbItems.length > 0)
+                  ? dbItems.map(it => ({ value: it.nome, label: `${it.nome} (R$ ${(Number(it.preco) || 0).toFixed(2).replace('.', ',')}/un)` }))
+                  : [{ label: 'Bola grande (R$ 0,60/un)', value: 'Bola grande' }, { label: 'Strass (R$ 0,60/un)', value: 'Strass' }];
+                return items.map(item => (
+                  <div key={item.value} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={(form.metaisSelecionados as string[]).includes(item.value)}
+                      onCheckedChange={(checked) => {
+                        const sel = form.metaisSelecionados as string[];
+                        set('metaisSelecionados', checked ? [...sel, item.value] : sel.filter(s => s !== item.value));
+                      }}
+                    />
+                    <span className="text-sm">{item.label}</span>
+                  </div>
+                ));
+              })()}
             </div>
             {(form.metaisSelecionados as string[]).includes('Bola grande') && (
               <div>

@@ -2086,7 +2086,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       </div>
 
       {/* ───── Templates Dialog ───── */}
-      <TemplatesDialog
+      <TemplatesDialogWithValidity
         open={tmpl.showTemplates}
         onOpenChange={tmpl.setShowTemplates}
         templates={tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto') as any}
@@ -2099,6 +2099,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         onEdit={handleEditTemplate as any}
         onDelete={handleDeleteTemplate}
         onSendMany={openSendDialog as any}
+        tipo="bota"
       />
 
 

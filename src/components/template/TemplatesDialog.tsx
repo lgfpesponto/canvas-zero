@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'sonner';
-import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { useIsMobile } from '@/hooks/use-mobile';
+import type { TemplateValidity } from '@/hooks/useTemplateValidity';
 
 export const MODEL_SCAN_PREFIX = '7EMODEL:';
 
@@ -42,11 +44,14 @@ interface Props {
   onEdit: (t: TemplateItem) => void;
   onDelete: (id: string) => void;
   onSendMany: (ts: TemplateItem[]) => void;
+  /** Mapa id → validade contra a versão vigente da ficha. Opcional. */
+  validityById?: Map<string, TemplateValidity>;
 }
 
 function TemplateCard({
   t,
   isChecked,
+  validity,
   onToggleSelect,
   onUse,
   onEdit,
@@ -55,6 +60,7 @@ function TemplateCard({
 }: {
   t: TemplateItem;
   isChecked: boolean;
+  validity?: TemplateValidity;
   onToggleSelect: () => void;
   onUse: () => void;
   onEdit: () => void;
@@ -64,6 +70,8 @@ function TemplateCard({
   const [imgErr, setImgErr] = useState(false);
   const hasPhoto = !!t.foto_url;
   const imgSrc = hasPhoto ? (isDriveUrl(t.foto_url!) ? toDriveImageUrl(t.foto_url!) : t.foto_url!) : null;
+  const invalid = validity && !validity.valid;
+  const removedText = invalid ? validity!.removed.map(r => `${r.campo}: "${r.valor}"`).join('\n') : '';
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
@@ -95,6 +103,20 @@ function TemplateCard({
             <Badge variant="destructive" className="text-[10px] py-0 px-1.5 shrink-0">Novo</Badge>
           )}
         </div>
+        {invalid && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="destructive" className="w-full justify-center gap-1 text-[10px] cursor-help">
+                  <AlertTriangle size={11} /> variação excluída, entre para editar
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs whitespace-pre-line text-xs">
+                {removedText}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <div className="flex items-center gap-1.5 mt-auto">
           <Checkbox
             checked={isChecked}
@@ -102,7 +124,15 @@ function TemplateCard({
             title="Selecionar para envio em lote"
             className="shrink-0"
           />
-          <Button size="sm" onClick={onUse} className="flex-1">Preencher</Button>
+          <Button
+            size="sm"
+            onClick={onUse}
+            disabled={invalid}
+            title={invalid ? 'Variação excluída — clique em Editar para corrigir' : undefined}
+            className="flex-1"
+          >
+            Preencher
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" className="h-9 w-9 p-0" title="Mais opções">
@@ -110,7 +140,7 @@ function TemplateCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTimeout(onSend, 0)}>
+              <DropdownMenuItem onClick={() => setTimeout(onSend, 0)} disabled={invalid}>
                 <Send size={14} className="mr-2" /> Enviar modelo
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setTimeout(onEdit, 0)}>
@@ -140,6 +170,7 @@ export function TemplatesDialog({
   onEdit,
   onDelete,
   onSendMany,
+  validityById,
 }: Props) {
   const isMobile = useIsMobile();
   const PAGE_SIZE = isMobile ? 2 : 6;
@@ -230,6 +261,7 @@ export function TemplatesDialog({
                   key={t.id}
                   t={t}
                   isChecked={selectedIds.includes(t.id)}
+                  validity={validityById?.get(t.id)}
                   onToggleSelect={() => onToggleSelect(t.id)}
                   onUse={() => onUse(t)}
                   onEdit={() => onEdit(t)}
