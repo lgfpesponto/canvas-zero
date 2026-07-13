@@ -482,10 +482,10 @@ const EditOrderPage = () => {
   const hasAnyLaser = laserCano.length > 0 || laserGaspea.length > 0 || laserTaloneira.length > 0;
 
   const total = modeloPreco + (sobMedida ? SOB_MEDIDA_PRECO : 0) + acessoriosPreco + couroPreco + bordadoPreco
-    + (nomeBordado ? NOME_BORDADO_PRECO : 0) + totalLaserPreco + (pintura ? PINTURA_PRECO : 0)
-    + (estampa ? ESTAMPA_PRECO : 0) + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
-    + (trice ? TRICE_PRECO : 0) + (tiras ? TIRAS_PRECO : 0) + soladoPreco + corSolaPreco + corViraPreco
-    + (costuraAtras ? COSTURA_ATRAS_PRECO : 0) + carimboPreco + (franja ? FRANJA_PRECO : 0) + (corrente ? CORRENTE_PRECO : 0) + (adicionalValor > 0 ? adicionalValor : 0);
+    + (nomeBordado ? NOME_BORDADO_PRECO : 0) + totalLaserPreco + (pintura ? getDynamicUnitPrice('pintura', PINTURA_PRECO) : 0)
+    + (estampa ? getDynamicUnitPrice('estampa', ESTAMPA_PRECO) : 0) + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
+    + (trice ? getDynamicUnitPrice('trice', TRICE_PRECO) : 0) + (tiras ? getDynamicUnitPrice('tiras', TIRAS_PRECO) : 0) + soladoPreco + corSolaPreco + corViraPreco
+    + (costuraAtras ? getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO) : 0) + carimboPreco + (franja ? getDynamicUnitPrice('franja', FRANJA_PRECO) : 0) + (corrente ? getDynamicUnitPrice('corrente', CORRENTE_PRECO) : 0) + (adicionalValor > 0 ? adicionalValor : 0);
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
