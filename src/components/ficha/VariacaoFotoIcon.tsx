@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Eye } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 
@@ -12,9 +11,8 @@ interface Props {
 
 /**
  * Ícone de olho ao lado do nome da variação. Ao clicar abre um dialog
- * mostrando o QR code do link da foto com a própria foto sobreposta
- * (o "botão Escanear" é invisível/sempre apertado — a imagem em cima
- * do QR é o resultado do "scan").
+ * mostrando a foto direta (sem QR code) — mesmo estilo dos Modelos
+ * Rascunhos.
  */
 export default function VariacaoFotoIcon({ fotoUrl, nome, size = 14 }: Props) {
   const [open, setOpen] = useState(false);
@@ -43,36 +41,29 @@ export default function VariacaoFotoIcon({ fotoUrl, nome, size = 14 }: Props) {
 }
 
 /**
- * QR + botão "Escanear" invisível sempre apertado + foto sobreposta.
- * Reutilizável no dialog do olhinho e nos cards do expandir.
- *
- * Se a URL for do Google Drive (`/file/d/{ID}/view`), convertemos para
- * `lh3.googleusercontent.com/d/{ID}` — formato aceito em <img src>.
+ * Exibe a foto direta (Drive convertido para lh3.googleusercontent.com/d/{ID}).
+ * Sem QR — igual à visualização de Modelos Rascunhos. Se a imagem falhar,
+ * mostra "Sem foto".
  */
 export function ScannedQr({ fotoUrl, nome, className = 'mx-auto w-64 h-64' }: { fotoUrl: string; nome?: string; className?: string }) {
   const imgSrc = isDriveUrl(fotoUrl) ? (toDriveImageUrl(fotoUrl) || fotoUrl) : fotoUrl;
   const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`relative bg-white rounded overflow-hidden border ${className}`}>
-      <QRCodeSVG value={fotoUrl} size={512} className="absolute inset-0 w-full h-full" />
-      <button
-        type="button"
-        aria-pressed="true"
-        aria-label="Escanear (ativo)"
-        tabIndex={-1}
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none"
-      >
-        Escanear
-      </button>
-      {imgOk && (
+      {imgOk ? (
         <img
           src={imgSrc}
           alt={nome || 'foto'}
           onError={() => setImgOk(false)}
           referrerPolicy="no-referrer"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
         />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+          Sem foto
+        </div>
       )}
     </div>
   );
 }
+
