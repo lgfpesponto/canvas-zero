@@ -90,20 +90,20 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
 
 function VarCard({ item, checked, onChange }: { item: ExpandirItem; checked: boolean; onChange: (c: boolean) => void }) {
   return (
-    <div className="border rounded-lg p-2 flex flex-col items-center gap-2 bg-card">
-      <div className="w-full aspect-square">
+    <div className="border rounded-md p-1.5 flex flex-col items-center gap-1 bg-card">
+      <div className="w-full h-28">
         {item.foto_url ? (
           <ScannedQr fotoUrl={item.foto_url} nome={item.label} className="w-full h-full" />
         ) : (
-          <div className="w-full h-full bg-white rounded overflow-hidden border flex items-center justify-center text-xs text-muted-foreground">
+          <div className="w-full h-full bg-white rounded overflow-hidden border flex items-center justify-center text-[11px] text-muted-foreground">
             Sem foto
           </div>
         )}
       </div>
-      <label className="flex items-center gap-2 w-full cursor-pointer">
+      <label className="flex items-center gap-1.5 w-full cursor-pointer">
         <Checkbox checked={checked} onCheckedChange={(v) => onChange(!!v)} />
-        <span className="text-sm flex-1 truncate">{item.label}</span>
-        {item.preco > 0 && <span className="text-xs text-muted-foreground">R${item.preco}</span>}
+        <span className="text-xs flex-1 truncate">{item.label}</span>
+        {item.preco > 0 && <span className="text-[10px] text-muted-foreground">R${item.preco}</span>}
       </label>
     </div>
   );
