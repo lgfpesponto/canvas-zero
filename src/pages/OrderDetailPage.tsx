@@ -1100,7 +1100,10 @@ const OrderDetailPage = () => {
               <>
                 {priceItems.map(([label, value], i) => (
                   <div key={i} className="flex justify-between py-1 border-b border-border/30 last:border-0">
-                    <span className="text-sm">{label}</span>
+                    <span className="text-sm inline-flex items-center gap-1">
+                      {label}
+                      <InlineVariacaoOlhos names={extractVariationName(label)} />
+                    </span>
                     <span className="text-sm font-semibold">{formatCurrency(value)}</span>
                   </div>
                 ))}
