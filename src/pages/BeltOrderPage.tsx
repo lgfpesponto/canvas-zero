@@ -25,6 +25,8 @@ function TemplatesDialogWithValidity(props: React.ComponentProps<typeof Template
   return <TemplatesDialog {...rest} validityById={validityById} />;
 }
 import SearchableSelect from '@/components/SearchableSelect';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
 import {
