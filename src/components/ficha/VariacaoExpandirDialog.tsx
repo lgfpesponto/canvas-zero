@@ -24,7 +24,7 @@ interface Props {
 }
 
 
-export default function VariacaoExpandirDialog({ open, onOpenChange, title, items, selected, onToggle }: Props) {
+export default function VariacaoExpandirDialog({ open, onOpenChange, title, items, selected, onToggle, onClearAll }: Props) {
   const isMobile = useIsMobile();
   const pageSize = isMobile ? 2 : 6;
   const [page, setPage] = useState(0);
