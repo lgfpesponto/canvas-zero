@@ -45,6 +45,9 @@ const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Produto atualizado.');
+    if (sku.trim() !== produto.sku_base.trim()) {
+      supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: produto.id } }).catch(() => {});
+    }
     onDone?.();
   };
 
@@ -59,6 +62,7 @@ const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`Ajuste aplicado (${delta > 0 ? '+' : ''}${delta}).`);
+    supabase.functions.invoke('bagy-stock-sync', { body: {} }).catch(() => {});
     setDelta(0); setMotivo('');
     onDone?.();
     setOpen(false);
