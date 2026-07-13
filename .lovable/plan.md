@@ -1,50 +1,101 @@
-## Sincronização em tempo real — sem depender de abrir o portal
+## Objetivo
 
-Sim, hoje já funciona **sem precisar ninguém abrir o portal**, mas com latências diferentes dependendo do caminho. Abaixo o estado atual e o que ajustar para ficar **o mais rápido possível** em todos os cenários.
+Permitir que **admin_master** e **admin_producao** editem a "ficha de produção" (bota/cinto) direto no formulário de fazer pedido, com **versionamento**: pedidos novos usam a versão vigente; pedidos antigos continuam vendo/respondendo a versão que estava ativa quando foram criados. E substituir a aba "ficha de produção" em `/admin/configuracoes` por um **histórico de versões** por tipo (bota/cinto).
 
-### Cenários e latência atual
+---
 
+## 1. Botão de edição no formulário de pedido
 
-| Evento                                            | Como sincroniza hoje                                                                                  | Latência                       |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------ |
-| Venda de vendedor A → afeta estoque do vendedor B | Trigger no DB enfileira em `bagy_stock_sync_queue` → worker envia PUT p/ Bagy                         | Depende do worker (ver abaixo) |
-| Venda no site Bagy → baixa estoque do Portal      | Webhook Bagy → função `bagy-webhook` baixa via `comprar_estoque_bagy` com `skip_bagy_push` (não ecoa) | Segundos                       |
-| Ajuste manual de estoque (admin)                  | Trigger enfileira → worker envia p/ Bagy                                                              | Depende do worker              |
-| Divergência silenciosa (drift)                    | Cron `bagy-stock-reconcile` a cada 15 min                                                             | Até 15 min                     |
+Escopo: `src/pages/BeltOrderPage.tsx` (cinto), `src/pages/DynamicOrderPage.tsx` (bota) e telas de edição correspondentes (`EditOrderPage`, `EditBeltPage`) — quando o pedido está na versão vigente. Se role é `admin_master` ou `admin_producao`:
 
+- Ícone de **lápis** no topo do card da ficha ("modo edição").
+- Ao ligar, cada bloco de variação passa a exibir:
+  - Ícone **+** ao lado do campo → abre popover para criar nova variação (nome + preço + relacionamento opcional).
+  - Ícone **lápis** em cada opção → edita nome/preço/relacionamento.
+  - Ícone **lixeira** em cada opção → remove.
+- **Relacionamentos**: mesmo modelo já existente em `ficha_variacoes.relacionamento` (JSONB). Ex.: ao editar "Nobuck" em `couro_cano`, escolher quais valores de `cor_couro_cano` ficam permitidos. Também expõe as combinações Tamanho × Modelo × Sola (usa hoje o mesmo campo).
+- Botão fixo no rodapé: **"salvar no banco (nova versão)"**. Confirma → cria uma nova versão da ficha e volta ao modo leitura.
 
-Tudo roda **server-side** (triggers do Postgres + edge functions + cron `pg_cron`). Ninguém precisa ter o portal aberto.
+Enquanto em modo edição, o formulário **não** cria pedido; ao sair sem salvar, mudanças são descartadas.
 
-### Gargalo atual: o "worker" da fila
+## 2. Versionamento
 
-Hoje quando uma venda muda estoque, a linha entra em `bagy_stock_sync_queue`, mas o **envio pra Bagy** só acontece quando:
+Nova tabela `ficha_versoes`:
 
-- alguém abre a tela de Gestão e clica algo que dispara o worker, **ou**
-- o cron roda.
+- `ficha_tipo_id`, `versao` (int auto), `snapshot` (JSONB com categorias/campos/variações/relacionamentos), `criado_por`, `descricao_mudanca` (texto opcional), `ativa` (só uma ativa por tipo), `created_at`.
 
-Preciso confirmar isso lendo o código do worker, mas se for esse o caso a "venda de A afeta B" só chega na Bagy no próximo tick do cron — não é instantâneo.
+Nova coluna `orders.ficha_versao_id` (nullable → pedidos antigos ficam "sem versão registrada" e continuam usando snapshot que já têm em `extra_detalhes`). Novos pedidos salvam o id da versão ativa no momento da criação.
 
-### O que fazer para ficar quase instantâneo
+Fluxo de leitura:
+- Formulário de **criar pedido**: sempre usa a versão `ativa` do tipo.
+- Formulário de **editar pedido**: se `orders.ficha_versao_id` existe, monta a ficha a partir do `snapshot` daquela versão; senão, usa a versão ativa (compat com pedidos anteriores).
+- "Salvar no banco" cria nova linha em `ficha_versoes` com `versao = max+1`, marca como `ativa=true` e as anteriores como `ativa=false`. Também aplica o snapshot em `ficha_categorias`/`ficha_campos`/`ficha_variacoes` para manter compatibilidade com o resto do sistema que hoje lê dessas tabelas (backfill/mirror), garantindo que preços e lookups atuais continuem funcionando.
 
-1. **Trigger → dispara edge function imediatamente**
-  Trocar (ou somar a) enfileiramento por um `pg_net.http_post` direto dentro do trigger `enfileirar_bagy_stock_sync`, chamando uma edge function `bagy-stock-push` que faz o PUT na Bagy na hora. A fila continua existindo como fallback/retry.
-  - Resultado: venda de A afeta B → Bagy em **1–3 segundos**.
-2. **Cron do worker da fila a cada 1 minuto** (rede de segurança)
-  Já temos `pg_cron`. Adicionar job de 1 min que processa qualquer item que ficou pendente (falha de rede, retry). Hoje reconcile é 15 min — mantemos os 15 min só pra drift real (comparar saldos), e criamos um novo de 1 min só pra **drenar a fila**.
-3. **Reconcile de 15 min continua** como está — é a rede de segurança final contra qualquer divergência que escape.
-4. **Webhook Bagy → Portal** já é instantâneo, não muda.
+Pedidos **passados não são afetados**: a leitura respeita `ficha_versao_id` do pedido.
 
-### Resumo dos SLAs após ajuste
+## 3. Substituir aba "ficha de produção" em `/admin/configuracoes`
 
-- Venda / ajuste no Portal → Bagy: **~2 s** (via `pg_net` no trigger) + fallback 1 min + reconcile 15 min
-- Venda na Bagy → Portal: **~1 s** (webhook, já existe)
-- Nenhum caminho depende de alguém ter o portal aberto.
+- Remove os cards e a rota interna `?tab=fichas` do editor antigo (que o usuário disse que não funcionou).
+- Cria nova aba **"histórico de fichas"** (`?tab=historico-fichas`) com:
+  - Tabs internos por tipo: **bota** / **cinto** (dinâmico se surgirem outros).
+  - Lista de versões (mais recente no topo): nº da versão, data, autor, badge "ativa", resumo de mudanças (diff simples: nº de campos/variações adicionados/removidos/alterados).
+  - Botão "ver detalhe" → dialog com snapshot completo (read-only).
+  - Botão "reverter" (só admin_master) → cria nova versão a partir do snapshot antigo e torna ativa.
 
-### Detalhes técnicos
+O editor `FichaBuilder` e páginas `AdminConfigFichaPage`/`AdminConfigVariacoesPage` deixam de ser linkados a partir dessa aba (não são apagadas do repo neste momento para não quebrar links diretos; podem ficar acessíveis via URL, mas o card some).
 
-- Nova edge function `bagy-stock-push` (single-item, idempotente): recebe `{sku, saldo}`, faz PUT em `/variations/{id}/stocks` da Bagy, marca item da fila como `sent`.
-- Trigger `enfileirar_bagy_stock_sync` passa a: (a) inserir na fila, (b) `perform net.http_post(...)` chamando `bagy-stock-push` com `x-cron-secret`.
-- Novo cron `bagy-stock-queue-drain-1min` chama `bagy-stock-push` em modo "drena fila" pra pegar retries.
-- Antes de codar preciso ler o worker atual (`supabase/functions/bagy-stock-*`) pra confirmar exatamente onde plugar e não duplicar envio.
+---
 
-Aprova esse caminho? Quando confirmar, saio do plano e implemento.
+## Detalhes técnicos
+
+### Migração Supabase
+```sql
+CREATE TABLE public.ficha_versoes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ficha_tipo_id UUID NOT NULL REFERENCES public.ficha_tipos(id) ON DELETE CASCADE,
+  versao INT NOT NULL,
+  snapshot JSONB NOT NULL,
+  descricao_mudanca TEXT,
+  criado_por UUID REFERENCES auth.users(id),
+  ativa BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (ficha_tipo_id, versao)
+);
+-- GRANT + RLS: leitura para authenticated; escrita só admin_master/admin_producao via has_role.
+-- índice parcial garantindo 1 ativa por tipo.
+CREATE UNIQUE INDEX ficha_versoes_ativa_uniq
+  ON public.ficha_versoes(ficha_tipo_id) WHERE ativa;
+
+ALTER TABLE public.orders ADD COLUMN ficha_versao_id UUID
+  REFERENCES public.ficha_versoes(id);
+```
+Seed inicial: para cada `ficha_tipos` existente, cria `versao=1` com snapshot do estado atual e marca `ativa=true`.
+
+### Snapshot format
+```json
+{
+  "categorias": [{ "id","slug","nome","ordem" }],
+  "campos":     [{ "id","categoria_id","slug","nome","tipo","obrigatorio","ordem","vinculo","desc_condicional","relacionamento" }],
+  "variacoes":  [{ "id","campo_id","categoria_id","nome","preco_adicional","ordem","relacionamento" }]
+}
+```
+
+### Componente novo
+- `src/components/orders/FichaInlineEditor.tsx` — wrapper que envolve os campos do formulário e, em `editMode`, injeta os botões +/lápis/lixeira e o rodapé "salvar no banco".
+- `src/hooks/useFichaVersao.ts` — carrega snapshot ativo OU snapshot do `ficha_versao_id` do pedido em edição.
+- `src/hooks/useSalvarFichaVersao.ts` — aplica edições (cria nova `ficha_versoes` + atualiza tabelas espelho).
+
+### Página histórico
+- `src/components/gestao/HistoricoFichasTab.tsx` renderizada em `AdminConfigPage` na aba `historico-fichas`.
+- Substitui o card antigo "ficha de produção" na listagem.
+
+### Não afeta
+- Pedidos existentes (leitura preservada via `ficha_versao_id` ou fallback).
+- `custom_options`, extras, preços cache, sync Bagy — nada muda.
+
+### Ordem de execução
+1. Migração (tabela `ficha_versoes` + coluna `orders.ficha_versao_id` + seed v1 ativa).
+2. Hooks de leitura/gravação de versão.
+3. `FichaInlineEditor` + integração no BeltOrderPage/DynamicOrderPage/EditOrderPage/EditBeltPage.
+4. Nova aba "histórico de fichas" e remoção do card antigo.
+5. Testes manuais: criar pedido novo → edita ficha → salva versão → confirma que pedido velho segue com versão antiga e pedido novo com versão nova.
