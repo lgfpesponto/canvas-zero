@@ -504,9 +504,9 @@ const ExtrasPage = () => {
               <Select value={form.qualSola} onValueChange={v => set('qualSola', v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Preta borracha">Preta borracha (+R$ 25)</SelectItem>
-                  <SelectItem value="De cor borracha">De cor borracha (+R$ 40)</SelectItem>
-                  <SelectItem value="De couro">De couro (+R$ 60)</SelectItem>
+                  <SelectItem value="Preta borracha">Preta borracha (+R$ {getOptPrice(productId, 'qual_sola', 'Preta borracha', 25)})</SelectItem>
+                  <SelectItem value="De cor borracha">De cor borracha (+R$ {getOptPrice(productId, 'qual_sola', 'De cor borracha', 40)})</SelectItem>
+                  <SelectItem value="De couro">De couro (+R$ {getOptPrice(productId, 'qual_sola', 'De couro', 60)})</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -515,7 +515,7 @@ const ExtrasPage = () => {
               <Select value={form.trocaGaspea} onValueChange={v => set('trocaGaspea', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Sim">Sim (+R$ 35)</SelectItem>
+                  <SelectItem value="Sim">Sim (+R$ {getOptPrice(productId, 'troca_gaspea', 'Sim', 35)})</SelectItem>
                   <SelectItem value="Não">Não</SelectItem>
                 </SelectContent>
               </Select>
