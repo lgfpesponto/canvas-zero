@@ -1995,7 +1995,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             </div>
             {/* Carimbo a Fogo (movido pra dentro de Extras) */}
             <div>
-              <label className={cls.label}>Carimbo a Fogo</label>
+              <label className={cls.label + ' inline-flex items-center'}>Carimbo a Fogo<FichaFieldControls labelText="Carimbo a Fogo" defaultTipo="selecao" defaultCategoriaSlug="carimbo" /></label>
               <div className="flex flex-wrap items-center gap-3">
                 <select value={carimbo} onChange={e => setCarimbo(e.target.value)} className={cls.inputSmall + ' w-44'}>
                   <option value="">Sem carimbo</option>
