@@ -168,12 +168,13 @@ function pickSkuFromVariation(json: any): string | null {
   return null;
 }
 
-async function bagyGetSkuByVariationId(variationId: string): Promise<string | null> {
+async function bagyGetSkuByVariationId(variationId: string): Promise<{ sku: string | null; notFound: boolean }> {
   const candidates = [
     `${BAGY_BASE}/variations/${encodeURIComponent(variationId)}`,
     `${BAGY_BASE}/products/variations/${encodeURIComponent(variationId)}`,
   ];
 
+  let all404 = true;
   for (const url of candidates) {
     try {
       const res = await fetch(url, {
@@ -182,15 +183,16 @@ async function bagyGetSkuByVariationId(variationId: string): Promise<string | nu
           Accept: "application/json",
         },
       });
+      if (res.status !== 404) all404 = false;
       if (!res.ok) continue;
       const json = await res.json();
       const sku = pickSkuFromVariation(json);
-      if (sku) return sku;
+      if (sku) return { sku, notFound: false };
     } catch (_e) {
-      // segue para o próximo endpoint
+      all404 = false; // network err ≠ inexistente
     }
   }
-  return null;
+  return { sku: null, notFound: all404 };
 }
 
 async function bagyPutBalance(variationId: string, balance: number): Promise<{ ok: boolean; error?: string }> {
