@@ -38,6 +38,8 @@ import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
 import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
+import { InlineVariacaoOlhos } from '@/components/ficha/InlineVariacaoOlhos';
+import { extractVariationName } from '@/lib/variationLabels';
 
 const cls = {
   label: 'block text-sm font-semibold mb-1',
