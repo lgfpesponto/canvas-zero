@@ -109,8 +109,6 @@ const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
               <Button size="sm" variant="outline" onClick={salvarMeta} disabled={busy} className="w-full">
                 {busy ? 'Salvando…' : 'Salvar dados'}
               </Button>
-            </div>
-
               <Button
                 size="sm"
                 variant="secondary"
