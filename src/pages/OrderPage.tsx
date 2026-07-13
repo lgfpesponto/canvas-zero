@@ -24,6 +24,10 @@ import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 import EditFichaButton from '@/components/orders/EditFichaButton';
+import { FichaEditProvider } from '@/contexts/FichaEditContext';
+import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
+import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
+import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -62,7 +66,10 @@ const ToggleField = ({
   textValue?: string; onTextChange?: (v: string) => void; textPlaceholder?: string;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
-    <span className="text-sm font-semibold min-w-[120px]">{label}:</span>
+    <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
+      {label}:
+      <FichaFieldControls labelText={label} defaultTipo="checkbox" />
+    </span>
     <select value={value ? 'tem' : 'nao'} onChange={e => onChange(e.target.value === 'tem')} className={cls.inputSmall + ' w-28'}>
       <option value="nao">Não tem</option>
       <option value="tem">Tem</option>
@@ -95,6 +102,7 @@ const MultiSelect = ({
               {selected.length} selecionado{selected.length > 1 ? 's' : ''}
             </span>
           )}
+          <FichaFieldControls labelText={label} defaultTipo="multipla" />
         </label>
       </div>
       {hasSearch && (
