@@ -66,9 +66,9 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
   };
 
   const addItem = (group: string) => {
-    setVariacoes(prev => ({ ...prev, [group]: [...(prev[group] || []), { nome: '', preco: 0 }] }));
+    setVariacoes(prev => ({ ...prev, [group]: [...(prev[group] || []), { nome: '', preco: 0, foto_url: '' }] }));
   };
-  const updateItem = (group: string, idx: number, patch: Partial<{ nome: string; preco: number }>) => {
+  const updateItem = (group: string, idx: number, patch: Partial<{ nome: string; preco: number; foto_url: string }>) => {
     setVariacoes(prev => ({
       ...prev,
       [group]: (prev[group] || []).map((v, i) => i === idx ? { ...v, ...patch } : v),
@@ -77,6 +77,7 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
   const removeItem = (group: string, idx: number) => {
     setVariacoes(prev => ({ ...prev, [group]: (prev[group] || []).filter((_, i) => i !== idx) }));
   };
+
 
   const showBasePrice = schema?.basePriceEditable !== false;
   const fields = schema?.fields || [];
@@ -161,30 +162,39 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
                   <p className="text-[11px] italic text-muted-foreground">Nenhuma variação — usará valores padrão do formulário.</p>
                 )}
                 {items.map((v, i) => (
-                  <div key={i} className="flex items-center gap-1">
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={v.nome}
+                        onChange={e => updateItem(group, i, { nome: e.target.value })}
+                        placeholder="nome"
+                        className="h-6 text-[11px] flex-1 px-1"
+                      />
+                      <Input
+                        type="number" step="0.01"
+                        value={v.preco}
+                        onChange={e => updateItem(group, i, { preco: parseFloat(e.target.value) || 0 })}
+                        placeholder="R$"
+                        className="h-6 text-[11px] w-16 px-1"
+                        title="preço adicional / unitário"
+                      />
+                      <Button
+                        size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        title="excluir variação"
+                        onClick={() => removeItem(group, i)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <Input
-                      value={v.nome}
-                      onChange={e => updateItem(group, i, { nome: e.target.value })}
-                      placeholder="nome"
-                      className="h-6 text-[11px] flex-1 px-1"
+                      value={v.foto_url || ''}
+                      onChange={e => updateItem(group, i, { foto_url: e.target.value })}
+                      placeholder="URL da foto (opcional)"
+                      className="h-6 text-[10px] px-1"
                     />
-                    <Input
-                      type="number" step="0.01"
-                      value={v.preco}
-                      onChange={e => updateItem(group, i, { preco: parseFloat(e.target.value) || 0 })}
-                      placeholder="R$"
-                      className="h-6 text-[11px] w-16 px-1"
-                      title="preço adicional / unitário"
-                    />
-                    <Button
-                      size="icon" variant="ghost" className="h-6 w-6 text-destructive"
-                      title="excluir variação"
-                      onClick={() => removeItem(group, i)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
                   </div>
                 ))}
+
               </div>
             </div>
           );
