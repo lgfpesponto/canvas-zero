@@ -18,7 +18,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import DeployAnnouncementCard from '@/components/gestao/DeployAnnouncementCard';
 import AuditoriaTab from '@/components/gestao/AuditoriaTab';
 import HistoricoPdfTab from '@/components/gestao/HistoricoPdfTab';
+import BagySyncStatusCard from '@/components/gestao/BagySyncStatusCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 
 interface PresenceUser extends PresencePayload {
   presence_ref?: string;
