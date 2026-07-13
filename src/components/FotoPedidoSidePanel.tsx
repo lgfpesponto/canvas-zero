@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Loader2, X, Eye, FileText } from 'lucide-react';
+import { ExternalLink, Loader2, X, Eye, FileText, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isDriveUrl, toDriveImageUrl, toDrivePreviewUrl } from '@/lib/driveUrl';
 
@@ -8,15 +8,17 @@ interface Props {
   onClose: () => void;
   onFinalizar?: () => void;
   onSaveDraft?: () => void;
+  onEstoquePronto?: () => void;
+  showEstoquePronto?: boolean;
   disabled?: boolean;
 }
 
 /**
  * Painel lateral fixo (sticky) com a foto do pedido.
- * Opcionalmente exibe botões flutuantes "olho" (finalizar/conferir) e "página" (salvar rascunho)
- * logo abaixo do painel — acompanham a rolagem porque o aside é sticky.
+ * Opcionalmente exibe botões flutuantes "olho" (finalizar/conferir), "página" (salvar rascunho)
+ * e "caixa" (criar direto no estoque) logo abaixo do painel.
  */
-export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, disabled }: Props) => {
+export const FotoPedidoSidePanel = ({ url, onClose, onFinalizar, onSaveDraft, onEstoquePronto, showEstoquePronto, disabled }: Props) => {
   const [imgFailed, setImgFailed] = useState(false);
   const [loading, setLoading] = useState(true);
 
