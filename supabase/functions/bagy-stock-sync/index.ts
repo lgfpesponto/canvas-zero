@@ -67,7 +67,7 @@ async function authorizeRequest(req: Request, admin: any, body: any): Promise<Re
     });
   }
 
-  const needsPrivilegedAccess = Boolean(body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced);
+  const needsPrivilegedAccess = Boolean(body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced || body?.force_rediscover);
   if (!needsPrivilegedAccess) return null;
 
   const { data: roles, error: rolesError } = await admin
