@@ -289,7 +289,7 @@ function DynamicField({ campo, value, onChange }: {
       return (
         <div className="space-y-1">
           <Label className="text-xs lowercase">
-            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <Input value={value || ''} onChange={e => onChange(e.target.value)} />
         </div>
@@ -299,7 +299,7 @@ function DynamicField({ campo, value, onChange }: {
       return (
         <div className="space-y-1">
           <Label className="text-xs lowercase">
-            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <Select value={value || ''} onValueChange={onChange}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -319,7 +319,7 @@ function DynamicField({ campo, value, onChange }: {
       return (
         <div className="space-y-2">
           <Label className="text-xs lowercase">
-            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <div className="grid gap-2 sm:grid-cols-2">
             {opcoes.map(o => (
@@ -346,7 +346,7 @@ function DynamicField({ campo, value, onChange }: {
           <div className="flex items-center gap-2">
             <Switch checked={!!value} onCheckedChange={v => { onChange(v); if (!v) setDescText(''); }} />
             <Label className="text-xs lowercase">
-              {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+              {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
             </Label>
           </div>
           {campo.desc_condicional && value && (
