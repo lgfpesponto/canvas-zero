@@ -164,8 +164,8 @@ const ExtrasPage = () => {
         total += trocaPreco;
         return total;
       }
-      case 'kit_canivete': return (base ?? 30) + (form.vaiCanivete === 'Sim' ? (base ?? 30) : 0);
-      case 'kit_faca': return (base ?? 35) + (form.vaiCanivete === 'Sim' ? (base ?? 35) : 0);
+      case 'kit_canivete': return (base ?? 30) + (form.vaiCanivete === 'Sim' ? getOptPrice(productId, 'vai_canivete', 'Sim', base ?? 30) : 0);
+      case 'kit_faca': return (base ?? 35) + (form.vaiCanivete === 'Sim' ? getOptPrice(productId, 'vai_faca', 'Sim', base ?? 35) : 0);
       case 'carimbo_fogo': {
         const qty = parseInt(form.qtdCarimbos) || 1;
         // Se o admin cadastrou faixas em variacoes.faixas com nome contendo "4", usa aquele preço.
