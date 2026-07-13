@@ -74,6 +74,11 @@ const ExtrasPage = () => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: extraProdutosDB } = useExtraProdutos();
+  const isAdminMaster = user?.role === 'admin_master';
+  const displayProducts = (extraProdutosDB && extraProdutosDB.length > 0)
+    ? extraProdutosDB.map(p => ({ id: p.id, nome: p.nome, descricao: p.descricao ?? '', precoBase: p.preco_base, precoLabel: p.preco_label, _db: p }))
+    : EXTRA_PRODUCTS.map(p => ({ ...p, _db: undefined as any }));
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
