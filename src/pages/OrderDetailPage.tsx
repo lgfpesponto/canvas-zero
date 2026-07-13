@@ -1442,6 +1442,9 @@ const OrderDetailPage = () => {
                             <div key={i} className="text-xs leading-snug">
                               {f.label && <span className="font-bold">{f.label} </span>}
                               <span>{f.value}</span>
+                              {f.variationNames && f.variationNames.length > 0 && (
+                                <InlineVariacaoOlhos names={f.variationNames} size={12} />
+                              )}
                             </div>
                           ))}
                         </div>
