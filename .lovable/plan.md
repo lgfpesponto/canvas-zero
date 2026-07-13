@@ -1,29 +1,14 @@
-## Ajustes no dialog de foto/QR
+## Igual aos Modelos Rascunhos — só a foto
 
-### Diagnóstico do "QR não lê"
+Remover o QR code do `ScannedQr`. A visualização passa a ser apenas a `<img>` com `object-contain` sobre fundo branco (foto inteira, sem corte, sem QR embaixo). Se a imagem falhar, mostra "Sem foto".
 
-A foto não aparece sobre o QR porque o link salvo em `foto_url` é do tipo `https://drive.google.com/file/d/{ID}/view` — o Google Drive **bloqueia** essa URL em `<img src>` (hotlink negado). Não é um problema de "botão de escanear" — o `<img>` já existe sobreposto ao QR, ele só está caindo no `onError` silenciosamente e ficando apenas o QR visível.
+Isso também deixa a exibição mais rápida (não renderiza mais o SVG do QR grande em cada card do expandir).
 
-A solução real é converter Drive → URL direta de imagem antes de renderizar. Já existe o helper `toDriveImageUrl` em `src/lib/driveUrl.ts` que transforma para `https://lh3.googleusercontent.com/d/{ID}` (formato aceito em `<img>`).
+### Arquivo
+- `src/components/ficha/VariacaoFotoIcon.tsx`:
+  - `ScannedQr` renderiza só `<img src={imgSrc} className="object-contain ...">` (converte Drive → `lh3.googleusercontent.com/d/{ID}` como já faz hoje).
+  - Sem `QRCodeSVG`, sem botão "Escanear" invisível (não é mais necessário — a foto direta já é a "leitura").
+  - Fallback `onError`: div "Sem foto".
+- `src/components/ficha/VariacaoExpandirDialog.tsx`: o card já usa `ScannedQr` — nada a mudar.
 
-### Mudanças
-
-**1. `src/components/ficha/VariacaoFotoIcon.tsx` (`ScannedQr`)**
-- Converter `fotoUrl` via `toDriveImageUrl` quando for link do Drive; senão usar a URL original.
-- Manter o botão "Escanear" invisível/pressionado em cima do QR (aria-pressed, opacity-0) — a leitura visual é a própria imagem sobreposta.
-- No dialog do olhinho: remover o parágrafo com o link (`<p>{fotoUrl}</p>`).
-
-**2. `src/components/ficha/VariacaoExpandirDialog.tsx` — reduzir tamanho**
-- Trocar `max-w-4xl` por algo menor para caber na tela sem scroll (referência: modelos rascunhos usa `max-w-5xl` mas com cards menores). Alvo: `max-w-3xl` no desktop.
-- Reduzir aspecto/tamanho de cada card:
-  - QR/foto: `aspect-square` → altura fixa menor (ex.: `h-32`/`h-36`), removendo o quadrado grande.
-  - Padding e gap menores (`gap-3`, `p-1.5`).
-- Continua 6 por página no desktop (3×2) e 2 no mobile (1×2), mas com cards compactos igual à visualização de rascunhos.
-
-**3. Fora de escopo**
-- Não mexer no `foto_url` salvo (continua sendo o link do Drive original — a conversão é só na exibição).
-- Nenhuma migração de banco, nenhuma mudança de fluxo de compra.
-
-### Arquivos afetados
-- `src/components/ficha/VariacaoFotoIcon.tsx`
-- `src/components/ficha/VariacaoExpandirDialog.tsx`
+Sem outras mudanças.
