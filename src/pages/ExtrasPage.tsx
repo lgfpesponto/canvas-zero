@@ -20,6 +20,8 @@ import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus
 import { supabase } from '@/integrations/supabase/client';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
+import { useExtraProdutos } from '@/hooks/useExtraProdutos';
+import ExtraProdutoEditPopover from '@/components/extras/ExtraProdutoEditPopover';
 
 interface StockItem {
   id: string;
