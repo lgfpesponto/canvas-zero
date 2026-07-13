@@ -1,87 +1,72 @@
 ## Objetivo
 
-Substituir o dialog "Editar ficha" por **edição inline direto na ficha de produção** (bota/cinto). O admin_master/admin_producao ativa um "modo edição" clicando no lápis, e passa a ver ícones de + e ✏️ ao lado de cada campo e categoria da própria ficha real — não em uma tela separada.
+Colocar **➕ e ✏️ inline ao lado de cada label** da ficha de bota e cinto (sem popup grande), acionados por um botão "modo edição" no topo da página. O popup do lápis vira o mesmo popover leve que já criei no dialog (nome do campo + variações + preços + relacionamento amigável).
 
-## Problemas atuais
+Também aplicar a versão "amigável" do relacionamento (já pronta no dialog) — checkboxes por campo em vez de JSON.
 
-1. O `FichaVersaoEditorDialog` mostra uma versão paralela (e incompleta) da ficha — categorias/variações não batem com o que aparece na ficha real.
-2. Edição em modal desconecta o admin do contexto visual do formulário.
-3. Não há como renomear campos nativos (Vendedor, Nº do Pedido, Cliente, WhatsApp).
+## Componentes novos
 
-## Solução
+1. **`src/contexts/FichaEditContext.tsx`**
+   - Estado global: `editMode: boolean`, `fichaTipoId: string`, `setEditMode`, `save/discard`.
+   - Provider envolve `OrderPage`, `BeltOrderPage`, `DynamicOrderPage`.
 
-### 1. Modo edição inline (sem dialog)
+2. **`src/components/ficha-edit/FichaEditToggle.tsx`**
+   - Botão "editar ficha" (lápis) no topo. Só visível para `admin_master` / `admin_producao`.
+   - Ao ativar: mostra a barra flutuante + injeta borda tracejada laranja discreta em cada bloco (via classe global aplicada no `<body>` ou no wrapper da página).
 
-- Botão "editar ficha" (lápis) no topo de `OrderPage` (bota), `BeltOrderPage` (cinto) e `DynamicOrderPage` (extras) vira **toggle** de um `FichaEditContext`.
-- Quando ativo:
-  - Borda tracejada laranja em cada bloco de categoria e cada campo.
-  - Barra fixa no rodapé com **"salvar nova versão"** / **"descartar"** / campo opcional de descrição da mudança.
-- Deletar `FichaVersaoEditorDialog` (não é mais usado).
+3. **`src/components/ficha-edit/FichaEditBar.tsx`**
+   - Barra fixa no rodapé quando `editMode`. Botões: "descartar" · "salvar como nova versão" · input opcional de descrição.
+   - Ao salvar: chama `salvarNovaVersao(fichaTipoId, descricao)`, invalida queries, sai do modo.
 
-### 2. Controles inline por elemento
+4. **`src/components/ficha-edit/FichaFieldControls.tsx`** — o coração da UX inline.
+   - Props: `slug`, `fichaTipoId`, `defaultNome` (fallback), `defaultTipo` ('texto'|'selecao'|'multipla'|'checkbox'), `categoriaSlug?` (para autocriar o campo na categoria certa se ainda não existe).
+   - Se `editMode === false` → retorna `null`.
+   - Se `editMode === true` → renderiza inline dois ícones (mesmo tamanho de um badge) ao lado do texto do label:
+     - **➕** (só para selecao/multipla): prompt rápido nome+preço → cria variação.
+     - **✏️**: popover leve com:
+       - Nome do campo (editar → update `ficha_campos.nome` ou cria stub se não existir)
+       - Toggle obrigatório
+       - Se `tipo === 'checkbox'`: input de preço (opcoes[0].preco_adicional)
+       - Se `tipo === 'selecao'|'multipla'`: lista das variações do campo com nome/preço editáveis + 🗑️ + linha "+ nova variação". Reusa `VariacaoRow` (já pronto no editor).
+       - Relacionamento condicional amigável (já pronto): botão `Link2` por variação abre a checklist.
+   - Se o slug não tem `ficha_campos` correspondente, o popover primeiro cria a linha (upsert em `ficha_campos` com `ficha_tipo_id`, `categoria_id`, `slug`, `nome`, `tipo`) e daí em diante age normalmente.
 
-**Em cada categoria** (cabeçalho laranja tipo "IDENTIFICAÇÃO"):
-- ✏️ renomear categoria (popover pequeno com input do nome)
-- 🗑️ excluir categoria
-- **+ campo** no fim da categoria
+5. **`src/components/ficha-edit/FichaCategoryControls.tsx`**
+   - Colocado ao lado do cabeçalho laranja das categorias (IDENTIFICAÇÃO, MODELO, etc.) — renomear categoria + **+ campo**.
 
-**Em cada campo (label acima do input)**:
-- ✏️ ao lado do nome → popover com:
-  - nome do campo (todos os tipos)
-  - se `checkbox` com valor: preço do "sim"
-  - se `selecao`/`multipla`: **lista das variações existentes** com nome + preço editáveis inline, botão 🗑️ por variação, e **+ variação** no fim
-  - relacionamento condicional: seletor que lista as variações de outros campos já criados (marcar quais liberam esta variação) — grava em `relacionamento` JSONB no formato já usado
-- ➕ ao lado do nome → adiciona nova variação (para selecao/multipla) OU nova opção sim/não (checkbox). Em campos tipo `texto` o ➕ fica oculto (só o ✏️ para renomear).
+## Wiring nas páginas
 
-### 3. Renomear campos nativos
+**`src/pages/OrderPage.tsx` (~30 labels):**
+- Envolver com `FichaEditProvider fichaSlug="bota"`.
+- No topo, substituir `EditFichaButton` por `FichaEditToggle`.
+- Ao lado de cada `<label className={cls.label}>NomeDoCampo…</label>`, adicionar
+  `<FichaFieldControls slug="..." defaultTipo="..." categoriaSlug="..." />` como filho.
+- Ao lado dos cabeçalhos de categoria (IDENTIFICAÇÃO / MODELO / COURO / BORDADOS / SOLADOS / etc.) inserir `FichaCategoryControls slug="..."`.
+- Não mudar comportamento nem valores dos inputs — só adicionar controles condicionais.
 
-Campos "hardcoded" (Vendedor, Nº do Pedido, Cliente, WhatsApp, quantidade, preço base) hoje vivem no JSX, não em `ficha_campos`. Criar tabela leve `ficha_labels_overrides` **NÃO** — em vez disso, incluir esses labels no `snapshot` da versão via `ficha_campos` sintéticos com `tipo='nativo'` e `slug` fixo (`vendedor`, `numero_pedido`, `cliente`, `whatsapp`, `quantidade`, `preco_base`). O JSX passa a ler o label pelo slug do snapshot ativo, com fallback para o texto atual.
+**`src/pages/BeltOrderPage.tsx` (~21 labels):** mesma coisa com `fichaSlug="cinto"`.
 
-- Migration: inserir esses campos "nativos" na `ficha_campos` de cada ficha_tipo se não existirem, marcados com `tipo = 'nativo'` (não renderizam input dinâmico, só servem para o label).
-- Ficha em modo edição mostra ✏️ neles também, permitindo renomear.
-- Checkbox com preço (`trisce`, `tiras` etc.): editor permite mudar o valor do "sim" — grava em `opcoes` como `[{label:'sim', preco_adicional: X}]`.
+**`src/pages/DynamicOrderPage.tsx`:** mais fácil, já é data-driven; injetar controles no `DynamicField` e no cabeçalho.
 
-### 4. Salvamento
+**Renderizar `FichaEditBar` uma vez em cada uma das três páginas**, dentro do provider.
 
-- Todas as edições ficam em estado local do `FichaEditContext` (dirty).
-- Ao clicar "salvar nova versão":
-  1. Aplica os diffs nas tabelas `ficha_categorias`/`ficha_campos`/`ficha_variacoes` (upsert/delete conforme necessário).
-  2. Chama `salvarNovaVersao(ficha_tipo_id, descricao)` — snapshot já usa `buildSnapshotAtual`, então captura o estado novo.
-  3. Invalida queries de `useFichaCampos`, `useFichaCategorias`, `useFichaVariacoes`.
-  4. Toast + sai do modo edição.
+## Migration
 
-### 5. Histórico
+Nada obrigatório. Os slugs de campos hardcoded que ainda não existem em `ficha_campos` (ex.: `nome_produto`, `whatsapp`, `foto_referencia`, alguns `laser_*`, `recorte_*`) serão criados sob demanda pelo popover quando o admin clicar em ✏️ pela primeira vez — assim não sujamos o banco com stubs de campos que ninguém quer editar.
 
-- Aba "Histórico de Fichas" em `/admin/configuracoes` (já existe via `HistoricoFichasTab`) continua igual — só passa a listar as versões geradas pelo novo editor inline.
+## Reuso do que já existe
 
-## Arquivos afetados
+- `VariacaoRow` (já criado) — reutilizada dentro do popover inline.
+- `salvarNovaVersao` — reutilizado no `FichaEditBar`.
+- Relacionamento amigável — já implementado no popover `Link2`.
 
-**Novos:**
-- `src/contexts/FichaEditContext.tsx` — estado global do modo edição + buffer de mudanças pendentes.
-- `src/components/ficha-edit/FichaEditToggle.tsx` — botão lápis no topo (substitui `EditFichaButton`).
-- `src/components/ficha-edit/FichaEditBar.tsx` — barra flutuante de salvar/descartar.
-- `src/components/ficha-edit/CategoriaEditControls.tsx` — ✏️/🗑️/+campo por categoria.
-- `src/components/ficha-edit/CampoEditControls.tsx` — ✏️/➕ por campo, popover com variações + relacionamento.
-- `src/components/ficha-edit/VariacaoRow.tsx` — linha editável nome/preço/🗑️.
+## Fora de escopo (para próxima)
 
-**Editados:**
-- `src/pages/OrderPage.tsx`, `src/pages/BeltOrderPage.tsx`, `src/pages/DynamicOrderPage.tsx` — envolver com `FichaEditProvider`, trocar `EditFichaButton` por `FichaEditToggle`, passar os labels nativos por `useFichaLabel(slug)`.
-- `src/hooks/useAdminConfig.ts` — hook `useFichaLabel(fichaTipoId, slug, fallback)`.
+- Reordenar campos por drag-and-drop.
+- Editar labels de campos que não são visíveis na ficha atual (ex.: campos legados só em ficha antiga).
+- Ajuste visual fino da borda tracejada / animações do modo edição.
 
-**Excluídos:**
-- `src/components/admin/FichaVersaoEditorDialog.tsx`
-- `src/components/orders/EditFichaButton.tsx`
+## Riscos e mitigações
 
-**Migration:**
-- Inserir campos nativos (`vendedor`, `numero_pedido`, `cliente`, `whatsapp`, `quantidade`, `preco_base`) com `tipo='nativo'` em cada `ficha_tipo` (bota/cinto), somente se não existirem, dentro de uma categoria `identificacao` (criando se preciso). Não altera renderização, só permite renomear.
-
-## Fora de escopo
-
-- Reordenação drag-and-drop (fica pra depois).
-- Editar campos "nativos" que envolvem lógica (quantidade, preço base) além do label.
-
-## Confirmação necessária
-
-Antes de implementar, uma dúvida:
-
-**Relacionamento condicional entre variações** — no editor atual isso é JSON cru. Quer que o popover mostre um seletor amigável tipo "esta variação aparece SE em [campo X] for selecionado [variação Y, Z]"? (Recomendo sim, senão continua difícil de usar.)
+- **Muitos labels** (~50 no total): a inserção é mecânica e não altera JSX estrutural — o risco é typo de slug. Vou seguir a nomenclatura já existente em `ficha_campos` (query rodada mostra os slugs canônicos: `vendedor`, `numero_pedido`, `cliente`, `tamanho`, `modelo`, `couro_cano`, `cor_couro_cano`, `bordado_cano`, `laser_cano`, `recorte_cano`, etc.).
+- **Layout dos ícones**: renderizados com `inline-flex ml-1 opacity-70 hover:opacity-100`, sem quebrar o flow do label. Não aparecem quando `editMode = false`, então a UX normal fica intacta.
