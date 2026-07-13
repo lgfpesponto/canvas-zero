@@ -671,9 +671,10 @@ Deno.serve(async (req) => {
           // Indexa a mudança de etapa
           await supabase.from("order_status_changes").insert({
             order_id: ordAtual.id,
-            from_status: ordAtual.status,
-            to_status: "Cancelado",
-            changed_by_nome: "Bagy (webhook)",
+            status: "Cancelado",
+            changed_on: dataSp,
+            changed_hora: horaSp,
+            usuario: "Bagy (webhook)",
           });
         }
       } catch (cancelErr) {
