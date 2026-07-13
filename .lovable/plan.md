@@ -1,56 +1,53 @@
-## Objetivo
+## Diagnóstico
 
-1. Mostrar o **olhinho de foto** (mesmo componente já usado no formulário do pedido) ao lado dos nomes de variações que possuem `foto_url`, tanto na **Composição do Pedido** quanto em **Detalhes da Bota / Detalhes do Cinto** — na tela de detalhe do pedido e no **espelho da ficha** de bota, cinto e extras.
-2. No diálogo **Expandir** (multi-seleção com fotos), mostrar quantas variações estão selecionadas com a lista de nomes abaixo, e adicionar botão **OK** ao lado do X para confirmar.
+Você já editou os preços corretos no banco — eu conferi:
 
-## 1. Olhinho nas variações — detalhe do pedido (`OrderDetailPage`)
+| campo | nome | preco_adicional | relacionamento |
+|---|---|---|---|
+| solado | Couro Reta | **65** | cor_sola:[Madeira,Avermelhada,Pintada de Preto], cor_vira:[Neutra] |
+| solado | Couro Carrapeta | **65** | idem |
+| solado | Couro Carrapeta com Espaço Espora | **65** | idem |
+| cor_sola | Off White | **10** | — |
 
-### Composição do Pedido (`priceItems`)
-- Usar `useFichaVariacoesLookup().findFotoByName(nome)` para achar a `foto_url` a partir do nome puro da variação.
-- Para cada linha, extrair o nome da variação removendo prefixos conhecidos (`Modelo: `, `Couro: `, `Bordado: `, `Solado: `, `Cor Sola: `, `Cor Vira: `, `Recorte Cano: `, etc.). Itens de bordado do array já vêm com o próprio nome, então usamos o label direto.
-- Renderizar `<VariacaoFotoIcon fotoUrl={...} nome={...} size={14} />` logo após o texto do label (na mesma linha, antes do valor R$).
-- Só renderiza se `findFotoByName` retornar algo (o componente já retorna `null` sem foto).
+Os dados estão salvos, com os relacionamentos preservados. O que falta é o **código** consultá-los: hoje `OrderPage.tsx` lê tudo das constantes `SOLADO`/`COR_SOLA` em `src/lib/orderFieldsConfig.ts` (Couro Reta ainda como 60, Off White como 0), ignorando o banco. Por isso salvar a nova versão da ficha não mudou nada — nem invalidar cache resolveria, o caminho nunca consulta o banco.
 
-### Detalhes da Bota (`fichaCats` via `buildBootFichaCategories`)
-- Estender `FichaField` para carregar opcionalmente o **nome da variação** (`variationName?: string`) — separado do texto de exibição (que hoje é `variação + cor` em minúsculas).
-- Em `src/lib/orderFichaCategories.ts`, preencher `variationName` quando o campo corresponde a uma única variação:
-  - Couros: cano/gáspea/taloneira → `order.couroCano/Gaspea/Taloneira` (nome do couro).
-  - Bordados: cano/gáspea/taloneira → nome do bordado (já disponível em `bC`, `bG`, `bT`). Quando o campo é multi-valor separado por vírgula, guardar um array `variationNames?: string[]` e renderizar um olhinho por variação (com tooltip do próprio nome).
-  - Laser/Recortes: idem por parte.
-  - Solado: tipo puro (sem formato do bico) → `order.solado`.
-  - Cor Sola/Cor Vira/Cor Linha/Cor Borrachinha/Cor Vivo: nome puro.
-  - Metais, extras, cliente e observações: sem olhinho (não são variações).
-- Na renderização (`OrderDetailPage.tsx` no bloco `fichaCats.map`) chamar `findFotoByName` para cada nome e, se houver, mostrar `<VariacaoFotoIcon />` ao lado do valor. Multi-nomes: um olhinho por variação, um do lado do outro.
+## Plano
 
-### Detalhes de Extra (cinto e outros)
-- O ramo `order.tipoExtra && order.extraDetalhes` renderiza campos via `extra products schema`. Aplicar a mesma ideia: onde o valor exibido corresponde a uma variação (por exemplo cores de couro/linha/vivo/bordado do cinto), usar `findFotoByName(valorPuro)` e mostrar o olhinho. Feito localmente no componente que já renderiza os campos do extra (`ExtraProdutoEditPopover` mostra edição; a **exibição** no detalhe é dentro do bloco `order.tipoExtra && order.extraDetalhes` no `OrderDetailPage`; ajustar essa renderização).
+**Objetivo:** o **preço** de Solado e Cor da Sola passa a vir do banco (`ficha_variacoes` slugs `solado` e `cor_sola`), sem tocar em pedidos antigos e sem desestruturar os relacionamentos que você já cadastrou.
 
-## 2. Olhinho nas variações — espelho da ficha
+### 1. Ler preço do banco em `OrderPage.tsx`
+- Substituir `SOLADO.find(...).preco` → `findFichaPrice(solado, 'solado') ?? SOLADO.find(...)?.preco ?? 0` (linhas 1023, 1487).
+- Substituir `getCorSolaOptions(...).find(...).preco` → `findFichaPrice(corSola, 'cor_sola') ?? getCorSolaPrecoContextual(...)` (linhas 1024-1025, 1488-1489).
+- `orderFieldsConfig.ts` permanece intacto como fallback (para relacionamentos estruturais Modelo×Solado×Bico e para pedidos antigos com valores originais).
 
-### Bota (`OrderPage.tsx`)
-- `mirrorPriceItems`: converter para `Array<{ label: string; valor: number; variationName?: string }>` e renderizar `<VariacaoFotoIcon />` ao lado do label. Mesma regra de extração de nome usada em Composição do Pedido.
-- `mirrorGrouped` (Detalhes da Bota do espelho): já é a mesma estrutura conceitual do `fichaCats`; enriquecer com `variationName?/variationNames?` seguindo o mesmo mapeamento e renderizar o olhinho.
+### 2. Registrar os slugs no lookup
+- Em `src/hooks/useFichaVariacoesLookup.ts`, adicionar ao `CATEGORY_MAP`:
+  ```
+  'solado': 'solado',
+  'cor_sola': 'cor_sola',
+  'cor_vira': 'cor_vira',
+  'formato_bico': 'formato_bico',
+  ```
+  Sem isso, `findFichaPrice('Couro Reta', 'solado')` retorna `undefined` mesmo com o dado no banco.
 
-### Cinto (`BeltOrderPage.tsx`) e Extras
-- `mirrorGrouped` do cinto e o mirror do fluxo de extras: aplicar o mesmo enriquecimento e renderização.
+### 3. Refletir a mesma leitura em recompute/detalhe
+- `src/lib/recomputeOrderPrice.ts` (linhas 105-107): usar `findFichaPrice` com fallback para `SOLADO`/`getCorSolaPrecoContextual`. O recompute já recebe o lookup — só faltam essas duas linhas.
+- Isso mantém `OrderDetailPage`, `mirrorPriceItems` e ajuste retroativo consistentes com o formulário.
 
-## 3. Diálogo Expandir (`VariacaoExpandirDialog.tsx`)
+### 4. Cor da Vira também (mesma categoria de mudança, aproveito a passagem)
+- Aplicar o mesmo padrão para `corVira` usando slug `cor_vira`, com fallback em `COR_VIRA` e `getCorViraOptions`. Isso deixa toda a seção "Solados" governada pelo banco.
 
-- **Contador + lista de selecionadas**: abaixo da busca (acima dos cards), mostrar:
-  - `"X selecionada(s)"` (chip primary).
-  - Lista horizontal (chips pequenos) com os nomes das variações atualmente marcadas — clique no `×` do chip desmarca.
-  - Se `selected.length === 0`, esconde a seção.
-- **Botão OK**: adicionar botão **OK** no header, ao lado do X de fechar (o X é do `DialogContent` do shadcn). Como o `DialogContent` já injeta o `X`, adicionar o botão dentro do `DialogHeader` (alinhado à direita) com estilo primary; ambos apenas fecham o dialog (a seleção já é aplicada em tempo real via `onToggle`). Texto: `OK` — mesmo comportamento de `onOpenChange(false)`.
+### 5. NÃO mexer em (preservação):
+- **Nenhum registro do banco** — não vou alterar `ficha_variacoes`, `relacionamento` (JSONB) nem versionamento. Os relacionamentos que você cadastrou continuam intocados.
+- **Nenhum pedido existente** — pedidos salvos guardam apenas o label (`"Couro Reta"`, `"Off White"`) e o `preco` congelado no momento do save. Ler do banco só afeta cálculos novos; pedidos antigos continuam mostrando o valor original.
+- **Estruturas de filtragem** (`getSoladosForModelo`, `getBicosForModeloSolado`, `getCorSolaOptions` restringindo por Modelo/Solado/Bico) continuam no código porque envolvem regras cruzadas Modelo↔Solado↔Bico que o banco não modela hoje. O que mudou é só a fonte do **valor monetário**.
 
-## Arquivos afetados
+### 6. Validação
+- Rodar `tsgo` (typecheck).
+- Abrir novo pedido: Bota Tradicional + Couro Reta + Off White (quando aplicável) — subtotal precisa somar 65 + 10.
+- Abrir pedido antigo: valor histórico preservado (nada muda visualmente).
+- Editar admin depois: `useAdminConfig` já invalida `ficha_variacoes_lookup`, então a mudança seguinte aparece sem reload.
 
-- `src/lib/orderFichaCategories.ts` — adicionar `variationName?`/`variationNames?` em `FichaField` e preencher nos campos aplicáveis.
-- `src/pages/OrderDetailPage.tsx` — usar `useFichaVariacoesLookup`, renderizar `VariacaoFotoIcon` em `priceItems`, `fichaCats` e no bloco de detalhes de extra.
-- `src/pages/OrderPage.tsx` — trocar `mirrorPriceItems`/`mirrorGrouped` para carregar nome puro e renderizar olhinho.
-- `src/pages/BeltOrderPage.tsx` — mesmo tratamento no espelho do cinto.
-- `src/components/ficha/VariacaoExpandirDialog.tsx` — contador + chips de selecionadas + botão OK ao lado do X.
+## Nota técnica
 
-## Fora de escopo
-
-- PDFs impressos (mantidos como estão — sem olhinho, sem HTML interativo).
-- Alterar a lógica de preço ou o schema do banco.
+Os slugs `solado`/`cor_sola`/`cor_vira`/`formato_bico` já existem em `ficha_campos` sob a categoria `solados-visual` e têm suas variações populadas com `relacionamento` JSONB. A mudança é puramente de leitura no frontend — nenhuma migração de schema, nenhuma alteração de dados.

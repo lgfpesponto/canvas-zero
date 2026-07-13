@@ -1020,10 +1020,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO) : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO) : 0;
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
-  const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
+  const soladoPreco = findFichaPrice(solado, 'solado') ?? SOLADO.find(s => s.label === solado)?.preco ?? 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
-  const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
-  const corViraPreco = COR_VIRA.find(c => c.label === corVira)?.preco || 0;
+  const corSolaPreco = findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
+  const corViraPreco = findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
 
   // Recortes (preço configurável via admin; fallback 0)
@@ -1485,8 +1485,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (franja) items.push(['Franja', getDynamicUnitPrice('franja', FRANJA_PRECO)]);
     if (corrente) items.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
     if (soladoPreco) items.push(['Solado: ' + solado, soladoPreco]);
-    const corSolaP = getCorSolaPrecoContextual(modelo, solado, formatoBico, corSola);
-    if (corSolaP) items.push(['Cor Sola: ' + corSola, corSolaP]);
+    if (corSolaPreco) items.push(['Cor Sola: ' + corSola, corSolaPreco]);
     if (corViraPreco) items.push(['Cor Vira: ' + corVira, corViraPreco]);
     if (costuraAtras) items.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
     if (carimboPreco && carimbo) items.push([carimbo, carimboPreco]);
