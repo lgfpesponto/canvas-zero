@@ -45,6 +45,7 @@ const EstoqueAdminPanel = ({ order }: Props) => {
     setCreating(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Estoque criado/abastecido com sucesso!');
+    supabase.functions.invoke('bagy-stock-sync', { body: { retry_unsynced: true } }).catch(() => {});
     setTimeout(() => window.location.reload(), 500);
   };
 

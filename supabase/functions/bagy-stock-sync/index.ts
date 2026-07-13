@@ -10,6 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const BAGY_TOKEN = Deno.env.get("BAGY_API_TOKEN") || "";
 const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
   .replace(/\/$/, "");
@@ -17,11 +18,81 @@ const BAGY_BASE = (Deno.env.get("BAGY_API_BASE") || "https://api.dooca.store")
 const MAX_BATCH = 50;
 const MAX_TENTATIVAS = 5;
 
+async function enqueueStockSync(admin: any, produtoId: string, sku: string, saldo: number) {
+  const payload = {
+    sku,
+    novo_saldo: saldo,
+    tentativas: 0,
+    ultimo_erro: null,
+    processado_em: null,
+    criado_em: new Date().toISOString(),
+  };
+
+  const { data: updated, error: updateError } = await admin
+    .from("bagy_stock_sync_queue")
+    .update(payload as any)
+    .eq("estoque_produto_id", produtoId)
+    .is("processado_em", null)
+    .select("id");
+
+  if (updateError) return { error: updateError };
+  if (updated && updated.length > 0) return { error: null };
+
+  const { error: insertError } = await admin
+    .from("bagy_stock_sync_queue")
+    .insert({ estoque_produto_id: produtoId, ...payload } as any);
+
+  return { error: insertError };
+}
+
+async function authorizeRequest(req: Request, admin: any, body: any): Promise<Response | null> {
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (token === SERVICE_ROLE) return null;
+
+  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const { data: claimsData, error: claimsError } = await anon.auth.getClaims(token);
+  const userId = claimsData?.claims?.sub;
+  if (claimsError || !userId) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const needsPrivilegedAccess = Boolean(body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced);
+  if (!needsPrivilegedAccess) return null;
+
+  const { data: roles, error: rolesError } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin_master", "admin_producao", "vendedor_comissao"]);
+
+  if (rolesError || !roles || roles.length === 0) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return null;
+}
+
 async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
   // Tenta múltiplos caminhos da API Dooca/Bagy
   const candidates = [
     `${BAGY_BASE}/variations?sku=${encodeURIComponent(sku)}`,
     `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`,
+    `${BAGY_BASE}/variations?reference=${encodeURIComponent(sku)}`,
+    `${BAGY_BASE}/products/variations?reference=${encodeURIComponent(sku)}`,
     `${BAGY_BASE}/variations?q=${encodeURIComponent(sku)}`,
   ];
   let lastError = "";
@@ -40,12 +111,12 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
       const json = await res.json();
       const arr = Array.isArray(json) ? json : (json.data || json.items || []);
       if (!Array.isArray(arr) || arr.length === 0) {
-        // resposta válida mas vazio → não tente outros candidatos (a rota funciona, só não tem SKU)
-        return { id: null };
+        lastError = "sku_nao_encontrado_na_bagy";
+        continue;
       }
       const skuLower = sku.toLowerCase();
       const hit = arr.find((v: any) =>
-        String(v.sku || v.code || "").toLowerCase() === skuLower
+        String(v.sku || v.code || v.reference || "").toLowerCase() === skuLower
       ) || arr[0];
       const id = hit?.id ?? hit?.variation_id ?? null;
       return { id: id ? String(id) : null, raw: hit };
@@ -53,6 +124,7 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
       lastError = e instanceof Error ? e.message : String(e);
     }
   }
+  if (lastError === "sku_nao_encontrado_na_bagy") return { id: null };
   return { id: null, error: lastError || "no endpoint matched" };
 }
 
@@ -101,17 +173,22 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  // Optional body: { retry_produto_id?: string, retry_all_errors?: boolean, force_all_active?: boolean }
+  // Optional body: { retry_produto_id?: string, retry_all_errors?: boolean, force_all_active?: boolean, retry_unsynced?: boolean }
   let body: any = {};
   try { body = await req.json(); } catch { /* empty body ok */ }
 
+  const authResponse = await authorizeRequest(req, admin, body);
+  if (authResponse) return authResponse;
+
   // Retry: reenfileira itens específicos
-  if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active) {
+  if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced) {
     let q = admin.from("estoque_produtos").select("id, sku_base, quantidade").eq("ativo", true);
     if (body.retry_produto_id) {
       q = q.eq("id", body.retry_produto_id);
     } else if (body.retry_all_errors) {
       q = q.in("bagy_sync_status", ["nao_encontrado_na_bagy", "erro"]);
+    } else if (body.retry_unsynced) {
+      q = q.or("bagy_sync_status.is.null,bagy_sync_status.in.(pendente,erro,nao_encontrado_na_bagy),bagy_sync_at.is.null");
     }
     const { data: prods, error } = await q;
     if (error) {
@@ -123,18 +200,13 @@ Deno.serve(async (req) => {
     for (const p of prods || []) {
       if (!p.sku_base) continue;
       // limpa pendente anterior do mesmo produto + reseta status
-      await admin.from("bagy_stock_sync_queue")
-        .upsert({
-          estoque_produto_id: p.id,
-          sku: p.sku_base,
-          novo_saldo: p.quantidade ?? 0,
-          tentativas: 0,
-          ultimo_erro: null,
-          processado_em: null,
-          criado_em: new Date().toISOString(),
-        } as any, { onConflict: "estoque_produto_id" });
+      const queued = await enqueueStockSync(admin, p.id, p.sku_base, p.quantidade ?? 0);
+      if (queued.error) {
+        console.error("Erro ao reenfileirar estoque Bagy", p.id, queued.error.message);
+        continue;
+      }
       await admin.from("estoque_produtos")
-        .update({ bagy_sync_status: "pendente", bagy_sync_erro: null })
+        .update({ bagy_sync_status: "pendente", bagy_sync_erro: null, bagy_sync_at: null })
         .eq("id", p.id);
     }
   }
