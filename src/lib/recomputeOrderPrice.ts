@@ -106,7 +106,7 @@ export function recomputeSubtotal(
   // Cor da Sola CONTEXTUAL (PVC = R$0, Borracha + Marrom/Branco = R$20, etc.)
   push(getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola));
   push(COR_VIRA.find(c => c.label === order.corVira)?.preco);
-  if (order.costuraAtras === 'Sim') items.push(COSTURA_ATRAS_PRECO);
+  if (order.costuraAtras === 'Sim') items.push(getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO));
   push(CARIMBO.find(c => c.label === order.carimbo)?.preco);
   if (order.adicionalValor && order.adicionalValor > 0) items.push(Number(order.adicionalValor));
 
