@@ -387,6 +387,53 @@ export type Database = {
         }
         Relationships: []
       }
+      bagy_stock_reconcile_log: {
+        Row: {
+          acao: string
+          erro: string | null
+          executado_em: string
+          id: string
+          produto_id: string | null
+          saldo_bagy_antes: number | null
+          saldo_final: number | null
+          saldo_local_antes: number | null
+          sku: string | null
+          variation_id: string | null
+        }
+        Insert: {
+          acao: string
+          erro?: string | null
+          executado_em?: string
+          id?: string
+          produto_id?: string | null
+          saldo_bagy_antes?: number | null
+          saldo_final?: number | null
+          saldo_local_antes?: number | null
+          sku?: string | null
+          variation_id?: string | null
+        }
+        Update: {
+          acao?: string
+          erro?: string | null
+          executado_em?: string
+          id?: string
+          produto_id?: string | null
+          saldo_bagy_antes?: number | null
+          saldo_final?: number | null
+          saldo_local_antes?: number | null
+          sku?: string | null
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bagy_stock_reconcile_log_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bagy_stock_sync_queue: {
         Row: {
           criado_em: string
@@ -777,6 +824,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      estoque_reservas: {
+        Row: {
+          criado_em: string
+          expira_em: string
+          id: string
+          produto_id: string
+          quantidade: number
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          expira_em?: string
+          id?: string
+          produto_id: string
+          quantidade: number
+          user_id: string
+        }
+        Update: {
+          criado_em?: string
+          expira_em?: string
+          id?: string
+          produto_id?: string
+          quantidade?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_reservas_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_produtos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ficha_campos: {
         Row: {
@@ -2969,6 +3051,10 @@ export type Database = {
         Returns: boolean
       }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
+      liberar_reservas_usuario: {
+        Args: { _produto_ids?: string[] }
+        Returns: number
+      }
       list_bordado_usuarios: { Args: never; Returns: string[] }
       list_profiles_minimal: {
         Args: never
@@ -3008,6 +3094,7 @@ export type Database = {
       parse_historico_date: { Args: { _data: string }; Returns: string }
       pode_sincronizar_bagy: { Args: { _uid: string }; Returns: boolean }
       processar_baixas_automaticas_geral: { Args: never; Returns: Json }
+      purge_reservas_expiradas: { Args: never; Returns: number }
       quitar_pedidos_historico: {
         Args: { _motivo: string; _order_ids: string[] }
         Returns: Json
@@ -3027,6 +3114,10 @@ export type Database = {
       reprovar_comprovante_revendedor: {
         Args: { _comprovante_id: string; _motivo: string }
         Returns: undefined
+      }
+      reservar_estoque: {
+        Args: { _produto_id: string; _qtd: number }
+        Returns: Json
       }
       saldo_atual_revendedor: { Args: { _vendedor: string }; Returns: number }
       show_limit: { Args: never; Returns: number }
