@@ -19,6 +19,7 @@ import {
   CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, LASER_CANO_PRECO, LASER_GASPEA_PRECO,
   GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
+import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
 } from '@/lib/extrasConfig';
