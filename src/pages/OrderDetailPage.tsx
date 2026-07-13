@@ -27,6 +27,8 @@ import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
+import { InlineVariacaoOlhos } from '@/components/ficha/InlineVariacaoOlhos';
+import { extractVariationName } from '@/lib/variationLabels';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
