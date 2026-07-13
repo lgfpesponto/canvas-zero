@@ -1628,7 +1628,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
                 Trocar para Cinto
               </Button>
-              <EditFichaButton fichaSlug="bota" />
               <FichaEditToggle />
 
             </>
