@@ -44,9 +44,9 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPage(0); setQuery(''); } }}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-base">{title}</DialogTitle>
         </DialogHeader>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -54,12 +54,12 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Pesquisar variação..."
-            className="pl-8 h-9"
+            className="pl-8 h-8 text-sm"
           />
         </div>
-        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+        <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
           {pageItems.length === 0 && (
-            <p className="col-span-full text-center text-sm text-muted-foreground py-8">
+            <p className="col-span-full text-center text-sm text-muted-foreground py-6">
               Nenhuma variação encontrada.
             </p>
           )}
@@ -72,15 +72,15 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
             />
           ))}
         </div>
-        <div className="flex items-center justify-between pt-2">
-          <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> anterior
+        <div className="flex items-center justify-between pt-1">
+          <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} className="h-7 text-xs">
+            <ChevronLeft className="h-3 w-3 mr-1" /> anterior
           </Button>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[11px] text-muted-foreground">
             Página {page + 1} de {totalPages}
           </span>
-          <Button size="sm" variant="ghost" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-            próxima <ChevronRight className="h-4 w-4 ml-1" />
+          <Button size="sm" variant="ghost" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} className="h-7 text-xs">
+            próxima <ChevronRight className="h-3 w-3 ml-1" />
           </Button>
         </div>
       </DialogContent>
@@ -90,20 +90,20 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
 
 function VarCard({ item, checked, onChange }: { item: ExpandirItem; checked: boolean; onChange: (c: boolean) => void }) {
   return (
-    <div className="border rounded-lg p-2 flex flex-col items-center gap-2 bg-card">
-      <div className="w-full aspect-square">
+    <div className="border rounded-md p-1.5 flex flex-col items-center gap-1 bg-card">
+      <div className="w-full h-28">
         {item.foto_url ? (
           <ScannedQr fotoUrl={item.foto_url} nome={item.label} className="w-full h-full" />
         ) : (
-          <div className="w-full h-full bg-white rounded overflow-hidden border flex items-center justify-center text-xs text-muted-foreground">
+          <div className="w-full h-full bg-white rounded overflow-hidden border flex items-center justify-center text-[11px] text-muted-foreground">
             Sem foto
           </div>
         )}
       </div>
-      <label className="flex items-center gap-2 w-full cursor-pointer">
+      <label className="flex items-center gap-1.5 w-full cursor-pointer">
         <Checkbox checked={checked} onCheckedChange={(v) => onChange(!!v)} />
-        <span className="text-sm flex-1 truncate">{item.label}</span>
-        {item.preco > 0 && <span className="text-xs text-muted-foreground">R${item.preco}</span>}
+        <span className="text-xs flex-1 truncate">{item.label}</span>
+        {item.preco > 0 && <span className="text-[10px] text-muted-foreground">R${item.preco}</span>}
       </label>
     </div>
   );
