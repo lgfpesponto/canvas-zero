@@ -538,7 +538,7 @@ const ExtrasPage = () => {
               <Select value={form.vaiCanivete} onValueChange={v => set('vaiCanivete', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Sim">Sim (+R$ {productId === 'kit_canivete' ? '30' : '35'})</SelectItem>
+                  <SelectItem value="Sim">Sim (+R$ {getOptPrice(productId, productId === 'kit_canivete' ? 'vai_canivete' : 'vai_faca', 'Sim', productId === 'kit_canivete' ? 30 : 35)})</SelectItem>
                   <SelectItem value="Não">Não</SelectItem>
                 </SelectContent>
               </Select>
