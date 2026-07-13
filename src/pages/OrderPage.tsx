@@ -975,11 +975,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const desenvEstampaPreco = desenvEstampa ? 150 : 0;
   const desenvPreco = desenvLegacyPreco + desenvBordadoPreco + desenvLaserPreco + desenvEstampaPreco;
   const areaMetalPreco = AREA_METAL.find(a => a.label === areaMetal)?.preco || 0;
-  const strassPreco = strass ? strassQtd * STRASS_PRECO : 0;
-  const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * BOLA_GRANDE_PRECO : 0;
-  const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * CRUZ_METAL_PRECO : 0;
-  const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * BRIDAO_METAL_PRECO : 0;
-  const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * CAVALO_METAL_PRECO : 0;
+  const strassPreco = strass ? strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO) : 0;
+  const bolaGrandePreco = bolaGrande ? bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO) : 0;
+  const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO) : 0;
+  const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO) : 0;
+  const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
   const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
   const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
@@ -1000,15 +1000,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     + (nomeBordado ? NOME_BORDADO_PRECO : 0)
     + totalLaserPreco
     + recortePreco
-    + (pintura ? PINTURA_PRECO : 0)
-    + (estampa ? ESTAMPA_PRECO : 0)
+    + (pintura ? getDynamicUnitPrice('pintura', PINTURA_PRECO) : 0)
+    + (estampa ? getDynamicUnitPrice('estampa', ESTAMPA_PRECO) : 0)
     + desenvPreco + areaMetalPreco + strassPreco + bolaGrandePreco + cruzMetalPrecoTotal + bridaoMetalPrecoTotal + cavaloMetalPrecoTotal
-    + (trice ? TRICE_PRECO : 0)
-    + (tiras ? TIRAS_PRECO : 0)
-    + (franja ? FRANJA_PRECO : 0)
-    + (corrente ? CORRENTE_PRECO : 0)
+    + (trice ? getDynamicUnitPrice('trice', TRICE_PRECO) : 0)
+    + (tiras ? getDynamicUnitPrice('tiras', TIRAS_PRECO) : 0)
+    + (franja ? getDynamicUnitPrice('franja', FRANJA_PRECO) : 0)
+    + (corrente ? getDynamicUnitPrice('corrente', CORRENTE_PRECO) : 0)
     + soladoPreco + corSolaPreco + corViraPreco
-    + (costuraAtras ? COSTURA_ATRAS_PRECO : 0)
+    + (costuraAtras ? getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO) : 0)
     + carimboPreco
     + (adicionalValor > 0 ? adicionalValor : 0);
 
@@ -1430,25 +1430,25 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       const p = findPrice(recorteTaloneira, 'recorte_taloneira', []);
       if (p) items.push(['Recorte Taloneira: ' + recorteTaloneira, p]);
     }
-    if (pintura) items.push(['Pintura', PINTURA_PRECO]);
+    if (pintura) items.push(['Pintura', getDynamicUnitPrice('pintura', PINTURA_PRECO)]);
     if (desenvLaser) items.push([`Desenvolvimento Laser${desenvLaserDesc ? ': ' + desenvLaserDesc : ''}`, 100]);
-    if (estampa) items.push(['Estampa', ESTAMPA_PRECO]);
+    if (estampa) items.push(['Estampa', getDynamicUnitPrice('estampa', ESTAMPA_PRECO)]);
     if (desenvEstampa) items.push([`Desenvolvimento Estampa${desenvEstampaDesc ? ': ' + desenvEstampaDesc : ''}`, 150]);
     if (areaMetalPreco) items.push(['Área Metal: ' + areaMetal, areaMetalPreco]);
-    if (strass && strassQtd) items.push([`Strass (${strassQtd} un.)`, strassQtd * STRASS_PRECO]);
-    if (bolaGrande && bolaGrandeQtd) items.push([`Bola Grande (${bolaGrandeQtd} un.)`, bolaGrandeQtd * BOLA_GRANDE_PRECO]);
-    if (cruzMetal && cruzMetalQtd) items.push([`Cruz metal (${cruzMetalQtd} un.)`, cruzMetalQtd * CRUZ_METAL_PRECO]);
-    if (bridaoMetal && bridaoMetalQtd) items.push([`Bridão metal (${bridaoMetalQtd} un.)`, bridaoMetalQtd * BRIDAO_METAL_PRECO]);
-    if (cavaloMetal && cavaloMetalQtd) items.push([`Cavalo metal (${cavaloMetalQtd} un.)`, cavaloMetalQtd * CAVALO_METAL_PRECO]);
-    if (trice) items.push(['Tricê', TRICE_PRECO]);
-    if (tiras) items.push(['Tiras', TIRAS_PRECO]);
-    if (franja) items.push(['Franja', FRANJA_PRECO]);
-    if (corrente) items.push(['Corrente', CORRENTE_PRECO]);
+    if (strass && strassQtd) items.push([`Strass (${strassQtd} un.)`, strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO)]);
+    if (bolaGrande && bolaGrandeQtd) items.push([`Bola Grande (${bolaGrandeQtd} un.)`, bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO)]);
+    if (cruzMetal && cruzMetalQtd) items.push([`Cruz metal (${cruzMetalQtd} un.)`, cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO)]);
+    if (bridaoMetal && bridaoMetalQtd) items.push([`Bridão metal (${bridaoMetalQtd} un.)`, bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO)]);
+    if (cavaloMetal && cavaloMetalQtd) items.push([`Cavalo metal (${cavaloMetalQtd} un.)`, cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO)]);
+    if (trice) items.push(['Tricê', getDynamicUnitPrice('trice', TRICE_PRECO)]);
+    if (tiras) items.push(['Tiras', getDynamicUnitPrice('tiras', TIRAS_PRECO)]);
+    if (franja) items.push(['Franja', getDynamicUnitPrice('franja', FRANJA_PRECO)]);
+    if (corrente) items.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
     if (soladoPreco) items.push(['Solado: ' + solado, soladoPreco]);
     const corSolaP = getCorSolaPrecoContextual(modelo, solado, formatoBico, corSola);
     if (corSolaP) items.push(['Cor Sola: ' + corSola, corSolaP]);
     if (corViraPreco) items.push(['Cor Vira: ' + corVira, corViraPreco]);
-    if (costuraAtras) items.push(['Costura Atrás', COSTURA_ATRAS_PRECO]);
+    if (costuraAtras) items.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
     if (carimboPreco && carimbo) items.push([carimbo, carimboPreco]);
     if (adicionalValor && adicionalValor > 0) items.push(['Adicional: ' + (adicionalDesc || ''), adicionalValor]);
     return items;
