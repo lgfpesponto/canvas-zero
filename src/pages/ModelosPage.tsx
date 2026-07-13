@@ -17,6 +17,9 @@ import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import OrderPage from '@/pages/OrderPage';
 import BeltOrderPage from '@/pages/BeltOrderPage';
 import { toast } from 'sonner';
+import { useTemplatesValidity, type TemplateValidity } from '@/hooks/useTemplateValidity';
+import { AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Tipo = 'bota' | 'cinto';
 
@@ -54,11 +57,15 @@ function isEmpty(v: any): boolean {
   return String(v).trim() === '';
 }
 
-function TemplateCard({ modelo, onComprar, onVisualizar }: { modelo: ModeloRow; onComprar: () => void; onVisualizar: () => void }) {
+function TemplateCard({ modelo, validity, onComprar, onVisualizar }: { modelo: ModeloRow; validity?: TemplateValidity; onComprar: () => void; onVisualizar: () => void }) {
   const [imgErr, setImgErr] = useState(false);
   const imgSrc = modelo.foto_url
     ? (isDriveUrl(modelo.foto_url) ? toDriveImageUrl(modelo.foto_url) : modelo.foto_url)
     : null;
+  const invalid = validity && !validity.valid;
+  const removedText = invalid
+    ? validity!.removed.map(r => `${r.campo}: "${r.valor}"`).join('\n')
+    : '';
 
   return (
     <div className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
@@ -91,8 +98,28 @@ function TemplateCard({ modelo, onComprar, onVisualizar }: { modelo: ModeloRow; 
         >
           {modelo.nome}
         </span>
+        {invalid && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="destructive" className="w-full justify-center gap-1 text-[10px] cursor-help">
+                  <AlertTriangle size={11} /> variação excluída, entre para editar
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs whitespace-pre-line text-xs">
+                {removedText}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <div className="flex gap-1.5">
-          <Button size="sm" onClick={onComprar} className="flex-1 text-xs sm:text-sm">
+          <Button
+            size="sm"
+            onClick={onComprar}
+            disabled={invalid}
+            title={invalid ? 'Variação excluída — abra a ficha para corrigir' : undefined}
+            className="flex-1 text-xs sm:text-sm"
+          >
             <ShoppingCart size={14} className="mr-1" /> Comprar
           </Button>
           <Button
@@ -191,6 +218,12 @@ const ModelosPage = () => {
     () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     [filtered, currentPage],
   );
+
+  // Validade contra a versão vigente da ficha (por tipo).
+  const botas = useMemo(() => paginated.filter(m => m.tipo === 'bota'), [paginated]);
+  const cintos = useMemo(() => paginated.filter(m => m.tipo === 'cinto'), [paginated]);
+  const validityBota = useTemplatesValidity(botas, 'bota');
+  const validityCinto = useTemplatesValidity(cintos, 'cinto');
 
   const toggleTipo = (t: Tipo) => {
     setTiposAtivos(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
@@ -333,6 +366,7 @@ const ModelosPage = () => {
             <TemplateCard
               key={m.id}
               modelo={m}
+              validity={(m.tipo === 'bota' ? validityBota : validityCinto).get(m.id)}
               onComprar={() => openComprar(m)}
               onVisualizar={() => { setVisualizarModelo(m); setVisualizarImgErr(false); setVisualizarOpen(true); }}
             />

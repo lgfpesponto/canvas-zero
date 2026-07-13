@@ -17,6 +17,13 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { TemplatesDialog } from '@/components/template/TemplatesDialog';
+import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
+
+function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
+  const { tipo, ...rest } = props;
+  const validityById = useTemplatesValidity(rest.templates as any, tipo);
+  return <TemplatesDialog {...rest} validityById={validityById} />;
+}
 import SearchableSelect from '@/components/SearchableSelect';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
@@ -957,7 +964,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       </div>
 
       {/* ───── Templates Dialog ───── */}
-      <TemplatesDialog
+      <TemplatesDialogWithValidity
         open={tmpl.showTemplates}
         onOpenChange={tmpl.setShowTemplates}
         templates={beltTemplates as any}
@@ -970,6 +977,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         onEdit={handleEditTemplate as any}
         onDelete={handleDeleteTemplate}
         onSendMany={openSendDialog as any}
+        tipo="cinto"
       />
 
 

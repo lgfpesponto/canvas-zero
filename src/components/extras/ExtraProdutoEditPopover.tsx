@@ -14,19 +14,11 @@ import {
   useUpdateExtraProduto, useDeleteExtraProduto,
   type ExtraProdutoDB, type ExtraVariacoes,
 } from '@/hooks/useExtraProdutos';
+import { EXTRA_SCHEMA } from '@/lib/extraProductSchema';
 
 interface Props {
   produto: ExtraProdutoDB;
 }
-
-const VARIACAO_LABELS: Record<string, string> = {
-  cor_tira: 'Cor da tira',
-  tipo_metal: 'Tipo de metal',
-  cor_brilho: 'Cor do brilho',
-  itens: 'Itens (metais)',
-  formato_bico: 'Formato do bico',
-  faixas: 'Faixas de preço',
-};
 
 export default function ExtraProdutoEditPopover({ produto }: Props) {
   const [open, setOpen] = useState(false);
@@ -34,10 +26,10 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
   const [precoBase, setPrecoBase] = useState<string>(produto.preco_base?.toString() ?? '');
   const [precoLabel, setPrecoLabel] = useState(produto.preco_label);
   const [variacoes, setVariacoes] = useState<ExtraVariacoes>(produto.variacoes || {});
-  const [novaCategoria, setNovaCategoria] = useState('');
 
   const updateMut = useUpdateExtraProduto();
   const deleteMut = useDeleteExtraProduto();
+  const schema = EXTRA_SCHEMA[produto.id];
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +37,6 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
     setPrecoBase(produto.preco_base?.toString() ?? '');
     setPrecoLabel(produto.preco_label);
     setVariacoes(produto.variacoes || {});
-    setNovaCategoria('');
   }, [open, produto]);
 
   const salvar = async () => {
@@ -74,34 +65,21 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
     }
   };
 
-  const addVariacaoItem = (cat: string) => {
-    setVariacoes(prev => ({ ...prev, [cat]: [...(prev[cat] || []), { nome: '', preco: 0 }] }));
+  const addItem = (group: string) => {
+    setVariacoes(prev => ({ ...prev, [group]: [...(prev[group] || []), { nome: '', preco: 0 }] }));
   };
-  const updateVarItem = (cat: string, idx: number, patch: Partial<{ nome: string; preco: number }>) => {
+  const updateItem = (group: string, idx: number, patch: Partial<{ nome: string; preco: number }>) => {
     setVariacoes(prev => ({
       ...prev,
-      [cat]: (prev[cat] || []).map((v, i) => i === idx ? { ...v, ...patch } : v),
+      [group]: (prev[group] || []).map((v, i) => i === idx ? { ...v, ...patch } : v),
     }));
   };
-  const removeVarItem = (cat: string, idx: number) => {
-    setVariacoes(prev => ({ ...prev, [cat]: (prev[cat] || []).filter((_, i) => i !== idx) }));
-  };
-  const addCategoria = () => {
-    const slug = novaCategoria.trim().toLowerCase().replace(/\s+/g, '_');
-    if (!slug) return;
-    if (variacoes[slug]) { toast.error('Categoria já existe'); return; }
-    setVariacoes(prev => ({ ...prev, [slug]: [] }));
-    setNovaCategoria('');
-  };
-  const removeCategoria = (cat: string) => {
-    setVariacoes(prev => {
-      const next = { ...prev };
-      delete next[cat];
-      return next;
-    });
+  const removeItem = (group: string, idx: number) => {
+    setVariacoes(prev => ({ ...prev, [group]: (prev[group] || []).filter((_, i) => i !== idx) }));
   };
 
-  const categorias = Object.keys(variacoes);
+  const showBasePrice = schema?.basePriceEditable !== false;
+  const fields = schema?.fields || [];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -124,82 +102,93 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
           <Input value={nome} onChange={e => setNome(e.target.value)} className="h-8" />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <Label className="text-xs">Preço base (R$)</Label>
-            <Input
-              type="number" step="0.01"
-              value={precoBase}
-              placeholder="vazio = variável"
-              onChange={e => setPrecoBase(e.target.value)}
-              className="h-8"
-            />
-          </div>
+          {showBasePrice && (
+            <div className="space-y-1">
+              <Label className="text-xs">Preço base (R$)</Label>
+              <Input
+                type="number" step="0.01"
+                value={precoBase}
+                placeholder="vazio = variável"
+                onChange={e => setPrecoBase(e.target.value)}
+                className="h-8"
+              />
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">Rótulo de preço</Label>
             <Input value={precoLabel} onChange={e => setPrecoLabel(e.target.value)} className="h-8" />
           </div>
         </div>
 
-        <div className="border-t pt-2 space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Variações</Label>
-          </div>
-          {categorias.length === 0 && (
-            <p className="text-[11px] italic text-muted-foreground">
-              Este produto não tem variações internas.
-            </p>
-          )}
-          {categorias.map(cat => (
-            <div key={cat} className="border rounded p-2 space-y-1">
+        {!showBasePrice && (
+          <p className="text-[11px] text-muted-foreground italic">
+            Preço deste produto vem das variações abaixo (não tem preço base fixo).
+          </p>
+        )}
+
+        {fields.length === 0 && (
+          <p className="text-[11px] italic text-muted-foreground border-t pt-2">
+            Este produto não tem campos com variações — apenas nome e preço.
+          </p>
+        )}
+
+        {fields.map(field => {
+          if (field.source === 'shared') {
+            return (
+              <div key={field.key} className="border rounded p-2 space-y-1">
+                <span className="text-[11px] font-semibold">{field.label}</span>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Herdado de {field.sharedList === 'TIPOS_COURO' || field.sharedList === 'CORES_COURO'
+                    ? 'Ficha da Bota'
+                    : 'Configurações'}
+                  {' '}— editar em Configurações {'>'} Ficha da Bota para impactar todos os campos.
+                </p>
+              </div>
+            );
+          }
+          const group = field.group;
+          const items = variacoes[group] || [];
+          return (
+            <div key={field.key} className="border rounded p-2 space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold">
-                  {VARIACAO_LABELS[cat] || cat}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => addVariacaoItem(cat)} className="h-6 px-1 text-[11px]">
-                    <Plus className="h-3 w-3" /> item
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeCategoria(cat)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                <span className="text-[11px] font-semibold">{field.label}</span>
+                <Button size="sm" variant="ghost" onClick={() => addItem(group)} className="h-6 px-1 text-[11px]">
+                  <Plus className="h-3 w-3" /> variação
+                </Button>
               </div>
               <div className="space-y-1">
-                {(variacoes[cat] || []).map((v, i) => (
+                {items.length === 0 && (
+                  <p className="text-[11px] italic text-muted-foreground">Nenhuma variação — usará valores padrão do formulário.</p>
+                )}
+                {items.map((v, i) => (
                   <div key={i} className="flex items-center gap-1">
                     <Input
                       value={v.nome}
-                      onChange={e => updateVarItem(cat, i, { nome: e.target.value })}
+                      onChange={e => updateItem(group, i, { nome: e.target.value })}
                       placeholder="nome"
                       className="h-6 text-[11px] flex-1 px-1"
                     />
                     <Input
                       type="number" step="0.01"
                       value={v.preco}
-                      onChange={e => updateVarItem(cat, i, { preco: parseFloat(e.target.value) || 0 })}
+                      onChange={e => updateItem(group, i, { preco: parseFloat(e.target.value) || 0 })}
                       placeholder="R$"
                       className="h-6 text-[11px] w-16 px-1"
+                      title="preço adicional / unitário"
                     />
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeVarItem(cat, i)}>
+                    <Button
+                      size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                      title="excluir variação"
+                      onClick={() => removeItem(group, i)}
+                    >
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
               </div>
             </div>
-          ))}
-          <div className="flex items-center gap-1">
-            <Input
-              value={novaCategoria}
-              onChange={e => setNovaCategoria(e.target.value)}
-              placeholder="nova categoria (ex.: tipo_metal)"
-              className="h-7 text-[11px] flex-1"
-            />
-            <Button size="sm" variant="outline" onClick={addCategoria} className="h-7 text-[11px]">
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
+          );
+        })}
 
         <div className="flex items-center justify-between pt-2 border-t">
           <AlertDialog>

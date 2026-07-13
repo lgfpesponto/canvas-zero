@@ -1,92 +1,98 @@
-## Restringir edição a admin_master + lápis para produtos extras
+## Duas correções: popover de extras + drafts/modelos reativos à nova versão da ficha
 
-### 1. Modo edição da ficha exclusivo do admin_master
+### Parte 1 — Popover de edição do produto extra reflete o formulário de "Comprar"
 
-Em `src/contexts/FichaEditContext.tsx`:
-- Trocar `isAdmin = role === 'admin_master' || 'admin_producao'` por **apenas `admin_master`**.
-- Efeito colateral: `admin_producao` deixa de ver o toggle "modo edição" na bota/cinto — mantém tudo funcionando para admin_master.
+Hoje o popover mostra apenas as chaves cruas do JSONB `variacoes` — não corresponde aos campos que aparecem ao clicar em "Comprar". Passa a espelhar o formulário real de cada produto.
 
-Também no `FichaEditToggle` (verificar se ele reusa `isAdmin` do contexto — se sim, nada a fazer).
+**Nova config por produto** em `src/lib/extraProductSchema.ts`:
 
-### 2. Lápis de edição nos cards de produtos extras (`/extras`)
+```ts
+type FieldSpec =
+  | { key: string; label: string; kind: 'select'|'multi'|'checkbox'; source: 'variacoes'; group: string; unitPrice?: number }
+  | { key: string; label: string; kind: 'text'|'number' }
+  | { key: string; label: string; kind: 'select';  source: 'shared'; sharedList: 'TIPOS_COURO'|'CORES_COURO'|'TAMANHOS' };
 
-Adicionar controle inline visível **só para admin_master** em cada card de `EXTRA_PRODUCTS`, com um popover no mesmo estilo do `FichaFieldControls`:
-
-Campos editáveis no popover:
-- **Nome** (`nome`) — texto livre.
-- **Preço base** (`precoBase`) — número; quando `null` mantém rótulo "Variável" e desabilita input.
-- **Rótulo de preço** (`precoLabel`) — texto livre (ex.: "R$ 15,00", "A partir de R$ 30,00").
-- **Variações do produto** (quando existem — ver seção 3): lista editável com nome + preço + botão "adicionar variação" + excluir, idêntica ao `EditPopover` da ficha.
-- **Botão "excluir produto"** no rodapé (destructive) — abre `<AlertDialog>` com o texto: *"Excluir o produto X remove-o do banco e da lista. Pedidos antigos permanecem intactos. Confirmar?"*. Só apaga do banco após confirmação.
-
-### 3. Persistência dos extras no banco
-
-Hoje `EXTRA_PRODUCTS` é uma constante hardcoded em `src/lib/extrasConfig.ts`. Para permitir editar/excluir precisamos de fonte de verdade no banco.
-
-**Migração (nova tabela `extra_produtos`)**:
-```sql
-CREATE TABLE public.extra_produtos (
-  id text PRIMARY KEY,               -- mesmo id do EXTRA_PRODUCTS (tiras_laterais…)
-  nome text NOT NULL,
-  descricao text,
-  preco_base numeric,                -- null = "Variável"
-  preco_label text NOT NULL,
-  ordem int NOT NULL DEFAULT 0,
-  ativo boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT ON public.extra_produtos TO anon, authenticated;
-GRANT ALL ON public.extra_produtos TO service_role, authenticated;  -- admin_master edita via UI
-ALTER TABLE public.extra_produtos ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "todos leem" ON public.extra_produtos FOR SELECT USING (true);
-CREATE POLICY "só admin_master escreve" ON public.extra_produtos
-  FOR ALL TO authenticated
-  USING (public.has_role(auth.uid(), 'admin_master'))
-  WITH CHECK (public.has_role(auth.uid(), 'admin_master'));
--- trigger updated_at (usa update_updated_at_column existente)
+export const EXTRA_SCHEMA: Record<string, { fields: FieldSpec[]; basePriceEditable: boolean; basePriceLabel?: string }> = {
+  tiras_laterais:  { basePriceEditable: true,  fields: [{ key:'corTiras', label:'Cor das tiras', kind:'select', source:'variacoes', group:'cor_tiras' }] },
+  desmanchar:      { basePriceEditable: true,  fields: [
+      { key:'qualSola',   label:'Qual sola',         kind:'select', source:'variacoes', group:'qual_sola' },
+      { key:'trocaGaspea',label:'Troca de gáspea',   kind:'select', source:'variacoes', group:'troca_gaspea' }, // Sim/Não com preço
+  ]},
+  gravata_country: { basePriceEditable: true, fields: [
+      { key:'corTira',  label:'Cor da tira',   kind:'select', source:'variacoes', group:'cor_tira' },
+      { key:'tipoMetal',label:'Tipo de metal', kind:'select', source:'variacoes', group:'tipo_metal' },
+      { key:'corBridao',label:'Cor do bridão', kind:'select', source:'variacoes', group:'cor_bridao' },
+  ]},
+  adicionar_metais:{ basePriceEditable: false, fields: [
+      { key:'metaisSelecionados', label:'Itens', kind:'multi', source:'variacoes', group:'itens' }, // cada item traz preço unitário
+  ]},
+  carimbo_fogo:    { basePriceEditable: false, fields: [
+      { key:'faixaCarimbos', label:'Faixa de qtd. carimbos', kind:'select', source:'variacoes', group:'faixas' },
+  ]},
+  palmilha:        { basePriceEditable: true, fields: [
+      { key:'formatoBicoPalmilha', label:'Formato do bico', kind:'select', source:'variacoes', group:'formato_bico' },
+      { key:'tamanhoPalmilha',     label:'Tamanho',         kind:'select', source:'shared',    sharedList:'TAMANHOS' },
+  ]},
+  // demais: apenas basePriceEditable=true (bainha_cartao, bainha_celular, chaveiro_carimbo, kit_faca, kit_canivete, revitalizador, kit_revitalizador, regata, regata_pronta_entrega, gravata_pronta_entrega, bota_pronta_entrega)
+};
 ```
-Seed: `INSERT` de todos os 17 itens de `EXTRA_PRODUCTS` com `ordem` sequencial. Idempotente via `ON CONFLICT (id) DO NOTHING`.
 
-**Nova pasta/lógica no frontend**:
-- Hook `useExtraProdutos()` em `src/hooks/useExtraProdutos.ts` — SELECT ordenado por `ordem`, filtrado por `ativo=true`.
-- `ExtrasPage` passa a mapear os cards e modals sobre `useExtraProdutos()` em vez de `EXTRA_PRODUCTS`. **A constante `EXTRA_PRODUCTS` continua exportada** e é usada como fallback para `PRODUCT_FIELDS`, `calcPrice`, `renderForm` (que dependem de `productId` fixo) — nada muda na lógica de pedido.
-- `openModal`, `handleSubmit` etc. seguem usando `product.id` (o mesmo string), então cálculos e rótulos internos permanecem íntegros.
+**Popover reescrito** (`ExtraProdutoEditPopover.tsx`):
+- Mostra o **nome do produto** editável (topo).
+- Mostra **preço base** editável só quando `basePriceEditable` é `true`. Quando o produto tem múltiplas variações que somam o preço (ex.: `adicionar_metais`, `carimbo_fogo`), esconde o preço base — o preço vem das variações.
+- Para cada `FieldSpec` do schema: um bloco com o **label** editável e a lista das variações (nome + preço), com botões **+ variação**, **excluir variação**, **excluir grupo**. Idêntico visual ao `EditPopover` da ficha.
+- Ordem das variações preservada (usa índice do array).
+- Campos `source: 'shared'` mostram só um aviso *"Herdado da bota — editar em Configurações > Ficha da Bota"* (sem edição inline para evitar impacto global). Fica claro o motivo.
+- Botão **excluir produto** (já existe) — mantido.
 
-### 4. Variações dos produtos extras
+**Formulário de Comprar (`renderForm`) passa a ler as variações do banco** com fallback para constantes:
+- Helper `getExtraFieldOptions(productId, fieldKey)` retorna `variacoes[group]` do produto se existir, senão a constante hardcoded (`GRAVATA_COR_TIRA`, `PALMILHA_FORMATO_BICO`, etc.).
+- `calcPrice` também consulta o preço da variação selecionada quando aplicável (ex.: `desmanchar` soma preços das opções `qual_sola`/`troca_gaspea` do banco; `adicionar_metais` usa preço unitário do item do banco).
 
-Reusar o mesmo mecanismo de `ficha_tipos` para os produtos que hoje têm listas hardcoded:
+### Parte 2 — Modelos rascunho e drafts reagem à versão mais recente da ficha
 
-| Produto | Variações a semear (campo → constantes atuais) |
-|---|---|
-| gravata_country / gravata_pronta_entrega | Cor da tira ← `GRAVATA_COR_TIRA`; Tipo de metal ← `GRAVATA_TIPO_METAL`; Cor do brilho ← `COR_BRILHO_GRAVATA` |
-| adicionar_metais | Itens ← `[Bola grande R$0,60, Strass R$0,60]` (checkbox unitário) |
-| palmilha | Formato do bico ← `PALMILHA_FORMATO_BICO`; Tamanho ← `TAMANHOS` |
-| carimbo_fogo | Faixas ← `[1–3 carimbos R$20, 4+ R$40]` |
-| revitalizador / kit_revitalizador | Tipo (livre — sem seed) |
-| demais (bainha, chaveiro, kit_faca, kit_canivete) | Reusam `TIPOS_COURO`/`CORES_COURO` da bota — sem seed próprio |
+Tanto **`order_templates`** (banco) quanto **drafts** (`localStorage`) devem sempre ser lidos contra a **versão vigente** de `ficha_versoes` para bota/cinto.
 
-Migração cria um `ficha_tipos` "extras" (slug `extras`) contendo uma **categoria por produto extra** e um **campo por variação** semeado a partir das constantes acima. Preços = valores atuais → nenhum pedido antigo muda.
+**Regras**:
+1. **Preço**: recomputa via `recomputeOrderPrice` / `getDynamicUnitPrice` no momento em que o modelo/rascunho é carregado — se `preco_adicional` mudou no banco, o pedido novo herda o novo preço. (A pipeline já faz isso ao popular o form; garantir que o `card` do modelo na `/modelos` **exiba o preço recomputado atual**, não um preço congelado.)
+2. **Variação removida**: se qualquer valor salvo no `form_data`/`draft.form` não existe mais nas `ficha_variacoes` da versão atual do campo correspondente:
+   - Marcar o modelo/rascunho como **inválido**.
+   - No card do modelo (ModelosPage e diálogo Templates dentro do OrderPage/BeltOrderPage): mostrar badge vermelho *"variação excluída, entre para editar"* com a lista das variações removidas em tooltip.
+   - **Desabilitar os botões "Preencher" e "Comprar"** desse card. Só permanece habilitado "Editar" (para o dono corrigir).
+   - Ao clicar em **Editar** e ao **abrir/continuar rascunho**: carrega o form limpando os campos inválidos, mostra `toast.warning` já existente (`validateAndPopulateTemplate`), e o form fica na versão atual da ficha.
+3. **Variação nova**: sem impacto — o modelo/rascunho só carrega o que foi selecionado. Novos campos disponíveis aparecem vazios (opcionais) ou continuam válidos até o usuário editar.
+4. **Nome de campo renomeado**: já tratado pelo `validateFormData` atual (avisa e limpa) — mantém.
+5. **Rascunho local (`salvar rascunho`) ao retomar**: sempre carrega ficha na versão mais recente (comportamento atual do `OrderPage` que faz `useEffect` com `fichaLoading`); já respeita. Adicionar validação idêntica antes de habilitar `Continuar`.
 
-No modal do produto, envolver o conteúdo com `<FichaEditProvider fichaSlug="extras">` e acoplar `<FichaFieldControls>` em cada `<Label>` de campo variável, exatamente como já foi feito em `OrderPage` e `BeltOrderPage`.
+**Novo hook `useTemplateValidity(template, tipo)`** em `src/hooks/useTemplateValidity.ts`:
+- Recebe o `form_data` e o tipo (`bota` / `cinto`).
+- Puxa todas as `ficha_variacoes` da versão atual daquela ficha (usa `useAllVariacoesByFichaTipo` + `useFichaCampos`).
+- Retorna `{ valid: boolean, removed: Array<{ campo: string; valor: string }>, currentPrice: number }`.
+- Usado em:
+  - `ModelosPage` — badge + desabilitar botões.
+  - `TemplatesDialog` (diálogo do OrderPage/BeltOrderPage) — mesma badge e bloqueio.
+  - `DraftsPage` — mesma coisa para rascunhos locais (aqui a fonte é `localStorage`).
 
-`useDynamicFieldFilter` / `getDynamicUnitPrice` já sabem ler de `ficha_variacoes` — assim que houver override o extra passa a usar o preço do banco. Sem override, cai no fallback (constante atual).
+**Recompute de preço no card do modelo**:
+- Se o card exibe preço agregado, chamar `recomputeOrderPrice(cleanedFormData, versãoAtual)` para gerar o preço vigente. Substitui qualquer preço cacheado no `form_data`.
+- Cache curto em React Query (`['template-price', templateId, ficha_versao_id]`) para não recalcular a cada render.
 
-### 5. Segurança / RBAC
-- Ícone lápis nos cards só renderiza se `user?.role === 'admin_master'`.
-- Backend: RLS na `extra_produtos` bloqueia qualquer role != admin_master.
-- Toggle "modo edição" na bota/cinto: mesma regra.
+### Detalhes técnicos
 
-### 6. Arquivos alterados
+Arquivos criados:
+- `src/lib/extraProductSchema.ts` — spec dos campos por produto.
+- `src/hooks/useTemplateValidity.ts` — validação + recompute de preço para templates/drafts.
 
-- `src/contexts/FichaEditContext.tsx` — restringir `isAdmin`.
-- `src/lib/extrasConfig.ts` — mantém constantes (fallback).
-- `src/hooks/useExtraProdutos.ts` — **novo** (query + mutations `upsert`/`delete`).
-- `src/pages/ExtrasPage.tsx` — cards e modals a partir do hook; render de lápis + AlertDialog de exclusão; envolver conteúdo do modal com `FichaEditProvider` para expor os `FichaFieldControls`.
-- `src/components/extras/ExtraProdutoEditPopover.tsx` — **novo**, análogo ao `EditPopover` da ficha (nome, preço, label, excluir).
-- Migração Supabase: `extra_produtos` + seed dos 17 registros + `ficha_tipos` "extras" com categorias/campos/variações a partir das constantes atuais.
+Arquivos alterados:
+- `src/components/extras/ExtraProdutoEditPopover.tsx` — reescrito para renderizar por `EXTRA_SCHEMA`; preço base condicional; grupos alinhados ao form.
+- `src/pages/ExtrasPage.tsx` — `renderForm` e `calcPrice` passam a ler opções e preços do `useExtraProdutos()` via helper `getExtraFieldOptions`. Constantes viram fallback.
+- `src/pages/ModelosPage.tsx` — usar `useTemplateValidity`; badge + `disabled` nos botões inválidos; exibir preço recomputado.
+- `src/components/template/TemplatesDialog.tsx` — mesma badge + bloqueio.
+- `src/pages/DraftsPage.tsx` — badge + bloqueio para rascunhos locais.
+- `src/pages/OrderPage.tsx` / `BeltOrderPage.tsx` — nas funções `preencherModelo` / `handleUseTemplate`, se o template estiver inválido, redirecionar para modo edição (não permitir uso direto).
 
-### Notas de compatibilidade
-- Nenhuma alteração em `PRODUCT_FIELDS`, `calcPrice`, `renderForm`, RPC `decrement_stock`.
-- Excluir um extra do banco apenas o remove da listagem — pedidos existentes com aquele `tipoExtra` continuam válidos (o histórico usa o snapshot já salvo em `orders.modelo` e `extra_detalhes`).
-- admin_producao perde acesso à edição inline em toda a plataforma (fichas + extras); permanece com acesso ao restante do painel admin.
+### Compatibilidade
+
+- Extras: nenhuma mudança em pedidos antigos — `PRODUCT_FIELDS`, `calcPrice` fallback e RPCs permanecem. Se o admin deletar uma variação usada por um pedido antigo, o pedido antigo mantém o valor salvo em `orders`.
+- Modelos: templates existentes continuam funcionando; ganham badge quando alguma variação sumir. Ordem antiga já finalizada nunca é afetada (validação só roda ao **usar** o template).
+- Drafts locais: mesma coisa — só valida ao continuar, nunca ao salvar.
