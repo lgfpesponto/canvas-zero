@@ -87,6 +87,11 @@ async function bagyPutBalance(variationId: string, balance: number): Promise<{ o
 }
 
 async function authorize(req: Request, admin: any): Promise<Response | null> {
+  // Cron interno usa header x-cron-secret pra evitar precisar do service_role no SQL agendado
+  const cronSecret = req.headers.get("x-cron-secret");
+  const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
+  if (CRON_SECRET && cronSecret && cronSecret === CRON_SECRET) return null;
+
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!token) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -101,6 +106,7 @@ async function authorize(req: Request, admin: any): Promise<Response | null> {
   if (!roles || roles.length === 0) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   return null;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
