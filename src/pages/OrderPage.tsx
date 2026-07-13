@@ -42,6 +42,7 @@ import {
   getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorViraOptions, getForma,
   HIDE_PESPONTO_EXTRAS, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
+import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 
 /* ───── helpers ───── */
 const cls = {
