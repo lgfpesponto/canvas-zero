@@ -44,7 +44,7 @@ export function getNationalHolidays(year: number): Map<string, string> {
 
   const map = new Map<string, string>();
 
-  // Fixos
+  // Nacionais fixos
   map.set(`${year}-01-01`, 'Confraternização Universal');
   map.set(`${year}-04-21`, 'Tiradentes');
   map.set(`${year}-05-01`, 'Dia do Trabalho');
@@ -55,6 +55,14 @@ export function getNationalHolidays(year: number): Map<string, string> {
   // Consciência Negra: feriado nacional desde 2024 (Lei 14.759/2023).
   if (year >= 2024) map.set(`${year}-11-20`, 'Consciência Negra');
   map.set(`${year}-12-25`, 'Natal');
+
+  // Estado de São Paulo
+  map.set(`${year}-07-09`, 'Revolução Constitucionalista (SP)');
+
+  // Município de Franca-SP
+  map.set(`${year}-05-28`, 'Aniversário de Franca');
+  map.set(`${year}-11-30`, 'Santo André (padroeiro de Franca)');
+
 
   // Móveis (relativos à Páscoa)
   const easter = easterSunday(year);

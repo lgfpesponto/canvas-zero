@@ -1,14 +1,22 @@
 ## Plano
 
-Ajustar `MultiSelect` (`src/pages/OrderPage.tsx`) e `VariacaoExpandirDialog.tsx`:
+Estender `src/lib/holidays.ts` para incluir feriados de São Paulo (estado) e Franca (município), além dos nacionais que já existem.
 
-### 1. `MultiSelect` (visão normal — imagem 1)
-Abaixo do cabeçalho "N selecionados", renderizar linha de chips com os nomes selecionados (mesmo padrão do expandido: pill com nome + X pra remover). Também adicionar botão texto **"limpar"** ao lado do contador que chama `onChange([])`. Chips só aparecem quando `selected.length > 0`.
+### Adições em `getNationalHolidays` (renomeando lógica sem mudar assinatura pra não quebrar `orderDeadline.ts`, `ReportsPage.tsx`, `HolidayNoticeBanner.tsx`, `AuthContext.tsx`):
 
-### 2. `VariacaoExpandirDialog` (visão expandida — imagem 2)
-No bloco "N selecionadas" adicionar botão **"limpar"** à direita do badge (mesma linha do contador) que dispara `onToggle(name, false)` pra cada selecionado — ou receber um novo prop opcional `onClearAll` do MultiSelect. Vou adicionar `onClearAll?: () => void` (opcional pra não quebrar outros usos) e, quando ausente, o botão chama `selected.forEach(n => onToggle(n, false))`.
+**Estado SP (fixos):**
+- `07-09` — Revolução Constitucionalista de 1932
 
-### 3. Sem regressões
-- Layout do dropdown normal preservado; chips ficam entre o header e o box com checkboxes.
-- Nenhuma outra tela consome `MultiSelect`/`VariacaoExpandirDialog` de forma que quebre com a adição opcional.
-- Rodar `tsgo` no final.
+**Município de Franca-SP (fixos, Lei Municipal):**
+- `05-28` — Aniversário de Franca
+- `11-30` — Dia de Santo André (padroeiro)
+
+Corpus Christi já está (nacional facultativo mas tratado como feriado — mantém).
+
+### Sem regressões
+- Mesma função/assinatura; consumidores continuam iguais.
+- Cache por ano preservado.
+- Banner e cálculo de prazo passam a considerar automaticamente os novos.
+
+### Confirmação
+Todos consumidores usam `getNationalHolidays`/`isHoliday`/`getHolidaysInMonth` — a expansão do mapa se propaga sem mais mudanças.
