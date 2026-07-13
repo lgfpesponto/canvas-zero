@@ -1627,6 +1627,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 Trocar para Cinto
               </Button>
               <EditFichaButton fichaSlug="bota" />
+              <FichaEditToggle />
 
             </>
           )}
@@ -1665,7 +1666,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <Section title="Identificação">
               {/* Link da Foto de Referência (Drive) — primeiro campo */}
               <div>
-                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+                <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Link da Foto de Referência" defaultTipo="texto" /></label>
                 <div className="flex items-center gap-2">
                   <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
                   <input
@@ -1694,7 +1695,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
               <div className="grid sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={cls.label}>Vendedor<span className="text-destructive ml-0.5">*</span></label>
+                  <label className={cls.label + ' inline-flex items-center'}>Vendedor<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
                   {isAdmin ? (
                     <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select} required>
                       {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
@@ -1709,7 +1710,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   )}
                 </div>
                 <div>
-                  <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
+                  <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
                   <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
                   {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
@@ -1727,7 +1728,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   </div>
                 ) : (
                   <div>
-                    <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+                    <label className={cls.label + ' inline-flex items-center'}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
                     <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
                   </div>
                 )}
@@ -1735,7 +1736,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
               {vendedorSelecionado !== 'Estoque' && (user?.role === 'vendedor_comissao' || user?.role === 'admin_master') && (
                 <div>
-                  <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                  <label className={cls.label + ' inline-flex items-center'}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span><FichaFieldControls labelText="WhatsApp do Cliente" defaultTipo="texto" /></label>
                   <input
                     type="tel"
                     value={clienteWhatsapp}
