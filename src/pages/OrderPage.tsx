@@ -36,6 +36,8 @@ import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
 import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
 import VariacaoFotoIcon from '@/components/ficha/VariacaoFotoIcon';
+import { InlineVariacaoOlhos } from '@/components/ficha/InlineVariacaoOlhos';
+import { extractVariationName } from '@/lib/variationLabels';
 import VariacaoExpandirDialog from '@/components/ficha/VariacaoExpandirDialog';
 
 import {
