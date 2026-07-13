@@ -270,6 +270,7 @@ export function dbRowToOrder(row: any): Order {
     erroDePedidoId: row.erro_de_pedido_id || undefined,
     erroDescricao: row.erro_descricao || undefined,
     estoquePronto: !!row.estoque_pronto,
+    leadTimeSnapshot: row.lead_time_snapshot ?? null,
   };
 
 }
@@ -373,6 +374,7 @@ export function orderToDbRow(order: any, userId: string) {
     erro_descricao: order.erroDescricao || null,
     estoque_pronto: order.estoquePronto ?? false,
     ficha_versao_id: order.fichaVersaoId || null,
+    lead_time_snapshot: order.leadTimeSnapshot ?? null,
   };
 }
 
@@ -406,7 +408,7 @@ export const CAMEL_TO_SNAKE: Record<string, string> = {
   estoqueBaixado: 'estoque_baixado', estoqueProdutoId: 'estoque_produto_id',
   templateNome: 'template_nome', templateSku: 'template_sku',
   erroDePedidoId: 'erro_de_pedido_id', erroDescricao: 'erro_descricao',
-  fichaVersaoId: 'ficha_versao_id',
+  fichaVersaoId: 'ficha_versao_id', leadTimeSnapshot: 'lead_time_snapshot',
 };
 
 /** Field labels for change tracking */

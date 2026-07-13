@@ -148,6 +148,9 @@ export interface Order {
   /** Pedido criado como "Estoque Pronto": entra direto no estoque e não aparece em Meus Pedidos. */
   estoquePronto?: boolean;
 
+  /** Prazo de produção (dias úteis) congelado no momento da criação do pedido. */
+  leadTimeSnapshot?: number | null;
+
   /** Nome do modelo rascunho usado para criar o pedido (quando aplicável). */
   templateNome?: string;
   /** SKU resolvido a partir do modelo rascunho (base ou da grade do tamanho). */
