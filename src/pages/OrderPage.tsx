@@ -1915,7 +1915,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <div className="grid sm:grid-cols-3 gap-4">
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={AREA_METAL} />
               <div>
-                <label className={cls.label}>Tipo do Metal</label>
+                <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
                   {TIPO_METAL.map(t => (
                     <label key={t} className={cls.checkItem}>
