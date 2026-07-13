@@ -184,8 +184,9 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
   if (idsMudou !== null && idsMudou.length === 0) return [];
 
   while (hasMore) {
-    let query = supabase.from('orders').select('*');
+    let query = supabase.from('orders').select('*').eq('estoque_pronto', false);
     if (idsMudou !== null) query = query.in('id', idsMudou);
+
 
     if (filters.searchQuery) {
       query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
