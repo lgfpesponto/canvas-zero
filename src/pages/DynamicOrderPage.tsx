@@ -15,6 +15,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import EditFichaButton from '@/components/orders/EditFichaButton';
+import { getVersaoAtiva } from '@/lib/fichaVersoes';
 
 interface CampoOpcao {
   label: string;
