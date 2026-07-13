@@ -862,7 +862,7 @@ const ExtrasPage = () => {
                         <Select value={extra.dados.vaiCanivete || 'Não'} onValueChange={v => updateExtraDadosFn(eIdx, { ...extra.dados, vaiCanivete: v }, true)}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Sim">Sim (+R$ {extra.tipo === 'kit_canivete' ? '30' : '35'})</SelectItem>
+                            <SelectItem value="Sim">Sim (+R$ {getOptPrice(extra.tipo, extra.tipo === 'kit_canivete' ? 'vai_canivete' : 'vai_faca', 'Sim', extra.tipo === 'kit_canivete' ? 30 : 35)})</SelectItem>
                             <SelectItem value="Não">Não</SelectItem>
                           </SelectContent>
                         </Select></div>
