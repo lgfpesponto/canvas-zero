@@ -229,6 +229,17 @@ const EstoquePage = () => {
         <h1 className="text-2xl md:text-3xl font-display font-bold">Estoque</h1>
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+      </div>
+
+      <EstoqueEmprestimosPanel
+        canManage={canManageEmprestimos}
+        currentUserId={user?.id}
+        currentUserNome={user?.nomeCompleto}
+      />
+
+
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           {/* Scanner-style: input sempre focado e quase invisível para QR */}
