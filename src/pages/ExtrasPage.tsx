@@ -20,6 +20,8 @@ import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus
 import { supabase } from '@/integrations/supabase/client';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota } from '@/lib/botaExtraHelpers';
+import { useExtraProdutos } from '@/hooks/useExtraProdutos';
+import ExtraProdutoEditPopover from '@/components/extras/ExtraProdutoEditPopover';
 
 interface StockItem {
   id: string;
@@ -72,6 +74,11 @@ const ExtrasPage = () => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: extraProdutosDB } = useExtraProdutos();
+  const isAdminMaster = user?.role === 'admin_master';
+  const displayProducts = (extraProdutosDB && extraProdutosDB.length > 0)
+    ? extraProdutosDB.map(p => ({ id: p.id, nome: p.nome, descricao: p.descricao ?? '', precoBase: p.preco_base, precoLabel: p.preco_label, _db: p }))
+    : EXTRA_PRODUCTS.map(p => ({ ...p, _db: undefined as any }));
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
@@ -915,14 +922,17 @@ const ExtrasPage = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {EXTRA_PRODUCTS.map(product => (
+          {displayProducts.map(product => (
             <Card key={product.id} className="flex flex-col justify-between hover:shadow-lg transition-shadow">
               <CardContent className="pt-6 flex flex-col h-full">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="bg-primary/10 p-2 rounded-lg">
                     <Package className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="font-semibold text-foreground">{product.nome}</h3>
+                  <h3 className="font-semibold text-foreground flex-1">{product.nome}</h3>
+                  {isAdminMaster && product._db && (
+                    <ExtraProdutoEditPopover produto={product._db} />
+                  )}
                 </div>
                 {(() => {
                   const lt = getExtraLeadTime(product.id);
@@ -955,7 +965,7 @@ const ExtrasPage = () => {
       </div>
 
       {/* Product modals */}
-      {EXTRA_PRODUCTS.map(product => (
+      {displayProducts.map(product => (
         <Dialog key={product.id} open={openProduct === product.id} onOpenChange={open => !open && setOpenProduct(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>

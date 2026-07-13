@@ -860,6 +860,45 @@ export type Database = {
           },
         ]
       }
+      extra_produtos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number
+          preco_base: number | null
+          preco_label: string
+          updated_at: string
+          variacoes: Json
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id: string
+          nome: string
+          ordem?: number
+          preco_base?: number | null
+          preco_label: string
+          updated_at?: string
+          variacoes?: Json
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          preco_base?: number | null
+          preco_label?: string
+          updated_at?: string
+          variacoes?: Json
+        }
+        Relationships: []
+      }
       ficha_campos: {
         Row: {
           ativo: boolean | null
