@@ -111,6 +111,26 @@ const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
               </Button>
             </div>
 
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  setBusy(true);
+                  const { error } = await supabase.functions.invoke('bagy-stock-sync', {
+                    body: { retry_produto_id: produto.id, force_rediscover: true },
+                  });
+                  setBusy(false);
+                  if (error) { toast.error(error.message); return; }
+                  toast.success('Redescoberta enviada. Verifique o status em alguns segundos.');
+                  onDone?.();
+                }}
+                disabled={busy}
+                className="w-full"
+              >
+                Forçar redescoberta na Bagy
+              </Button>
+            </div>
+
             <div className="border border-border rounded-md p-3 space-y-2">
               <div className="text-xs font-bold text-muted-foreground uppercase">Ajustar quantidade</div>
               <p className="text-xs text-muted-foreground">
