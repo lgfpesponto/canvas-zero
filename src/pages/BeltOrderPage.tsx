@@ -1074,7 +1074,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                       {items.length === 0 && <p className="text-xs text-muted-foreground text-center italic">Nenhum item com preço selecionado ainda.</p>}
                       {items.map(([label, valor], i) => (
                         <div key={`${label}-${i}`} className="flex justify-between text-sm py-1 border-b border-border/30 last:border-0">
-                          <span className="text-foreground">{label}</span>
+                          <span className="text-foreground inline-flex items-center gap-1">
+                            {label}
+                            <InlineVariacaoOlhos names={extractVariationName(label)} />
+                          </span>
                           <span className="text-primary font-semibold whitespace-nowrap ml-2">{formatCurrency(valor)}</span>
                         </div>
                       ))}
