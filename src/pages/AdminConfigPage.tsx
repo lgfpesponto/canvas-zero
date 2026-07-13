@@ -23,7 +23,7 @@ import ConfiguracoesNFe from './ConfiguracoesNFe';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
 
 type SectionKey =
-  | 'fichas' | 'extras' | 'progresso' | 'relatorios'
+  | 'historico-fichas' | 'extras' | 'progresso' | 'relatorios'
   | 'usuarios' | 'gestao' | 'atacado-sync' | 'financeiro' | 'nfe';
 
 export default function AdminConfigPage() {
