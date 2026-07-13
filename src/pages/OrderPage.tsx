@@ -35,6 +35,9 @@ import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
 import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
+import VariacaoFotoIcon from '@/components/ficha/VariacaoFotoIcon';
+import VariacaoExpandirDialog from '@/components/ficha/VariacaoExpandirDialog';
+
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
