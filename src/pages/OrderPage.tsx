@@ -1616,9 +1616,16 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         {label}{req && <span className="text-destructive ml-0.5">*</span>}
         <FichaFieldControls labelText={label} defaultTipo="selecao" />
       </label>
-      <SearchableSelect options={options} value={value} onValueChange={onChange} placeholder="Selecione..." />
+      <SearchableSelect
+        options={options}
+        value={value}
+        onValueChange={onChange}
+        placeholder="Selecione..."
+        fotoLookup={findFotoByName}
+      />
     </div>
   );
+
 
   const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
   const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);

@@ -74,6 +74,13 @@ export function useFichaVariacoesLookup() {
     return found?.foto_url || null;
   }, [items]);
 
-  return { items, loading, getByCustomCategory, findFichaPrice, findFoto };
+  const findFotoByName = useCallback((itemName: string): string | null => {
+    if (!itemName) return null;
+    const found = items.find(i => i.nome === itemName && i.foto_url);
+    return found?.foto_url || null;
+  }, [items]);
+
+  return { items, loading, getByCustomCategory, findFichaPrice, findFoto, findFotoByName };
 }
+
 
