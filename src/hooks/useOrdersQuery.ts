@@ -36,7 +36,9 @@ export function useOrdersQuery(options: QueryOptions) {
       let hasMore = true;
 
       while (hasMore) {
-        let query = supabase.from('orders').select('*');
+        // SEMPRE oculta pedidos "Estoque Pronto" (viraram item de estoque direto)
+        let query = supabase.from('orders').select('*').eq('estoque_pronto', false);
+
 
         if (options.statuses && options.statuses.length > 0) {
           query = query.in('status', options.statuses);
