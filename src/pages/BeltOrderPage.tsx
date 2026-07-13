@@ -24,7 +24,7 @@ import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
   FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
-import EditFichaButton from '@/components/orders/EditFichaButton';
+
 import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
@@ -655,7 +655,6 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido?tipo=bota')}>
                 Trocar para Bota
               </Button>
-              <EditFichaButton fichaSlug="cinto" />
               <FichaEditToggle />
             </>
           )}

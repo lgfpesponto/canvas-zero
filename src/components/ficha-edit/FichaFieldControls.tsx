@@ -20,23 +20,15 @@ import {
 
 interface Props {
   labelText: string;
-  /** Tipo padrão se o campo não existir ainda no banco (fallback ao criar stub). */
   defaultTipo?: 'texto' | 'selecao' | 'multipla' | 'checkbox' | 'textarea' | 'numero';
-  /** Slug da categoria onde criar o stub se necessário. */
   defaultCategoriaSlug?: string;
 }
 
-/**
- * Ícones inline (➕ ✏️) que aparecem SÓ quando o modo edição da ficha está ativo.
- * Descobre o slug do campo pelo texto do label (via labelSlugMap).
- */
 export default function FichaFieldControls({ labelText, defaultTipo = 'selecao', defaultCategoriaSlug }: Props) {
   const { editMode, fichaSlug, fichaTipoId } = useFichaEdit();
   if (!editMode || !fichaTipoId) return null;
-
   const slug = lookupSlug(fichaSlug, labelText);
-  if (!slug) return null; // label não mapeada — não polui a UI
-
+  if (!slug) return null;
   return (
     <InlineControls
       slug={slug}
@@ -54,51 +46,12 @@ function InlineControls({
   slug: string; fichaTipoId: string;
   defaultTipo: string; defaultCategoriaSlug?: string; defaultNome: string;
 }) {
-  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [autoDraft, setAutoDraft] = useState(false);
   const { data: campos = [] } = useFichaCampos(fichaTipoId);
-  const { data: categorias = [] } = useFichaCategorias(fichaTipoId);
-  const { data: allVars = [] } = useAllVariacoesByFichaTipo(fichaTipoId);
-
   const campo = useMemo(() => campos.find(c => c.slug === slug), [campos, slug]);
-  const variacoes = useMemo(
-    () => (campo ? allVars.filter(v => v.campo_id === campo.id).sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)) : []),
-    [allVars, campo],
-  );
-
-  const podeVar = campo && (campo.tipo === 'selecao' || campo.tipo === 'multipla');
-  const insertVar = useInsertVariacao();
-
-  const ensureCampo = async (): Promise<FichaCampo | null> => {
-    if (campo) return campo;
-    const cat = categorias.find(c => c.slug === defaultCategoriaSlug) || categorias[0];
-    if (!cat) { toast.error('Nenhuma categoria disponível'); return null; }
-    const { data, error } = await supabase.from('ficha_campos').insert({
-      ficha_tipo_id: fichaTipoId,
-      categoria_id: cat.id,
-      nome: defaultNome, slug, tipo: defaultTipo,
-      obrigatorio: false, ordem: (campos.length || 0) + 1,
-      opcoes: [], vinculo: null, desc_condicional: false,
-    }).select('*').single();
-    if (error) { toast.error(error.message); return null; }
-    qc.invalidateQueries({ queryKey: ['ficha_campos'] });
-    return data as any as FichaCampo;
-  };
-
-  const handleQuickAdd = async () => {
-    const c = await ensureCampo();
-    if (!c) return;
-    const nome = window.prompt(`Nova variação em "${c.nome}":`);
-    if (!nome) return;
-    const precoStr = window.prompt('Preço adicional (R$):', '0') || '0';
-    const preco = parseFloat(precoStr.replace(',', '.')) || 0;
-    await insertVar.mutateAsync({
-      categoria_id: c.categoria_id!,
-      campo_id: c.id,
-      nome, preco_adicional: preco,
-      ordem: variacoes.length + 1,
-    });
-    toast.success('Variação criada');
-  };
+  const tipo = campo?.tipo || defaultTipo;
+  const podeVar = tipo === 'selecao' || tipo === 'multipla';
 
   return (
     <span
@@ -110,7 +63,7 @@ function InlineControls({
           type="button" size="icon" variant="ghost"
           className="h-5 w-5 opacity-70 hover:opacity-100"
           title="adicionar variação"
-          onClick={handleQuickAdd}
+          onClick={() => { setAutoDraft(true); setOpen(true); }}
         >
           <Plus className="h-3 w-3" />
         </Button>
@@ -118,20 +71,22 @@ function InlineControls({
       <EditPopover
         slug={slug} fichaTipoId={fichaTipoId} defaultTipo={defaultTipo}
         defaultCategoriaSlug={defaultCategoriaSlug} defaultNome={defaultNome}
+        open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAutoDraft(false); }}
+        autoAddDraft={autoDraft}
       />
     </span>
   );
 }
 
-/* ─── Popover ─── */
 function EditPopover({
   slug, fichaTipoId, defaultTipo, defaultCategoriaSlug, defaultNome,
+  open, onOpenChange, autoAddDraft,
 }: {
   slug: string; fichaTipoId: string; defaultTipo: string;
   defaultCategoriaSlug?: string; defaultNome: string;
+  open: boolean; onOpenChange: (v: boolean) => void; autoAddDraft: boolean;
 }) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
   const { data: campos = [] } = useFichaCampos(fichaTipoId);
   const { data: categorias = [] } = useFichaCategorias(fichaTipoId);
   const { data: allVars = [] } = useAllVariacoesByFichaTipo(fichaTipoId);
@@ -142,20 +97,25 @@ function EditPopover({
     [allVars, campo],
   );
 
-  const [nome, setNome] = useState(campo?.nome || defaultNome);
-  const [obrigatorio, setObrigatorio] = useState(!!campo?.obrigatorio);
-  const checkboxOpcao = Array.isArray(campo?.opcoes) && campo!.opcoes.length > 0 ? campo!.opcoes[0] : null;
-  const [checkboxPreco, setCheckboxPreco] = useState<number>(
-    checkboxOpcao ? Number(checkboxOpcao.preco_adicional) || 0 : 0,
-  );
+  const [nome, setNome] = useState('');
+  const [obrigatorio, setObrigatorio] = useState(false);
+  const [checkboxPreco, setCheckboxPreco] = useState<number>(0);
+  const [drafts, setDrafts] = useState<{ id: string; nome: string; preco: number }[]>([]);
 
+  // Reset state whenever popover opens or the underlying campo changes.
   useEffect(() => {
-    if (campo) {
-      setNome(campo.nome);
-      setObrigatorio(!!campo.obrigatorio);
-      if (checkboxOpcao) setCheckboxPreco(Number(checkboxOpcao.preco_adicional) || 0);
+    if (!open) return;
+    setNome(campo?.nome ?? defaultNome);
+    setObrigatorio(!!campo?.obrigatorio);
+    const opt = Array.isArray(campo?.opcoes) && campo!.opcoes.length > 0 ? campo!.opcoes[0] : null;
+    setCheckboxPreco(opt ? Number(opt.preco_adicional) || 0 : 0);
+    if (autoAddDraft) {
+      setDrafts([{ id: `d${Date.now()}`, nome: '', preco: 0 }]);
+    } else {
+      setDrafts([]);
     }
-  }, [campo?.id, campo?.nome, campo?.obrigatorio, checkboxOpcao]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, campo?.id, campo?.nome, campo?.obrigatorio, JSON.stringify(campo?.opcoes)]);
 
   const updateCampo = useUpdateFichaCampo();
   const insertVar = useInsertVariacao();
@@ -187,27 +147,45 @@ function EditPopover({
     const patch: any = { id: c.id, nome, obrigatorio };
     if (isCheckbox) patch.opcoes = [{ label: 'sim', preco_adicional: checkboxPreco }];
     await updateCampo.mutateAsync(patch);
+
+    // Persist any pending drafts (variações novas)
+    for (const d of drafts) {
+      if (!d.nome.trim()) continue;
+      await insertVar.mutateAsync({
+        categoria_id: c.categoria_id!,
+        campo_id: c.id,
+        nome: d.nome.trim(),
+        preco_adicional: d.preco || 0,
+        ordem: variacoes.length + 1,
+      });
+    }
     toast.success('Campo salvo');
-    setOpen(false);
+    onOpenChange(false);
   };
 
-  const handleAddVar = async () => {
+  const addDraft = () => setDrafts(prev => [...prev, { id: `d${Date.now()}${prev.length}`, nome: '', preco: 0 }]);
+  const updateDraft = (id: string, patch: Partial<{ nome: string; preco: number }>) =>
+    setDrafts(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d));
+  const removeDraft = (id: string) => setDrafts(prev => prev.filter(d => d.id !== id));
+
+  const commitDraft = async (id: string) => {
+    const d = drafts.find(x => x.id === id);
+    if (!d || !d.nome.trim()) { toast.error('Informe o nome'); return; }
     const c = await ensureCampo();
     if (!c) return;
-    const n = window.prompt('Nome da variação:');
-    if (!n) return;
-    const p = parseFloat((window.prompt('Preço adicional (R$):', '0') || '0').replace(',', '.')) || 0;
     await insertVar.mutateAsync({
       categoria_id: c.categoria_id!,
       campo_id: c.id,
-      nome: n, preco_adicional: p,
+      nome: d.nome.trim(),
+      preco_adicional: d.preco || 0,
       ordem: variacoes.length + 1,
     });
+    removeDraft(id);
     toast.success('Variação criada');
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button
           type="button" size="icon" variant="ghost"
@@ -248,16 +226,39 @@ function EditPopover({
             Campo de texto livre — só é possível renomear.
           </p>
         )}
-        {isSelecaoLike && campo && (
+        {isSelecaoLike && (
           <div className="space-y-1 border-t pt-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs">Variações ({variacoes.length})</Label>
-              <Button size="sm" variant="ghost" onClick={handleAddVar} className="h-6 gap-1 text-[11px]">
+              <Button size="sm" variant="ghost" onClick={addDraft} className="h-6 gap-1 text-[11px]">
                 <Plus className="h-3 w-3" /> variação
               </Button>
             </div>
             <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
-              {variacoes.length === 0 && (
+              {drafts.map(d => (
+                <div key={d.id} className="flex items-center gap-1 text-xs bg-primary/5 rounded px-1.5 py-1 border border-primary/30">
+                  <Input
+                    autoFocus
+                    value={d.nome}
+                    onChange={e => updateDraft(d.id, { nome: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(d.id); } }}
+                    placeholder="nome"
+                    className="h-6 text-[11px] flex-1 px-1"
+                  />
+                  <Input
+                    type="number" step="0.01"
+                    value={d.preco}
+                    onChange={e => updateDraft(d.id, { preco: parseFloat(e.target.value) || 0 })}
+                    placeholder="R$"
+                    className="h-6 text-[11px] w-16 px-1"
+                  />
+                  <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => commitDraft(d.id)}>ok</Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDraft(d.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              {variacoes.length === 0 && drafts.length === 0 && (
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação.</p>
               )}
               {variacoes.map(v => (
@@ -267,7 +268,7 @@ function EditPopover({
           </div>
         )}
         <div className="flex justify-end gap-2 pt-1 border-t">
-          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>fechar</Button>
+          <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>fechar</Button>
           <Button size="sm" onClick={handleSalvar}>salvar</Button>
         </div>
       </PopoverContent>
@@ -275,7 +276,6 @@ function EditPopover({
   );
 }
 
-/* ─── Linha de variação (editar/excluir/relacionamento) ─── */
 function VarLine({ v, todosCampos, todasVars }: {
   v: FichaVariacao & { relacionamento?: any };
   todosCampos: FichaCampo[];

@@ -23,7 +23,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
-import EditFichaButton from '@/components/orders/EditFichaButton';
+
 import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
@@ -1628,7 +1628,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
                 Trocar para Cinto
               </Button>
-              <EditFichaButton fichaSlug="bota" />
               <FichaEditToggle />
 
             </>
@@ -1916,7 +1915,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <div className="grid sm:grid-cols-3 gap-4">
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={AREA_METAL} />
               <div>
-                <label className={cls.label}>Tipo do Metal</label>
+                <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
                   {TIPO_METAL.map(t => (
                     <label key={t} className={cls.checkItem}>
@@ -1945,7 +1944,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 { label: 'Cavalo', preco: '5/un', value: cavaloMetal, setValue: setCavaloMetal, qtd: cavaloMetalQtd, setQtd: setCavaloMetalQtd },
               ].map(item => (
                 <div key={item.label} className="flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-muted/30">
-                  <span className="text-xs font-semibold leading-tight">{item.label} <span className="text-muted-foreground font-normal">(R${item.preco})</span></span>
+                  <span className="text-xs font-semibold leading-tight">{item.label} <span className="text-muted-foreground font-normal">(R${item.preco})</span> <FichaFieldControls labelText={item.label} defaultTipo="checkbox" defaultCategoriaSlug="metais" /></span>
                   <select
                     value={item.value ? 'Sim' : 'Não'}
                     onChange={e => item.setValue(e.target.value === 'Sim')}

@@ -15,7 +15,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
-import EditFichaButton from '@/components/orders/EditFichaButton';
+
 import { getVersaoAtiva } from '@/lib/fichaVersoes';
 import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
@@ -214,7 +214,6 @@ export default function DynamicOrderPage() {
           <h1 className="font-montserrat text-2xl font-bold text-foreground lowercase">
             {tipo.nome.toLowerCase()}
           </h1>
-          {slug && <EditFichaButton fichaSlug={slug} />}
           <FichaEditToggle />
         </div>
 
