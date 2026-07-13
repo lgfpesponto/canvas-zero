@@ -667,6 +667,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const horaAgora = formatBrasiliaTime();
       const targetUserId = user.id;
 
+      // Ficha versão ativa (mesma para todas as linhas da grade)
+      let fichaVersaoId: string | null = (orderData as any).fichaVersaoId || null;
+      if (!fichaVersaoId) {
+        const slugFicha = (orderData as any).tipoExtra || 'bota';
+        try {
+          const { data: tipoRow } = await supabase
+            .from('ficha_tipos').select('id').eq('slug', slugFicha).maybeSingle();
+          if (tipoRow?.id) {
+            const { data: v } = await supabase
+              .from('ficha_versoes').select('id')
+              .eq('ficha_tipo_id', tipoRow.id).eq('ativa', true).maybeSingle();
+            fichaVersaoId = (v as any)?.id || null;
+          }
+        } catch (e) { console.warn('addOrderBatch ficha_versao_id lookup', e); }
+      }
+
       const rows = numbers.map(({ tamanho, numero, sku }) => {
         const newOrder = {
           ...orderData,
@@ -679,6 +695,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado (grade)', usuario: user.nomeCompleto }],
           alteracoes: [],
           numero,
+          fichaVersaoId,
         };
         return orderToDbRow(newOrder, targetUserId);
       });
