@@ -31,7 +31,9 @@ export interface FichaVariacao {
   preco_adicional: number;
   ativo: boolean;
   ordem: number;
+  foto_url?: string | null;
 }
+
 
 export interface StatusEtapa {
   id: string;
@@ -193,7 +195,7 @@ export function useFichaVariacoesByCampo(campoId: string | undefined) {
 export function useUpdateVariacao() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: { id: string; nome?: string; preco_adicional?: number; ativo?: boolean; ordem?: number; relacionamento?: any }) => {
+    mutationFn: async (v: { id: string; nome?: string; preco_adicional?: number; ativo?: boolean; ordem?: number; relacionamento?: any; foto_url?: string | null }) => {
       const { id, preco_adicional, ...rest } = v;
 
       // Se está mudando preço, consulta guard antes de salvar
@@ -319,7 +321,7 @@ export function useDeleteCategoria() {
 export function useInsertVariacao() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number }) => {
+    mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number; foto_url?: string | null }) => {
       const { data, error } = await supabase
         .from('ficha_variacoes')
         .insert(v)
