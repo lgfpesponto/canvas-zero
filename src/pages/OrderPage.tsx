@@ -14,6 +14,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { TemplatesDialog } from '@/components/template/TemplatesDialog';
+import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
+
+function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
+  const { tipo, ...rest } = props;
+  const validityById = useTemplatesValidity(rest.templates as any, tipo);
+  return <TemplatesDialog {...rest} validityById={validityById} />;
+}
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
