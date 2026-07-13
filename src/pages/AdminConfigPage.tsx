@@ -58,7 +58,7 @@ export default function AdminConfigPage() {
   };
 
   const sections: { key: SectionKey; label: string; Icon: typeof Layers; visible: boolean }[] = [
-    { key: 'fichas', label: 'ficha de produção', Icon: Layers, visible: true },
+    { key: 'historico-fichas', label: 'ficha de produção', Icon: Layers, visible: true },
     { key: 'extras', label: 'extras', Icon: Package, visible: true },
     { key: 'progresso', label: 'progresso de produção', Icon: Activity, visible: true },
     { key: 'relatorios', label: 'relatórios', Icon: BarChart3, visible: true },
