@@ -364,6 +364,10 @@ export function useUpdateFichaCampo() {
       qc.invalidateQueries({ queryKey: ['ficha_campos'] });
       qc.invalidateQueries({ queryKey: ['dynamic_unit_prices'] });
     },
+  });
+}
+
+export function useDeleteFichaCampo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
