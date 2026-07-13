@@ -11,6 +11,7 @@ import { Eye, RotateCcw, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { diffSnapshots, salvarNovaVersao, type FichaSnapshot } from '@/lib/fichaVersoes';
 import { useAuth } from '@/contexts/AuthContext';
+import ExtrasHistoricoList from './ExtrasHistoricoList';
 
 export default function HistoricoFichasTab() {
   const { data: tipos = [] } = useFichaTipos();
@@ -45,7 +46,7 @@ export default function HistoricoFichasTab() {
         </TabsList>
         {tiposAtivos.map(t => (
           <TabsContent key={t.id} value={t.id}>
-            <VersoesList fichaTipoId={t.id} />
+            {t.slug === 'extra' ? <ExtrasHistoricoList /> : <VersoesList fichaTipoId={t.id} />}
           </TabsContent>
         ))}
       </Tabs>
