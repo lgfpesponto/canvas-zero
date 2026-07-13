@@ -701,6 +701,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (e) { console.warn('addOrderBatch ficha_versao_id lookup', e); }
       }
 
+      // Snapshot do prazo (dias úteis) da ficha ativa
+      const slugFichaLT = (orderData as any).tipoExtra || 'bota';
+      const { data: ftLT } = await supabase
+        .from('ficha_tipos').select('lead_time_dias').eq('slug', slugFichaLT).maybeSingle();
+      const leadTimeSnapshot = (ftLT as any)?.lead_time_dias ?? (slugFichaLT === 'bota' ? 25 : 20);
+
       const rows = numbers.map(({ tamanho, numero, sku }) => {
         const newOrder = {
           ...orderData,
@@ -708,12 +714,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           skuEstoque: sku || (orderData as any).skuEstoque || null,
           dataCriacao: dataHoje,
           horaCriacao: horaAgora,
-          diasRestantes: 15,
+          diasRestantes: leadTimeSnapshot,
           status: 'Em aberto',
           historico: [{ data: dataHoje, hora: horaAgora, local: 'Em aberto', descricao: 'Pedido criado (grade)', usuario: user.nomeCompleto }],
           alteracoes: [],
           numero,
           fichaVersaoId,
+          leadTimeSnapshot,
         };
         return orderToDbRow(newOrder, targetUserId);
       });
