@@ -964,7 +964,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       </div>
 
       {/* ───── Templates Dialog ───── */}
-      <TemplatesDialog
+      <TemplatesDialogWithValidity
         open={tmpl.showTemplates}
         onOpenChange={tmpl.setShowTemplates}
         templates={beltTemplates as any}
@@ -977,6 +977,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         onEdit={handleEditTemplate as any}
         onDelete={handleDeleteTemplate}
         onSendMany={openSendDialog as any}
+        tipo="cinto"
       />
 
 
