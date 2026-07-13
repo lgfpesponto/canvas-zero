@@ -151,6 +151,19 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
           </div>
         </div>
 
+        <div className="space-y-1">
+          <Label className="text-xs">Prazo de produção (dias úteis)</Label>
+          <Input
+            type="number" min={1} step={1}
+            value={leadTimeDias}
+            onChange={e => setLeadTimeDias(e.target.value)}
+            className="h-8"
+          />
+          <p className="text-[10px] text-muted-foreground italic">
+            Aplica-se apenas a pedidos novos deste extra. Pedidos já criados mantêm o prazo antigo.
+          </p>
+        </div>
+
         {!showBasePrice && (
           <p className="text-[11px] text-muted-foreground italic">
             Preço deste produto vem das variações abaixo (não tem preço base fixo).
