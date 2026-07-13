@@ -24,6 +24,7 @@ import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
   FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
+import EditFichaButton from '@/components/orders/EditFichaButton';
 
 const cls = {
   label: 'block text-sm font-semibold mb-1',
