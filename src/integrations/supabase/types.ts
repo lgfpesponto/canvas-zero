@@ -1065,6 +1065,7 @@ export type Database = {
           ativo: boolean | null
           campo_id: string | null
           categoria_id: string
+          foto_url: string | null
           id: string
           nome: string
           ordem: number | null
@@ -1075,6 +1076,7 @@ export type Database = {
           ativo?: boolean | null
           campo_id?: string | null
           categoria_id: string
+          foto_url?: string | null
           id?: string
           nome: string
           ordem?: number | null
@@ -1085,6 +1087,7 @@ export type Database = {
           ativo?: boolean | null
           campo_id?: string | null
           categoria_id?: string
+          foto_url?: string | null
           id?: string
           nome?: string
           ordem?: number | null
