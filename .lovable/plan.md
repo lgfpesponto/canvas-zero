@@ -1,43 +1,52 @@
-## Objetivo
-Preço editado no popover entra na soma final. Pedidos antigos mantêm o mesmo preço via cascata (nada muda até você editar). Fichas versionadas continuam apontando para a versão salva no pedido.
+## Correções no popover de edição da ficha (modo edição)
 
-- Metais quantificáveis (Strass, Bola Grande, Cruz, Bridão, Cavalo) → popover mostra **"Preço quando 'Tem' unitário (R$)"**; soma = unitário × qtd, com unitário lido do banco.
-- Extras tem/não tem (Tricê, Tiras, Franja, Corrente, Costura Atrás, Pintura, Estampa) → popover já vem com o valor atual preenchido; edição entra na soma.
-- Bug do "Tipo do Metal" listar **Bola Grande** ao lado de **Rebite** → apagar essa variação do banco. Bola Grande fica só no bloco de metais quantificáveis.
+Quatro melhorias para o comportamento do lápis (✎) do modo edição, sem tocar em lógica de pedidos antigos.
 
-## Cascata de preço (sem quebrar pedidos antigos)
-```
-preço unitário = ficha_campos.opcoes[0].preco_adicional  (se admin salvou > 0)
-              ↓ senão
-              constante hardcoded original (STRASS_PRECO, TRICE_PRECO, …)
-```
-Enquanto o admin não editar, o valor permanece o do código = pedidos antigos ficam idênticos. Editou uma vez → é uma nova versão da ficha; pedidos novos usam o novo, pedidos antigos continuam com o preço já materializado no `preco` deles (o reconciliador só refaz quando algo do pedido muda).
+### 1. Pré-carregar preço atual dos metais / extras "tem/não tem"
 
-## Alterações
+Hoje o popover abre com "Preço quando 'Tem' (R$)" em **0** quando o campo `ficha_campos.opcoes` ainda não foi semeado no banco (é o caso de `bola_grande`, `cruz_metal`, `bridao_metal`, `cavalo_metal`, `strass` e alguns extras).
 
-**1. Novo `src/lib/dynamicUnitPrice.ts`**
-- Map em memória + `getDynamicUnitPrice(slug, fallback)`.
-- Hook `useSyncDynamicUnitPrices()` carrega `ficha_campos.opcoes` para os slugs cobertos e popula o map.
-- Constante `QUANTIFIABLE_METAL_SLUGS` p/ label contextual.
+Correção:
+- No `FichaFieldControls`, quando o campo é do tipo `checkbox` e `opcoes` estiver vazio/zerado, exibir o **fallback hardcoded** (`getDynamicUnitPrice(slug, 0)` já dá acesso a esse valor) como valor inicial editável. Salvar continua gravando em `opcoes[0].preco_adicional`.
+- Assim o admin vê imediatamente o preço vigente (ex.: Bola Grande = R$0,60) e pode alterar sem digitar do zero.
 
-**2. Montar hook uma vez** em `src/App.tsx` (dentro do `ChromeWrapper`).
+### 2. Cinto: variações de Tamanho, Tipo de Couro, Cor do Couro, Fivela, Cor do Bordado
 
-**3. Trocar leitura das constantes** por `getDynamicUnitPrice('slug', CONSTANTE)` em:
-- `src/lib/recomputeOrderPrice.ts` (fonte canônica)
-- `src/pages/OrderPage.tsx` (preview + save)
-- `src/pages/EditOrderPage.tsx` (idem)
-- `src/pages/OrderDetailPage.tsx` (breakdown)
-- `src/lib/cobrancaPdf.ts`, `src/lib/pdfGenerators.ts` (PDFs)
+Os campos existem no formulário, mas as variações não aparecem porque **os `ficha_campos` correspondentes ainda não têm registros de `ficha_variacoes`** para o tipo `cinto`. As opções ficam só nas constantes de `extrasConfig.ts` / `orderFieldsConfig.ts`.
 
-**4. Popover contextual** em `src/components/ficha-edit/FichaFieldControls.tsx`:
-- Se slug ∈ `QUANTIFIABLE_METAL_SLUGS` → rótulo "Preço quando 'Tem' unitário (R$)" + dica "soma = unitário × quantidade".
-- Caso contrário → mantém "Preço quando 'Tem' (R$)".
+Correção (migration):
+- Garantir que exista um `ficha_campos` `selecao` para cada slug abaixo dentro da `ficha_tipos` do cinto e semear `ficha_variacoes` a partir das constantes atuais, com preço = valor da constante quando aplicável:
+  - `tamanho` ← `BELT_SIZES`
+  - `tipo_couro` ← `TIPOS_COURO` (compartilhado, mas filtrado para o que faz sentido em cinto)
+  - `cor_couro` ← `CORES_COURO`
+  - `fivela` ← `FIVELA_OPTIONS`
+  - `cor_bordado` (dentro da categoria "Bordado P") ← paleta padrão de cores de bordado já usada na bota
+- Nenhum pedido antigo muda: os preços vêm iguais aos das constantes; a UI passa a ler do banco por meio dos hooks já existentes.
 
-**5. Migração de dados (via `insert`)**
-- `DELETE FROM ficha_variacoes WHERE id = 'ff434f3a-9015-4be5-aeb3-b8ed4579465a'` (Bola Grande em `tipo_metal`).
-- `UPDATE ficha_campos SET opcoes = jsonb_build_array(jsonb_build_object('label','sim','preco_adicional', <constante>))` para os 12 slugs, quando `opcoes` estiver vazio. Assim o popover abre com o valor atual pré-preenchido no primeiro clique.
+### 3. Carimbo a Fogo (bota e cinto): editável + variações
 
-## Fora de escopo
-- Sem mudança na lógica de soma (continua unitário × qtd, ou preço × 1).
-- Sem tocar em fichas versionadas de pedidos antigos.
-- Sem mudar Cor da Sola / Modelo / Solado / Bordados (já dinâmicos).
+Hoje "Carimbo a Fogo" na `OrderPage` (bota) sequer tem `<FichaFieldControls>` acoplado, e na `BeltOrderPage` só existe o subcampo "Quais carimbos" (`texto`).
+
+Correção:
+- Adicionar `<FichaFieldControls labelText="Carimbo a Fogo" defaultTipo="selecao" defaultCategoriaSlug="carimbo" />` no label principal em `OrderPage.tsx` e `BeltOrderPage.tsx`.
+- Incluir no `labelSlugMap` (bota e cinto) o mapeamento `carimbo a fogo → carimbo`.
+- Migration: criar `ficha_campos` `selecao` `carimbo` para cinto e bota (se ainda não existir) e semear `ficha_variacoes` a partir de `CARIMBO` / `BELT_CARIMBO`.
+
+### 4. Todos os campos: nome + obrigatoriedade sempre editáveis
+
+Já é possível para a maioria; ajustes:
+- No `FichaFieldControls`/`EditPopover`, sempre exibir o **switch "obrigatório"** (inclusive nos tipos `texto`/`textarea`/`numero`) e persistir em `ficha_campos.obrigatorio`. O valor inicial já vem de `campo?.obrigatorio` — nenhuma mudança extra necessária, só remover o `!isTexto` que esconde o switch hoje.
+- Campos condicionais (que só aparecem depois de selecionar algo, ex.: "Descrever fivela", "Cor do Bordado", "Descrição do Bordado", subcampos de carimbo etc.) usam o mesmo componente — o popover continua funcionando via lápis mesmo quando o campo está oculto porque o toggle é renderizado no `<label>`, que já existe em edit mode. Adicionar os slugs faltantes ao `labelSlugMap` para que o lápis apareça:
+  - Bota/Cinto: `descrever fivela → fivela_desc`, `descrição do bordado → bordado_desc`, `descrição → nome_bordado_desc`, `cor → nome_bordado_cor`, `fonte → nome_bordado_fonte`, `quais carimbos → carimbo_desc`, `onde será aplicado → carimbo_onde`, `valor do adicional → adicional_valor`, etc.
+
+Semântica de "obrigatório em campo condicional": nada muda na validação atual dos formulários — o campo condicional já só é renderizado quando a condição é satisfeita, então marcá-lo `obrigatorio` no banco naturalmente só o exige quando ele aparece. Documentar isso em comentário no `FichaFieldControls`.
+
+### Detalhes técnicos
+
+Arquivos alterados:
+- `src/components/ficha-edit/FichaFieldControls.tsx` — fallback de preço para checkbox; remover `!isTexto` do switch de obrigatoriedade.
+- `src/components/ficha-edit/labelSlugMap.ts` — novos slugs (carimbo a fogo, subcampos condicionais de cinto/bota).
+- `src/pages/OrderPage.tsx`, `src/pages/BeltOrderPage.tsx` — acoplar `<FichaFieldControls>` no label "Carimbo a Fogo".
+- Migration Supabase: upsert de `ficha_campos` (`carimbo`, `tamanho`, `tipo_couro`, `cor_couro`, `fivela`, `cor_bordado` no cinto) + insert idempotente de `ficha_variacoes` a partir das constantes.
+
+Compatibilidade com pedidos antigos: preços semeados = constantes atuais; `getDynamicUnitPrice` mantém fallback; nenhuma alteração em `recomputeOrderPrice`.
