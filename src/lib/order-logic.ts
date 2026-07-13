@@ -269,7 +269,9 @@ export function dbRowToOrder(row: any): Order {
     templateSku: row.template_sku || undefined,
     erroDePedidoId: row.erro_de_pedido_id || undefined,
     erroDescricao: row.erro_descricao || undefined,
+    estoquePronto: !!row.estoque_pronto,
   };
+
 }
 
 /* ───── Order → DB row mapping ───── */
