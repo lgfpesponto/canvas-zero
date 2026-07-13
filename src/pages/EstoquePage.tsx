@@ -393,7 +393,7 @@ const EstoquePage = () => {
                   const naoEncontrados = g.tamanhos.filter(t => t.bagy_sync_status === 'nao_encontrado_na_bagy');
                   const comErro = g.tamanhos.filter(t => t.bagy_sync_status === 'erro');
                   const pendentes = g.tamanhos.filter(t => t.bagy_sync_status === 'pendente');
-                  const okCount = g.tamanhos.filter(t => t.bagy_sync_status === 'ok').length;
+                  const okCount = g.tamanhos.filter(t => t.bagy_sync_status === 'ok' && !!t.bagy_sync_at).length;
                   const problemas = [...naoEncontrados, ...comErro];
                   if (problemas.length > 0) {
                     return (
