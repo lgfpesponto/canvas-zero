@@ -23,7 +23,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
-import EditFichaButton from '@/components/orders/EditFichaButton';
+
 import { FichaEditProvider } from '@/contexts/FichaEditContext';
 import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
 import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
