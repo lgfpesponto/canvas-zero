@@ -58,8 +58,10 @@ const EstoquePage = () => {
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
-  const { isAdmin, role } = useAuth();
+  const { isAdmin, role, user } = useAuth();
   const canSeeBagySync = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
+  const canManageEmprestimos = role === 'admin_master' || role === 'admin_producao';
+
 
   const handleExcluirTamanho = async (row: EstoqueRow, nomeProduto: string) => {
     const ok = window.confirm(
