@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFichaEdit } from '@/contexts/FichaEditContext';
 import { lookupSlug } from './labelSlugMap';
-import { QUANTIFIABLE_METAL_SLUGS } from '@/lib/dynamicUnitPrice';
+import { QUANTIFIABLE_METAL_SLUGS, getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 import {
   useFichaCampos, useAllVariacoesByFichaTipo,
   useUpdateFichaCampo, useInsertVariacao, useUpdateVariacao, useDeleteVariacao,
@@ -109,7 +109,11 @@ function EditPopover({
     setNome(campo?.nome ?? defaultNome);
     setObrigatorio(!!campo?.obrigatorio);
     const opt = Array.isArray(campo?.opcoes) && campo!.opcoes.length > 0 ? campo!.opcoes[0] : null;
-    setCheckboxPreco(opt ? Number(opt.preco_adicional) || 0 : 0);
+    const rawPreco = opt ? Number(opt.preco_adicional) || 0 : 0;
+    // Fallback: quando o campo ainda não foi semeado (opcoes vazio/zero),
+    // mostra o preço vigente da cascata dinâmica (constante hardcoded), para
+    // o admin editar sobre o valor atual em vez de começar de zero.
+    setCheckboxPreco(rawPreco > 0 ? rawPreco : getDynamicUnitPrice(slug, 0));
     if (autoAddDraft) {
       setDrafts([{ id: `d${Date.now()}`, nome: '', preco: 0 }]);
     } else {
@@ -206,12 +210,15 @@ function EditPopover({
           <Label className="text-xs">Nome do campo</Label>
           <Input value={nome} onChange={e => setNome(e.target.value)} className="h-8" />
         </div>
-        {!isTexto && (
-          <div className="flex items-center gap-2">
-            <Switch checked={obrigatorio} onCheckedChange={setObrigatorio} />
-            <Label className="text-xs">obrigatório</Label>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Switch checked={obrigatorio} onCheckedChange={setObrigatorio} />
+          <Label className="text-xs">
+            obrigatório
+            {campo?.vinculo && (
+              <span className="ml-1 text-muted-foreground">(só quando o campo pai for preenchido)</span>
+            )}
+          </Label>
+        </div>
         {isCheckbox && (
           <div className="space-y-1">
             <Label className="text-xs">
