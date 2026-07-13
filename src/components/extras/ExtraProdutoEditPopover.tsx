@@ -25,6 +25,7 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
   const [nome, setNome] = useState(produto.nome);
   const [precoBase, setPrecoBase] = useState<string>(produto.preco_base?.toString() ?? '');
   const [precoLabel, setPrecoLabel] = useState(produto.preco_label);
+  const [leadTimeDias, setLeadTimeDias] = useState<string>(String(produto.lead_time_dias ?? 1));
   const [variacoes, setVariacoes] = useState<ExtraVariacoes>(produto.variacoes || {});
 
   const updateMut = useUpdateExtraProduto();
@@ -36,6 +37,7 @@ export default function ExtraProdutoEditPopover({ produto }: Props) {
     setNome(produto.nome);
     setPrecoBase(produto.preco_base?.toString() ?? '');
     setPrecoLabel(produto.preco_label);
+    setLeadTimeDias(String(produto.lead_time_dias ?? 1));
     // Pré-popula grupos conhecidos com defaults quando vazio, para o admin
     // conseguir editar preços sem precisar clicar "+ variação" antes.
     const seeded = { ...(produto.variacoes || {}) };
