@@ -204,9 +204,12 @@ export default function DynamicOrderPage() {
           <ArrowLeft className="h-4 w-4" /> voltar
         </button>
 
-        <h1 className="mb-6 font-montserrat text-2xl font-bold text-foreground lowercase">
-          {tipo.nome.toLowerCase()}
-        </h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="font-montserrat text-2xl font-bold text-foreground lowercase">
+            {tipo.nome.toLowerCase()}
+          </h1>
+          {slug && <EditFichaButton fichaSlug={slug} />}
+        </div>
 
         <Card>
           <CardContent className="space-y-5 p-6">
