@@ -173,7 +173,7 @@ function VersoesList({ fichaTipoId }: { fichaTipoId: string }) {
           </DialogHeader>
           {detalhe && (
             <div className="space-y-3 text-xs">
-              <SnapshotView snap={detalhe.snapshot} />
+              <SnapshotView snap={detalhe.snapshot as unknown as FichaSnapshot} />
             </div>
           )}
         </DialogContent>
