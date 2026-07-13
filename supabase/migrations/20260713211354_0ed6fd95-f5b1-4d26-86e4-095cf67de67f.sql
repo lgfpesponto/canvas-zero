@@ -1,0 +1,1 @@
+ALTER TABLE public.ficha_variacoes ADD COLUMN IF NOT EXISTS foto_url TEXT;

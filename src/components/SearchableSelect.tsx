@@ -3,6 +3,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import VariacaoFotoIcon from '@/components/ficha/VariacaoFotoIcon';
 
 interface SearchableSelectProps {
   options: string[] | { label: string; preco?: number }[];
@@ -10,9 +11,11 @@ interface SearchableSelectProps {
   onValueChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /** Optional lookup returning a photo URL for a given option label (renders 👁 icon). */
+  fotoLookup?: (label: string) => string | null | undefined;
 }
 
-const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Selecione...', className }: SearchableSelectProps) => {
+const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Selecione...', className, fotoLookup }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
 
   const normalizedOptions = options.map(o => {
@@ -21,6 +24,7 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
   });
 
   const displayValue = normalizedOptions.find(o => o.label === value)?.display || '';
+  const selectedFoto = fotoLookup && value ? fotoLookup(value) : null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -35,7 +39,10 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
             className,
           )}
         >
-          <span className="truncate">{displayValue || placeholder}</span>
+          <span className="truncate flex items-center gap-1">
+            {displayValue || placeholder}
+            {selectedFoto && <VariacaoFotoIcon fotoUrl={selectedFoto} nome={value} />}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
@@ -45,19 +52,23 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
           <CommandList>
             <CommandEmpty>Nenhuma opção encontrada.</CommandEmpty>
             <CommandGroup>
-              {normalizedOptions.map(o => (
-                <CommandItem
-                  key={o.label}
-                  value={o.label}
-                  onSelect={() => {
-                    onValueChange(value === o.label ? '' : o.label);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn('mr-2 h-4 w-4', value === o.label ? 'opacity-100' : 'opacity-0')} />
-                  {o.display}
-                </CommandItem>
-              ))}
+              {normalizedOptions.map(o => {
+                const foto = fotoLookup ? fotoLookup(o.label) : null;
+                return (
+                  <CommandItem
+                    key={o.label}
+                    value={o.label}
+                    onSelect={() => {
+                      onValueChange(value === o.label ? '' : o.label);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn('mr-2 h-4 w-4', value === o.label ? 'opacity-100' : 'opacity-0')} />
+                    <span className="flex-1">{o.display}</span>
+                    {foto && <VariacaoFotoIcon fotoUrl={foto} nome={o.label} />}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </CommandList>
         </Command>
@@ -67,3 +78,4 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
 };
 
 export default SearchableSelect;
+

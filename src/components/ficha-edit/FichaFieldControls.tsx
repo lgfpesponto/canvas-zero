@@ -101,7 +101,7 @@ function EditPopover({
   const [nome, setNome] = useState('');
   const [obrigatorio, setObrigatorio] = useState(false);
   const [checkboxPreco, setCheckboxPreco] = useState<number>(0);
-  const [drafts, setDrafts] = useState<{ id: string; nome: string; preco: number }[]>([]);
+  const [drafts, setDrafts] = useState<{ id: string; nome: string; preco: number; foto_url: string }[]>([]);
 
   // Reset state whenever popover opens or the underlying campo changes.
   useEffect(() => {
@@ -115,10 +115,11 @@ function EditPopover({
     // o admin editar sobre o valor atual em vez de começar de zero.
     setCheckboxPreco(rawPreco > 0 ? rawPreco : getDynamicUnitPrice(slug, 0));
     if (autoAddDraft) {
-      setDrafts([{ id: `d${Date.now()}`, nome: '', preco: 0 }]);
+      setDrafts([{ id: `d${Date.now()}`, nome: '', preco: 0, foto_url: '' }]);
     } else {
       setDrafts([]);
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campo?.id, campo?.nome, campo?.obrigatorio, JSON.stringify(campo?.opcoes)]);
 
@@ -162,14 +163,15 @@ function EditPopover({
         nome: d.nome.trim(),
         preco_adicional: d.preco || 0,
         ordem: variacoes.length + 1,
+        foto_url: d.foto_url.trim() || null,
       });
     }
     toast.success('Campo salvo');
     onOpenChange(false);
   };
 
-  const addDraft = () => setDrafts(prev => [...prev, { id: `d${Date.now()}${prev.length}`, nome: '', preco: 0 }]);
-  const updateDraft = (id: string, patch: Partial<{ nome: string; preco: number }>) =>
+  const addDraft = () => setDrafts(prev => [...prev, { id: `d${Date.now()}${prev.length}`, nome: '', preco: 0, foto_url: '' }]);
+  const updateDraft = (id: string, patch: Partial<{ nome: string; preco: number; foto_url: string }>) =>
     setDrafts(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d));
   const removeDraft = (id: string) => setDrafts(prev => prev.filter(d => d.id !== id));
 
@@ -184,10 +186,14 @@ function EditPopover({
       nome: d.nome.trim(),
       preco_adicional: d.preco || 0,
       ordem: variacoes.length + 1,
+      foto_url: d.foto_url.trim() || null,
     });
     removeDraft(id);
     toast.success('Variação criada');
   };
+
+
+
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -249,28 +255,37 @@ function EditPopover({
             </div>
             <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
               {drafts.map(d => (
-                <div key={d.id} className="flex items-center gap-1 text-xs bg-primary/5 rounded px-1.5 py-1 border border-primary/30">
+                <div key={d.id} className="bg-primary/5 rounded px-1.5 py-1 border border-primary/30 space-y-1">
+                  <div className="flex items-center gap-1 text-xs">
+                    <Input
+                      autoFocus
+                      value={d.nome}
+                      onChange={e => updateDraft(d.id, { nome: e.target.value })}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(d.id); } }}
+                      placeholder="nome"
+                      className="h-6 text-[11px] flex-1 px-1"
+                    />
+                    <Input
+                      type="number" step="0.01"
+                      value={d.preco}
+                      onChange={e => updateDraft(d.id, { preco: parseFloat(e.target.value) || 0 })}
+                      placeholder="R$"
+                      className="h-6 text-[11px] w-16 px-1"
+                    />
+                    <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => commitDraft(d.id)}>ok</Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDraft(d.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                   <Input
-                    autoFocus
-                    value={d.nome}
-                    onChange={e => updateDraft(d.id, { nome: e.target.value })}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(d.id); } }}
-                    placeholder="nome"
-                    className="h-6 text-[11px] flex-1 px-1"
+                    value={d.foto_url}
+                    onChange={e => updateDraft(d.id, { foto_url: e.target.value })}
+                    placeholder="URL da foto (opcional)"
+                    className="h-6 text-[10px] px-1"
                   />
-                  <Input
-                    type="number" step="0.01"
-                    value={d.preco}
-                    onChange={e => updateDraft(d.id, { preco: parseFloat(e.target.value) || 0 })}
-                    placeholder="R$"
-                    className="h-6 text-[11px] w-16 px-1"
-                  />
-                  <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => commitDraft(d.id)}>ok</Button>
-                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDraft(d.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
                 </div>
               ))}
+
               {variacoes.length === 0 && drafts.length === 0 && (
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação.</p>
               )}
@@ -297,7 +312,9 @@ function VarLine({ v, todosCampos, todasVars }: {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(v.nome);
   const [preco, setPreco] = useState<number>(Number(v.preco_adicional) || 0);
+  const [fotoUrl, setFotoUrl] = useState<string>((v as any).foto_url || '');
   const [relOpen, setRelOpen] = useState(false);
+
 
   const relInicial: Record<string, string[]> = ((v as any).relacionamento && typeof (v as any).relacionamento === 'object')
     ? (v as any).relacionamento : {};
@@ -329,22 +346,34 @@ function VarLine({ v, todosCampos, todasVars }: {
   };
 
   return (
-    <div className="flex items-center gap-1 text-xs bg-background rounded px-1.5 py-1 border">
+    <div className="bg-background rounded px-1.5 py-1 border space-y-1">
       {editing ? (
-        <>
-          <Input value={nome} onChange={e => setNome(e.target.value)} className="h-6 text-[11px] flex-1 px-1" />
-          <Input type="number" step="0.01" value={preco} onChange={e => setPreco(parseFloat(e.target.value) || 0)} className="h-6 text-[11px] w-16 px-1" />
-          <Button size="sm" className="h-6 px-2 text-[11px]" onClick={async () => {
-            await updateVar.mutateAsync({ id: v.id, nome, preco_adicional: preco });
-            setEditing(false); toast.success('salvo');
-          }}>ok</Button>
-        </>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1 text-xs">
+            <Input value={nome} onChange={e => setNome(e.target.value)} className="h-6 text-[11px] flex-1 px-1" />
+            <Input type="number" step="0.01" value={preco} onChange={e => setPreco(parseFloat(e.target.value) || 0)} className="h-6 text-[11px] w-16 px-1" />
+            <Button size="sm" className="h-6 px-2 text-[11px]" onClick={async () => {
+              await updateVar.mutateAsync({ id: v.id, nome, preco_adicional: preco, foto_url: fotoUrl.trim() || null });
+              setEditing(false); toast.success('salvo');
+            }}>ok</Button>
+          </div>
+          <Input
+            value={fotoUrl}
+            onChange={e => setFotoUrl(e.target.value)}
+            placeholder="URL da foto (opcional)"
+            className="h-6 text-[10px] px-1"
+          />
+        </div>
       ) : (
-        <>
-          <span className="flex-1 truncate">{v.nome}</span>
+        <div className="flex items-center gap-1 text-xs">
+          <span className="flex-1 truncate flex items-center gap-1">
+            {v.nome}
+            {(v as any).foto_url && <span className="text-primary" title="tem foto">👁</span>}
+          </span>
           <span className="text-muted-foreground w-14 text-right">
             {Number(v.preco_adicional) ? `R$${Number(v.preco_adicional).toFixed(0)}` : '—'}
           </span>
+
           <Popover open={relOpen} onOpenChange={setRelOpen}>
             <PopoverTrigger asChild>
               <Button size="icon" variant="ghost" className="h-5 w-5 relative" title="relacionamento">
@@ -398,7 +427,7 @@ function VarLine({ v, todosCampos, todasVars }: {
             }}>
             <Trash2 className="h-3 w-3" />
           </Button>
-        </>
+        </div>
       )}
     </div>
   );
