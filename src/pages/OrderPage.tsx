@@ -24,6 +24,10 @@ import { maskPhoneBR } from '@/lib/whatsappSend';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 import EditFichaButton from '@/components/orders/EditFichaButton';
+import { FichaEditProvider } from '@/contexts/FichaEditContext';
+import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
+import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
+import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, CORES_COURO, COURO_PRECOS, getCoresCouroFiltradas,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA, LASER_OPTIONS, LASER_CANO_PRECO, LASER_GASPEA_PRECO, LASER_TALONEIRA_PRECO,
@@ -62,7 +66,10 @@ const ToggleField = ({
   textValue?: string; onTextChange?: (v: string) => void; textPlaceholder?: string;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
-    <span className="text-sm font-semibold min-w-[120px]">{label}:</span>
+    <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
+      {label}:
+      <FichaFieldControls labelText={label} defaultTipo="checkbox" />
+    </span>
     <select value={value ? 'tem' : 'nao'} onChange={e => onChange(e.target.value === 'tem')} className={cls.inputSmall + ' w-28'}>
       <option value="nao">Não tem</option>
       <option value="tem">Tem</option>
@@ -95,6 +102,7 @@ const MultiSelect = ({
               {selected.length} selecionado{selected.length > 1 ? 's' : ''}
             </span>
           )}
+          <FichaFieldControls labelText={label} defaultTipo="multipla" />
         </label>
       </div>
       {hasSearch && (
@@ -1566,7 +1574,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   /* ───── select helper ───── */
   const SelectField = ({ label, value, onChange, options, required: req }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean }) => (
     <div>
-      <label className={cls.label}>{label}{req && <span className="text-destructive ml-0.5">*</span>}</label>
+      <label className={cls.label + ' inline-flex items-center'}>
+        {label}{req && <span className="text-destructive ml-0.5">*</span>}
+        <FichaFieldControls labelText={label} defaultTipo="selecao" />
+      </label>
       <SearchableSelect options={options} value={value} onValueChange={onChange} placeholder="Selecione..." />
     </div>
   );
@@ -1575,7 +1586,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
 
   return (
+    <FichaEditProvider fichaSlug="bota">
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+      <FichaEditBar />
       <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -1616,6 +1629,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 Trocar para Cinto
               </Button>
               <EditFichaButton fichaSlug="bota" />
+              <FichaEditToggle />
 
             </>
           )}
@@ -1654,7 +1668,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <Section title="Identificação">
               {/* Link da Foto de Referência (Drive) — primeiro campo */}
               <div>
-                <label className={cls.label}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span></label>
+                <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Link da Foto de Referência" defaultTipo="texto" /></label>
                 <div className="flex items-center gap-2">
                   <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
                   <input
@@ -1683,7 +1697,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
               <div className="grid sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={cls.label}>Vendedor<span className="text-destructive ml-0.5">*</span></label>
+                  <label className={cls.label + ' inline-flex items-center'}>Vendedor<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
                   {isAdmin ? (
                     <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select} required>
                       {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
@@ -1698,7 +1712,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   )}
                 </div>
                 <div>
-                  <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
+                  <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
                   <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
                   {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
@@ -1716,7 +1730,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   </div>
                 ) : (
                   <div>
-                    <label className={cls.label}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}</label>
+                    <label className={cls.label + ' inline-flex items-center'}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
                     <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
                   </div>
                 )}
@@ -1724,7 +1738,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
               {vendedorSelecionado !== 'Estoque' && (user?.role === 'vendedor_comissao' || user?.role === 'admin_master') && (
                 <div>
-                  <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                  <label className={cls.label + ' inline-flex items-center'}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span><FichaFieldControls labelText="WhatsApp do Cliente" defaultTipo="texto" /></label>
                   <input
                     type="tel"
                     value={clienteWhatsapp}
@@ -2260,6 +2274,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </div>
       )}
     </div>
+    </FichaEditProvider>
   );
 };
 

@@ -25,6 +25,10 @@ import {
   FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
 import EditFichaButton from '@/components/orders/EditFichaButton';
+import { FichaEditProvider } from '@/contexts/FichaEditContext';
+import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
+import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
+import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
 
 const cls = {
   label: 'block text-sm font-semibold mb-1',
@@ -607,7 +611,9 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   const isTemplate = mode === 'template';
 
   return (
+    <FichaEditProvider fichaSlug="cinto">
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+      <FichaEditBar />
       <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -650,6 +656,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 Trocar para Bota
               </Button>
               <EditFichaButton fichaSlug="cinto" />
+              <FichaEditToggle />
             </>
           )}
           {isTemplate && (
@@ -682,7 +689,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           <Section title="Identificação">
             {/* Link da Foto de Referência (Drive) — primeiro campo */}
             <div>
-              <label className={cls.label}>Link da Foto de Referência (Google Drive)</label>
+              <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive)<FichaFieldControls labelText="Link da Foto de Referência (Google Drive)" defaultTipo="texto" /></label>
               <div className="flex items-center gap-2">
                 <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
                 <input
@@ -711,7 +718,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className={cls.label}>Vendedor</label>
+                <label className={cls.label + ' inline-flex items-center'}>Vendedor<FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
                 {isAdminUser ? (
                   <select value={vendedor} onChange={e => setVendedor(e.target.value)} className={cls.select}>
                     {isAdminProducao && !vendedor && <option value="">Selecione um vendedor</option>}
@@ -725,19 +732,19 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 )}
               </div>
               <div>
-                <label className={cls.label}>Número do Pedido<span className="text-destructive ml-0.5">*</span></label>
+                <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
                 <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
                 {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
               </div>
               <div>
-                <label className={cls.label}>Cliente</label>
+                <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
                 <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
               </div>
             </div>
 
             {(user?.role === 'vendedor_comissao' || user?.role === 'admin_master') && (
               <div>
-                <label className={cls.label}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></label>
+                <label className={cls.label + ' inline-flex items-center'}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span><FichaFieldControls labelText="WhatsApp do Cliente" defaultTipo="texto" /></label>
                 <input
                   type="tel"
                   value={clienteWhatsapp}
@@ -749,7 +756,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             )}
 
             <div>
-              <label className={cls.label}>Tamanho<span className="text-destructive ml-0.5">*</span></label>
+              <label className={cls.label + ' inline-flex items-center'}>Tamanho<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Tamanho" defaultTipo="selecao" /></label>
               <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
                 <option value="">Selecione...</option>
                 {BELT_SIZES.map(s => (
@@ -759,7 +766,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             </div>
 
             <div>
-              <label className={cls.label}>Observação</label>
+              <label className={cls.label + ' inline-flex items-center'}>Observação<FichaFieldControls labelText="Observação" defaultTipo="texto" /></label>
               <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className={cls.input + ' min-h-[80px]'} placeholder="Anotações adicionais..." />
             </div>
           </Section>
@@ -768,7 +775,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           {/* Em modo template, expor o tamanho como seleção única */}
           {isTemplate && (
             <div>
-              <label className={cls.label}>Tamanho</label>
+              <label className={cls.label + ' inline-flex items-center'}>Tamanho<FichaFieldControls labelText="Tamanho" defaultTipo="selecao" /></label>
               <select value={tamanho} onChange={e => setTamanho(e.target.value)} className={cls.select}>
                 <option value="">Selecione...</option>
                 {BELT_SIZES.map(s => (
@@ -782,11 +789,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           <Section title="Couro">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className={cls.label}>Tipo de Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
+                <label className={cls.label + ' inline-flex items-center'}>Tipo de Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Tipo de Couro" defaultTipo="selecao" /></label>
                 <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
               </div>
               <div>
-                <label className={cls.label}>Cor do Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
+                <label className={cls.label + ' inline-flex items-center'}>Cor do Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Cor do Couro" defaultTipo="selecao" /></label>
                 <SearchableSelect options={getCoresCouroFiltradas(tipoCouro)} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
@@ -795,12 +802,12 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           {/* Fivela */}
           <Section title="Fivela">
             <div>
-              <label className={cls.label}>Fivela{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
+              <label className={cls.label + ' inline-flex items-center'}>Fivela{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Fivela" defaultTipo="selecao" /></label>
               <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
             </div>
             {fivela === 'Outro' && (
               <div className="mt-3">
-                <label className={cls.label}>Descrever fivela</label>
+                <label className={cls.label + ' inline-flex items-center'}>Descrever fivela<FichaFieldControls labelText="Descrever fivela" defaultTipo="selecao" /></label>
                 <input type="text" value={fivelaOutroDesc} onChange={e => setFivelaOutroDesc(e.target.value)} placeholder="Descreva a fivela..." className={cls.input} />
               </div>
             )}
@@ -817,11 +824,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             {bordadoP && (
               <div className="grid sm:grid-cols-2 gap-4 mt-3">
                 <div>
-                  <label className={cls.label}>Descrição do Bordado{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Descrição do Bordado{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Descrição do Bordado" defaultTipo="texto" /></label>
                   <input type="text" value={bordadoPDesc} onChange={e => setBordadoPDesc(e.target.value)} placeholder="Descreva o bordado..." className={cls.input} />
                 </div>
                 <div>
-                  <label className={cls.label}>Cor do Bordado</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Cor do Bordado<FichaFieldControls labelText="Cor do Bordado" defaultTipo="selecao" /></label>
                   <input type="text" value={bordadoPCor} onChange={e => setBordadoPCor(e.target.value)} placeholder="Cor..." className={cls.input} />
                 </div>
               </div>
@@ -839,15 +846,15 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             {nomeBordado && (
               <div className="grid sm:grid-cols-3 gap-4 mt-3">
                 <div>
-                  <label className={cls.label}>Descrição{!isTemplate && <span className="text-destructive ml-0.5">*</span>}</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Descrição{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Descrição" defaultTipo="texto" /></label>
                   <input type="text" value={nomeBordadoDesc} onChange={e => setNomeBordadoDesc(e.target.value)} placeholder="Nome a bordar..." className={cls.input} />
                 </div>
                 <div>
-                  <label className={cls.label}>Cor</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Cor<FichaFieldControls labelText="Cor" defaultTipo="selecao" /></label>
                   <input type="text" value={nomeBordadoCor} onChange={e => setNomeBordadoCor(e.target.value)} placeholder="Cor..." className={cls.input} />
                 </div>
                 <div>
-                  <label className={cls.label}>Fonte</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Fonte<FichaFieldControls labelText="Fonte" defaultTipo="selecao" /></label>
                   <input type="text" value={nomeBordadoFonte} onChange={e => setNomeBordadoFonte(e.target.value)} placeholder="Tipo de fonte..." className={cls.input} />
                 </div>
               </div>
@@ -865,11 +872,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             {carimbo && (
               <div className="grid sm:grid-cols-2 gap-4 mt-3">
                 <div>
-                  <label className={cls.label}>Quais carimbos</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Quais carimbos<FichaFieldControls labelText="Quais carimbos" defaultTipo="texto" /></label>
                   <input type="text" value={carimboDesc} onChange={e => setCarimboDesc(e.target.value)} placeholder="Descreva os carimbos..." className={cls.input} />
                 </div>
                 <div>
-                  <label className={cls.label}>Onde será aplicado</label>
+                  <label className={cls.label + ' inline-flex items-center'}>Onde será aplicado<FichaFieldControls labelText="Onde será aplicado" defaultTipo="texto" /></label>
                   <input type="text" value={carimboOnde} onChange={e => setCarimboOnde(e.target.value)} placeholder="Local de aplicação..." className={cls.input} />
                 </div>
               </div>
@@ -881,11 +888,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           <Section title="Adicional">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className={cls.label}>Valor do Adicional (R$)</label>
+                <label className={cls.label + ' inline-flex items-center'}>Valor do Adicional (R$)<FichaFieldControls labelText="Valor do Adicional (R$)" defaultTipo="numero" /></label>
                 <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="0,00" className={cls.input} />
               </div>
               <div>
-                <label className={cls.label}>Descrição do Adicional</label>
+                <label className={cls.label + ' inline-flex items-center'}>Descrição do Adicional<FichaFieldControls labelText="Descrição do Adicional" defaultTipo="texto" /></label>
                 <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
               </div>
             </div>
@@ -1115,6 +1122,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         </div>
       )}
     </div>
+    </FichaEditProvider>
   );
 };
 

@@ -17,6 +17,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 import EditFichaButton from '@/components/orders/EditFichaButton';
 import { getVersaoAtiva } from '@/lib/fichaVersoes';
+import { FichaEditProvider } from '@/contexts/FichaEditContext';
+import FichaEditToggle from '@/components/ficha-edit/FichaEditToggle';
+import FichaEditBar from '@/components/ficha-edit/FichaEditBar';
+import FichaFieldControls from '@/components/ficha-edit/FichaFieldControls';
 
 interface CampoOpcao {
   label: string;
@@ -191,7 +195,9 @@ export default function DynamicOrderPage() {
   }
 
   return (
+    <FichaEditProvider fichaSlug={slug || ''}>
     <div className="min-h-screen bg-background px-4 py-8 md:px-8">
+      <FichaEditBar />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -209,6 +215,7 @@ export default function DynamicOrderPage() {
             {tipo.nome.toLowerCase()}
           </h1>
           {slug && <EditFichaButton fichaSlug={slug} />}
+          <FichaEditToggle />
         </div>
 
         <Card>
@@ -265,6 +272,7 @@ export default function DynamicOrderPage() {
         </Card>
       </motion.div>
     </div>
+    </FichaEditProvider>
   );
 }
 
@@ -281,7 +289,7 @@ function DynamicField({ campo, value, onChange }: {
       return (
         <div className="space-y-1">
           <Label className="text-xs lowercase">
-            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <Input value={value || ''} onChange={e => onChange(e.target.value)} />
         </div>
@@ -291,7 +299,7 @@ function DynamicField({ campo, value, onChange }: {
       return (
         <div className="space-y-1">
           <Label className="text-xs lowercase">
-            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <Select value={value || ''} onValueChange={onChange}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -311,7 +319,7 @@ function DynamicField({ campo, value, onChange }: {
       return (
         <div className="space-y-2">
           <Label className="text-xs lowercase">
-            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+            {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <div className="grid gap-2 sm:grid-cols-2">
             {opcoes.map(o => (
@@ -338,7 +346,7 @@ function DynamicField({ campo, value, onChange }: {
           <div className="flex items-center gap-2">
             <Switch checked={!!value} onCheckedChange={v => { onChange(v); if (!v) setDescText(''); }} />
             <Label className="text-xs lowercase">
-              {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}
+              {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
             </Label>
           </div>
           {campo.desc_condicional && value && (
