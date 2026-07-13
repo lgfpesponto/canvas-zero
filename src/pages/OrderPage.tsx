@@ -1485,8 +1485,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (franja) items.push(['Franja', getDynamicUnitPrice('franja', FRANJA_PRECO)]);
     if (corrente) items.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
     if (soladoPreco) items.push(['Solado: ' + solado, soladoPreco]);
-    const corSolaP = getCorSolaPrecoContextual(modelo, solado, formatoBico, corSola);
-    if (corSolaP) items.push(['Cor Sola: ' + corSola, corSolaP]);
+    if (corSolaPreco) items.push(['Cor Sola: ' + corSola, corSolaPreco]);
     if (corViraPreco) items.push(['Cor Vira: ' + corVira, corViraPreco]);
     if (costuraAtras) items.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
     if (carimboPreco && carimbo) items.push([carimbo, carimboPreco]);
