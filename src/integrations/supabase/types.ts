@@ -1036,6 +1036,47 @@ export type Database = {
           },
         ]
       }
+      ficha_versoes: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          criado_por: string | null
+          descricao_mudanca: string | null
+          ficha_tipo_id: string
+          id: string
+          snapshot: Json
+          versao: number
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          criado_por?: string | null
+          descricao_mudanca?: string | null
+          ficha_tipo_id: string
+          id?: string
+          snapshot: Json
+          versao: number
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          criado_por?: string | null
+          descricao_mudanca?: string | null
+          ficha_tipo_id?: string
+          id?: string
+          snapshot?: Json
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ficha_versoes_ficha_tipo_id_fkey"
+            columns: ["ficha_tipo_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ficha_workflow: {
         Row: {
           ativo: boolean | null
@@ -1783,6 +1824,7 @@ export type Database = {
           estoque_pronto: boolean
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
+          ficha_versao_id: string | null
           forma: string | null
           forma_pagamento: string | null
           formato_bico: string
@@ -1900,6 +1942,7 @@ export type Database = {
           estoque_pronto?: boolean
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
+          ficha_versao_id?: string | null
           forma?: string | null
           forma_pagamento?: string | null
           formato_bico?: string
@@ -2017,6 +2060,7 @@ export type Database = {
           estoque_pronto?: boolean
           extra_detalhes?: Json | null
           ficha_snapshot?: Json | null
+          ficha_versao_id?: string | null
           forma?: string | null
           forma_pagamento?: string | null
           formato_bico?: string
@@ -2078,6 +2122,13 @@ export type Database = {
             columns: ["erro_de_pedido_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_ficha_versao_id_fkey"
+            columns: ["ficha_versao_id"]
+            isOneToOne: false
+            referencedRelation: "ficha_versoes"
             referencedColumns: ["id"]
           },
         ]
@@ -2888,6 +2939,7 @@ export type Database = {
           estoque_pronto: boolean
           extra_detalhes: Json | null
           ficha_snapshot: Json | null
+          ficha_versao_id: string | null
           forma: string | null
           forma_pagamento: string | null
           formato_bico: string
