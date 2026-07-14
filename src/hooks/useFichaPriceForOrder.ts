@@ -103,8 +103,8 @@ export function useFichaPriceForOrder(order: any): {
  * Versão batch — carrega snapshots de TODAS as versões presentes numa lista
  * de pedidos de uma vez, e retorna resolver `(order, nome, categoria) => preco`.
  */
-export function useFichaPriceForOrders(orders: { fichaVersaoId?: string | null }[]): {
-  findFichaPrice: (order: { fichaVersaoId?: string | null }, nome: string, categoria: string) => number | undefined;
+export function useFichaPriceForOrders(orders: any[]): {
+  findFichaPrice: (order: any, nome: string, categoria: string) => number | undefined;
   loading: boolean;
 } {
   const { findFichaPrice: currentFind, loading: curLoading } = useFichaVariacoesLookup();
