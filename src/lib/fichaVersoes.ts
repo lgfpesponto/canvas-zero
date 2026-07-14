@@ -44,10 +44,11 @@ export async function getVersaoAtivaIdBySlug(slug: string): Promise<string | nul
 
 /** Monta um snapshot do estado atual da ficha no banco. */
 export async function buildSnapshotAtual(fichaTipoId: string): Promise<FichaSnapshot> {
-  const [{ data: cats }, { data: fields }, { data: catIdsRes }] = await Promise.all([
+  const [{ data: cats }, { data: fields }, { data: catIdsRes }, { data: tipo }] = await Promise.all([
     supabase.from('ficha_categorias').select('*').eq('ficha_tipo_id', fichaTipoId).order('ordem'),
     supabase.from('ficha_campos').select('*').eq('ficha_tipo_id', fichaTipoId).order('ordem'),
     supabase.from('ficha_categorias').select('id').eq('ficha_tipo_id', fichaTipoId),
+    supabase.from('ficha_tipos').select('id, slug, lead_time_dias').eq('id', fichaTipoId).maybeSingle(),
   ]);
   const catIds = (catIdsRes || []).map(c => (c as any).id);
   let variacoes: any[] = [];
@@ -63,6 +64,7 @@ export async function buildSnapshotAtual(fichaTipoId: string): Promise<FichaSnap
     categorias: cats || [],
     campos: fields || [],
     variacoes,
+    ficha_tipo: tipo ? { id: (tipo as any).id, slug: (tipo as any).slug, lead_time_dias: (tipo as any).lead_time_dias ?? null } : null,
   };
 }
 
