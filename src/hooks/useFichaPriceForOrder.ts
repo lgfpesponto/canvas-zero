@@ -134,7 +134,7 @@ export function useFichaPriceForOrders(orders: any[]): {
   const anyLoading = queries.some(q => q.isLoading);
 
   const findFichaPrice = useCallback(
-    (order: { fichaVersaoId?: string | null }, nome: string, categoria: string) => {
+    (order: any, nome: string, categoria: string) => {
       if (!nome) return undefined;
       const slug = CATEGORY_MAP[categoria] || categoria;
       const idx = order?.fichaVersaoId ? byId.get(order.fichaVersaoId) : null;
