@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
+import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 
 import { getVersaoAtiva } from '@/lib/fichaVersoes';
