@@ -72,8 +72,17 @@ export async function buildSnapshotAtual(fichaTipoId: string): Promise<FichaSnap
 export async function salvarNovaVersao(
   fichaTipoId: string,
   descricao?: string,
+  overrideLeadTime?: number | null,
 ): Promise<{ ok: boolean; id?: string; versao?: number; error?: string }> {
   try {
+    // Aplica override de lead_time_dias ANTES do snapshot para que o novo
+    // valor faça parte da versão gravada.
+    if (overrideLeadTime !== undefined && overrideLeadTime !== null && Number.isFinite(overrideLeadTime) && overrideLeadTime > 0) {
+      await supabase
+        .from('ficha_tipos')
+        .update({ lead_time_dias: overrideLeadTime } as any)
+        .eq('id', fichaTipoId);
+    }
     const snapshot = await buildSnapshotAtual(fichaTipoId);
     const { data: last } = await supabase
       .from('ficha_versoes')
