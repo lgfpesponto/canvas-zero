@@ -206,9 +206,14 @@ const ModelosPage = () => {
     })();
   }, [user?.id]);
 
+  const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const fichaOptions = useMemo(
-    () => buildFichaOptions(modelos, m => ({ ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) as string | undefined })),
-    [modelos],
+    () => buildFichaOptions(
+      modelos,
+      m => ({ ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) as string | undefined }),
+      fichaKeys,
+    ),
+    [modelos, fichaKeys],
   );
 
   const filtered = useMemo(() => {
