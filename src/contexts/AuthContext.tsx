@@ -315,6 +315,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         cpfCnpj: profile.cpf_cnpj,
         nomeLoja: (profile as any).nome_loja || '',
         telefoneLoja: (profile as any).telefone_loja || '',
+        pedidoPrefixo: (profile as any).pedido_prefixo || null,
         isAdmin: hasAdmin,
         role: userRole,
       };
