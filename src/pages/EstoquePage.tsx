@@ -39,14 +39,6 @@ interface ProductGroup {
   tamanhos: EstoqueRow[]; // sorted by tamanho
 }
 
-const FICHA_FILTER_KEYS: { key: string; label: string }[] = [
-  { key: 'modelo', label: 'Modelo' },
-  { key: 'tipo_couro_cano', label: 'Tipo Couro Cano' },
-  { key: 'tipo_couro_gaspea', label: 'Tipo Couro Gáspea' },
-  { key: 'solado', label: 'Solado' },
-  { key: 'genero', label: 'Gênero' },
-];
-
 const PAGE_SIZE = 25;
 
 const EstoquePage = () => {
