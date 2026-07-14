@@ -438,11 +438,11 @@ const OrderDetailPage = () => {
   if (order.tiras === 'Sim') priceItems.push(['Tiras', getDynamicUnitPrice('tiras', TIRAS_PRECO)]);
   if (detP.franja) priceItems.push(['Franja', getDynamicUnitPrice('franja', FRANJA_PRECO)]);
   if (detP.corrente) priceItems.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
-  const soladoP = SOLADO.find(s => s.label === order.solado)?.preco;
+  const soladoP = findFichaPrice(order.solado || '', 'solado') ?? SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
-  const corSolaP = getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
+  const corSolaP = findFichaPrice(order.corSola || '', 'cor_sola') ?? getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
   if (corSolaP) priceItems.push(['Cor Sola: ' + order.corSola, corSolaP]);
-  const corViraP = COR_VIRA.find(c => c.label === order.corVira)?.preco;
+  const corViraP = findFichaPrice(order.corVira || '', 'cor_vira') ?? COR_VIRA.find(c => c.label === order.corVira)?.preco;
   if (corViraP) priceItems.push(['Cor Vira: ' + order.corVira, corViraP]);
   if (order.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
   const carimboP = CARIMBO.find(c => c.label === order.carimbo)?.preco;
