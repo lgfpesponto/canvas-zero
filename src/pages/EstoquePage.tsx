@@ -180,12 +180,7 @@ const EstoquePage = () => {
           // Considera apenas tamanhos com estoque para o filtro de numeração
           if (!g.tamanhos.some(t => t.quantidade > 0 && selTamanhos.has(t.tamanho))) return false;
         }
-        for (const k of Object.keys(selFicha)) {
-          const set = selFicha[k];
-          if (!set || set.size === 0) continue;
-          const v = g.ficha_snapshot?.[k];
-          if (!v || !set.has(v)) return false;
-        }
+        if (!matchesFichaFilters(g.ficha_snapshot, selFicha, fichaKeys)) return false;
         return true;
       });
     // Ordena: com estoque primeiro (alfabético), zerados depois (alfabético)
