@@ -2388,6 +2388,7 @@ export type Database = {
           nome_completo: string
           nome_loja: string | null
           nome_usuario: string
+          pedido_prefixo: string | null
           telefone: string
           telefone_loja: string | null
           verificado: boolean
@@ -2400,6 +2401,7 @@ export type Database = {
           nome_completo?: string
           nome_loja?: string | null
           nome_usuario: string
+          pedido_prefixo?: string | null
           telefone?: string
           telefone_loja?: string | null
           verificado?: boolean
@@ -2412,6 +2414,7 @@ export type Database = {
           nome_completo?: string
           nome_loja?: string | null
           nome_usuario?: string
+          pedido_prefixo?: string | null
           telefone?: string
           telefone_loja?: string | null
           verificado?: boolean
@@ -3228,6 +3231,7 @@ export type Database = {
         Args: { _destino: string; _motivo?: string; _order_id: string }
         Returns: Json
       }
+      next_order_numero: { Args: { _prefixo: string }; Returns: string }
       parse_historico_date: { Args: { _data: string }; Returns: string }
       pode_sincronizar_bagy: { Args: { _uid: string }; Returns: boolean }
       processar_baixas_automaticas_geral: { Args: never; Returns: Json }
