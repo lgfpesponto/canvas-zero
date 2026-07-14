@@ -279,7 +279,11 @@ const RanchoChiquePedidosPage = () => {
       toast.error('Item sem template mapeado por SKU. Crie/edite um modelo de ficha com esse SKU.');
       return;
     }
-    abrirFichaDialog([{ pedidoId: p.id, itemId: item.id }]);
+    // Usa a fila completa do pedido para manter a numeração global correta (A/B/C...),
+    // mas filtra apenas os pares deste item.
+    const full = queueFromPedido(p);
+    const only = full.filter(q => q.itemId === item.id);
+    abrirFichaDialog(only.length > 0 ? only : [{ pedidoId: p.id, itemId: item.id, unitIndex: 0, unitTotalItem: 1, numeroOverride: `RC-${p.numero_bagy}` }]);
   };
 
 

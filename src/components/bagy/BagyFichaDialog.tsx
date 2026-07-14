@@ -9,6 +9,12 @@ import OrderPage from '@/pages/OrderPage';
 export type BagyFichaQueueItem = {
   pedidoId: string;
   itemId: string;
+  /** Índice do par dentro deste item (0-based). Usado quando quantidade>1. */
+  unitIndex?: number;
+  /** Total de pares deste item. */
+  unitTotalItem?: number;
+  /** Número do pedido no portal (já com sufixo A/B/C aplicado quando necessário). */
+  numeroOverride?: string;
 };
 
 interface Props {
