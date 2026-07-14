@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
-import { FICHA_FILTER_KEYS } from '@/lib/fichaFilterKeys';
+import { FICHA_FILTER_KEYS, type FichaFilterKey } from '@/lib/fichaFilterKeys';
 
 interface Props {
   open: boolean;
@@ -12,10 +12,12 @@ interface Props {
   selFicha: Record<string, Set<string>>;
   onToggle: (k: string, v: string) => void;
   onClear: () => void;
+  keys?: FichaFilterKey[];
 }
 
-export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, selFicha, onToggle, onClear }: Props) {
+export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, selFicha, onToggle, onClear, keys }: Props) {
   const [q, setQ] = useState('');
+  const activeKeys = keys && keys.length > 0 ? keys : FICHA_FILTER_KEYS;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -34,7 +36,7 @@ export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, s
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
           {(() => {
             const query = q.trim().toLowerCase();
-            const blocos = FICHA_FILTER_KEYS.map(({ key, label }) => {
+            const blocos = activeKeys.map(({ key, label }) => {
               let opts = [...(fichaOptions[key] || [])].sort();
               if (query) {
                 const labelMatch = label.toLowerCase().includes(query);
