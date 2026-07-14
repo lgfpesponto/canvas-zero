@@ -206,7 +206,7 @@ function EditPopover({
           <Pencil className="h-3 w-3" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 max-h-[70vh] overflow-y-auto space-y-3" align="start" onClick={e => e.stopPropagation()}>
+      <PopoverContent className="w-[560px] max-w-[95vw] max-h-[85vh] flex flex-col p-4 gap-3" align="start" onClick={e => e.stopPropagation()}>
         {!campo && (
           <p className="text-[11px] text-muted-foreground">
             Este campo ainda não existe no banco — ao salvar, será criado como <b>{defaultTipo}</b> na categoria "{defaultCategoriaSlug || categorias[0]?.slug || 'primeira'}".
@@ -214,7 +214,7 @@ function EditPopover({
         )}
         <div className="space-y-1">
           <Label className="text-xs">Nome do campo</Label>
-          <Input value={nome} onChange={e => setNome(e.target.value)} className="h-8" />
+          <Input value={nome} onChange={e => setNome(e.target.value)} className="h-9" />
         </div>
         <div className="flex items-center gap-2">
           <Switch checked={obrigatorio} onCheckedChange={setObrigatorio} />
@@ -233,7 +233,7 @@ function EditPopover({
             <Input
               type="number" step="0.01" value={checkboxPreco}
               onChange={e => setCheckboxPreco(parseFloat(e.target.value) || 0)}
-              className="h-8"
+              className="h-9"
             />
             {QUANTIFIABLE_METAL_SLUGS.has(slug) && (
               <p className="text-[10px] text-muted-foreground">soma = unitário × quantidade</p>
@@ -246,42 +246,51 @@ function EditPopover({
           </p>
         )}
         {isSelecaoLike && (
-          <div className="space-y-1 border-t pt-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Variações ({variacoes.length})</Label>
-              <Button size="sm" variant="ghost" onClick={addDraft} className="h-6 gap-1 text-[11px]">
+          <div className="flex flex-col flex-1 min-h-0 border-t pt-2 gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs whitespace-nowrap">
+                Variações ({variacoes.length}
+                {varSearch.trim() ? ` — ${filteredVariacoes.length + filteredDrafts.length} visíveis` : ''})
+              </Label>
+              <Button size="sm" variant="ghost" onClick={addDraft} className="h-7 gap-1 text-[11px]">
                 <Plus className="h-3 w-3" /> variação
               </Button>
             </div>
-            <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
-              {drafts.map(d => (
-                <div key={d.id} className="bg-primary/5 rounded px-1.5 py-1 border border-primary/30 space-y-1">
-                  <div className="flex items-center gap-1 text-xs">
+            <Input
+              value={varSearch}
+              onChange={e => setVarSearch(e.target.value)}
+              placeholder="Buscar variação…"
+              className="h-8 text-xs"
+            />
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
+              {filteredDrafts.map(d => (
+                <div key={d.id} className="bg-primary/5 rounded px-2 py-1.5 border border-primary/30 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs">
                     <Input
                       autoFocus
                       value={d.nome}
                       onChange={e => updateDraft(d.id, { nome: e.target.value })}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(d.id); } }}
                       placeholder="nome"
-                      className="h-6 text-[11px] flex-1 px-1"
+                      className="h-8 text-xs flex-1 px-2"
                     />
                     <Input
                       type="number" step="0.01"
                       value={d.preco}
                       onChange={e => updateDraft(d.id, { preco: parseFloat(e.target.value) || 0 })}
                       placeholder="R$"
-                      className="h-6 text-[11px] w-16 px-1"
+                      className="h-8 text-xs w-20 px-2"
                     />
-                    <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => commitDraft(d.id)}>ok</Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeDraft(d.id)}>
-                      <Trash2 className="h-3 w-3" />
+                    <Button size="sm" className="h-8 px-3 text-xs" onClick={() => commitDraft(d.id)}>ok</Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeDraft(d.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   <Input
                     value={d.foto_url}
                     onChange={e => updateDraft(d.id, { foto_url: e.target.value })}
                     placeholder="URL da foto (opcional)"
-                    className="h-6 text-[10px] px-1"
+                    className="h-7 text-[11px] px-2"
                   />
                 </div>
               ))}
@@ -289,7 +298,10 @@ function EditPopover({
               {variacoes.length === 0 && drafts.length === 0 && (
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação.</p>
               )}
-              {variacoes.map(v => (
+              {varSearch.trim() && filteredVariacoes.length === 0 && filteredDrafts.length === 0 && variacoes.length > 0 && (
+                <p className="text-[11px] text-muted-foreground italic">Nenhuma variação encontrada para "{varSearch}".</p>
+              )}
+              {filteredVariacoes.map(v => (
                 <VarLine key={v.id} v={v} todosCampos={campos} todasVars={allVars} />
               ))}
             </div>
