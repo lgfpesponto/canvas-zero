@@ -9,7 +9,7 @@ import { getOrderFinalValue } from '@/lib/order-logic';
 import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recomputeOrderPrice';
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
 import { useOrderById } from '@/hooks/useOrderById';
-import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
