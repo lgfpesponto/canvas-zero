@@ -1062,20 +1062,33 @@ const ReportsPage = () => {
                 </div>
 
                 {hasSelection && (
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
                       onMouseDown={e => e.preventDefault()}
                       onClick={() => setShowProgressModal(true)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+                      className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg orange-gradient text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
                     >
                       <RefreshCw size={16} /> Mudar progresso de produção
                     </button>
+                    {estoqueBaixaSelecionados.length > 0 && (
+                      <button
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={handleBulkCriarProduto}
+                        disabled={bulkCriandoEstoque}
+                        className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-colors disabled:opacity-60"
+                        title="Cria produto no estoque para pedidos do vendedor Estoque em Baixa Estoque"
+                      >
+                        {bulkCriandoEstoque ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                        Criar produto ({estoqueBaixaSelecionados.length})
+                      </button>
+                    )}
                     <button
                       type="button"
                       onMouseDown={e => e.preventDefault()}
                       onClick={() => { setSelectedIds(new Set()); setScannedOrdersMap(new Map()); setLastScannedNumero(null); setShowSelectedList(false); setShowScanner(false); setScanFilterId(null); }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors"
+                      className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors"
                     >
                       Limpar seleção
                     </button>
