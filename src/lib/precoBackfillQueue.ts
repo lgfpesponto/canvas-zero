@@ -11,6 +11,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { computeTotalToSave, type FindFichaPrice, type GetByCategoria } from './recomputeOrderPrice';
+import { loadSnapshotIndex, buildFindFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import type { Order } from '@/contexts/AuthContext';
 
 const THROTTLE_MS = 200; // 5/s
