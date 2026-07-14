@@ -476,10 +476,10 @@ const EditOrderPage = () => {
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO) : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO) : 0;
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
-  const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
+  const soladoPreco = findFichaPrice(solado, 'solado') ?? SOLADO.find(s => s.label === solado)?.preco ?? 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
-  const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
-  const corViraPreco = COR_VIRA.find(c => c.label === corVira)?.preco || 0;
+  const corSolaPreco = findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
+  const corViraPreco = findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
   const hasAnyLaser = laserCano.length > 0 || laserGaspea.length > 0 || laserTaloneira.length > 0;
 
