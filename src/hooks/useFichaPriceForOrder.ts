@@ -72,12 +72,12 @@ export type FindFichaPrice = (nome: string, categoria: string) => number | undef
  * Retorna resolver `findFichaPrice` para UM pedido — usa snapshot da versão
  * congelada no pedido, com fallback para a ficha atual.
  */
-export function useFichaPriceForOrder(order: { fichaVersaoId?: string | null } | null | undefined): {
+export function useFichaPriceForOrder(order: any): {
   findFichaPrice: FindFichaPrice;
   loading: boolean;
 } {
   const { findFichaPrice: currentFind, loading: curLoading } = useFichaVariacoesLookup();
-  const versaoId = order?.fichaVersaoId || null;
+  const versaoId = (order?.fichaVersaoId as string | null | undefined) || null;
 
   const { data: snapIdx, isLoading: snapLoading } = useQuery({
     queryKey: ['ficha_versao_snapshot', versaoId],
