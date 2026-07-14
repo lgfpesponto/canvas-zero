@@ -4,6 +4,7 @@ export interface FichaSnapshot {
   categorias: any[];
   campos: any[];
   variacoes: any[];
+  ficha_tipo?: { id: string; slug: string; lead_time_dias?: number | null } | null;
 }
 
 export interface FichaVersao {
@@ -43,10 +44,11 @@ export async function getVersaoAtivaIdBySlug(slug: string): Promise<string | nul
 
 /** Monta um snapshot do estado atual da ficha no banco. */
 export async function buildSnapshotAtual(fichaTipoId: string): Promise<FichaSnapshot> {
-  const [{ data: cats }, { data: fields }, { data: catIdsRes }] = await Promise.all([
+  const [{ data: cats }, { data: fields }, { data: catIdsRes }, { data: tipo }] = await Promise.all([
     supabase.from('ficha_categorias').select('*').eq('ficha_tipo_id', fichaTipoId).order('ordem'),
     supabase.from('ficha_campos').select('*').eq('ficha_tipo_id', fichaTipoId).order('ordem'),
     supabase.from('ficha_categorias').select('id').eq('ficha_tipo_id', fichaTipoId),
+    supabase.from('ficha_tipos').select('id, slug, lead_time_dias').eq('id', fichaTipoId).maybeSingle(),
   ]);
   const catIds = (catIdsRes || []).map(c => (c as any).id);
   let variacoes: any[] = [];
@@ -62,6 +64,7 @@ export async function buildSnapshotAtual(fichaTipoId: string): Promise<FichaSnap
     categorias: cats || [],
     campos: fields || [],
     variacoes,
+    ficha_tipo: tipo ? { id: (tipo as any).id, slug: (tipo as any).slug, lead_time_dias: (tipo as any).lead_time_dias ?? null } : null,
   };
 }
 
@@ -69,8 +72,17 @@ export async function buildSnapshotAtual(fichaTipoId: string): Promise<FichaSnap
 export async function salvarNovaVersao(
   fichaTipoId: string,
   descricao?: string,
+  overrideLeadTime?: number | null,
 ): Promise<{ ok: boolean; id?: string; versao?: number; error?: string }> {
   try {
+    // Aplica override de lead_time_dias ANTES do snapshot para que o novo
+    // valor faça parte da versão gravada.
+    if (overrideLeadTime !== undefined && overrideLeadTime !== null && Number.isFinite(overrideLeadTime) && overrideLeadTime > 0) {
+      await supabase
+        .from('ficha_tipos')
+        .update({ lead_time_dias: overrideLeadTime } as any)
+        .eq('id', fichaTipoId);
+    }
     const snapshot = await buildSnapshotAtual(fichaTipoId);
     const { data: last } = await supabase
       .from('ficha_versoes')

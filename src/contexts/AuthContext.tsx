@@ -30,6 +30,7 @@ export interface User {
   cpfCnpj: string;
   nomeLoja?: string;
   telefoneLoja?: string;
+  pedidoPrefixo?: string | null;
   isAdmin?: boolean;
   role?: AppRole;
 }
@@ -238,6 +239,7 @@ export interface ProfileSummary {
   id: string;
   nomeCompleto: string;
   nomeUsuario: string;
+  pedidoPrefixo?: string | null;
 }
 
 interface AuthContextType {
@@ -313,6 +315,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         cpfCnpj: profile.cpf_cnpj,
         nomeLoja: (profile as any).nome_loja || '',
         telefoneLoja: (profile as any).telefone_loja || '',
+        pedidoPrefixo: (profile as any).pedido_prefixo || null,
         isAdmin: hasAdmin,
         role: userRole,
       };
@@ -909,9 +912,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* ───── Load all profiles for ADM vendor selection ───── */
   const loadAllProfiles = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('id, nome_completo, nome_usuario');
+    const { data } = await supabase.from('profiles').select('id, nome_completo, nome_usuario, pedido_prefixo');
     if (data) {
-      setAllProfiles(data.map(p => ({ id: p.id, nomeCompleto: p.nome_completo, nomeUsuario: p.nome_usuario })));
+      setAllProfiles(data.map(p => ({ id: p.id, nomeCompleto: p.nome_completo, nomeUsuario: p.nome_usuario, pedidoPrefixo: (p as any).pedido_prefixo || null })));
     }
   }, []);
 

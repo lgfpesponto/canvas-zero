@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
+import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -308,6 +310,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [vendedorSelecionado, setVendedorSelecionado] = useState(isAdminProducao ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
+
+  // Auto-preenchimento do número (vendedor com prefixo, exceto estoque/juliana/site)
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === vendedorSelecionado) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => {
+    if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero);
+  }, [numeroIsAuto, autoNumero]);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
   const [nomeProdutoEstoque, setNomeProdutoEstoque] = useState<string>(df.nomeProdutoEstoque || '');
@@ -1787,7 +1798,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 </div>
                 <div>
                   <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
-                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required readOnly={numeroIsAuto} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
                   {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
                 {vendedorSelecionado === 'Estoque' ? (
@@ -2119,9 +2131,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               </div>
 
               {/* Prazo */}
-              <div className="bg-muted rounded-lg p-3">
-                <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 20 dias úteis</p>
-              </div>
+              <PrazoProducaoBox slug="bota" fallback={25} />
 
               {/* Valor Total */}
               <div className="bg-muted rounded-lg p-4">

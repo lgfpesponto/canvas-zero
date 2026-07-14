@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
+import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -89,6 +91,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   const [vendedor, setVendedor] = useState(isAdminProducao ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === vendedor) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
   const [cliente, setCliente] = useState('');
   const [clienteWhatsapp, setClienteWhatsapp] = useState('');
   const [tamanho, setTamanho] = useState('');
@@ -745,8 +752,9 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
-                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required readOnly={numeroIsAuto} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
                 {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
@@ -920,6 +928,9 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 <label className="text-sm font-semibold">Quantidade:</label>
                 <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
               </div>
+
+              {/* Prazo */}
+              <PrazoProducaoBox slug="cinto" fallback={20} />
 
               {/* Valor Total */}
               <div className="bg-muted rounded-lg p-4">

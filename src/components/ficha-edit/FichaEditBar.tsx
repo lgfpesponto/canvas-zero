@@ -8,7 +8,7 @@ import { useFichaEdit } from '@/contexts/FichaEditContext';
 import { salvarNovaVersao } from '@/lib/fichaVersoes';
 
 export default function FichaEditBar() {
-  const { editMode, setEditMode, fichaTipoId } = useFichaEdit();
+  const { editMode, setEditMode, fichaTipoId, pendingLeadTime, clearPendingLeadTime } = useFichaEdit();
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
   const qc = useQueryClient();
@@ -17,11 +17,12 @@ export default function FichaEditBar() {
 
   const handleSalvar = async () => {
     setSaving(true);
-    const res = await salvarNovaVersao(fichaTipoId, desc || undefined);
+    const res = await salvarNovaVersao(fichaTipoId, desc || undefined, pendingLeadTime ?? undefined);
     setSaving(false);
     if (!res.ok) { toast.error(res.error || 'Erro'); return; }
     toast.success(`Versão ${res.versao} salva`);
     setDesc('');
+    clearPendingLeadTime();
     qc.invalidateQueries();
     setEditMode(false);
   };

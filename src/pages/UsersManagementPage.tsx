@@ -21,6 +21,7 @@ interface Profile {
   cpf_cnpj: string;
   nome_loja?: string | null;
   telefone_loja?: string | null;
+  pedido_prefixo?: string | null;
   created_at: string;
   role?: string;
 }
@@ -129,6 +130,7 @@ const UsersManagementPage = () => {
       cpf_cnpj: p.cpf_cnpj,
       nome_loja: p.nome_loja || '',
       telefone_loja: p.telefone_loja || '',
+      pedido_prefixo: p.pedido_prefixo || '',
       newPassword: '',
       role: p.role || 'vendedor',
     });
@@ -182,6 +184,7 @@ const UsersManagementPage = () => {
       cpf_cnpj: editForm.cpf_cnpj || '',
       nome_loja: editForm.nome_loja || null,
       telefone_loja: editForm.telefone_loja || null,
+      pedido_prefixo: (editForm.pedido_prefixo || '').trim() || null,
     } as any).eq('id', editProfile.id);
 
     if (error) {
@@ -412,6 +415,18 @@ const UsersManagementPage = () => {
               <Label>Telefone oficial da loja (WhatsApp)</Label>
               <Input value={editForm.telefone_loja || ''} onChange={(e) => setEditForm({ ...editForm, telefone_loja: e.target.value })} placeholder="(XX) XXXXX-XXXX" />
             </div>
+            {(editForm.role === 'vendedor' || editForm.role === 'vendedor_comissao') && (
+              <div>
+                <Label>Prefixo de pedido</Label>
+                <Input
+                  value={editForm.pedido_prefixo || ''}
+                  onChange={(e) => setEditForm({ ...editForm, pedido_prefixo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                  placeholder="Ex: RC"
+                  maxLength={6}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Se preenchido, o número do pedido será gerado automaticamente (prefixo + sequência).</p>
+              </div>
+            )}
             <div>
               <Label>Nova Senha (deixe vazio para manter a atual)</Label>
               <Input type="password" value={editForm.newPassword || ''} onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })} placeholder="Nova senha" />
