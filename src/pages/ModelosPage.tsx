@@ -400,6 +400,7 @@ const ModelosPage = () => {
         selFicha={selFicha}
         onToggle={toggleFicha}
         onClear={() => setSelFicha({})}
+        keys={fichaKeys}
       />
 
 
