@@ -238,6 +238,7 @@ export interface ProfileSummary {
   id: string;
   nomeCompleto: string;
   nomeUsuario: string;
+  pedidoPrefixo?: string | null;
 }
 
 interface AuthContextType {
