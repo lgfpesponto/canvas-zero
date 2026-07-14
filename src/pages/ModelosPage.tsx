@@ -528,6 +528,7 @@ const ModelosPage = () => {
                       type="button"
                       onClick={() => {
                         if (!vNumeroPedido.trim()) { toast.error('Informe o Número do pedido antes de gerar a grade'); return; }
+                        if (numeroDuplicado) { toast.error(DUPLICATE_MSG); return; }
                         setShowGrade(true);
                       }}
                       className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
