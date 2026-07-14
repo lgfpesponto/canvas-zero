@@ -60,8 +60,8 @@ const Header = () => {
         { label: 'ESTOQUE', path: '/estoque' },
         { label: 'MEUS PEDIDOS', path: '/relatorios' },
         ...(isBagyAccess ? [{ label: 'PEDIDOS BAGY', path: '/rancho-chique/pedidos' }] : []),
-        ...(isAdmin && !isJuliana ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
-        ...(isAdmin ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes', subItems: configSubItems }] : []),
+        ...(isAdmin && !isJuliana && role !== 'admin_producao' ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
+        ...(isAdmin && role !== 'admin_producao' ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes', subItems: configSubItems }] : []),
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
         { label: 'MEU PERFIL', path: '/perfil' },
       ]

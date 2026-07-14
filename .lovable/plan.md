@@ -1,15 +1,9 @@
-## Liberar página "Modelos" no menu para admin_producao
+## Esconder "Usuários" e "Configurações" do header para admin_producao
 
-O acesso à rota `/modelos` já foi liberado antes (ModelosPage.tsx não bloqueia mais admin_producao), mas o link "MODELOS" continua escondido no menu principal para esse perfil.
+Em `src/components/Header.tsx`:
+- Linha 63: adicionar `role !== 'admin_producao'` para não mostrar `USUÁRIOS` para Fernanda/Mariana.
+- Linha 64: adicionar `role !== 'admin_producao'` para não mostrar o menu `CONFIGURAÇÕES` (com todas as sub-abas).
 
-### Alteração
-- `src/components/Header.tsx` linha 39: remover `&& role !== 'admin_producao'` do cálculo de `canSeeModelos`. Fica:
-  ```ts
-  const canSeeModelos = showAsLogged && role !== 'bordado' && role !== 'montagem';
-  ```
+Resultado: admin_producao continua com acesso a Faça seu pedido, Modelos, Extras, Estoque, Meus Pedidos, Pedidos Bagy (se aplicável) e Meu Perfil — sem Usuários nem Configurações.
 
-Com isso Fernanda e Mariana (admin_producao) passam a ver o item "MODELOS" no header e conseguem navegar direto para a página, com a mesma visualização já disponível (todos os modelos cadastrados, sem botões de compra/gerar pedido, conforme regra atual).
-
-### Fora de escopo
-- Não altera permissões de compra/geração de pedido em `/modelos`.
-- Não filtra a lista por autor — continua mostrando todos os modelos.
+Rotas em si (`/usuarios`, `/admin/configuracoes`) não são alteradas nesta task; só o menu.
