@@ -39,10 +39,15 @@ export default function DynamicOrderPage() {
 
   // Native fields
   const [vendedor, setVendedor] = useState('');
+  const [numeroPedido, setNumeroPedido] = useState('');
   const [quantidade, setQuantidade] = useState(1);
   const [precoBase, setPrecoBase] = useState(0);
   const [observacao, setObservacao] = useState('');
   const [cliente, setCliente] = useState('');
+
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendedor);
+  useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
+  const { isDuplicate: numeroDuplicado, checking: numeroChecking } = useCheckDuplicateOrder(numeroPedido.trim());
 
   // Dynamic fields
   const [values, setValues] = useState<Record<string, any>>({});
