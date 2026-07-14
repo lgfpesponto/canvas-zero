@@ -157,6 +157,7 @@ const ModelosPage = () => {
 
   // Campos do formulário
   const [vNumeroPedido, setVNumeroPedido] = useState('');
+  const { isDuplicate: numeroDuplicado, checking: numeroChecking } = useCheckDuplicateOrder(vNumeroPedido.trim());
   const [vVendedor, setVVendedor] = useState('');
   const [vCliente, setVCliente] = useState('');
   const [vWhats, setVWhats] = useState('');
