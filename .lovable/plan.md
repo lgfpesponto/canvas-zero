@@ -1,40 +1,70 @@
-## Diagnóstico
+## Contexto atual
 
-O pedido **1120** (14/07/2026, Denise) está no banco com `lead_time_snapshot = NULL` e `ficha_versao_id = NULL`.
+Existem dois caminhos que geram pedidos no portal a partir da Bagy:
 
-O cálculo do prazo em `src/lib/orderDeadline.ts` funciona assim:
-1. Se o pedido tem `lead_time_snapshot` → usa esse valor (20du atual).
-2. Se **não** tem snapshot → cai num **fallback hard-coded** que diz: "bota criada depois de 18/05/2026 = 25du".
+1. **Estoque** (`RPC comprar_estoque_bagy` chamada pelo `bagy-webhook`) — junta todos os itens de estoque num único pedido `RC-{numeroBagy}`, com `quantidade` somada e vários "botas" no `extra_detalhes`.
+2. **Ficha** (`BagyFichaDialog` aberto pelo botão "Gerar ficha" em `RanchoChiquePedidosPage`) — enfileira cada `bagy_pedido_itens` que tem `template_id`. Cada item vira UMA ficha, sempre com número `RC-{numeroBagy}` (colidiria se houvesse mais de um).
 
-Como o 1120 não tem snapshot, ele usa o fallback = **25du** + 1 dia de cutoff (criado 14:24, depois das 06:00) = **26d úteis** exibidos, ignorando o ajuste que você fez na ficha para 20.
+## Regra decidida
 
-Confirmei no banco:
-- `ficha_tipos.bota.lead_time_dias = 20` (correto).
-- **291 pedidos** criados desde 13/07/2026 estão sem `lead_time_snapshot` — todos vão mostrar o número errado.
+- Sufixo só quando há mais de um par no pedido Bagy.
+- **Por unidade** (par): quantidade 3 do mesmo modelo → `A`, `B`, `C`. Produtos diferentes também consomem letras na mesma sequência.
+- Formato: `RC-1234`, `RC-1234A`, `RC-1234B`, ... `RC-1234Z`, `RC-1234AA`, ...
+- Pedidos com apenas 1 par mantêm `RC-1234` (sem letra).
+- A letra é atribuída na ordem dos itens do payload Bagy; para quantidade>1 do mesmo item, letras consecutivas.
 
-### Por que ficaram sem snapshot?
+## Mudanças
 
-Dois caminhos criam pedidos sem carimbar o snapshot:
-- **Edge function `fichas-receber`** (integração site Atacado) — não inclui `lead_time_snapshot` no insert.
-- Pedidos criados antes do deploy da migração do snapshot (13/07/2026) — normal, era esperado.
+### 1. Estoque — `comprar_estoque_bagy` (migration)
 
-O pedido 1120 (cliente "ml cnpj", provavelmente veio do Atacado) se encaixa no primeiro caso.
+Reescreve a RPC para criar **um pedido por par** ao invés de um pedido único:
 
-## Correções
+- Calcula `total_units = soma(quantidade)` de todos os itens de estoque.
+- Se `total_units == 1`: numero = `_numero_pedido` (comportamento atual, sem sufixo).
+- Se `total_units > 1`: gera letras `A..Z, AA, AB, ...` (helper interno `_suffix(n)`), cada par vira um `INSERT` separado em `orders` com:
+  - `numero = _numero_pedido || _suffix(i)`
+  - `quantidade = 1`, `preco = preco_unit` daquele item
+  - `extra_detalhes.botas` só com a bota correspondente (1 par)
+  - `historico` diz "Par X de Y da Bagy"
+  - Todos compartilham `bagy_order_id` e o mesmo `_numero_pedido` base em `numero_pedido_bota` para agrupamento
+- Retorna `{ok, order_ids: [uuid,...], numeros: ['RC-1234A',...], total_qtd, total_preco}` (mantém compat com `order_id` retornando o primeiro).
+- Idempotência: check inicial procura por `bagy_order_id` — se já existe pelo menos 1 pedido para esse bagy_order_id, retorna `already_existed`.
 
-**1. Backfill (SQL migration)**
-Preencher `lead_time_snapshot` de todos pedidos que estão NULL, usando `ficha_tipos.lead_time_dias` para bota/cinto e `extra_produtos.lead_time_dias` para extras. Isso corrige imediatamente os 291 pedidos existentes e faz o 1120 passar a mostrar 20du (21d com cutoff).
+### 2. Estoque — `bagy-webhook/index.ts`
 
-**2. `supabase/functions/fichas-receber/index.ts`**
-Em `fichaToDbRow`, buscar `ficha_tipos.bota.lead_time_dias` uma vez no handler e incluir `lead_time_snapshot: <valor>` no row inserido. Assim novos pedidos vindos do Atacado já nascem carimbados com o prazo vigente.
+- Atualiza chamada para consumir a nova assinatura de retorno.
+- Ao atualizar `bagy_pedido_itens.order_id_portal`, precisa mapear cada linha da tabela ao seu pedido correto: expande o item Bagy em N ordens; para simplificar, guarda `order_ids` numa coluna JSONB `order_ids_portal` no item (já existe? verificar) OU grava o primeiro `order_id` no `order_id_portal` existente e a lista completa em `extra_detalhes` do primeiro pedido. **Alternativa mínima**: apenas gravar o primeiro `order_id_portal` em `bagy_pedido_itens` (mantém compat com hoje) e deixar todos os pedidos linkados via `bagy_order_id` — a UI já consegue listar por esse campo.
+- Ao enfileirar sync "separated" na Bagy, envia uma vez só (comportamento atual).
 
-**3. `src/lib/orderDeadline.ts` — endurecer o fallback**
-Trocar a constante `BOTA_25DU_CUTOFF` (que "chuta" 25du para qualquer bota pós-18/05) por um fallback neutro de 20du. Assim, mesmo que algum pedido futuro escape do snapshot, ele não vai mais fantasmar 25du contra o valor real da ficha. (O caminho correto continua sendo o snapshot; isso é só uma rede de segurança.)
+### 3. Ficha — `RanchoChiquePedidosPage.tsx` (queueFromPedido)
 
-## Escopo
+Ao montar a fila de fichas:
+- Enumera itens elegíveis (`aguardando_ficha` + `template_id`).
+- Expande cada item em `quantidade` entradas na fila.
+- Calcula total de pares no pedido inteiro; se >1, atribui letras `A..Z, AA, ...` na sequência global; se ==1, sem letra.
+- A fila passa a carregar `{pedidoId, itemId, unitIndex, numeroOverride}` para o dialog.
 
-- 1 migration SQL (backfill).
-- 1 edit em `supabase/functions/fichas-receber/index.ts`.
-- 1 edit em `src/lib/orderDeadline.ts`.
+### 4. Ficha — `BagyFichaDialog.tsx`
 
-Não altero regras de negócio nem valores de ficha — apenas garanto que o valor atual (20du) seja o que aparece na tela para os pedidos afetados.
+- Aceita o `numeroOverride` do item de fila e usa como `resolved.numero` (ao invés de sempre `RC-{numeroBagy}`).
+- Cabeçalho mostra "Par X/Y" com base em `unitIndex`.
+- Ao salvar (`onBagySaved`), avança normalmente; próximo item usa a próxima letra.
+
+### 5. Helper compartilhado
+
+Cria `src/lib/bagySuffix.ts` com `letterSuffix(n)` (0→'A', 25→'Z', 26→'AA'...) para reusar entre RanchoChiquePedidosPage e outros pontos que precisem exibir/agrupar.
+
+Uma função equivalente em PL/pgSQL vai dentro da migration.
+
+## Escopo de arquivos
+
+- 1 migration SQL (nova versão de `comprar_estoque_bagy` + helper `bagy_suffix`).
+- `supabase/functions/bagy-webhook/index.ts` (ajuste no consumo do retorno).
+- `src/pages/RanchoChiquePedidosPage.tsx` (expansão da fila).
+- `src/components/bagy/BagyFichaDialog.tsx` (aceita `numeroOverride`, exibe par X/Y).
+- `src/lib/bagySuffix.ts` (novo, helper de letras).
+
+## Fora de escopo
+
+- Não altero UI da listagem `RanchoChiquePedidosPage` além do necessário para gerar a fila; o agrupamento visual dos vários pedidos derivados já funciona porque compartilham `bagy_order_id`.
+- Não mexo em pedidos Bagy já criados (não vou renomear retroativamente).
