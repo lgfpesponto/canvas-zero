@@ -415,6 +415,18 @@ const UsersManagementPage = () => {
               <Label>Telefone oficial da loja (WhatsApp)</Label>
               <Input value={editForm.telefone_loja || ''} onChange={(e) => setEditForm({ ...editForm, telefone_loja: e.target.value })} placeholder="(XX) XXXXX-XXXX" />
             </div>
+            {(editForm.role === 'vendedor' || editForm.role === 'vendedor_comissao') && (
+              <div>
+                <Label>Prefixo de pedido</Label>
+                <Input
+                  value={editForm.pedido_prefixo || ''}
+                  onChange={(e) => setEditForm({ ...editForm, pedido_prefixo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                  placeholder="Ex: RC"
+                  maxLength={6}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Se preenchido, o número do pedido será gerado automaticamente (prefixo + sequência).</p>
+              </div>
+            )}
             <div>
               <Label>Nova Senha (deixe vazio para manter a atual)</Label>
               <Input type="password" value={editForm.newPassword || ''} onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })} placeholder="Nova senha" />
