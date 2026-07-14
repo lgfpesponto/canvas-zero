@@ -56,6 +56,7 @@ export default function DeployNoticeBanner() {
       const { data } = await supabase
         .from('system_announcements')
         .select('id, scheduled_at, mensagem, ativo, updated_at')
+        .eq('tipo', 'deploy')
         .eq('ativo', true)
         .gte('scheduled_at', desdeIso)
         .lte('scheduled_at', ateIso)
