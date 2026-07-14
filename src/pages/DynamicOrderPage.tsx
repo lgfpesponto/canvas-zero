@@ -96,6 +96,9 @@ export default function DynamicOrderPage() {
   const handleSubmit = async () => {
     if (!user || !tipo) return;
 
+    if (numeroDuplicado) { toast.error(DUPLICATE_MSG); return; }
+    if (numeroChecking) { toast.info('Verificando número do pedido...'); return; }
+
     // Validate required fields
     for (const campo of activeCampos) {
       if (campo.obrigatorio && !values[campo.slug]) {
@@ -109,8 +112,19 @@ export default function DynamicOrderPage() {
       const dataHoje = formatBrasiliaDate();
       const horaAgora = formatBrasiliaTime();
 
-      const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
-      const numero = `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
+      let numero = numeroPedido.trim();
+      if (!numero) {
+        const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+        numero = `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
+      }
+
+      // Defesa em profundidade: rechecar antes do insert
+      const { data: existing } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
+      if (existing) {
+        toast.error(DUPLICATE_MSG);
+        setSubmitting(false);
+        return;
+      }
 
       // Build snapshot with prices
       const snapshot: Record<string, any> = {};
