@@ -4,6 +4,7 @@ export interface FichaSnapshot {
   categorias: any[];
   campos: any[];
   variacoes: any[];
+  ficha_tipo?: { id: string; slug: string; lead_time_dias?: number | null } | null;
 }
 
 export interface FichaVersao {
