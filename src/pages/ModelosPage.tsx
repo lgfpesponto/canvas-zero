@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ImageOff, ShoppingCart, Grid3X3, Eye, Filter } from 'lucide-react';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
-import { buildFichaOptions, matchesFichaFilters, countActiveFicha } from '@/lib/fichaFilterKeys';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
