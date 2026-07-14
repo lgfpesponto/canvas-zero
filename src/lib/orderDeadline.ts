@@ -41,9 +41,6 @@ export function getExtraLeadTime(tipoExtra: string): number {
   return EXTRA_LEAD_TIMES[tipoExtra] ?? 1;
 }
 
-/** Cutoff: botas criadas a partir de 18/05/2026 passam a ter 25du (antes: 20du). */
-const BOTA_25DU_CUTOFF = new Date('2026-05-18T00:00:00');
-
 /** Lead time padrão por tipo de produto (dias úteis). */
 export function getTotalBizDays(order: { tipoExtra?: string | null; extraDetalhes?: any; dataCriacao?: string; horaCriacao?: string; leadTimeSnapshot?: number | null }): number {
   // Snapshot congelado no momento da criação do pedido (novos pedidos).
@@ -51,13 +48,10 @@ export function getTotalBizDays(order: { tipoExtra?: string | null; extraDetalhe
     return order.leadTimeSnapshot;
   }
 
-  // Fallback para pedidos antigos (sem snapshot).
+  // Fallback neutro para pedidos antigos sem snapshot — valor vigente da ficha (20du).
+  // O caminho correto é o snapshot; isto é apenas rede de segurança.
   if (order.tipoExtra === 'cinto') return 20;
-  if (!order.tipoExtra) {
-    // bota (ficha): 25du a partir de 18/05/2026, 20du antes
-    const created = parseCreatedDateRaw(order);
-    return created >= BOTA_25DU_CUTOFF ? 25 : 20;
-  }
+  if (!order.tipoExtra) return 20;
 
   // Bota Pronta Entrega: 1du + maior prazo entre extras embutidos
   if (order.tipoExtra === 'bota_pronta_entrega') {
