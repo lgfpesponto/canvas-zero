@@ -102,7 +102,7 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
 
         setResolved({
           templateId: it.template_id,
-          numero: `RC-${p.numero_bagy}`,
+          numero: current.numeroOverride || `RC-${p.numero_bagy}`,
           cliente: p.cliente_nome || '',
           whatsapp: p.cliente_whats || '',
           tamanho: tamanho || '',
@@ -110,7 +110,7 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
           bagyPedidoId: p.id,
           bagyItemId: it.id,
           bagyOrderId: p.bagy_order_id,
-          quantidade: it.quantidade || 1,
+          quantidade: 1,
         });
         setMountKey(k => k + 1);
       } finally {
