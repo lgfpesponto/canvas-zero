@@ -149,6 +149,8 @@ const ModelosPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [tiposAtivos, setTiposAtivos] = useState<Tipo[]>([...ALL_TIPOS]);
+  const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
+  const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
 
   const [comprarOpen, setComprarOpen] = useState(false);
   const [comprarModelo, setComprarModelo] = useState<ModeloRow | null>(null);
