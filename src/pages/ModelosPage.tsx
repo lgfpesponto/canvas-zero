@@ -17,6 +17,7 @@ import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import OrderPage from '@/pages/OrderPage';
 import BeltOrderPage from '@/pages/BeltOrderPage';
 import { toast } from 'sonner';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useTemplatesValidity, type TemplateValidity } from '@/hooks/useTemplateValidity';
 import { AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
