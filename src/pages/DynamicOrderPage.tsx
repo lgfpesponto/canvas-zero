@@ -265,6 +265,7 @@ export default function DynamicOrderPage() {
                   <p className="text-xs text-muted-foreground">Verificando...</p>
                 )}
                 {numeroDuplicado && <p className="text-xs text-destructive">{DUPLICATE_MSG}</p>}
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs lowercase">quantidade</Label>
                 <Input type="number" min={1} value={quantidade} onChange={e => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))} />
