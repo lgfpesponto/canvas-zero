@@ -190,6 +190,7 @@ export default function DynamicOrderPage() {
       setPrecoBase(0);
       setObservacao('');
       setCliente('');
+      setNumeroPedido(numeroIsAuto && autoNumero ? autoNumero : '');
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Erro ao criar pedido');
