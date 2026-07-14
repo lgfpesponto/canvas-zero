@@ -2130,9 +2130,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               </div>
 
               {/* Prazo */}
-              <div className="bg-muted rounded-lg p-3">
-                <p className="text-sm"><span className="font-semibold">Prazo de Produção:</span> 20 dias úteis</p>
-              </div>
+              <PrazoProducaoBox slug="bota" fallback={25} />
 
               {/* Valor Total */}
               <div className="bg-muted rounded-lg p-4">
