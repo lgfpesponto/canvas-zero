@@ -45,7 +45,7 @@ export default function DynamicOrderPage() {
   const [observacao, setObservacao] = useState('');
   const [cliente, setCliente] = useState('');
 
-  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendedor);
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
   useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
   const { isDuplicate: numeroDuplicado, checking: numeroChecking } = useCheckDuplicateOrder(numeroPedido.trim());
 
