@@ -454,6 +454,15 @@ Deno.serve(async (req) => {
     }
 
     const { data, hora } = brasiliaParts();
+
+    // Busca o prazo vigente da ficha de bota para carimbar em cada pedido.
+    const { data: ftBota } = await supabase
+      .from("ficha_tipos")
+      .select("lead_time_dias")
+      .eq("slug", "bota")
+      .maybeSingle();
+    const leadTimeSnapshot = (ftBota as any)?.lead_time_dias ?? 20;
+
     const rows = planned.map((p) =>
       fichaToDbRow({
         planned: p,
@@ -462,6 +471,7 @@ Deno.serve(async (req) => {
         data,
         hora,
         atacado_pedido_id: payload.pedido.id ?? null,
+        lead_time_snapshot: leadTimeSnapshot,
       }),
     );
 
