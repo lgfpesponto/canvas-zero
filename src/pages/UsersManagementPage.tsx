@@ -130,6 +130,7 @@ const UsersManagementPage = () => {
       cpf_cnpj: p.cpf_cnpj,
       nome_loja: p.nome_loja || '',
       telefone_loja: p.telefone_loja || '',
+      pedido_prefixo: p.pedido_prefixo || '',
       newPassword: '',
       role: p.role || 'vendedor',
     });
