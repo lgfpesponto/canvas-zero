@@ -162,17 +162,10 @@ const EstoquePage = () => {
 
   // Opções de filtros derivadas
   const allTamanhos = useMemo(() => [...new Set(rows.map(r => r.tamanho))].sort((a, b) => Number(a) - Number(b)), [rows]);
-  const fichaOptions = useMemo(() => {
-    const out: Record<string, Set<string>> = {};
-    for (const k of FICHA_FILTER_KEYS) out[k.key] = new Set();
-    for (const r of rows) {
-      for (const k of FICHA_FILTER_KEYS) {
-        const v = r.ficha_snapshot?.[k.key];
-        if (v && typeof v === 'string') out[k.key].add(v);
-      }
-    }
-    return out;
-  }, [rows]);
+  const fichaOptions = useMemo(
+    () => buildFichaOptions(rows, r => r.ficha_snapshot, fichaKeys),
+    [rows, fichaKeys],
+  );
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
