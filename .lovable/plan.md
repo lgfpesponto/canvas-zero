@@ -1,34 +1,45 @@
-## Objetivo
-No modal "Filtros da ficha" (páginas Modelos e Modelos Salvos dentro do "Faça seu Pedido"), agrupar os filtros pelas **categorias da ficha** (Couros, Bordados, Laser e Recortes, Metais, Extras, Solados, etc.), com cada categoria em um bloco **colapsável** (fechado por padrão). Modelo e Gênero ficam **soltos no topo**, sem categoria.
+## Parte 1 — Melhorar o modal "Filtros da ficha"
 
-## Regras de exibição
-- Buscar `ficha_categorias` (ativas) via join com `ficha_campos`, junto com `categoria_id`, `categoria_nome`, `categoria_ordem`.
-- Ordenar categorias por `ficha_categorias.ordem` e campos por `ficha_campos.ordem` dentro de cada categoria.
-- **Só renderizar uma categoria** se pelo menos um campo dela tiver valores preenchidos em algum modelo listado (ou seja, `fichaOptions[key].size > 0`).
-- **Só renderizar um campo** se tiver ao menos um valor. Continuam valendo as regras atuais (só `selecao`/`multipla`/`checkbox`, checkbox vira chip "Sim", etc.).
-- **Modelo e Gênero**: extraídos da categoria "Tamanho / Gênero / Modelo" e mostrados soltos no topo, sem accordion (o campo "Tamanho" continua dentro da sua categoria original — mas como só Modelo/Gênero foram pedidos como topo, Tamanho aparece agrupado normalmente na categoria dele). 
-- Categorias iniciam **fechadas**; ao clicar, expandem mostrando os chips dos valores.
-- Ao lado do nome da categoria, mostrar badge com nº de filtros ativos dentro dela (se > 0), e auto-expandir categorias que já tenham filtro ativo ao abrir o modal.
-- Busca de texto no topo continua funcionando: se houver query, expande automaticamente as categorias que contêm resultados e mostra apenas os campos/valores que casam.
+Arquivo: `src/components/common/FichaFiltersDialog.tsx`
 
-## Alterações técnicas
+1. **Não repetir nome do campo quando é único na categoria**
+   - Dentro de cada categoria da accordion, se ela só tem um único campo, renderizar apenas os chips (sem o `<h4>` com label). Se tiver 2+ campos, manter label. Isso resolve "Acessórios > Acessórios" e "Tamanho / Gênero / Modelo > Tamanho" (que virará categoria com só "Tamanho Cinto").
 
-### `src/lib/fichaFilterKeys.ts`
-- Adicionar campos `categoriaSlug`, `categoriaNome`, `categoriaOrdem` em `FichaFilterKey`.
-- No `useFichaFilterKeys`, incluir `categoria_id, ficha_categorias(slug,nome,ordem)` no select e preencher os novos campos.
-- Dedup por slug mantém o de menor `ordem` (já existe); herda categoria do escolhido.
+2. **Filtrar campos que não devem aparecer**
+   - Excluir do dialog as chaves: `tamanho`, `modelo`, `genero` da categoria "Tamanho / Gênero / Modelo" quando aparecem repetidas — Modelo/Gênero ficam só no topo (já ficam), e Tamanho (de bota) some totalmente. `tamanho_cinto` permanece.
+   - Excluir a categoria "Pesponto" inteira (hardcode por slug `pesponto`).
 
-### `src/components/common/FichaFiltersDialog.tsx`
-- Nova prop opcional já existe (`keys`); adicionar renderização em duas partes:
-  1. **Topo (sem accordion)**: chips de `modelo` e `genero` (na ordem: Modelo depois Gênero, ou vice-versa conforme `ordem`), apenas se tiverem opções.
-  2. **Accordion por categoria** (usar `@/components/ui/accordion` — já presente no shadcn): agrupar demais keys por `categoriaSlug`, ordenar categorias por `categoriaOrdem`, esconder categorias vazias.
-- Campos sem categoria (fallback) caem num grupo "Outros" no final.
-- Estado de expansão controlado: começa fechado; abre automaticamente categorias com filtros ativos ou com match de busca.
-- Contador de ativos por categoria ao lado do título.
+3. **Ordem fixa das categorias**
+   - Sobrepor `categoriaOrdem` por uma ordem manual: `couros`, `solados`, `bordados`, `laser_e_recortes` (ou o slug real), `metais`, `extras`, `tamanho_genero_modelo` (agora só com Tamanho Cinto), `fivelas`. Categorias fora da lista vão ao final na ordem original.
 
-### `TemplatesDialog.tsx` e `ModelosPage.tsx`
-- Sem mudanças de lógica; só passam `keys={fichaKeys}` como já fazem. A nova estrutura de agrupamento fica encapsulada no `FichaFiltersDialog`.
+4. **Accordions sempre começam fechadas**
+   - Trocar o `useEffect` que auto-expande por: quando `open` vira true e não há query, resetar `expanded = []`. Só auto-expandir enquanto houver query de busca ativa. Ao limpar a busca, colapsar tudo novamente.
 
-## Fora do escopo
-- Não altera Estoque (usa `FICHA_FILTER_KEYS` estático sem categorias — permanece igual).
-- Não muda persistência, snapshots, versão de ficha, nem migrations.
+5. **Busca mostra só variações que casam (sem cabeçalho de campo)**
+   - Quando há `query`, renderizar uma lista plana (flat) de chips das variações que casam, sem agrupar por categoria nem mostrar label do campo. Cada chip continua chamando `onToggle(k.key, v)`.
+   - Sem query: comportamento em accordion normal (fechada).
+
+## Parte 2 — Pré-preenchimento "sugerido" de Tipo/Cor Couro
+
+Arquivo: `src/pages/OrderPage.tsx` (fluxo bota).
+
+1. **Estado de "sugestão"**
+   - Novo state `couroSugerido: { tipoCano?: boolean; tipoGaspea?: boolean; tipoTaloneira?: boolean; corCano?: boolean; corGaspea?: boolean; corTaloneira?: boolean }`.
+
+2. **Regra de auto-preenchimento**
+   - Ao alterar `tipoCouroCano` (via user), se `tipoCouroGaspea` estiver vazio, setá-lo com o mesmo valor e marcar `tipoGaspea=true`. Idem para `tipoCouroTaloneira`. Mesma lógica quando o usuário edita Gáspea (propaga para Cano/Taloneira vazios) e Taloneira (propaga para Cano/Gáspea vazios).
+   - Mesma lógica para `corCouroCano/Gaspea/Taloneira`.
+   - Ao editar manualmente um campo já preenchido, remover o flag de "sugerido" daquele campo (fica como escolha do usuário). Se o campo alvo já tinha valor, não sobrescrever.
+   - Também respeitar o filtro dinâmico: se a cor sugerida não estiver nas opções válidas para o tipo daquela parte, não propagar.
+
+3. **Tag "Sugerido" na UI**
+   - Ampliar `SelectField` local com prop opcional `suggested?: boolean`. Quando true, renderizar um `<Badge variant="secondary" className="ml-2 text-[10px]">Sugerido</Badge>` ao lado do label.
+   - Passar `suggested={couroSugerido.tipoGaspea}` etc. nos 6 campos de couro.
+
+4. **Escopo**
+   - Só na página `OrderPage` (pedido novo de bota). Não altera `EditOrderPage` nem cinto.
+   - Não altera cálculo de preço nem persistência — os campos já são salvos normalmente; o flag "sugerido" é apenas visual/UX e não vai para o banco.
+
+## Fora de escopo
+- Nenhuma mudança em migrations, snapshots, cálculo de preço, PDFs ou permissões.
+- Estoque continua com filtros estáticos, sem categorias.
