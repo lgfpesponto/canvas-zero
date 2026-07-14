@@ -329,6 +329,7 @@ function fichaToDbRow(args: {
     cor_recorte_taloneira: f.corRecorteTaloneira ?? null,
     extra_detalhes,
     ficha_snapshot: planned.ficha.ficha_snapshot ?? null,
+    lead_time_snapshot: lead_time_snapshot ?? null,
   };
 }
 
