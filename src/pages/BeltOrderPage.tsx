@@ -22,9 +22,8 @@ import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
 
 function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
-  const { tipo, ...rest } = props;
-  const validityById = useTemplatesValidity(rest.templates as any, tipo);
-  return <TemplatesDialog {...rest} validityById={validityById} />;
+  const validityById = useTemplatesValidity(props.templates as any, props.tipo);
+  return <TemplatesDialog {...props} validityById={validityById} />;
 }
 import SearchableSelect from '@/components/SearchableSelect';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
