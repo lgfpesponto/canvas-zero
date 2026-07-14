@@ -12,6 +12,8 @@ import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
+import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 
 
 interface EstoqueRow {
@@ -37,14 +39,6 @@ interface ProductGroup {
   tamanhos: EstoqueRow[]; // sorted by tamanho
 }
 
-const FICHA_FILTER_KEYS: { key: string; label: string }[] = [
-  { key: 'modelo', label: 'Modelo' },
-  { key: 'tipo_couro_cano', label: 'Tipo Couro Cano' },
-  { key: 'tipo_couro_gaspea', label: 'Tipo Couro Gáspea' },
-  { key: 'solado', label: 'Solado' },
-  { key: 'genero', label: 'Gênero' },
-];
-
 const PAGE_SIZE = 25;
 
 const EstoquePage = () => {
@@ -54,7 +48,7 @@ const EstoquePage = () => {
   const [selTamanhos, setSelTamanhos] = useState<Set<string>>(new Set());
   const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
-  const [fichaFilterSearch, setFichaFilterSearch] = useState('');
+  const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const [page, setPage] = useState(1);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
@@ -168,17 +162,10 @@ const EstoquePage = () => {
 
   // Opções de filtros derivadas
   const allTamanhos = useMemo(() => [...new Set(rows.map(r => r.tamanho))].sort((a, b) => Number(a) - Number(b)), [rows]);
-  const fichaOptions = useMemo(() => {
-    const out: Record<string, Set<string>> = {};
-    for (const k of FICHA_FILTER_KEYS) out[k.key] = new Set();
-    for (const r of rows) {
-      for (const k of FICHA_FILTER_KEYS) {
-        const v = r.ficha_snapshot?.[k.key];
-        if (v && typeof v === 'string') out[k.key].add(v);
-      }
-    }
-    return out;
-  }, [rows]);
+  const fichaOptions = useMemo(
+    () => buildFichaOptions(rows, r => r.ficha_snapshot, fichaKeys),
+    [rows, fichaKeys],
+  );
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -193,12 +180,7 @@ const EstoquePage = () => {
           // Considera apenas tamanhos com estoque para o filtro de numeração
           if (!g.tamanhos.some(t => t.quantidade > 0 && selTamanhos.has(t.tamanho))) return false;
         }
-        for (const k of Object.keys(selFicha)) {
-          const set = selFicha[k];
-          if (!set || set.size === 0) continue;
-          const v = g.ficha_snapshot?.[k];
-          if (!v || !set.has(v)) return false;
-        }
+        if (!matchesFichaFilters(g.ficha_snapshot, selFicha, fichaKeys)) return false;
         return true;
       });
     // Ordena: com estoque primeiro (alfabético), zerados depois (alfabético)
@@ -229,7 +211,7 @@ const EstoquePage = () => {
     });
   };
 
-  const activeFichaCount = Object.values(selFicha).reduce((s, set) => s + (set?.size || 0), 0);
+  const activeFichaCount = countActiveFicha(selFicha);
 
   const totalPages = Math.max(1, Math.ceil(filteredGroups.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -538,64 +520,15 @@ const EstoquePage = () => {
       </Dialog>
 
       {/* Filtros da ficha */}
-      <Dialog open={fichaFilterOpen} onOpenChange={setFichaFilterOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Filtros da ficha</DialogTitle>
-          </DialogHeader>
-          <div className="relative mb-2">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={fichaFilterSearch}
-              onChange={e => setFichaFilterSearch(e.target.value)}
-              placeholder="Buscar filtro por palavra-chave..."
-              className="pl-9"
-            />
-          </div>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-            {(() => {
-              const q = fichaFilterSearch.trim().toLowerCase();
-              const blocos = FICHA_FILTER_KEYS.map(({ key, label }) => {
-                let opts = [...(fichaOptions[key] || [])].sort();
-                if (q) {
-                  const labelMatch = label.toLowerCase().includes(q);
-                  if (!labelMatch) opts = opts.filter(v => v.toLowerCase().includes(q));
-                }
-                return { key, label, opts };
-              }).filter(b => b.opts.length > 0);
-              if (blocos.length === 0) {
-                return <p className="text-sm text-muted-foreground text-center py-6">Nenhum filtro encontrado.</p>;
-              }
-              return blocos.map(({ key, label, opts }) => (
-                <div key={key}>
-                  <h4 className="text-sm font-semibold mb-2">{label}</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {opts.map(v => {
-                      const active = selFicha[key]?.has(v);
-                      return (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => toggleFicha(key, v)}
-                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                            active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border hover:border-primary'
-                          }`}
-                        >
-                          {v}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ));
-            })()}
-          </div>
-          <div className="flex justify-between gap-2 pt-2">
-            <Button variant="outline" onClick={() => setSelFicha({})}>Limpar</Button>
-            <Button onClick={() => setFichaFilterOpen(false)}>Aplicar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FichaFiltersDialog
+        open={fichaFilterOpen}
+        onOpenChange={setFichaFilterOpen}
+        fichaOptions={fichaOptions}
+        selFicha={selFicha}
+        onToggle={toggleFicha}
+        onClear={() => setSelFicha({})}
+        keys={fichaKeys}
+      />
 
       <EstoqueBuyDialog
         open={!!buyProduct}
