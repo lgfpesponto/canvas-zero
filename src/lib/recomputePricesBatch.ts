@@ -16,6 +16,7 @@ import {
   type FindFichaPrice,
   type GetByCategoria,
 } from '@/lib/recomputeOrderPrice';
+import { loadSnapshotIndex, buildFindFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 
 const CHUNK = 10;
 
