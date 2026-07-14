@@ -1797,7 +1797,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 </div>
                 <div>
                   <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
-                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required readOnly={numeroIsAuto} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
                   {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
                 {vendedorSelecionado === 'Estoque' ? (
