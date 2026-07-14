@@ -91,6 +91,11 @@ const ExtrasPage = () => {
   const [form, setForm] = useState<Record<string, any>>(emptyForm());
   const [botasPE, setBotasPE] = useState<BotaPEItem[]>([emptyBotaPE()]);
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === (form.vendedorSelecionado || '')) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => { if (numeroIsAuto && autoNumero && !form.numeroPedidoBota) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); if (numeroIsAuto && autoNumero) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); }, [numeroIsAuto, autoNumero]);
 
   // Gravata stock
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
