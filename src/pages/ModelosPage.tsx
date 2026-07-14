@@ -282,6 +282,8 @@ const ModelosPage = () => {
   function handleConferir() {
     if (!comprarModelo) return;
     if (!vNumeroPedido.trim()) { toast.error('Informe o Número do pedido'); return; }
+    if (numeroDuplicado) { toast.error(DUPLICATE_MSG); return; }
+    if (numeroChecking) { toast.info('Verificando número do pedido...'); return; }
     if (!vVendedor.trim()) { toast.error('Selecione o Vendedor'); return; }
     if (clienteObrigatorio && !vCliente.trim()) { toast.error('Cliente é obrigatório para Juliana'); return; }
     if (vGradeItems.length === 0 && !vTamanho.trim()) { toast.error('Selecione o Tamanho ou gere uma Grade'); return; }
