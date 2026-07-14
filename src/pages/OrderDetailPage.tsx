@@ -370,7 +370,7 @@ const OrderDetailPage = () => {
 
   // Build price breakdown list
   const priceItems: [string, number][] = [];
-  const modeloP = MODELOS.find(m => m.label === order.modelo)?.preco;
+  const modeloP = findFichaPrice(order.modelo || '', 'modelo') ?? MODELOS.find(m => m.label === order.modelo)?.preco;
   if (modeloP) priceItems.push(['Modelo: ' + order.modelo, modeloP]);
   if (order.sobMedida) priceItems.push(['Sob Medida', SOB_MEDIDA_PRECO]);
   if (order.acessorios) {
