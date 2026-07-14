@@ -928,6 +928,9 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 <input type="number" value={1} readOnly className={cls.inputSmall + ' w-20 opacity-70'} />
               </div>
 
+              {/* Prazo */}
+              <PrazoProducaoBox slug="cinto" fallback={20} />
+
               {/* Valor Total */}
               <div className="bg-muted rounded-lg p-4">
                 <div className="flex justify-between text-lg font-bold">
