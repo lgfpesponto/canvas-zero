@@ -174,6 +174,7 @@ export function TemplatesDialog({
   onEdit,
   onDelete,
   onSendMany,
+  tipo,
   validityById,
 }: Props) {
   const isMobile = useIsMobile();
@@ -184,9 +185,14 @@ export function TemplatesDialog({
   const scanBufferRef = useRef('');
   const scanInputRef = useRef<HTMLInputElement | null>(null);
 
+  const fichaKeys = useFichaFilterKeys(tipo ? [tipo] : ['bota', 'cinto']);
   const fichaOptions = useMemo(
-    () => buildFichaOptions(templates, t => ({ ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) as string | undefined })),
-    [templates],
+    () => buildFichaOptions(
+      templates,
+      t => ({ ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) as string | undefined }),
+      fichaKeys,
+    ),
+    [templates, fichaKeys],
   );
 
   const filtered = useMemo(
