@@ -308,6 +308,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [vendedorSelecionado, setVendedorSelecionado] = useState(isAdminProducao ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
+
+  // Auto-preenchimento do número (vendedor com prefixo, exceto estoque/juliana/site)
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === vendedorSelecionado) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => {
+    if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero);
+  }, [numeroIsAuto, autoNumero]);
   const [cliente, setCliente] = useState(draftState?.cliente || df.cliente || '');
   const [clienteWhatsapp, setClienteWhatsapp] = useState<string>(df.clienteWhatsapp || '');
   const [nomeProdutoEstoque, setNomeProdutoEstoque] = useState<string>(df.nomeProdutoEstoque || '');
