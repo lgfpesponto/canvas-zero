@@ -206,18 +206,25 @@ const ModelosPage = () => {
     })();
   }, [user?.id]);
 
+  const fichaOptions = useMemo(
+    () => buildFichaOptions(modelos, m => ({ ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) as string | undefined })),
+    [modelos],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return modelos.filter(m => {
       if (tiposAtivos.length > 0 && !tiposAtivos.includes(m.tipo)) return false;
       if (q && !m.nome.toLowerCase().includes(q)) return false;
+      const snap = { ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) };
+      if (!matchesFichaFilters(snap, selFicha)) return false;
       return true;
     });
-  }, [modelos, search, tiposAtivos]);
+  }, [modelos, search, tiposAtivos, selFicha]);
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [search, tiposAtivos]);
+  useEffect(() => { setPage(1); }, [search, tiposAtivos, selFicha]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginated = useMemo(
