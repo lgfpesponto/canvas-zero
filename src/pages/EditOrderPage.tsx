@@ -422,7 +422,7 @@ const EditOrderPage = () => {
   if (!isAdmin) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Acesso restrito ao administrador.</p></div>;
   if (!order) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Pedido não encontrado.</p></div>;
 
-  const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
+  const modeloPreco = findFichaPrice(modelo, 'modelo') ?? MODELOS.find(m => m.label === modelo)?.preco ?? 0;
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
   const couroPreco = [
     [tipoCouroCano, 'couro_cano'],
