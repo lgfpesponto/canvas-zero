@@ -10,6 +10,9 @@ export interface FichaFilterKey {
   tipo?: string;          // slug da ficha (bota/cinto)
   campoTipo?: FichaCampoTipo;
   ordem?: number;
+  categoriaSlug?: string;
+  categoriaNome?: string;
+  categoriaOrdem?: number;
 }
 
 // Fallback estático (usado pela Estoque atual e como default caso o hook não seja usado).
