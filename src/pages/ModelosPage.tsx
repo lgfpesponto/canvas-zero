@@ -17,6 +17,7 @@ import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import OrderPage from '@/pages/OrderPage';
 import BeltOrderPage from '@/pages/BeltOrderPage';
 import { toast } from 'sonner';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useTemplatesValidity, type TemplateValidity } from '@/hooks/useTemplateValidity';
 import { AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -156,6 +157,7 @@ const ModelosPage = () => {
 
   // Campos do formulário
   const [vNumeroPedido, setVNumeroPedido] = useState('');
+  const { isDuplicate: numeroDuplicado, checking: numeroChecking } = useCheckDuplicateOrder(vNumeroPedido.trim());
   const [vVendedor, setVVendedor] = useState('');
   const [vCliente, setVCliente] = useState('');
   const [vWhats, setVWhats] = useState('');
@@ -280,6 +282,8 @@ const ModelosPage = () => {
   function handleConferir() {
     if (!comprarModelo) return;
     if (!vNumeroPedido.trim()) { toast.error('Informe o Número do pedido'); return; }
+    if (numeroDuplicado) { toast.error(DUPLICATE_MSG); return; }
+    if (numeroChecking) { toast.info('Verificando número do pedido...'); return; }
     if (!vVendedor.trim()) { toast.error('Selecione o Vendedor'); return; }
     if (clienteObrigatorio && !vCliente.trim()) { toast.error('Cliente é obrigatório para Juliana'); return; }
     if (vGradeItems.length === 0 && !vTamanho.trim()) { toast.error('Selecione o Tamanho ou gere uma Grade'); return; }
@@ -457,7 +461,14 @@ const ModelosPage = () => {
                   value={vNumeroPedido}
                   onChange={e => setVNumeroPedido(e.target.value)}
                   placeholder="Digite o número"
+                  className={numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {numeroChecking && vNumeroPedido.trim() && (
+                  <p className="text-xs text-muted-foreground mt-1">Verificando...</p>
+                )}
+                {numeroDuplicado && (
+                  <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>
+                )}
               </div>
 
               {/* 2. Vendedor */}
@@ -517,6 +528,7 @@ const ModelosPage = () => {
                       type="button"
                       onClick={() => {
                         if (!vNumeroPedido.trim()) { toast.error('Informe o Número do pedido antes de gerar a grade'); return; }
+                        if (numeroDuplicado) { toast.error(DUPLICATE_MSG); return; }
                         setShowGrade(true);
                       }}
                       className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
@@ -581,7 +593,7 @@ const ModelosPage = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={closeComprar}>Cancelar</Button>
-            <Button onClick={handleConferir}>Conferir e finalizar</Button>
+            <Button onClick={handleConferir} disabled={numeroDuplicado || numeroChecking}>Conferir e finalizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

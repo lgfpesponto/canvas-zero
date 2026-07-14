@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
+import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 
 import { getVersaoAtiva } from '@/lib/fichaVersoes';
@@ -37,10 +39,15 @@ export default function DynamicOrderPage() {
 
   // Native fields
   const [vendedor, setVendedor] = useState('');
+  const [numeroPedido, setNumeroPedido] = useState('');
   const [quantidade, setQuantidade] = useState(1);
   const [precoBase, setPrecoBase] = useState(0);
   const [observacao, setObservacao] = useState('');
   const [cliente, setCliente] = useState('');
+
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
+  const { isDuplicate: numeroDuplicado, checking: numeroChecking } = useCheckDuplicateOrder(numeroPedido.trim());
 
   // Dynamic fields
   const [values, setValues] = useState<Record<string, any>>({});
@@ -89,6 +96,9 @@ export default function DynamicOrderPage() {
   const handleSubmit = async () => {
     if (!user || !tipo) return;
 
+    if (numeroDuplicado) { toast.error(DUPLICATE_MSG); return; }
+    if (numeroChecking) { toast.info('Verificando número do pedido...'); return; }
+
     // Validate required fields
     for (const campo of activeCampos) {
       if (campo.obrigatorio && !values[campo.slug]) {
@@ -102,8 +112,19 @@ export default function DynamicOrderPage() {
       const dataHoje = formatBrasiliaDate();
       const horaAgora = formatBrasiliaTime();
 
-      const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
-      const numero = `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
+      let numero = numeroPedido.trim();
+      if (!numero) {
+        const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+        numero = `7E-${dataHoje.slice(0, 4)}${String((count || 0) + 1).padStart(4, '0')}`;
+      }
+
+      // Defesa em profundidade: rechecar antes do insert
+      const { data: existing } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
+      if (existing) {
+        toast.error(DUPLICATE_MSG);
+        setSubmitting(false);
+        return;
+      }
 
       // Build snapshot with prices
       const snapshot: Record<string, any> = {};
@@ -169,6 +190,7 @@ export default function DynamicOrderPage() {
       setPrecoBase(0);
       setObservacao('');
       setCliente('');
+      setNumeroPedido(numeroIsAuto && autoNumero ? autoNumero : '');
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Erro ao criar pedido');
@@ -229,6 +251,21 @@ export default function DynamicOrderPage() {
                 <Label className="text-xs lowercase">cliente</Label>
                 <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente" />
               </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs lowercase">número do pedido</Label>
+                <Input
+                  value={numeroPedido}
+                  onChange={e => setNumeroPedido(e.target.value)}
+                  placeholder="Ex: 7E-20250001"
+                  readOnly={numeroIsAuto}
+                  className={`${numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`}
+                />
+                {numeroIsAuto && <p className="text-xs text-muted-foreground">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+                {numeroChecking && numeroPedido.trim() && !numeroDuplicado && (
+                  <p className="text-xs text-muted-foreground">Verificando...</p>
+                )}
+                {numeroDuplicado && <p className="text-xs text-destructive">{DUPLICATE_MSG}</p>}
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs lowercase">quantidade</Label>
                 <Input type="number" min={1} value={quantidade} onChange={e => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))} />
@@ -263,7 +300,7 @@ export default function DynamicOrderPage() {
               </span>
             </div>
 
-            <Button onClick={handleSubmit} disabled={submitting} className="w-full gap-2">
+            <Button onClick={handleSubmit} disabled={submitting || numeroDuplicado || numeroChecking} className="w-full gap-2">
               <Send className="h-4 w-4" />
               {submitting ? 'Enviando...' : 'enviar pedido'}
             </Button>
