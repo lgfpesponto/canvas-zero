@@ -252,11 +252,27 @@ export function TemplatesDialog({
         <DialogHeader>
           <DialogTitle>Modelos Salvos</DialogTitle>
         </DialogHeader>
-        <Input
-          placeholder="Pesquisar modelo..."
-          value={search}
-          onChange={e => onSearchChange(e.target.value)}
-          className="mb-2"
+        <div className="flex gap-2 mb-2">
+          <Input
+            placeholder="Pesquisar modelo..."
+            value={search}
+            onChange={e => onSearchChange(e.target.value)}
+            className="flex-1"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={() => setFichaFilterOpen(true)} className="gap-1 shrink-0">
+            <Filter size={14} /> Filtros da ficha
+            {activeFichaCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{activeFichaCount}</Badge>
+            )}
+          </Button>
+        </div>
+        <FichaFiltersDialog
+          open={fichaFilterOpen}
+          onOpenChange={setFichaFilterOpen}
+          fichaOptions={fichaOptions}
+          selFicha={selFicha}
+          onToggle={toggleFicha}
+          onClear={() => setSelFicha({})}
         />
         {templates.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>
