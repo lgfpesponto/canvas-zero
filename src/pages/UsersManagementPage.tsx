@@ -21,6 +21,7 @@ interface Profile {
   cpf_cnpj: string;
   nome_loja?: string | null;
   telefone_loja?: string | null;
+  pedido_prefixo?: string | null;
   created_at: string;
   role?: string;
 }
