@@ -593,7 +593,7 @@ const ModelosPage = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={closeComprar}>Cancelar</Button>
-            <Button onClick={handleConferir}>Conferir e finalizar</Button>
+            <Button onClick={handleConferir} disabled={numeroDuplicado || numeroChecking}>Conferir e finalizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
