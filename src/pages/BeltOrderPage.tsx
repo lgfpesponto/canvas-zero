@@ -751,8 +751,9 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
-                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''}`} />
+                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required readOnly={numeroIsAuto} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
                 {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
