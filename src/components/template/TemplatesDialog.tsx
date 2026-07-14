@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff, AlertTriangle, Filter } from 'lucide-react';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
-import { buildFichaOptions, matchesFichaFilters, countActiveFicha } from '@/lib/fichaFilterKeys';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,8 @@ interface Props {
   onEdit: (t: TemplateItem) => void;
   onDelete: (id: string) => void;
   onSendMany: (ts: TemplateItem[]) => void;
+  /** Tipo da ficha ativa — usado para carregar dinamicamente as chaves de filtro. */
+  tipo?: 'bota' | 'cinto';
   /** Mapa id → validade contra a versão vigente da ficha. Opcional. */
   validityById?: Map<string, TemplateValidity>;
 }
@@ -172,6 +174,7 @@ export function TemplatesDialog({
   onEdit,
   onDelete,
   onSendMany,
+  tipo,
   validityById,
 }: Props) {
   const isMobile = useIsMobile();
@@ -182,9 +185,14 @@ export function TemplatesDialog({
   const scanBufferRef = useRef('');
   const scanInputRef = useRef<HTMLInputElement | null>(null);
 
+  const fichaKeys = useFichaFilterKeys(tipo ? [tipo] : ['bota', 'cinto']);
   const fichaOptions = useMemo(
-    () => buildFichaOptions(templates, t => ({ ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) as string | undefined })),
-    [templates],
+    () => buildFichaOptions(
+      templates,
+      t => ({ ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) as string | undefined }),
+      fichaKeys,
+    ),
+    [templates, fichaKeys],
   );
 
   const filtered = useMemo(
@@ -273,6 +281,7 @@ export function TemplatesDialog({
           selFicha={selFicha}
           onToggle={toggleFicha}
           onClear={() => setSelFicha({})}
+          keys={fichaKeys}
         />
         {templates.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ImageOff, ShoppingCart, Grid3X3, Eye, Filter } from 'lucide-react';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
-import { buildFichaOptions, matchesFichaFilters, countActiveFicha } from '@/lib/fichaFilterKeys';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
@@ -206,9 +206,14 @@ const ModelosPage = () => {
     })();
   }, [user?.id]);
 
+  const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const fichaOptions = useMemo(
-    () => buildFichaOptions(modelos, m => ({ ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) as string | undefined })),
-    [modelos],
+    () => buildFichaOptions(
+      modelos,
+      m => ({ ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) as string | undefined }),
+      fichaKeys,
+    ),
+    [modelos, fichaKeys],
   );
 
   const filtered = useMemo(() => {
@@ -395,6 +400,7 @@ const ModelosPage = () => {
         selFicha={selFicha}
         onToggle={toggleFicha}
         onClear={() => setSelFicha({})}
+        keys={fichaKeys}
       />
 
 
