@@ -2866,6 +2866,7 @@ export type Database = {
         }
         Returns: string
       }
+      bagy_letter_suffix: { Args: { _index: number }; Returns: string }
       bordado_baixar_pedido: {
         Args: {
           _justificativa?: string

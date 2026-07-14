@@ -9,6 +9,12 @@ import OrderPage from '@/pages/OrderPage';
 export type BagyFichaQueueItem = {
   pedidoId: string;
   itemId: string;
+  /** Índice do par dentro deste item (0-based). Usado quando quantidade>1. */
+  unitIndex?: number;
+  /** Total de pares deste item. */
+  unitTotalItem?: number;
+  /** Número do pedido no portal (já com sufixo A/B/C aplicado quando necessário). */
+  numeroOverride?: string;
 };
 
 interface Props {
@@ -96,7 +102,7 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
 
         setResolved({
           templateId: it.template_id,
-          numero: `RC-${p.numero_bagy}`,
+          numero: current.numeroOverride || `RC-${p.numero_bagy}`,
           cliente: p.cliente_nome || '',
           whatsapp: p.cliente_whats || '',
           tamanho: tamanho || '',
@@ -104,7 +110,7 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
           bagyPedidoId: p.id,
           bagyItemId: it.id,
           bagyOrderId: p.bagy_order_id,
-          quantidade: it.quantidade || 1,
+          quantidade: 1,
         });
         setMountKey(k => k + 1);
       } finally {
