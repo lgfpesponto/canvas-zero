@@ -130,6 +130,7 @@ function EditPopover({
     } else {
       setDrafts([]);
     }
+    setVarSearch('');
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campo?.id, campo?.nome, campo?.obrigatorio, JSON.stringify(campo?.opcoes)]);
