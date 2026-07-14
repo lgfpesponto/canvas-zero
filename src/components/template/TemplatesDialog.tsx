@@ -177,15 +177,36 @@ export function TemplatesDialog({
   const isMobile = useIsMobile();
   const PAGE_SIZE = isMobile ? 2 : 6;
   const [page, setPage] = useState(1);
+  const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
+  const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
   const scanBufferRef = useRef('');
   const scanInputRef = useRef<HTMLInputElement | null>(null);
 
-  const filtered = useMemo(
-    () => templates.filter(t => t.nome.toLowerCase().includes(search.toLowerCase())),
-    [templates, search],
+  const fichaOptions = useMemo(
+    () => buildFichaOptions(templates, t => ({ ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) as string | undefined })),
+    [templates],
   );
 
-  useEffect(() => { setPage(1); }, [search, templates.length, isMobile]);
+  const filtered = useMemo(
+    () => templates.filter(t => {
+      if (!t.nome.toLowerCase().includes(search.toLowerCase())) return false;
+      const snap = { ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) };
+      if (!matchesFichaFilters(snap, selFicha)) return false;
+      return true;
+    }),
+    [templates, search, selFicha],
+  );
+
+  useEffect(() => { setPage(1); }, [search, templates.length, isMobile, selFicha]);
+
+  const toggleFicha = (k: string, v: string) => {
+    setSelFicha(prev => {
+      const cur = new Set(prev[k] || []);
+      if (cur.has(v)) cur.delete(v); else cur.add(v);
+      return { ...prev, [k]: cur };
+    });
+  };
+  const activeFichaCount = countActiveFicha(selFicha);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
