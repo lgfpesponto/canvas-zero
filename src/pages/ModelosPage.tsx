@@ -222,7 +222,7 @@ const ModelosPage = () => {
       if (tiposAtivos.length > 0 && !tiposAtivos.includes(m.tipo)) return false;
       if (q && !m.nome.toLowerCase().includes(q)) return false;
       const snap = { ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) };
-      if (!matchesFichaFilters(snap, selFicha)) return false;
+      if (!matchesFichaFilters(snap, selFicha, fichaKeys)) return false;
       return true;
     });
   }, [modelos, search, tiposAtivos, selFicha]);

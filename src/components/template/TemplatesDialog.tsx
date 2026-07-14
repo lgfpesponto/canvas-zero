@@ -199,7 +199,7 @@ export function TemplatesDialog({
     () => templates.filter(t => {
       if (!t.nome.toLowerCase().includes(search.toLowerCase())) return false;
       const snap = { ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) };
-      if (!matchesFichaFilters(snap, selFicha)) return false;
+      if (!matchesFichaFilters(snap, selFicha, fichaKeys)) return false;
       return true;
     }),
     [templates, search, selFicha],
