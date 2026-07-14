@@ -461,7 +461,14 @@ const ModelosPage = () => {
                   value={vNumeroPedido}
                   onChange={e => setVNumeroPedido(e.target.value)}
                   placeholder="Digite o número"
+                  className={numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {numeroChecking && vNumeroPedido.trim() && (
+                  <p className="text-xs text-muted-foreground mt-1">Verificando...</p>
+                )}
+                {numeroDuplicado && (
+                  <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>
+                )}
               </div>
 
               {/* 2. Vendedor */}
