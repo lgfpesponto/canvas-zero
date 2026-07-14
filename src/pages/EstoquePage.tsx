@@ -48,7 +48,7 @@ const EstoquePage = () => {
   const [selTamanhos, setSelTamanhos] = useState<Set<string>>(new Set());
   const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
-  const [fichaFilterSearch, setFichaFilterSearch] = useState('');
+  const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const [page, setPage] = useState(1);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
