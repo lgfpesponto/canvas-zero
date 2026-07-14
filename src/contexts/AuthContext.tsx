@@ -30,6 +30,7 @@ export interface User {
   cpfCnpj: string;
   nomeLoja?: string;
   telefoneLoja?: string;
+  pedidoPrefixo?: string | null;
   isAdmin?: boolean;
   role?: AppRole;
 }
