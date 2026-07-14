@@ -36,7 +36,7 @@ const Header = () => {
   }, [isAdmin, isJuliana, location.pathname]);
 
   const isBagyAccess = isAdmin || role === 'vendedor_comissao';
-  const canSeeModelos = showAsLogged && role !== 'bordado' && role !== 'montagem' && role !== 'admin_producao';
+  const canSeeModelos = showAsLogged && role !== 'bordado' && role !== 'montagem';
 
   const configSubItems: SubItem[] = [
     { label: 'Ficha de produção', path: '/admin/configuracoes?tab=fichas' },
