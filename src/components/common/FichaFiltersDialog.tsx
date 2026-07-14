@@ -18,46 +18,58 @@ interface Props {
 }
 
 const PINNED_TOP = ['modelo', 'genero'];
+// Chaves que nunca aparecem no dialog (Modelo/Gênero ficam pinados no topo; Tamanho de bota removido).
+const HIDDEN_KEYS = new Set(['modelo', 'genero', 'tamanho']);
+// Categorias excluídas por completo.
+const HIDDEN_CATEGORIAS = new Set(['pesponto-visual']);
+// Ordem manual: quanto menor o índice, mais acima. Categorias fora da lista vão ao fim.
+const CATEGORIA_ORDER: string[] = [
+  'couros',
+  'solados-visual',
+  'bordados-visual',
+  'laser-visual',
+  'metais-visual',
+  'extras-visual',
+  'tamanho-genero-modelo',
+  'fivelas',
+];
+
+function catOrderIdx(slug: string) {
+  const i = CATEGORIA_ORDER.indexOf(slug);
+  return i === -1 ? 1000 + slug.charCodeAt(0) : i;
+}
 
 export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, selFicha, onToggle, onClear, keys }: Props) {
   const [q, setQ] = useState('');
   const activeKeys = keys && keys.length > 0 ? keys : FICHA_FILTER_KEYS;
   const query = q.trim().toLowerCase();
 
-  // Bloco reutilizável: renderiza um campo (label + chips) filtrando por query.
-  const renderCampo = (k: FichaFilterKey, opts: string[]) => (
+  const renderChip = (k: FichaFilterKey, v: string) => {
+    const active = selFicha[k.key]?.has(v);
+    return (
+      <button
+        key={`${k.key}::${v}`}
+        type="button"
+        onClick={() => onToggle(k.key, v)}
+        className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+          active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border hover:border-primary'
+        }`}
+      >
+        {v}
+      </button>
+    );
+  };
+
+  const renderCampo = (k: FichaFilterKey, opts: string[], showLabel: boolean) => (
     <div key={k.key}>
-      <h4 className="text-sm font-semibold mb-2">{k.label}</h4>
-      <div className="flex flex-wrap gap-1.5">
-        {opts.map(v => {
-          const active = selFicha[k.key]?.has(v);
-          return (
-            <button
-              key={v}
-              type="button"
-              onClick={() => onToggle(k.key, v)}
-              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border hover:border-primary'
-              }`}
-            >
-              {v}
-            </button>
-          );
-        })}
-      </div>
+      {showLabel && <h4 className="text-sm font-semibold mb-2">{k.label}</h4>}
+      <div className="flex flex-wrap gap-1.5">{opts.map(v => renderChip(k, v))}</div>
     </div>
   );
 
-  const filterOpts = (k: FichaFilterKey): string[] => {
-    let opts = [...(fichaOptions[k.key] || [])].sort();
-    if (query) {
-      const labelMatch = k.label.toLowerCase().includes(query);
-      if (!labelMatch) opts = opts.filter(v => v.toLowerCase().includes(query));
-    }
-    return opts;
-  };
+  const allOpts = (k: FichaFilterKey): string[] => [...(fichaOptions[k.key] || [])].sort();
 
-  // Separa pinned top (Modelo/Gênero) do restante e agrupa por categoria.
+  // Sem query: separa pinned top e agrupa por categoria (com filtros ocultos aplicados).
   const { topKeys, categorias } = useMemo(() => {
     const top: { k: FichaFilterKey; opts: string[] }[] = [];
     const catMap = new Map<string, {
@@ -67,24 +79,37 @@ export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, s
       campos: { k: FichaFilterKey; opts: string[] }[];
     }>();
     for (const k of activeKeys) {
-      const opts = filterOpts(k);
+      const opts = allOpts(k);
       if (opts.length === 0) continue;
       if (PINNED_TOP.includes(k.key)) {
         top.push({ k, opts });
         continue;
       }
+      if (HIDDEN_KEYS.has(k.key)) continue;
       const catSlug = k.categoriaSlug || '__outros__';
+      if (HIDDEN_CATEGORIAS.has(catSlug)) continue;
       const catNome = k.categoriaNome || 'Outros';
-      const catOrdem = k.categoriaOrdem ?? 9999;
-      if (!catMap.has(catSlug)) catMap.set(catSlug, { slug: catSlug, nome: catNome, ordem: catOrdem, campos: [] });
+      if (!catMap.has(catSlug)) catMap.set(catSlug, { slug: catSlug, nome: catNome, ordem: catOrderIdx(catSlug), campos: [] });
       catMap.get(catSlug)!.campos.push({ k, opts });
     }
-    // Ordena top pela ordem em PINNED_TOP.
     top.sort((a, b) => PINNED_TOP.indexOf(a.k.key) - PINNED_TOP.indexOf(b.k.key));
     const cats = [...catMap.values()].sort((a, b) => (a.ordem - b.ordem) || a.nome.localeCompare(b.nome));
-    // Ordena campos dentro da categoria pela ordem do campo.
     for (const c of cats) c.campos.sort((a, b) => (a.k.ordem ?? 0) - (b.k.ordem ?? 0));
     return { topKeys: top, categorias: cats };
+  }, [activeKeys, fichaOptions, selFicha]);
+
+  // Com query: lista plana de {campo, valor} que casam com a busca.
+  const searchResults = useMemo(() => {
+    if (!query) return [] as { k: FichaFilterKey; v: string }[];
+    const out: { k: FichaFilterKey; v: string }[] = [];
+    for (const k of activeKeys) {
+      if (HIDDEN_KEYS.has(k.key)) continue;
+      if (k.categoriaSlug && HIDDEN_CATEGORIAS.has(k.categoriaSlug)) continue;
+      for (const v of allOpts(k)) {
+        if (v.toLowerCase().includes(query)) out.push({ k, v });
+      }
+    }
+    return out;
   }, [activeKeys, fichaOptions, selFicha, query]);
 
   const countAtivosCat = (catSlug: string) => {
@@ -93,20 +118,14 @@ export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, s
     return cat.campos.reduce((s, { k }) => s + (selFicha[k.key]?.size || 0), 0);
   };
 
-  // Expande automaticamente categorias com filtro ativo ou com match de busca.
+  // Sempre inicia fechado; nunca auto-expande. Ao fechar o modal, reseta.
   const [expanded, setExpanded] = useState<string[]>([]);
   useEffect(() => {
-    if (!open) return;
-    const auto = new Set<string>();
-    for (const cat of categorias) {
-      const hasActive = cat.campos.some(({ k }) => (selFicha[k.key]?.size || 0) > 0);
-      if (hasActive || query) auto.add(cat.slug);
-    }
-    setExpanded(prev => Array.from(new Set([...prev, ...auto])));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, query, categorias.length]);
+    if (!open) setExpanded([]);
+  }, [open]);
 
-  const nada = topKeys.length === 0 && categorias.length === 0;
+  const nada = !query && topKeys.length === 0 && categorias.length === 0;
+  const nadaBusca = !!query && searchResults.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,15 +146,24 @@ export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, s
           {nada && (
             <p className="text-sm text-muted-foreground text-center py-6">Nenhum filtro encontrado.</p>
           )}
-          {topKeys.length > 0 && (
-            <div className="space-y-4 pb-2 border-b border-border">
-              {topKeys.map(({ k, opts }) => renderCampo(k, opts))}
+          {nadaBusca && (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhuma variação corresponde à busca.</p>
+          )}
+          {query && searchResults.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-2">
+              {searchResults.map(({ k, v }) => renderChip(k, v))}
             </div>
           )}
-          {categorias.length > 0 && (
+          {!query && topKeys.length > 0 && (
+            <div className="space-y-4 pb-2 border-b border-border">
+              {topKeys.map(({ k, opts }) => renderCampo(k, opts, true))}
+            </div>
+          )}
+          {!query && categorias.length > 0 && (
             <Accordion type="multiple" value={expanded} onValueChange={setExpanded} className="w-full">
               {categorias.map(cat => {
                 const ativos = countAtivosCat(cat.slug);
+                const soUmCampo = cat.campos.length === 1;
                 return (
                   <AccordionItem key={cat.slug} value={cat.slug} className="border-border">
                     <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3">
@@ -148,7 +176,7 @@ export default function FichaFiltersDialog({ open, onOpenChange, fichaOptions, s
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-4 pt-1">
-                        {cat.campos.map(({ k, opts }) => renderCampo(k, opts))}
+                        {cat.campos.map(({ k, opts }) => renderCampo(k, opts, !soUmCampo))}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
