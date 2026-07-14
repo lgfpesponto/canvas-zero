@@ -211,7 +211,7 @@ const EstoquePage = () => {
     });
   };
 
-  const activeFichaCount = Object.values(selFicha).reduce((s, set) => s + (set?.size || 0), 0);
+  const activeFichaCount = countActiveFicha(selFicha);
 
   const totalPages = Math.max(1, Math.ceil(filteredGroups.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
