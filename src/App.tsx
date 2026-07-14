@@ -39,6 +39,7 @@ import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
 // PriceChangeDialog removido — sem congelamento de preço.
 import DeployNoticeBanner from "@/components/DeployNoticeBanner";
+import ComunicadoBanner from "@/components/ComunicadoBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
 import MontagemPortalPage from "./pages/MontagemPortalPage";
 import PublicTrackingPage from "./pages/PublicTrackingPage";
@@ -96,6 +97,7 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       {!hideChrome && <DeployNoticeBanner />}
+      {!hideChrome && <ComunicadoBanner />}
       {!hideChrome && <Header />}
       {!hideChrome && <AdminAssistantFab />}
       {/* PriceChangeDialog removido — preço atualizado diretamente, reconciliador recalcula pedidos. */}

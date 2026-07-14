@@ -2634,6 +2634,7 @@ export type Database = {
           ativo: boolean
           created_at: string
           created_by: string | null
+          expires_at: string | null
           id: string
           mensagem: string | null
           scheduled_at: string
@@ -2644,6 +2645,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           created_by?: string | null
+          expires_at?: string | null
           id?: string
           mensagem?: string | null
           scheduled_at: string
@@ -2654,6 +2656,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           created_by?: string | null
+          expires_at?: string | null
           id?: string
           mensagem?: string | null
           scheduled_at?: string
