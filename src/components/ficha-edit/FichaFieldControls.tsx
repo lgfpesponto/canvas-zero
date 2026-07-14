@@ -102,6 +102,17 @@ function EditPopover({
   const [obrigatorio, setObrigatorio] = useState(false);
   const [checkboxPreco, setCheckboxPreco] = useState<number>(0);
   const [drafts, setDrafts] = useState<{ id: string; nome: string; preco: number; foto_url: string }[]>([]);
+  const [varSearch, setVarSearch] = useState('');
+  const filteredVariacoes = useMemo(() => {
+    const q = varSearch.trim().toLowerCase();
+    if (!q) return variacoes;
+    return variacoes.filter(v => (v.nome || '').toLowerCase().includes(q));
+  }, [variacoes, varSearch]);
+  const filteredDrafts = useMemo(() => {
+    const q = varSearch.trim().toLowerCase();
+    if (!q) return drafts;
+    return drafts.filter(d => (d.nome || '').toLowerCase().includes(q));
+  }, [drafts, varSearch]);
 
   // Reset state whenever popover opens or the underlying campo changes.
   useEffect(() => {
