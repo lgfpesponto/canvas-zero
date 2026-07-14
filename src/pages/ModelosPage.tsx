@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ImageOff, ShoppingCart, Grid3X3, Eye } from 'lucide-react';
+import { ImageOff, ShoppingCart, Grid3X3, Eye, Filter } from 'lucide-react';
+import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha } from '@/lib/fichaFilterKeys';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
@@ -147,6 +149,8 @@ const ModelosPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [tiposAtivos, setTiposAtivos] = useState<Tipo[]>([...ALL_TIPOS]);
+  const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
+  const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
 
   const [comprarOpen, setComprarOpen] = useState(false);
   const [comprarModelo, setComprarModelo] = useState<ModeloRow | null>(null);
@@ -202,18 +206,25 @@ const ModelosPage = () => {
     })();
   }, [user?.id]);
 
+  const fichaOptions = useMemo(
+    () => buildFichaOptions(modelos, m => ({ ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) as string | undefined })),
+    [modelos],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return modelos.filter(m => {
       if (tiposAtivos.length > 0 && !tiposAtivos.includes(m.tipo)) return false;
       if (q && !m.nome.toLowerCase().includes(q)) return false;
+      const snap = { ...(m.form_data || {}), genero: (m.form_data?.genero ?? m.genero) };
+      if (!matchesFichaFilters(snap, selFicha)) return false;
       return true;
     });
-  }, [modelos, search, tiposAtivos]);
+  }, [modelos, search, tiposAtivos, selFicha]);
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [search, tiposAtivos]);
+  useEffect(() => { setPage(1); }, [search, tiposAtivos, selFicha]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginated = useMemo(
@@ -230,6 +241,15 @@ const ModelosPage = () => {
   const toggleTipo = (t: Tipo) => {
     setTiposAtivos(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
   };
+
+  const toggleFicha = (k: string, v: string) => {
+    setSelFicha(prev => {
+      const cur = new Set(prev[k] || []);
+      if (cur.has(v)) cur.delete(v); else cur.add(v);
+      return { ...prev, [k]: cur };
+    });
+  };
+  const activeFichaCount = countActiveFicha(selFicha);
 
   function defaultVendedor(fd: Record<string, any>): string {
     if (isAdmin) return fd.vendedor || '';
@@ -353,8 +373,30 @@ const ModelosPage = () => {
               </Button>
             );
           })}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setFichaFilterOpen(true)}
+            className="gap-1"
+          >
+            <Filter size={14} /> Filtros da ficha
+            {activeFichaCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{activeFichaCount}</Badge>
+            )}
+          </Button>
         </div>
       </div>
+
+      <FichaFiltersDialog
+        open={fichaFilterOpen}
+        onOpenChange={setFichaFilterOpen}
+        fichaOptions={fichaOptions}
+        selFicha={selFicha}
+        onToggle={toggleFicha}
+        onClear={() => setSelFicha({})}
+      />
+
 
       {!loading && filtered.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">

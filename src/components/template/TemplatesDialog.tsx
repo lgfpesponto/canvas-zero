@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'sonner';
-import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff, AlertTriangle } from 'lucide-react';
+import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff, AlertTriangle, Filter } from 'lucide-react';
+import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha } from '@/lib/fichaFilterKeys';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -175,15 +177,36 @@ export function TemplatesDialog({
   const isMobile = useIsMobile();
   const PAGE_SIZE = isMobile ? 2 : 6;
   const [page, setPage] = useState(1);
+  const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
+  const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
   const scanBufferRef = useRef('');
   const scanInputRef = useRef<HTMLInputElement | null>(null);
 
-  const filtered = useMemo(
-    () => templates.filter(t => t.nome.toLowerCase().includes(search.toLowerCase())),
-    [templates, search],
+  const fichaOptions = useMemo(
+    () => buildFichaOptions(templates, t => ({ ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) as string | undefined })),
+    [templates],
   );
 
-  useEffect(() => { setPage(1); }, [search, templates.length, isMobile]);
+  const filtered = useMemo(
+    () => templates.filter(t => {
+      if (!t.nome.toLowerCase().includes(search.toLowerCase())) return false;
+      const snap = { ...(t.form_data || {}), genero: ((t.form_data as any)?.genero ?? t.genero) };
+      if (!matchesFichaFilters(snap, selFicha)) return false;
+      return true;
+    }),
+    [templates, search, selFicha],
+  );
+
+  useEffect(() => { setPage(1); }, [search, templates.length, isMobile, selFicha]);
+
+  const toggleFicha = (k: string, v: string) => {
+    setSelFicha(prev => {
+      const cur = new Set(prev[k] || []);
+      if (cur.has(v)) cur.delete(v); else cur.add(v);
+      return { ...prev, [k]: cur };
+    });
+  };
+  const activeFichaCount = countActiveFicha(selFicha);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -229,11 +252,27 @@ export function TemplatesDialog({
         <DialogHeader>
           <DialogTitle>Modelos Salvos</DialogTitle>
         </DialogHeader>
-        <Input
-          placeholder="Pesquisar modelo..."
-          value={search}
-          onChange={e => onSearchChange(e.target.value)}
-          className="mb-2"
+        <div className="flex gap-2 mb-2">
+          <Input
+            placeholder="Pesquisar modelo..."
+            value={search}
+            onChange={e => onSearchChange(e.target.value)}
+            className="flex-1"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={() => setFichaFilterOpen(true)} className="gap-1 shrink-0">
+            <Filter size={14} /> Filtros da ficha
+            {activeFichaCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{activeFichaCount}</Badge>
+            )}
+          </Button>
+        </div>
+        <FichaFiltersDialog
+          open={fichaFilterOpen}
+          onOpenChange={setFichaFilterOpen}
+          fichaOptions={fichaOptions}
+          selFicha={selFicha}
+          onToggle={toggleFicha}
+          onClear={() => setSelFicha({})}
         />
         {templates.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>

@@ -1,40 +1,37 @@
-## Objetivo
-Impedir criação de pedido com número duplicado em TODAS as telas de compra, com aviso em tempo real (igual já funciona em `OrderPage`, `BeltOrderPage` e `ExtrasPage`).
+Adicionar o mesmo botão/modal "Filtros da ficha" que já existe na página Estoque em dois lugares:
 
-## Diagnóstico
-Já existe o hook `useCheckDuplicateOrder` que consulta `orders.numero` com debounce e devolve `isDuplicate`. Ele já é usado com sucesso em Bota / Cinto / Extras clássicos.
+1. **Página `/modelos`** (`src/pages/ModelosPage.tsx`) — filtrar os cards de modelos completos.
+2. **Diálogo "Modelos Salvos"** (`src/components/template/TemplatesDialog.tsx`) — usado no fluxo Faça seu pedido para escolher um rascunho antes de preencher o pedido.
 
-Faltam duas telas de criação:
+## O que muda
 
-1. **`src/pages/ModelosPage.tsx`** — diálogo "Comprar — {modelo}" (compra direta a partir da página Modelos). Hoje só valida "informe o número" e delega ao `addOrder`/`addOrderBatch`; não avisa o usuário se o número já existe antes de clicar em Confirmar.
-2. **`src/pages/DynamicOrderPage.tsx`** — página de pedido de extras dinâmicos (fichas configuráveis por slug). Hoje monta o número via `count()` de forma automática, mas nunca checa colisão antes do `insert`, então pode falhar/duplicar silenciosamente.
+### Filtros disponíveis
+Mesma lista da Estoque (chaves lidas de `form_data` do template, iguais às do `ficha_snapshot`):
+- Modelo (`modelo`)
+- Tipo Couro Cano (`tipo_couro_cano`)
+- Tipo Couro Gáspea (`tipo_couro_gaspea`)
+- Solado (`solado`)
+- Gênero (`genero`, com fallback para `form_data.genero`)
 
-Nas demais telas (`OrderPage`, `BeltOrderPage`, `ExtrasPage`) o aviso ao vivo + bloqueio de submissão já existe — nada muda nelas.
-O `AuthContext.addOrder` já faz a checagem final no servidor; vamos manter (defesa em profundidade).
+As opções são derivadas dinamicamente da lista atual de templates — só aparecem valores que existem em pelo menos um modelo, evitando filtros "vazios".
 
-## Mudanças
+### UI
+- Botão `Filtros da ficha` com ícone `Filter` ao lado do campo de busca já existente. Quando houver seleções ativas, mostra um badge com a contagem.
+- Modal idêntico ao da Estoque: campo de busca por palavra-chave, blocos por categoria com chips clicáveis (toggle), botões `Limpar` e `Aplicar`.
+- Reset de página para 1 sempre que os filtros mudam.
 
-### 1. `src/pages/ModelosPage.tsx`
-- Importar `useCheckDuplicateOrder` e `DUPLICATE_MSG` de `@/hooks/useCheckDuplicateOrder`.
-- `const { isDuplicate: numeroDuplicado, checking } = useCheckDuplicateOrder(vNumeroPedido.trim());`
-- No `<Input>` do "Número do pedido" (linha ~456): adicionar borda vermelha quando `numeroDuplicado`, e mostrar mensagem abaixo em `text-destructive` com `DUPLICATE_MSG` (ou "Verificando…" quando `checking`).
-- No handler de confirmação (linha ~282): se `numeroDuplicado`, `toast.error(DUPLICATE_MSG)` e `return`.
-- Desabilitar o botão "Confirmar" da compra quando `numeroDuplicado || checking`.
-- No botão "Gerar Grade" (linha ~519): bloquear também se `numeroDuplicado` (o batch usa prefixo — o próprio `addOrderBatch` já verifica cada número gerado, mas evitamos abrir o dialog de grade com prefixo inválido).
+### Comportamento
+- Um modelo passa nos filtros quando, para cada categoria com pelo menos um chip ativo, o valor correspondente em `form_data` bate com algum dos chips selecionados (mesma lógica AND-entre-categorias, OR-dentro-da-categoria da Estoque).
+- Filtros combinam com a busca por nome e com o filtro Bota/Cinto já existentes na página Modelos.
+- No `TemplatesDialog` os filtros combinam com o `search` existente e com a paginação.
 
-### 2. `src/pages/DynamicOrderPage.tsx`
-- Adicionar campo visível "Número do pedido" (input controlado) no bloco de campos nativos, ao lado de Vendedor/Cliente. Hoje o número é gerado 100% automático — vamos manter geração automática como default (via `useAutoOrderNumero` seguindo o padrão das outras telas) mas permitir edição manual, para que o usuário veja/edite e o aviso de duplicidade faça sentido.
-- Usar `useAutoOrderNumero(vendedor)` para pré-preencher.
-- Usar `useCheckDuplicateOrder(numero.trim())` para exibir aviso em tempo real (borda vermelha + `DUPLICATE_MSG`).
-- No `handleSubmit`:
-  - Se `numeroDuplicado` → `toast.error(DUPLICATE_MSG)` e `return`.
-  - Substituir a geração baseada em `count()` (que é frágil e pode colidir) pelo valor do input; se estiver vazio, cair no `autoNumero`.
-  - Antes do `insert`, fazer uma checagem final `select id from orders where numero = ?` — se existir, abortar com toast (mesma defesa que o `addOrder` do AuthContext já aplica).
-- Desabilitar botão "enviar pedido" enquanto `numeroDuplicado || checking`.
+## Detalhes técnicos
 
-### 3. Sem mudanças de banco
-Não precisa migração. Opcionalmente poderíamos adicionar `UNIQUE(numero)` em `orders`, mas isso pode quebrar dados legados (`addOrderBatch` já valida em lote). **Não incluído neste plano** — só falamos se você pedir depois.
+- Extrair helper `useFichaOptions(items, getSnapshot)` inline em cada tela (ou pequena util em `src/lib/fichaFilterKeys.ts`) para deduplicar `FICHA_FILTER_KEYS` e a montagem do `Record<string, Set<string>>`. Escopo mínimo: só criar o arquivo se ficar mais limpo — caso contrário, replicar as ~15 linhas nos dois componentes (mesma abordagem já usada na Estoque).
+- Em `ModelosPage`: usar `m.form_data?.[key]` (com fallback `m.genero` para `genero`). Novo state `selFicha: Record<string, Set<string>>` + `fichaFilterOpen`.
+- Em `TemplatesDialog`: adicionar props opcionais? Não — manter tudo interno ao componente, pois `templates: TemplateRow[]` já traz `form_data`. Novo state local `selFicha` + `fichaFilterOpen` + `fichaFilterSearch`.
+- Nenhuma alteração em backend, schema ou tipos Supabase.
 
-## Fora do escopo
-- Edição de pedidos existentes (`EditOrderPage`, `EditBeltPage`, `EditExtrasPage`) — o número não é alterado nesses fluxos.
-- Fluxos internos automáticos (Bagy, Registrar Erro, geração de estoque a partir de pedido pronto) — usam números derivados/controlados por servidor.
+## Fora de escopo
+- Não mexer nas telas de pedido em si (OrderPage/BeltOrderPage/etc.).
+- Não persistir os filtros entre sessões (comportamento igual ao da Estoque hoje).
