@@ -910,9 +910,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* ───── Load all profiles for ADM vendor selection ───── */
   const loadAllProfiles = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('id, nome_completo, nome_usuario');
+    const { data } = await supabase.from('profiles').select('id, nome_completo, nome_usuario, pedido_prefixo');
     if (data) {
-      setAllProfiles(data.map(p => ({ id: p.id, nomeCompleto: p.nome_completo, nomeUsuario: p.nome_usuario })));
+      setAllProfiles(data.map(p => ({ id: p.id, nomeCompleto: p.nome_completo, nomeUsuario: p.nome_usuario, pedidoPrefixo: (p as any).pedido_prefixo || null })));
     }
   }, []);
 
