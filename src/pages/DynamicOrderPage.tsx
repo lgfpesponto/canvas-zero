@@ -251,6 +251,20 @@ export default function DynamicOrderPage() {
                 <Label className="text-xs lowercase">cliente</Label>
                 <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente" />
               </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs lowercase">número do pedido</Label>
+                <Input
+                  value={numeroPedido}
+                  onChange={e => setNumeroPedido(e.target.value)}
+                  placeholder="Ex: 7E-20250001"
+                  readOnly={numeroIsAuto}
+                  className={`${numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`}
+                />
+                {numeroIsAuto && <p className="text-xs text-muted-foreground">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+                {numeroChecking && numeroPedido.trim() && !numeroDuplicado && (
+                  <p className="text-xs text-muted-foreground">Verificando...</p>
+                )}
+                {numeroDuplicado && <p className="text-xs text-destructive">{DUPLICATE_MSG}</p>}
               <div className="space-y-1">
                 <Label className="text-xs lowercase">quantidade</Label>
                 <Input type="number" min={1} value={quantidade} onChange={e => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))} />
