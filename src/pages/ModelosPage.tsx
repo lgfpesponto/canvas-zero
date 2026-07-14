@@ -242,6 +242,15 @@ const ModelosPage = () => {
     setTiposAtivos(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
   };
 
+  const toggleFicha = (k: string, v: string) => {
+    setSelFicha(prev => {
+      const cur = new Set(prev[k] || []);
+      if (cur.has(v)) cur.delete(v); else cur.add(v);
+      return { ...prev, [k]: cur };
+    });
+  };
+  const activeFichaCount = countActiveFicha(selFicha);
+
   function defaultVendedor(fd: Record<string, any>): string {
     if (isAdmin) return fd.vendedor || '';
     return user?.nomeCompleto || '';
