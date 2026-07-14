@@ -88,12 +88,12 @@ function toValueList(v: unknown, campoTipo?: FichaCampoTipo): string[] {
 export function useFichaFilterKeys(tipos: string[]): FichaFilterKey[] {
   const tiposKey = [...tipos].sort().join(',');
   const { data } = useQuery({
-    queryKey: ['ficha_filter_keys', tiposKey, 'v2'],
+    queryKey: ['ficha_filter_keys', tiposKey, 'v3'],
     queryFn: async () => {
       if (tipos.length === 0) return [] as FichaFilterKey[];
       const { data, error } = await supabase
         .from('ficha_campos')
-        .select('slug, nome, ordem, ativo, tipo, ficha_tipos!inner(slug)')
+        .select('slug, nome, ordem, ativo, tipo, ficha_tipos!inner(slug), ficha_categorias(slug, nome, ordem)')
         .eq('ativo', true)
         .in('ficha_tipos.slug', tipos)
         .order('ordem');
@@ -115,6 +115,9 @@ export function useFichaFilterKeys(tipos: string[]): FichaFilterKey[] {
           tipo: row.ficha_tipos?.slug,
           campoTipo,
           ordem: row.ordem ?? 0,
+          categoriaSlug: row.ficha_categorias?.slug,
+          categoriaNome: row.ficha_categorias?.nome,
+          categoriaOrdem: row.ficha_categorias?.ordem ?? 9999,
         });
       }
       if (!seen.has('genero')) {
