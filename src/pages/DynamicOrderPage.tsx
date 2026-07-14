@@ -300,7 +300,7 @@ export default function DynamicOrderPage() {
               </span>
             </div>
 
-            <Button onClick={handleSubmit} disabled={submitting} className="w-full gap-2">
+            <Button onClick={handleSubmit} disabled={submitting || numeroDuplicado || numeroChecking} className="w-full gap-2">
               <Send className="h-4 w-4" />
               {submitting ? 'Enviando...' : 'enviar pedido'}
             </Button>
