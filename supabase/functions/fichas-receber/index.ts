@@ -207,8 +207,9 @@ function fichaToDbRow(args: {
   data: string;
   hora: string;
   atacado_pedido_id?: string | null;
+  lead_time_snapshot?: number | null;
 }) {
-  const { planned, juliana_user_id, cliente_nome, data, hora, atacado_pedido_id } = args;
+  const { planned, juliana_user_id, cliente_nome, data, hora, atacado_pedido_id, lead_time_snapshot } = args;
   const f = planned.ficha.ficha ?? {};
   const residuais =
     planned.ficha.personalizacoes_residuais ?? planned.ficha.personalizacoes ?? [];
