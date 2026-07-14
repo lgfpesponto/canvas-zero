@@ -184,6 +184,7 @@ const UsersManagementPage = () => {
       cpf_cnpj: editForm.cpf_cnpj || '',
       nome_loja: editForm.nome_loja || null,
       telefone_loja: editForm.telefone_loja || null,
+      pedido_prefixo: (editForm.pedido_prefixo || '').trim() || null,
     } as any).eq('id', editProfile.id);
 
     if (error) {
