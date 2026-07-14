@@ -442,6 +442,51 @@ const ReportsPage = () => {
     [scannedOrdersMap, selectedIds]
   );
 
+  // Pedidos de vendedor "Estoque" atualmente em "Baixa Estoque" — habilitam criar produto em massa via scanner
+  const estoqueBaixaSelecionados = useMemo(
+    () => selectedScannedList.filter(o => o.vendedor === 'Estoque' && o.status === 'Baixa Estoque'),
+    [selectedScannedList],
+  );
+  const [bulkCriandoEstoque, setBulkCriandoEstoque] = useState(false);
+
+  const handleBulkCriarProduto = async () => {
+    const alvo = estoqueBaixaSelecionados;
+    if (alvo.length === 0) return;
+    if (!window.confirm(`Criar produto no estoque para ${alvo.length} pedido(s) escaneado(s)?`)) return;
+    setBulkCriandoEstoque(true);
+    const toastId = toast.loading(`Criando produtos… 0/${alvo.length}`);
+    try {
+      const results = await criarEstoqueEmMassa(
+        alvo.map(o => ({ id: o.id, numero: o.numero })),
+        (done, total) => toast.loading(`Criando produtos… ${done}/${total}`, { id: toastId }),
+      );
+      const ok = results.filter(r => r.ok);
+      const fail = results.filter(r => !r.ok);
+      if (fail.length === 0) {
+        toast.success(`${ok.length} produto(s) criado(s) com sucesso.`, { id: toastId });
+      } else {
+        toast.error(
+          `${ok.length} ok, ${fail.length} com erro: ${fail.slice(0, 3).map(f => `${f.numero || f.id} (${f.error})`).join('; ')}${fail.length > 3 ? '…' : ''}`,
+          { id: toastId, duration: 8000 },
+        );
+      }
+      // Remove os OK da seleção; mantém falhas para o usuário revisar
+      if (ok.length > 0) {
+        const okIds = new Set(ok.map(r => r.id));
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          okIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }
+      refetchOrders();
+    } catch (e: any) {
+      toast.error(`Erro: ${e?.message || e}`, { id: toastId });
+    } finally {
+      setBulkCriandoEstoque(false);
+    }
+  };
+
   const finalizeBulkUpdate = (count: number) => {
     toast.success(`${count} pedido(s) atualizado(s) para "${selectedProgress}".`);
     setShowProgressModal(false);
