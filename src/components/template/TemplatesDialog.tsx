@@ -46,6 +46,8 @@ interface Props {
   onEdit: (t: TemplateItem) => void;
   onDelete: (id: string) => void;
   onSendMany: (ts: TemplateItem[]) => void;
+  /** Tipo da ficha ativa — usado para carregar dinamicamente as chaves de filtro. */
+  tipo?: 'bota' | 'cinto';
   /** Mapa id → validade contra a versão vigente da ficha. Opcional. */
   validityById?: Map<string, TemplateValidity>;
 }
