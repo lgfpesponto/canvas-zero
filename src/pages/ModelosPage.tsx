@@ -373,8 +373,30 @@ const ModelosPage = () => {
               </Button>
             );
           })}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setFichaFilterOpen(true)}
+            className="gap-1"
+          >
+            <Filter size={14} /> Filtros da ficha
+            {activeFichaCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{activeFichaCount}</Badge>
+            )}
+          </Button>
         </div>
       </div>
+
+      <FichaFiltersDialog
+        open={fichaFilterOpen}
+        onOpenChange={setFichaFilterOpen}
+        fichaOptions={fichaOptions}
+        selFicha={selFicha}
+        onToggle={toggleFicha}
+        onClear={() => setSelFicha({})}
+      />
+
 
       {!loading && filtered.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
