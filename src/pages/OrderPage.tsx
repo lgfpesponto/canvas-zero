@@ -337,6 +337,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [corCouroGaspea, setCorCouroGaspea] = useState(df.corCouroGaspea || '');
   const [tipoCouroTaloneira, setTipoCouroTaloneira] = useState(df.tipoCouroTaloneira || '');
   const [corCouroTaloneira, setCorCouroTaloneira] = useState(df.corCouroTaloneira || '');
+  // Flags visuais "Sugerido" quando o campo foi auto-preenchido por propagação.
+  type CouroSug = { tipoCano?: boolean; tipoGaspea?: boolean; tipoTaloneira?: boolean; corCano?: boolean; corGaspea?: boolean; corTaloneira?: boolean };
+  const [couroSug, setCouroSug] = useState<CouroSug>({});
 
   // desenvolvimento LEGACY (pedidos antigos com Bordado/Laser/Estampa como valor único)
   const [desenvolvimento, setDesenvolvimento] = useState(df.desenvolvimento || '');
@@ -1650,11 +1653,14 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   ].filter(g => g.itens.length > 0);
 
   /* ───── select helper ───── */
-  const SelectField = ({ label, value, onChange, options, required: req }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean }) => (
+  const SelectField = ({ label, value, onChange, options, required: req, suggested }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean; suggested?: boolean }) => (
     <div>
-      <label className={cls.label + ' inline-flex items-center'}>
-        {label}{req && <span className="text-destructive ml-0.5">*</span>}
+      <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
+        <span>{label}{req && <span className="text-destructive ml-0.5">*</span>}</span>
         <FichaFieldControls labelText={label} defaultTipo="selecao" />
+        {suggested && (
+          <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
+        )}
       </label>
       <SearchableSelect
         options={options}
@@ -1887,16 +1893,80 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           ) : null}
 
           {/* COUROS */}
-          <Section title="Couros">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => { setTipoCouroCano(v); if (corCouroCano && !getDynCoresCouro(v, 'couro_cano', 'cor_couro_cano').includes(corCouroCano)) setCorCouroCano(''); }} options={TIPOS_COURO} required />
-              <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={setCorCouroCano} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required />
-              <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => { setTipoCouroGaspea(v); if (corCouroGaspea && !getDynCoresCouro(v, 'couro_gaspea', 'cor_couro_gaspea').includes(corCouroGaspea)) setCorCouroGaspea(''); }} options={TIPOS_COURO} required />
-              <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={setCorCouroGaspea} options={getDynCoresCouro(tipoCouroGaspea, 'couro_gaspea', 'cor_couro_gaspea')} required />
-              <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => { setTipoCouroTaloneira(v); if (corCouroTaloneira && !getDynCoresCouro(v, 'couro_taloneira', 'cor_couro_taloneira').includes(corCouroTaloneira)) setCorCouroTaloneira(''); }} options={TIPOS_COURO} required />
-              <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={setCorCouroTaloneira} options={getDynCoresCouro(tipoCouroTaloneira, 'couro_taloneira', 'cor_couro_taloneira')} required />
-            </div>
-          </Section>
+          {(() => {
+            type Parte = 'Cano' | 'Gaspea' | 'Taloneira';
+            const tipoGetSet: Record<Parte, [string, (v: string) => void]> = {
+              Cano: [tipoCouroCano, setTipoCouroCano],
+              Gaspea: [tipoCouroGaspea, setTipoCouroGaspea],
+              Taloneira: [tipoCouroTaloneira, setTipoCouroTaloneira],
+            };
+            const corGetSet: Record<Parte, [string, (v: string) => void, string]> = {
+              Cano: [corCouroCano, setCorCouroCano, 'couro_cano'],
+              Gaspea: [corCouroGaspea, setCorCouroGaspea, 'couro_gaspea'],
+              Taloneira: [corCouroTaloneira, setCorCouroTaloneira, 'couro_taloneira'],
+            };
+            const sugKeyTipo: Record<Parte, keyof CouroSug> = { Cano: 'tipoCano', Gaspea: 'tipoGaspea', Taloneira: 'tipoTaloneira' };
+            const sugKeyCor: Record<Parte, keyof CouroSug> = { Cano: 'corCano', Gaspea: 'corGaspea', Taloneira: 'corTaloneira' };
+
+            const handleTipoChange = (origem: Parte, v: string) => {
+              const [, setSelf] = tipoGetSet[origem];
+              setSelf(v);
+              // limpa cor da própria parte se ficou incompatível
+              const [corAtual, setCor, slugCorProp] = corGetSet[origem];
+              const slugCouroProp = `couro_${origem.toLowerCase()}`;
+              const slugCor = `cor_couro_${origem.toLowerCase()}`;
+              if (corAtual && !getDynCoresCouro(v, slugCouroProp, slugCor).includes(corAtual)) setCor('');
+              // limpa flag sugerido da origem (edição manual)
+              setCouroSug(prev => ({ ...prev, [sugKeyTipo[origem]]: false }));
+              if (!v) return;
+              // propaga para as outras partes vazias
+              const outras: Parte[] = (['Cano', 'Gaspea', 'Taloneira'] as Parte[]).filter(p => p !== origem);
+              const novosSug: Partial<CouroSug> = {};
+              outras.forEach(p => {
+                const [val, setter] = tipoGetSet[p];
+                if (!val) {
+                  setter(v);
+                  novosSug[sugKeyTipo[p]] = true;
+                }
+              });
+              if (Object.keys(novosSug).length) setCouroSug(prev => ({ ...prev, ...novosSug }));
+            };
+
+            const handleCorChange = (origem: Parte, v: string) => {
+              const [, setSelf] = corGetSet[origem];
+              setSelf(v);
+              setCouroSug(prev => ({ ...prev, [sugKeyCor[origem]]: false }));
+              if (!v) return;
+              const outras: Parte[] = (['Cano', 'Gaspea', 'Taloneira'] as Parte[]).filter(p => p !== origem);
+              const novosSug: Partial<CouroSug> = {};
+              outras.forEach(p => {
+                const [valCor, setterCor] = corGetSet[p];
+                if (valCor) return;
+                const [tipoP] = tipoGetSet[p];
+                const slugCouroP = `couro_${p.toLowerCase()}`;
+                const slugCorP = `cor_couro_${p.toLowerCase()}`;
+                const opcoes = getDynCoresCouro(tipoP, slugCouroP, slugCorP);
+                if (opcoes.length === 0 || opcoes.includes(v)) {
+                  setterCor(v);
+                  novosSug[sugKeyCor[p]] = true;
+                }
+              });
+              if (Object.keys(novosSug).length) setCouroSug(prev => ({ ...prev, ...novosSug }));
+            };
+
+            return (
+              <Section title="Couros">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
+                  <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={v => handleCorChange('Cano', v)} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required suggested={!!couroSug.corCano && !!corCouroCano} />
+                  <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => handleTipoChange('Gaspea', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoGaspea && !!tipoCouroGaspea} />
+                  <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={v => handleCorChange('Gaspea', v)} options={getDynCoresCouro(tipoCouroGaspea, 'couro_gaspea', 'cor_couro_gaspea')} required suggested={!!couroSug.corGaspea && !!corCouroGaspea} />
+                  <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => handleTipoChange('Taloneira', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoTaloneira && !!tipoCouroTaloneira} />
+                  <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={v => handleCorChange('Taloneira', v)} options={getDynCoresCouro(tipoCouroTaloneira, 'couro_taloneira', 'cor_couro_taloneira')} required suggested={!!couroSug.corTaloneira && !!corCouroTaloneira} />
+                </div>
+              </Section>
+            );
+          })()}
 
           {/* PESPONTO */}
           <Section title="Pesponto">
