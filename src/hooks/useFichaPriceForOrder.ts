@@ -69,6 +69,50 @@ async function fetchSnapshotIndex(versaoId: string): Promise<SnapshotIndex> {
 export type FindFichaPrice = (nome: string, categoria: string) => number | undefined;
 
 /**
+ * Cache global (in-memory) de snapshots por versaoId — compartilhado entre
+ * consumidores fora do React (backfill queue, recompute batch).
+ */
+const snapshotCache = new Map<string, SnapshotIndex>();
+const snapshotInflight = new Map<string, Promise<SnapshotIndex>>();
+
+export async function loadSnapshotIndex(versaoId: string | null | undefined): Promise<SnapshotIndex | null> {
+  if (!versaoId) return null;
+  if (snapshotCache.has(versaoId)) return snapshotCache.get(versaoId)!;
+  const inFlight = snapshotInflight.get(versaoId);
+  if (inFlight) return inFlight;
+  const p = fetchSnapshotIndex(versaoId).then(idx => {
+    snapshotCache.set(versaoId, idx);
+    snapshotInflight.delete(versaoId);
+    return idx;
+  });
+  snapshotInflight.set(versaoId, p);
+  return p;
+}
+
+/**
+ * Combina snapshot (se carregado) + fallback `currentFind` num resolver.
+ * Uso: consumidores fora do React (backfill/batch) pré-carregam o snapshot
+ * com `loadSnapshotIndex` e chamam este builder por pedido.
+ */
+export function buildFindFichaPriceForOrder(
+  order: any,
+  currentFind: FindFichaPrice,
+): FindFichaPrice {
+  const idx = order?.fichaVersaoId ? snapshotCache.get(order.fichaVersaoId) : null;
+  return (nome: string, categoria: string) => {
+    if (!nome) return undefined;
+    const slug = CATEGORY_MAP[categoria] || categoria;
+    if (idx) {
+      const v = idx.bySlugNome.get(`${slug}::${nome.toLowerCase()}`);
+      if (v !== undefined) return v;
+    }
+    return currentFind(nome, categoria);
+  };
+}
+
+
+
+/**
  * Retorna resolver `findFichaPrice` para UM pedido — usa snapshot da versão
  * congelada no pedido, com fallback para a ficha atual.
  */
