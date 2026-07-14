@@ -11,6 +11,7 @@ import { Link2, X, Save, ArrowLeft, Search } from 'lucide-react';
 import { TemplateTag } from '@/components/orders/TemplateTag';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import { useEditWithJustification } from '@/hooks/useEditWithJustification';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 import {
