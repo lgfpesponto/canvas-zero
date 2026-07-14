@@ -281,6 +281,7 @@ export function TemplatesDialog({
           selFicha={selFicha}
           onToggle={toggleFicha}
           onClear={() => setSelFicha({})}
+          keys={fichaKeys}
         />
         {templates.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo salvo ainda.</p>
