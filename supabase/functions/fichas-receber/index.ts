@@ -207,8 +207,9 @@ function fichaToDbRow(args: {
   data: string;
   hora: string;
   atacado_pedido_id?: string | null;
+  lead_time_snapshot?: number | null;
 }) {
-  const { planned, juliana_user_id, cliente_nome, data, hora, atacado_pedido_id } = args;
+  const { planned, juliana_user_id, cliente_nome, data, hora, atacado_pedido_id, lead_time_snapshot } = args;
   const f = planned.ficha.ficha ?? {};
   const residuais =
     planned.ficha.personalizacoes_residuais ?? planned.ficha.personalizacoes ?? [];
@@ -328,6 +329,7 @@ function fichaToDbRow(args: {
     cor_recorte_taloneira: f.corRecorteTaloneira ?? null,
     extra_detalhes,
     ficha_snapshot: planned.ficha.ficha_snapshot ?? null,
+    lead_time_snapshot: lead_time_snapshot ?? null,
   };
 }
 
@@ -452,6 +454,15 @@ Deno.serve(async (req) => {
     }
 
     const { data, hora } = brasiliaParts();
+
+    // Busca o prazo vigente da ficha de bota para carimbar em cada pedido.
+    const { data: ftBota } = await supabase
+      .from("ficha_tipos")
+      .select("lead_time_dias")
+      .eq("slug", "bota")
+      .maybeSingle();
+    const leadTimeSnapshot = (ftBota as any)?.lead_time_dias ?? 20;
+
     const rows = planned.map((p) =>
       fichaToDbRow({
         planned: p,
@@ -460,6 +471,7 @@ Deno.serve(async (req) => {
         data,
         hora,
         atacado_pedido_id: payload.pedido.id ?? null,
+        lead_time_snapshot: leadTimeSnapshot,
       }),
     );
 
