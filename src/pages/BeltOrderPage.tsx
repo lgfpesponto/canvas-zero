@@ -90,6 +90,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   const [vendedor, setVendedor] = useState(isAdminProducao ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState('');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === vendedor) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
   const [cliente, setCliente] = useState('');
   const [clienteWhatsapp, setClienteWhatsapp] = useState('');
   const [tamanho, setTamanho] = useState('');
