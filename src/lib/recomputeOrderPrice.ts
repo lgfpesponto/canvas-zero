@@ -49,7 +49,7 @@ export function recomputeSubtotal(
   const items: number[] = [];
   const push = (v: number | undefined | null) => { if (v && v > 0) items.push(v); };
 
-  push(MODELOS.find(m => m.label === order.modelo)?.preco);
+  push(findFichaPrice(order.modelo || '', 'modelo') ?? MODELOS.find(m => m.label === order.modelo)?.preco);
   if (order.sobMedida) items.push(SOB_MEDIDA_PRECO);
   if (order.acessorios) {
     order.acessorios.split(', ').filter(Boolean).forEach(a => {

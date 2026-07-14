@@ -9,7 +9,7 @@ import { getOrderFinalValue } from '@/lib/order-logic';
 import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recomputeOrderPrice';
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
 import { useOrderById } from '@/hooks/useOrderById';
-import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
@@ -70,7 +70,7 @@ const OrderDetailPage = () => {
   const { order, loading: orderLoading, refetch: refetchOrder } = useOrderById(id);
   const linkedBoot = useLinkedBoot(order);
   const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
-  const { findFichaPrice } = useFichaVariacoesLookup();
+  const { findFichaPrice } = useFichaPriceForOrder(order);
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
 
@@ -370,7 +370,7 @@ const OrderDetailPage = () => {
 
   // Build price breakdown list
   const priceItems: [string, number][] = [];
-  const modeloP = MODELOS.find(m => m.label === order.modelo)?.preco;
+  const modeloP = findFichaPrice(order.modelo || '', 'modelo') ?? MODELOS.find(m => m.label === order.modelo)?.preco;
   if (modeloP) priceItems.push(['Modelo: ' + order.modelo, modeloP]);
   if (order.sobMedida) priceItems.push(['Sob Medida', SOB_MEDIDA_PRECO]);
   if (order.acessorios) {
@@ -438,11 +438,11 @@ const OrderDetailPage = () => {
   if (order.tiras === 'Sim') priceItems.push(['Tiras', getDynamicUnitPrice('tiras', TIRAS_PRECO)]);
   if (detP.franja) priceItems.push(['Franja', getDynamicUnitPrice('franja', FRANJA_PRECO)]);
   if (detP.corrente) priceItems.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
-  const soladoP = SOLADO.find(s => s.label === order.solado)?.preco;
+  const soladoP = findFichaPrice(order.solado || '', 'solado') ?? SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
-  const corSolaP = getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
+  const corSolaP = findFichaPrice(order.corSola || '', 'cor_sola') ?? getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
   if (corSolaP) priceItems.push(['Cor Sola: ' + order.corSola, corSolaP]);
-  const corViraP = COR_VIRA.find(c => c.label === order.corVira)?.preco;
+  const corViraP = findFichaPrice(order.corVira || '', 'cor_vira') ?? COR_VIRA.find(c => c.label === order.corVira)?.preco;
   if (corViraP) priceItems.push(['Cor Vira: ' + order.corVira, corViraP]);
   if (order.costuraAtras === 'Sim') priceItems.push(['Costura Atrás', getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO)]);
   const carimboP = CARIMBO.find(c => c.label === order.carimbo)?.preco;

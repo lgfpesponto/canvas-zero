@@ -1,59 +1,69 @@
+## 1. Bug — Composição mostra Solado R$60 mesmo com ficha nova R$65
 
-## Objetivo
+**Diagnóstico:** `recomputeSubtotal` já usa `findFichaPrice(order.solado, 'solado')` e retorna R$65. Mas a **linha de composição no detalhe** e outros locais leem direto da constante hardcoded `SOLADO` (R$60):
 
-Permitir ao admin editar o prazo de produção (em dias úteis) diretamente:
-- no modo edição da ficha da **bota** e do **cinto** (Faça seu Pedido);
-- no popover de edição de cada **extra** (card em Extras).
+- `src/pages/OrderDetailPage.tsx:373` (Modelo), `:441` (Solado), `:445` (Cor Vira), `:443` (Cor Sola)
+- `src/pages/EditOrderPage.tsx:423, :477, :480`
+- `src/lib/cobrancaPdf.ts:211, :259, :264`
+- `src/components/SpecializedReports.tsx:324, :372, :376`
+- `src/lib/recomputeOrderPrice.ts:52` (Modelo — falta findFichaPrice)
 
-Regras:
-- O valor exibido no pedido (contagem regressiva em dias úteis, sem sábado/domingo/feriados) passa a vir desse prazo configurado.
-- Pedidos **novos** (criados a partir da mudança) usam o prazo vigente no momento da criação — congelado no pedido.
-- Pedidos **antigos** não mudam: continuam com o prazo que já estava valendo quando foram criados.
-- Cálculo de dias úteis e feriados (nacionais + SP + Franca) permanece igual.
+**Regra-chave (respeitar histórico):** cada pedido tem `fichaVersaoId` (versão ativa no momento da criação). O preço exibido/recomputado precisa vir do **snapshot dessa versão**, não da versão ativa atual. Pedidos antigos continuam com os preços da época; só pedidos criados depois da nova versão pegam os preços novos.
 
-## Plano
+**Implementação:**
 
-### 1. Banco (uma migration)
+**Novo hook `useFichaPriceForOrder(order)`** (`src/hooks/useFichaPriceForOrder.ts`):
+- Se `order.fichaVersaoId` existe: carrega `ficha_versoes.snapshot` (cache por id via react-query) e monta índice `{categoria_slug + nome → preco_adicional}` a partir de `snapshot.variacoes` + `snapshot.campos` (para resolver `campo_id → slug`).
+- Se `fichaVersaoId` é null (pedidos antigos sem versão) OU snapshot não tem o item: **fallback para `findFichaPrice` atual** (`useFichaVariacoesLookup`), e depois hardcoded.
+- Retorna `findFichaPrice(nome, categoria) → number | undefined` com a mesma assinatura já usada em `recomputeSubtotal`.
 
-- `ALTER TABLE public.ficha_tipos ADD COLUMN lead_time_dias integer NOT NULL DEFAULT 20;`
-  - Seed: `bota=25`, `cinto=20` (mantém regra atual).
-- `ALTER TABLE public.extra_produtos ADD COLUMN lead_time_dias integer NOT NULL DEFAULT 1;`
-  - Seed dos tipos existentes usando os valores atuais de `EXTRA_LEAD_TIMES` em `src/lib/orderDeadline.ts` (tiras_laterais=2, desmanchar=7, gravata_country=7, kit_canivete=4, kit_faca=4, carimbo_fogo=5, revitalizador=1, kit_revitalizador=1, adicionar_metais=7, chaveiro_carimbo=5, bainha_cartao=7, bainha_celular=7, regata=20, regata_pronta_entrega=1, bota_pronta_entrega=1, gravata_pronta_entrega=1, palmilha=1).
-- `ALTER TABLE public.orders ADD COLUMN lead_time_snapshot integer;`
-  - Nullable — pedidos antigos ficam `NULL` e caem no fallback antigo (regra por data de criação para bota + tabela hardcoded).
+**Substituições:** trocar todas as ocorrências acima por `findFichaPrice(nome, categoria) ?? <hardcoded>?.preco`, usando o hook novo em contextos com `order` (detail/edit) e mantendo o `findFichaPrice` atual em contextos batch (relatórios/PDFs em lista). Para relatórios em lote (`SpecializedReports`, `cobrancaPdf`), o resolver recebe `order` e escolhe internamente snapshot vs current — pré-carregando snapshots dos ids únicos presentes no lote (uma query `in ('id1','id2',...)`).
 
-### 2. Snapshot na criação do pedido
+Para Modelo: adicionar `'modelo'` (ou `tamanho_genero_modelo`, a confirmar) ao `CATEGORY_MAP` do `useFichaVariacoesLookup` e ao índice do snapshot.
 
-- Em `OrderPage.tsx` (bota), `BeltOrderPage.tsx` (cinto) e `ExtrasPage.tsx` (extras): ao salvar o pedido, buscar o `lead_time_dias` correspondente (do `ficha_tipos` do slug, ou do `extra_produtos` do tipo) e gravar em `orders.lead_time_snapshot`.
-- Para `bota_pronta_entrega`: snapshot = `1 + max(lead_time_dias dos extras embutidos)` no momento da criação (mesma fórmula atual, mas congelada).
+**Efeito:** pedidos existentes preservam preços da versão da ficha em que foram criados; pedidos novos passam a exibir os preços da nova versão. Total e composição ficam coerentes em todos os lugares.
 
-### 3. Cálculo do prazo (`src/lib/orderDeadline.ts`)
+---
 
-- `getTotalBizDays(order)` passa a priorizar `order.lead_time_snapshot` quando presente e > 0.
-- Fallback (pedidos antigos, sem snapshot): mantém a lógica atual — regra 20/25du por data para bota, tabela `EXTRA_LEAD_TIMES` para extras.
-- Nenhuma outra função muda; feriados e dias úteis já estão certos.
+## 2. Prazo de Produção editável em Modo Edição (bota + cinto)
 
-### 4. UI de edição
+**OrderPage.tsx (bota) e BeltOrderPage.tsx (cinto):**
+- Substituir "20 dias úteis" hardcoded por leitura de `ficha_tipos.lead_time_dias` (slug `bota`/`cinto`). Incluir o bloco também no BeltOrderPage.
+- Quando `FichaEditContext` ativo E `role === admin_master`, transformar em `<input type="number">`. Alteração local; ao clicar **"salvar versão"**, faz `UPDATE ficha_tipos SET lead_time_dias = N` antes de gerar o snapshot da nova versão.
+- Enquanto não salva a versão, badge "editado — salve a versão para aplicar".
 
-**Ficha da Bota / Cinto (modo edição)**
-- No `FichaBuilder.tsx` (usado por `AdminConfigFichaPage`), adicionar um campo compacto no topo: “Prazo de produção (dias úteis)” com input numérico ligado a `ficha_tipos.lead_time_dias`. Botão "salvar" reaproveita o fluxo existente (ou um mini-save dedicado ao campo). Só edição por `admin_master`/`admin_producao` (mesma regra da página).
+**fichaVersoes.ts:** incluir `ficha_tipo` (com `lead_time_dias`) no `FichaSnapshot`. `salvarNovaVersao(fichaTipoId, descricao, overrideLeadTime?)` aplica o override antes do snapshot.
 
-**Extras (popover do card)**
-- Em `src/components/extras/ExtraProdutoEditPopover.tsx`, adicionar acima das variações: input “Prazo (dias úteis)” persistindo `extra_produtos.lead_time_dias` via `useUpdateExtraProduto` (já aceita patch parcial).
+Pedidos novos continuam gravando `orders.lead_time_snapshot` (já implementado). Pedidos antigos não são tocados.
 
-### 5. Tipos e hooks
+---
 
-- Estender `ExtraProdutoDB` (em `useExtraProdutos.ts`) com `lead_time_dias: number`.
-- `src/integrations/supabase/types.ts` é regenerado automaticamente após a migration; não editar à mão.
+## 3. Prefixo de vendedor + numeração automática
 
-### 6. Não mexer
+**Migração (schema):**
+- `ALTER TABLE public.profiles ADD COLUMN pedido_prefixo text;`
+- RPC `public.next_order_numero(_prefixo text) RETURNS text` (security definer, grant a `authenticated`):
+  `SELECT COALESCE(MAX((regexp_replace(numero,'^'||_prefixo,''))::int),0)+1 FROM orders WHERE numero ~ ('^'||_prefixo||'\d+$')` → retorna `_prefixo || N`.
 
-- Nada em pedidos antigos: sem backfill de `lead_time_snapshot`, sem recomputar prazos históricos.
-- Regra `BOTA_25DU_CUTOFF` continua no código só como fallback dos pedidos antigos sem snapshot.
-- Cutoff por horário (06h ficha / 12h extras), carimbo vinculado à bota e demais regras seguem intactos.
+**Data (insert tool):** `UPDATE profiles SET pedido_prefixo='RC' WHERE login='rancho_chique'` (confirmar login no exec).
 
-## Detalhes técnicos
+**UsersManagementPage.tsx:** novo input "Prefixo de pedido" visível quando `role ∈ {vendedor, vendedor_comissao}`. Persiste em `profiles.pedido_prefixo`.
 
-- Grants: as duas tabelas já têm grants; `ALTER TABLE` não requer novos GRANTs.
-- Sem novas policies necessárias — edição de `ficha_tipos`/`extra_produtos` já é restrita a admins pelas policies atuais.
-- Migration incluirá `UPDATE` para popular `lead_time_dias` inicial de cada `ficha_tipos` (por slug) e de cada `extra_produtos` existente (por id).
+**Auto-preenchimento do número:**
+- Vendedor com `pedido_prefixo` E não é `estoque` / `juliana` / `rancho_chique` (site): campo `numero` **readonly**, preenchido via `next_order_numero(prefixo)` ao abrir formulário.
+- Rancho Chique (prefixo `RC` mas número vem da Bagy): campo continua editável.
+- Estoque / Juliana / vendedores sem prefixo: comportamento atual.
+- Admin (`admin_master`/`admin_producao`) criando pedido: após selecionar vendedor, se ele se enquadra, número é auto-preenchido e readonly; se trocar vendedor, recalcula.
+
+Locais: `OrderPage.tsx`, `BeltOrderPage.tsx`, `ExtrasPage.tsx`. Edição (`EditOrderPage`, `EditBeltPage`, `EditExtrasPage`) não recalcula.
+
+Concorrência: `useCheckDuplicateOrder` já valida colisão; volume baixo, sem lock adicional.
+
+---
+
+## Ordem de execução
+
+1. Bug do preço com resolução por versão da ficha (item 1).
+2. Migração `profiles.pedido_prefixo` + RPC `next_order_numero`.
+3. UI de prefixo em UsersManagementPage + auto-preenchimento nas 3 páginas de criação.
+4. Prazo editável + snapshot na versão da ficha.

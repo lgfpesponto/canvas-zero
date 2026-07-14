@@ -16,6 +16,7 @@ import {
   type FindFichaPrice,
   type GetByCategoria,
 } from '@/lib/recomputeOrderPrice';
+import { loadSnapshotIndex, buildFindFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 
 const CHUNK = 10;
 
@@ -38,7 +39,9 @@ export async function recomputePricesBatch(
 
   const processOne = async (o: Order) => {
     try {
-      const target = computeTotalToSave(o, findFichaPrice, getByCategoria);
+      await loadSnapshotIndex((o as any).fichaVersaoId);
+      const perOrderFind = buildFindFichaPriceForOrder(o, findFichaPrice);
+      const target = computeTotalToSave(o, perOrderFind, getByCategoria);
       const current = Number(o.preco) || 0;
       const diff = Math.abs(target - current);
       // Atualiza se mudou OU se ainda não foi migrado (garante flag = true).

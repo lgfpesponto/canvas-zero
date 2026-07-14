@@ -11,6 +11,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { computeTotalToSave, type FindFichaPrice, type GetByCategoria } from './recomputeOrderPrice';
+import { loadSnapshotIndex, buildFindFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import type { Order } from '@/contexts/AuthContext';
 
 const THROTTLE_MS = 200; // 5/s
@@ -52,7 +53,9 @@ async function worker() {
       inFlight.add(id);
 
       try {
-        const expected = computeTotalToSave(order, findFn, getCatFn);
+        await loadSnapshotIndex((order as any).fichaVersaoId);
+        const perOrderFind = buildFindFichaPriceForOrder(order, findFn);
+        const expected = computeTotalToSave(order, perOrderFind, getCatFn);
         const before = Number(order.preco) || 0;
         const patch: any = { preco_migrado_v2: true };
         if (Math.abs(expected - before) >= 1) patch.preco = expected;

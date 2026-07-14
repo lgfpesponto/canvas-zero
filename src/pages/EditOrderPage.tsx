@@ -11,6 +11,7 @@ import { Link2, X, Save, ArrowLeft, Search } from 'lucide-react';
 import { TemplateTag } from '@/components/orders/TemplateTag';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import { useEditWithJustification } from '@/hooks/useEditWithJustification';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 import {
@@ -119,7 +120,8 @@ const EditOrderPage = () => {
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order } = useOrderById(id);
   const { getByCategoria, loading: customOptsLoading } = useCustomOptions();
-  const { findFichaPrice, getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
+  const { getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
+  const { findFichaPrice } = useFichaPriceForOrder(order);
   const catalogReady = !customOptsLoading && !fichaLoading;
 
   // Unified hardcoded list — keeps bota/cinto/extras consistent.
@@ -420,7 +422,7 @@ const EditOrderPage = () => {
   if (!isAdmin) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Acesso restrito ao administrador.</p></div>;
   if (!order) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Pedido não encontrado.</p></div>;
 
-  const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
+  const modeloPreco = findFichaPrice(modelo, 'modelo') ?? MODELOS.find(m => m.label === modelo)?.preco ?? 0;
   const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
   const couroPreco = [
     [tipoCouroCano, 'couro_cano'],
@@ -474,10 +476,10 @@ const EditOrderPage = () => {
   const cruzMetalPrecoTotal = cruzMetal ? cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO) : 0;
   const bridaoMetalPrecoTotal = bridaoMetal ? bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO) : 0;
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
-  const soladoPreco = SOLADO.find(s => s.label === solado)?.preco || 0;
+  const soladoPreco = findFichaPrice(solado, 'solado') ?? SOLADO.find(s => s.label === solado)?.preco ?? 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
-  const corSolaPreco = corSolaOptsForPrice?.find(c => c.label === corSola)?.preco || 0;
-  const corViraPreco = COR_VIRA.find(c => c.label === corVira)?.preco || 0;
+  const corSolaPreco = findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
+  const corViraPreco = findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
   const hasAnyLaser = laserCano.length > 0 || laserGaspea.length > 0 || laserTaloneira.length > 0;
 
