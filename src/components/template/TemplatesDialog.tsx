@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'sonner';
-import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff, AlertTriangle } from 'lucide-react';
+import { Send, Pencil, Trash2, MoreVertical, ChevronLeft, ChevronRight, ImageOff, AlertTriangle, Filter } from 'lucide-react';
+import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha } from '@/lib/fichaFilterKeys';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
