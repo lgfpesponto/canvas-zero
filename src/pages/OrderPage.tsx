@@ -337,6 +337,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [corCouroGaspea, setCorCouroGaspea] = useState(df.corCouroGaspea || '');
   const [tipoCouroTaloneira, setTipoCouroTaloneira] = useState(df.tipoCouroTaloneira || '');
   const [corCouroTaloneira, setCorCouroTaloneira] = useState(df.corCouroTaloneira || '');
+  // Flags visuais "Sugerido" quando o campo foi auto-preenchido por propagação.
+  type CouroSug = { tipoCano?: boolean; tipoGaspea?: boolean; tipoTaloneira?: boolean; corCano?: boolean; corGaspea?: boolean; corTaloneira?: boolean };
+  const [couroSug, setCouroSug] = useState<CouroSug>({});
 
   // desenvolvimento LEGACY (pedidos antigos com Bordado/Laser/Estampa como valor único)
   const [desenvolvimento, setDesenvolvimento] = useState(df.desenvolvimento || '');
