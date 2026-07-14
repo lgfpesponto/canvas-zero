@@ -11,6 +11,7 @@ import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, Chevr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BagyFichaDialog, type BagyFichaQueueItem } from '@/components/bagy/BagyFichaDialog';
+import { bagyLetterSuffix } from '@/lib/bagySuffix';
 
 type BagyPedido = {
   id: string;
@@ -238,12 +239,30 @@ const RanchoChiquePedidosPage = () => {
     setFichaQueue(queue);
   };
 
-  /** Constrói a fila a partir de um pedido (todos os itens elegíveis dele). */
+  /** Constrói a fila a partir de um pedido — expande cada item pela sua quantidade (1 par = 1 ficha).
+   * Se houver mais de 1 par no pedido inteiro (soma das quantidades), aplica sufixo A/B/C...
+   */
   const queueFromPedido = (p: BagyPedido): BagyFichaQueueItem[] => {
-    const itens = itensByPed[p.id] || [];
-    return itens
-      .filter(i => i.status === 'aguardando_ficha' && !!i.template_id)
-      .map(i => ({ pedidoId: p.id, itemId: i.id }));
+    const itens = (itensByPed[p.id] || []).filter(i => i.status === 'aguardando_ficha' && !!i.template_id);
+    const totalPares = itens.reduce((s, i) => s + Math.max(1, i.quantidade || 1), 0);
+    const numeroBase = `RC-${p.numero_bagy}`;
+    const out: BagyFichaQueueItem[] = [];
+    let idx = 0;
+    for (const it of itens) {
+      const q = Math.max(1, it.quantidade || 1);
+      for (let k = 0; k < q; k++) {
+        const suffix = totalPares > 1 ? bagyLetterSuffix(idx) : '';
+        out.push({
+          pedidoId: p.id,
+          itemId: it.id,
+          unitIndex: k,
+          unitTotalItem: q,
+          numeroOverride: numeroBase + suffix,
+        });
+        idx++;
+      }
+    }
+    return out;
   };
 
   /** Constrói a fila a partir de vários pedidos selecionados. */
