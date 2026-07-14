@@ -95,7 +95,7 @@ const ExtrasPage = () => {
     ? (allProfiles.find(p => p.nomeCompleto === (form.vendedorSelecionado || '')) || null)
     : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
   const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
-  useEffect(() => { if (numeroIsAuto && autoNumero && !form.numeroPedidoBota) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); if (numeroIsAuto && autoNumero) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); }, [numeroIsAuto, autoNumero]);
+  useEffect(() => { if (numeroIsAuto && autoNumero) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); }, [numeroIsAuto, autoNumero]);
 
   // Gravata stock
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
