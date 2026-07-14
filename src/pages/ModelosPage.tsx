@@ -336,7 +336,7 @@ const ModelosPage = () => {
 
   if (authLoading) return <div className="min-h-[60vh]" />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
-  if (role === 'bordado' || role === 'montagem' || role === 'admin_producao') {
+  if (role === 'bordado' || role === 'montagem') {
     return <Navigate to="/" replace />;
   }
 
