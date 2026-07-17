@@ -154,25 +154,32 @@ function CategoriaBlock({
   const [collapsed, setCollapsed] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nome, setNome] = useState(categoria.nome);
+  const [addCampoOpen, setAddCampoOpen] = useState(false);
+  const [novoCampoNome, setNovoCampoNome] = useState('');
+  const [novoCampoTipo, setNovoCampoTipo] = useState<'selecao' | 'multipla' | 'checkbox' | 'texto'>('selecao');
+  const [novoCampoObrig, setNovoCampoObrig] = useState(false);
 
   const insertCampo = useInsertFichaCampo();
 
-  const handleAddCampo = async () => {
-    const nomeCampo = window.prompt('Nome do novo campo (ex: "Cor do Cano"):');
-    if (!nomeCampo) return;
-    const tipo = window.prompt('Tipo (texto | selecao | multipla | checkbox):', 'selecao') || 'selecao';
-    const slug = nomeCampo.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const handleAddCampoConfirm = async () => {
+    const nomeCampo = novoCampoNome.trim();
+    if (!nomeCampo) { toast.error('Informe o nome do campo'); return; }
+    const slug = nomeCampo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     await insertCampo.mutateAsync({
       ficha_tipo_id: fichaTipoId,
       categoria_id: categoria.id,
-      nome: nomeCampo, slug, tipo,
-      obrigatorio: false,
+      nome: nomeCampo, slug, tipo: novoCampoTipo,
+      obrigatorio: novoCampoObrig,
       ordem: camposDaCat.length + 1,
-      opcoes: [],
+      opcoes: novoCampoTipo === 'checkbox' ? [{ label: 'sim', preco_adicional: 0 }] : [],
       vinculo: null,
       desc_condicional: false,
     });
     toast.success('Campo criado');
+    setAddCampoOpen(false);
+    setNovoCampoNome('');
+    setNovoCampoTipo('selecao');
+    setNovoCampoObrig(false);
   };
 
   const totalVars = camposDaCat.reduce(
