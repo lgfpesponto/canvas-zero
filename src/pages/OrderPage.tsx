@@ -1989,12 +1989,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             return (
               <Section title="Couros">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
+                  <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={mergeFieldOptions('couro_cano', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
                   <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={v => handleCorChange('Cano', v)} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required suggested={!!couroSug.corCano && !!corCouroCano} />
-                  <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => handleTipoChange('Gaspea', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoGaspea && !!tipoCouroGaspea} />
+                  <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => handleTipoChange('Gaspea', v)} options={mergeFieldOptions('couro_gaspea', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoGaspea && !!tipoCouroGaspea} />
                   <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={v => handleCorChange('Gaspea', v)} options={getDynCoresCouro(tipoCouroGaspea, 'couro_gaspea', 'cor_couro_gaspea')} required suggested={!!couroSug.corGaspea && !!corCouroGaspea} />
-                  <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => handleTipoChange('Taloneira', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoTaloneira && !!tipoCouroTaloneira} />
+                  <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => handleTipoChange('Taloneira', v)} options={mergeFieldOptions('couro_taloneira', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoTaloneira && !!tipoCouroTaloneira} />
                   <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={v => handleCorChange('Taloneira', v)} options={getDynCoresCouro(tipoCouroTaloneira, 'couro_taloneira', 'cor_couro_taloneira')} required suggested={!!couroSug.corTaloneira && !!corCouroTaloneira} />
+
                 </div>
               </Section>
             );
