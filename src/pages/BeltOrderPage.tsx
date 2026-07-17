@@ -846,7 +846,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           <Section title="Fivela">
             <div>
               <label className={cls.label + ' inline-flex items-center'}>Fivela{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Fivela" defaultTipo="selecao" /></label>
-              <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
+              <SearchableSelect options={mergeBeltOptions('fivela', FIVELA_OPTIONS as string[])} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
             </div>
             {fivela === 'Outro' && (
               <div className="mt-3">
