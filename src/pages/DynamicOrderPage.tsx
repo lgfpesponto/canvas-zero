@@ -326,12 +326,13 @@ export default function DynamicOrderPage() {
   );
 }
 
-function DynamicField({ campo, value, onChange }: {
+function DynamicField({ campo, opcoes, value, onChange }: {
   campo: { nome: string; slug: string; tipo: string; obrigatorio: boolean; desc_condicional: boolean; opcoes: any };
+  opcoes?: CampoOpcao[];
   value: any;
   onChange: (val: any) => void;
 }) {
-  const opcoes: CampoOpcao[] = Array.isArray(campo.opcoes) ? campo.opcoes : [];
+  const opcoesEff: CampoOpcao[] = opcoes ?? (Array.isArray(campo.opcoes) ? campo.opcoes : []);
   const [descText, setDescText] = useState('');
 
   switch (campo.tipo) {
