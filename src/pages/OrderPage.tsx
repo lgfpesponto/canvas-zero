@@ -1064,8 +1064,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
   const soladoPreco = findFichaPrice(solado, 'solado') ?? SOLADO.find(s => s.label === solado)?.preco ?? 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
-  const corSolaPreco = findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
-  const corViraPreco = findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
+  const corSolaSelections = { solado, formato_bico: formatoBico, modelo };
+  const corSolaPreco = findFichaPriceContextual(corSola, 'cor_sola', corSolaSelections) ?? findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
+  const corViraPreco = findFichaPriceContextual(corVira, 'cor_vira', corSolaSelections) ?? findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
 
   // Recortes (preço configurável via admin; fallback 0)
