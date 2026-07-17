@@ -226,6 +226,7 @@ export function useUpdateVariacao() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       qc.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
+      qc.invalidateQueries({ queryKey: ['dynamic_field_filter_bota'] });
       if (res?.id) void syncVariacaoById(res.id);
     },
   });
