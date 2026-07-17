@@ -88,7 +88,7 @@ export function useFichaVariacoesLookup() {
         if (rels.length === 0) return false;
         return rels.every(([slug, allowed]) => {
           const sel = selections[slug];
-          return !!sel && allowed.some(v => norm(v) === norm(sel));
+          return !!sel && (allowed as string[]).some(v => norm(v) === norm(sel));
         });
       });
       if (contextual.length > 0) {
