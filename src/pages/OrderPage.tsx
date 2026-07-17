@@ -2004,11 +2004,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           {/* PESPONTO */}
           <Section title="Pesponto">
             <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
-              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} required />
+              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={mergeFieldOptions('cor_linha', COR_LINHA as string[])} required />
               {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
                 <>
-                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} required />
-                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} required />
+                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={mergeFieldOptions('cor_borrachinha', COR_BORRACHINHA as string[])} required />
+                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={mergeFieldOptions('cor_vivo', COR_VIVO as string[])} required />
                 </>
               )}
             </div>
