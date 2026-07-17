@@ -2120,11 +2120,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           {/* METAIS */}
           <Section title="Metais">
             <div className="grid sm:grid-cols-3 gap-4">
-              <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={AREA_METAL} />
+              <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={mergeFieldOptions('area_metal', AREA_METAL as any)} />
               <div>
                 <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
-                  {TIPO_METAL.map(t => (
+                  {mergeFieldOptions('tipo_metal', TIPO_METAL as string[]).map(t => (
                     <label key={t} className={cls.checkItem}>
                       <input type="checkbox" checked={tipoMetal.includes(t)} onChange={e => {
                         if (e.target.checked) setTipoMetal(prev => [...prev, t]);
@@ -2135,7 +2135,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   ))}
                 </div>
               </div>
-              <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={COR_METAL} />
+              <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={mergeFieldOptions('cor_metal', COR_METAL as string[])} />
             </div>
 
             {/* Linha fina ilustrativa separando Área/Tipo/Cor dos metais quantificáveis */}
