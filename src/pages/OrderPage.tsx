@@ -244,7 +244,7 @@ export interface OrderPageProps {
 const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
-  const { findFichaPrice, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
+  const { findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
 
   /** Returns filtered color options for a leather part.
@@ -1064,8 +1064,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
   const soladoPreco = findFichaPrice(solado, 'solado') ?? SOLADO.find(s => s.label === solado)?.preco ?? 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
-  const corSolaPreco = findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
-  const corViraPreco = findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
+  const corSolaSelections = { solado, formato_bico: formatoBico, modelo };
+  const corSolaPreco = findFichaPriceContextual(corSola, 'cor_sola', corSolaSelections) ?? findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
+  const corViraPreco = findFichaPriceContextual(corVira, 'cor_vira', corSolaSelections) ?? findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
 
   // Recortes (preço configurável via admin; fallback 0)
@@ -1985,20 +1986,26 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           <Section title="Solado">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {(() => {
-                const withDbPrice = (opts: { label: string; preco: number }[], cat: string) =>
-                  opts.map(o => ({ ...o, preco: findFichaPrice(o.label, cat) ?? o.preco }));
+                const withDbPrice = (opts: { label: string; preco: number }[], cat: string, selections?: Record<string, string>) =>
+                  opts.map(o => ({
+                    ...o,
+                    preco: (selections ? findFichaPriceContextual(o.label, cat, selections) : undefined)
+                      ?? findFichaPrice(o.label, cat)
+                      ?? o.preco,
+                  }));
                 const soladoOpts = withDbPrice(getSoladosForModelo(modelo, formatoBico), 'solado');
                 const corSolaOpts = getCorSolaOptions(modelo, solado, formatoBico);
                 const corViraOpts = getCorViraOptions(modelo, solado);
+                const solSel = { solado, formato_bico: formatoBico, modelo };
                 return (
                   <>
                     <SelectField label="Tipo de Solado" value={solado} onChange={handleSoladoChange} options={soladoOpts} required />
                     <SelectField label="Formato do Bico" value={formatoBico} onChange={handleBicoChange} options={getBicosForModeloSolado(modelo, solado, tamanho)} required />
                     {corSolaOpts !== null && (
-                      <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={withDbPrice(corSolaOpts, 'cor_sola')} required />
+                      <SelectField label="Cor da Sola" value={corSola} onChange={setCorSola} options={withDbPrice(corSolaOpts, 'cor_sola', solSel)} required />
                     )}
                     {corViraOpts.length > 1 && (
-                      <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={withDbPrice(corViraOpts, 'cor_vira')} />
+                      <SelectField label="Cor da Vira" value={corVira} onChange={setCorVira} options={withDbPrice(corViraOpts, 'cor_vira', solSel)} />
                     )}
                   </>
                 );

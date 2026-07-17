@@ -67,9 +67,40 @@ export function useFichaVariacoesLookup() {
   const findFichaPrice = useCallback((itemName: string, customCat: string): number | undefined => {
     const fichaSlug = CATEGORY_MAP[customCat];
     if (!fichaSlug) return undefined;
-    const found = items.find(i => i.categoria_slug === fichaSlug && i.nome === itemName);
-    return found ? found.preco_adicional : undefined;
+    // Prefer a variação SEM relacionamento (preço "geral"), evitando pegar
+    // uma variação contextual de mesmo nome com preço diferente.
+    const unscoped = items.find(i => i.categoria_slug === fichaSlug && i.nome === itemName && !i.relacionamento);
+    if (unscoped) return unscoped.preco_adicional;
+    const any = items.find(i => i.categoria_slug === fichaSlug && i.nome === itemName);
+    return any ? any.preco_adicional : undefined;
   }, [items]);
+
+  const norm = (v: string) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  const findFichaPriceContextual = useCallback(
+    (itemName: string, customCat: string, selections: Record<string, string> = {}): number | undefined => {
+      const fichaSlug = CATEGORY_MAP[customCat];
+      if (!fichaSlug || !itemName) return undefined;
+
+      const contextual = items.filter(i => {
+        if (i.categoria_slug !== fichaSlug || norm(i.nome) !== norm(itemName) || !i.relacionamento) return false;
+        const rels = Object.entries(i.relacionamento).filter(([, arr]) => Array.isArray(arr) && arr.length > 0);
+        if (rels.length === 0) return false;
+        return rels.every(([slug, allowed]) => {
+          const sel = selections[slug];
+          return !!sel && (allowed as string[]).some(v => norm(v) === norm(sel));
+        });
+      });
+      if (contextual.length > 0) {
+        contextual.sort((a, b) => Object.keys(b.relacionamento || {}).length - Object.keys(a.relacionamento || {}).length);
+        return contextual[0].preco_adicional;
+      }
+
+      const unscoped = items.find(i => i.categoria_slug === fichaSlug && norm(i.nome) === norm(itemName) && !i.relacionamento);
+      return unscoped ? unscoped.preco_adicional : undefined;
+    },
+    [items],
+  );
 
   const findFoto = useCallback((itemName: string, customCat: string): string | null => {
     const fichaSlug = CATEGORY_MAP[customCat];
@@ -84,7 +115,7 @@ export function useFichaVariacoesLookup() {
     return found?.foto_url || null;
   }, [items]);
 
-  return { items, loading, getByCustomCategory, findFichaPrice, findFoto, findFotoByName };
+  return { items, loading, getByCustomCategory, findFichaPrice, findFichaPriceContextual, findFoto, findFotoByName };
 }
 
 
