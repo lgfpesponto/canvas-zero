@@ -69,12 +69,23 @@ export default function DynamicOrderPage() {
     [campos]
   );
 
+  // Mescla opcoes salvas em ficha_campos.opcoes com variações criadas via editor (ficha_variacoes).
+  const _dnorm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const getEffectiveOpcoes = (campo: any): CampoOpcao[] => {
+    const base: CampoOpcao[] = Array.isArray(campo?.opcoes) ? campo.opcoes : [];
+    const seen = new Set(base.map(o => _dnorm(o.label)));
+    const extras = (allVariacoes || [])
+      .filter((v: any) => v.campo_id === campo.id && !seen.has(_dnorm(v.nome)))
+      .map((v: any) => ({ label: v.nome, preco_adicional: Number(v.preco_adicional) || 0 }));
+    return [...base, ...extras];
+  };
+
   // Calculate total price including option surcharges
   const totalPreco = useMemo(() => {
     let total = precoBase;
     for (const campo of activeCampos) {
       if (!['selecao', 'multipla'].includes(campo.tipo)) continue;
-      const opcoes: CampoOpcao[] = Array.isArray(campo.opcoes) ? campo.opcoes as any : [];
+      const opcoes = getEffectiveOpcoes(campo);
       const val = values[campo.slug];
       if (campo.tipo === 'selecao' && val) {
         const opt = opcoes.find(o => o.label === val);
@@ -88,7 +99,8 @@ export default function DynamicOrderPage() {
       }
     }
     return total * quantidade;
-  }, [precoBase, quantidade, values, activeCampos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [precoBase, quantidade, values, activeCampos, allVariacoes]);
 
   const updateValue = (slug: string, val: any) => {
     setValues(prev => ({ ...prev, [slug]: val }));
