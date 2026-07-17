@@ -1060,7 +1060,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   /* ───── price calculation ───── */
   const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
-  const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
+  const acessoriosPreco = acessorios.reduce((sum, a) => sum + (findFichaPrice(a, 'acessorios') ?? ACESSORIOS.find(x => x.label === a)?.preco ?? 0), 0);
   const couroPreco = [
     [tipoCouroCano, 'couro_cano'],
     [tipoCouroGaspea, 'couro_gaspea'],
