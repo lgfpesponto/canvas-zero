@@ -32,6 +32,7 @@ export interface FichaVariacao {
   ativo: boolean;
   ordem: number;
   foto_url?: string | null;
+  relacionamento?: Record<string, string[]> | null;
 }
 
 
