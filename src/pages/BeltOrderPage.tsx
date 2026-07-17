@@ -837,7 +837,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cor do Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Cor do Couro" defaultTipo="selecao" /></label>
-                <SearchableSelect options={getCoresCouroFiltradas(tipoCouro)} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
+                <SearchableSelect options={mergeBeltOptions('cor_couro', getCoresCouroFiltradas(tipoCouro), tipoCouro ? { tipo_couro: tipoCouro } : {})} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
           </Section>
