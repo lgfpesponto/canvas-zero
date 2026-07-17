@@ -355,7 +355,7 @@ function DynamicField({ campo, opcoes, value, onChange }: {
           <Select value={value || ''} onValueChange={onChange}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>
-              {opcoes.map(o => (
+              {opcoesEff.map(o => (
                 <SelectItem key={o.label} value={o.label}>
                   {o.label} {o.preco_adicional ? `(+R$ ${o.preco_adicional.toFixed(2)})` : ''}
                 </SelectItem>
@@ -373,7 +373,7 @@ function DynamicField({ campo, opcoes, value, onChange }: {
             {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <div className="grid gap-2 sm:grid-cols-2">
-            {opcoes.map(o => (
+            {opcoesEff.map(o => (
               <label key={o.label} className="flex items-center gap-2 rounded border border-border p-2 cursor-pointer hover:bg-muted/50">
                 <Checkbox
                   checked={selected.includes(o.label)}
