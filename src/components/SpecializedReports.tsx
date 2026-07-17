@@ -1189,6 +1189,72 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       y += rowH;
     }
 
+    // ── Seção "Acessórios": pedidos com Kit Faca / Kit Canivete ──
+    const isKit = (s: string) => {
+      const l = s.toLowerCase();
+      return l.includes('kit faca') || l.includes('kitfaca')
+          || l.includes('kit canivete') || l.includes('kitcanivete');
+    };
+    const acessOrders = filtered.filter(o => o.acessorios && isKit(o.acessorios));
+
+    if (acessOrders.length > 0) {
+      if (y + 20 > 280) { doc.addPage(); y = 20; } else { y += 6; }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Acessórios', mx, y);
+      y += 4;
+      y = drawTableHeader(doc, y, mx, cw, [
+        { label: 'Nº PEDIDO', x: cx[0] + 2 },
+        { label: 'DESCRIÇÃO DO CORTE', x: cx[1] + 2 },
+        { label: 'QR CODE', x: cx[2] + 2 },
+        { label: 'CHECK', x: cx[3] + 1 },
+      ]);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+
+      for (const o of acessOrders) {
+        const parts: string[] = [];
+        const kits = (o.acessorios || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s && isKit(s));
+        if (kits.length) parts.push(kits.join(', '));
+        if (o.couroCano || o.corCouroCano) parts.push(`Cano: ${o.couroCano || ''} ${o.corCouroCano || ''}`.trim());
+        if (o.observacao) parts.push(`Obs: ${o.observacao}`);
+
+        const descText = parts.join('\n');
+        const lines = doc.splitTextToSize(descText, cols[1] - 4);
+        const rowH = Math.max(20, lines.length * 3 + 6);
+
+        if (y + rowH > 280) { doc.addPage(); y = 20; }
+        drawTableRow(doc, y, mx, cw, cols, rowH);
+
+        try {
+          const bcVal = orderBarcodeValue(o.numero, o.id);
+          const bcImg = barcodeDataUrl(bcVal, { width: 1, height: 30 });
+          if (bcImg) doc.addImage(bcImg, 'PNG', cx[0] + 2, y + 2, 38, 8);
+        } catch {}
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text(o.numero, cx[0] + cols[0] / 2, y + 14, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+
+        doc.setFontSize(6);
+        doc.text(lines, cx[1] + 2, y + 4);
+
+        const fotoUrl = o.fotos?.[0];
+        if (fotoUrl) {
+          const qr = await qrDataUrl(fotoUrl);
+          if (qr) try { doc.addImage(qr, 'PNG', cx[2] + 2, y + (rowH - 14) / 2, 14, 14); } catch {}
+        }
+
+        doc.setLineWidth(0.3);
+        doc.rect(cx[3] + (cols[3] - 5) / 2, y + (rowH - 5) / 2, 5, 5);
+
+        y += rowH;
+      }
+    }
+
     stampPageNumbers(doc);
     void recordPrintHistory(filtered.map(o => o.id), 'Corte', userName);
     void registrarPdfSnapshot({ tipo: 'corte', filtros: { progresso: [...filterProgresso] }, orderIds: filtered.map(o => o.id), totais: { qtd_pedidos: filtered.length } });

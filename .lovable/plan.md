@@ -1,46 +1,34 @@
-# Editor de ficha inline — corrigir sem quebrar regras
+## Objetivo
 
-Regra confirmada: **somente `admin_master` pode editar a ficha**. `admin_producao` (Fernanda/Mariana) **não** pode. Nenhum pedido antigo é alterado — o mecanismo de "nova versão" (`salvarNovaVersao` + snapshots de preço e `lead_time_snapshot`) já garante isso e não será tocado.
+No PDF do **Relatório de Corte**, após a última linha da tabela principal, acrescentar uma seção **"Acessórios"** com linhas extras (mesma tabela / mesmas 4 colunas: Nº PEDIDO · DESCRIÇÃO DO CORTE · QR CODE · CHECK).
 
-## O que continua exatamente como está
+O pedido continua aparecendo normalmente na lista principal — e, **se tiver Kit Canivete ou Kit Faca nos acessórios, aparece novamente** dentro da seção "Acessórios" (linha duplicada, propositalmente).
 
-- Fluxo de "salvar nova versão" — pedidos antigos permanecem intactos.
-- Snapshots de preço, `lead_time_snapshot`, `ficha_versoes`.
-- Regras de preço obrigatório (`priceValidation.ts`) e regras de cor/couro contextuais.
-- Cache invalidations em `useInsertVariacao` / `useUpdateVariacao`.
+## Alterações
 
-## Correções
+Arquivo único: `src/components/SpecializedReports.tsx`, função `generateCortePDF` (~linhas 1068–1196). Nada muda antes do `stampPageNumbers`; só é acrescentado um bloco novo depois do loop principal.
 
-### 1. Restringir editor de ficha a `admin_master`
-- `src/components/orders/EditFichaButton.tsx`: mudar a guarda para `user.role === 'admin_master'` apenas — remover `admin_producao`.
-- `src/components/ficha-edit/FichaEditToggle.tsx` já usa `isAdmin` do `FichaEditContext`, que já é `admin_master` — nenhuma mudança.
-- `src/contexts/FichaEditContext.tsx`: já correto (`isAdmin = role === 'admin_master'`).
-- Não mexer em RLS (proteção server-side segue como está).
+1. Após o `for (const o of filtered) { … }`, filtrar do próprio `filtered`:
+   ```ts
+   const acessOrders = filtered.filter(o => {
+     const s = (o.acessorios || '').toLowerCase();
+     return s.includes('kit faca') || s.includes('kitfaca')
+         || s.includes('kit canivete') || s.includes('kitcanivete');
+   });
+   ```
+2. Se `acessOrders.length > 0`:
+   - Se `y` estiver perto do fim da página → `doc.addPage(); y = 20;`. Caso contrário, `y += 6`.
+   - Título de seção **"Acessórios"** (helvetica bold, 11pt) em `mx, y`; `y += 6`.
+   - Redesenhar o cabeçalho da tabela via `drawTableHeader(doc, y, mx, cw, [...])` com os mesmos rótulos/`cx` já usados acima.
+3. Para cada `o` em `acessOrders`, montar `parts` **apenas** com:
+   - Os itens de `o.acessorios` que contenham "kit faca"/"kitfaca"/"kit canivete"/"kitcanivete" (split por vírgula, filtro case-insensitive, mantendo o texto original).
+   - `Cano: ${o.couroCano || ''} ${o.corCouroCano || ''}` (só se algum estiver preenchido).
+   - `Obs: ${o.observacao}` (só se preenchido).
+   Renderizar a linha idêntica às da tabela principal: mesmo cálculo de `rowH`, mesma quebra de página, código de barras + nº do pedido na coluna 1, descrição 6pt na coluna 2, QR na coluna 3 (a partir de `o.fotos?.[0]`), checkbox na coluna 4.
+4. Nada muda em: filtros de origem, ordenação da lista principal, `recordPrintHistory`, `registrarPdfSnapshot`, layout/colunas, outros relatórios.
 
-### 2. Novas variações não aparecem em campos que ainda leem só constantes
-O plano anterior em `.lovable/plan.md` já cobre a maior parte para bota (couros, cores, bordado, laser, recorte, metais, glitter, linha, borrachinha, vivo — via `mergeFieldOptions` no `OrderPage`). Fechar os dois pontos que faltam:
+## Regras respeitadas
 
-- **Acessórios (bota)**: `OrderPage.tsx` linha 2181 usa `ACESSORIOS` puro. Trocar por `mergeFieldOptions('acessorios', ACESSORIOS)` e, no cálculo de `acessoriosPreco` (linha 1063) e no snapshot (linha 1502), usar `findFichaPrice(nome, 'acessorios') ?? ACESSORIOS.find(...)?.preco ?? 0`.
-- **Cinto / extras (`DynamicOrderPage`, `BeltOrderPage`, `EditBeltPage`)**: hoje não importam `useFichaVariacoesLookup`/`useDynamicFieldFilter` nem fazem merge. Criar um `mergeFieldOptions` local (mesma assinatura da bota) e aplicar em cada `SelectField`/`MultiSelect` que hoje lê constante hardcoded (cor de couro, tipo de couro, fivela, cor de fivela, bordado, laser, recorte). Preço via `findFichaPriceContextual` com fallback para a constante.
-
-### 3. Criar campo novo com typo silencioso
-`handleAddCampo` (dentro do dialog) usa `window.prompt('Tipo (texto | selecao | multipla | checkbox)', 'selecao')`. Se o admin digitar "seleção" acentuado, o campo entra quebrado. Substituir por um mini `Dialog` com Input (nome) + Select fechado (`seleção / múltipla / checkbox / texto`) + Switch (obrigatório). Sem mudar schema.
-
-## Fora deste plano
-
-- Não altera lógica de snapshot / preço congelado.
-- Não altera pedidos existentes.
-- Não altera RLS nem edge functions.
-- Não altera nada para `admin_master` além de melhorar o form de criar campo.
-
-## Detalhes técnicos
-
-- Arquivos tocados: `src/components/orders/EditFichaButton.tsx`, `src/components/admin/FichaVersaoEditorDialog.tsx`, `src/pages/OrderPage.tsx`, `src/pages/DynamicOrderPage.tsx`, `src/pages/BeltOrderPage.tsx`, `src/pages/EditBeltPage.tsx`.
-- Sem migração SQL. Sem edge functions.
-
-## Como validar
-
-1. Logar como `admin_producao` → botão "editar ficha" some no formulário de pedido.
-2. Logar como `admin_master` → botão continua, dialog funciona igual, com o mini-form novo para criar campo.
-3. Adicionar variação nova em **Acessórios**, **Cinto → Cor da Fivela** e **Cinto → Cor Couro** → aparece no formulário respectivo com o preço cadastrado.
-4. Abrir um pedido antigo → nada muda (snapshot preservado).
+- Só leitura/apresentação; nenhum dado de pedido é alterado.
+- Seção só aparece se houver pedidos com kitfaca/kitcanivete.
+- Continua respeitando os mesmos filtros (progresso + período) já aplicados ao relatório.
