@@ -2178,7 +2178,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* EXTRAS (Acessórios + Tricê + Tiras + Franja + Corrente + Carimbo a Fogo) */}
           <Section title="Extras">
-            <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
+            <MultiSelect label="Acessórios" items={mergeFieldOptions('acessorios', ACESSORIOS as { label: string; preco: number }[])} selected={acessorios} onChange={setAcessorios} />
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
             <div className="space-y-2">
