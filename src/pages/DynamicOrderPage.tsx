@@ -147,7 +147,7 @@ export default function DynamicOrderPage() {
           snapshot[campo.slug] = val;
           // Include price snapshot for selecao/multipla
           if (['selecao', 'multipla'].includes(campo.tipo)) {
-            const opcoes: CampoOpcao[] = Array.isArray(campo.opcoes) ? campo.opcoes as any : [];
+            const opcoes = getEffectiveOpcoes(campo);
             if (campo.tipo === 'selecao') {
               const opt = opcoes.find(o => o.label === val);
               if (opt) snapshot[`${campo.slug}_preco`] = opt.preco_adicional;
