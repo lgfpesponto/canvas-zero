@@ -244,16 +244,47 @@ export interface OrderPageProps {
 const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
-  const { findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
+  const { items: fichaItems, findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
 
-  /** Returns filtered color options for a leather part.
-   * Uses the unified hardcoded list (getCoresCouroFiltradas) to keep bota/cinto/extras
-   * with the SAME color list. DB relationships are not used for cor↔couro to avoid
-   * divergence between forms. */
-  const getDynCoresCouro = useCallback((tipoCouro: string, _campoCouroSlug: string, _campoCorSlug: string): string[] => {
-    return getCoresCouroFiltradas(tipoCouro);
-  }, []);
+  /** Normaliza texto (sem acento, minúsculo, trim). */
+  const _norm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  /** Mescla lista base (string[] ou {label,preco}[]) com variações vindas de
+   * `ficha_variacoes` cujo `ficha_campos.slug` == fieldSlug. Variações do banco
+   * que tenham `relacionamento` são filtradas conforme `selections`; sem
+   * relacionamento aparecem sempre. Novas variações criadas pelo editor de
+   * ficha ficam imediatamente disponíveis nos selects. */
+  const mergeFieldOptions = useCallback(<T extends string | { label: string; preco: number }>(
+    fieldSlug: string,
+    base: T[],
+    selections: Record<string, string> = {},
+  ): T[] => {
+    const baseIsObj = base.length > 0 && typeof (base as any)[0] === 'object';
+    const baseLabels = new Set((base as any[]).map(b => _norm(typeof b === 'string' ? b : b.label)));
+    const extras = fichaItems.filter(v => {
+      if (v.categoria_slug !== fieldSlug) return false;
+      if (baseLabels.has(_norm(v.nome))) return false;
+      const rel = v.relacionamento || {};
+      const relEntries = Object.entries(rel).filter(([, arr]) => Array.isArray(arr) && arr.length > 0);
+      if (relEntries.length === 0) return true;
+      return relEntries.every(([slug, allowed]) => {
+        const sel = selections[slug];
+        return !!sel && (allowed as string[]).some(a => _norm(a) === _norm(sel));
+      });
+    });
+    const mapped = extras.map(v => (baseIsObj ? { label: v.nome, preco: v.preco_adicional } : v.nome)) as T[];
+    return [...base, ...mapped];
+  }, [fichaItems]);
+
+  /** Cores de couro para uma parte: mescla a lista hardcoded (com regras de
+   * exclusividade) com variações cadastradas em `cor_couro_<parte>`,
+   * respeitando `relacionamento` (ex.: só aparece com determinado tipo de couro). */
+  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
+    const base = getCoresCouroFiltradas(tipoCouro);
+    const selections: Record<string, string> = tipoCouro ? { [campoCouroSlug]: tipoCouro } : {};
+    return mergeFieldOptions(campoCorSlug, base, selections);
+  }, [mergeFieldOptions]);
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
@@ -1958,12 +1989,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             return (
               <Section title="Couros">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
+                  <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={mergeFieldOptions('couro_cano', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
                   <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={v => handleCorChange('Cano', v)} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required suggested={!!couroSug.corCano && !!corCouroCano} />
-                  <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => handleTipoChange('Gaspea', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoGaspea && !!tipoCouroGaspea} />
+                  <SelectField label="Tipo Couro da Gáspea" value={tipoCouroGaspea} onChange={v => handleTipoChange('Gaspea', v)} options={mergeFieldOptions('couro_gaspea', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoGaspea && !!tipoCouroGaspea} />
                   <SelectField label="Cor Couro da Gáspea" value={corCouroGaspea} onChange={v => handleCorChange('Gaspea', v)} options={getDynCoresCouro(tipoCouroGaspea, 'couro_gaspea', 'cor_couro_gaspea')} required suggested={!!couroSug.corGaspea && !!corCouroGaspea} />
-                  <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => handleTipoChange('Taloneira', v)} options={TIPOS_COURO} required suggested={!!couroSug.tipoTaloneira && !!tipoCouroTaloneira} />
+                  <SelectField label="Tipo Couro da Taloneira" value={tipoCouroTaloneira} onChange={v => handleTipoChange('Taloneira', v)} options={mergeFieldOptions('couro_taloneira', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoTaloneira && !!tipoCouroTaloneira} />
                   <SelectField label="Cor Couro da Taloneira" value={corCouroTaloneira} onChange={v => handleCorChange('Taloneira', v)} options={getDynCoresCouro(tipoCouroTaloneira, 'couro_taloneira', 'cor_couro_taloneira')} required suggested={!!couroSug.corTaloneira && !!corCouroTaloneira} />
+
                 </div>
               </Section>
             );
@@ -1972,11 +2004,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           {/* PESPONTO */}
           <Section title="Pesponto">
             <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
-              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={COR_LINHA} required />
+              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={mergeFieldOptions('cor_linha', COR_LINHA as string[])} required />
               {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
                 <>
-                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={COR_BORRACHINHA} required />
-                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={COR_VIVO} required />
+                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={mergeFieldOptions('cor_borrachinha', COR_BORRACHINHA as string[])} required />
+                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={mergeFieldOptions('cor_vivo', COR_VIVO as string[])} required />
                 </>
               )}
             </div>
@@ -2046,7 +2078,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={COR_GLITTER} />
+            <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
             <div><label className={cls.label}>Cor do Bordado (Cano)</label><input type="text" value={corBordadoLaserCano} onChange={e => setCorBordadoLaserCano(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
             <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
             {recorteCano && (
@@ -2057,7 +2089,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={COR_GLITTER} />
+            <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
             <div><label className={cls.label}>Cor do Bordado (Gáspea)</label><input type="text" value={corBordadoLaserGaspea} onChange={e => setCorBordadoLaserGaspea(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
             <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
             {recorteGaspea && (
@@ -2068,7 +2100,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={COR_GLITTER} />
+            <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
             <div><label className={cls.label}>Cor do Bordado (Taloneira)</label><input type="text" value={corBordadoLaserTaloneira} onChange={e => setCorBordadoLaserTaloneira(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
             <SelectField label="Recortes da Taloneira" value={recorteTaloneira} onChange={v => { setRecorteTaloneira(v); if (!v) setCorRecorteTaloneira(''); }} options={getDbItems('recorte_taloneira', [])} />
             {recorteTaloneira && (
@@ -2088,11 +2120,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           {/* METAIS */}
           <Section title="Metais">
             <div className="grid sm:grid-cols-3 gap-4">
-              <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={AREA_METAL} />
+              <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={mergeFieldOptions('area_metal', AREA_METAL as { label: string; preco: number }[])} />
               <div>
                 <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
-                  {TIPO_METAL.map(t => (
+                  {mergeFieldOptions('tipo_metal', TIPO_METAL as string[]).map(t => (
                     <label key={t} className={cls.checkItem}>
                       <input type="checkbox" checked={tipoMetal.includes(t)} onChange={e => {
                         if (e.target.checked) setTipoMetal(prev => [...prev, t]);
@@ -2103,7 +2135,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   ))}
                 </div>
               </div>
-              <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={COR_METAL} />
+              <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={mergeFieldOptions('cor_metal', COR_METAL as string[])} />
             </div>
 
             {/* Linha fina ilustrativa separando Área/Tipo/Cor dos metais quantificáveis */}
