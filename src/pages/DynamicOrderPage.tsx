@@ -294,6 +294,7 @@ export default function DynamicOrderPage() {
               <DynamicField
                 key={campo.id}
                 campo={campo}
+                opcoes={getEffectiveOpcoes(campo)}
                 value={values[campo.slug]}
                 onChange={val => updateValue(campo.slug, val)}
               />
