@@ -1499,7 +1499,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (modeloPreco) items.push(['Modelo: ' + modelo, modeloPreco]);
     if (sobMedida) items.push(['Sob Medida', SOB_MEDIDA_PRECO]);
     acessorios.forEach(a => {
-      const p = ACESSORIOS.find(x => x.label === a)?.preco;
+      const p = findFichaPrice(a, 'acessorios') ?? ACESSORIOS.find(x => x.label === a)?.preco;
       if (p) items.push([a, p]);
     });
     [
