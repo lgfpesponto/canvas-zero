@@ -1060,7 +1060,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   /* ───── price calculation ───── */
   const modeloPreco = MODELOS.find(m => m.label === modelo)?.preco || 0;
-  const acessoriosPreco = acessorios.reduce((sum, a) => sum + (ACESSORIOS.find(x => x.label === a)?.preco || 0), 0);
+  const acessoriosPreco = acessorios.reduce((sum, a) => sum + (findFichaPrice(a, 'acessorios') ?? ACESSORIOS.find(x => x.label === a)?.preco ?? 0), 0);
   const couroPreco = [
     [tipoCouroCano, 'couro_cano'],
     [tipoCouroGaspea, 'couro_gaspea'],
@@ -1499,7 +1499,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (modeloPreco) items.push(['Modelo: ' + modelo, modeloPreco]);
     if (sobMedida) items.push(['Sob Medida', SOB_MEDIDA_PRECO]);
     acessorios.forEach(a => {
-      const p = ACESSORIOS.find(x => x.label === a)?.preco;
+      const p = findFichaPrice(a, 'acessorios') ?? ACESSORIOS.find(x => x.label === a)?.preco;
       if (p) items.push([a, p]);
     });
     [
@@ -2178,7 +2178,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* EXTRAS (Acessórios + Tricê + Tiras + Franja + Corrente + Carimbo a Fogo) */}
           <Section title="Extras">
-            <MultiSelect label="Acessórios" items={ACESSORIOS} selected={acessorios} onChange={setAcessorios} />
+            <MultiSelect label="Acessórios" items={mergeFieldOptions('acessorios', ACESSORIOS as { label: string; preco: number }[])} selected={acessorios} onChange={setAcessorios} />
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
             <div className="space-y-2">

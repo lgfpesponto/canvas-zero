@@ -27,6 +27,7 @@ function TemplatesDialogWithValidity(props: React.ComponentProps<typeof Template
 }
 import SearchableSelect from '@/components/SearchableSelect';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
@@ -67,7 +68,30 @@ export interface BeltOrderPageProps {
 
 const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
-  const { findFotoByName } = useFichaVariacoesLookup();
+  const { findFotoByName, items: fichaItems } = useFichaVariacoesLookup();
+  // Normaliza + mescla lista hardcoded com variações do editor de ficha (campos do cinto).
+  const _bnorm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const mergeBeltOptions = useCallback(<T extends string | { label: string; preco: number }>(
+    fieldSlug: string,
+    base: T[],
+    selections: Record<string, string> = {},
+  ): T[] => {
+    const baseIsObj = base.length > 0 && typeof (base as any)[0] === 'object';
+    const baseLabels = new Set((base as any[]).map(b => _bnorm(typeof b === 'string' ? b : b.label)));
+    const extras = fichaItems.filter(v => {
+      if (v.categoria_slug !== fieldSlug) return false;
+      if (baseLabels.has(_bnorm(v.nome))) return false;
+      const rel = v.relacionamento || {};
+      const entries = Object.entries(rel).filter(([, arr]) => Array.isArray(arr) && arr.length > 0);
+      if (entries.length === 0) return true;
+      return entries.every(([slug, allowed]) => {
+        const sel = selections[slug];
+        return !!sel && (allowed as string[]).some(a => _bnorm(a) === _bnorm(sel));
+      });
+    });
+    const mapped = extras.map(v => (baseIsObj ? { label: v.nome, preco: v.preco_adicional } : v.nome)) as T[];
+    return [...base, ...mapped];
+  }, [fichaItems]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -809,11 +833,11 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Tipo de Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Tipo de Couro" defaultTipo="selecao" /></label>
-                <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
+                <SearchableSelect options={mergeBeltOptions('tipo_couro', TIPOS_COURO as string[])} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cor do Couro{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Cor do Couro" defaultTipo="selecao" /></label>
-                <SearchableSelect options={getCoresCouroFiltradas(tipoCouro)} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
+                <SearchableSelect options={mergeBeltOptions('cor_couro', getCoresCouroFiltradas(tipoCouro), tipoCouro ? { tipo_couro: tipoCouro } : {})} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
               </div>
             </div>
           </Section>
@@ -822,7 +846,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           <Section title="Fivela">
             <div>
               <label className={cls.label + ' inline-flex items-center'}>Fivela{!isTemplate && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Fivela" defaultTipo="selecao" /></label>
-              <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
+              <SearchableSelect options={mergeBeltOptions('fivela', FIVELA_OPTIONS as string[])} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
             </div>
             {fivela === 'Outro' && (
               <div className="mt-3">

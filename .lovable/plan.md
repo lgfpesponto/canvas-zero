@@ -1,35 +1,46 @@
-## Diagnóstico
+# Editor de ficha inline — corrigir sem quebrar regras
 
-Ao criar uma nova variação em "Cor Couro do Cano/Gáspea/Taloneira" pelo editor de ficha, o registro é gravado corretamente em `ficha_variacoes` (verificado no código de `useInsertVariacao`), mas nunca aparece no "Faça seu pedido".
+Regra confirmada: **somente `admin_master` pode editar a ficha**. `admin_producao` (Fernanda/Mariana) **não** pode. Nenhum pedido antigo é alterado — o mecanismo de "nova versão" (`salvarNovaVersao` + snapshots de preço e `lead_time_snapshot`) já garante isso e não será tocado.
 
-Motivo: em `src/pages/OrderPage.tsx`, o select de cor de couro chama `getDynCoresCouro(...)` → `getCoresCouroFiltradas(tipoCouro)` (em `src/lib/orderFieldsConfig.ts`), que devolve **apenas a lista hardcoded** `CORES_COURO`. As variações do banco simplesmente não são lidas para este campo. O mesmo padrão vale para vários outros selects da bota que hoje leem só constantes: `TIPOS_COURO`, `BORDADOS_*`, `LASERS_*`, `RECORTES_*`, `FORMATO_BICO`, `COR_SOLA`, `COR_VIRA`, `SOLADOS`, metais e acessórios. Ou seja: "editar preço" funciona porque o preço vai pelo lookup, mas "criar nova opção" não aparece em nenhum desses campos.
+## O que continua exatamente como está
 
-## O que fazer
+- Fluxo de "salvar nova versão" — pedidos antigos permanecem intactos.
+- Snapshots de preço, `lead_time_snapshot`, `ficha_versoes`.
+- Regras de preço obrigatório (`priceValidation.ts`) e regras de cor/couro contextuais.
+- Cache invalidations em `useInsertVariacao` / `useUpdateVariacao`.
 
-Fazer os selects mesclarem a lista hardcoded (que continua servindo de base + regras de compatibilidade) com o que existe em `ficha_variacoes` para o mesmo campo, e usar `getFilteredOptions` do `useDynamicFieldFilter` quando a variação nova tiver `relacionamento` definido. Assim toda variação nova criada pelo editor aparece imediatamente, sem quebrar as regras já existentes (ex.: PVC + Marrom = R$0, cores exclusivas por tipo de couro).
+## Correções
 
-### Passos
+### 1. Restringir editor de ficha a `admin_master`
+- `src/components/orders/EditFichaButton.tsx`: mudar a guarda para `user.role === 'admin_master'` apenas — remover `admin_producao`.
+- `src/components/ficha-edit/FichaEditToggle.tsx` já usa `isAdmin` do `FichaEditContext`, que já é `admin_master` — nenhuma mudança.
+- `src/contexts/FichaEditContext.tsx`: já correto (`isAdmin = role === 'admin_master'`).
+- Não mexer em RLS (proteção server-side segue como está).
 
-1. **Novo helper `useFichaFieldOptions(campoSlug)`** em `src/hooks/` que devolve `{ nome, preco, relacionamento }[]` lidos de `ficha_variacoes` para um campo (reaproveitando o cache de `useFichaVariacoesLookup`).
-2. **`getDynCoresCouro` (bota)** passa a:
-   - Partir de `getCoresCouroFiltradas(tipoCouro)` (mantém regras fechadas/restritas hardcoded).
-   - Unir com nomes de variações do banco para `cor_couro_cano/gaspea/taloneira`.
-   - Se a variação do banco tiver `relacionamento.couro_cano` (ou análogo), respeitar via `getFilteredOptions` — só aparece quando o tipo de couro selecionado bater.
-3. **Tipos de couro** (`getDynCourosPorArea` ou equivalente): igual mesclagem para `couro_cano/gaspea/taloneira`, respeitando `TIPOS_COURO` como base.
-4. **Demais selects que hoje só usam constantes** (`BORDADOS_CANO/GASPEA/TALONEIRA`, `LASERS_*`, `RECORTES_*`, `FORMATO_BICO`, `COR_SOLA`, `COR_VIRA`, `SOLADOS`, `TIPO_METAL`, `COR_METAL`, `ACESSORIOS`, `COR_LINHA`, etc.): aplicar o mesmo padrão de "constante ∪ ficha_variacoes do campo", respeitando `getFilteredOptions` quando houver relacionamento.
-5. **Preço das opções vindas só do banco**: continuar usando `findFichaPriceContextual` para calcular subtotais — já está pronto, só precisa ser chamado para as opções novas.
-6. **Cinto** (`EditBeltPage`/`BeltOrderPage`): mesma mesclagem para `cor_couro`, `tipo_couro`, `bordado`, `laser`, `recorte`, `fivela`, `cor_fivela` etc.
-7. **Invalidação**: já feita em `useInsertVariacao` para `ficha_variacoes_lookup` e `dynamic_field_filter_bota` — nada a mudar.
+### 2. Novas variações não aparecem em campos que ainda leem só constantes
+O plano anterior em `.lovable/plan.md` já cobre a maior parte para bota (couros, cores, bordado, laser, recorte, metais, glitter, linha, borrachinha, vivo — via `mergeFieldOptions` no `OrderPage`). Fechar os dois pontos que faltam:
 
-### Não muda
+- **Acessórios (bota)**: `OrderPage.tsx` linha 2181 usa `ACESSORIOS` puro. Trocar por `mergeFieldOptions('acessorios', ACESSORIOS)` e, no cálculo de `acessoriosPreco` (linha 1063) e no snapshot (linha 1502), usar `findFichaPrice(nome, 'acessorios') ?? ACESSORIOS.find(...)?.preco ?? 0`.
+- **Cinto / extras (`DynamicOrderPage`, `BeltOrderPage`, `EditBeltPage`)**: hoje não importam `useFichaVariacoesLookup`/`useDynamicFieldFilter` nem fazem merge. Criar um `mergeFieldOptions` local (mesma assinatura da bota) e aplicar em cada `SelectField`/`MultiSelect` que hoje lê constante hardcoded (cor de couro, tipo de couro, fivela, cor de fivela, bordado, laser, recorte). Preço via `findFichaPriceContextual` com fallback para a constante.
 
-- Não altera regras de negócio de preços já definidas.
-- Não altera o editor de ficha em si (o insert já funciona).
-- Não mexe em `custom_options` — segue lendo pelo `useCustomOptions` como hoje.
+### 3. Criar campo novo com typo silencioso
+`handleAddCampo` (dentro do dialog) usa `window.prompt('Tipo (texto | selecao | multipla | checkbox)', 'selecao')`. Se o admin digitar "seleção" acentuado, o campo entra quebrado. Substituir por um mini `Dialog` com Input (nome) + Select fechado (`seleção / múltipla / checkbox / texto`) + Switch (obrigatório). Sem mudar schema.
 
-## Como testar
+## Fora deste plano
 
-1. Abrir bota → editar ficha → em "Cor Couro do Cano" adicionar "Teste Novo" com R$ 12.
-2. Voltar ao formulário → escolher qualquer tipo de couro sem lista fechada → "Teste Novo" deve aparecer no select com preço R$ 12 no total.
-3. Editar a variação nova, adicionar relacionamento `couro_cano = ['Látego']` → salvar → agora "Teste Novo" só aparece quando Látego estiver selecionado.
-4. Repetir para tipo de couro, bordado, laser, formato do bico, cor da sola, solado, metal etc.
+- Não altera lógica de snapshot / preço congelado.
+- Não altera pedidos existentes.
+- Não altera RLS nem edge functions.
+- Não altera nada para `admin_master` além de melhorar o form de criar campo.
+
+## Detalhes técnicos
+
+- Arquivos tocados: `src/components/orders/EditFichaButton.tsx`, `src/components/admin/FichaVersaoEditorDialog.tsx`, `src/pages/OrderPage.tsx`, `src/pages/DynamicOrderPage.tsx`, `src/pages/BeltOrderPage.tsx`, `src/pages/EditBeltPage.tsx`.
+- Sem migração SQL. Sem edge functions.
+
+## Como validar
+
+1. Logar como `admin_producao` → botão "editar ficha" some no formulário de pedido.
+2. Logar como `admin_master` → botão continua, dialog funciona igual, com o mini-form novo para criar campo.
+3. Adicionar variação nova em **Acessórios**, **Cinto → Cor da Fivela** e **Cinto → Cor Couro** → aparece no formulário respectivo com o preço cadastrado.
+4. Abrir um pedido antigo → nada muda (snapshot preservado).

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFichaTipoBySlug, useFichaCampos } from '@/hooks/useAdminConfig';
+import { useFichaTipoBySlug, useFichaCampos, useAllVariacoesByFichaTipo } from '@/hooks/useAdminConfig';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,6 +36,7 @@ export default function DynamicOrderPage() {
 
   const { data: tipo, isLoading: tipoLoading } = useFichaTipoBySlug(slug || '');
   const { data: campos, isLoading: camposLoading } = useFichaCampos(tipo?.id);
+  const { data: allVariacoes = [] } = useAllVariacoesByFichaTipo(tipo?.id);
 
   // Native fields
   const [vendedor, setVendedor] = useState('');
@@ -68,12 +69,23 @@ export default function DynamicOrderPage() {
     [campos]
   );
 
+  // Mescla opcoes salvas em ficha_campos.opcoes com variações criadas via editor (ficha_variacoes).
+  const _dnorm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const getEffectiveOpcoes = (campo: any): CampoOpcao[] => {
+    const base: CampoOpcao[] = Array.isArray(campo?.opcoes) ? campo.opcoes : [];
+    const seen = new Set(base.map(o => _dnorm(o.label)));
+    const extras = (allVariacoes || [])
+      .filter((v: any) => v.campo_id === campo.id && !seen.has(_dnorm(v.nome)))
+      .map((v: any) => ({ label: v.nome, preco_adicional: Number(v.preco_adicional) || 0 }));
+    return [...base, ...extras];
+  };
+
   // Calculate total price including option surcharges
   const totalPreco = useMemo(() => {
     let total = precoBase;
     for (const campo of activeCampos) {
       if (!['selecao', 'multipla'].includes(campo.tipo)) continue;
-      const opcoes: CampoOpcao[] = Array.isArray(campo.opcoes) ? campo.opcoes as any : [];
+      const opcoes = getEffectiveOpcoes(campo);
       const val = values[campo.slug];
       if (campo.tipo === 'selecao' && val) {
         const opt = opcoes.find(o => o.label === val);
@@ -87,7 +99,8 @@ export default function DynamicOrderPage() {
       }
     }
     return total * quantidade;
-  }, [precoBase, quantidade, values, activeCampos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [precoBase, quantidade, values, activeCampos, allVariacoes]);
 
   const updateValue = (slug: string, val: any) => {
     setValues(prev => ({ ...prev, [slug]: val }));
@@ -134,7 +147,7 @@ export default function DynamicOrderPage() {
           snapshot[campo.slug] = val;
           // Include price snapshot for selecao/multipla
           if (['selecao', 'multipla'].includes(campo.tipo)) {
-            const opcoes: CampoOpcao[] = Array.isArray(campo.opcoes) ? campo.opcoes as any : [];
+            const opcoes = getEffectiveOpcoes(campo);
             if (campo.tipo === 'selecao') {
               const opt = opcoes.find(o => o.label === val);
               if (opt) snapshot[`${campo.slug}_preco`] = opt.preco_adicional;
@@ -281,6 +294,7 @@ export default function DynamicOrderPage() {
               <DynamicField
                 key={campo.id}
                 campo={campo}
+                opcoes={getEffectiveOpcoes(campo)}
                 value={values[campo.slug]}
                 onChange={val => updateValue(campo.slug, val)}
               />
@@ -312,12 +326,13 @@ export default function DynamicOrderPage() {
   );
 }
 
-function DynamicField({ campo, value, onChange }: {
+function DynamicField({ campo, opcoes, value, onChange }: {
   campo: { nome: string; slug: string; tipo: string; obrigatorio: boolean; desc_condicional: boolean; opcoes: any };
+  opcoes?: CampoOpcao[];
   value: any;
   onChange: (val: any) => void;
 }) {
-  const opcoes: CampoOpcao[] = Array.isArray(campo.opcoes) ? campo.opcoes : [];
+  const opcoesEff: CampoOpcao[] = opcoes ?? (Array.isArray(campo.opcoes) ? campo.opcoes : []);
   const [descText, setDescText] = useState('');
 
   switch (campo.tipo) {
@@ -340,7 +355,7 @@ function DynamicField({ campo, value, onChange }: {
           <Select value={value || ''} onValueChange={onChange}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>
-              {opcoes.map(o => (
+              {opcoesEff.map(o => (
                 <SelectItem key={o.label} value={o.label}>
                   {o.label} {o.preco_adicional ? `(+R$ ${o.preco_adicional.toFixed(2)})` : ''}
                 </SelectItem>
@@ -358,7 +373,7 @@ function DynamicField({ campo, value, onChange }: {
             {campo.nome} {campo.obrigatorio && <span className="text-destructive">*</span>}<FichaFieldControls labelText={campo.nome} defaultTipo={campo.tipo as any} />
           </Label>
           <div className="grid gap-2 sm:grid-cols-2">
-            {opcoes.map(o => (
+            {opcoesEff.map(o => (
               <label key={o.label} className="flex items-center gap-2 rounded border border-border p-2 cursor-pointer hover:bg-muted/50">
                 <Checkbox
                   checked={selected.includes(o.label)}

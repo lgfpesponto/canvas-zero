@@ -13,7 +13,7 @@ interface Props {
 }
 
 /**
- * Botão de "editar ficha" visível apenas para admin_master e admin_producao.
+ * Botão de "editar ficha" visível apenas para admin_master.
  * Abre o editor de ficha e permite salvar como nova versão.
  */
 export default function EditFichaButton({ fichaSlug, size = 'sm', variant = 'outline', className }: Props) {
@@ -21,7 +21,7 @@ export default function EditFichaButton({ fichaSlug, size = 'sm', variant = 'out
   const [open, setOpen] = useState(false);
   const { data: tipo } = useFichaTipoBySlug(fichaSlug);
 
-  if (!user || (user.role !== 'admin_master' && user.role !== 'admin_producao')) return null;
+  if (!user || user.role !== 'admin_master') return null;
   if (!tipo) return null;
 
   return (

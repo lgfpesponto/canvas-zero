@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
@@ -38,6 +39,27 @@ const EditBeltPage = () => {
   const { isAdmin, updateOrder, allProfiles } = useAuth();
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
+  const { items: fichaItems } = useFichaVariacoesLookup();
+  const _bnorm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const mergeBeltOptions = useCallback(<T extends string | { label: string; preco: number }>(
+    fieldSlug: string, base: T[], selections: Record<string, string> = {},
+  ): T[] => {
+    const baseIsObj = base.length > 0 && typeof (base as any)[0] === 'object';
+    const baseLabels = new Set((base as any[]).map(b => _bnorm(typeof b === 'string' ? b : b.label)));
+    const extras = fichaItems.filter(v => {
+      if (v.categoria_slug !== fieldSlug) return false;
+      if (baseLabels.has(_bnorm(v.nome))) return false;
+      const rel = v.relacionamento || {};
+      const entries = Object.entries(rel).filter(([, arr]) => Array.isArray(arr) && arr.length > 0);
+      if (entries.length === 0) return true;
+      return entries.every(([slug, allowed]) => {
+        const sel = selections[slug];
+        return !!sel && (allowed as string[]).some(a => _bnorm(a) === _bnorm(sel));
+      });
+    });
+    const mapped = extras.map(v => (baseIsObj ? { label: v.nome, preco: v.preco_adicional } : v.nome)) as T[];
+    return [...base, ...mapped];
+  }, [fichaItems]);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const fotoParam = searchParams.get('foto') === '1';
@@ -285,11 +307,11 @@ const EditBeltPage = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={cls.label}>Tipo de Couro<span className="text-destructive ml-0.5">*</span></label>
-                  <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
+                  <SearchableSelect options={mergeBeltOptions('tipo_couro', TIPOS_COURO as string[])} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
                 </div>
                 <div>
                   <label className={cls.label}>Cor do Couro<span className="text-destructive ml-0.5">*</span></label>
-                  <SearchableSelect options={getCoresCouroFiltradas(tipoCouro)} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
+                  <SearchableSelect options={mergeBeltOptions('cor_couro', getCoresCouroFiltradas(tipoCouro), tipoCouro ? { tipo_couro: tipoCouro } : {})} value={corCouro} onValueChange={setCorCouro} placeholder="Selecione..." />
                 </div>
               </div>
             </Section>
@@ -297,7 +319,7 @@ const EditBeltPage = () => {
             <Section title="Fivela">
               <div>
                 <label className={cls.label}>Fivela<span className="text-destructive ml-0.5">*</span></label>
-                <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
+                <SearchableSelect options={mergeBeltOptions('fivela', FIVELA_OPTIONS as string[])} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
               </div>
               {fivela === 'Outro' && (
                 <div className="mt-3">

@@ -154,25 +154,32 @@ function CategoriaBlock({
   const [collapsed, setCollapsed] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nome, setNome] = useState(categoria.nome);
+  const [addCampoOpen, setAddCampoOpen] = useState(false);
+  const [novoCampoNome, setNovoCampoNome] = useState('');
+  const [novoCampoTipo, setNovoCampoTipo] = useState<'selecao' | 'multipla' | 'checkbox' | 'texto'>('selecao');
+  const [novoCampoObrig, setNovoCampoObrig] = useState(false);
 
   const insertCampo = useInsertFichaCampo();
 
-  const handleAddCampo = async () => {
-    const nomeCampo = window.prompt('Nome do novo campo (ex: "Cor do Cano"):');
-    if (!nomeCampo) return;
-    const tipo = window.prompt('Tipo (texto | selecao | multipla | checkbox):', 'selecao') || 'selecao';
-    const slug = nomeCampo.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const handleAddCampoConfirm = async () => {
+    const nomeCampo = novoCampoNome.trim();
+    if (!nomeCampo) { toast.error('Informe o nome do campo'); return; }
+    const slug = nomeCampo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     await insertCampo.mutateAsync({
       ficha_tipo_id: fichaTipoId,
       categoria_id: categoria.id,
-      nome: nomeCampo, slug, tipo,
-      obrigatorio: false,
+      nome: nomeCampo, slug, tipo: novoCampoTipo,
+      obrigatorio: novoCampoObrig,
       ordem: camposDaCat.length + 1,
-      opcoes: [],
+      opcoes: novoCampoTipo === 'checkbox' ? [{ label: 'sim', preco_adicional: 0 }] : [],
       vinculo: null,
       desc_condicional: false,
     });
     toast.success('Campo criado');
+    setAddCampoOpen(false);
+    setNovoCampoNome('');
+    setNovoCampoTipo('selecao');
+    setNovoCampoObrig(false);
   };
 
   const totalVars = camposDaCat.reduce(
@@ -218,9 +225,45 @@ function CategoriaBlock({
           <div className="pl-3 border-l-2 border-border/50 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase text-muted-foreground">Campos</span>
-              <Button size="sm" variant="ghost" onClick={handleAddCampo} className="h-7 gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> campo
-              </Button>
+              <Popover open={addCampoOpen} onOpenChange={setAddCampoOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs">
+                    <Plus className="h-3.5 w-3.5" /> campo
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 space-y-3" align="end">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nome do campo</Label>
+                    <Input
+                      value={novoCampoNome}
+                      onChange={e => setNovoCampoNome(e.target.value)}
+                      placeholder='ex: "Cor do Cano"'
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <select
+                      value={novoCampoTipo}
+                      onChange={e => setNovoCampoTipo(e.target.value as any)}
+                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="selecao">seleção (uma opção)</option>
+                      <option value="multipla">múltipla (várias opções)</option>
+                      <option value="checkbox">checkbox (sim/não com preço)</option>
+                      <option value="texto">texto livre</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={novoCampoObrig} onCheckedChange={setNovoCampoObrig} />
+                    <Label className="text-xs">obrigatório</Label>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button size="sm" variant="ghost" onClick={() => setAddCampoOpen(false)}>cancelar</Button>
+                    <Button size="sm" onClick={handleAddCampoConfirm}>criar</Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             {camposDaCat.length === 0 && variacoesOrfas.length === 0 ? (
               <p className="text-xs text-muted-foreground italic flex items-center gap-1">
