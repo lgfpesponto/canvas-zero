@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFichaTipoBySlug, useFichaCampos } from '@/hooks/useAdminConfig';
+import { useFichaTipoBySlug, useFichaCampos, useAllVariacoesByFichaTipo } from '@/hooks/useAdminConfig';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
