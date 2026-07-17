@@ -27,6 +27,7 @@ function TemplatesDialogWithValidity(props: React.ComponentProps<typeof Template
 }
 import SearchableSelect from '@/components/SearchableSelect';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
+import { useDynamicFieldFilter } from '@/hooks/useDynamicFieldFilter';
 
 import { maskPhoneBR } from '@/lib/whatsappSend';
 import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas } from '@/lib/orderFieldsConfig';
