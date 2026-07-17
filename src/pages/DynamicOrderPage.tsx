@@ -36,6 +36,7 @@ export default function DynamicOrderPage() {
 
   const { data: tipo, isLoading: tipoLoading } = useFichaTipoBySlug(slug || '');
   const { data: campos, isLoading: camposLoading } = useFichaCampos(tipo?.id);
+  const { data: allVariacoes = [] } = useAllVariacoesByFichaTipo(tipo?.id);
 
   // Native fields
   const [vendedor, setVendedor] = useState('');
