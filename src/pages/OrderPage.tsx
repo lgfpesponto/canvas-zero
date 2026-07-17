@@ -244,7 +244,7 @@ export interface OrderPageProps {
 const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
-  const { findFichaPrice, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
+  const { findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
 
   /** Returns filtered color options for a leather part.
