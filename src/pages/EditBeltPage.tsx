@@ -307,7 +307,7 @@ const EditBeltPage = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={cls.label}>Tipo de Couro<span className="text-destructive ml-0.5">*</span></label>
-                  <SearchableSelect options={TIPOS_COURO} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
+                  <SearchableSelect options={mergeBeltOptions('tipo_couro', TIPOS_COURO as string[])} value={tipoCouro} onValueChange={setTipoCouro} placeholder="Selecione..." />
                 </div>
                 <div>
                   <label className={cls.label}>Cor do Couro<span className="text-destructive ml-0.5">*</span></label>
