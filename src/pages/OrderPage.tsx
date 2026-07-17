@@ -244,16 +244,47 @@ export interface OrderPageProps {
 const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
-  const { findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
+  const { items: fichaItems, findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
   const { getFilteredOptions } = useDynamicFieldFilter();
 
-  /** Returns filtered color options for a leather part.
-   * Uses the unified hardcoded list (getCoresCouroFiltradas) to keep bota/cinto/extras
-   * with the SAME color list. DB relationships are not used for cor↔couro to avoid
-   * divergence between forms. */
-  const getDynCoresCouro = useCallback((tipoCouro: string, _campoCouroSlug: string, _campoCorSlug: string): string[] => {
-    return getCoresCouroFiltradas(tipoCouro);
-  }, []);
+  /** Normaliza texto (sem acento, minúsculo, trim). */
+  const _norm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  /** Mescla lista base (string[] ou {label,preco}[]) com variações vindas de
+   * `ficha_variacoes` cujo `ficha_campos.slug` == fieldSlug. Variações do banco
+   * que tenham `relacionamento` são filtradas conforme `selections`; sem
+   * relacionamento aparecem sempre. Novas variações criadas pelo editor de
+   * ficha ficam imediatamente disponíveis nos selects. */
+  const mergeFieldOptions = useCallback(<T extends string | { label: string; preco: number }>(
+    fieldSlug: string,
+    base: T[],
+    selections: Record<string, string> = {},
+  ): T[] => {
+    const baseIsObj = base.length > 0 && typeof (base as any)[0] === 'object';
+    const baseLabels = new Set((base as any[]).map(b => _norm(typeof b === 'string' ? b : b.label)));
+    const extras = fichaItems.filter(v => {
+      if (v.categoria_slug !== fieldSlug) return false;
+      if (baseLabels.has(_norm(v.nome))) return false;
+      const rel = v.relacionamento || {};
+      const relEntries = Object.entries(rel).filter(([, arr]) => Array.isArray(arr) && arr.length > 0);
+      if (relEntries.length === 0) return true;
+      return relEntries.every(([slug, allowed]) => {
+        const sel = selections[slug];
+        return !!sel && (allowed as string[]).some(a => _norm(a) === _norm(sel));
+      });
+    });
+    const mapped = extras.map(v => (baseIsObj ? { label: v.nome, preco: v.preco_adicional } : v.nome)) as T[];
+    return [...base, ...mapped];
+  }, [fichaItems]);
+
+  /** Cores de couro para uma parte: mescla a lista hardcoded (com regras de
+   * exclusividade) com variações cadastradas em `cor_couro_<parte>`,
+   * respeitando `relacionamento` (ex.: só aparece com determinado tipo de couro). */
+  const getDynCoresCouro = useCallback((tipoCouro: string, campoCouroSlug: string, campoCorSlug: string): string[] => {
+    const base = getCoresCouroFiltradas(tipoCouro);
+    const selections: Record<string, string> = tipoCouro ? { [campoCouroSlug]: tipoCouro } : {};
+    return mergeFieldOptions(campoCorSlug, base, selections);
+  }, [mergeFieldOptions]);
   const [showGrade, setShowGrade] = useState(false);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
   const navigate = useNavigate();
