@@ -225,9 +225,45 @@ function CategoriaBlock({
           <div className="pl-3 border-l-2 border-border/50 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase text-muted-foreground">Campos</span>
-              <Button size="sm" variant="ghost" onClick={handleAddCampo} className="h-7 gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> campo
-              </Button>
+              <Popover open={addCampoOpen} onOpenChange={setAddCampoOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs">
+                    <Plus className="h-3.5 w-3.5" /> campo
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 space-y-3" align="end">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nome do campo</Label>
+                    <Input
+                      value={novoCampoNome}
+                      onChange={e => setNovoCampoNome(e.target.value)}
+                      placeholder='ex: "Cor do Cano"'
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <select
+                      value={novoCampoTipo}
+                      onChange={e => setNovoCampoTipo(e.target.value as any)}
+                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="selecao">seleção (uma opção)</option>
+                      <option value="multipla">múltipla (várias opções)</option>
+                      <option value="checkbox">checkbox (sim/não com preço)</option>
+                      <option value="texto">texto livre</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={novoCampoObrig} onCheckedChange={setNovoCampoObrig} />
+                    <Label className="text-xs">obrigatório</Label>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button size="sm" variant="ghost" onClick={() => setAddCampoOpen(false)}>cancelar</Button>
+                    <Button size="sm" onClick={handleAddCampoConfirm}>criar</Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             {camposDaCat.length === 0 && variacoesOrfas.length === 0 ? (
               <p className="text-xs text-muted-foreground italic flex items-center gap-1">
