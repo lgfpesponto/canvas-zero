@@ -322,7 +322,7 @@ export function useDeleteCategoria() {
 export function useInsertVariacao() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number; foto_url?: string | null }) => {
+    mutationFn: async (v: { categoria_id: string; campo_id?: string; nome: string; preco_adicional: number; ordem: number; foto_url?: string | null; relacionamento?: Record<string, string[]> | null }) => {
       const { data, error } = await supabase
         .from('ficha_variacoes')
         .insert(v)
@@ -334,6 +334,8 @@ export function useInsertVariacao() {
     onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ['ficha_variacoes'] });
       qc.invalidateQueries({ queryKey: ['ficha_variacoes_campo'] });
+      qc.invalidateQueries({ queryKey: ['ficha_variacoes_lookup'] });
+      qc.invalidateQueries({ queryKey: ['dynamic_field_filter_bota'] });
       if (id) void syncVariacaoById(id);
     },
   });
