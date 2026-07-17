@@ -319,7 +319,7 @@ const EditBeltPage = () => {
             <Section title="Fivela">
               <div>
                 <label className={cls.label}>Fivela<span className="text-destructive ml-0.5">*</span></label>
-                <SearchableSelect options={FIVELA_OPTIONS} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
+                <SearchableSelect options={mergeBeltOptions('fivela', FIVELA_OPTIONS as string[])} value={fivela} onValueChange={setFivela} placeholder="Selecione..." />
               </div>
               {fivela === 'Outro' && (
                 <div className="mt-3">
