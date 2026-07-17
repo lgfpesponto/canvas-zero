@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
