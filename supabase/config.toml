@@ -24,10 +24,6 @@ verify_jwt = false
 [functions.bagy-stock-reconcile]
 verify_jwt = false
 
-[functions.vitrine-preview]
-verify_jwt = false
-
-
 
 
 

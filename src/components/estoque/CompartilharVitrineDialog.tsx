@@ -37,9 +37,7 @@ const CompartilharVitrineDialog = ({ open, onClose, search, tamanhos, ficha, tot
       titulo,
     };
     const token = encodeVitrineToken(payload);
-    const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    return `https://${projectRef}.functions.supabase.co/vitrine-preview?t=${token}`;
-
+    return `${window.location.origin}/vitrine/${token}`;
   }, [search, tamanhos, ficha, mostrarPreco, mostrarDesconto, titulo, canTogglePrecos]);
 
   const copiar = async () => {
