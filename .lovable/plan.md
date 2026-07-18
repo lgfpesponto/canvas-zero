@@ -1,57 +1,49 @@
-## Regra confirmada
+# Melhorias no fluxo de Estoque
 
-Você zerou o estoque na Bagy **antes** de sincronizar cada SKU. Portanto, qualquer pedido Bagy cuja data de criação seja **anterior** ao `bagy_sync_at` do produto no portal:
+## 1. Pedido "Estoque já criado" (Faça seu Pedido / Grade)
 
-- Já foi contado manualmente como venda da Rancho Chique aqui → criar RC- agora **duplica venda e comissão**.
-- Já foi debitado do saldo Bagy antes do zeramento → decrementar aqui **subtrai duas vezes**.
+Quando o vendedor selecionado for **Estoque**, exibir na ficha um toggle **"Estoque já criado"**. Quando marcado:
 
-Solução: ignorar esses pedidos por completo no webhook (nem cria pedido portal, nem mexe em estoque) e limpar o que já entrou errado ontem/hoje.
+- **Não exige número de pedido** (bypass do `useCheckDuplicateOrder` e da validação obrigatória do campo).
+- Na geração da **grade de tamanhos**, permitir salvar linhas com **quantidade 0** (hoje quantidade 0 é filtrada/bloqueada).
+- Cada linha da grade cria/atualiza direto o item de estoque no tamanho correspondente, mesmo com qtd 0 (útil para pré-cadastrar tamanhos que ainda não têm peça pronta).
+- Marca uma flag no pedido (`estoque_ja_criado = true`) para distinguir do fluxo tradicional via "Baixa Estoque".
 
-## 1. Correção no webhook `supabase/functions/bagy-webhook/index.ts`
+Pedidos normais continuam com a regra atual: número obrigatório, sem qtd 0, fluxo via etapa Baixa Estoque.
 
-Dentro do loop de itens (linhas ~535-553), ao encontrar `estoqueProdutoId` também trazer `bagy_sync_at` do produto. Depois do loop, calcular:
+## 2. Edição por tamanho na página Estoque
 
-```
-legacyOrder = bagyCreatedAt existe
-  && todos os itens com estoqueProdutoId têm produto.bagy_sync_at > bagyCreatedAt
-  && nenhum item caiu em template (hasTemplateMatch = false)
-```
+Reformular o `EstoqueProdutoConfigButton` (engrenagem) para operar em nível de **produto + tamanho**:
 
-Quando `legacyOrder === true` **e** `pedidoExistente?.order_id_portal` ainda é null:
+- **Nome do produto**: editar altera o registro existente, **nunca cria produto novo** (garantir UPDATE in-place mesmo quando o nome muda).
+- **Grade de tamanhos** dentro do dialog, uma linha por tamanho:
+  - Campo **SKU específico daquele tamanho** (editável, salvar por linha).
+  - Campo **quantidade** com ajuste rápido (+/-, motivo).
+  - Botão **"Redescobrir na Bagy"** por tamanho (dispara `bagy-stock-sync` só para aquele SKU/variante).
+- Campo de preço manual removido daqui (ver item 3).
 
-- Marcar cada item como `status = 'pre_integracao_ignorado'`.
-- **Não** empurrar nada em `estoqueParaComprar` (pula a RPC `comprar_estoque_bagy`, sem baixa e sem RC-).
-- **Não** enfileirar `bagy_status_sync_queue` (deixa o pedido Bagy como está).
-- Gravar `bagy_pedidos.flag = 'pre_integracao_ignorado'` para aparecer no painel.
-- Ainda registra o pedido em `bagy_pedidos` + `bagy_pedido_itens` (histórico e auditoria), só não age.
+## 3. Preço: pedido vs. produto de estoque
 
-Pedidos novos (posteriores ao sync) continuam com o fluxo atual intacto.
+Regra clara de versionamento:
 
-## 2. Limpeza retroativa (uma migração + insert)
-
-**Diagnóstico primeiro** (só leitura, mostro os números antes de aplicar): listar pedidos `bagy_pedidos` onde `bagy_created_at < MIN(estoque_produtos.bagy_sync_at dos itens vinculados)` que geraram `order_id_portal` nas últimas 72 h.
-
-**Depois aplicar** (uma execução de dados):
-
-1. Para cada pedido portal RC- identificado:
-   - Restaurar `estoque_produtos.quantidade += item.quantidade` (por SKU/tamanho do item).
-   - Deletar o pedido em `public.orders` (via mesma rotina de exclusão já usada por `admin_master`, para arrastar dependências como `order_status_changes`, `bagy_stock_sync_queue` pendente, etc.).
-   - Limpar `bagy_pedidos.order_id_portal` e marcar `flag = 'pre_integracao_ignorado_retroativo'`.
-   - Atualizar `bagy_pedido_itens.status = 'pre_integracao_ignorado'` e zerar `order_id_portal`.
-2. Deletar da `bagy_stock_sync_queue` qualquer linha pendente gerada pelo trigger de UPDATE de quantidade nesse ajuste (evita eco portal→Bagy que zeraria o saldo Bagy corretamente ajustado por você).
-3. Registrar cada restauração em `estoque_ajustes_log` com motivo "Retro-ajuste: pedido Bagy anterior à integração do SKU — venda já contabilizada manualmente antes da sincronização".
-
-Kelly-38 é o caso conhecido; a varredura acha os demais que você viu com 0.
-
-## 3. O que NÃO muda
-
-- RPC `comprar_estoque_bagy`, reconcile job, UI de estoque, criação de novos pedidos Bagy pós-sync.
-- Nenhum pedido de vendedor real, nenhum pedido portal manual, nenhuma comissão histórica.
-- Regras de RBAC.
+- **Pedidos já criados** continuam respondendo à **versão da ficha na data da compra** (`preco_regra_versao` snapshot), como já acontece — nada muda.
+- **Produtos de estoque** (linhas em `estoque_produtos`) passam a acompanhar sempre a **versão atual da ficha**:
+  - Preço deixa de ser editável manualmente na engrenagem.
+  - Ao listar/exibir na página Estoque e ao sincronizar com a Bagy, calcular o preço em tempo real usando o modelo/variações originais e as regras vigentes (`priceLookup` + versão atual da régua).
+  - Quando a régua bumpar (`preco_regra_versao++`), disparar recalc + push para a Bagy dos produtos afetados. Pedidos antigos permanecem intocados.
+  - Se o produto não tiver vínculo com uma ficha de origem (cadastro manual antigo), manter o preço armazenado como fallback e mostrar aviso "sem ficha vinculada".
 
 ## Detalhes técnicos
 
-- Critério per-item usa `bagy_sync_at` do próprio produto (não uma data global), então funciona também quando você cadastrar novos SKUs no futuro.
-- `hasTemplateMatch = false` garante que a trava só atinge pedidos 100% de estoque; qualquer pedido de ficha (template) segue o fluxo normal.
-- Se um pedido misto (item pré-integração + item novo) aparecer, `legacyOrder` fica false e o webhook processa normalmente — o item pré-integração ainda não decrementa porque não entra em `estoqueParaComprar` (adiciono `if !isPreIntegracao` no push). Ou seja, a proteção também é por item, não só por pedido.
-- Antes da limpeza retroativa eu mostro a lista dos pedidos afetados para você confirmar visualmente.
+- Migração: `orders.estoque_ja_criado boolean default false`; RPC `criar_estoque_produto` aceita qtd 0 quando a flag for true.
+- Migração: garantir SKU por tamanho em `estoque_produtos` (checar coluna existente; se necessário adicionar).
+- Frontend:
+  - `OrderPage` / grade: novo toggle + bypass de duplicidade + permitir qtd 0 apenas com a flag ligada.
+  - `EstoqueProdutoConfigButton`: refatorar em duas seções (Dados do produto | Tamanhos), com ações por linha.
+  - `EstoquePage`: exibir preço vivo (helper que resolve pela ficha atual, com fallback ao valor salvo).
+- Edge `bagy-stock-sync`: aceitar `retry_produto_id + tamanho` para redescoberta pontual; ler preço vivo antes de push.
+- Reaproveitar `invalidatePriceCache` / gatilho de bump para propagar mudanças aos produtos de estoque sem tocar em pedidos.
+
+## Fora de escopo
+- Não alterar preços de pedidos históricos (regra reforçada acima).
+- Não mudar o fluxo de Baixa Estoque para pedidos normais.
