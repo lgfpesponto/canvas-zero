@@ -64,9 +64,9 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
   // Sort and flatten for preview
   const sortedItems = useMemo(() => {
     return [...items]
-      .filter(i => i.tamanho && i.quantidade > 0)
+      .filter(i => i.tamanho && i.quantidade >= minQtd)
       .sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
-  }, [items]);
+  }, [items, minQtd]);
 
   const totalPedidos = useMemo(() => sortedItems.reduce((sum, i) => sum + i.quantidade, 0), [sortedItems]);
 
