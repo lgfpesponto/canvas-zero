@@ -192,9 +192,9 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
                   </select>
                   <input
                     type="number"
-                    min={1}
+                    min={minQtd}
                     value={item.quantidade}
-                    onChange={e => updateItem(idx, 'quantidade', Math.max(1, Number(e.target.value)))}
+                    onChange={e => updateItem(idx, 'quantidade', Math.max(minQtd, Number(e.target.value)))}
                     className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none w-full"
                   />
                   {requireSku && (
