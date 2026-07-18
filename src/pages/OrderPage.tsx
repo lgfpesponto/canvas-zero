@@ -1142,7 +1142,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     }
     const required: [string, string][] = [
       ...(isAdmin ? [[vendedorSelecionado, 'Vendedor'] as [string, string]] : []),
-      [numeroPedido.trim(), 'Número do Pedido'],
+      ...(!(estoqueJaCriado && vendedorSelecionado === 'Estoque') ? [[numeroPedido.trim(), 'Número do Pedido'] as [string, string]] : []),
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Estoque' ? [[nomeProdutoEstoque.trim(), 'Nome do Produto'] as [string, string]] : []),
