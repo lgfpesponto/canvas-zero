@@ -712,6 +712,68 @@ export type Database = {
           },
         ]
       }
+      estoque_desconto_produtos: {
+        Row: {
+          created_at: string
+          desconto_id: string
+          produto_grupo_key: string
+        }
+        Insert: {
+          created_at?: string
+          desconto_id: string
+          produto_grupo_key: string
+        }
+        Update: {
+          created_at?: string
+          desconto_id?: string
+          produto_grupo_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_desconto_produtos_desconto_id_fkey"
+            columns: ["desconto_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_descontos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_descontos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          escopo: string
+          id: string
+          nome: string
+          tipo: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          escopo: string
+          id?: string
+          nome: string
+          tipo: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          escopo?: string
+          id?: string
+          nome?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       estoque_emprestimos: {
         Row: {
           created_at: string
@@ -1896,6 +1958,7 @@ export type Database = {
           cruz_metal_qtd: number | null
           data_criacao: string
           desconto: number | null
+          desconto_aplicado: Json | null
           desconto_justificativa: string | null
           desenvolvimento: string
           dias_restantes: number
@@ -2015,6 +2078,7 @@ export type Database = {
           cruz_metal_qtd?: number | null
           data_criacao: string
           desconto?: number | null
+          desconto_aplicado?: Json | null
           desconto_justificativa?: string | null
           desenvolvimento?: string
           dias_restantes?: number
@@ -2134,6 +2198,7 @@ export type Database = {
           cruz_metal_qtd?: number | null
           data_criacao?: string
           desconto?: number | null
+          desconto_aplicado?: Json | null
           desconto_justificativa?: string | null
           desenvolvimento?: string
           dias_restantes?: number
@@ -2891,6 +2956,17 @@ export type Database = {
             }
             Returns: Json
           }
+        | {
+            Args: {
+              _cliente: string
+              _desconto_aplicado?: Json
+              _items: Json
+              _numero_pedido: string
+              _vendedor: string
+              _whatsapp: string
+            }
+            Returns: Json
+          }
       comprar_estoque_bagy:
         | {
             Args: {
@@ -3034,6 +3110,7 @@ export type Database = {
           cruz_metal_qtd: number | null
           data_criacao: string
           desconto: number | null
+          desconto_aplicado: Json | null
           desconto_justificativa: string | null
           desenvolvimento: string
           dias_restantes: number

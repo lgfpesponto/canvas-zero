@@ -19,6 +19,8 @@ import {
   calcEmbeddedExtraPrice,
   type BotaPEExtra,
 } from '@/lib/botaExtraHelpers';
+import { estoqueGroupKey } from '@/lib/estoqueGroupKey';
+import { useDescontosAtivos, getDescontoParaProduto } from '@/lib/estoqueDescontos';
 
 interface EstoqueRow {
   id: string;
@@ -55,6 +57,7 @@ const fmtBRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', cur
 
 const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }: Props) => {
   const { user, isAdmin } = useAuth();
+  const { descontos } = useDescontosAtivos();
   // map produto_id -> quantidade desejada
   const [quantidades, setQuantidades] = useState<Record<string, number>>({});
   // resumo: lista de itens (1 por unidade) com seus extras
@@ -68,6 +71,14 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   const [reservasOutros, setReservasOutros] = useState<Record<string, number>>({});
   // Espelho local dos saldos (atualizado por realtime)
   const [saldos, setSaldos] = useState<Record<string, number>>({});
+
+  // Desconto ativo para o produto (todos os tamanhos compartilham o mesmo grupo)
+  const desconto = useMemo(() => {
+    if (!produto || produto.tamanhos.length === 0) return null;
+    const first = produto.tamanhos[0];
+    const key = estoqueGroupKey(produto.nome, first.sku_base);
+    return getDescontoParaProduto(key, first.preco, descontos);
+  }, [produto, descontos]);
 
   useEffect(() => {
     if (open && produto) {
@@ -137,15 +148,17 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       for (const t of ordered) {
         const qtd = quantidades[t.id] || 0;
         const existentes = prev.filter(i => i.produto_id === t.id);
+        const precoBase = t.preco;
+        const precoFinal = desconto ? desconto.precoFinal : precoBase;
         for (let k = 0; k < qtd; k++) {
           if (existentes[k]) {
-            next.push({ ...existentes[k], preco_unit: t.preco, sku_base: t.sku_base, tamanho: t.tamanho });
+            next.push({ ...existentes[k], preco_unit: precoFinal, sku_base: t.sku_base, tamanho: t.tamanho });
           } else {
             next.push({
               produto_id: t.id,
               tamanho: t.tamanho,
               sku_base: t.sku_base,
-              preco_unit: t.preco,
+              preco_unit: precoFinal,
               extras: [],
             });
           }
@@ -153,7 +166,7 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       }
       return next;
     });
-  }, [quantidades, produto]);
+  }, [quantidades, produto, desconto]);
 
   const total = useMemo(
     () => itens.reduce((s, it) => s + it.preco_unit + it.extras.reduce((a, e) => a + (e.preco || 0), 0), 0),
@@ -242,12 +255,23 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
     const items = [...grouped.values()];
 
     setSubmitting(true);
+    const descontoAplicado = desconto
+      ? {
+          desconto_id: desconto.id,
+          nome: desconto.nome,
+          label: desconto.label,
+          tipo: desconto.tipo,
+          valor: desconto.valor,
+          valor_unit: desconto.valorDesconto,
+        }
+      : null;
     const { data, error } = await (supabase.rpc as any)('comprar_estoque', {
       _items: items,
       _vendedor: vendedor.trim(),
       _cliente: cliente.trim(),
       _whatsapp: whats.trim(),
       _numero_pedido: numero.trim(),
+      _desconto_aplicado: descontoAplicado,
     });
     setSubmitting(false);
 
@@ -496,9 +520,17 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
           )}
 
           {/* Total */}
-          <div className="flex justify-between items-center border-t pt-3">
-            <span className="font-semibold">Total</span>
-            <span className="text-lg font-bold text-primary">{fmtBRL(total)}</span>
+          <div className="border-t pt-3 space-y-1">
+            {desconto && (
+              <div className="flex justify-between items-center text-xs text-primary">
+                <span>Desconto aplicado · {desconto.nome} ({desconto.label})</span>
+                <span>-{(desconto.valorDesconto * itens.length).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="font-semibold">Total</span>
+              <span className="text-lg font-bold text-primary">{fmtBRL(total)}</span>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight, Share2, Percent } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +13,11 @@ import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPane
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
 import CompartilharVitrineDialog from '@/components/estoque/CompartilharVitrineDialog';
+import GerenciarDescontosDialog from '@/components/estoque/GerenciarDescontosDialog';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
 import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
+import { estoqueGroupKey } from '@/lib/estoqueGroupKey';
+import { useDescontosAtivos, getDescontoParaProduto } from '@/lib/estoqueDescontos';
 
 
 interface EstoqueRow {
@@ -54,12 +57,15 @@ const EstoquePage = () => {
   const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const [page, setPage] = useState(1);
   const [vitrineOpen, setVitrineOpen] = useState(false);
+  const [descontosOpen, setDescontosOpen] = useState(false);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
   const { isAdmin, role, user } = useAuth();
   const canSeeBagySync = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
   const canManageEmprestimos = role === 'admin_master' || role === 'admin_producao';
+  const canManageDescontos = role === 'admin_master';
+  const { descontos } = useDescontosAtivos();
 
 
   const handleExcluirTamanho = async (row: EstoqueRow, nomeProduto: string) => {
@@ -235,6 +241,12 @@ const EstoquePage = () => {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+        {canManageDescontos && (
+          <Button variant="outline" size="sm" onClick={() => setDescontosOpen(true)}>
+            <Percent size={14} /> Adicionar desconto
+            {descontos.length > 0 && <Badge className="ml-1">{descontos.length}</Badge>}
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => setVitrineOpen(true)}>
           <Share2 size={14} /> Compartilhar vitrine
         </Button>
@@ -431,18 +443,20 @@ const EstoquePage = () => {
                   return null;
                 })()}
                 {(() => {
-                  const temDesc = g.preco_desconto && g.preco_desconto > 0 && g.preco_desconto < g.preco;
-                  const pct = temDesc ? Math.round((1 - (g.preco_desconto! / g.preco)) * 100) : 0;
-                  return temDesc ? (
-                    <div className="mt-auto">
+                  const grupoKey = estoqueGroupKey(g.nome, g.tamanhos[0].sku_base);
+                  const desc = getDescontoParaProduto(grupoKey, g.preco, descontos);
+                  return desc ? (
+                    <div className="mt-auto space-y-1">
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-xs line-through text-muted-foreground">
                           {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
                         <span className="text-xl font-bold text-primary">
-                          {g.preco_desconto!.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {desc.precoFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
-                        <Badge className="text-[10px] px-1.5 py-0">-{pct}%</Badge>
+                      </div>
+                      <div className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-semibold rounded-full px-2 py-0.5">
+                        {desc.label} de desconto · {desc.nome}
                       </div>
                     </div>
                   ) : (
@@ -573,6 +587,15 @@ const EstoquePage = () => {
         totalProdutos={filteredGroups.length}
         canTogglePrecos={role === 'admin_master'}
       />
+
+      {canManageDescontos && (
+        <GerenciarDescontosDialog
+          open={descontosOpen}
+          onClose={() => setDescontosOpen(false)}
+          produtos={groups.map(g => ({ key: estoqueGroupKey(g.nome, g.tamanhos[0].sku_base), nome: g.nome }))}
+          currentUserId={user?.id}
+        />
+      )}
     </div>
   );
 };

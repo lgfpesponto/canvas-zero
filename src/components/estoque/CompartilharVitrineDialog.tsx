@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,8 @@ import { Switch } from '@/components/ui/switch';
 import { Copy, Share2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { encodeVitrineToken, type VitrinePayload } from '@/lib/vitrineToken';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
 
 interface Props {
   open: boolean;
@@ -21,7 +23,9 @@ interface Props {
 const CompartilharVitrineDialog = ({ open, onClose, search, tamanhos, ficha, totalProdutos, canTogglePrecos }: Props) => {
   const [mostrarPreco, setMostrarPreco] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
-  const [titulo, setTitulo] = useState('');
+  const { user } = useAuth();
+
+  const titulo = (user?.nomeLoja || '').trim() || 'Vitrine 7ESTRIVOS';
 
   const url = useMemo(() => {
     const payload: VitrinePayload = {
@@ -30,7 +34,7 @@ const CompartilharVitrineDialog = ({ open, onClose, search, tamanhos, ficha, tot
       ficha: Object.fromEntries(Object.entries(ficha).map(([k, v]) => [k, Array.from(v)])),
       mostrarPreco: canTogglePrecos ? mostrarPreco : false,
       mostrarDesconto: canTogglePrecos ? mostrarDesconto : false,
-      titulo: titulo.trim() || undefined,
+      titulo,
     };
     const token = encodeVitrineToken(payload);
     return `${window.location.origin}/vitrine/${token}`;
@@ -43,11 +47,6 @@ const CompartilharVitrineDialog = ({ open, onClose, search, tamanhos, ficha, tot
     } catch {
       toast.error('Não foi possível copiar');
     }
-  };
-
-  const whatsapp = () => {
-    const msg = `Confira os produtos disponíveis: ${url}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const abrir = () => window.open(url, '_blank');
@@ -67,9 +66,9 @@ const CompartilharVitrineDialog = ({ open, onClose, search, tamanhos, ficha, tot
             O link se atualiza sozinho conforme o estoque muda.
           </p>
 
-          <div>
-            <label className="text-xs font-semibold block mb-1">Título (opcional)</label>
-            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Vitrine Rancho Chique" className="h-8 text-xs" />
+          <div className="text-xs">
+            <span className="font-semibold">Título: </span>
+            <span className="text-muted-foreground">{titulo}</span>
           </div>
 
           {canTogglePrecos ? (
@@ -99,9 +98,8 @@ const CompartilharVitrineDialog = ({ open, onClose, search, tamanhos, ficha, tot
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Fechar</Button>
-          <Button onClick={whatsapp} className="orange-gradient text-primary-foreground">Enviar no WhatsApp</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
