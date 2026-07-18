@@ -43,6 +43,7 @@ import ComunicadoBanner from "@/components/ComunicadoBanner";
 import BordadoPortalPage from "./pages/BordadoPortalPage";
 import MontagemPortalPage from "./pages/MontagemPortalPage";
 import PublicTrackingPage from "./pages/PublicTrackingPage";
+import VitrinePublicaPage from "./pages/VitrinePublicaPage";
 import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 import PrecoReconciler from "@/components/PrecoReconciler";
 import { useSyncDynamicUnitPrices } from "@/lib/dynamicUnitPrice";
@@ -73,7 +74,7 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const isBordado = role === 'bordado';
   const isMontagem = role === 'montagem';
   const isAdminProducao = role === 'admin_producao';
-  const isPublicRoute = location.pathname.startsWith('/rastreio/');
+  const isPublicRoute = location.pathname.startsWith('/rastreio/') || location.pathname.startsWith('/vitrine/');
   const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
   const isPreview = new URLSearchParams(location.search).get('preview') === '1';
   const hideChrome = location.pathname === '/login' || isBordado || isMontagem || isPublicRoute || isPreview;
@@ -124,6 +125,7 @@ const App = () => (
             <Route path="/bordado" element={<BordadoPortalPage />} />
             <Route path="/montagem" element={<MontagemPortalPage />} />
             <Route path="/rastreio/:id" element={<PublicTrackingPage />} />
+            <Route path="/vitrine/:token" element={<VitrinePublicaPage />} />
             
             
             

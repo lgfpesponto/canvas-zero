@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
+import CompartilharVitrineDialog from '@/components/estoque/CompartilharVitrineDialog';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
 import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 
@@ -23,6 +24,7 @@ interface EstoqueRow {
   tamanho: string;
   quantidade: number;
   preco: number;
+  preco_desconto: number | null;
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   ativo: boolean;
@@ -36,7 +38,8 @@ interface ProductGroup {
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   preco: number;
-  tamanhos: EstoqueRow[]; // sorted by tamanho
+  preco_desconto: number | null;
+  tamanhos: EstoqueRow[];
 }
 
 const PAGE_SIZE = 25;
@@ -50,6 +53,7 @@ const EstoquePage = () => {
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
   const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const [page, setPage] = useState(1);
+  const [vitrineOpen, setVitrineOpen] = useState(false);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
@@ -149,6 +153,7 @@ const EstoquePage = () => {
           foto_url: r.foto_url,
           ficha_snapshot: r.ficha_snapshot || {},
           preco: r.preco,
+          preco_desconto: r.preco_desconto,
           tamanhos: [],
         });
       }
@@ -230,6 +235,9 @@ const EstoquePage = () => {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+        <Button variant="outline" size="sm" onClick={() => setVitrineOpen(true)}>
+          <Share2 size={14} /> Compartilhar vitrine
+        </Button>
       </div>
 
       <EstoqueEmprestimosPanel
@@ -422,9 +430,27 @@ const EstoquePage = () => {
                   }
                   return null;
                 })()}
-                <p className="text-xl font-bold text-primary mt-auto">
-                  {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
+                {(() => {
+                  const temDesc = g.preco_desconto && g.preco_desconto > 0 && g.preco_desconto < g.preco;
+                  const pct = temDesc ? Math.round((1 - (g.preco_desconto! / g.preco)) * 100) : 0;
+                  return temDesc ? (
+                    <div className="mt-auto">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-xs line-through text-muted-foreground">
+                          {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                        <span className="text-xl font-bold text-primary">
+                          {g.preco_desconto!.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                        <Badge className="text-[10px] px-1.5 py-0">-{pct}%</Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-primary mt-auto">
+                      {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
+                  );
+                })()}
                 <div className="flex gap-2 mt-1">
                   <Button size="sm" variant="outline" className="flex-1" onClick={() => setPreviewProduct(g)}>
                     <Eye size={14} /> Ver
@@ -536,6 +562,16 @@ const EstoquePage = () => {
         produto={buyProduct}
         vendedores={vendedores}
         onSuccess={fetchRows}
+      />
+
+      <CompartilharVitrineDialog
+        open={vitrineOpen}
+        onClose={() => setVitrineOpen(false)}
+        search={search}
+        tamanhos={selTamanhos}
+        ficha={selFicha}
+        totalProdutos={filteredGroups.length}
+        canTogglePrecos={role === 'admin_master'}
       />
     </div>
   );
