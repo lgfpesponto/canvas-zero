@@ -99,9 +99,9 @@ export function useDescontosAtivos(refreshKey: number = 0) {
     load();
 
     const ch = supabase
-      .channel('estoque-descontos-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_descontos' }, load)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_desconto_produtos' }, load)
+      .channel(`estoque-descontos-rt-${Math.random().toString(36).slice(2, 10)}`)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'estoque_descontos' }, load)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'estoque_desconto_produtos' }, load)
       .subscribe();
 
     return () => { cancelled = true; supabase.removeChannel(ch); };
