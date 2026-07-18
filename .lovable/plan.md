@@ -1,55 +1,55 @@
-# Descontos no estoque + Vitrine pública
 
-## 1. Descontos nos produtos de estoque
+## 1. Título da vitrine automático
 
-**Banco (`estoque_produtos`)**
-- Adicionar coluna `preco_desconto NUMERIC NULL` (quando preenchida, é o preço "de venda"; `preco` continua sendo o original).
-- Como o preço "vivo" acompanha a ficha atual, o desconto é armazenado por SKU e sobrevive a reajustes.
+- Remover input "Título" e botão "Enviar no WhatsApp" de `CompartilharVitrineDialog`.
+- Título = `profile.nomeLoja` do usuário logado; fallback `"Vitrine 7ESTRIVOS"`. Enviado no token automaticamente.
+- Em `VitrinePublicaPage`: setar `document.title` e injetar `<meta og:title>`, `<meta twitter:title>`, `<meta og:description>` via efeito.
 
-**UI — `EstoqueProdutoConfigButton` (edição do grupo)**
-- Nova seção "Descontos":
-  - Campo "Aplicar desconto em massa" com dois modos: **% off** ou **R$ fixo** → botão "Aplicar a todos os tamanhos" (calcula e preenche `preco_desconto` de cada linha).
-  - Botão "Remover todos os descontos".
-  - Por tamanho: input adicional `preco_desconto` ao lado do `preco`, com badge mostrando `% off` calculado.
-- Salvar grava `preco_desconto` (ou `NULL` se vazio).
+## 2. Descontos por produto (não por tamanho)
 
-**UI — card na `EstoquePage`**
-- Quando `preco_desconto` existir e for menor que `preco`: mostrar preço original riscado + preço com desconto em destaque + badge `-X%`.
+### Banco (migração)
+- `estoque_descontos`: `nome`, `tipo` ('pct'|'fixo'), `valor`, `escopo` ('todos'|'produtos'), `ativo`, `criado_por`, timestamps.
+- `estoque_desconto_produtos` (M:N): `desconto_id`, `produto_grupo_key text`.
+- GRANTs: SELECT `authenticated`+`anon`; INSERT/UPDATE/DELETE só `admin_master`.
+- `orders.desconto_aplicado jsonb` (snapshot congelado).
+- `estoque_produtos.preco_desconto` deixa de ser usado (mantida por compatibilidade).
 
-## 2. Vitrine pública (link externo)
+### Helpers
+- `src/lib/estoqueGroupKey.ts`: chave `${nome}||${sku_base.split('-').slice(0,-1).join('-')}`.
+- `src/lib/estoqueDescontos.ts`: `useDescontosAtivos()` e `getDescontoParaProduto(grupoKey, precoBase)` → escolhe o desconto de maior abatimento (não soma).
 
-**Rota nova:** `/vitrine/:token` (pública, sem auth) em `src/pages/VitrinePublicaPage.tsx`.
+### UI Estoque (`EstoquePage`)
+- Botão **"Adicionar desconto"** acima de "Compartilhar vitrine", só `admin_master`.
+- `GerenciarDescontosDialog`: nome, tipo (%/R$), valor, escopo ("Todos os produtos" ou "Selecionar produtos" com busca + checkboxes). Chips de descontos ativos com botão excluir (soft delete).
+- Cards: preço original riscado + preço final destacado + badge `-{X}% de desconto` / `-R$ Y de desconto` + nome do desconto.
+- Remover seção "Desconto em massa" e coluna "Desconto" do `EstoqueProdutoConfigButton`.
 
-**Como o link é gerado (na `EstoquePage`):**
-- Botão "Compartilhar vitrine" no topo (ao lado dos filtros).
-- Abre modal:
-  - Resumo: "X produtos com os filtros atuais serão incluídos".
-  - Para `admin_master`: toggles **"Mostrar preços"** e **"Mostrar descontos"** (default: ligados).
-  - Para `vendedor`, `vendedor_comissao`, `admin_producao`: sem toggles — preços e descontos **sempre ocultos** (força `mostrarPreco=false`).
-  - Botão "Gerar link" → codifica os filtros ativos + flags em base64 no token da URL e copia para a área de transferência (também botão WhatsApp).
+### Vitrine pública
+- Reusa `useDescontosAtivos` (RLS anon). Mesma exibição quando `mostrarPreco && mostrarDesconto`.
 
-**Formato do token:** JSON `{ search, tamanhos, ficha, mostrarPreco, mostrarDesconto }` → base64url. Stateless, não precisa de nova tabela.
+### Compra / composição
+- Compra aplica desconto: `orders.preco` = valor com desconto; `orders.desconto_aplicado = { nome, tipo, valor, valor_original, valor_desconto }`.
+- `OrderDetailPage`/`priceItems`/espelho/PDFs: nova linha `"Desconto {valor} + {nome}"` como item negativo.
 
-**Página `/vitrine/:token`:**
-- Layout minimalista (similar ao `PublicTrackingPage`): logo 7 Estrivos no topo, sem header do app, sem navegação, sem botões de compra/detalhes.
-- Consulta `estoque_produtos` (ativo=true) com o **mesmo agrupamento e filtros** da `EstoquePage` (reaproveita helpers de `fichaFilterKeys`).
-- Cards mostram: foto, nome, tamanhos disponíveis (respeitando filtro de numeração, se houver) com quantidade, e — se `mostrarPreco` — preço; se `mostrarDesconto` e houver desconto, mostra original riscado + com desconto.
-- Produtos **sem estoque** aparecem em cinza com selo "Indisponível" (mesma regra do portal — atualiza sozinho quando o estoque zera).
-- Realtime em `estoque_produtos` para refletir vendas ao vivo (mesma subscription já usada na `EstoquePage`).
-- Sem paginação inicial (rolagem contínua); pode adicionar se ficar longo.
+## 3. Filtro por tamanho oculta produtos zerados nesse tamanho
 
-**Comportamento dos filtros no link**
-- O token carrega o snapshot dos filtros no momento da geração — remover/mudar filtros no portal **não** afeta o link já enviado.
-- Produtos que passavam nos filtros mas ficaram sem estoque continuam listados como "Indisponível" (não somem), conforme pedido.
+- Regra: quando o filtro de numeração está ativo, um produto só aparece se **pelo menos um tamanho filtrado tem `quantidade > 0`**. Tamanhos filtrados com 0 continuam ocultos do card (comportamento atual).
+- Sem filtro de tamanho: mantém comportamento atual (mostra produto se qualquer tamanho tiver estoque).
+- Aplicar em:
+  - `EstoquePage`: no agrupamento/filtragem antes do render dos cards.
+  - `VitrinePublicaPage`: mesma regra usando os tamanhos do token.
+- Remover/ajustar o banner "INDISPONÍVEL" que hoje aparece na vitrine para tamanhos filtrados: como o produto some, não é mais necessário nesse caso.
 
-## 3. Detalhes técnicos
+## 4. Restrições de papel
+- `admin_producao`: sem preços, sem "Adicionar desconto", sem toggles no compartilhar.
+- `admin_master`: único que gerencia descontos.
 
-- Migração: `ALTER TABLE public.estoque_produtos ADD COLUMN preco_desconto NUMERIC;` (nullable). Sem mudanças de RLS (leitura pública já não existe — a vitrine usará leitura via anon).
-- Precisa liberar `GRANT SELECT ON public.estoque_produtos TO anon;` + política RLS `FOR SELECT USING (ativo = true)` para `anon`, senão a vitrine pública não carrega. (Só SELECT; sem insert/update/delete para anon.)
-- Reaproveitar `EstoqueFoto`, `buildFichaOptions`, `matchesFichaFilters` e `useFichaFilterKeys` na vitrine.
-- Novo componente `src/components/estoque/CompartilharVitrineDialog.tsx` para gerar o link.
-- Helper `src/lib/vitrineToken.ts` com `encodeVitrineToken`/`decodeVitrineToken`.
-
-## Fora de escopo (confirmar se quer depois)
-- Encurtador de URL / domínio custom para a vitrine.
-- Salvar snapshots nomeados de vitrines (ex.: "vitrine Rancho Chique").
+## Ordem de implementação
+1. Migração SQL (tabelas de desconto + `orders.desconto_aplicado` + policies/grants).
+2. Helpers `estoqueGroupKey.ts` e `estoqueDescontos.ts`.
+3. `GerenciarDescontosDialog` + botão em `EstoquePage`.
+4. Renderização preço/desconto nos cards (Estoque + Vitrine).
+5. Filtro que oculta produtos zerados no tamanho filtrado (Estoque + Vitrine).
+6. Aplicação real do desconto na compra + exibição na composição do pedido.
+7. Remover UI de desconto por tamanho no `EstoqueProdutoConfigButton`.
+8. Título automático + remoção do botão WhatsApp em `CompartilharVitrineDialog` + meta tags em `VitrinePublicaPage`.
