@@ -57,6 +57,7 @@ const fmtBRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', cur
 
 const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }: Props) => {
   const { user, isAdmin } = useAuth();
+  const { descontos } = useDescontosAtivos();
   // map produto_id -> quantidade desejada
   const [quantidades, setQuantidades] = useState<Record<string, number>>({});
   // resumo: lista de itens (1 por unidade) com seus extras
@@ -70,6 +71,14 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   const [reservasOutros, setReservasOutros] = useState<Record<string, number>>({});
   // Espelho local dos saldos (atualizado por realtime)
   const [saldos, setSaldos] = useState<Record<string, number>>({});
+
+  // Desconto ativo para o produto (todos os tamanhos compartilham o mesmo grupo)
+  const desconto = useMemo(() => {
+    if (!produto || produto.tamanhos.length === 0) return null;
+    const first = produto.tamanhos[0];
+    const key = estoqueGroupKey(produto.nome, first.sku_base);
+    return getDescontoParaProduto(key, first.preco, descontos);
+  }, [produto, descontos]);
 
   useEffect(() => {
     if (open && produto) {
