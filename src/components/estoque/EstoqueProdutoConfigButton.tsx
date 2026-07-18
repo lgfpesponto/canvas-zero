@@ -1,71 +1,120 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Settings, Minus, Plus } from 'lucide-react';
+import { Settings, Minus, Plus, RefreshCw } from 'lucide-react';
+
+interface ProdutoTam {
+  id: string;
+  nome: string;
+  sku_base: string;
+  tamanho: string;
+  quantidade: number;
+  preco: number;
+  foto_url: string | null;
+}
 
 interface Props {
-  produto: {
-    id: string;
-    nome: string;
-    sku_base: string;
-    tamanho: string;
-    quantidade: number;
-    preco: number;
-    foto_url: string | null;
-  };
+  /** Um produto (linha primária) — normalmente o primeiro tamanho do grupo */
+  produto: ProdutoTam;
+  /** Todos os tamanhos do mesmo produto (para edição em bloco). Se omitido, usa apenas `produto`. */
+  grupo?: ProdutoTam[];
   onDone?: () => void;
 }
 
 /**
- * Engrenagem de configuração do produto no estoque (só admin_master / admin_producao).
- * Permite editar nome, foto, preço, SKU e ajustar quantidade manualmente com registro em log.
+ * Engrenagem de configuração do produto no estoque (só admins).
+ * - Edição do nome / foto propaga a TODOS os tamanhos do grupo (não cria produto novo).
+ * - Cada tamanho tem SKU e quantidade editáveis individualmente + "Redescobrir na Bagy".
+ * - O preço mostrado é derivado da versão atual da ficha (armazenado, mas atualizável no botão de sincronização abaixo).
  */
-const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
+const EstoqueProdutoConfigButton = ({ produto, grupo, onDone }: Props) => {
   const [open, setOpen] = useState(false);
+  const items = grupo && grupo.length > 0 ? grupo : [produto];
   const [nome, setNome] = useState(produto.nome);
-  const [sku, setSku] = useState(produto.sku_base);
   const [foto, setFoto] = useState(produto.foto_url || '');
-  const [preco, setPreco] = useState(String(produto.preco));
-  const [delta, setDelta] = useState(0);
+  const [rows, setRows] = useState(() => items.map(t => ({
+    id: t.id,
+    tamanho: t.tamanho,
+    sku_base: t.sku_base,
+    quantidade: t.quantidade,
+    preco: Number(t.preco || 0),
+    delta: 0,
+  })));
   const [motivo, setMotivo] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const salvarMeta = async () => {
+  useEffect(() => {
+    if (open) {
+      setNome(produto.nome);
+      setFoto(produto.foto_url || '');
+      setRows(items.map(t => ({
+        id: t.id,
+        tamanho: t.tamanho,
+        sku_base: t.sku_base,
+        quantidade: t.quantidade,
+        preco: Number(t.preco || 0),
+        delta: 0,
+      })));
+      setMotivo('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const salvarTudo = async () => {
     setBusy(true);
-    const { error } = await (supabase.rpc as any)('editar_produto_estoque', {
-      _produto_id: produto.id,
-      _nome: nome,
-      _foto_url: foto,
-      _preco: Number(preco) || 0,
-      _sku_base: sku,
+    try {
+      // Propaga nome/foto para todos + atualiza SKU/preço por linha
+      for (const r of rows) {
+        const original = items.find(i => i.id === r.id);
+        const { error } = await (supabase.rpc as any)('editar_produto_estoque', {
+          _produto_id: r.id,
+          _nome: nome,
+          _foto_url: foto,
+          _preco: r.preco || 0,
+          _sku_base: r.sku_base,
+        });
+        if (error) { toast.error(`Tam ${r.tamanho}: ${error.message}`); setBusy(false); return; }
+        // Se SKU mudou → dispara redescoberta na Bagy
+        if (original && original.sku_base.trim() !== r.sku_base.trim()) {
+          supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: r.id } }).catch(() => {});
+        }
+      }
+      // Aplica deltas de quantidade
+      for (const r of rows) {
+        if (r.delta !== 0) {
+          const { error } = await (supabase.rpc as any)('ajustar_estoque_manual', {
+            _produto_id: r.id,
+            _delta: r.delta,
+            _motivo: motivo || null,
+          });
+          if (error) { toast.error(`Ajuste tam ${r.tamanho}: ${error.message}`); setBusy(false); return; }
+          supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: r.id } }).catch(() => {});
+        }
+      }
+      toast.success('Produto atualizado.');
+      onDone?.();
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const redescobrir = async (id: string) => {
+    setBusy(true);
+    const { error } = await supabase.functions.invoke('bagy-stock-sync', {
+      body: { retry_produto_id: id, force_rediscover: true },
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
-    toast.success('Produto atualizado.');
-    if (sku.trim() !== produto.sku_base.trim()) {
-      supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: produto.id } }).catch(() => {});
-    }
+    toast.success('Redescoberta enviada.');
     onDone?.();
   };
 
-  const aplicarAjuste = async () => {
-    if (delta === 0) { toast.error('Informe um valor diferente de 0.'); return; }
-    setBusy(true);
-    const { error } = await (supabase.rpc as any)('ajustar_estoque_manual', {
-      _produto_id: produto.id,
-      _delta: delta,
-      _motivo: motivo || null,
-    });
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Ajuste aplicado (${delta > 0 ? '+' : ''}${delta}).`);
-    supabase.functions.invoke('bagy-stock-sync', { body: { retry_produto_id: produto.id } }).catch(() => {});
-    setDelta(0); setMotivo('');
-    onDone?.();
-    setOpen(false);
+  const updateRow = (id: string, field: 'sku_base' | 'quantidade' | 'preco' | 'delta', value: string | number) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: field === 'sku_base' ? String(value) : Number(value) } : r));
   };
 
   return (
@@ -80,74 +129,59 @@ const EstoqueProdutoConfigButton = ({ produto, onDone }: Props) => {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base">Configurar: {produto.nome} · tam {produto.tamanho}</DialogTitle>
+            <DialogTitle className="text-base">Configurar produto</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 text-sm">
             <div className="border border-border rounded-md p-3 space-y-2">
-              <div className="text-xs font-bold text-muted-foreground uppercase">Dados do produto</div>
+              <div className="text-xs font-bold text-muted-foreground uppercase">Dados do produto (afeta todos os tamanhos)</div>
               <div>
                 <label className="text-xs font-semibold block mb-1">Nome</label>
                 <Input value={nome} onChange={e => setNome(e.target.value)} className="h-8 text-xs" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold block mb-1">SKU base</label>
-                  <Input value={sku} onChange={e => setSku(e.target.value)} className="h-8 text-xs font-mono" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold block mb-1">Preço</label>
-                  <Input type="number" step="0.01" value={preco} onChange={e => setPreco(e.target.value)} className="h-8 text-xs" />
-                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Renomear aqui atualiza todos os tamanhos deste produto — não cria um novo.</p>
               </div>
               <div>
                 <label className="text-xs font-semibold block mb-1">Foto (URL)</label>
                 <Input value={foto} onChange={e => setFoto(e.target.value)} className="h-8 text-xs" />
               </div>
-              <Button size="sm" variant="outline" onClick={salvarMeta} disabled={busy} className="w-full">
-                {busy ? 'Salvando…' : 'Salvar dados'}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={async () => {
-                  setBusy(true);
-                  const { error } = await supabase.functions.invoke('bagy-stock-sync', {
-                    body: { retry_produto_id: produto.id, force_rediscover: true },
-                  });
-                  setBusy(false);
-                  if (error) { toast.error(error.message); return; }
-                  toast.success('Redescoberta enviada. Verifique o status em alguns segundos.');
-                  onDone?.();
-                }}
-                disabled={busy}
-                className="w-full"
-              >
-                Forçar redescoberta na Bagy
-              </Button>
             </div>
 
             <div className="border border-border rounded-md p-3 space-y-2">
-              <div className="text-xs font-bold text-muted-foreground uppercase">Ajustar quantidade</div>
-              <p className="text-xs text-muted-foreground">
-                Atual: <strong>{produto.quantidade}</strong> un.
-              </p>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setDelta(d => d - 1)}><Minus size={12} /></Button>
-                <Input type="number" value={delta} onChange={e => setDelta(Number(e.target.value))} className="h-8 text-xs text-center" />
-                <Button size="sm" variant="outline" onClick={() => setDelta(d => d + 1)}><Plus size={12} /></Button>
+              <div className="text-xs font-bold text-muted-foreground uppercase">Tamanhos ({rows.length})</div>
+              <div className="grid grid-cols-[48px_1fr_90px_120px_36px] gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
+                <span>Tam</span>
+                <span>SKU</span>
+                <span>Preço</span>
+                <span>Qtd (± ajuste)</span>
+                <span></span>
               </div>
-              <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo (opcional)" className="h-8 text-xs" />
-              <Button size="sm" onClick={aplicarAjuste} disabled={busy || delta === 0} className="w-full orange-gradient text-primary-foreground">
-                Aplicar ajuste ({delta > 0 ? '+' : ''}{delta})
-              </Button>
+              {rows.map(r => (
+                <div key={r.id} className="grid grid-cols-[48px_1fr_90px_120px_36px] gap-2 items-center">
+                  <span className="font-bold">{r.tamanho}</span>
+                  <Input value={r.sku_base} onChange={e => updateRow(r.id, 'sku_base', e.target.value)} className="h-7 text-xs font-mono" />
+                  <Input type="number" step="0.01" value={r.preco} onChange={e => updateRow(r.id, 'preco', e.target.value)} className="h-7 text-xs" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs w-6 text-right">{r.quantidade}</span>
+                    <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateRow(r.id, 'delta', r.delta - 1)}><Minus size={10} /></Button>
+                    <Input type="number" value={r.delta} onChange={e => updateRow(r.id, 'delta', e.target.value)} className="h-6 text-xs text-center px-1 w-12" />
+                    <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateRow(r.id, 'delta', r.delta + 1)}><Plus size={10} /></Button>
+                  </div>
+                  <button type="button" onClick={() => redescobrir(r.id)} title="Redescobrir na Bagy" className="h-7 w-7 rounded-md bg-muted hover:bg-primary/20 flex items-center justify-center" disabled={busy}>
+                    <RefreshCw size={12} />
+                  </button>
+                </div>
+              ))}
+              <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo dos ajustes de quantidade (opcional)" className="h-8 text-xs" />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>Fechar</Button>
+            <Button onClick={salvarTudo} disabled={busy} className="orange-gradient text-primary-foreground">
+              {busy ? 'Salvando…' : 'Salvar tudo'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
