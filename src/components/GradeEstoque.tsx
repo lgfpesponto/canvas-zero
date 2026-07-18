@@ -24,6 +24,8 @@ interface GradeEstoqueProps {
   suggestSkuBase?: string;
   /** Match contra produto já existente no estoque (mesmo nome) — mostra aviso */
   matchedExistingSku?: { sku: string; nome: string };
+  /** Permite salvar linhas com quantidade 0 (fluxo "Estoque já criado" — pré-cadastra tamanho vazio) */
+  allowQtdZero?: boolean;
 }
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
