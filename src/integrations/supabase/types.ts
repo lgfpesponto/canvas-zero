@@ -782,6 +782,7 @@ export type Database = {
           id: string
           nome: string
           preco: number
+          preco_desconto: number | null
           quantidade: number
           sku_base: string
           tamanho: string
@@ -800,6 +801,7 @@ export type Database = {
           id?: string
           nome: string
           preco?: number
+          preco_desconto?: number | null
           quantidade?: number
           sku_base: string
           tamanho: string
@@ -818,6 +820,7 @@ export type Database = {
           id?: string
           nome?: string
           preco?: number
+          preco_desconto?: number | null
           quantidade?: number
           sku_base?: string
           tamanho?: string
