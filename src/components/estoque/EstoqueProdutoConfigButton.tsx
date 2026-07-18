@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Settings, Minus, Plus, RefreshCw, Percent, X } from 'lucide-react';
+import { Settings, Minus, Plus, RefreshCw } from 'lucide-react';
 
 interface ProdutoTam {
   id: string;
@@ -13,7 +13,6 @@ interface ProdutoTam {
   tamanho: string;
   quantidade: number;
   preco: number;
-  preco_desconto?: number | null;
   foto_url: string | null;
 }
 
@@ -34,13 +33,10 @@ const EstoqueProdutoConfigButton = ({ produto, grupo, onDone }: Props) => {
     sku_base: t.sku_base,
     quantidade: t.quantidade,
     preco: Number(t.preco || 0),
-    preco_desconto: t.preco_desconto != null ? Number(t.preco_desconto) : null,
     delta: 0,
   })));
   const [motivo, setMotivo] = useState('');
   const [busy, setBusy] = useState(false);
-  const [bulkMode, setBulkMode] = useState<'pct' | 'fixo'>('pct');
-  const [bulkValor, setBulkValor] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -52,54 +48,26 @@ const EstoqueProdutoConfigButton = ({ produto, grupo, onDone }: Props) => {
         sku_base: t.sku_base,
         quantidade: t.quantidade,
         preco: Number(t.preco || 0),
-        preco_desconto: t.preco_desconto != null ? Number(t.preco_desconto) : null,
         delta: 0,
       })));
       setMotivo('');
-      setBulkValor('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  const aplicarDescontoEmMassa = () => {
-    const num = Number(String(bulkValor).replace(',', '.'));
-    if (!isFinite(num) || num <= 0) {
-      toast.error('Informe um valor válido');
-      return;
-    }
-    setRows(prev => prev.map(r => {
-      let novo: number | null;
-      if (bulkMode === 'pct') {
-        if (num >= 100) { novo = 0; }
-        else novo = Number((r.preco * (1 - num / 100)).toFixed(2));
-      } else {
-        novo = Number(Math.max(0, r.preco - num).toFixed(2));
-      }
-      return { ...r, preco_desconto: novo };
-    }));
-    toast.success('Desconto aplicado a todos os tamanhos (revise e salve)');
-  };
-
-  const removerDescontosTodos = () => {
-    setRows(prev => prev.map(r => ({ ...r, preco_desconto: null })));
-  };
 
   const salvarTudo = async () => {
     setBusy(true);
     try {
       for (const r of rows) {
         const original = items.find(i => i.id === r.id);
-        const originalDesc = original?.preco_desconto ?? null;
-        const changedDesc = (originalDesc ?? null) !== (r.preco_desconto ?? null);
-        const limpar = changedDesc && r.preco_desconto == null;
         const { error } = await (supabase.rpc as any)('editar_produto_estoque', {
           _produto_id: r.id,
           _nome: nome,
           _foto_url: foto,
           _preco: r.preco || 0,
           _sku_base: r.sku_base,
-          _preco_desconto: changedDesc && !limpar ? r.preco_desconto : null,
-          _limpar_desconto: limpar,
+          _preco_desconto: null,
+          _limpar_desconto: true,
         });
         if (error) { toast.error(`Tam ${r.tamanho}: ${error.message}`); setBusy(false); return; }
         if (original && original.sku_base.trim() !== r.sku_base.trim()) {
@@ -136,15 +104,10 @@ const EstoqueProdutoConfigButton = ({ produto, grupo, onDone }: Props) => {
     onDone?.();
   };
 
-  const updateRow = (id: string, field: 'sku_base' | 'quantidade' | 'preco' | 'delta' | 'preco_desconto', value: string | number | null) => {
+  const updateRow = (id: string, field: 'sku_base' | 'quantidade' | 'preco' | 'delta', value: string | number) => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
       if (field === 'sku_base') return { ...r, sku_base: String(value) };
-      if (field === 'preco_desconto') {
-        if (value === null || value === '' || value === undefined) return { ...r, preco_desconto: null };
-        const n = Number(String(value).replace(',', '.'));
-        return { ...r, preco_desconto: isFinite(n) ? n : null };
-      }
       return { ...r, [field]: Number(value) };
     }));
   };
@@ -178,81 +141,36 @@ const EstoqueProdutoConfigButton = ({ produto, grupo, onDone }: Props) => {
                 <label className="text-xs font-semibold block mb-1">Foto (URL)</label>
                 <Input value={foto} onChange={e => setFoto(e.target.value)} className="h-8 text-xs" />
               </div>
-            </div>
-
-            <div className="border border-border rounded-md p-3 space-y-2 bg-primary/5">
-              <div className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
-                <Percent size={12} /> Desconto em massa
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={bulkMode}
-                  onChange={(e) => setBulkMode(e.target.value as any)}
-                  className="h-8 text-xs rounded-md border border-input bg-background px-2"
-                >
-                  <option value="pct">% off</option>
-                  <option value="fixo">R$ fixo</option>
-                </select>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={bulkValor}
-                  onChange={(e) => setBulkValor(e.target.value)}
-                  placeholder={bulkMode === 'pct' ? 'Ex.: 15' : 'Ex.: 50'}
-                  className="h-8 text-xs w-32"
-                />
-                <Button size="sm" variant="outline" onClick={aplicarDescontoEmMassa}>Aplicar a todos</Button>
-                <Button size="sm" variant="ghost" onClick={removerDescontosTodos}>
-                  <X size={12} /> Remover descontos
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Prévia é aplicada às linhas abaixo. Nada é gravado até clicar em "Salvar tudo".
+              <p className="text-[10px] text-muted-foreground italic">
+                Descontos agora são gerenciados no botão "Adicionar desconto" acima (aplicam ao produto inteiro).
               </p>
             </div>
 
             <div className="border border-border rounded-md p-3 space-y-2">
               <div className="text-xs font-bold text-muted-foreground uppercase">Tamanhos ({rows.length})</div>
-              <div className="grid grid-cols-[40px_1fr_80px_90px_110px_32px] gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
+              <div className="grid grid-cols-[40px_1fr_90px_120px_32px] gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
                 <span>Tam</span>
                 <span>SKU</span>
                 <span>Preço</span>
-                <span>Desconto</span>
                 <span>Qtd (± ajuste)</span>
                 <span></span>
               </div>
-              {rows.map(r => {
-                const pct = r.preco_desconto != null && r.preco > 0 && r.preco_desconto < r.preco
-                  ? Math.round((1 - (r.preco_desconto / r.preco)) * 100)
-                  : 0;
-                return (
-                  <div key={r.id} className="grid grid-cols-[40px_1fr_80px_90px_110px_32px] gap-2 items-center">
-                    <span className="font-bold">{r.tamanho}</span>
-                    <Input value={r.sku_base} onChange={e => updateRow(r.id, 'sku_base', e.target.value)} className="h-7 text-xs font-mono" />
-                    <Input type="number" step="0.01" value={r.preco} onChange={e => updateRow(r.id, 'preco', e.target.value)} className="h-7 text-xs" />
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={r.preco_desconto ?? ''}
-                        onChange={e => updateRow(r.id, 'preco_desconto', e.target.value === '' ? null : e.target.value)}
-                        placeholder="—"
-                        className="h-7 text-xs"
-                      />
-                      {pct > 0 && <span className="text-[10px] font-bold text-primary">-{pct}%</span>}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs w-6 text-right">{r.quantidade}</span>
-                      <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateRow(r.id, 'delta', r.delta - 1)}><Minus size={10} /></Button>
-                      <Input type="number" value={r.delta} onChange={e => updateRow(r.id, 'delta', e.target.value)} className="h-6 text-xs text-center px-1 w-12" />
-                      <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateRow(r.id, 'delta', r.delta + 1)}><Plus size={10} /></Button>
-                    </div>
-                    <button type="button" onClick={() => redescobrir(r.id)} title="Redescobrir na Bagy" className="h-7 w-7 rounded-md bg-muted hover:bg-primary/20 flex items-center justify-center" disabled={busy}>
-                      <RefreshCw size={12} />
-                    </button>
+              {rows.map(r => (
+                <div key={r.id} className="grid grid-cols-[40px_1fr_90px_120px_32px] gap-2 items-center">
+                  <span className="font-bold">{r.tamanho}</span>
+                  <Input value={r.sku_base} onChange={e => updateRow(r.id, 'sku_base', e.target.value)} className="h-7 text-xs font-mono" />
+                  <Input type="number" step="0.01" value={r.preco} onChange={e => updateRow(r.id, 'preco', e.target.value)} className="h-7 text-xs" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs w-6 text-right">{r.quantidade}</span>
+                    <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateRow(r.id, 'delta', r.delta - 1)}><Minus size={10} /></Button>
+                    <Input type="number" value={r.delta} onChange={e => updateRow(r.id, 'delta', e.target.value)} className="h-6 text-xs text-center px-1 w-12" />
+                    <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateRow(r.id, 'delta', r.delta + 1)}><Plus size={10} /></Button>
                   </div>
-                );
-              })}
+                  <button type="button" onClick={() => redescobrir(r.id)} title="Redescobrir na Bagy" className="h-7 w-7 rounded-md bg-muted hover:bg-primary/20 flex items-center justify-center" disabled={busy}>
+                    <RefreshCw size={12} />
+                  </button>
+                </div>
+              ))}
               <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo dos ajustes de quantidade (opcional)" className="h-8 text-xs" />
             </div>
           </div>
