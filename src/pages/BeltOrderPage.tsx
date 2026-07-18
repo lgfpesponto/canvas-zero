@@ -158,6 +158,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [estoquePronto, setEstoquePronto] = useState(false);
+  const [estoqueJaCriado, setEstoqueJaCriado] = useState(false);
 
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
 
