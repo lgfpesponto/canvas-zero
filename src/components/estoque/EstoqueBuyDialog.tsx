@@ -520,9 +520,17 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
           )}
 
           {/* Total */}
-          <div className="flex justify-between items-center border-t pt-3">
-            <span className="font-semibold">Total</span>
-            <span className="text-lg font-bold text-primary">{fmtBRL(total)}</span>
+          <div className="border-t pt-3 space-y-1">
+            {desconto && (
+              <div className="flex justify-between items-center text-xs text-primary">
+                <span>Desconto aplicado · {desconto.nome} ({desconto.label})</span>
+                <span>-{(desconto.valorDesconto * itens.length).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="font-semibold">Total</span>
+              <span className="text-lg font-bold text-primary">{fmtBRL(total)}</span>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">
