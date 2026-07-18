@@ -563,6 +563,16 @@ const EstoquePage = () => {
         vendedores={vendedores}
         onSuccess={fetchRows}
       />
+
+      <CompartilharVitrineDialog
+        open={vitrineOpen}
+        onClose={() => setVitrineOpen(false)}
+        search={search}
+        tamanhos={selTamanhos}
+        ficha={selFicha}
+        totalProdutos={filteredGroups.length}
+        canTogglePrecos={role === 'admin_master'}
+      />
     </div>
   );
 };
