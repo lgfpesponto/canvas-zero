@@ -2950,16 +2950,29 @@ export type Database = {
         Args: { _extra_detalhes: Json }
         Returns: Json
       }
-      editar_produto_estoque: {
-        Args: {
-          _foto_url?: string
-          _nome?: string
-          _preco?: number
-          _produto_id: string
-          _sku_base?: string
-        }
-        Returns: undefined
-      }
+      editar_produto_estoque:
+        | {
+            Args: {
+              _foto_url?: string
+              _nome?: string
+              _preco?: number
+              _produto_id: string
+              _sku_base?: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _foto_url?: string
+              _limpar_desconto?: boolean
+              _nome?: string
+              _preco?: number
+              _preco_desconto?: number
+              _produto_id: string
+              _sku_base?: string
+            }
+            Returns: undefined
+          }
       estornar_baixa_revendedor: {
         Args: { _baixa_id: string; _motivo: string }
         Returns: undefined
