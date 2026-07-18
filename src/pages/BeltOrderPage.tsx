@@ -416,7 +416,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       return;
     }
     const required: [string, string][] = [
-      [numeroPedido.trim(), 'Número do Pedido'],
+      ...(!(estoqueJaCriado && vendedor === 'Estoque') ? [[numeroPedido.trim(), 'Número do Pedido'] as [string, string]] : []),
       [tamanho, 'Tamanho'],
       [tipoCouro, 'Tipo de Couro'],
       [corCouro, 'Cor do Couro'],
