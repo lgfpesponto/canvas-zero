@@ -1,49 +1,55 @@
-# Melhorias no fluxo de Estoque
+# Descontos no estoque + Vitrine pública
 
-## 1. Pedido "Estoque já criado" (Faça seu Pedido / Grade)
+## 1. Descontos nos produtos de estoque
 
-Quando o vendedor selecionado for **Estoque**, exibir na ficha um toggle **"Estoque já criado"**. Quando marcado:
+**Banco (`estoque_produtos`)**
+- Adicionar coluna `preco_desconto NUMERIC NULL` (quando preenchida, é o preço "de venda"; `preco` continua sendo o original).
+- Como o preço "vivo" acompanha a ficha atual, o desconto é armazenado por SKU e sobrevive a reajustes.
 
-- **Não exige número de pedido** (bypass do `useCheckDuplicateOrder` e da validação obrigatória do campo).
-- Na geração da **grade de tamanhos**, permitir salvar linhas com **quantidade 0** (hoje quantidade 0 é filtrada/bloqueada).
-- Cada linha da grade cria/atualiza direto o item de estoque no tamanho correspondente, mesmo com qtd 0 (útil para pré-cadastrar tamanhos que ainda não têm peça pronta).
-- Marca uma flag no pedido (`estoque_ja_criado = true`) para distinguir do fluxo tradicional via "Baixa Estoque".
+**UI — `EstoqueProdutoConfigButton` (edição do grupo)**
+- Nova seção "Descontos":
+  - Campo "Aplicar desconto em massa" com dois modos: **% off** ou **R$ fixo** → botão "Aplicar a todos os tamanhos" (calcula e preenche `preco_desconto` de cada linha).
+  - Botão "Remover todos os descontos".
+  - Por tamanho: input adicional `preco_desconto` ao lado do `preco`, com badge mostrando `% off` calculado.
+- Salvar grava `preco_desconto` (ou `NULL` se vazio).
 
-Pedidos normais continuam com a regra atual: número obrigatório, sem qtd 0, fluxo via etapa Baixa Estoque.
+**UI — card na `EstoquePage`**
+- Quando `preco_desconto` existir e for menor que `preco`: mostrar preço original riscado + preço com desconto em destaque + badge `-X%`.
 
-## 2. Edição por tamanho na página Estoque
+## 2. Vitrine pública (link externo)
 
-Reformular o `EstoqueProdutoConfigButton` (engrenagem) para operar em nível de **produto + tamanho**:
+**Rota nova:** `/vitrine/:token` (pública, sem auth) em `src/pages/VitrinePublicaPage.tsx`.
 
-- **Nome do produto**: editar altera o registro existente, **nunca cria produto novo** (garantir UPDATE in-place mesmo quando o nome muda).
-- **Grade de tamanhos** dentro do dialog, uma linha por tamanho:
-  - Campo **SKU específico daquele tamanho** (editável, salvar por linha).
-  - Campo **quantidade** com ajuste rápido (+/-, motivo).
-  - Botão **"Redescobrir na Bagy"** por tamanho (dispara `bagy-stock-sync` só para aquele SKU/variante).
-- Campo de preço manual removido daqui (ver item 3).
+**Como o link é gerado (na `EstoquePage`):**
+- Botão "Compartilhar vitrine" no topo (ao lado dos filtros).
+- Abre modal:
+  - Resumo: "X produtos com os filtros atuais serão incluídos".
+  - Para `admin_master`: toggles **"Mostrar preços"** e **"Mostrar descontos"** (default: ligados).
+  - Para `vendedor`, `vendedor_comissao`, `admin_producao`: sem toggles — preços e descontos **sempre ocultos** (força `mostrarPreco=false`).
+  - Botão "Gerar link" → codifica os filtros ativos + flags em base64 no token da URL e copia para a área de transferência (também botão WhatsApp).
 
-## 3. Preço: pedido vs. produto de estoque
+**Formato do token:** JSON `{ search, tamanhos, ficha, mostrarPreco, mostrarDesconto }` → base64url. Stateless, não precisa de nova tabela.
 
-Regra clara de versionamento:
+**Página `/vitrine/:token`:**
+- Layout minimalista (similar ao `PublicTrackingPage`): logo 7 Estrivos no topo, sem header do app, sem navegação, sem botões de compra/detalhes.
+- Consulta `estoque_produtos` (ativo=true) com o **mesmo agrupamento e filtros** da `EstoquePage` (reaproveita helpers de `fichaFilterKeys`).
+- Cards mostram: foto, nome, tamanhos disponíveis (respeitando filtro de numeração, se houver) com quantidade, e — se `mostrarPreco` — preço; se `mostrarDesconto` e houver desconto, mostra original riscado + com desconto.
+- Produtos **sem estoque** aparecem em cinza com selo "Indisponível" (mesma regra do portal — atualiza sozinho quando o estoque zera).
+- Realtime em `estoque_produtos` para refletir vendas ao vivo (mesma subscription já usada na `EstoquePage`).
+- Sem paginação inicial (rolagem contínua); pode adicionar se ficar longo.
 
-- **Pedidos já criados** continuam respondendo à **versão da ficha na data da compra** (`preco_regra_versao` snapshot), como já acontece — nada muda.
-- **Produtos de estoque** (linhas em `estoque_produtos`) passam a acompanhar sempre a **versão atual da ficha**:
-  - Preço deixa de ser editável manualmente na engrenagem.
-  - Ao listar/exibir na página Estoque e ao sincronizar com a Bagy, calcular o preço em tempo real usando o modelo/variações originais e as regras vigentes (`priceLookup` + versão atual da régua).
-  - Quando a régua bumpar (`preco_regra_versao++`), disparar recalc + push para a Bagy dos produtos afetados. Pedidos antigos permanecem intocados.
-  - Se o produto não tiver vínculo com uma ficha de origem (cadastro manual antigo), manter o preço armazenado como fallback e mostrar aviso "sem ficha vinculada".
+**Comportamento dos filtros no link**
+- O token carrega o snapshot dos filtros no momento da geração — remover/mudar filtros no portal **não** afeta o link já enviado.
+- Produtos que passavam nos filtros mas ficaram sem estoque continuam listados como "Indisponível" (não somem), conforme pedido.
 
-## Detalhes técnicos
+## 3. Detalhes técnicos
 
-- Migração: `orders.estoque_ja_criado boolean default false`; RPC `criar_estoque_produto` aceita qtd 0 quando a flag for true.
-- Migração: garantir SKU por tamanho em `estoque_produtos` (checar coluna existente; se necessário adicionar).
-- Frontend:
-  - `OrderPage` / grade: novo toggle + bypass de duplicidade + permitir qtd 0 apenas com a flag ligada.
-  - `EstoqueProdutoConfigButton`: refatorar em duas seções (Dados do produto | Tamanhos), com ações por linha.
-  - `EstoquePage`: exibir preço vivo (helper que resolve pela ficha atual, com fallback ao valor salvo).
-- Edge `bagy-stock-sync`: aceitar `retry_produto_id + tamanho` para redescoberta pontual; ler preço vivo antes de push.
-- Reaproveitar `invalidatePriceCache` / gatilho de bump para propagar mudanças aos produtos de estoque sem tocar em pedidos.
+- Migração: `ALTER TABLE public.estoque_produtos ADD COLUMN preco_desconto NUMERIC;` (nullable). Sem mudanças de RLS (leitura pública já não existe — a vitrine usará leitura via anon).
+- Precisa liberar `GRANT SELECT ON public.estoque_produtos TO anon;` + política RLS `FOR SELECT USING (ativo = true)` para `anon`, senão a vitrine pública não carrega. (Só SELECT; sem insert/update/delete para anon.)
+- Reaproveitar `EstoqueFoto`, `buildFichaOptions`, `matchesFichaFilters` e `useFichaFilterKeys` na vitrine.
+- Novo componente `src/components/estoque/CompartilharVitrineDialog.tsx` para gerar o link.
+- Helper `src/lib/vitrineToken.ts` com `encodeVitrineToken`/`decodeVitrineToken`.
 
-## Fora de escopo
-- Não alterar preços de pedidos históricos (regra reforçada acima).
-- Não mudar o fluxo de Baixa Estoque para pedidos normais.
+## Fora de escopo (confirmar se quer depois)
+- Encurtador de URL / domínio custom para a vitrine.
+- Salvar snapshots nomeados de vitrines (ex.: "vitrine Rancho Chique").
