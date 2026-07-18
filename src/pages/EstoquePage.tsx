@@ -53,6 +53,7 @@ const EstoquePage = () => {
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
   const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const [page, setPage] = useState(1);
+  const [vitrineOpen, setVitrineOpen] = useState(false);
   const [previewProduct, setPreviewProduct] = useState<ProductGroup | null>(null);
   const [buyProduct, setBuyProduct] = useState<ProductGroup | null>(null);
   const [vendedores, setVendedores] = useState<string[]>([]);
@@ -234,6 +235,9 @@ const EstoquePage = () => {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+        <Button variant="outline" size="sm" onClick={() => setVitrineOpen(true)}>
+          <Share2 size={14} /> Compartilhar vitrine
+        </Button>
       </div>
 
       <EstoqueEmprestimosPanel
