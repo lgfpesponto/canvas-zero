@@ -19,6 +19,8 @@ import {
   calcEmbeddedExtraPrice,
   type BotaPEExtra,
 } from '@/lib/botaExtraHelpers';
+import { estoqueGroupKey } from '@/lib/estoqueGroupKey';
+import { useDescontosAtivos, getDescontoParaProduto } from '@/lib/estoqueDescontos';
 
 interface EstoqueRow {
   id: string;
