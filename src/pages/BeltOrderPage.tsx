@@ -542,7 +542,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       if (success) {
         if (loadedDraftId) deleteDraft(loadedDraftId);
         const numeroSalvo = numeroPedido.trim() || '(novo)';
-        if (estoquePronto && numeroSalvo !== '(novo)') {
+        if ((estoquePronto || (estoqueJaCriado && vendedor === 'Estoque')) && numeroSalvo !== '(novo)') {
           // Backfill SKU + marca estoque_pronto + Baixa Estoque + cria estoque
           const slug = (s: string) => (s || '')
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -578,7 +578,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
       toast.error('Erro inesperado ao salvar o pedido.');
     } finally {
       setSubmitting(false);
-      setEstoquePronto(false);
+      setEstoquePronto(false); setEstoqueJaCriado(false);
     }
   };
 
@@ -972,21 +972,21 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 </div>
               </div>
 
-              <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" disabled={orderDuplicate && !estoqueJaCriado} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
               </button>
               {vendedor === 'Estoque' && isAdminUser && (
                 <button
                   type="button"
                   onClick={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-                  disabled={orderDuplicate}
+                  disabled={orderDuplicate && !estoqueJaCriado}
                   className="w-full border-2 border-emerald-600 text-emerald-700 dark:text-emerald-400 py-3 rounded-lg font-bold tracking-wider hover:bg-emerald-600/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Cria o cinto já como item de estoque pronto — vai direto para a página Estoque."
                 >
                   📦 ESTOQUE PRONTO
                 </button>
               )}
-              <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate && !estoqueJaCriado} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 SALVAR RASCUNHO
               </button>
 
@@ -1008,7 +1008,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
             onSaveDraft={!isTemplate ? handleSaveDraft : undefined}
             showEstoquePronto={!isTemplate && vendedor === 'Estoque' && isAdminUser}
             onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-            disabled={orderDuplicate}
+            disabled={orderDuplicate && !estoqueJaCriado}
           />
         )}
       </div>
