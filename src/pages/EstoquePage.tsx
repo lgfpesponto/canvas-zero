@@ -241,6 +241,12 @@ const EstoquePage = () => {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+        {canManageDescontos && (
+          <Button variant="outline" size="sm" onClick={() => setDescontosOpen(true)}>
+            <Percent size={14} /> Adicionar desconto
+            {descontos.length > 0 && <Badge className="ml-1">{descontos.length}</Badge>}
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => setVitrineOpen(true)}>
           <Share2 size={14} /> Compartilhar vitrine
         </Button>
