@@ -1362,31 +1362,69 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
       if (isEstoqueGrade) {
         const orderData = buildOrderData() as any;
-        const success = await addOrderBatch(orderData, gradeItems, numeroPedido.trim());
-        if (success) {
-          const totalPedidos = gradeItems.reduce((s, i) => s + i.quantidade, 0);
-          if (draftId) deleteDraft(draftId);
-          const numeroSalvo = numeroPedido.trim();
-          if (estoquePronto) {
-            // Reconstruir os números como addOrderBatch faz
-            const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
-            const nums: string[] = [];
-            for (const item of sorted) {
-              for (let i = 0; i < item.quantidade; i++) {
-                const seq = String(i + 1).padStart(2, '0');
-                nums.push(`${numeroSalvo}${item.tamanho}${seq}`);
-              }
+        // Separa itens com quantidade > 0 (fluxo normal via pedidos) dos itens qty = 0 (pré-cadastro direto no estoque)
+        const itemsComQtd = gradeItems.filter(i => i.quantidade > 0);
+        const itemsZerados = gradeItems.filter(i => i.quantidade === 0);
+        let numeroSalvo = numeroPedido.trim();
+        let numsCriados: string[] = [];
+
+        if (itemsComQtd.length > 0) {
+          // Fluxo padrão precisa de um número base
+          if (!numeroSalvo) { toast.error('Preencha o número base do pedido para tamanhos com quantidade > 0.'); setSubmitting(false); return; }
+          const ok = await addOrderBatch(orderData, itemsComQtd, numeroSalvo);
+          if (!ok) { setSubmitting(false); return; }
+          const sorted = [...itemsComQtd].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
+          for (const item of sorted) {
+            for (let i = 0; i < item.quantidade; i++) {
+              numsCriados.push(`${numeroSalvo}${item.tamanho}${String(i + 1).padStart(2, '0')}`);
             }
-            await finalizeEstoquePronto(nums);
-            toast.success(`Estoque criado (${totalPedidos} item(ns)).`, { position: 'bottom-right' });
-            resetForm();
-            navigate('/estoque');
-            return;
           }
-          toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
-          if (comprarMode && onComprarSaved) onComprarSaved();
-          else resetForm();
         }
+
+        // Pré-cadastro direto no estoque para tamanhos com quantidade 0
+        if (itemsZerados.length > 0 && forceEstoquePronto) {
+          const slug = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const baseName = nomeProdutoEstoque.trim() || modelo || 'produto';
+          const skuBase = matchedExistingSku?.sku ? matchedExistingSku.sku.replace(/-\d+$/, '') : slug(baseName);
+          const rowsToInsert = itemsZerados.map(it => ({
+            nome: baseName,
+            sku_base: (it.sku?.trim() || `${skuBase}-${it.tamanho}`),
+            tamanho: it.tamanho,
+            quantidade: 0,
+            preco: 0,
+            foto_url: (orderData as any).fotos?.[0] || null,
+            ficha_snapshot: {
+              modelo: orderData.modelo || null,
+              genero: orderData.genero || null,
+              solado: orderData.solado || null,
+              formato_bico: orderData.formatoBico || null,
+              cor_sola: orderData.corSola || null,
+              cor_vira: orderData.corVira || null,
+              tipo_couro_cano: orderData.tipoCouroCano || null,
+              cor_couro_cano: orderData.corCouroCano || null,
+              tipo_couro_gaspea: orderData.tipoCouroGaspea || null,
+              cor_couro_gaspea: orderData.corCouroGaspea || null,
+              tipo_couro_taloneira: orderData.tipoCouroTaloneira || null,
+              cor_couro_taloneira: orderData.corCouroTaloneira || null,
+            },
+            ativo: true,
+          }));
+          const { error: insErr } = await supabase.from('estoque_produtos').insert(rowsToInsert);
+          if (insErr) { console.error('estoque pré-cadastro erro', insErr); toast.error('Falha ao pré-cadastrar estoque: ' + insErr.message); }
+        }
+
+        const totalPedidos = itemsComQtd.reduce((s, i) => s + i.quantidade, 0);
+        if (draftId) deleteDraft(draftId);
+        if (effectiveEstoquePronto) {
+          if (numsCriados.length > 0) await finalizeEstoquePronto(numsCriados);
+          toast.success(`Estoque atualizado: ${totalPedidos} pedido(s) + ${itemsZerados.length} tamanho(s) pré-cadastrado(s).`, { position: 'bottom-right' });
+          resetForm();
+          navigate('/estoque');
+          return;
+        }
+        toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
+        if (comprarMode && onComprarSaved) onComprarSaved();
+        else resetForm();
       } else {
         const success = await addOrder({
           ...buildOrderData(),
@@ -1396,7 +1434,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         if (success) {
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim() || '(novo)';
-          if (estoquePronto && numeroSalvo !== '(novo)') {
+          if (effectiveEstoquePronto && numeroSalvo !== '(novo)') {
             await finalizeEstoquePronto([numeroSalvo]);
             toast.success(`Estoque criado a partir do pedido ${numeroSalvo}.`, { position: 'bottom-right' });
             resetForm();
