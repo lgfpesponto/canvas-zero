@@ -1132,6 +1132,18 @@ const OrderDetailPage = () => {
                 </div>
               );
             })()}
+            {(() => {
+              const da: any = (order as any).desconto_aplicado;
+              if (!da || !da.nome) return null;
+              return (
+                <div className="flex justify-between pt-1 text-primary">
+                  <span className="text-sm font-semibold">
+                    Desconto {da.label || ''} · {da.nome}
+                  </span>
+                  <span className="text-[10px] italic">aplicado no preço unitário</span>
+                </div>
+              );
+            })()}
             {/* Total final — fonte única de verdade */}
             <div className="flex justify-between pt-2 mt-2 border-t-2 border-border font-bold text-lg">
               <span>Total</span>
