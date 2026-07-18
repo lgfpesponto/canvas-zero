@@ -2395,6 +2395,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           return base ? slug(base) : undefined;
         })()}
         matchedExistingSku={matchedExistingSku || undefined}
+        allowQtdZero={estoqueJaCriado && vendedorSelecionado === 'Estoque'}
         initialItems={gradeItems}
         onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);
