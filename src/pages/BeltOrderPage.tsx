@@ -776,10 +776,25 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
-                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required readOnly={numeroIsAuto} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
-                {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-                {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+                <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!(estoqueJaCriado && vendedor === 'Estoque') && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
+                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder={estoqueJaCriado && vendedor === 'Estoque' ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!(estoqueJaCriado && vendedor === 'Estoque')} readOnly={numeroIsAuto && !estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                {numeroIsAuto && !estoqueJaCriado && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
               </div>
+              <div>
+                <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
+                <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+              </div>
+            </div>
+
+            {vendedor === 'Estoque' && (
+              <label className="flex items-start gap-2 bg-muted/50 border border-border rounded-lg px-3 py-2 cursor-pointer">
+                <input type="checkbox" checked={estoqueJaCriado} onChange={e => setEstoqueJaCriado(e.target.checked)} className="mt-0.5" />
+                <span className="text-sm">
+                  <span className="font-semibold">Estoque já criado</span> — dispensa número de pedido (pré-cadastro).
+                </span>
+              </label>
+            )}
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
                 <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
