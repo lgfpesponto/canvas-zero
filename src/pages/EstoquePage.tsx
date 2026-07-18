@@ -587,6 +587,15 @@ const EstoquePage = () => {
         totalProdutos={filteredGroups.length}
         canTogglePrecos={role === 'admin_master'}
       />
+
+      {canManageDescontos && (
+        <GerenciarDescontosDialog
+          open={descontosOpen}
+          onClose={() => setDescontosOpen(false)}
+          produtos={groups.map(g => ({ key: estoqueGroupKey(g.nome, g.tamanhos[0].sku_base), nome: g.nome }))}
+          currentUserId={user?.id}
+        />
+      )}
     </div>
   );
 };
