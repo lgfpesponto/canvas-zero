@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight, Share2, Percent } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +13,11 @@ import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPane
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
 import CompartilharVitrineDialog from '@/components/estoque/CompartilharVitrineDialog';
+import GerenciarDescontosDialog from '@/components/estoque/GerenciarDescontosDialog';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
 import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
+import { estoqueGroupKey } from '@/lib/estoqueGroupKey';
+import { useDescontosAtivos, getDescontoParaProduto } from '@/lib/estoqueDescontos';
 
 
 interface EstoqueRow {
