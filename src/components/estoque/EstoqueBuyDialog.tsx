@@ -257,11 +257,12 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
     setSubmitting(true);
     const descontoAplicado = desconto
       ? {
-          desconto_id: desconto.desconto.id,
+          desconto_id: desconto.id,
           nome: desconto.nome,
           label: desconto.label,
-          tipo: desconto.desconto.tipo,
-          valor: desconto.desconto.valor,
+          tipo: desconto.tipo,
+          valor: desconto.valor,
+          valor_unit: desconto.valorDesconto,
         }
       : null;
     const { data, error } = await (supabase.rpc as any)('comprar_estoque', {
