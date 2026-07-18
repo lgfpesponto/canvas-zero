@@ -83,7 +83,7 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
   }, [sortedItems, numeroPedidoBase]);
 
   const handleNext = async () => {
-    const valid = items.filter(i => i.tamanho && i.quantidade > 0);
+    const valid = items.filter(i => i.tamanho && i.quantidade >= minQtd);
     if (valid.length === 0) return;
     // Check for duplicate sizes
     const sizes = valid.map(i => i.tamanho);
