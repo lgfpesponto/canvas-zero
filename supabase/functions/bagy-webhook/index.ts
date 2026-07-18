@@ -534,23 +534,35 @@ Deno.serve(async (req) => {
 
       // Busca no estoque por sku_base
       let estoqueProdutoId: string | null = null;
+      let produtoBagySyncAt: string | null = null;
       if (skuRaw) {
         const candidates = [base, skuRaw];
         for (const cand of candidates) {
           if (!cand) continue;
           const q = supabase
             .from("estoque_produtos")
-            .select("id, quantidade, preco, ativo, tamanho, sku_base")
+            .select("id, quantidade, preco, ativo, tamanho, sku_base, bagy_sync_at")
             .ilike("sku_base", cand)
             .eq("ativo", true);
           if (tamanho) q.eq("tamanho", tamanho);
           const { data: rows } = await q.limit(1);
           if (rows && rows.length > 0) {
             estoqueProdutoId = rows[0].id;
+            produtoBagySyncAt = (rows[0] as any).bagy_sync_at || null;
             break;
           }
         }
       }
+
+      // Pedido Bagy anterior à integração do SKU: já foi contabilizado manualmente
+      // aqui como venda Rancho Chique e o saldo Bagy foi zerado antes do sync.
+      // Não cria pedido portal, não decrementa estoque, não empurra status.
+      const isPreIntegracao = !!(
+        estoqueProdutoId &&
+        produtoBagySyncAt &&
+        bagyCreatedAt &&
+        new Date(bagyCreatedAt).getTime() < new Date(produtoBagySyncAt).getTime()
+      );
 
       // Busca template via RPC (cobre sku raiz + sku dentro de tamanhos_skus[*].sku)
       let templateId: string | null = null;
@@ -564,7 +576,9 @@ Deno.serve(async (req) => {
 
 
       let status = "pendente";
-      if (estoqueProdutoId) {
+      if (isPreIntegracao) {
+        status = "pre_integracao_ignorado";
+      } else if (estoqueProdutoId) {
         status = "pedido_criado"; // será criado abaixo se isFirstTimeApproved
         if (isFirstTimeApproved) {
           estoqueParaComprar.push({
