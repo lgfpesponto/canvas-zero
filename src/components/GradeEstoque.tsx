@@ -39,13 +39,13 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
 
   useEffect(() => {
     if (open) {
-      setItems(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1, sku: '' }]);
+      setItems(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: initialQtd, sku: '' }]);
       setShowPreview(false);
       setSkuConflicts({});
     }
   }, [open]);
 
-  const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: 1, sku: '' }]);
+  const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: initialQtd, sku: '' }]);
 
   const removeRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
