@@ -5,6 +5,8 @@ import { Package } from 'lucide-react';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import { decodeVitrineToken, type VitrinePayload } from '@/lib/vitrineToken';
 import { buildFichaOptions, matchesFichaFilters, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
+import { estoqueGroupKey } from '@/lib/estoqueGroupKey';
+import { useDescontosAtivos, getDescontoParaProduto } from '@/lib/estoqueDescontos';
 import logo from '@/assets/logo-7estrivos.png';
 
 interface EstoqueRow {
@@ -14,7 +16,6 @@ interface EstoqueRow {
   tamanho: string;
   quantidade: number;
   preco: number;
-  preco_desconto: number | null;
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   ativo: boolean;
@@ -25,12 +26,22 @@ interface ProductGroup {
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   preco: number;
-  preco_desconto: number | null;
   tamanhos: EstoqueRow[];
 }
 
 const formatBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Atualiza/insere uma meta tag no <head>
+const setMeta = (attr: 'name' | 'property', key: string, content: string) => {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+};
 
 const VitrinePublicaPage = () => {
   const { token } = useParams();
@@ -38,6 +49,21 @@ const VitrinePublicaPage = () => {
   const [rows, setRows] = useState<EstoqueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
+  const { descontos } = useDescontosAtivos();
+
+  const titulo = payload?.titulo || 'Vitrine 7ESTRIVOS';
+
+  // <title>, og:title, og:description sincronizados
+  useEffect(() => {
+    const prev = document.title;
+    document.title = titulo;
+    setMeta('property', 'og:title', titulo);
+    setMeta('name', 'twitter:title', titulo);
+    setMeta('property', 'og:description', 'Produtos disponíveis em estoque · atualizado em tempo real');
+    setMeta('property', 'og:type', 'website');
+    setMeta('property', 'og:url', window.location.href);
+    return () => { document.title = prev; };
+  }, [titulo]);
 
   useEffect(() => {
     if (!payload) { setLoading(false); return; }
@@ -45,7 +71,7 @@ const VitrinePublicaPage = () => {
     const fetchRows = async () => {
       const { data, error } = await supabase
         .from('estoque_produtos' as any)
-        .select('id, nome, sku_base, tamanho, quantidade, preco, preco_desconto, foto_url, ficha_snapshot, ativo')
+        .select('id, nome, sku_base, tamanho, quantidade, preco, foto_url, ficha_snapshot, ativo')
         .eq('ativo', true)
         .order('nome');
       if (cancelled) return;
@@ -65,14 +91,13 @@ const VitrinePublicaPage = () => {
   const groups: ProductGroup[] = useMemo(() => {
     const map = new Map<string, ProductGroup>();
     for (const r of rows) {
-      const key = `${r.nome}::${r.sku_base.split('-').slice(0, -1).join('-') || r.sku_base}`;
+      const key = estoqueGroupKey(r.nome, r.sku_base);
       if (!map.has(key)) {
         map.set(key, {
           nome: r.nome,
           foto_url: r.foto_url,
           ficha_snapshot: r.ficha_snapshot || {},
           preco: r.preco,
-          preco_desconto: r.preco_desconto,
           tamanhos: [],
         });
       }
@@ -97,21 +122,17 @@ const VitrinePublicaPage = () => {
         const hitSku = g.tamanhos.some((t) => t.sku_base.toLowerCase().includes(q));
         if (!hitNome && !hitSku) return false;
       }
-      // Snapshot fixo: tamanhos filtrados no snapshot precisam existir no produto (com ou sem estoque)
+      // Filtro de tamanho: só mostra se algum dos tamanhos filtrados tiver estoque > 0
       if (selTam.size > 0) {
-        if (!g.tamanhos.some((t) => selTam.has(t.tamanho))) return false;
+        if (!g.tamanhos.some((t) => selTam.has(t.tamanho) && t.quantidade > 0)) return false;
+      } else {
+        // Sem filtro de tamanho: só mostra produtos que ainda tenham algum estoque
+        if (!g.tamanhos.some((t) => t.quantidade > 0)) return false;
       }
       if (!matchesFichaFilters(g.ficha_snapshot, selFicha, fichaKeys)) return false;
       return true;
     });
-    list.sort((a, b) => {
-      const aTot = a.tamanhos.reduce((s, t) => s + t.quantidade, 0);
-      const bTot = b.tamanhos.reduce((s, t) => s + t.quantidade, 0);
-      const aOut = aTot === 0 ? 1 : 0;
-      const bOut = bTot === 0 ? 1 : 0;
-      if (aOut !== bOut) return aOut - bOut;
-      return a.nome.localeCompare(b.nome);
-    });
+    list.sort((a, b) => a.nome.localeCompare(b.nome));
     return list;
   }, [groups, payload, fichaKeys]);
 
@@ -136,9 +157,7 @@ const VitrinePublicaPage = () => {
         <div className="container mx-auto px-4 py-3 max-w-6xl flex items-center gap-3">
           <img src={logo} alt="7 Estrivos" className="h-9 w-auto" />
           <div className="flex-1">
-            <h1 className="text-sm md:text-base font-display font-bold leading-tight">
-              {payload.titulo || 'Vitrine 7 Estrivos'}
-            </h1>
+            <h1 className="text-sm md:text-base font-display font-bold leading-tight">{titulo}</h1>
             <p className="text-[11px] text-muted-foreground">Produtos disponíveis em estoque</p>
           </div>
         </div>
@@ -155,36 +174,27 @@ const VitrinePublicaPage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredGroups.map((g) => {
+              // Filtro de tamanho: só mostra os tamanhos filtrados que ainda têm estoque
               const tamanhosMostrados = selTam.size > 0
-                ? g.tamanhos.filter((t) => selTam.has(t.tamanho))
-                : g.tamanhos;
-              const totalQtd = tamanhosMostrados.reduce((s, t) => s + t.quantidade, 0);
-              const semEstoque = totalQtd === 0;
-              const temDesconto = mostrarDesconto && g.preco_desconto && g.preco_desconto > 0 && g.preco_desconto < g.preco;
-              const pctOff = temDesconto ? Math.round((1 - (g.preco_desconto! / g.preco)) * 100) : 0;
+                ? g.tamanhos.filter((t) => selTam.has(t.tamanho) && t.quantidade > 0)
+                : g.tamanhos.filter((t) => t.quantidade > 0);
+              const grupoKey = estoqueGroupKey(g.nome, g.tamanhos[0].sku_base);
+              const desc = mostrarDesconto ? getDescontoParaProduto(grupoKey, g.preco, descontos) : null;
               return (
                 <div
-                  key={g.nome + g.tamanhos[0].sku_base}
-                  className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col ${semEstoque ? 'opacity-80' : ''}`}
+                  key={grupoKey}
+                  className="bg-card border border-border rounded-xl overflow-hidden flex flex-col"
                 >
                   <div className="aspect-square bg-muted relative">
                     <EstoqueFoto
                       url={g.foto_url}
                       alt={g.nome}
-                      grayscale={semEstoque}
                       className="w-full h-full object-cover"
                       wrapperClassName="w-full h-full"
                     />
-                    {semEstoque && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                        <span className="text-white font-display font-bold text-xl tracking-wider border-2 border-white px-3 py-1 rounded-md -rotate-6">
-                          INDISPONÍVEL
-                        </span>
-                      </div>
-                    )}
-                    {temDesconto && !semEstoque && (
+                    {desc && (
                       <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full shadow">
-                        -{pctOff}%
+                        {desc.label}
                       </div>
                     )}
                   </div>
@@ -195,27 +205,32 @@ const VitrinePublicaPage = () => {
                       {tamanhosMostrados.map((t) => (
                         <div
                           key={t.id}
-                          className={`flex flex-col items-center rounded-md px-2.5 py-1 min-w-[48px] ${t.quantidade === 0 ? 'bg-muted/40 text-muted-foreground/60' : 'bg-muted'}`}
+                          className="flex flex-col items-center rounded-md px-2.5 py-1 min-w-[48px] bg-muted"
                         >
                           <span className="text-base font-bold leading-none">{t.tamanho}</span>
                           <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                            {t.quantidade > 0 ? `${t.quantidade} un.` : 'esgotado'}
+                            {t.quantidade} un.
                           </span>
                         </div>
                       ))}
                     </div>
 
                     {mostrarPreco && (
-                      <div className="mt-auto pt-1">
-                        {temDesconto ? (
-                          <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-xs line-through text-muted-foreground">
-                              {formatBRL(g.preco)}
-                            </span>
-                            <span className="text-xl font-bold text-primary">
-                              {formatBRL(g.preco_desconto!)}
-                            </span>
-                          </div>
+                      <div className="mt-auto pt-1 space-y-1">
+                        {desc ? (
+                          <>
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <span className="text-xs line-through text-muted-foreground">
+                                {formatBRL(g.preco)}
+                              </span>
+                              <span className="text-xl font-bold text-primary">
+                                {formatBRL(desc.precoFinal)}
+                              </span>
+                            </div>
+                            <div className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-semibold rounded-full px-2 py-0.5">
+                              {desc.label} de desconto · {desc.nome}
+                            </div>
+                          </>
                         ) : (
                           <span className="text-xl font-bold text-primary">{formatBRL(g.preco)}</span>
                         )}
