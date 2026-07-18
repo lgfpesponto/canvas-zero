@@ -148,15 +148,17 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       for (const t of ordered) {
         const qtd = quantidades[t.id] || 0;
         const existentes = prev.filter(i => i.produto_id === t.id);
+        const precoBase = t.preco;
+        const precoFinal = desconto ? desconto.precoFinal : precoBase;
         for (let k = 0; k < qtd; k++) {
           if (existentes[k]) {
-            next.push({ ...existentes[k], preco_unit: t.preco, sku_base: t.sku_base, tamanho: t.tamanho });
+            next.push({ ...existentes[k], preco_unit: precoFinal, sku_base: t.sku_base, tamanho: t.tamanho });
           } else {
             next.push({
               produto_id: t.id,
               tamanho: t.tamanho,
               sku_base: t.sku_base,
-              preco_unit: t.preco,
+              preco_unit: precoFinal,
               extras: [],
             });
           }
@@ -164,7 +166,7 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       }
       return next;
     });
-  }, [quantidades, produto]);
+  }, [quantidades, produto, desconto]);
 
   const total = useMemo(
     () => itens.reduce((s, it) => s + it.preco_unit + it.extras.reduce((a, e) => a + (e.preco || 0), 0), 0),
