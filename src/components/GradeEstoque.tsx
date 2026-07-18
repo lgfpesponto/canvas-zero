@@ -131,7 +131,7 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
   };
 
   const usedSizes = items.map(i => i.tamanho).filter(Boolean);
-  const valid = items.filter(i => i.tamanho && i.quantidade > 0);
+  const valid = items.filter(i => i.tamanho && i.quantidade >= minQtd);
   const missingSku = requireSku ? valid.some(i => !i.sku?.trim()) : false;
   const dupSkuInGrade = (() => {
     if (!requireSku) return false;
