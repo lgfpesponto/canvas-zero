@@ -333,7 +333,7 @@ const EstoquePage = () => {
                   <h3 className="font-semibold text-sm leading-tight line-clamp-2 flex-1">{g.nome}</h3>
                   <div className="flex items-center gap-1 shrink-0">
                     {canManageEmprestimos && g.tamanhos[0] && (
-                      <EstoqueProdutoConfigButton produto={g.tamanhos[0] as any} onDone={fetchRows} />
+                      <EstoqueProdutoConfigButton produto={g.tamanhos[0] as any} grupo={g.tamanhos as any} onDone={fetchRows} />
                     )}
                     {canManageEmprestimos && (
                       <button
