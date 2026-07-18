@@ -152,6 +152,7 @@ const EstoquePage = () => {
           foto_url: r.foto_url,
           ficha_snapshot: r.ficha_snapshot || {},
           preco: r.preco,
+          preco_desconto: r.preco_desconto,
           tamanhos: [],
         });
       }
