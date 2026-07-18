@@ -474,6 +474,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [estoquePronto, setEstoquePronto] = useState(false);
+  const [estoqueJaCriado, setEstoqueJaCriado] = useState(false);
 
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
