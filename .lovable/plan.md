@@ -1,55 +1,47 @@
+## Problema
 
-## 1. Título da vitrine automático
+O WhatsApp (e outros crawlers como iMessage/Telegram/Slack) só lê o `<head>` estático do `index.html` porque o portal é uma SPA Vite. As meta tags que a `VitrinePublicaPage` injeta via JS depois do carregamento nunca são vistas pelo crawler — por isso o preview mostra só o domínio + a URL crua, sem título nem subtítulo.
 
-- Remover input "Título" e botão "Enviar no WhatsApp" de `CompartilharVitrineDialog`.
-- Título = `profile.nomeLoja` do usuário logado; fallback `"Vitrine 7ESTRIVOS"`. Enviado no token automaticamente.
-- Em `VitrinePublicaPage`: setar `document.title` e injetar `<meta og:title>`, `<meta twitter:title>`, `<meta og:description>` via efeito.
+Para o preview ficar com **título = nome da loja** e **subtítulo = "Produtos disponíveis em estoque"**, o HTML servido nessa URL precisa já vir com esses `<meta og:*>` prontos. Isso exige gerar HTML no servidor. Vamos usar uma edge function do Supabase (única forma server-side disponível no projeto).
 
-## 2. Descontos por produto (não por tamanho)
+## Solução
 
-### Banco (migração)
-- `estoque_descontos`: `nome`, `tipo` ('pct'|'fixo'), `valor`, `escopo` ('todos'|'produtos'), `ativo`, `criado_por`, timestamps.
-- `estoque_desconto_produtos` (M:N): `desconto_id`, `produto_grupo_key text`.
-- GRANTs: SELECT `authenticated`+`anon`; INSERT/UPDATE/DELETE só `admin_master`.
-- `orders.desconto_aplicado jsonb` (snapshot congelado).
-- `estoque_produtos.preco_desconto` deixa de ser usado (mantida por compatibilidade).
+### 1. Nova edge function `vitrine-preview`
+- Rota pública sem JWT (`verify_jwt = false` em `supabase/config.toml`).
+- Recebe `?t=<token>` (o mesmo token base64url já usado hoje).
+- Decodifica o token para extrair o `titulo` (nome da loja).
+- Detecta se o requester é um crawler (User-Agent contém `whatsapp`, `facebookexternalhit`, `twitterbot`, `telegrambot`, `slackbot`, `linkedinbot`, `discordbot`, `bot`, `preview`, etc.).
+  - **Crawler** → responde HTML mínimo com:
+    - `<title>{titulo}</title>`
+    - `<meta property="og:title" content="{titulo}">`
+    - `<meta property="og:description" content="Produtos disponíveis em estoque">`
+    - `<meta name="twitter:title" ...>` / `twitter:description`
+    - `<meta property="og:type" content="website">`
+    - Nenhum `og:image` (deixa hosting/Lovable injetar o default) para não regressar o comportamento atual.
+  - **Browser normal** → responde `302` para `/vitrine/<token>` no domínio do portal, para o usuário final continuar caindo na SPA como hoje.
+- Escapa `titulo` para evitar HTML injection (o token é gerado pelo próprio app, mas defensivo).
 
-### Helpers
-- `src/lib/estoqueGroupKey.ts`: chave `${nome}||${sku_base.split('-').slice(0,-1).join('-')}`.
-- `src/lib/estoqueDescontos.ts`: `useDescontosAtivos()` e `getDescontoParaProduto(grupoKey, precoBase)` → escolhe o desconto de maior abatimento (não soma).
+### 2. `CompartilharVitrineDialog.tsx`
+- O link **exibido/copiado** passa a apontar para a edge function:
+  `https://<project-ref>.functions.supabase.co/vitrine-preview?t=<token>`
+- O botão "Abrir" continua abrindo o mesmo link (o redirect leva o usuário para a SPA).
+- Nada mais muda no diálogo (título automático, sem WhatsApp button — já está assim).
 
-### UI Estoque (`EstoquePage`)
-- Botão **"Adicionar desconto"** acima de "Compartilhar vitrine", só `admin_master`.
-- `GerenciarDescontosDialog`: nome, tipo (%/R$), valor, escopo ("Todos os produtos" ou "Selecionar produtos" com busca + checkboxes). Chips de descontos ativos com botão excluir (soft delete).
-- Cards: preço original riscado + preço final destacado + badge `-{X}% de desconto` / `-R$ Y de desconto` + nome do desconto.
-- Remover seção "Desconto em massa" e coluna "Desconto" do `EstoqueProdutoConfigButton`.
+### 3. Fallback estático em `index.html`
+- Sem mudança: já tem `og:title="Rastreie a produção"` / description. A vitrine passa a ter meta próprio via edge function, então o fallback do index.html só afeta outras rotas.
 
-### Vitrine pública
-- Reusa `useDescontosAtivos` (RLS anon). Mesma exibição quando `mostrarPreco && mostrarDesconto`.
+### 4. `VitrinePublicaPage.tsx`
+- Sem mudanças funcionais. Continua ajustando `document.title` e meta tags client-side (bom para a aba do navegador do usuário que abrir o link após o redirect).
 
-### Compra / composição
-- Compra aplica desconto: `orders.preco` = valor com desconto; `orders.desconto_aplicado = { nome, tipo, valor, valor_original, valor_desconto }`.
-- `OrderDetailPage`/`priceItems`/espelho/PDFs: nova linha `"Desconto {valor} + {nome}"` como item negativo.
+## Detalhes técnicos
 
-## 3. Filtro por tamanho oculta produtos zerados nesse tamanho
+- Edge function é a única superfície server-side disponível — hosting Lovable serve SPA estática e não permite HTML dinâmico por rota.
+- WhatsApp cacheia o preview por URL. Se um link já foi compartilhado antes desta mudança, o novo preview só aparece após o cache expirar ou usando o "WhatsApp Business API link preview refresh" (não temos). Para links novos, funciona de imediato.
+- Nenhum banco novo, nenhuma tabela nova, sem migração.
+- Sem alteração de RBAC ou de compra/desconto.
 
-- Regra: quando o filtro de numeração está ativo, um produto só aparece se **pelo menos um tamanho filtrado tem `quantidade > 0`**. Tamanhos filtrados com 0 continuam ocultos do card (comportamento atual).
-- Sem filtro de tamanho: mantém comportamento atual (mostra produto se qualquer tamanho tiver estoque).
-- Aplicar em:
-  - `EstoquePage`: no agrupamento/filtragem antes do render dos cards.
-  - `VitrinePublicaPage`: mesma regra usando os tamanhos do token.
-- Remover/ajustar o banner "INDISPONÍVEL" que hoje aparece na vitrine para tamanhos filtrados: como o produto some, não é mais necessário nesse caso.
+## Arquivos afetados
 
-## 4. Restrições de papel
-- `admin_producao`: sem preços, sem "Adicionar desconto", sem toggles no compartilhar.
-- `admin_master`: único que gerencia descontos.
-
-## Ordem de implementação
-1. Migração SQL (tabelas de desconto + `orders.desconto_aplicado` + policies/grants).
-2. Helpers `estoqueGroupKey.ts` e `estoqueDescontos.ts`.
-3. `GerenciarDescontosDialog` + botão em `EstoquePage`.
-4. Renderização preço/desconto nos cards (Estoque + Vitrine).
-5. Filtro que oculta produtos zerados no tamanho filtrado (Estoque + Vitrine).
-6. Aplicação real do desconto na compra + exibição na composição do pedido.
-7. Remover UI de desconto por tamanho no `EstoqueProdutoConfigButton`.
-8. Título automático + remoção do botão WhatsApp em `CompartilharVitrineDialog` + meta tags em `VitrinePublicaPage`.
+- **Novo:** `supabase/functions/vitrine-preview/index.ts`
+- **Novo:** entry em `supabase/config.toml` com `verify_jwt = false` para `vitrine-preview`
+- **Editado:** `src/components/estoque/CompartilharVitrineDialog.tsx` (troca da URL gerada)
