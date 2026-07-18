@@ -426,9 +426,27 @@ const EstoquePage = () => {
                   }
                   return null;
                 })()}
-                <p className="text-xl font-bold text-primary mt-auto">
-                  {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
+                {(() => {
+                  const temDesc = g.preco_desconto && g.preco_desconto > 0 && g.preco_desconto < g.preco;
+                  const pct = temDesc ? Math.round((1 - (g.preco_desconto! / g.preco)) * 100) : 0;
+                  return temDesc ? (
+                    <div className="mt-auto">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-xs line-through text-muted-foreground">
+                          {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                        <span className="text-xl font-bold text-primary">
+                          {g.preco_desconto!.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                        <Badge className="text-[10px] px-1.5 py-0">-{pct}%</Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-primary mt-auto">
+                      {g.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
+                  );
+                })()}
                 <div className="flex gap-2 mt-1">
                   <Button size="sm" variant="outline" className="flex-1" onClick={() => setPreviewProduct(g)}>
                     <Eye size={14} /> Ver
