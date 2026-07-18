@@ -1860,6 +1860,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 )}
               </div>
 
+              {vendedorSelecionado === 'Estoque' && (
+                <label className="flex items-start gap-2 bg-muted/50 border border-border rounded-lg px-3 py-2 cursor-pointer">
+                  <input type="checkbox" checked={estoqueJaCriado} onChange={e => setEstoqueJaCriado(e.target.checked)} className="mt-0.5" />
+                  <span className="text-sm">
+                    <span className="font-semibold">Estoque já criado</span> — dispensa número de pedido e permite tamanhos com quantidade <span className="font-mono">0</span> para pré-cadastro.
+                  </span>
+                </label>
+              )}
+
               {vendedorSelecionado !== 'Estoque' && (user?.role === 'vendedor_comissao' || user?.role === 'admin_master') && (
                 <div>
                   <label className={cls.label + ' inline-flex items-center'}>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span><FichaFieldControls labelText="WhatsApp do Cliente" defaultTipo="texto" /></label>
