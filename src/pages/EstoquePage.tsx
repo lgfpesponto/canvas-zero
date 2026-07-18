@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Eye, ShoppingCart, Filter, X, Package, Trash2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
+import CompartilharVitrineDialog from '@/components/estoque/CompartilharVitrineDialog';
 import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
 import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 
@@ -23,6 +24,7 @@ interface EstoqueRow {
   tamanho: string;
   quantidade: number;
   preco: number;
+  preco_desconto: number | null;
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   ativo: boolean;
@@ -36,7 +38,8 @@ interface ProductGroup {
   foto_url: string | null;
   ficha_snapshot: Record<string, any>;
   preco: number;
-  tamanhos: EstoqueRow[]; // sorted by tamanho
+  preco_desconto: number | null;
+  tamanhos: EstoqueRow[];
 }
 
 const PAGE_SIZE = 25;
