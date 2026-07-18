@@ -1326,6 +1326,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (submitting) return;
     setSubmitting(true);
     try {
+      // "Estoque já criado" força fluxo de criação direta no estoque
+      const forceEstoquePronto = estoqueJaCriado && vendedorSelecionado === 'Estoque';
+      const effectiveEstoquePronto = estoquePronto || forceEstoquePronto;
       const isGradeVendedor = (isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum;
       const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
 
