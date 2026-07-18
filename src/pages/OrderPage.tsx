@@ -474,6 +474,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [showMirror, setShowMirror] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [estoquePronto, setEstoquePronto] = useState(false);
+  const [estoqueJaCriado, setEstoqueJaCriado] = useState(false);
 
   const [laserOutroCanoText, setLaserOutroCanoText] = useState(df.laserOutroCanoText || '');
   const [laserOutroGaspeaText, setLaserOutroGaspeaText] = useState(df.laserOutroGaspeaText || '');
@@ -1141,7 +1142,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     }
     const required: [string, string][] = [
       ...(isAdmin ? [[vendedorSelecionado, 'Vendedor'] as [string, string]] : []),
-      [numeroPedido.trim(), 'Número do Pedido'],
+      ...(!(estoqueJaCriado && vendedorSelecionado === 'Estoque') ? [[numeroPedido.trim(), 'Número do Pedido'] as [string, string]] : []),
       ...(!isEstoqueGrade ? [[tamanho, 'Tamanho'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Juliana Cristina Ribeiro' ? [[cliente.trim(), 'Cliente'] as [string, string]] : []),
       ...(vendedorSelecionado === 'Estoque' ? [[nomeProdutoEstoque.trim(), 'Nome do Produto'] as [string, string]] : []),
@@ -1325,6 +1326,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (submitting) return;
     setSubmitting(true);
     try {
+      // "Estoque já criado" força fluxo de criação direta no estoque
+      const forceEstoquePronto = estoqueJaCriado && vendedorSelecionado === 'Estoque';
+      const effectiveEstoquePronto = estoquePronto || forceEstoquePronto;
       const isGradeVendedor = (isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum;
       const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
 
@@ -1358,31 +1362,69 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
       if (isEstoqueGrade) {
         const orderData = buildOrderData() as any;
-        const success = await addOrderBatch(orderData, gradeItems, numeroPedido.trim());
-        if (success) {
-          const totalPedidos = gradeItems.reduce((s, i) => s + i.quantidade, 0);
-          if (draftId) deleteDraft(draftId);
-          const numeroSalvo = numeroPedido.trim();
-          if (estoquePronto) {
-            // Reconstruir os números como addOrderBatch faz
-            const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
-            const nums: string[] = [];
-            for (const item of sorted) {
-              for (let i = 0; i < item.quantidade; i++) {
-                const seq = String(i + 1).padStart(2, '0');
-                nums.push(`${numeroSalvo}${item.tamanho}${seq}`);
-              }
+        // Separa itens com quantidade > 0 (fluxo normal via pedidos) dos itens qty = 0 (pré-cadastro direto no estoque)
+        const itemsComQtd = gradeItems.filter(i => i.quantidade > 0);
+        const itemsZerados = gradeItems.filter(i => i.quantidade === 0);
+        let numeroSalvo = numeroPedido.trim();
+        let numsCriados: string[] = [];
+
+        if (itemsComQtd.length > 0) {
+          // Fluxo padrão precisa de um número base
+          if (!numeroSalvo) { toast.error('Preencha o número base do pedido para tamanhos com quantidade > 0.'); setSubmitting(false); return; }
+          const ok = await addOrderBatch(orderData, itemsComQtd, numeroSalvo);
+          if (!ok) { setSubmitting(false); return; }
+          const sorted = [...itemsComQtd].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
+          for (const item of sorted) {
+            for (let i = 0; i < item.quantidade; i++) {
+              numsCriados.push(`${numeroSalvo}${item.tamanho}${String(i + 1).padStart(2, '0')}`);
             }
-            await finalizeEstoquePronto(nums);
-            toast.success(`Estoque criado (${totalPedidos} item(ns)).`, { position: 'bottom-right' });
-            resetForm();
-            navigate('/estoque');
-            return;
           }
-          toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
-          if (comprarMode && onComprarSaved) onComprarSaved();
-          else resetForm();
         }
+
+        // Pré-cadastro direto no estoque para tamanhos com quantidade 0
+        if (itemsZerados.length > 0 && forceEstoquePronto) {
+          const slug = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const baseName = nomeProdutoEstoque.trim() || modelo || 'produto';
+          const skuBase = matchedExistingSku?.sku ? matchedExistingSku.sku.replace(/-\d+$/, '') : slug(baseName);
+          const rowsToInsert = itemsZerados.map(it => ({
+            nome: baseName,
+            sku_base: (it.sku?.trim() || `${skuBase}-${it.tamanho}`),
+            tamanho: it.tamanho,
+            quantidade: 0,
+            preco: 0,
+            foto_url: (orderData as any).fotos?.[0] || null,
+            ficha_snapshot: {
+              modelo: orderData.modelo || null,
+              genero: orderData.genero || null,
+              solado: orderData.solado || null,
+              formato_bico: orderData.formatoBico || null,
+              cor_sola: orderData.corSola || null,
+              cor_vira: orderData.corVira || null,
+              tipo_couro_cano: orderData.tipoCouroCano || null,
+              cor_couro_cano: orderData.corCouroCano || null,
+              tipo_couro_gaspea: orderData.tipoCouroGaspea || null,
+              cor_couro_gaspea: orderData.corCouroGaspea || null,
+              tipo_couro_taloneira: orderData.tipoCouroTaloneira || null,
+              cor_couro_taloneira: orderData.corCouroTaloneira || null,
+            },
+            ativo: true,
+          }));
+          const { error: insErr } = await supabase.from('estoque_produtos').insert(rowsToInsert);
+          if (insErr) { console.error('estoque pré-cadastro erro', insErr); toast.error('Falha ao pré-cadastrar estoque: ' + insErr.message); }
+        }
+
+        const totalPedidos = itemsComQtd.reduce((s, i) => s + i.quantidade, 0);
+        if (draftId) deleteDraft(draftId);
+        if (effectiveEstoquePronto) {
+          if (numsCriados.length > 0) await finalizeEstoquePronto(numsCriados);
+          toast.success(`Estoque atualizado: ${totalPedidos} pedido(s) + ${itemsZerados.length} tamanho(s) pré-cadastrado(s).`, { position: 'bottom-right' });
+          resetForm();
+          navigate('/estoque');
+          return;
+        }
+        toast.success(`Grade ${numeroSalvo} criada! ${totalPedidos} pedidos lançados em Meus Pedidos.`, { position: 'bottom-right' });
+        if (comprarMode && onComprarSaved) onComprarSaved();
+        else resetForm();
       } else {
         const success = await addOrder({
           ...buildOrderData(),
@@ -1392,7 +1434,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         if (success) {
           if (draftId) deleteDraft(draftId);
           const numeroSalvo = numeroPedido.trim() || '(novo)';
-          if (estoquePronto && numeroSalvo !== '(novo)') {
+          if (effectiveEstoquePronto && numeroSalvo !== '(novo)') {
             await finalizeEstoquePronto([numeroSalvo]);
             toast.success(`Estoque criado a partir do pedido ${numeroSalvo}.`, { position: 'bottom-right' });
             resetForm();
@@ -1436,7 +1478,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       toast.error('Erro inesperado ao salvar o pedido.');
     } finally {
       setSubmitting(false);
-      setEstoquePronto(false);
+      setEstoquePronto(false); setEstoqueJaCriado(false);
     }
   };
 
@@ -1834,10 +1876,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   )}
                 </div>
                 <div>
-                  <label className={cls.label + ' inline-flex items-center'}>Número do Pedido<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
-                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder="Ex: 7E-20250001" required readOnly={numeroIsAuto} className={`${cls.input} ${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
-                  {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
-                  {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                  <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!estoqueJaCriado && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
+                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder={estoqueJaCriado ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!estoqueJaCriado} readOnly={numeroIsAuto && !estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                  {numeroIsAuto && !estoqueJaCriado && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+                  {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
                 {vendedorSelecionado === 'Estoque' ? (
                   <div>
@@ -1858,6 +1900,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   </div>
                 )}
               </div>
+
+              {vendedorSelecionado === 'Estoque' && (
+                <label className="flex items-start gap-2 bg-muted/50 border border-border rounded-lg px-3 py-2 cursor-pointer">
+                  <input type="checkbox" checked={estoqueJaCriado} onChange={e => setEstoqueJaCriado(e.target.checked)} className="mt-0.5" />
+                  <span className="text-sm">
+                    <span className="font-semibold">Estoque já criado</span> — dispensa número de pedido e permite tamanhos com quantidade <span className="font-mono">0</span> para pré-cadastro.
+                  </span>
+                </label>
+              )}
 
               {vendedorSelecionado !== 'Estoque' && (user?.role === 'vendedor_comissao' || user?.role === 'admin_master') && (
                 <div>
@@ -2248,21 +2299,21 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 </div>
               </div>
 
-              <button type="submit" disabled={orderDuplicate} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" disabled={orderDuplicate && !estoqueJaCriado} className="w-full orange-gradient text-primary-foreground py-3 rounded-lg font-bold tracking-wider hover:opacity-90 transition-opacity text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Eye size={20} /> CONFERIR E FINALIZAR PEDIDO
               </button>
               {vendedorSelecionado === 'Estoque' && (
                 <button
                   type="button"
                   onClick={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-                  disabled={orderDuplicate}
+                  disabled={orderDuplicate && !estoqueJaCriado}
                   className="w-full border-2 border-emerald-600 text-emerald-700 dark:text-emerald-400 py-3 rounded-lg font-bold tracking-wider hover:bg-emerald-600/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Cria o pedido já como item de estoque pronto — não aparece em Meus Pedidos, entra direto na página Estoque."
                 >
                   📦 ESTOQUE PRONTO
                 </button>
               )}
-              <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="button" onClick={handleSaveDraft} disabled={orderDuplicate && !estoqueJaCriado} className="w-full border-2 border-primary text-primary py-3 rounded-lg font-bold tracking-wider hover:bg-primary/10 transition-colors text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 SALVAR RASCUNHO
               </button>
             </>
@@ -2284,7 +2335,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
             showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
             onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-            disabled={orderDuplicate}
+            disabled={orderDuplicate && !estoqueJaCriado}
           />
         )}
       </div>
@@ -2385,6 +2436,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           return base ? slug(base) : undefined;
         })()}
         matchedExistingSku={matchedExistingSku || undefined}
+        allowQtdZero={estoqueJaCriado && vendedorSelecionado === 'Estoque'}
         initialItems={gradeItems}
         onConfirm={(items: GradeItem[]) => {
           setGradeItems(items);

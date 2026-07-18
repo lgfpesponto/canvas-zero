@@ -24,24 +24,28 @@ interface GradeEstoqueProps {
   suggestSkuBase?: string;
   /** Match contra produto já existente no estoque (mesmo nome) — mostra aviso */
   matchedExistingSku?: { sku: string; nome: string };
+  /** Permite salvar linhas com quantidade 0 (fluxo "Estoque já criado" — pré-cadastra tamanho vazio) */
+  allowQtdZero?: boolean;
 }
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onConfirm, initialItems, requireSku, suggestSkuBase, matchedExistingSku }: GradeEstoqueProps) => {
+const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onConfirm, initialItems, requireSku, suggestSkuBase, matchedExistingSku, allowQtdZero }: GradeEstoqueProps) => {
+  const minQtd = allowQtdZero ? 0 : 1;
+  const initialQtd = allowQtdZero ? 0 : 1;
   const [items, setItems] = useState<GradeItem[]>(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1, sku: '' }]);
   const [showPreview, setShowPreview] = useState(false);
   const [skuConflicts, setSkuConflicts] = useState<Record<string, string>>({}); // sku -> nome existente
 
   useEffect(() => {
     if (open) {
-      setItems(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: 1, sku: '' }]);
+      setItems(initialItems?.length ? initialItems : [{ tamanho: '', quantidade: initialQtd, sku: '' }]);
       setShowPreview(false);
       setSkuConflicts({});
     }
   }, [open]);
 
-  const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: 1, sku: '' }]);
+  const addRow = () => setItems(prev => [...prev, { tamanho: '', quantidade: initialQtd, sku: '' }]);
 
   const removeRow = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
@@ -60,9 +64,9 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
   // Sort and flatten for preview
   const sortedItems = useMemo(() => {
     return [...items]
-      .filter(i => i.tamanho && i.quantidade > 0)
+      .filter(i => i.tamanho && i.quantidade >= minQtd)
       .sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
-  }, [items]);
+  }, [items, minQtd]);
 
   const totalPedidos = useMemo(() => sortedItems.reduce((sum, i) => sum + i.quantidade, 0), [sortedItems]);
 
@@ -79,7 +83,7 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
   }, [sortedItems, numeroPedidoBase]);
 
   const handleNext = async () => {
-    const valid = items.filter(i => i.tamanho && i.quantidade > 0);
+    const valid = items.filter(i => i.tamanho && i.quantidade >= minQtd);
     if (valid.length === 0) return;
     // Check for duplicate sizes
     const sizes = valid.map(i => i.tamanho);
@@ -127,7 +131,7 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
   };
 
   const usedSizes = items.map(i => i.tamanho).filter(Boolean);
-  const valid = items.filter(i => i.tamanho && i.quantidade > 0);
+  const valid = items.filter(i => i.tamanho && i.quantidade >= minQtd);
   const missingSku = requireSku ? valid.some(i => !i.sku?.trim()) : false;
   const dupSkuInGrade = (() => {
     if (!requireSku) return false;
@@ -188,9 +192,9 @@ const GradeEstoque = ({ open, onOpenChange, numeroPedidoBase, nomeProduto, onCon
                   </select>
                   <input
                     type="number"
-                    min={1}
+                    min={minQtd}
                     value={item.quantidade}
-                    onChange={e => updateItem(idx, 'quantidade', Math.max(1, Number(e.target.value)))}
+                    onChange={e => updateItem(idx, 'quantidade', Math.max(minQtd, Number(e.target.value)))}
                     className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none w-full"
                   />
                   {requireSku && (
