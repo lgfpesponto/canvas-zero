@@ -2949,16 +2949,6 @@ export type Database = {
         | {
             Args: {
               _cliente: string
-              _items: Json
-              _numero_pedido: string
-              _vendedor: string
-              _whatsapp: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _cliente: string
               _desconto_aplicado?: Json
               _items: Json
               _numero_pedido: string
