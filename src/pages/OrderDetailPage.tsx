@@ -720,6 +720,12 @@ const OrderDetailPage = () => {
                 {isAdmin && order.vendedor === 'Estoque' && (
                   <EstoqueAdminPanel order={order} />
                 )}
+                {(order as any).bagy_order_id && order.cliente && (
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wide">Cliente (Bagy)</span>
+                    <span className="text-sm font-bold text-right">{order.cliente}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-3">
                   {/* Célula 1: Número do pedido */}
                   <div className="flex items-center justify-between gap-3 py-1 border-b border-border/40">

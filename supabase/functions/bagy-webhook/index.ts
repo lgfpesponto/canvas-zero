@@ -389,11 +389,21 @@ Deno.serve(async (req) => {
     ) || null;
 
 
-    // Data/hora real do pedido na Bagy
+    // Data/hora real do pedido na Bagy.
+    // Bagy costuma enviar timestamp NAIVE (sem TZ), representando horário de São Paulo.
+    // Se não houver 'Z' nem offset ±HH:MM, anexamos -03:00 para não perder 3 horas.
     const bagyCreatedRaw = pick<string>(
       order, "created_at", "created", "date", "purchased_at", "order_date",
     ) || null;
-    const bagyCreatedAt = bagyCreatedRaw ? new Date(bagyCreatedRaw).toISOString() : null;
+    const normalizeBagyTs = (s: string): string => {
+      const trimmed = s.trim();
+      const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(trimmed);
+      const iso = trimmed.replace(' ', 'T');
+      return hasTz ? iso : `${iso}-03:00`;
+    };
+    const bagyCreatedAt = bagyCreatedRaw
+      ? new Date(normalizeBagyTs(bagyCreatedRaw)).toISOString()
+      : null;
 
     // Status anterior pra detectar transições
     const { data: pedidoExistente } = await supabase

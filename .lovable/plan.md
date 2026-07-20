@@ -1,28 +1,29 @@
-Plano para corrigir sem mexer em pedidos já fechados:
+## Problema
 
-1. **Corrigir a causa raiz no cálculo (Marrom + Borracha = R$ 20 / Marrom + PVC = R$ 0)**
-   - Ajustar a resolução de preço de **Cor da Sola** para ser contextual em todos os pontos:
-     - `src/lib/recomputeOrderPrice.ts` (composição canônica)
-     - `src/pages/OrderDetailPage.tsx` (composição do detalhe)
-     - `src/pages/EditOrderPage.tsx` (edição do pedido)
-     - `src/lib/cobrancaPdf.ts` e `src/components/SpecializedReports.tsx` (PDFs) – já usam contextual, garantir consistência
-     - `supabase/functions/reconciliar-precos/index.ts` (reconciliador do servidor)
-   - Regra: para `cor_sola`, se existir uma variação da ficha com `relacionamento.solado` compatível com o solado do pedido, usar essa; senão usar a variação sem relacionamento; senão fallback contextual hardcoded.
-   - `src/hooks/useFichaPriceForOrder.ts`: o índice do snapshot hoje faz `bySlugNome` sobrescrevendo variações repetidas — vai preservar a variante com relacionamento válido para o solado do pedido.
+1. **Horário errado nos pedidos Bagy**: o painel Bagy mostra 20:53, mas o portal mostra 17:53 (−3h). Bagy envia `created_at` como `2026-07-18T20:53:00` sem timezone. Em `supabase/functions/bagy-webhook/index.ts:396`, `new Date(bagyCreatedRaw).toISOString()` interpreta a string como UTC, e depois a RPC `criar_pedido` converte para America/Sao_Paulo (UTC−3), tirando 3 horas.
 
-2. **Garantir que a linha apareça na Composição do Pedido**
-   - Objetivo declarado pelo usuário: a Cor Sola Marrom hoje NÃO sai na composição, então o valor não soma. Após a correção, a composição deve mostrar `Cor Sola: Marrom — R$ 20,00` sempre que solado for Borracha, tanto no detalhe quanto no PDF de cobrança.
+2. **Nome do cliente não aparece no topo** dos pedidos importados da Bagy. Em `OrderDetailPage.tsx` (~L733), para admin só mostra "Vendedor: Rancho Chique". O nome do cliente já está salvo em `orders.cliente`, mas não é exibido no cabeçalho.
 
-3. **Recalcular pedidos já afetados (sem tocar nos fechados)**
-   - Aplicar recálculo pela regra corrigida (não ajuste cego de +20) em pedidos onde:
-     - `cor_sola = Marrom` e `solado = Borracha` (bota, `tipo_extra` vazio)
-     - `status` **NÃO** em: `Conferido`, `Cobrado`, `Pago`
-   - Escopo confirmado: **1199 pedidos**.
-   - Método: bumpar `preco_regra_versao` para forçar reprocessamento pela edge `reconciliar-precos` já com a lógica corrigida, ou rodar um UPDATE via RPC que aplica `computeTotalToSave` corrigido. Preserva `desconto`, `quantidade` e demais itens da composição.
+## Correções
 
-4. **Proteção daqui pra frente**
-   - Novos pedidos criados/editados usam o mesmo caminho corrigido — não voltará a zerar Marrom+Borracha.
-   - Validação: abrir um pedido em aberto com Borracha + Marrom e confirmar:
-     - a linha "Cor Sola: Marrom — R$ 20,00" aparece na composição;
-     - o total do pedido inclui esse valor;
-     - PVC + Marrom continua sem cobrar.
+### 1. Horário Bagy — tratar timestamp naive como horário de São Paulo
+Em `supabase/functions/bagy-webhook/index.ts` (~L392–L396), substituir a normalização por uma que detecta se a string tem timezone (`Z` ou `±HH:MM`); se não tiver, anexa `-03:00` antes de converter para ISO. Assim `2026-07-18T20:53:00` vira `2026-07-18T20:53:00-03:00` → armazenado como `23:53Z` → RPC exibe 20:53 (bate com Bagy).
+
+### 2. Backfill dos pedidos já importados com horário errado
+Migração SQL para pedidos Bagy (`orders.bagy_order_id IS NOT NULL`) recalculando `hora_criacao` a partir de `bagy_pedidos.bagy_created_at` (+3h para os que foram criados com o bug — detectado quando a hora atual em orders + 3h coincide com o horário exibido no painel Bagy). Só mexe em pedidos com `bagy_order_id`, ignora Cancelados/Cobrados/Pagos/Conferido para segurança.
+
+### 3. Mostrar cliente no cabeçalho dos pedidos Bagy
+Em `src/pages/OrderDetailPage.tsx` (~L720), adicionar antes do grid 2×2 uma linha destacada quando `order.bagy_order_id` existir:
+```
+CLIENTE (Bagy): {order.cliente}
+```
+Visível para todos os perfis (admin e vendedor). Não altera as demais células.
+
+## Detalhes técnicos
+
+Arquivos alterados:
+- `supabase/functions/bagy-webhook/index.ts` — normalização do `bagyCreatedAt`.
+- `src/pages/OrderDetailPage.tsx` — nova linha "Cliente" no cabeçalho para pedidos com `bagy_order_id`.
+- Nova migration — backfill do `hora_criacao` dos pedidos Bagy importados antes do fix.
+
+Regra de detecção do backfill: pega `bagy_pedidos.bagy_created_at` (já normalizado como UTC), soma 3h e recompõe `data_criacao`/`hora_criacao` no fuso São Paulo. Assim funciona igual para pedidos com e sem o bug (ideempotente).
