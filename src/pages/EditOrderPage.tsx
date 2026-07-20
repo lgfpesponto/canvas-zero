@@ -24,7 +24,7 @@ import {
   CARIMBO, SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO,
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, FRANJA_PRECO, CORRENTE_PRECO, COSTURA_ATRAS_PRECO,
   getModelosForTamanho,
-  getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorViraOptions, getForma,
+  getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorSolaPrecoContextual, getCorViraOptions, getForma,
   HIDE_PESPONTO_EXTRAS,
 } from '@/lib/orderFieldsConfig';
 import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
