@@ -103,8 +103,10 @@ export function recomputeSubtotal(
   if (det.franja) items.push(getDynamicUnitPrice('franja', FRANJA_PRECO));
   if (det.corrente) items.push(getDynamicUnitPrice('corrente', CORRENTE_PRECO));
   push(findFichaPrice(order.solado || '', 'solado') ?? SOLADO.find(s => s.label === order.solado)?.preco);
-  // Cor da Sola: banco tem prioridade; fallback contextual (PVC = R$0, Borracha + Marrom/Branco = R$20, etc.)
-  push(findFichaPrice(order.corSola || '', 'cor_sola') ?? getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola));
+  // Cor da Sola: regra CONTEXTUAL tem prioridade (Marrom+Borracha=R$20, Marrom+PVC=R$0, etc.).
+  // Só usa preço plano da ficha se o contexto não define nada.
+  push(getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola)
+    || findFichaPrice(order.corSola || '', 'cor_sola'));
   push(findFichaPrice(order.corVira || '', 'cor_vira') ?? COR_VIRA.find(c => c.label === order.corVira)?.preco);
   if (order.costuraAtras === 'Sim') items.push(getDynamicUnitPrice('costura_atras', COSTURA_ATRAS_PRECO));
   push(CARIMBO.find(c => c.label === order.carimbo)?.preco);

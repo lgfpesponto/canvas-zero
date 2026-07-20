@@ -24,7 +24,7 @@ import {
   CARIMBO, SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO,
   PINTURA_PRECO, TRICE_PRECO, TIRAS_PRECO, FRANJA_PRECO, CORRENTE_PRECO, COSTURA_ATRAS_PRECO,
   getModelosForTamanho,
-  getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorViraOptions, getForma,
+  getSoladosForModelo, getBicosForModeloSolado, getCorSolaOptions, getCorSolaPrecoContextual, getCorViraOptions, getForma,
   HIDE_PESPONTO_EXTRAS,
 } from '@/lib/orderFieldsConfig';
 import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
@@ -478,7 +478,10 @@ const EditOrderPage = () => {
   const cavaloMetalPrecoTotal = cavaloMetal ? cavaloMetalQtd * getDynamicUnitPrice('cavalo_metal', CAVALO_METAL_PRECO) : 0;
   const soladoPreco = findFichaPrice(solado, 'solado') ?? SOLADO.find(s => s.label === solado)?.preco ?? 0;
   const corSolaOptsForPrice = getCorSolaOptions(modelo, solado, formatoBico);
-  const corSolaPreco = findFichaPrice(corSola, 'cor_sola') ?? corSolaOptsForPrice?.find(c => c.label === corSola)?.preco ?? 0;
+  const corSolaPreco = (getCorSolaPrecoContextual(modelo, solado, formatoBico, corSola))
+    || findFichaPrice(corSola, 'cor_sola')
+    || corSolaOptsForPrice?.find(c => c.label === corSola)?.preco
+    || 0;
   const corViraPreco = findFichaPrice(corVira, 'cor_vira') ?? COR_VIRA.find(c => c.label === corVira)?.preco ?? 0;
   const carimboPreco = CARIMBO.find(c => c.label === carimbo)?.preco || 0;
   const hasAnyLaser = laserCano.length > 0 || laserGaspea.length > 0 || laserTaloneira.length > 0;

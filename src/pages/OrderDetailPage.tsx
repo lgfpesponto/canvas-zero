@@ -440,7 +440,8 @@ const OrderDetailPage = () => {
   if (detP.corrente) priceItems.push(['Corrente', getDynamicUnitPrice('corrente', CORRENTE_PRECO)]);
   const soladoP = findFichaPrice(order.solado || '', 'solado') ?? SOLADO.find(s => s.label === order.solado)?.preco;
   if (soladoP) priceItems.push(['Solado: ' + order.solado, soladoP]);
-  const corSolaP = findFichaPrice(order.corSola || '', 'cor_sola') ?? getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola);
+  const corSolaP = getCorSolaPrecoContextual(order.modelo, order.solado, order.formatoBico, order.corSola)
+    || findFichaPrice(order.corSola || '', 'cor_sola');
   if (corSolaP) priceItems.push(['Cor Sola: ' + order.corSola, corSolaP]);
   const corViraP = findFichaPrice(order.corVira || '', 'cor_vira') ?? COR_VIRA.find(c => c.label === order.corVira)?.preco;
   if (corViraP) priceItems.push(['Cor Vira: ' + order.corVira, corViraP]);
