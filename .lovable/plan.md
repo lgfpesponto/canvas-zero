@@ -1,22 +1,26 @@
-## Problema
+## Objetivo
+Fazer o comprovante que hoje aparece como **R$ 11,92** passar a aparecer como **R$ 11.923,80**, conforme informado na observação do próprio registro, e evitar que a tela continue sem opção de correção antes da confirmação.
 
-O comprovante mostra **R$ 11.923,8** (onze mil novecentos e vinte e três reais e oitenta centavos, formato brasileiro), mas a IA extraiu **R$ 11,92**. O modelo interpretou o ponto como decimal e truncou o valor.
+## O que foi verificado
+- O comprovante está salvo no banco em `revendedor_comprovantes` com `valor = 11.92`.
+- A observação do mesmo registro diz: `O VALOR CERTO R$ 11.923,80`.
+- A lista de pendentes (`ComprovantesRevendedorPendentes`) apenas exibe o valor salvo; por isso a visualização ainda não mudou.
+- Já existe edição de valor na lista geral por vendedor (`ComprovantesPorRevendedor`), mas não existe edição direta na lista de comprovantes pendentes antes de confirmar.
 
-Isso acontece porque o prompt da edge function `extract-comprovante` pede o valor como "número com ponto decimal", mas não instrui explicitamente como converter a partir do formato brasileiro (`.` = milhar, `,` = decimal), então em valores com milhar o modelo confunde a separação.
+## Plano de correção
+1. **Corrigir o registro específico no banco**
+   - Atualizar o comprovante pendente de Maria Gabriela, criado hoje às 10:48:43, de `11.92` para `11923.80`.
+   - Manter status, vendedor, anexo e demais dados iguais.
 
-## Correção
+2. **Adicionar correção de valor na visualização de pendentes**
+   - Incluir um botão de editar valor ao lado do valor na tabela de comprovantes pendentes.
+   - Abrir um pequeno diálogo com campo numérico para corrigir o valor antes de clicar em **Confirmar**.
+   - Depois de salvar, recarregar a lista para a visualização mostrar o novo valor imediatamente.
 
-Ajustar `supabase/functions/extract-comprovante/index.ts`:
+3. **Melhorar leitura de formato brasileiro no envio**
+   - No `EnviarComprovanteDialog`, normalizar valores digitados/retornados em formato brasileiro quando necessário.
+   - Exemplo: `11.923,80` deve virar `11923.80`, não `11.92`.
 
-1. **Reforçar o prompt do sistema** deixando explícito o formato brasileiro:
-   - "No Brasil o ponto (`.`) é separador de milhar e a vírgula (`,`) é separador decimal. Ex: `R$ 11.923,80` → `11923.80`; `R$ 1.234,56` → `1234.56`; `R$ 50,00` → `50.00`."
-   - Instruir a copiar o valor exatamente como aparece no comprovante, sem arredondar nem truncar.
-   - Reforçar que o `valor` retornado deve ser o valor total pago, idêntico ao exibido em destaque no comprovante.
-
-2. **Validação de sanidade pós-extração** (defensiva): se o valor extraído for suspeito (ex.: possui centavos "quebrados" tipo `.8` isolado), logar aviso — mas não alterar o valor automaticamente, para não mascarar bugs.
-
-3. **Sem mudanças no frontend** — o dialog `EnviarComprovanteDialog` continua permitindo o admin conferir/editar o valor antes de confirmar.
-
-## Fora do escopo
-
-- Reprocessar comprovantes já enviados: o comprovante do print continua com o valor errado no banco; o usuário pode reprovar/reenviar ou editar manualmente. Se quiser, posso ajustar o registro específico depois.
+4. **Validação**
+   - Conferir no banco que o registro específico ficou com `11923.80`.
+   - Conferir que a tabela de pendentes passa a exibir o valor corrigido.
