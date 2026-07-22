@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive } from 'lucide-react';
+import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -22,7 +27,7 @@ import {
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
 import { EnviarComprovanteDialog } from './EnviarComprovanteDialog';
-import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
+import { formatDateBR, parseCurrencyInput } from '@/components/financeiro/financeiroHelpers';
 
 interface Props {
   /** Quando o admin aprova/reprova, recarrega quem mostra esse componente. */
@@ -50,6 +55,9 @@ export const ComprovantesRevendedorPendentes = ({
   const [descartarOpen, setDescartarOpen] = useState(false);
   const [descartarMotivo, setDescartarMotivo] = useState('');
   const [descartarSaving, setDescartarSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState<RevendedorComprovante | null>(null);
+  const [editValor, setEditValor] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
@@ -177,6 +185,33 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
+  const handleSaveValor = async () => {
+    if (!editTarget) return;
+    const novo = parseCurrencyInput(editValor);
+    if (!Number.isFinite(novo) || novo <= 0) {
+      toast({ title: 'Valor inválido', variant: 'destructive' });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from('revendedor_comprovantes')
+        .update({ valor: novo })
+        .eq('id', editTarget.id)
+        .eq('status', 'pendente');
+      if (error) throw error;
+      toast({ title: 'Valor atualizado', description: `Novo valor: ${formatCurrency(novo)}` });
+      setEditTarget(null);
+      setEditValor('');
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
@@ -262,7 +297,23 @@ export const ComprovantesRevendedorPendentes = ({
                       </TableCell>
                       <TableCell className="text-sm font-medium">{c.vendedor}</TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(Number(c.valor))}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <span>{formatCurrency(Number(c.valor))}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-muted-foreground hover:text-primary"
+                            title="Corrigir valor antes de confirmar"
+                            onClick={() => {
+                              setEditTarget(c);
+                              setEditValor(String(Number(c.valor)).replace('.', ','));
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs max-w-[180px]">
                         <div className="font-medium truncate">
                           {c.pagador_nome || <span className="text-muted-foreground italic">Não identificado</span>}
@@ -326,6 +377,31 @@ export const ComprovantesRevendedorPendentes = ({
         open={!!viewerPath}
         onOpenChange={(o) => { if (!o) setViewerPath(null); }}
       />
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o && !editSaving) { setEditTarget(null); setEditValor(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Corrigir valor do comprovante</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="valor-comprovante-pendente">Valor correto</Label>
+            <Input
+              id="valor-comprovante-pendente"
+              value={editValor}
+              onChange={(e) => setEditValor(e.target.value)}
+              placeholder="Ex.: 11.923,80"
+              inputMode="decimal"
+              disabled={editSaving}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditTarget(null); setEditValor(''); }} disabled={editSaving}>Cancelar</Button>
+            <Button onClick={handleSaveValor} disabled={editSaving}>
+              {editSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Salvando...</> : 'Salvar valor'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!reprovarTarget} onOpenChange={(o) => { if (!o) { setReprovarTarget(null); setMotivo(''); } }}>
         <AlertDialogContent>

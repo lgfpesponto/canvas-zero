@@ -100,6 +100,30 @@ export function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+export function parseCurrencyInput(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const raw = String(value ?? '').trim();
+  if (!raw) return 0;
+
+  const cleaned = raw.replace(/R\$/gi, '').replace(/\s/g, '');
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+
+  if (hasComma) {
+    return Number(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+  }
+
+  if (hasDot) {
+    const parts = cleaned.split('.');
+    const last = parts[parts.length - 1];
+    if (parts.length > 2 || (last.length === 3 && parts[0].length <= 3)) {
+      return Number(parts.join('')) || 0;
+    }
+  }
+
+  return Number(cleaned.replace(/[^0-9.-]/g, '')) || 0;
+}
+
 // ============= Deduplicação de comprovantes =============
 
 export type DupCandidate = {
