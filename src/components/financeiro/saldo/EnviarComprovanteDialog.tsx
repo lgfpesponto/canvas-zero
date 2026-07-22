@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
-  validateComprovante, fileHash, todayISO, formatDateBR,
+  validateComprovante, fileHash, todayISO, formatDateBR, parseCurrencyInput,
 } from '@/components/financeiro/financeiroHelpers';
 import { formatCurrency } from '@/lib/order-logic';
 import { uploadComprovanteRevendedor } from '@/lib/revendedorSaldo';
@@ -120,7 +120,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         ...i,
         status: 'ready',
         data_pagamento: data.data_pagamento || todayISO(),
-        valor: Number(data.valor) || 0,
+        valor: parseCurrencyInput(data.valor),
         pagador_nome: data.destinatario_nome_original || data.destinatario || '',
         pagador_documento: data.destinatario_documento || '',
         tipo_detectado: (data.tipo === 'empresa' ? 'empresa' : 'fornecedor') as 'empresa' | 'fornecedor',
