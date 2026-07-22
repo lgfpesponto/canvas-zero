@@ -63,10 +63,23 @@ Deno.serve(async (req) => {
     const systemPrompt = `Você analisa comprovantes de pagamento (PIX, TED, DOC, boleto) brasileiros — em PDF ou imagem (foto/print de tela).
 Extraia EXATAMENTE estes dados e retorne via tool call:
 - data_pagamento: data efetiva da transferência (formato YYYY-MM-DD)
-- valor: valor pago em reais (número, sem R$ nem separador de milhar; use ponto decimal)
+- valor: valor pago em reais como NÚMERO (float). Use SEMPRE ponto como separador decimal e NUNCA separador de milhar.
 - destinatario_nome: nome completo de quem RECEBEU o pagamento
 - destinatario_documento: CPF ou CNPJ de quem RECEBEU (apenas dígitos, sem máscara)
 - descricao: breve descrição se disponível (ex: "PIX enviado", "TED")
+
+IMPORTANTÍSSIMO sobre o VALOR (formato brasileiro):
+No Brasil o PONTO (.) é separador de MILHAR e a VÍRGULA (,) é separador DECIMAL.
+Converta EXATAMENTE o valor exibido em destaque no comprovante, sem arredondar nem truncar.
+Exemplos de conversão:
+- "R$ 11.923,80"  -> 11923.80
+- "R$ 11.923,8"   -> 11923.80  (o "8" após a vírgula são centavos: 80)
+- "R$ 1.234,56"   -> 1234.56
+- "R$ 50,00"      -> 50.00
+- "R$ 999,90"     -> 999.90
+- "R$ 2.500"      -> 2500.00
+Se o valor tiver ponto seguido de 3 dígitos (ex.: "11.923"), esse ponto é milhar — NÃO é decimal.
+Se o valor tiver vírgula seguida de 1 dígito (ex.: ",8"), trate como centavos completos (,80).
 
 Se algum campo não estiver claro no comprovante, retorne string vazia ou 0 para valor.
 NUNCA invente dados.`;

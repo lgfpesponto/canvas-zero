@@ -1,29 +1,22 @@
 ## Problema
 
-1. **Horário errado nos pedidos Bagy**: o painel Bagy mostra 20:53, mas o portal mostra 17:53 (−3h). Bagy envia `created_at` como `2026-07-18T20:53:00` sem timezone. Em `supabase/functions/bagy-webhook/index.ts:396`, `new Date(bagyCreatedRaw).toISOString()` interpreta a string como UTC, e depois a RPC `criar_pedido` converte para America/Sao_Paulo (UTC−3), tirando 3 horas.
+O comprovante mostra **R$ 11.923,8** (onze mil novecentos e vinte e três reais e oitenta centavos, formato brasileiro), mas a IA extraiu **R$ 11,92**. O modelo interpretou o ponto como decimal e truncou o valor.
 
-2. **Nome do cliente não aparece no topo** dos pedidos importados da Bagy. Em `OrderDetailPage.tsx` (~L733), para admin só mostra "Vendedor: Rancho Chique". O nome do cliente já está salvo em `orders.cliente`, mas não é exibido no cabeçalho.
+Isso acontece porque o prompt da edge function `extract-comprovante` pede o valor como "número com ponto decimal", mas não instrui explicitamente como converter a partir do formato brasileiro (`.` = milhar, `,` = decimal), então em valores com milhar o modelo confunde a separação.
 
-## Correções
+## Correção
 
-### 1. Horário Bagy — tratar timestamp naive como horário de São Paulo
-Em `supabase/functions/bagy-webhook/index.ts` (~L392–L396), substituir a normalização por uma que detecta se a string tem timezone (`Z` ou `±HH:MM`); se não tiver, anexa `-03:00` antes de converter para ISO. Assim `2026-07-18T20:53:00` vira `2026-07-18T20:53:00-03:00` → armazenado como `23:53Z` → RPC exibe 20:53 (bate com Bagy).
+Ajustar `supabase/functions/extract-comprovante/index.ts`:
 
-### 2. Backfill dos pedidos já importados com horário errado
-Migração SQL para pedidos Bagy (`orders.bagy_order_id IS NOT NULL`) recalculando `hora_criacao` a partir de `bagy_pedidos.bagy_created_at` (+3h para os que foram criados com o bug — detectado quando a hora atual em orders + 3h coincide com o horário exibido no painel Bagy). Só mexe em pedidos com `bagy_order_id`, ignora Cancelados/Cobrados/Pagos/Conferido para segurança.
+1. **Reforçar o prompt do sistema** deixando explícito o formato brasileiro:
+   - "No Brasil o ponto (`.`) é separador de milhar e a vírgula (`,`) é separador decimal. Ex: `R$ 11.923,80` → `11923.80`; `R$ 1.234,56` → `1234.56`; `R$ 50,00` → `50.00`."
+   - Instruir a copiar o valor exatamente como aparece no comprovante, sem arredondar nem truncar.
+   - Reforçar que o `valor` retornado deve ser o valor total pago, idêntico ao exibido em destaque no comprovante.
 
-### 3. Mostrar cliente no cabeçalho dos pedidos Bagy
-Em `src/pages/OrderDetailPage.tsx` (~L720), adicionar antes do grid 2×2 uma linha destacada quando `order.bagy_order_id` existir:
-```
-CLIENTE (Bagy): {order.cliente}
-```
-Visível para todos os perfis (admin e vendedor). Não altera as demais células.
+2. **Validação de sanidade pós-extração** (defensiva): se o valor extraído for suspeito (ex.: possui centavos "quebrados" tipo `.8` isolado), logar aviso — mas não alterar o valor automaticamente, para não mascarar bugs.
 
-## Detalhes técnicos
+3. **Sem mudanças no frontend** — o dialog `EnviarComprovanteDialog` continua permitindo o admin conferir/editar o valor antes de confirmar.
 
-Arquivos alterados:
-- `supabase/functions/bagy-webhook/index.ts` — normalização do `bagyCreatedAt`.
-- `src/pages/OrderDetailPage.tsx` — nova linha "Cliente" no cabeçalho para pedidos com `bagy_order_id`.
-- Nova migration — backfill do `hora_criacao` dos pedidos Bagy importados antes do fix.
+## Fora do escopo
 
-Regra de detecção do backfill: pega `bagy_pedidos.bagy_created_at` (já normalizado como UTC), soma 3h e recompõe `data_criacao`/`hora_criacao` no fuso São Paulo. Assim funciona igual para pedidos com e sem o bug (ideempotente).
+- Reprocessar comprovantes já enviados: o comprovante do print continua com o valor errado no banco; o usuário pode reprovar/reenviar ou editar manualmente. Se quiser, posso ajustar o registro específico depois.
