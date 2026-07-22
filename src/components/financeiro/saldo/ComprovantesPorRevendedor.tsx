@@ -24,7 +24,7 @@ import {
   type RevendedorComprovante, type RevendedorSaldo,
 } from '@/lib/revendedorSaldo';
 import { ComprovanteViewer } from '@/components/financeiro/ComprovanteViewer';
-import { formatDateBR } from '@/components/financeiro/financeiroHelpers';
+import { formatDateBR, parseCurrencyInput } from '@/components/financeiro/financeiroHelpers';
 
 interface Props {
   /** Vendedor selecionado no filtro do topo. */
@@ -60,7 +60,7 @@ export const ComprovantesPorRevendedor = ({
 
   const handleSaveValor = async () => {
     if (!editTarget) return;
-    const novo = Number(editValor.replace(',', '.'));
+    const novo = parseCurrencyInput(editValor);
     if (!Number.isFinite(novo) || novo <= 0) {
       toast({ title: 'Valor inválido', variant: 'destructive' });
       return;
