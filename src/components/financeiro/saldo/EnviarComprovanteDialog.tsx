@@ -216,15 +216,39 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     for (const it of ready) {
       setItems(prev => prev.map(i => i.id === it.id ? { ...i, status: 'saving' } : i));
       try {
-        // Checa duplicata por hash dentro do mesmo vendedor
-        const { data: dup } = await supabase
+        // 1) Duplicata por hash do arquivo
+        const { data: dupHash } = await supabase
           .from('revendedor_comprovantes' as any)
-          .select('id')
+          .select('id, created_at, status')
           .eq('vendedor', targetVendedor)
           .eq('comprovante_hash', it.hash)
           .limit(1);
-        if (dup && dup.length > 0) {
-          throw new Error('Esse comprovante já foi enviado anteriormente.');
+        if (dupHash && dupHash.length > 0) {
+          throw new Error('Esse comprovante já foi enviado anteriormente (arquivo idêntico).');
+        }
+
+        // 2) Duplicata por tripla: mesmo valor + mesma data + mesmo pagador
+        //    (bloqueia mesmo se o revendedor tirou uma foto/print novo do mesmo comprovante).
+        //    Considera qualquer status (pendente/aprovado/reprovado).
+        let tripleQ = supabase
+          .from('revendedor_comprovantes' as any)
+          .select('id, created_at, status, pagador_nome, data_pagamento, valor')
+          .eq('vendedor', targetVendedor)
+          .eq('valor', it.valor)
+          .eq('data_pagamento', it.data_pagamento);
+        const pagador = (it.pagador_nome || '').trim();
+        if (pagador) {
+          tripleQ = tripleQ.ilike('pagador_nome', pagador);
+        } else {
+          tripleQ = tripleQ.or('pagador_nome.is.null,pagador_nome.eq.');
+        }
+        const { data: dupTriple } = await tripleQ.limit(1);
+        if (dupTriple && dupTriple.length > 0) {
+          const existente: any = dupTriple[0];
+          const quando = formatDateBR(String(existente.data_pagamento));
+          throw new Error(
+            `Já existe um comprovante idêntico deste vendedor (valor ${formatCurrency(it.valor)}, data ${quando}${pagador ? `, pagador "${pagador}"` : ''}). Envio bloqueado para evitar duplicidade.`
+          );
         }
 
         // Faz upload do arquivo no Storage para que o admin master possa conferir o PDF/foto na aprovação
