@@ -18,7 +18,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/order-logic';
+import { formatCurrency, getOrderFinalValue } from '@/lib/order-logic';
 import {
   fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
