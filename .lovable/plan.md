@@ -1,72 +1,42 @@
-## Diagnóstico já confirmado no banco
+## Problema
 
-**Maria Gabriela**
-- Pendência atual no portal (71 pedidos Cobrado): **R$ 24.867,40** (soma de `preco × quantidade`).
-- Se somar apenas `preco` gravado: **R$ 24.247,40**.
-- A diferença de **R$ 620,00** vem de UM pedido com `quantidade = 2` (`EST LARA PVC PRETA`, preço unitário R$ 620, total real R$ 1.240).
-- Motivo do card mostrar "Falta R$ 24.532,20": a tela `FinanceiroSaldoRevendedor` está calculando `preco * quantidade` para "pendências", enquanto `orders.preco` já é o total final do pedido. Isso infla o valor.
-- Além disso, existe um comprovante aprovado de **R$ 15.329,00** cujo movimento entrou como **R$ 15,329** — erro histórico real que precisa ser corrigido no saldo.
-- Valor pendente correto informado pela usuária: **R$ 23.937,20**.
+Card do Rafael Silva ainda mostra:
+- Disponível: **−R$ 4.959,86**
+- Pendente (113 pedidos Cobrados): **R$ 34.505,20**
+- Falta total: **R$ 39.465,06** ✓ (esse já bate com a planilha)
 
-**Rafael Silva**
-- 113 pedidos Cobrado sem baixa, total gravado em `preco`: **R$ 34.505,20** (sem distorção de quantidade nele).
-- Saldo disponível: **R$ -4.994,86**.
-- Falta atual no portal: R$ 34.505,20 + 4.994,86 = **R$ 39.500,06**.
-- Valor pendente correto informado pela usuária: **R$ 39.465,06**.
-- Diferença de **R$ 35,00** provavelmente vem de estornos automáticos de edição de pedidos.
+O total "Falta" já está correto, mas ele está fatiado errado: R$ 4.959,86 estão "no disponível negativo" em vez de estarem como pedido pendente. Isso acontece porque nos últimos dias baixas automáticas consumiram pedidos além do que os comprovantes cobriam (saldo ficou negativo).
 
-## Causas reais do problema recorrente
+## Objetivo
 
-1. **Cálculo de "pendências" na tela usa `preco * quantidade`** enquanto o restante do sistema trata `orders.preco` como total final. Único ponto que ainda usa a fórmula errada: `FinanceiroSaldoRevendedor.tsx` (`sum + (p.preco || 0) * (p.quantidade || 1)`).
-2. **Bloqueio de comprovante duplicado é fraco**: só compara hash do arquivo. Fotos diferentes do mesmo comprovante passam.
-3. **Erros pontuais em movimentos** (ex.: comprovante R$ 15.329 lançado como R$ 15,329) não têm alerta visível — só aparecem como "falta que não bate".
+Deixar **disponível = R$ 0,00** e **pendente = R$ 39.465,06**, sem mexer nos comprovantes aprovados nem nos valores dos pedidos.
 
-## Plano de correção
+## Como corrigir
 
-### 1. Corrigir o cálculo da tela (sem mexer em lógica de baixa)
-- Em `FinanceiroSaldoRevendedor.tsx`, substituir `(p.preco || 0) * (p.quantidade || 1)` por `getOrderFinalValue(p)`.
-- Card e drawer passam a mostrar exatamente o mesmo número.
+Reverter (estornar) baixas recentes do Rafael até somar exatamente **R$ 4.959,86**. Cada estorno:
+- Devolve o valor ao saldo disponível (−4.959,86 → 0)
+- Volta o pedido de "Pago" para "Cobrado" (pendente 34.505,20 → 39.465,06)
 
-### 2. Bloquear duplicidade de comprovante de verdade
-- **Banco**: função de normalização de nome + trigger em `revendedor_comprovantes` impedindo insert/update com mesma combinação `vendedor + valor (2 casas) + data_pagamento + destinatário`. Reforço dentro de `aprovar_comprovante_revendedor`.
-- **Frontend** (`EnviarComprovanteDialog.tsx`): antes do insert, consulta e bloqueia com mensagem clara. Também bloqueia duplicados dentro do mesmo lote.
+Uma única operação resolve as duas pontas.
 
-### 3. Corrigir o movimento histórico de R$ 15.329 da Maria
-- Ajustar o `valor` do movimento `entrada_comprovante` ligado ao comprovante `c296258b-…` de 15,329 para 15.329,00.
-- Recalcular `saldo_anterior`/`saldo_posterior` dos movimentos posteriores dela em ordem cronológica, para manter o extrato consistente.
-- Registrar auditoria via ajuste administrativo descritivo, sem apagar histórico.
+### Seleção dos pedidos a estornar
 
-### 4. Aba "Conferência" no drawer do revendedor (admin_master)
-Mostra por vendedor:
-- pendência calculada certa,
-- baixas onde `valor_pedido` diverge do valor atual do pedido,
-- comprovantes aprovados cujo movimento não bate com o valor do comprovante,
-- pedidos com `quantidade > 1` (informativo).
+Vou escolher as baixas mais recentes (feitas hoje 24/07 10:53, que foram justamente as que empurraram o saldo para negativo) até fechar R$ 4.959,86. Se o subconjunto não fechar exato no centavo, o último estorno vira parcial via `ajustar_saldo_revendedor` para acertar a diferença de centavos.
 
-### 5. Reconciliação para bater o valor real pedido
+Antes de executar vou listar aqui os N° de pedido escolhidos e o total, para você conferir. Nenhuma alteração é feita sem essa conferência.
 
-**Maria Gabriela → alvo R$ 23.937,20**
-1. Depois de corrigir a tela e o movimento de R$ 15.329, recalcular:
-   - pendência real = soma de `getOrderFinalValue(o)` dos 71 Cobrados = R$ 24.867,40.
-   - Diferença para o alvo: **R$ 930,20**.
-2. Antes de qualquer ajuste, listar os 71 pedidos (todos de 22/07 e 23/07 conforme escopo dela) para conferir centavo por centavo com a usuária. Só aplicar ajuste após ela apontar quais linhas explicam os R$ 930,20 (ex.: descontos aprovados que não foram aplicados, pedido cancelado, valor divergente).
-3. Aplicar correção via um dos caminhos abaixo, o que a conferência indicar:
-   - **Ajuste de preço no pedido específico** (via solicitação de ajuste aprovada + `recomputeOrderPrice`) quando a diferença for de valor de pedido;
-   - **Baixa manual** de pedido que já foi pago fora do sistema (opção "Quitar como histórico" já existente);
-   - **Ajuste administrativo de saldo** com descrição, só se sobrar diferença que não caiba nos dois anteriores.
-4. Ao final, confirmar via query: soma dos Cobrados sem baixa da Maria = R$ 23.937,20.
+## Escopo
 
-**Rafael Silva → alvo R$ 39.465,06**
-1. Escopo: apenas os dias da planilha enviada pela foto.
-2. Listar os 113 pedidos Cobrado sem baixa dele + saldo (-R$ 4.994,86) e cruzar com a planilha.
-3. Diferença atual entre portal e alvo: **R$ 35,00**. Confirmar com a usuária qual pedido/estorno explica esses R$ 35 antes de ajustar.
-4. Aplicar correção pelo caminho apropriado (mesmas 3 opções acima).
-5. Confirmar via query: (soma dos Cobrados sem baixa) − saldo disponível = R$ 39.465,06.
+- Apenas Rafael Silva. Maria Gabriela já está correta e não será tocada.
+- Nenhuma mudança de UI/código — só ajuste de dados via SQL nas tabelas `revendedor_baixas_pedido`, `revendedor_saldo_movimentos` e `orders` (voltando status Pago → Cobrado dos pedidos escolhidos).
+- Registrado em `revendedor_saldo_movimentos` como estorno com descrição "Reconciliação saldo Rafael — ajuste para bater com planilha (R$ 39.465,06)".
 
-### 6. Validação final
-- Reexecutar as queries de auditoria dos dois vendedores.
-- Print/print interno mostrando: pendência exibida no card = pendência do drawer = valor real esperado.
-- Registrar no memory que `orders.preco` é sempre total final e que qualquer soma de pendência deve usar `getOrderFinalValue`.
+## Resultado esperado
 
-## Nota importante
-Não vou aplicar nenhum ajuste de saldo ou baixa "no chute". Depois de corrigir os bugs (passos 1–3) e mostrar a lista detalhada dos pedidos (passo 4/5), preciso da sua confirmação por linha antes de mexer em dinheiro. Isso evita repetir o problema.
+```
+Recebido:    R$ 464.621,21  (inalterado)
+Utilizado:   R$ 481.673,58  (era 486.633,44, cai 4.959,86)
+Disponível:  R$      0,00
+Pendente:    R$  39.465,06  (era 34.505,20, sobe 4.959,86)
+Falta:       R$  39.465,06
+```
