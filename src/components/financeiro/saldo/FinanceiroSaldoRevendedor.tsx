@@ -18,7 +18,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/order-logic';
+import { formatCurrency, getOrderFinalValue } from '@/lib/order-logic';
 import {
   fetchSaldosTodos,
   fetchComprovantesTodos, fetchMovimentosTodos,
@@ -115,7 +115,7 @@ const FinanceiroSaldoRevendedor = () => {
           ]);
           const baixasSet = new Set(baixas.map(b => b.order_id));
           const pend = pedidos.filter(p => !baixasSet.has(p.id));
-          const valor = pend.reduce((sum, p) => sum + (p.preco || 0) * (p.quantidade || 1), 0);
+          const valor = pend.reduce((sum, p) => sum + getOrderFinalValue(p as any), 0);
           return [v, { qtd: pend.length, valor }] as const;
         } catch {
           return [v, { qtd: 0, valor: 0 }] as const;
