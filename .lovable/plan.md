@@ -1,42 +1,27 @@
 ## Problema
 
-Card do Rafael Silva ainda mostra:
-- Disponível: **−R$ 4.959,86**
-- Pendente (113 pedidos Cobrados): **R$ 34.505,20**
-- Falta total: **R$ 39.465,06** ✓ (esse já bate com a planilha)
+O vendedor Rafael Silva enviou 2 comprovantes idênticos de **R$ 4.500** (mesmo valor, mesma data 23/07, mesmo pagador "OLIVEIRA PESPONTO"). O sistema aceitou e aprovou os dois porque a checagem de duplicidade em `EnviarComprovanteDialog.tsx` só valida **hash do arquivo** — como o revendedor tirou uma foto nova do mesmo comprovante, o hash difere e passou.
 
-O total "Falta" já está correto, mas ele está fatiado errado: R$ 4.959,86 estão "no disponível negativo" em vez de estarem como pedido pendente. Isso acontece porque nos últimos dias baixas automáticas consumiram pedidos além do que os comprovantes cobriam (saldo ficou negativo).
+O comprovante duplicado é `a9c78330-b94e-4dc0-9de6-ee34d33f2ab2` (criado hoje 24/07 14:10, aprovado 14:11). O original é `11ea696b...` (23/07 18:06).
 
-## Objetivo
+## O que fazer
 
-Deixar **disponível = R$ 0,00** e **pendente = R$ 39.465,06**, sem mexer nos comprovantes aprovados nem nos valores dos pedidos.
+### 1. Corrigir o saldo do Rafael Silva (SQL admin)
+- Reverter as baixas automáticas que foram geradas pela aprovação do comprovante duplicado (movimentos criados após 24/07 14:11): voltar os pedidos afetados de `Pago` → `Cobrado` e apagar os registros de `revendedor_baixas_pedido` correspondentes.
+- Apagar o movimento `entrada_comprovante` de R$ 4.500 do comprovante duplicado.
+- Apagar o registro `a9c78330...` de `revendedor_comprovantes` (e o arquivo do Storage).
+- Recalcular: o saldo disponível deve voltar a **R$ 0,00** e a pendência total voltar aos **R$ 39.465,06** reais.
 
-## Como corrigir
+### 2. Criar a regra de bloqueio (código)
+Editar `src/components/financeiro/saldo/EnviarComprovanteDialog.tsx` para, antes de subir cada comprovante, checar no banco se já existe algum registro do **mesmo vendedor** com **mesmo valor + mesma data_pagamento + mesmo pagador_nome** (case-insensitive/trim). Se encontrar, **bloquear o envio** com mensagem clara ("Já existe um comprovante idêntico enviado em DD/MM — valor, data e pagador coincidem"), independentemente do status (pendente / aprovado / reprovado).
 
-Reverter (estornar) baixas recentes do Rafael até somar exatamente **R$ 4.959,86**. Cada estorno:
-- Devolve o valor ao saldo disponível (−4.959,86 → 0)
-- Volta o pedido de "Pago" para "Cobrado" (pendente 34.505,20 → 39.465,06)
+A checagem por hash de arquivo continua como fallback adicional.
 
-Uma única operação resolve as duas pontas.
+### 3. Reforçar no lado do admin (opcional, mesma edição)
+No `ComprovantesRevendedorPendentes.tsx`, ao aprovar um pendente, rodar a mesma checagem tripla contra os **aprovados** do vendedor e avisar antes de confirmar, caso um duplicado tenha escapado.
 
-### Seleção dos pedidos a estornar
+## Detalhes técnicos
 
-Vou escolher as baixas mais recentes (feitas hoje 24/07 10:53, que foram justamente as que empurraram o saldo para negativo) até fechar R$ 4.959,86. Se o subconjunto não fechar exato no centavo, o último estorno vira parcial via `ajustar_saldo_revendedor` para acertar a diferença de centavos.
-
-Antes de executar vou listar aqui os N° de pedido escolhidos e o total, para você conferir. Nenhuma alteração é feita sem essa conferência.
-
-## Escopo
-
-- Apenas Rafael Silva. Maria Gabriela já está correta e não será tocada.
-- Nenhuma mudança de UI/código — só ajuste de dados via SQL nas tabelas `revendedor_baixas_pedido`, `revendedor_saldo_movimentos` e `orders` (voltando status Pago → Cobrado dos pedidos escolhidos).
-- Registrado em `revendedor_saldo_movimentos` como estorno com descrição "Reconciliação saldo Rafael — ajuste para bater com planilha (R$ 39.465,06)".
-
-## Resultado esperado
-
-```
-Recebido:    R$ 464.621,21  (inalterado)
-Utilizado:   R$ 481.673,58  (era 486.633,44, cai 4.959,86)
-Disponível:  R$      0,00
-Pendente:    R$  39.465,06  (era 34.505,20, sobe 4.959,86)
-Falta:       R$  39.465,06
-```
+- **Chave de duplicidade**: `vendedor` + `valor` (numeric equal) + `data_pagamento` (date equal) + `LOWER(TRIM(pagador_nome))` equal. Quando `pagador_nome` está vazio nos dois lados, tratar como coincidência também (regravação da mesma transferência sem nome do pagador extraído).
+- **Query única antes do upload** por item — retorna id + status + created_at do match; se houver, aborta esse item e mostra toast destrutivo com a data do comprovante existente.
+- **Reversão do Rafael**: identificar `revendedor_saldo_movimentos` com `comprovante_id = 'a9c78330...'` (entrada) e todas as `baixa_pedido` criadas na sequência (created_at ≥ 14:11 hoje até esgotar o valor), reverter em ordem, voltar `orders.status` para `Cobrado`, apagar entradas em `revendedor_baixas_pedido`, apagar os movimentos, apagar o comprovante e o arquivo.
