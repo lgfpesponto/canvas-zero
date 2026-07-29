@@ -586,6 +586,22 @@ const EstoquePage = () => {
         ficha={selFicha}
         totalProdutos={filteredGroups.length}
         canTogglePrecos={role === 'admin_master'}
+        tamanhosDisponiveis={[...new Set(rows.filter(r => r.quantidade > 0).map(r => r.tamanho))].sort((a, b) => Number(a) - Number(b))}
+        getPreviewCount={(searchLocal, tamanhosLocal) => {
+          const q = searchLocal.trim().toLowerCase();
+          return groups.filter(g => {
+            if (q) {
+              const hitNome = g.nome.toLowerCase().includes(q);
+              const hitSku = g.tamanhos.some(t => t.sku_base.toLowerCase().includes(q));
+              if (!hitNome && !hitSku) return false;
+            }
+            if (tamanhosLocal.size > 0) {
+              if (!g.tamanhos.some(t => t.quantidade > 0 && tamanhosLocal.has(t.tamanho))) return false;
+            }
+            if (!matchesFichaFilters(g.ficha_snapshot, selFicha, fichaKeys)) return false;
+            return true;
+          }).length;
+        }}
       />
 
       {canManageDescontos && (
