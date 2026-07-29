@@ -185,7 +185,21 @@ const VitrinePublicaPage = () => {
 
   const mostrarPreco = payload.mostrarPreco;
   const mostrarDesconto = payload.mostrarPreco && payload.mostrarDesconto;
-  const selTam = new Set(payload.tamanhos);
+  // Tamanhos efetivos exibidos por card: intersecção entre escopo do link e escolha local
+  const escopoTam = new Set(payload.tamanhos);
+  const filtroEfetivo = tamanhosLocal.size > 0
+    ? tamanhosLocal
+    : escopoTam;
+  const temAlgumFiltroLocal = buscaLocal.trim() !== '' || tamanhosLocal.size > 0;
+
+  const toggleTamanho = (t: string) => {
+    setTamanhosLocal((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,6 +210,54 @@ const VitrinePublicaPage = () => {
             <h1 className="text-sm md:text-base font-display font-bold leading-tight">{titulo}</h1>
             <p className="text-[11px] text-muted-foreground">Produtos disponíveis em estoque</p>
           </div>
+          <div className="hidden sm:block text-xs text-muted-foreground whitespace-nowrap">
+            {filteredGroups.length} produto{filteredGroups.length === 1 ? '' : 's'}
+          </div>
+        </div>
+        <div className="container mx-auto px-4 pb-3 max-w-6xl flex flex-col gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar modelo ou SKU..."
+              value={buscaLocal}
+              onChange={(e) => setBuscaLocal(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          {tamanhosDisponiveis.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground mr-1">Tamanho:</span>
+              {tamanhosDisponiveis.map((t) => {
+                const ativo = tamanhosLocal.has(t);
+                return (
+                  <button
+                    key={t}
+                    onClick={() => toggleTamanho(t)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition ${
+                      ativo
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted border-border hover:bg-muted/70'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+              {temAlgumFiltroLocal && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    setBuscaLocal('');
+                    setTamanhosLocal(new Set());
+                  }}
+                >
+                  <X size={12} /> Limpar
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -210,9 +272,8 @@ const VitrinePublicaPage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredGroups.map((g) => {
-              // Filtro de tamanho: só mostra os tamanhos filtrados que ainda têm estoque
-              const tamanhosMostrados = selTam.size > 0
-                ? g.tamanhos.filter((t) => selTam.has(t.tamanho) && t.quantidade > 0)
+              const tamanhosMostrados = filtroEfetivo.size > 0
+                ? g.tamanhos.filter((t) => filtroEfetivo.has(t.tamanho) && t.quantidade > 0)
                 : g.tamanhos.filter((t) => t.quantidade > 0);
               const grupoKey = estoqueGroupKey(g.nome, g.tamanhos[0].sku_base);
               const desc = mostrarDesconto ? getDescontoParaProduto(grupoKey, g.preco, descontos) : null;
