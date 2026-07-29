@@ -53,6 +53,10 @@ const VitrinePublicaPage = () => {
   const fichaKeys = useFichaFilterKeys(['bota', 'cinto']);
   const { descontos } = useDescontosAtivos();
 
+  // Filtros interativos do visitante (dentro do escopo do link)
+  const [buscaLocal, setBuscaLocal] = useState('');
+  const [tamanhosLocal, setTamanhosLocal] = useState<Set<string>>(new Set());
+
   const titulo = payload?.titulo || 'Vitrine 7ESTRIVOS';
 
   // <title>, og:title, og:description sincronizados
