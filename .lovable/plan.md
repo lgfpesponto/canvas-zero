@@ -1,25 +1,42 @@
-## Objetivo
+# Botão "Ver produtos" com erro/pendência de sincronização Bagy
 
-No diálogo "Compartilhar vitrine", permitir dois novos filtros aplicados **apenas ao link gerado** (sem alterar os filtros da tela do Estoque):
+## Contexto (confirmado)
 
-1. **Buscar por nome do modelo** — campo de texto que sobrepõe o `search` da página.
-2. **Filtro de tamanho** — chips multi-seleção, exibidos **somente** quando a página do Estoque não já tiver um filtro de tamanho ativo.
+Hoje, na página **Estoque**, ao lado do botão `Sincronizar com Bagy (N)` (componente `BagySyncPendingButton`), o contador `N` diz *quantos* produtos estão pendentes/com erro, mas para descobrir **quais** o usuário precisa abrir card por card. Os produtos ficam marcados em `estoque_produtos` via `bagy_sync_status` (`pendente | erro | nao_encontrado_na_bagy | null`) e o motivo do erro fica em `bagy_last_sync_error` (já usado hoje).
 
-## Mudanças
+## O que fazer
 
-### `src/components/estoque/CompartilharVitrineDialog.tsx`
-- Adicionar estados locais `searchLocal` (inicializado com a prop `search`) e `tamanhosLocal` (Set, iniciando vazio).
-- Novo campo `<Input>` "Buscar modelo" acima da caixa de preços, ligado a `searchLocal`.
-- Nova seção "Tamanhos" com chips multi-seleção usando a nova prop `tamanhosDisponiveis` (union de todos os tamanhos com estoque). Renderizada apenas quando `tamanhos.size === 0` (nenhum filtro de tamanho vindo da página).
-- Adicionar contador dinâmico: recalcular quantos produtos entram no link considerando os filtros locais (aceita uma prop `getPreviewCount(searchLocal, tamanhosLocal)` opcional; se não fornecida, mostra o total base).
-- No `useMemo` do payload, usar `searchLocal.trim()` e `tamanhosLocal` (ou fallback à prop `tamanhos` quando houver).
+Adicionar um botão `Ver produtos` imediatamente ao lado de `Sincronizar com Bagy (N)`, que abre um diálogo listando exatamente os mesmos produtos que compõem o contador.
 
-### `src/pages/EstoquePage.tsx`
-- Calcular `tamanhosDisponiveis` = ordem numérica dos tamanhos únicos com `quantidade > 0` em `groups`.
-- Passar como prop nova para `CompartilharVitrineDialog`.
-- Passar um `getPreviewCount(searchLocal, tamanhosLocal)` que reaproveita a mesma lógica de filtragem já existente (nome/sku + tamanho com estoque + filtros de ficha atuais) para atualizar o contador ao vivo dentro do diálogo.
+### Diálogo "Produtos com problema na Bagy"
 
-## Observações
-- Filtros de ficha (couro, solado, etc.) continuam vindo da página como hoje — só nome e tamanho são editáveis no diálogo, conforme pedido.
-- Quando a página já tem tamanho selecionado, a seção de tamanhos no diálogo simplesmente não aparece, evitando dois lugares para o mesmo filtro.
-- Nada muda na página `VitrinePublicaPage` — o token já suporta `search` e `tamanhos`.
+Tabela simples, uma linha por produto:
+
+| Coluna | Origem |
+|---|---|
+| Nome do produto | `estoque_produtos.nome` |
+| SKU base | `sku_base` |
+| Status | badge colorido a partir de `bagy_sync_status` (Pendente / Erro / Não encontrado na Bagy / Nunca sincronizado) |
+| Último erro | `bagy_last_sync_error` (truncado com tooltip completo) |
+| Última tentativa | `bagy_sync_at` formatado pt-BR (ou "—") |
+| Ação | link/botão "Abrir" que navega para o produto no Estoque (fecha diálogo + rola até o card, reusando lógica de filtro por SKU/ID que já existe) |
+
+Extras do diálogo:
+- Campo de busca por nome/SKU no topo.
+- Contador "X produtos" no cabeçalho.
+- Botão `Sincronizar agora` no rodapé que dispara a mesma ação do botão externo (conveniência) e mantém o diálogo aberto atualizando a lista via realtime que já existe.
+- Realtime: reaproveitar a subscription de `estoque_produtos` já usada por `BagySyncPendingButton` para que a lista se atualize sozinha conforme itens saem do estado de erro.
+
+### Detalhes técnicos
+
+- Novo componente `src/components/estoque/BagySyncErrorsDialog.tsx`.
+- Alterar `BagySyncPendingButton.tsx`:
+  - Buscar também a **lista** (não só o count) quando `pendentes > 0`, com `select('id,nome,sku_base,bagy_sync_status,bagy_sync_at,bagy_last_sync_error')` e o mesmo filtro `.or(...)` já existente.
+  - Renderizar novo botão `<Button variant="outline" size="sm">Ver produtos</Button>` ao lado do atual, que abre o diálogo.
+- Sem alterações de schema, RLS ou edge functions — todos os campos já existem e já são lidos pelo usuário com permissão `canSync`.
+- Sem mudar visibilidade: aparece apenas para quem já vê o botão de sincronizar (admin_master, admin_producao, vendedor_comissao).
+
+## Fora do escopo
+
+- Não mexer no botão de sincronização em si, no `BagySyncStatusCard` da aba Gestão, nem no fluxo da edge function `bagy-stock-sync`.
+- Não expor o token Bagy nem detalhes de autenticação no diálogo (mostra só a mensagem crua já salva em `bagy_last_sync_error`, que é o que o usuário precisa para agir).

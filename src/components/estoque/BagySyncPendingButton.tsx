@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import BagySyncErrorsDialog from './BagySyncErrorsDialog';
+
 
 interface Props {
   canSync: boolean;         // admin_master, admin_producao, vendedor_comissao
@@ -17,6 +19,7 @@ interface Props {
 const BagySyncPendingButton = ({ canSync, currentUserId, currentUserNome }: Props) => {
   const [pendentes, setPendentes] = useState(0);
   const [running, setRunning] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchPend = async () => {
     if (!canSync) return;
@@ -73,10 +76,22 @@ const BagySyncPendingButton = ({ canSync, currentUserId, currentUserNome }: Prop
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleSync} disabled={running}>
-      {running ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-      Sincronizar com Bagy ({pendentes})
-    </Button>
+    <>
+      <Button variant="outline" size="sm" onClick={handleSync} disabled={running}>
+        {running ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+        Sincronizar com Bagy ({pendentes})
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+        <AlertCircle size={14} />
+        Ver produtos
+      </Button>
+      <BagySyncErrorsDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSyncNow={handleSync}
+        syncing={running}
+      />
+    </>
   );
 };
 
