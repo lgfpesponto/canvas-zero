@@ -8,13 +8,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-interface ProdutoErro {
+export interface ProdutoErro {
   id: string;
   nome: string;
   sku_base: string | null;
   bagy_sync_status: string | null;
   bagy_sync_at: string | null;
   bagy_last_sync_error: string | null;
+  origem: 'produto' | 'fila';
+  fila_tentativas?: number;
 }
 
 interface Props {
@@ -30,12 +32,15 @@ const STATUS_LABEL: Record<string, { label: string; variant: 'default' | 'second
   nao_encontrado_na_bagy: { label: 'Não encontrado na Bagy', variant: 'outline' },
 };
 
-const statusBadge = (status: string | null, syncAt: string | null) => {
-  if (status && STATUS_LABEL[status]) {
-    const cfg = STATUS_LABEL[status];
+const statusBadge = (p: ProdutoErro) => {
+  if (p.origem === 'fila') {
+    return <Badge variant="destructive">Erro na fila</Badge>;
+  }
+  if (p.bagy_sync_status && STATUS_LABEL[p.bagy_sync_status]) {
+    const cfg = STATUS_LABEL[p.bagy_sync_status];
     return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
   }
-  if (!syncAt) return <Badge variant="outline">Nunca sincronizado</Badge>;
+  if (!p.bagy_sync_at) return <Badge variant="outline">Nunca sincronizado</Badge>;
   return <Badge variant="secondary">Pendente</Badge>;
 };
 
@@ -48,6 +53,96 @@ const fmtDate = (iso: string | null) => {
   }
 };
 
+/**
+ * Consulta unificada: produtos com problema OU itens da fila `bagy_stock_sync_queue`
+ * ainda não processados / com erro. Deduplica por produto e prioriza a mensagem mais
+ * recente da fila (que é o motivo real de falha em runtime, ex.: 401 do token).
+ */
+export const fetchBagyProblemas = async (): Promise<ProdutoErro[]> => {
+  const [{ data: prods }, { data: fila }] = await Promise.all([
+    supabase
+      .from('estoque_produtos' as any)
+      .select('id,nome,sku_base,bagy_sync_status,bagy_sync_at,bagy_sync_erro')
+      .eq('ativo', true)
+      .not('sku_base', 'is', null)
+      .or('bagy_sync_status.is.null,bagy_sync_status.in.(pendente,erro,nao_encontrado_na_bagy),bagy_sync_at.is.null'),
+    supabase
+      .from('bagy_stock_sync_queue' as any)
+      .select('estoque_produto_id,sku,ultimo_erro,tentativas,criado_em,processado_em')
+      .or('processado_em.is.null,ultimo_erro.not.is.null')
+      .order('criado_em', { ascending: false })
+      .limit(500),
+  ]);
+
+  const map = new Map<string, ProdutoErro>();
+
+  for (const p of ((prods as any[]) || [])) {
+    map.set(p.id, {
+      id: p.id,
+      nome: p.nome,
+      sku_base: p.sku_base,
+      bagy_sync_status: p.bagy_sync_status,
+      bagy_sync_at: p.bagy_sync_at,
+      bagy_last_sync_error: p.bagy_sync_erro,
+      origem: 'produto',
+    });
+  }
+
+  const filaAgg = new Map<string, { erro: string | null; criado_em: string; tentativas: number; sku: string | null }>();
+  for (const f of ((fila as any[]) || [])) {
+    const pid = f.estoque_produto_id;
+    if (!pid) continue;
+    const prev = filaAgg.get(pid);
+    if (!prev || new Date(f.criado_em) > new Date(prev.criado_em)) {
+      filaAgg.set(pid, {
+        erro: f.ultimo_erro || (f.processado_em ? null : 'Aguardando processamento'),
+        criado_em: f.criado_em,
+        tentativas: f.tentativas || 0,
+        sku: f.sku,
+      });
+    }
+  }
+
+  // Enriquecer nomes dos produtos da fila que ainda não estão no map
+  const missingIds = [...filaAgg.keys()].filter((id) => !map.has(id));
+  if (missingIds.length > 0) {
+    const { data: extras } = await supabase
+      .from('estoque_produtos' as any)
+      .select('id,nome,sku_base,bagy_sync_status,bagy_sync_at')
+      .in('id', missingIds);
+    for (const p of ((extras as any[]) || [])) {
+      const f = filaAgg.get(p.id)!;
+      map.set(p.id, {
+        id: p.id,
+        nome: p.nome,
+        sku_base: p.sku_base || f.sku,
+        bagy_sync_status: p.bagy_sync_status,
+        bagy_sync_at: p.bagy_sync_at,
+        bagy_last_sync_error: f.erro,
+        origem: 'fila',
+        fila_tentativas: f.tentativas,
+      });
+    }
+  }
+
+  // Para produtos já no map que também têm entrada na fila com erro mais recente,
+  // sobrescreve mensagem e marca origem "fila".
+  for (const [pid, f] of filaAgg.entries()) {
+    const existing = map.get(pid);
+    if (!existing) continue;
+    if (f.erro) {
+      existing.bagy_last_sync_error = f.erro;
+      existing.origem = 'fila';
+      existing.fila_tentativas = f.tentativas;
+      if (!existing.bagy_sync_at || new Date(f.criado_em) > new Date(existing.bagy_sync_at)) {
+        existing.bagy_sync_at = f.criado_em;
+      }
+    }
+  }
+
+  return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome));
+};
+
 const BagySyncErrorsDialog = ({ open, onOpenChange, onSyncNow, syncing }: Props) => {
   const [produtos, setProdutos] = useState<ProdutoErro[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,16 +151,12 @@ const BagySyncErrorsDialog = ({ open, onOpenChange, onSyncNow, syncing }: Props)
 
   const fetchList = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('estoque_produtos' as any)
-      .select('id,nome,sku_base,bagy_sync_status,bagy_sync_at,bagy_last_sync_error')
-      .eq('ativo', true)
-      .not('sku_base', 'is', null)
-      .or('bagy_sync_status.is.null,bagy_sync_status.in.(pendente,erro,nao_encontrado_na_bagy),bagy_sync_at.is.null')
-      .order('nome', { ascending: true });
-    setLoading(false);
-    if (error) return;
-    setProdutos((data as unknown as ProdutoErro[]) || []);
+    try {
+      const list = await fetchBagyProblemas();
+      setProdutos(list);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -74,6 +165,7 @@ const BagySyncErrorsDialog = ({ open, onOpenChange, onSyncNow, syncing }: Props)
     const ch = supabase
       .channel('bagy-sync-errors-dialog-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_produtos' }, fetchList)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bagy_stock_sync_queue' }, fetchList)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -90,7 +182,6 @@ const BagySyncErrorsDialog = ({ open, onOpenChange, onSyncNow, syncing }: Props)
 
   const abrirProduto = (p: ProdutoErro) => {
     onOpenChange(false);
-    // Reusa filtro por SKU/nome na página Estoque via query string
     const q = p.sku_base || p.nome;
     if (q) navigate(`/estoque?q=${encodeURIComponent(q)}`);
   };
@@ -145,7 +236,16 @@ const BagySyncErrorsDialog = ({ open, onOpenChange, onSyncNow, syncing }: Props)
                   <td className="px-3 py-2 text-xs font-mono text-muted-foreground">
                     {p.sku_base || '—'}
                   </td>
-                  <td className="px-3 py-2">{statusBadge(p.bagy_sync_status, p.bagy_sync_at)}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex flex-col gap-1 items-start">
+                      {statusBadge(p)}
+                      {p.fila_tentativas != null && p.fila_tentativas > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {p.fila_tentativas} tentativa{p.fila_tentativas === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-2 max-w-[280px]">
                     {p.bagy_last_sync_error ? (
                       <TooltipProvider>
