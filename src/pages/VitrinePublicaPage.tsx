@@ -115,12 +115,13 @@ const VitrinePublicaPage = () => {
     return [...map.values()];
   }, [rows]);
 
-  const filteredGroups = useMemo(() => {
+  // Passo 1: filtro do escopo (payload do link)
+  const scopeGroups = useMemo(() => {
     if (!payload) return [];
     const q = payload.search.trim().toLowerCase();
     const selTam = new Set(payload.tamanhos);
     const selFicha: Record<string, Set<string>> = Object.fromEntries(
-      Object.entries(payload.ficha).map(([k, v]) => [k, new Set(v)])
+      Object.entries(payload.ficha).map(([k, v]) => [k, new Set(v)]),
     );
     const list = groups.filter((g) => {
       if (q) {
@@ -128,11 +129,9 @@ const VitrinePublicaPage = () => {
         const hitSku = g.tamanhos.some((t) => t.sku_base.toLowerCase().includes(q));
         if (!hitNome && !hitSku) return false;
       }
-      // Filtro de tamanho: só mostra se algum dos tamanhos filtrados tiver estoque > 0
       if (selTam.size > 0) {
         if (!g.tamanhos.some((t) => selTam.has(t.tamanho) && t.quantidade > 0)) return false;
       } else {
-        // Sem filtro de tamanho: só mostra produtos que ainda tenham algum estoque
         if (!g.tamanhos.some((t) => t.quantidade > 0)) return false;
       }
       if (!matchesFichaFilters(g.ficha_snapshot, selFicha, fichaKeys)) return false;
@@ -141,6 +140,37 @@ const VitrinePublicaPage = () => {
     list.sort((a, b) => a.nome.localeCompare(b.nome));
     return list;
   }, [groups, payload, fichaKeys]);
+
+  // Tamanhos disponíveis dentro do escopo (com estoque > 0), restritos ao filtro do link se houver
+  const tamanhosDisponiveis = useMemo(() => {
+    if (!payload) return [] as string[];
+    const escopo = new Set(payload.tamanhos);
+    const set = new Set<string>();
+    for (const g of scopeGroups) {
+      for (const t of g.tamanhos) {
+        if (t.quantidade <= 0) continue;
+        if (escopo.size > 0 && !escopo.has(t.tamanho)) continue;
+        set.add(t.tamanho);
+      }
+    }
+    return [...set].sort((a, b) => Number(a) - Number(b));
+  }, [scopeGroups, payload]);
+
+  // Passo 2: filtros interativos do visitante
+  const filteredGroups = useMemo(() => {
+    const q = buscaLocal.trim().toLowerCase();
+    return scopeGroups.filter((g) => {
+      if (q) {
+        const hitNome = g.nome.toLowerCase().includes(q);
+        const hitSku = g.tamanhos.some((t) => t.sku_base.toLowerCase().includes(q));
+        if (!hitNome && !hitSku) return false;
+      }
+      if (tamanhosLocal.size > 0) {
+        if (!g.tamanhos.some((t) => tamanhosLocal.has(t.tamanho) && t.quantidade > 0)) return false;
+      }
+      return true;
+    });
+  }, [scopeGroups, buscaLocal, tamanhosLocal]);
 
   if (!payload) {
     return (
