@@ -45,6 +45,12 @@ type OrderSyncInfo = {
   status: string | null;
 };
 
+type PortalOrderInfo = OrderSyncInfo & {
+  id: string;
+  numero: string | null;
+  bagy_order_id: string | null;
+};
+
 type BagyItem = {
   id: string;
   pedido_id: string;
@@ -109,6 +115,7 @@ const RanchoChiquePedidosPage = () => {
   const [pedidos, setPedidos] = useState<BagyPedido[]>([]);
   const [itensByPed, setItensByPed] = useState<Record<string, BagyItem[]>>({});
   const [syncByOrder, setSyncByOrder] = useState<Record<string, OrderSyncInfo>>({});
+  const [portalOrdersByBagy, setPortalOrdersByBagy] = useState<Record<string, PortalOrderInfo[]>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
@@ -153,23 +160,34 @@ const RanchoChiquePedidosPage = () => {
       });
       setItensByPed(map);
     }
-    // Carrega info de sync dos pedidos do portal
-    const portalIds = (peds || []).map((p: any) => p.order_id_portal).filter(Boolean);
-    if (portalIds.length > 0) {
+    // Carrega todos os pedidos do portal vinculados à Bagy (inclui RC-...A, B, C quando há mais de 1 par)
+    const bagyOrderIds = Array.from(new Set((peds || []).map((p: any) => p.bagy_order_id).filter(Boolean)));
+    if (bagyOrderIds.length > 0) {
       const { data: ords } = await supabase
         .from('orders')
-        .select('id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
-        .in('id', portalIds);
+        .select('id, numero, bagy_order_id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
+        .in('bagy_order_id', bagyOrderIds)
+        .order('numero', { ascending: true });
       const sm: Record<string, OrderSyncInfo> = {};
+      const byBagy: Record<string, PortalOrderInfo[]> = {};
       (ords || []).forEach((o: any) => {
-        sm[o.id] = {
+        const info: PortalOrderInfo = {
+          id: o.id,
+          numero: o.numero || null,
+          bagy_order_id: o.bagy_order_id || null,
           status: o.status || null,
           bagy_last_sync_at: o.bagy_last_sync_at || null,
           bagy_last_sync_error: o.bagy_last_sync_error || null,
           bagy_last_sync_status: o.bagy_last_sync_status || null,
         };
+        sm[o.id] = info;
+        if (info.bagy_order_id) (byBagy[info.bagy_order_id] ||= []).push(info);
       });
       setSyncByOrder(sm);
+      setPortalOrdersByBagy(byBagy);
+    } else {
+      setSyncByOrder({});
+      setPortalOrdersByBagy({});
     }
     setLoading(false);
   };
@@ -201,6 +219,24 @@ const RanchoChiquePedidosPage = () => {
 
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
   const aguardFichaCount = pedidos.filter(p => p.flag === 'aguardando_ficha').length;
+
+  const getPortalOrdersForPedido = (p: BagyPedido): PortalOrderInfo[] => {
+    const linked = portalOrdersByBagy[p.bagy_order_id] || [];
+    if (linked.length > 0) return linked;
+    if (!p.order_id_portal) return [];
+    const sync = syncByOrder[p.order_id_portal];
+    return [{
+      id: p.order_id_portal,
+      numero: null,
+      bagy_order_id: p.bagy_order_id,
+      status: sync?.status || null,
+      bagy_last_sync_at: sync?.bagy_last_sync_at || null,
+      bagy_last_sync_error: sync?.bagy_last_sync_error || null,
+      bagy_last_sync_status: sync?.bagy_last_sync_status || null,
+    }];
+  };
+
+  const getPrimaryPortalId = (p: BagyPedido) => p.order_id_portal || getPortalOrdersForPedido(p)[0]?.id || null;
 
   const reprocessarBulk = async (pedidoIds: string[]) => {
     const ids = pedidoIds.filter(Boolean);
@@ -297,9 +333,12 @@ const RanchoChiquePedidosPage = () => {
       .update({ tracking_code: code, tracking_url: trackUrl.trim() || null } as any)
       .eq('id', trackDialog.id);
     if (bpErr) { toast.error('Erro ao salvar rastreio: ' + bpErr.message); return; }
-    if (trackDialog.order_id_portal) {
-      await supabase.from('orders').update({ status: 'Despachado' } as any).eq('id', trackDialog.order_id_portal);
-      await sincronizarBagy([trackDialog.order_id_portal], { silent: false });
+    const primaryPortalId = getPrimaryPortalId(trackDialog);
+    if (primaryPortalId) {
+      const ids = getPortalOrdersForPedido(trackDialog).map(o => o.id);
+      const targetIds = ids.length > 0 ? ids : [primaryPortalId];
+      await supabase.from('orders').update({ status: 'Despachado' } as any).in('id', targetIds);
+      await sincronizarBagy(targetIds, { silent: false });
     } else {
       toast.success('Rastreio salvo. Vincule o pedido ao portal para sincronizar com a Bagy.');
     }
@@ -360,9 +399,14 @@ const RanchoChiquePedidosPage = () => {
 
   // Os ids de portal correspondentes aos pedidos selecionados (subset elegível para sync)
   const selectedPortalIds = useMemo(() => {
-    const byId = new Map(pedidos.map(p => [p.id, p.order_id_portal]));
-    return Array.from(selected).map(id => byId.get(id)).filter(Boolean) as string[];
-  }, [selected, pedidos]);
+    const byId = new Map(pedidos.map(p => [p.id, p]));
+    return Array.from(new Set(Array.from(selected).flatMap(id => {
+      const pedido = byId.get(id);
+      if (!pedido) return [];
+      const linked = getPortalOrdersForPedido(pedido).map(o => o.id);
+      return linked.length > 0 ? linked : (pedido.order_id_portal ? [pedido.order_id_portal] : []);
+    })));
+  }, [selected, pedidos, portalOrdersByBagy, syncByOrder]);
 
 
   const fmtRelative = (iso: string | null | undefined) => {
@@ -471,6 +515,11 @@ const RanchoChiquePedidosPage = () => {
           {filtered.map(p => {
             const itens = itensByPed[p.id] || [];
             const flag = p.flag ? FLAG_BADGE[p.flag] : null;
+            const portalOrders = getPortalOrdersForPedido(p);
+            const primaryPortalId = getPrimaryPortalId(p);
+            const portalOrderIds = portalOrders.map(o => o.id);
+            const displayPortalIds = portalOrderIds.length > 0 ? portalOrderIds : (primaryPortalId ? [primaryPortalId] : []);
+            const syncError = portalOrders.find(o => o.bagy_last_sync_error)?.bagy_last_sync_error;
             return (
               <div key={p.id} className="border rounded-lg bg-card overflow-hidden">
                 <div className="w-full flex items-center gap-3 p-3 hover:bg-accent/30">
@@ -503,29 +552,27 @@ const RanchoChiquePedidosPage = () => {
                     >
                       <FileText size={14} className="mr-1" /> Gerar ficha
                     </Button>
-                  ) : p.flag === 'pedido_criado' && p.order_id_portal ? (
+                  ) : p.flag === 'pedido_criado' && primaryPortalId ? (
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/pedido/${p.order_id_portal}`); }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/pedido/${primaryPortalId}`); }}
                       className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 cursor-pointer bg-green-600 hover:bg-green-700 text-white`}
                       title="Abrir pedido detalhado"
                     >
-                      PEDIDO CRIADO
+                      PEDIDO CRIADO{portalOrders.length > 1 ? ` (${portalOrders.length})` : ''}
                     </button>
                   ) : flag ? (
                     <span className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${flag.cls}`}>{flag.label}</span>
                   ) : null}
 
                   {(() => {
-                    const si = p.order_id_portal ? syncByOrder[p.order_id_portal] : null;
-                    if (!si) return null;
-                    if (si.bagy_last_sync_error) {
+                    if (syncError) {
                       return (
                         <TooltipProvider><Tooltip>
                           <TooltipTrigger asChild>
                             <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-600 text-white flex items-center gap-1 shrink-0"><XCircle size={10}/>ERRO BAGY</span>
                           </TooltipTrigger>
-                          <TooltipContent>{si.bagy_last_sync_error}</TooltipContent>
+                          <TooltipContent>{syncError}</TooltipContent>
                         </Tooltip></TooltipProvider>
                       );
                     }
@@ -594,14 +641,14 @@ const RanchoChiquePedidosPage = () => {
                                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => gerarFichaItem(p, it)}>
                                   <FileText size={14} className="mr-1" /> Gerar ficha
                                 </Button>
-                              ) : it.status === 'pedido_criado' && p.order_id_portal ? (
+                              ) : it.status === 'pedido_criado' && (it.order_id_portal || primaryPortalId) ? (
                                 <button
                                   type="button"
-                                  onClick={() => navigate(`/pedido/${p.order_id_portal}`)}
+                                  onClick={() => navigate(`/pedido/${it.order_id_portal || primaryPortalId}`)}
                                   className={`text-[10px] font-bold px-2 py-1 rounded cursor-pointer bg-green-600 hover:bg-green-700 text-white`}
                                   title="Abrir pedido detalhado"
                                 >
-                                  PEDIDO CRIADO
+                                  {it.quantidade > 1 && portalOrders.length > 1 ? 'VER PEDIDOS' : 'PEDIDO CRIADO'}
                                 </button>
                               ) : (
                                 <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
@@ -612,19 +659,32 @@ const RanchoChiquePedidosPage = () => {
                       </div>
                     </div>
 
+                    {portalOrders.length > 1 && (
+                      <div className="rounded border p-2 space-y-2">
+                        <div className="text-xs font-semibold text-muted-foreground">Pedidos gerados no portal</div>
+                        <div className="flex flex-wrap gap-2">
+                          {portalOrders.map(o => (
+                            <Button key={o.id} size="sm" variant="outline" onClick={() => navigate(`/pedido/${o.id}`)}>
+                              <ExternalLink size={14} className="mr-1" /> {o.numero || 'Abrir pedido'}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 pt-2 border-t">
-                      {p.order_id_portal && (
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/pedido/${p.order_id_portal}`)}>
-                          <ExternalLink size={14} className="mr-1" /> Ver pedido no portal
+                      {primaryPortalId && (
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/pedido/${primaryPortalId}`)}>
+                          <ExternalLink size={14} className="mr-1" /> {portalOrders.length > 1 ? 'Ver primeiro pedido' : 'Ver pedido no portal'}
                         </Button>
                       )}
-                      {p.order_id_portal && (
+                      {displayPortalIds.length > 0 && (
                         <TooltipProvider><Tooltip>
                           <TooltipTrigger asChild>
                             <Button size="sm" variant="default" disabled={syncing}
-                              onClick={() => sincronizarBagy([p.order_id_portal!])}>
+                              onClick={() => sincronizarBagy(displayPortalIds)}>
                               {syncing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Send size={14} className="mr-1" />}
-                              Atualizar status na Bagy
+                              Atualizar status na Bagy{displayPortalIds.length > 1 ? ` (${displayPortalIds.length})` : ''}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
@@ -664,16 +724,12 @@ const RanchoChiquePedidosPage = () => {
 
 
 
-                    {p.order_id_portal && syncByOrder[p.order_id_portal] && (
+                    {portalOrders.length > 0 && (
                       <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-                        {syncByOrder[p.order_id_portal].bagy_last_sync_at ? (
-                          <>
-                            {syncByOrder[p.order_id_portal].bagy_last_sync_error ? (
-                              <span className="text-destructive flex items-center gap-1"><XCircle size={12}/>Último envio falhou ({fmtRelative(syncByOrder[p.order_id_portal].bagy_last_sync_at)}): {syncByOrder[p.order_id_portal].bagy_last_sync_error}</span>
-                            ) : (
-                              <span className="text-green-700 flex items-center gap-1"><CheckCircle2 size={12}/>Sincronizado {fmtRelative(syncByOrder[p.order_id_portal].bagy_last_sync_at)} como <b>{syncByOrder[p.order_id_portal].bagy_last_sync_status}</b></span>
-                            )}
-                          </>
+                        {syncError ? (
+                          <span className="text-destructive flex items-center gap-1"><XCircle size={12}/>Último envio falhou: {syncError}</span>
+                        ) : portalOrders.some(o => o.bagy_last_sync_at) ? (
+                          <span className="text-green-700 flex items-center gap-1"><CheckCircle2 size={12}/>Sincronizado com a Bagy ({portalOrders.length} pedido(s))</span>
                         ) : (
                           <span>Nunca sincronizado com a Bagy.</span>
                         )}

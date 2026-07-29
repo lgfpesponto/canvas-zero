@@ -412,6 +412,18 @@ Deno.serve(async (req) => {
       .eq("bagy_order_id", bagyOrderId)
       .maybeSingle();
 
+    const loadPortalOrders = async (): Promise<Array<{ id: string; numero: string | null }>> => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, numero")
+        .eq("bagy_order_id", bagyOrderId)
+        .order("numero", { ascending: true });
+      return (data || []) as Array<{ id: string; numero: string | null }>;
+    };
+
+    let portalOrders = await loadPortalOrders();
+    const primaryExistingOrderId = pedidoExistente?.order_id_portal || portalOrders[0]?.id || null;
+
     // Nunca rebaixa o status: se já estávamos aprovados/cancelados, não volta para "open"/"pending"
     const previousApproved = pedidoExistente?.status_bagy
       ? APPROVED_STATUSES.has(pedidoExistente.status_bagy) || REFUND_STATUSES.has(pedidoExistente.status_bagy)
@@ -458,7 +470,7 @@ Deno.serve(async (req) => {
 
     const isApproved = APPROVED_STATUSES.has(finalStatusBagy);
     const isRefund = REFUND_STATUSES.has(finalStatusBagy);
-    const isFirstTimeApproved = isApproved && !pedidoExistente?.order_id_portal;
+    const isFirstTimeApproved = isApproved && !primaryExistingOrderId && portalOrders.length === 0;
 
     // Resolve user_id do vendedor "site"/Rancho Chique
     let siteUserId: string | null = null;
@@ -603,7 +615,7 @@ Deno.serve(async (req) => {
         }
       } else if (templateId) {
         // Se já existe pedido portal vinculado, a ficha já foi gerada — não regride para aguardando_ficha
-        status = pedidoExistente?.order_id_portal ? "pedido_criado" : "aguardando_ficha";
+        status = primaryExistingOrderId ? "pedido_criado" : "aguardando_ficha";
       } else {
         // Brindes (preço 0) não contam como mapeamento faltante — não bloqueiam o pedido
         status = precoUnit > 0 ? "sem_mapeamento" : "brinde_sem_sku";
@@ -631,7 +643,7 @@ Deno.serve(async (req) => {
 
     // Insere itens — já preenchendo order_id_portal quando o pedido portal existia (re-entrega de webhook).
     if (classifiedItems.length > 0) {
-      const portalIdForExisting = pedidoExistente?.order_id_portal || null;
+      const portalIdForExisting = primaryExistingOrderId;
       await supabase.from("bagy_pedido_itens").insert(
         classifiedItems.map((c) => ({
           ...c,
@@ -642,8 +654,37 @@ Deno.serve(async (req) => {
     }
 
 
+    const relinkEstoqueItems = async (orderIds: string[]) => {
+      const ids = orderIds.filter(Boolean);
+      if (ids.length === 0) return;
+
+      const { data: rows } = await supabase
+        .from("bagy_pedido_itens")
+        .select("id, quantidade")
+        .eq("pedido_id", pedidoRow.id)
+        .not("estoque_produto_id", "is", null)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+
+      let unitIndex = 0;
+      for (const row of rows || []) {
+        const q = Math.max(1, Number((row as any).quantidade || 1));
+        const targetId = ids[Math.min(unitIndex, ids.length - 1)] || ids[0];
+        await supabase
+          .from("bagy_pedido_itens")
+          .update({
+            order_id_portal: targetId,
+            status: "pedido_criado",
+          })
+          .eq("id", (row as any).id);
+        unitIndex += q;
+      }
+    };
+
+
     // === Caminho A: cria pedido único no portal com TODOS os itens de estoque ===
     let createdOrderId: string | null = null;
+    let createdOrderIds: string[] = [];
     let pedidoFlag: string | null = null;
 
     if (isFirstTimeApproved && estoqueParaComprar.length > 0 && siteUserId) {
@@ -666,16 +707,14 @@ Deno.serve(async (req) => {
       if (rpcErr) {
         pedidoFlag = `erro_comprar_estoque: ${rpcErr.message}`;
       } else if (rpcRes?.order_id) {
-        createdOrderId = rpcRes.order_id;
-        // marca itens de estoque como pedido_criado e linka
-        await supabase
-          .from("bagy_pedido_itens")
-          .update({
-            order_id_portal: createdOrderId,
-            status: "pedido_criado",
-          })
-          .eq("pedido_id", pedidoRow.id)
-          .not("estoque_produto_id", "is", null);
+        createdOrderIds = Array.isArray(rpcRes?.order_ids)
+          ? rpcRes.order_ids.map((id: unknown) => String(id)).filter(Boolean)
+          : [];
+        createdOrderId = createdOrderIds[0] || String(rpcRes.order_id);
+        if (createdOrderIds.length === 0 && createdOrderId) createdOrderIds = [createdOrderId];
+        portalOrders = await loadPortalOrders();
+        const portalOrderIds = portalOrders.map((o) => o.id).filter(Boolean);
+        await relinkEstoqueItems(portalOrderIds.length > 0 ? portalOrderIds : createdOrderIds);
 
         // enfileira "separado" para Bagy
         await supabase.from("bagy_status_sync_queue").insert({
@@ -704,15 +743,18 @@ Deno.serve(async (req) => {
     if (!flag) {
       // Pedido já tinha sido criado no portal (ficha gerada / estoque baixado anteriormente):
       // SEMPRE mantém "pedido_criado" — re-entregas do webhook não devem regredir o status visual.
-      if (createdOrderId || pedidoExistente?.order_id_portal) flag = "pedido_criado";
+      if (createdOrderId || primaryExistingOrderId || portalOrders.length > 0) flag = "pedido_criado";
       else if (!isApproved) flag = "aguardando_aprovacao";
       else if (hasMissingMap) flag = "aguardando_mapeamento";
       else if (hasTemplateMatch) flag = "aguardando_ficha";
     }
 
+    if (!createdOrderId && primaryExistingOrderId) {
+      await relinkEstoqueItems(portalOrders.map((o) => o.id));
+    }
 
     await supabase.from("bagy_pedidos").update({
-      order_id_portal: createdOrderId || pedidoExistente?.order_id_portal || null,
+      order_id_portal: createdOrderId || primaryExistingOrderId || null,
       flag,
       erro: pedidoFlag,
       processado_em: new Date().toISOString(),
