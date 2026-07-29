@@ -1,42 +1,38 @@
-# Botão "Ver produtos" com erro/pendência de sincronização Bagy
+# Filtros na vitrine pública + "não sincronizados" em Ver produtos
 
-## Contexto (confirmado)
+## Parte 1 — Filtros dentro do link público (`VitrinePublicaPage`)
 
-Hoje, na página **Estoque**, ao lado do botão `Sincronizar com Bagy (N)` (componente `BagySyncPendingButton`), o contador `N` diz *quantos* produtos estão pendentes/com erro, mas para descobrir **quais** o usuário precisa abrir card por card. Os produtos ficam marcados em `estoque_produtos` via `bagy_sync_status` (`pendente | erro | nao_encontrado_na_bagy | null`) e o motivo do erro fica em `bagy_last_sync_error` (já usado hoje).
+Hoje o payload do link (`payload.search`, `payload.tamanhos`, `payload.ficha`) só serve como filtro fixo aplicado no servidor. Quem abre o link não consegue ajustar nada. Vou adicionar controles no cabeçalho da vitrine para o destinatário refinar dentro do escopo enviado.
 
-## O que fazer
+**Comportamento**
+- `payload.search`, `payload.tamanhos` e `payload.ficha` continuam sendo o **escopo máximo** — o visitante só filtra dentro do que foi enviado.
+- Se o admin já mandou o link com tamanhos específicos, o filtro de tamanho na página fica **restrito àqueles tamanhos**.
+- Se não mandou nenhum, aparecem todos os tamanhos com estoque disponível no resultado atual.
 
-Adicionar um botão `Ver produtos` imediatamente ao lado de `Sincronizar com Bagy (N)`, que abre um diálogo listando exatamente os mesmos produtos que compõem o contador.
+**UI (barra fixa logo abaixo do header)**
+- Campo `Buscar modelo` (input com ícone lupa) — combina com o `payload.search` via AND.
+- Chips de tamanho — só os que existem no resultado do escopo; clicáveis para toggle.
+- Botão `Limpar` aparece quando o visitante mexeu em algo.
+- Contador `X produtos` à direita.
 
-### Diálogo "Produtos com problema na Bagy"
+Nada de filtros de ficha nem preço — mantém a página simples para o cliente final. Sem alteração no token/link, é só filtragem client-side.
 
-Tabela simples, uma linha por produto:
+## Parte 2 — "Ver produtos" mostrando **todos os não sincronizados**
 
-| Coluna | Origem |
-|---|---|
-| Nome do produto | `estoque_produtos.nome` |
-| SKU base | `sku_base` |
-| Status | badge colorido a partir de `bagy_sync_status` (Pendente / Erro / Não encontrado na Bagy / Nunca sincronizado) |
-| Último erro | `bagy_last_sync_error` (truncado com tooltip completo) |
-| Última tentativa | `bagy_sync_at` formatado pt-BR (ou "—") |
-| Ação | link/botão "Abrir" que navega para o produto no Estoque (fecha diálogo + rola até o card, reusando lógica de filtro por SKU/ID que já existe) |
+Hoje o diálogo lê apenas `estoque_produtos` com `bagy_sync_status in (pendente/erro/nao_encontrado)` ou `bagy_sync_at is null`. O problema é que os erros atuais (401 token inválido) acontecem no drenar da fila `bagy_stock_sync_queue`, e esses casos ficam registrados lá com `ultimo_erro`, **sem** necessariamente alterar `bagy_sync_status` do produto — por isso o diálogo mostra "0 produtos" mesmo com fila cheia de erros.
 
-Extras do diálogo:
-- Campo de busca por nome/SKU no topo.
-- Contador "X produtos" no cabeçalho.
-- Botão `Sincronizar agora` no rodapé que dispara a mesma ação do botão externo (conveniência) e mantém o diálogo aberto atualizando a lista via realtime que já existe.
-- Realtime: reaproveitar a subscription de `estoque_produtos` já usada por `BagySyncPendingButton` para que a lista se atualize sozinha conforme itens saem do estado de erro.
+**Mudança**
+- No `BagySyncErrorsDialog` e no `BagySyncPendingButton`, unir duas fontes:
+  1. `estoque_produtos` (filtro atual) → produtos "nunca sincronizados" ou marcados com erro no registro-mestre.
+  2. `bagy_stock_sync_queue` com `processado_em is null` **OU** `ultimo_erro is not null` → joga o produto pai (`estoque_produto_id`) na lista com o `ultimo_erro` da fila e a data de `criado_em`/`tentativas` como "Última tentativa".
+- Deduplicar por `estoque_produto_id`. Quando o produto aparece nas duas fontes, priorizar a mensagem de erro mais recente (fila) sobre a do produto.
+- Contador do botão externo (`Sincronizar com Bagy (N)`) passa a refletir o mesmo conjunto unificado, para o número bater com o que abre no diálogo.
+- Nova coluna implícita: linha ganha um sub-badge "Fila" quando o erro veio de `bagy_stock_sync_queue`, para distinguir de erro cadastral.
+- Realtime: assinar também `bagy_stock_sync_queue` além de `estoque_produtos`.
 
-### Detalhes técnicos
-
-- Novo componente `src/components/estoque/BagySyncErrorsDialog.tsx`.
-- Alterar `BagySyncPendingButton.tsx`:
-  - Buscar também a **lista** (não só o count) quando `pendentes > 0`, com `select('id,nome,sku_base,bagy_sync_status,bagy_sync_at,bagy_last_sync_error')` e o mesmo filtro `.or(...)` já existente.
-  - Renderizar novo botão `<Button variant="outline" size="sm">Ver produtos</Button>` ao lado do atual, que abre o diálogo.
-- Sem alterações de schema, RLS ou edge functions — todos os campos já existem e já são lidos pelo usuário com permissão `canSync`.
-- Sem mudar visibilidade: aparece apenas para quem já vê o botão de sincronizar (admin_master, admin_producao, vendedor_comissao).
+Sem mudanças de schema, RLS ou edge function. Apenas front-end.
 
 ## Fora do escopo
 
-- Não mexer no botão de sincronização em si, no `BagySyncStatusCard` da aba Gestão, nem no fluxo da edge function `bagy-stock-sync`.
-- Não expor o token Bagy nem detalhes de autenticação no diálogo (mostra só a mensagem crua já salva em `bagy_last_sync_error`, que é o que o usuário precisa para agir).
+- Não vou tocar no gerador do token nem no botão de compartilhar.
+- Não vou renovar o token Bagy nem mexer no drenar da fila — o objetivo aqui é só **enxergar** os itens com problema.
