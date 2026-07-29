@@ -973,6 +973,8 @@ const OrderDetailPage = () => {
                 {(() => {
                   const extraPriceItems: [string, number][] = [];
                   const det = order.extraDetalhes || {};
+                  type BotaSection = { titulo: string; linhas: [string, number][]; extras: [string, number][]; subtotal: number };
+                  let botasEstruturadas: BotaSection[] | null = null;
                   switch (order.tipoExtra) {
                     case 'cinto': {
                       const sizeItem = BELT_SIZES.find((s: any) => det.tamanhoCinto?.startsWith(s.label));
@@ -1059,32 +1061,80 @@ const OrderDetailPage = () => {
                       break;
                     case 'bota_pronta_entrega': {
                       if (Array.isArray(det.botas)) {
-                        (det.botas as any[]).forEach((b: any, idx: number) => {
-                          const val = parseFloat(b.valorManual) || 0;
-                          extraPriceItems.push([`Bota ${idx + 1}: ${b.descricaoProduto || ''}`, val]);
-                          if (Array.isArray(b.extras)) {
-                            const LABELS: Record<string, string> = { tiras_laterais: 'Tiras Laterais', carimbo_fogo: 'Carimbo a Fogo', kit_faca: 'Kit Faca', kit_canivete: 'Kit Canivete', adicionar_metais: 'Adicionar Metais' };
-                            b.extras.forEach((ex: any) => {
-                              let detail = '';
-                              if (ex.tipo === 'adicionar_metais' && Array.isArray(ex.dados?.metaisSelecionados)) {
-                                const parts: string[] = [];
-                                if (ex.dados.metaisSelecionados.includes('Bola grande')) parts.push(`Bola grande x${ex.dados.qtdBolaGrande || 1}`);
-                                if (ex.dados.metaisSelecionados.includes('Strass')) parts.push(`Strass x${ex.dados.qtdStrass || 1}`);
-                                detail = parts.length ? ` (${parts.join(', ')})` : '';
-                              } else if (ex.tipo === 'carimbo_fogo') {
-                                detail = ` (${ex.dados?.qtdCarimbos || 1} carimbos)`;
-                              } else if (ex.tipo === 'tiras_laterais' && ex.dados?.corTiras) {
-                                detail = ` (${ex.dados.corTiras})`;
-                              }
-                              extraPriceItems.push([`  ↳ ${LABELS[ex.tipo] || ex.tipo}${detail}`, ex.preco || 0]);
-                            });
-                          }
-                        });
+                        const botas = det.botas as any[];
+                        const temSnapshot = botas.some(b => b?.ficha_snapshot && Object.keys(b.ficha_snapshot).length > 0);
+                        if (temSnapshot) {
+                          botasEstruturadas = botas.map((b, idx) => {
+                            const comp = buildBotaComposicao(b, findFichaPrice);
+                            const extras: [string, number][] = Array.isArray(b.extras)
+                              ? b.extras.map((ex: any) => [`↳ ${formatBotaExtraLabel(ex)}`, ex.preco || 0] as [string, number])
+                              : [];
+                            const valorManual = parseFloat(b.valorManual) || 0;
+                            const somaExtras = extras.reduce((s, [, v]) => s + v, 0);
+                            const subtotal = valorManual + somaExtras;
+                            return {
+                              titulo: `Item ${idx + 1}: ${b.descricaoProduto || b.nome_produto || ''}`,
+                              linhas: comp.linhas.map(l => [l.label, l.valor] as [string, number]),
+                              extras,
+                              subtotal,
+                            };
+                          });
+                        } else {
+                          botas.forEach((b: any, idx: number) => {
+                            const val = parseFloat(b.valorManual) || 0;
+                            extraPriceItems.push([`Bota ${idx + 1}: ${b.descricaoProduto || ''}`, val]);
+                            if (Array.isArray(b.extras)) {
+                              b.extras.forEach((ex: any) => {
+                                extraPriceItems.push([`  ↳ ${formatBotaExtraLabel(ex)}`, ex.preco || 0]);
+                              });
+                            }
+                          });
+                        }
                       } else {
                         extraPriceItems.push(['Bota Pronta Entrega', order.preco]);
                       }
                       break;
                     }
+                  }
+                  if (botasEstruturadas) {
+                    const totalGeral = botasEstruturadas.reduce((s, it) => s + it.subtotal, 0);
+                    return (
+                      <>
+                        {botasEstruturadas.map((sec, i) => (
+                          <div key={i} className="mb-3 border border-border/60 rounded-md p-3 bg-muted/20">
+                            <div className="text-sm font-bold text-primary mb-2">{sec.titulo}</div>
+                            {sec.linhas.length === 0 && sec.extras.length === 0 && (
+                              <div className="text-xs italic text-muted-foreground py-1">
+                                Sem composição de ficha cadastrada para este item.
+                              </div>
+                            )}
+                            {sec.linhas.map(([label, value], j) => (
+                              <div key={`l-${j}`} className="flex justify-between py-1 border-b border-border/30 last:border-0">
+                                <span className="text-sm inline-flex items-center gap-1">
+                                  {label}
+                                  <InlineVariacaoOlhos names={extractVariationName(label)} />
+                                </span>
+                                <span className="text-sm font-semibold">{formatCurrency(value)}</span>
+                              </div>
+                            ))}
+                            {sec.extras.map(([label, value], j) => (
+                              <div key={`e-${j}`} className="flex justify-between py-1 pl-3 border-b border-border/30 last:border-0">
+                                <span className="text-sm text-muted-foreground">{label}</span>
+                                <span className="text-sm font-semibold">{formatCurrency(value)}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between pt-2 mt-2 border-t border-border font-semibold text-sm">
+                              <span>Subtotal Item {i + 1}</span>
+                              <span>{formatCurrency(sec.subtotal)}</span>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between pt-2 mt-2 border-t border-border font-semibold text-sm">
+                          <span>Subtotal</span>
+                          <span>{formatCurrency(totalGeral || order.preco * order.quantidade)}</span>
+                        </div>
+                      </>
+                    );
                   }
                   const extraTotal = extraPriceItems.reduce((s, [, v]) => s + v, 0);
                   return (
