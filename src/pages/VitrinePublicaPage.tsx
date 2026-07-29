@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Package } from 'lucide-react';
+import { Package, Search, X } from 'lucide-react';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import { decodeVitrineToken, type VitrinePayload } from '@/lib/vitrineToken';
 import { buildFichaOptions, matchesFichaFilters, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 import { estoqueGroupKey } from '@/lib/estoqueGroupKey';
 import { useDescontosAtivos, getDescontoParaProduto } from '@/lib/estoqueDescontos';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo-7estrivos.png';
 
 interface EstoqueRow {
