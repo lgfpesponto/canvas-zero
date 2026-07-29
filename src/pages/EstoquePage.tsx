@@ -50,7 +50,10 @@ const PAGE_SIZE = 25;
 const EstoquePage = () => {
   const [rows, setRows] = useState<EstoqueRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const initialSearch = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('q') || ''
+    : '';
+  const [search, setSearch] = useState(initialSearch);
   const [selTamanhos, setSelTamanhos] = useState<Set<string>>(new Set());
   const [selFicha, setSelFicha] = useState<Record<string, Set<string>>>({});
   const [fichaFilterOpen, setFichaFilterOpen] = useState(false);
