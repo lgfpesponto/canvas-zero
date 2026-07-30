@@ -46,6 +46,21 @@ async function enqueueStockSync(admin: any, produtoId: string, sku: string, sald
 }
 
 async function authorizeRequest(req: Request, admin: any, body: any): Promise<Response | null> {
+  // Cron / chamadas internas: header x-cron-secret validado contra internal_config
+  const cronSecret = req.headers.get("x-cron-secret");
+  if (cronSecret) {
+    const { data: cfg } = await admin
+      .from("internal_config")
+      .select("value")
+      .eq("key", "cron_secret_reconcile")
+      .maybeSingle();
+    if (cfg?.value && cfg.value === cronSecret) return null;
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!token) {
@@ -56,6 +71,7 @@ async function authorizeRequest(req: Request, admin: any, body: any): Promise<Re
   }
 
   if (token === SERVICE_ROLE) return null;
+
 
   const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
   const { data: claimsData, error: claimsError } = await anon.auth.getClaims(token);
