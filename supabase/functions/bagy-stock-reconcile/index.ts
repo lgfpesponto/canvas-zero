@@ -98,8 +98,9 @@ async function authorize(req: Request, admin: any): Promise<Response | null> {
   if (token === SERVICE_ROLE) return null;
 
   const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-  const { data: claimsData, error: claimsError } = await anon.auth.getClaims(token);
-  const userId = claimsData?.claims?.sub;
+  const { data: userData, error: claimsError } = await anon.auth.getUser(token);
+  const userId = userData?.user?.id;
+
   if (claimsError || !userId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userId).in("role", ["admin_master"]);
