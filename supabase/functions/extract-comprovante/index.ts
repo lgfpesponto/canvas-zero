@@ -174,6 +174,11 @@ NUNCA invente dados.`;
     }
 
     const extracted = JSON.parse(toolCall.function.arguments);
+    const valorNum = Number(extracted.valor) || 0;
+    if (Number.isInteger(valorNum) && valorNum >= 1000) {
+      // Possível leitura de centavos sobrescritos como parte do inteiro (ex.: 339⁴ -> 3394).
+      console.warn('[extract-comprovante] valor inteiro suspeito para auditoria:', valorNum, 'arquivo:', fileName);
+    }
     const docDigits = normalizeDoc(extracted.destinatario_documento || '');
     const nomeNorm = normalizeText(extracted.destinatario_nome || '');
 
