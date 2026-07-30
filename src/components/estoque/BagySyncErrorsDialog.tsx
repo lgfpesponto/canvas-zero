@@ -88,7 +88,10 @@ export const fetchBagyProblemas = async (): Promise<ProdutoErro[]> => {
     });
   }
 
-  const filaAgg = new Map<string, { erro: string | null; criado_em: string; tentativas: number; sku: string | null }>();
+  const filaAgg = new Map<
+    string,
+    { erro: string | null; criado_em: string; processado_em: string | null; tentativas: number; sku: string | null }
+  >();
   for (const f of ((fila as any[]) || [])) {
     const pid = f.estoque_produto_id;
     if (!pid) continue;
@@ -97,32 +100,59 @@ export const fetchBagyProblemas = async (): Promise<ProdutoErro[]> => {
       filaAgg.set(pid, {
         erro: f.ultimo_erro || (f.processado_em ? null : 'Aguardando processamento'),
         criado_em: f.criado_em,
+        processado_em: f.processado_em || null,
         tentativas: f.tentativas || 0,
         sku: f.sku,
       });
     }
   }
 
-  // Enriquecer nomes dos produtos da fila que ainda não estão no map
-  const missingIds = [...filaAgg.keys()].filter((id) => !map.has(id));
-  if (missingIds.length > 0) {
-    const { data: extras } = await supabase
+  // Buscar dados atuais dos produtos da fila para descartar erros já superados
+  const filaIds = [...filaAgg.keys()];
+  const filaProdutos = new Map<string, any>();
+  if (filaIds.length > 0) {
+    const { data: infos } = await supabase
       .from('estoque_produtos' as any)
-      .select('id,nome,sku_base,bagy_sync_status,bagy_sync_at')
-      .in('id', missingIds);
-    for (const p of ((extras as any[]) || [])) {
-      const f = filaAgg.get(p.id)!;
-      map.set(p.id, {
-        id: p.id,
-        nome: p.nome,
-        sku_base: p.sku_base || f.sku,
-        bagy_sync_status: p.bagy_sync_status,
-        bagy_sync_at: p.bagy_sync_at,
-        bagy_last_sync_error: f.erro,
-        origem: 'fila',
-        fila_tentativas: f.tentativas,
-      });
+      .select('id,nome,sku_base,bagy_sync_status,bagy_sync_at,ativo')
+      .in('id', filaIds);
+    for (const p of ((infos as any[]) || [])) filaProdutos.set(p.id, p);
+  }
+
+  // Um erro da fila é "superado" quando a linha já foi processada e o produto
+  // sincronizou com sucesso depois disso (bagy_sync_at >= processado_em).
+  for (const [pid, f] of [...filaAgg.entries()]) {
+    const p = filaProdutos.get(pid);
+    if (!p) {
+      filaAgg.delete(pid);
+      continue;
     }
+    if (p.ativo === false) {
+      filaAgg.delete(pid);
+      continue;
+    }
+    if (!f.processado_em) continue; // ainda pendente de processamento
+    const resolvido =
+      p.bagy_sync_status === 'ok' &&
+      p.bagy_sync_at &&
+      new Date(p.bagy_sync_at).getTime() >= new Date(f.processado_em).getTime();
+    if (resolvido) filaAgg.delete(pid);
+  }
+
+  // Enriquecer nomes dos produtos da fila que ainda não estão no map
+  for (const [pid, f] of filaAgg.entries()) {
+    if (map.has(pid)) continue;
+    const p = filaProdutos.get(pid);
+    if (!p) continue;
+    map.set(pid, {
+      id: p.id,
+      nome: p.nome,
+      sku_base: p.sku_base || f.sku,
+      bagy_sync_status: p.bagy_sync_status,
+      bagy_sync_at: p.bagy_sync_at,
+      bagy_last_sync_error: f.erro,
+      origem: 'fila',
+      fila_tentativas: f.tentativas,
+    });
   }
 
   // Para produtos já no map que também têm entrada na fila com erro mais recente,
@@ -142,6 +172,7 @@ export const fetchBagyProblemas = async (): Promise<ProdutoErro[]> => {
 
   return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome));
 };
+
 
 const BagySyncErrorsDialog = ({ open, onOpenChange, onSyncNow, syncing }: Props) => {
   const [produtos, setProdutos] = useState<ProdutoErro[]>([]);
