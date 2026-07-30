@@ -81,6 +81,17 @@ Exemplos de conversão:
 Se o valor tiver ponto seguido de 3 dígitos (ex.: "11.923"), esse ponto é milhar — NÃO é decimal.
 Se o valor tiver vírgula seguida de 1 dígito (ex.: ",8"), trate como centavos completos (,80).
 
+CENTAVOS EM SOBRESCRITO (Mercado Pago, Nubank, PicPay, Inter):
+Muitos apps mostram os centavos em fonte MENOR / SOBRESCRITA logo depois dos reais, SEM vírgula.
+Se no fim do valor houver 1 ou 2 dígitos visualmente menores, elevados ou separados, eles são CENTAVOS — NUNCA parte do número inteiro.
+Exemplos:
+- "R$ 339⁴"      -> 339.40   (1 dígito sobrescrito = dezenas de centavos, ou seja ",40")
+- "R$ 339⁴⁰"     -> 339.40
+- "R$ 1.250⁰⁰"   -> 1250.00
+- "R$ 89⁹⁹"      -> 89.99
+NUNCA transforme "339⁴" em 3394. Na dúvida entre 3394 e 339.40 quando o último dígito estiver menor/elevado, escolha 339.40.
+Se o valor aparecer repetido em outro ponto do documento (ou por extenso), use essa ocorrência para confirmar a leitura.
+
 Se algum campo não estiver claro no comprovante, retorne string vazia ou 0 para valor.
 NUNCA invente dados.`;
 
