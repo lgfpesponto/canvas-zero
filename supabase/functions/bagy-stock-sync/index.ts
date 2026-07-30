@@ -74,8 +74,9 @@ async function authorizeRequest(req: Request, admin: any, body: any): Promise<Re
 
 
   const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-  const { data: claimsData, error: claimsError } = await anon.auth.getClaims(token);
-  const userId = claimsData?.claims?.sub;
+  const { data: userData, error: claimsError } = await anon.auth.getUser(token);
+  const userId = userData?.user?.id;
+
   if (claimsError || !userId) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
