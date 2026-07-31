@@ -21,7 +21,10 @@ A origem é a função de banco `criar_estoque_produto`, que monta o snapshot co
 
 3. **Backfill dos pedidos de estoque já criados**: atualizar o `ficha_snapshot` gravado em `extra_detalhes.botas[]` e no nível do pedido, para os pedidos que ainda não estão nas etapas **Conferido, Cobrado ou Pago** (regra já combinada anteriormente).
 
-4. **Conferir a composição**: os itens que passarem a aparecer têm preço resolvido pela ficha atual, então o subtotal do item pode subir se houver componentes cobrados que antes não apareciam. Isso é o comportamento correto (preço sempre segue a ficha atual), e será validado num pedido real após o backfill.
+4. **Preço do pedido permanece congelado**: o produto de estoque continua acompanhando a ficha atual, mas o pedido de compra mantém o valor da versão da ficha vigente no momento da compra. Portanto:
+   - O backfill dos pedidos existentes só completa os **itens exibidos** na composição; o total do pedido não muda.
+   - A composição do item é normalizada para fechar com o valor congelado: os componentes são listados com o preço da versão gravada e, se houver diferença residual, ela permanece embutida na linha do Modelo (nunca inflando o total).
+   - Novos pedidos gravam também os preços por componente no snapshot no momento da compra, para que a composição continue fiel mesmo depois de mudanças de preço na ficha.
 
 ## Detalhes técnicos
 
