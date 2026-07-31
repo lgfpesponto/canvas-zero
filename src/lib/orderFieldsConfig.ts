@@ -232,7 +232,8 @@ export const LASER_OPTIONS = [
 ];
 export const LASER_CANO_PRECO = 50;
 export const LASER_GASPEA_PRECO = 50;
-export const LASER_TALONEIRA_PRECO = 50;
+// Laser da Taloneira NÃO é cobrado (regra definida em 31/07/2026).
+export const LASER_TALONEIRA_PRECO = 0;
 export const GLITTER_CANO_PRECO = 30;
 export const GLITTER_GASPEA_PRECO = 30;
 export const GLITTER_TALONEIRA_PRECO = 0;
