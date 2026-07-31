@@ -10,9 +10,10 @@ O pedido de origem da Pipoco Preta 34 (`cxcx3401`) tem na ficha **Laser da Talon
 
 ## Decisões aplicadas
 
-1. Laser da Taloneira passa a **não ter valor (R$0)** em todo o sistema.
-2. O preço do produto de estoque passa a **acompanhar a ficha**, mas apenas para produtos criados de agora em diante — produtos de estoque já criados não são recalculados automaticamente.
-3. Correção pontual dos produtos já cadastrados que estão com o valor inflado pelo Laser da Taloneira (Pipoco Preta 34: 470 → 420; conferir também "Anjo Bico Fino Horse Nescau Detalhes Verde", que tem o mesmo caso).
+1. Laser da Taloneira passa a **não ter valor (R$0)** em todo o sistema, de agora em diante.
+2. **Nenhum pedido já criado é alterado** por causa dessa mudança — sem migração de preço em pedidos, sem recálculo retroativo em massa.
+3. O preço do produto de estoque passa a **acompanhar a ficha**, mas apenas para produtos criados de agora em diante.
+4. Correção pontual apenas nos **produtos de estoque** com valor inflado pelo Laser da Taloneira (Pipoco Preta 34: 470 → 420; conferir também "Anjo Bico Fino Horse Nescau Detalhes Verde"). Os pedidos de origem continuam intocados.
 
 ## O que será feito
 
