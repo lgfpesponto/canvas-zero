@@ -72,8 +72,15 @@ export function buildBotaComposicao(
   bota: any,
   findFichaPrice: FindFichaPrice = noFicha,
   getByCategoria: GetByCategoria = noCategoria,
+  /**
+   * Valor unitário congelado do item (gravado no momento da compra).
+   * Quando informado, a composição é normalizada para fechar exatamente com ele:
+   * a diferença residual fica embutida na linha do Modelo — o total nunca infla.
+   */
+  valorCongelado?: number,
 ): BotaComposicao {
   const snap = (bota?.ficha_snapshot || {}) as Record<string, any>;
+
   const linhas: BotaComposicaoLinha[] = [];
 
   const push = (label: string, valor: number | undefined | null) => {
