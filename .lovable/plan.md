@@ -1,30 +1,43 @@
-# Por que os dois números da Rancho Chique divergem (258 x 249)
+# Pedidos fora da comissão — Rancho Chique, Julho/2026
 
-## Diagnóstico (confirmado no banco)
+Gráfico "Todos produtos": 258 · Comissão: 249 · Total de pedidos do mês que ficam de fora: 21 (10 extras + 4 cancelados + 7 TROCA/REFAZENDO).
 
-Julho/2026, vendedor "Rancho Chique", sem cancelados e sem prefixos TROCA/REFAZENDO/ERRO/INFLUENCER:
+## 1. Extras (não geram comissão, mas contam no gráfico "Todos produtos") — 10
+| Data | Pedido | Cliente | Tipo |
+|---|---|---|---|
+| 01/07 | 17828270687239 | Carlota Emilia Pauls | Bainha cartão |
+| 03/07 | 17829875678688 02 | Adilson Ferreira de Oliveira | Cinto |
+| 09/07 | 17835360953807 03 | Ana Lucia Mota Costa | Bainha celular |
+| 09/07 | 17835360953807 02 | Ana Lucia Mota Costa | Bainha cartão |
+| 16/07 | TROCA17811960107820 | Tamiris Marcelina Reis | Cinto (também TROCA) |
+| 21/07 | 17845603057319 02 | Darlene Fernandes | Gravata country |
+| 21/07 | 17845108039727 02 | Talita Soares | Gravata country |
+| 24/07 | 17847511703780 02 | Valdirene Marques da Silva | Gravata country |
+| 28/07 | 17848983286526 02 | Franciele Ribeiro Ramos Rech | Chaveiro carimbo |
+| 29/07 | 17849997792264 | Thais Celis | Bainha cartão |
 
-- Gráfico "Quantidade de vendas" (filtro "Todos produtos"): **258**
-- Painel "Comissão Mensal": **249**
-- Diferença: **9 pedidos de produtos extras**
+## 2. Cancelados (fora dos dois números) — 4
+| Data | Pedido | Cliente |
+|---|---|---|
+| 01/07 | 17825270764773 | Luciana Silva |
+| 07/07 | 17831344157836 | Wemilly Suiany |
+| 27/07 | 17849329272678 | Daniel Damaceno |
+| 27/07 | 17848938775642 | Jilmara Ferreira dos Santos |
 
-Motivo: os dois blocos usam regras de produto diferentes.
+## 3. TROCA / REFAZENDO (fora dos dois números) — 7
+| Data | Pedido | Cliente |
+|---|---|---|
+| 03/07 | TROCA17799703726790 | Camila Zica |
+| 08/07 | REFAZENDO17812606055519 | Paula Gesuana Teixeira Duarte |
+| 13/07 | TROCA17836162166441 | Eliane Siqueira |
+| 15/07 | REFAZENDO17822996584847 | Vitória Fin |
+| 16/07 | TROCA17812058298716 | Erica Milena |
+| 16/07 | TROCA17811960107820 | Tamiris Marcelina Reis (cinto) |
+| 24/07 | TROCA17815412862721 | Cricelia Sousa |
+| 24/07 | TROCA17787248822828 | Vitor Lins |
 
-- O gráfico (`get_sales_chart`, opção "Todos produtos") conta **todos** os tipos de pedido, inclusive extras.
-- A comissão conta apenas Bota (ficha normal), Bota Pronta Entrega e Regata — extras não geram comissão.
+## Resumo
+A diferença 258 → 249 vem só do grupo 1 (extras). Cancelados e TROCA/REFAZENDO já são excluídos dos dois lados.
 
-Distribuição do mês (bruta): bota 198, bota pronta entrega 57, regata 1, e extras: gravata country 3, bainha cartão 3, cinto 2, bainha celular 1, chaveiro carimbo 1.
-
-Ou seja, **não há erro de cálculo** — são escopos diferentes. Selecionando "Bota" ou "Bota P.E." no gráfico os números passam a bater com o respectivo recorte.
-
-## Opções de ajuste (escolher uma)
-
-1. Não mexer — apenas documentar (comportamento correto hoje).
-2. Adicionar no gráfico uma opção de filtro "Produtos que geram comissão" (bota + bota P.E. + regata), para o vendedor comparar direto com o painel de comissão.
-3. Para o perfil `vendedor_comissao`, fixar o gráfico já nesse escopo de comissão, para nunca divergir do painel.
-
-## Detalhes técnicos (se a opção 2 ou 3 for escolhida)
-
-- `get_sales_chart` ganharia um valor de `product_filter` novo (ex.: `comissao`) que filtra `tipo_extra IS NULL OR tipo_extra IN ('bota_pronta_entrega','regata')`, mantendo as exclusões atuais.
-- `src/components/dashboard/VendedorDashboard.tsx`: incluir o item no `Select` do gráfico (opção 2) ou usá-lo como padrão quando `role === 'vendedor_comissao'` (opção 3).
-- Nenhuma mudança no `CommissionPanel`, que já está correto.
+## Próximo passo (opcional)
+Adicionar no gráfico a opção de filtro "Produtos que geram comissão" (bota + bota P.E. + regata) para o número bater com o painel de comissão.
