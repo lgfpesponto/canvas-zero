@@ -21,10 +21,14 @@ A origem é a função de banco `criar_estoque_produto`, que monta o snapshot co
 
 3. **Backfill dos pedidos de estoque já criados**: atualizar o `ficha_snapshot` gravado em `extra_detalhes.botas[]` e no nível do pedido, para os pedidos que ainda não estão nas etapas **Conferido, Cobrado ou Pago** (regra já combinada anteriormente).
 
-4. **Conferir a composição**: os itens que passarem a aparecer têm preço resolvido pela ficha atual, então o subtotal do item pode subir se houver componentes cobrados que antes não apareciam. Isso é o comportamento correto (preço sempre segue a ficha atual), e será validado num pedido real após o backfill.
+4. **Preço do pedido permanece congelado**: o produto de estoque continua acompanhando a ficha atual, mas o pedido de compra mantém o valor da versão da ficha vigente no momento da compra. Portanto:
+   - O backfill dos pedidos existentes só completa os **itens exibidos** na composição; o total do pedido não muda.
+   - A composição do item é normalizada para fechar com o valor congelado: os componentes são listados com o preço da versão gravada e, se houver diferença residual, ela permanece embutida na linha do Modelo (nunca inflando o total).
+   - Novos pedidos gravam também os preços por componente no snapshot no momento da compra, para que a composição continue fiel mesmo depois de mudanças de preço na ficha.
 
 ## Detalhes técnicos
 
 - Migração SQL: `CREATE OR REPLACE FUNCTION public.criar_estoque_produto(...)` com o `jsonb_build_object` expandido, usando `jsonb_strip_nulls` para não gravar chaves vazias.
-- Migração de backfill em dois `UPDATE` (produtos e pedidos), com filtro por etapa nos pedidos.
-- Nenhuma mudança necessária em `src/lib/estoqueOrderComposition.ts` — ele já cobre todos os campos; ajustes pontuais só se algum campo novo (ex.: recortes) não estiver mapeado lá, caso em que serão adicionadas as linhas correspondentes.
+- `comprar_estoque` passa a gravar, junto do `ficha_snapshot` da bota, o valor unitário congelado e a versão da regra de preço usada.
+- Migração de backfill em dois `UPDATE` (produtos e pedidos), com filtro por etapa nos pedidos e **sem alterar `orders.preco`**.
+- `src/lib/estoqueOrderComposition.ts` já cobre a maior parte dos campos; será ajustado para respeitar o valor congelado do item (ajuste residual na linha do Modelo) e para incluir campos ainda não mapeados, como recortes.
