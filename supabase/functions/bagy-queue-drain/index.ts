@@ -125,6 +125,44 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
 
+  const unauthorized = () =>
+    new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  // Autorização: cron (x-cron-secret) OU service role OU usuário com role privilegiada
+  const cronSecret = req.headers.get("x-cron-secret");
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+  if (cronSecret) {
+    const { data: cfg } = await admin
+      .from("internal_config")
+      .select("value")
+      .eq("key", "cron_secret_reconcile")
+      .maybeSingle();
+    if (!cfg?.value || cfg.value !== cronSecret) return unauthorized();
+  } else if (token && token !== SERVICE_ROLE) {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    const { data: userData, error: authErr } = await anon.auth.getUser(token);
+    const userId = userData?.user?.id;
+    if (authErr || !userId) return unauthorized();
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["admin_master", "admin_producao", "vendedor_comissao"]);
+    if (!roles || roles.length === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } else if (!token) {
+    return unauthorized();
+  }
+
   let limit = 50;
   try {
     const body = await req.json().catch(() => null);
@@ -132,6 +170,7 @@ Deno.serve(async (req) => {
       limit = Math.min(Math.max(body.limit, 1), 200);
     }
   } catch { /* ignore */ }
+
 
   const { data: pendentes, error } = await admin
     .from("bagy_status_sync_queue")
