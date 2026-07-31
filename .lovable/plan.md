@@ -1,43 +1,35 @@
-# Pedidos fora da comissão — Rancho Chique, Julho/2026
+# Corrigir status "Separado" na Bagy para pedidos de estoque
 
-Gráfico "Todos produtos": 258 · Comissão: 249 · Total de pedidos do mês que ficam de fora: 21 (10 extras + 4 cancelados + 7 TROCA/REFAZENDO).
+## O que está acontecendo (verificado)
 
-## 1. Extras (não geram comissão, mas contam no gráfico "Todos produtos") — 10
-| Data | Pedido | Cliente | Tipo |
-|---|---|---|---|
-| 01/07 | 17828270687239 | Carlota Emilia Pauls | Bainha cartão |
-| 03/07 | 17829875678688 02 | Adilson Ferreira de Oliveira | Cinto |
-| 09/07 | 17835360953807 03 | Ana Lucia Mota Costa | Bainha celular |
-| 09/07 | 17835360953807 02 | Ana Lucia Mota Costa | Bainha cartão |
-| 16/07 | TROCA17811960107820 | Tamiris Marcelina Reis | Cinto (também TROCA) |
-| 21/07 | 17845603057319 02 | Darlene Fernandes | Gravata country |
-| 21/07 | 17845108039727 02 | Talita Soares | Gravata country |
-| 24/07 | 17847511703780 02 | Valdirene Marques da Silva | Gravata country |
-| 28/07 | 17848983286526 02 | Franciele Ribeiro Ramos Rech | Chaveiro carimbo |
-| 29/07 | 17849997792264 | Thais Celis | Bainha cartão |
+Quando um pedido de estoque entra pelo webhook da Bagy, o portal grava corretamente uma linha na fila `bagy_status_sync_queue` com `target_status = "separated"` — isso está funcionando (há linhas de hoje, 31/07, para o pedido 50336544 com `processado_em` vazio).
 
-## 2. Cancelados (fora dos dois números) — 4
-| Data | Pedido | Cliente |
-|---|---|---|
-| 01/07 | 17825270764773 | Luciana Silva |
-| 07/07 | 17831344157836 | Wemilly Suiany |
-| 27/07 | 17849329272678 | Daniel Damaceno |
-| 27/07 | 17848938775642 | Jilmara Ferreira dos Santos |
+O problema é que **ninguém drena essa fila automaticamente**:
 
-## 3. TROCA / REFAZENDO (fora dos dois números) — 7
-| Data | Pedido | Cliente |
-|---|---|---|
-| 03/07 | TROCA17799703726790 | Camila Zica |
-| 08/07 | REFAZENDO17812606055519 | Paula Gesuana Teixeira Duarte |
-| 13/07 | TROCA17836162166441 | Eliane Siqueira |
-| 15/07 | REFAZENDO17822996584847 | Vitória Fin |
-| 16/07 | TROCA17812058298716 | Erica Milena |
-| 16/07 | TROCA17811960107820 | Tamiris Marcelina Reis (cinto) |
-| 24/07 | TROCA17815412862721 | Cricelia Sousa |
-| 24/07 | TROCA17787248822828 | Vitor Lins |
+- O cron `bagy-status-push-every-minute` chama a função `bagy-status-push` enviando só `apikey` (anon), **sem header `Authorization`**. A função exige usuário logado e responde **401 Unauthorized** — é exatamente o erro 401 que aparece nos logs. Ou seja, o cron falha todo minuto há tempos.
+- Além disso, essa função nem lê a fila: ela só processa `order_ids` enviados no corpo. O corpo do cron é `{}`, então ela sempre retornaria "order_ids vazio".
+- Existe a função certa para o trabalho — `bagy-queue-drain`, que lê `bagy_status_sync_queue` pendente e faz o POST de fulfillment (Separado) na Bagy — mas ela **não é chamada por nenhum cron e nem pelo webhook**, e não está declarada em `supabase/config.toml`.
 
-## Resumo
-A diferença 258 → 249 vem só do grupo 1 (extras). Cancelados e TROCA/REFAZENDO já são excluídos dos dois lados.
+Resultado: o "Separado" só chega na Bagy quando alguém clica manualmente no botão de sincronizar no portal (por isso os `processado_em` batem com horários avulsos).
 
-## Próximo passo (opcional)
-Adicionar no gráfico a opção de filtro "Produtos que geram comissão" (bota + bota P.E. + regata) para o número bater com o painel de comissão.
+## O que será feito
+
+1. **Proteger e habilitar `bagy-queue-drain`**
+   - Aceitar chamadas de cron via header `x-cron-secret` (mesmo padrão já usado por `bagy-stock-sync` / `bagy-stock-reconcile`) ou via service role; sem isso, negar.
+   - Declarar `[functions.bagy-queue-drain] verify_jwt = false` no `config.toml` e fazer o deploy.
+
+2. **Trocar o cron**
+   - Remover/atualizar o job `bagy-status-push-every-minute` para chamar `bagy-queue-drain` a cada minuto, com `x-cron-secret` vindo de `internal_config` (igual aos outros jobs). Assim a fila passa a ser drenada sozinha.
+
+3. **Empurrar na hora da criação**
+   - No `bagy-webhook`, logo após enfileirar o `separated`, disparar `bagy-queue-drain` (chamada service-role, sem bloquear o webhook em caso de erro) — o mesmo padrão já usado para `bagy-stock-sync`. Assim o pedido vira "Separado" na Bagy em segundos, sem esperar o cron.
+
+4. **Reprocessar o pendente**
+   - Rodar a drenagem uma vez para o que está preso hoje (pedido 50336544 e qualquer outro com `processado_em` nulo) e conferir na Bagy que ficou "Separado".
+
+## Detalhes técnicos
+
+- Arquivos: `supabase/functions/bagy-queue-drain/index.ts` (auth por cron secret), `supabase/functions/bagy-webhook/index.ts` (disparo pós-enfileiramento), `supabase/config.toml` (verify_jwt).
+- Migração: atualizar o job pg_cron (`cron.unschedule` do job 1 + `cron.schedule` novo apontando para `bagy-queue-drain`).
+- A dedupe da Bagy continua garantida: o POST de fulfillment é idempotente (409/422 tratados como "já existe") e a fila marca `processado_em` com limite de 5 tentativas.
+- Nenhuma mudança na lógica de baixa de estoque ou de preços.
