@@ -170,8 +170,9 @@ export function buildBotaComposicao(
   if (snap.cor_glitter_cano) pushFixed('Glitter Cano: ' + snap.cor_glitter_cano, GLITTER_CANO_PRECO);
   if (snap.laser_gaspea) pushFixed('Laser Gáspea: ' + snap.laser_gaspea, LASER_GASPEA_PRECO);
   if (snap.cor_glitter_gaspea) pushFixed('Glitter Gáspea: ' + snap.cor_glitter_gaspea, GLITTER_GASPEA_PRECO);
-  if (snap.laser_taloneira) pushFixed('Laser Taloneira: ' + snap.laser_taloneira, LASER_CANO_PRECO);
-  if (snap.cor_glitter_taloneira) pushFixed('Glitter Taloneira: ' + snap.cor_glitter_taloneira, GLITTER_CANO_PRECO);
+  // Laser/Glitter da Taloneira não têm valor (R$ 0) — apenas informativos.
+  if (snap.laser_taloneira) pushFixed('Laser Taloneira: ' + snap.laser_taloneira, 0);
+  if (snap.cor_glitter_taloneira) pushFixed('Glitter Taloneira: ' + snap.cor_glitter_taloneira, 0);
 
   // Recortes (preço configurável via admin — ficha_variacoes)
   ([
