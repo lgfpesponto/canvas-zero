@@ -29,5 +29,6 @@ A origem é a função de banco `criar_estoque_produto`, que monta o snapshot co
 ## Detalhes técnicos
 
 - Migração SQL: `CREATE OR REPLACE FUNCTION public.criar_estoque_produto(...)` com o `jsonb_build_object` expandido, usando `jsonb_strip_nulls` para não gravar chaves vazias.
-- Migração de backfill em dois `UPDATE` (produtos e pedidos), com filtro por etapa nos pedidos.
-- Nenhuma mudança necessária em `src/lib/estoqueOrderComposition.ts` — ele já cobre todos os campos; ajustes pontuais só se algum campo novo (ex.: recortes) não estiver mapeado lá, caso em que serão adicionadas as linhas correspondentes.
+- `comprar_estoque` passa a gravar, junto do `ficha_snapshot` da bota, o valor unitário congelado e a versão da regra de preço usada.
+- Migração de backfill em dois `UPDATE` (produtos e pedidos), com filtro por etapa nos pedidos e **sem alterar `orders.preco`**.
+- `src/lib/estoqueOrderComposition.ts` já cobre a maior parte dos campos; será ajustado para respeitar o valor congelado do item (ajuste residual na linha do Modelo) e para incluir campos ainda não mapeados, como recortes.
