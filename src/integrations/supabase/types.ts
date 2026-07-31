@@ -2943,6 +2943,10 @@ export type Database = {
         }
         Returns: Json
       }
+      build_ficha_snapshot_from_order: {
+        Args: { _order_id: string }
+        Returns: Json
+      }
       bump_preco_regra_versao: { Args: never; Returns: number }
       comprar_estoque:
         | { Args: { _items: Json }; Returns: undefined }
