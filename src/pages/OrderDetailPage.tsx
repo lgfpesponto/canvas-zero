@@ -1066,11 +1066,11 @@ const OrderDetailPage = () => {
                         const temSnapshot = botas.some(b => b?.ficha_snapshot && Object.keys(b.ficha_snapshot).length > 0);
                         if (temSnapshot) {
                           botasEstruturadas = botas.map((b, idx) => {
-                            const comp = buildBotaComposicao(b, findFichaPrice);
+                            const valorManual = parseFloat(b.valorManual) || 0;
+                            const comp = buildBotaComposicao(b, findFichaPrice, undefined, valorManual);
                             const extras: [string, number][] = Array.isArray(b.extras)
                               ? b.extras.map((ex: any) => [`↳ ${formatBotaExtraLabel(ex)}`, ex.preco || 0] as [string, number])
                               : [];
-                            const valorManual = parseFloat(b.valorManual) || 0;
                             const somaExtras = extras.reduce((s, [, v]) => s + v, 0);
                             const subtotal = valorManual + somaExtras;
                             return {

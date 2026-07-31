@@ -72,8 +72,15 @@ export function buildBotaComposicao(
   bota: any,
   findFichaPrice: FindFichaPrice = noFicha,
   getByCategoria: GetByCategoria = noCategoria,
+  /**
+   * Valor unitário congelado do item (gravado no momento da compra).
+   * Quando informado, a composição é normalizada para fechar exatamente com ele:
+   * a diferença residual fica embutida na linha do Modelo — o total nunca infla.
+   */
+  valorCongelado?: number,
 ): BotaComposicao {
   const snap = (bota?.ficha_snapshot || {}) as Record<string, any>;
+
   const linhas: BotaComposicaoLinha[] = [];
 
   const push = (label: string, valor: number | undefined | null) => {
@@ -166,6 +173,18 @@ export function buildBotaComposicao(
   if (snap.laser_taloneira) pushFixed('Laser Taloneira: ' + snap.laser_taloneira, LASER_CANO_PRECO);
   if (snap.cor_glitter_taloneira) pushFixed('Glitter Taloneira: ' + snap.cor_glitter_taloneira, GLITTER_CANO_PRECO);
 
+  // Recortes (preço configurável via admin — ficha_variacoes)
+  ([
+    ['recorte_cano', 'Recorte Cano', 'recorte_cano', snap.cor_recorte_cano],
+    ['recorte_gaspea', 'Recorte Gáspea', 'recorte_gaspea', snap.cor_recorte_gaspea],
+    ['recorte_taloneira', 'Recorte Taloneira', 'recorte_taloneira', snap.cor_recorte_taloneira],
+  ] as const).forEach(([field, prefix, cat, cor]) => {
+    const raw = snap[field] as string | undefined;
+    if (!raw) return;
+    const p = findFichaPrice(raw, cat) ?? getByCategoria(cat).find(x => x.label === raw)?.preco;
+    push(`${prefix}: ${raw}` + (cor ? ` (${cor})` : ''), p);
+  });
+
   // Pintura / Estampa
   if (snap.pintura === 'Sim') pushFixed('Pintura', getDynamicUnitPrice('pintura', PINTURA_PRECO));
   if (snap.estampa === 'Sim') pushFixed('Estampa', getDynamicUnitPrice('estampa', ESTAMPA_PRECO));
@@ -232,6 +251,20 @@ export function buildBotaComposicao(
       snap.adicional_desc ? `Adicional: ${snap.adicional_desc}` : 'Adicional',
       Number(snap.adicional_valor),
     );
+  }
+
+  // Preço congelado: normaliza a composição para fechar com o valor cobrado na compra.
+  // A diferença (para mais ou para menos) fica embutida na linha do Modelo.
+  if (typeof valorCongelado === 'number' && valorCongelado > 0 && linhas.length > 0) {
+    const soma = linhas.reduce((s, l) => s + l.valor, 0);
+    const residuo = Math.round((valorCongelado - soma) * 100) / 100;
+    if (Math.abs(residuo) >= 0.01) {
+      const idxModelo = linhas.findIndex(l => l.label.startsWith('Modelo: '));
+      if (idxModelo >= 0) {
+        const novo = Math.round((linhas[idxModelo].valor + residuo) * 100) / 100;
+        if (novo > 0) linhas[idxModelo] = { ...linhas[idxModelo], valor: novo };
+      }
+    }
   }
 
   const subtotalFicha = linhas.reduce((s, l) => s + l.valor, 0);
