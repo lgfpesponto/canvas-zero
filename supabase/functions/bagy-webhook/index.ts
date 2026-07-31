@@ -722,6 +722,21 @@ Deno.serve(async (req) => {
           target_status: "separated",
         });
 
+        // dispara a drenagem da fila na hora (não espera o cron)
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/bagy-queue-drain`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_ROLE}`,
+              apikey: SERVICE_ROLE,
+            },
+            body: JSON.stringify({ limit: 50 }),
+          });
+        } catch (drainErr) {
+          console.error("Erro ao disparar drenagem de status Bagy", drainErr);
+        }
+
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/bagy-stock-sync`, {
             method: "POST",
@@ -735,6 +750,7 @@ Deno.serve(async (req) => {
         } catch (syncErr) {
           console.error("Erro ao disparar sync de estoque Bagy", syncErr);
         }
+
       }
     }
 
