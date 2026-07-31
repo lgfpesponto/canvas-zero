@@ -173,6 +173,18 @@ export function buildBotaComposicao(
   if (snap.laser_taloneira) pushFixed('Laser Taloneira: ' + snap.laser_taloneira, LASER_CANO_PRECO);
   if (snap.cor_glitter_taloneira) pushFixed('Glitter Taloneira: ' + snap.cor_glitter_taloneira, GLITTER_CANO_PRECO);
 
+  // Recortes (preço configurável via admin — ficha_variacoes)
+  ([
+    ['recorte_cano', 'Recorte Cano', 'recorte_cano', snap.cor_recorte_cano],
+    ['recorte_gaspea', 'Recorte Gáspea', 'recorte_gaspea', snap.cor_recorte_gaspea],
+    ['recorte_taloneira', 'Recorte Taloneira', 'recorte_taloneira', snap.cor_recorte_taloneira],
+  ] as const).forEach(([field, prefix, cat, cor]) => {
+    const raw = snap[field] as string | undefined;
+    if (!raw) return;
+    const p = findFichaPrice(raw, cat) ?? getByCategoria(cat).find(x => x.label === raw)?.preco;
+    push(`${prefix}: ${raw}` + (cor ? ` (${cor})` : ''), p);
+  });
+
   // Pintura / Estampa
   if (snap.pintura === 'Sim') pushFixed('Pintura', getDynamicUnitPrice('pintura', PINTURA_PRECO));
   if (snap.estampa === 'Sim') pushFixed('Estampa', getDynamicUnitPrice('estampa', ESTAMPA_PRECO));
