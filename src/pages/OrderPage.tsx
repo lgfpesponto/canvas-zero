@@ -1639,7 +1639,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (corGlitterCano) items.push(['Glitter/Tecido Cano', GLITTER_CANO_PRECO]);
     if (laserGaspea.length) items.push(['Laser Gáspea', laserGaspeaPreco || LASER_GASPEA_PRECO]);
     if (corGlitterGaspea) items.push(['Glitter/Tecido Gáspea', GLITTER_GASPEA_PRECO]);
-    if (laserTaloneira.length) items.push(['Laser Taloneira', laserTaloneiraPreco || LASER_TALONEIRA_PRECO]);
+    if (laserTaloneira.length) items.push(['Laser Taloneira', LASER_TALONEIRA_PRECO]);
     if (corGlitterTaloneira) items.push(['Glitter/Tecido Taloneira', GLITTER_TALONEIRA_PRECO]);
     // Recortes (preço configurável via admin — ficha_variacoes)
     if (recorteCano) {
