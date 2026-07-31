@@ -27,8 +27,8 @@ O pedido de origem da Pipoco Preta 34 (`cxcx3401`) tem na ficha **Laser da Talon
 - Ao criar produto de estoque a partir de um pedido, o preço gravado passa a ser o total recalculado da ficha (mesma regra do reconciliador), em vez de copiar cegamente `orders.preco`.
 - Produtos já existentes ficam como estão (não há recálculo em massa).
 
-### Correção pontual dos produtos afetados
-- Migração ajustando o preço dos produtos de estoque cujo valor embute o Laser da Taloneira, com registro no log de ajustes para rastreabilidade.
+### Correção pontual dos produtos de estoque afetados
+- Migração ajustando o preço **somente** dos produtos de estoque cujo valor embute o Laser da Taloneira, com registro no log de ajustes. Nenhum pedido é tocado.
 - Depois da correção, os produtos corrigidos entram na fila de sincronização de preço com a Bagy, para o valor bater nos dois lados.
 
 ## Verificação
