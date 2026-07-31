@@ -1078,7 +1078,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const glitterCanoPreco = corGlitterCano ? GLITTER_CANO_PRECO : 0;
   const laserGaspeaPreco = laserGaspea.length > 0 ? (findPrice(laserGaspea[0], 'laser_gaspea', []) || LASER_GASPEA_PRECO) : 0;
   const glitterGaspeaPreco = corGlitterGaspea ? GLITTER_GASPEA_PRECO : 0;
-  const laserTaloneiraPreco = laserTaloneira.length > 0 ? (findPrice(laserTaloneira[0], 'laser_taloneira', []) || LASER_TALONEIRA_PRECO) : 0;
+  // Laser da Taloneira não é cobrado (R$ 0) — não usa preço de ficha.
+  const laserTaloneiraPreco = laserTaloneira.length > 0 ? LASER_TALONEIRA_PRECO : 0;
   const glitterTaloneiraPreco = corGlitterTaloneira ? GLITTER_TALONEIRA_PRECO : 0;
   const totalLaserPreco = laserCanoPreco + glitterCanoPreco + laserGaspeaPreco + glitterGaspeaPreco + laserTaloneiraPreco + glitterTaloneiraPreco;
 
