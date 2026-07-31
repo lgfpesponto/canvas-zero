@@ -253,6 +253,20 @@ export function buildBotaComposicao(
     );
   }
 
+  // Preço congelado: normaliza a composição para fechar com o valor cobrado na compra.
+  // A diferença (para mais ou para menos) fica embutida na linha do Modelo.
+  if (typeof valorCongelado === 'number' && valorCongelado > 0 && linhas.length > 0) {
+    const soma = linhas.reduce((s, l) => s + l.valor, 0);
+    const residuo = Math.round((valorCongelado - soma) * 100) / 100;
+    if (Math.abs(residuo) >= 0.01) {
+      const idxModelo = linhas.findIndex(l => l.label.startsWith('Modelo: '));
+      if (idxModelo >= 0) {
+        const novo = Math.round((linhas[idxModelo].valor + residuo) * 100) / 100;
+        if (novo > 0) linhas[idxModelo] = { ...linhas[idxModelo], valor: novo };
+      }
+    }
+  }
+
   const subtotalFicha = linhas.reduce((s, l) => s + l.valor, 0);
   return { linhas, subtotalFicha };
 }
