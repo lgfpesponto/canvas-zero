@@ -1,26 +1,30 @@
-## Problema
+# Composição completa nos pedidos de estoque
 
-O comprovante do Mercado Pago exibe o valor como **R$ 339⁴** — os centavos vêm em *sobrescrito*, sem vírgula. A IA de extração leu os dígitos em sequência e gerou **3394** em vez de **339,40**.
+## Problema (confirmado no banco)
 
-Verifiquei o banco: não existe nenhum comprovante salvo com valor 3394 (o único registro correspondente, da Larissa em 24/07, está correto com R$ 339,40). Ou seja, o erro está acontecendo apenas na tela de extração/pré-preenchimento, antes de salvar — a correção necessária é na extração, não em dados já gravados.
+A composição do pedido de estoque é montada a partir do `ficha_snapshot` que fica gravado no produto de estoque. Consultando o produto "Sara Látego Preto BF Couro — 35", o snapshot só tem 12 campos:
 
-## O que vou fazer
+```text
+genero, modelo, solado, cor_sola, cor_vira, formato_bico,
+tipo_couro_cano/gaspea/taloneira, cor_couro_cano/gaspea/taloneira
+```
 
-**Edge function `extract-comprovante`** — reforçar as regras de leitura de valor no prompt:
+Ou seja: bordados, laser/glitter, recortes, metais, acessórios, tricê, tiras, franja, corrente, carimbo, estampa, pintura, costura atrás, nome bordado, sob medida, desenvolvimento e adicional **nunca foram copiados** para o produto. O código que monta a composição (`src/lib/estoqueOrderComposition.ts`) já sabe exibir todos esses itens — ele simplesmente não recebe os dados.
 
-- Explicar o padrão Mercado Pago / Nubank / PicPay em que os centavos aparecem em fonte menor/sobrescrita logo após os reais, sem vírgula:
-  - `R$ 339⁴` → 339.40 (um dígito sobrescrito = dezena de centavos)
-  - `R$ 339⁴⁰` → 339.40
-  - `R$ 1.250⁰⁰` → 1250.00
-- Regra explícita: quando houver 1 ou 2 dígitos visualmente separados/menores no fim do valor, eles são **centavos**, nunca parte do valor inteiro.
-- Manter as regras já existentes de ponto = milhar e vírgula = decimal.
-- Reforçar a validação cruzada: se o comprovante tiver o valor escrito por extenso ou repetido em outro ponto do documento, usar essa ocorrência para confirmar.
+A origem é a função de banco `criar_estoque_produto`, que monta o snapshot com apenas esses 12 campos do pedido.
 
-**Validação de segurança na resposta da função** (defensivo, sem depender só da IA):
-- Se a IA retornar um número inteiro sem centavos e o texto do documento sugerir formato sobrescrito, manter o valor como veio (não inventar), mas registrar log para auditoria.
+## O que será feito
 
-O campo de valor já é editável manualmente no diálogo de envio, então qualquer caso extremo continua corrigível pelo usuário antes de salvar.
+1. **Corrigir a origem**: `criar_estoque_produto` passa a copiar do pedido todos os campos da ficha que têm valor — bordados (cano/gáspea/taloneira + cores + descrições de bordado variado), laser e glitter, recortes e cores de recorte, metais (área, tipo, cor, strass, cruz, bridão), acessórios, carimbo, estampa, pintura, tricê, tiras, costura atrás, nome/personalização bordada, sob medida, desenvolvimento, adicional (valor e descrição), cor da linha, borrachinha, vivo e o bloco `extra_detalhes` (franja, corrente, cavalo metal, desenvolvimentos novos).
+
+2. **Backfill dos produtos já cadastrados**: para cada `estoque_produtos` cujo snapshot está incompleto, recompor a partir do pedido de origem (`orders.estoque_produto_id`). Produtos sem pedido de origem rastreável ficam como estão (nada é apagado).
+
+3. **Backfill dos pedidos de estoque já criados**: atualizar o `ficha_snapshot` gravado em `extra_detalhes.botas[]` e no nível do pedido, para os pedidos que ainda não estão nas etapas **Conferido, Cobrado ou Pago** (regra já combinada anteriormente).
+
+4. **Conferir a composição**: os itens que passarem a aparecer têm preço resolvido pela ficha atual, então o subtotal do item pode subir se houver componentes cobrados que antes não apareciam. Isso é o comportamento correto (preço sempre segue a ficha atual), e será validado num pedido real após o backfill.
 
 ## Detalhes técnicos
 
-Arquivo alterado: `supabase/functions/extract-comprovante/index.ts` (apenas o `systemPrompt` e logs). Sem migração de banco e sem alteração de front-end.
+- Migração SQL: `CREATE OR REPLACE FUNCTION public.criar_estoque_produto(...)` com o `jsonb_build_object` expandido, usando `jsonb_strip_nulls` para não gravar chaves vazias.
+- Migração de backfill em dois `UPDATE` (produtos e pedidos), com filtro por etapa nos pedidos.
+- Nenhuma mudança necessária em `src/lib/estoqueOrderComposition.ts` — ele já cobre todos os campos; ajustes pontuais só se algum campo novo (ex.: recortes) não estiver mapeado lá, caso em que serão adicionadas as linhas correspondentes.
