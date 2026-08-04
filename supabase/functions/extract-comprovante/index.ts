@@ -28,6 +28,71 @@ function detectMimeFromName(name: string): string {
   return 'application/octet-stream';
 }
 
+const SUPERSCRIPTS: Record<string, string> = {
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+};
+
+/**
+ * Converte o valor literal impresso no comprovante (formato brasileiro) em número.
+ * Regras: vírgula = decimal; ponto + 3 dígitos = milhar; dígitos sobrescritos no
+ * fim = centavos; 1 dígito decimal = dezena de centavos (",8" -> ",80").
+ * Retorna 0 quando não conseguir interpretar.
+ */
+function parseValorBR(texto: string): number {
+  if (!texto) return 0;
+
+  let s = String(texto).trim();
+
+  // Centavos sobrescritos no final (ex.: "R$ 339⁴⁰" / "R$ 339⁴")
+  const supMatch = s.match(/([⁰¹²³⁴⁵⁶⁷⁸⁹]{1,2})\s*$/);
+  let centavosSup: string | null = null;
+  if (supMatch) {
+    centavosSup = supMatch[1].split('').map((c) => SUPERSCRIPTS[c] ?? '').join('');
+    s = s.slice(0, supMatch.index);
+  }
+
+  // Limpa tudo que não é dígito, ponto ou vírgula
+  s = s.replace(/[^\d.,]/g, '');
+  if (!s) return 0;
+
+  if (centavosSup && !s.includes(',')) {
+    const inteiro = s.replace(/\./g, '');
+    const cents = centavosSup.padEnd(2, '0');
+    const n = Number(`${inteiro}.${cents}`);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  if (s.includes(',')) {
+    const idx = s.lastIndexOf(',');
+    const inteiro = s.slice(0, idx).replace(/[.,]/g, '');
+    let dec = s.slice(idx + 1).replace(/\D/g, '');
+    if (dec.length === 0) dec = '00';
+    else if (dec.length === 1) dec = dec + '0';
+    else dec = dec.slice(0, 2);
+    const n = Number(`${inteiro || '0'}.${dec}`);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Só pontos: separadores de milhar se seguidos de 3 dígitos
+  const parts = s.split('.');
+  if (parts.length > 1) {
+    const last = parts[parts.length - 1];
+    if (last.length === 3) {
+      const n = Number(parts.join(''));
+      return Number.isFinite(n) ? n : 0;
+    }
+    if (last.length <= 2) {
+      const n = Number(`${parts.slice(0, -1).join('')}.${last.padEnd(2, '0')}`);
+      return Number.isFinite(n) ? n : 0;
+    }
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -92,8 +157,13 @@ Exemplos:
 NUNCA transforme "339⁴" em 3394. Na dúvida entre 3394 e 339.40 quando o último dígito estiver menor/elevado, escolha 339.40.
 Se o valor aparecer repetido em outro ponto do documento (ou por extenso), use essa ocorrência para confirmar a leitura.
 
+OBRIGATÓRIO: além do campo "valor", preencha "valor_texto" com o valor EXATAMENTE como aparece impresso no comprovante,
+copiado caractere a caractere (ex.: "R$ 1517,20", "R$ 11.923,80", "R$ 339⁴⁰"). NÃO interprete, NÃO converta, NÃO remova
+nem acrescente dígitos em "valor_texto". Copie TODOS os dígitos antes da vírgula — nunca omita o primeiro dígito.
+
 Se algum campo não estiver claro no comprovante, retorne string vazia ou 0 para valor.
 NUNCA invente dados.`;
+
 
     // Monta o conteúdo do usuário conforme o tipo
     const userContent: any[] = [
@@ -134,11 +204,13 @@ NUNCA invente dados.`;
               properties: {
                 data_pagamento: { type: 'string', description: 'Data no formato YYYY-MM-DD' },
                 valor: { type: 'number', description: 'Valor em reais' },
+                valor_texto: { type: 'string', description: 'Valor exatamente como impresso no comprovante, sem interpretar' },
                 destinatario_nome: { type: 'string' },
                 destinatario_documento: { type: 'string', description: 'Apenas dígitos' },
                 descricao: { type: 'string' },
               },
-              required: ['data_pagamento', 'valor', 'destinatario_nome', 'destinatario_documento'],
+              required: ['data_pagamento', 'valor', 'valor_texto', 'destinatario_nome', 'destinatario_documento'],
+
               additionalProperties: false,
             },
           },
@@ -174,11 +246,23 @@ NUNCA invente dados.`;
     }
 
     const extracted = JSON.parse(toolCall.function.arguments);
-    const valorNum = Number(extracted.valor) || 0;
+    const valorIA = Number(extracted.valor) || 0;
+    const valorTexto: string = extracted.valor_texto || '';
+    const valorParsed = parseValorBR(valorTexto);
+
+    // Fonte primária: o texto literal impresso no comprovante.
+    let valorNum = valorParsed > 0 ? valorParsed : valorIA;
+
+    if (valorParsed > 0 && Math.abs(valorParsed - valorIA) > 0.01) {
+      console.warn(
+        '[extract-comprovante] divergência valor: texto="%s" -> %s | IA -> %s | arquivo: %s',
+        valorTexto, valorParsed, valorIA, fileName,
+      );
+    }
     if (Number.isInteger(valorNum) && valorNum >= 1000) {
-      // Possível leitura de centavos sobrescritos como parte do inteiro (ex.: 339⁴ -> 3394).
       console.warn('[extract-comprovante] valor inteiro suspeito para auditoria:', valorNum, 'arquivo:', fileName);
     }
+
     const docDigits = normalizeDoc(extracted.destinatario_documento || '');
     const nomeNorm = normalizeText(extracted.destinatario_nome || '');
 
@@ -196,7 +280,7 @@ NUNCA invente dados.`;
 
     return new Response(JSON.stringify({
       data_pagamento: extracted.data_pagamento || '',
-      valor: Number(extracted.valor) || 0,
+      valor: valorNum,
       destinatario,
       destinatario_nome_original: extracted.destinatario_nome || '',
       destinatario_documento: docDigits,
