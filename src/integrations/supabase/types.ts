@@ -2556,6 +2556,7 @@ export type Database = {
           comprovante_url: string
           created_at: string
           data_pagamento: string
+          dup_legado: boolean
           enviado_por: string
           id: string
           motivo_reprovacao: string | null
@@ -2574,6 +2575,7 @@ export type Database = {
           comprovante_url: string
           created_at?: string
           data_pagamento: string
+          dup_legado?: boolean
           enviado_por: string
           id?: string
           motivo_reprovacao?: string | null
@@ -2592,6 +2594,7 @@ export type Database = {
           comprovante_url?: string
           created_at?: string
           data_pagamento?: string
+          dup_legado?: boolean
           enviado_por?: string
           id?: string
           motivo_reprovacao?: string | null
@@ -3323,6 +3326,10 @@ export type Database = {
         Returns: Json
       }
       next_order_numero: { Args: { _prefixo: string }; Returns: string }
+      norm_pagador_key: {
+        Args: { _doc: string; _nome: string }
+        Returns: string
+      }
       parse_historico_date: { Args: { _data: string }; Returns: string }
       pode_sincronizar_bagy: { Args: { _uid: string }; Returns: boolean }
       processar_baixas_automaticas_geral: { Args: never; Returns: Json }
