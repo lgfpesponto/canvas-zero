@@ -1656,7 +1656,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   };
 
   const generateReport = () => {
-    if (!activeReport) return;
+    if (!activeReport || ordersLoading) return;
+
     const isComissao = activeReport === 'comissao_bordado';
     const linhas: { label: string; value: ReactNode }[] = [];
     if (needsProgressFilter) linhas.push({ label: 'Progresso', value: fmtSet(filterProgresso) });
