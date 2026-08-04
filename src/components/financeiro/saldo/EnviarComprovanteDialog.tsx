@@ -172,14 +172,25 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setItems(prev => prev.map(i => i.id === item.id ? {
-        ...i,
-        status: 'ready',
+      const extracted = {
         data_pagamento: data.data_pagamento || todayISO(),
         valor: parseCurrencyInput(data.valor),
         pagador_nome: data.destinatario_nome_original || data.destinatario || '',
         pagador_documento: data.destinatario_documento || '',
         tipo_detectado: (data.tipo === 'empresa' ? 'empresa' : 'fornecedor') as 'empresa' | 'fornecedor',
+      };
+
+      // Checagem imediata de duplicidade (antes mesmo de o usuário clicar em salvar)
+      let dupInfo: string | null = null;
+      try {
+        dupInfo = await findDuplicate(targetVendedor, { hash: item.hash, ...extracted });
+      } catch { /* falha de rede não bloqueia; a trava do banco cobre no envio */ }
+
+      setItems(prev => prev.map(i => i.id === item.id ? {
+        ...i,
+        ...extracted,
+        status: dupInfo ? 'duplicate' : 'ready',
+        dupInfo: dupInfo || undefined,
       } : i));
     } catch (e: any) {
       setItems(prev => prev.map(i => i.id === item.id ? {
@@ -187,6 +198,29 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
       } : i));
     }
   };
+
+  // Reavalia duplicidade quando o vendedor selecionado muda (a regra é por vendedor)
+  useEffect(() => {
+    if (!targetVendedor) return;
+    const alvos = items.filter(i => i.status === 'ready' || i.status === 'duplicate');
+    if (alvos.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const it of alvos) {
+        let dupInfo: string | null = null;
+        try {
+          dupInfo = await findDuplicate(targetVendedor, it);
+        } catch { continue; }
+        if (cancelled) return;
+        setItems(prev => prev.map(i => i.id === it.id
+          ? { ...i, status: dupInfo ? 'duplicate' : 'ready', dupInfo: dupInfo || undefined }
+          : i));
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetVendedor]);
+
 
   const handleFilesSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
