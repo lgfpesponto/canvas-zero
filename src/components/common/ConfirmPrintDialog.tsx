@@ -8,8 +8,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Printer } from 'lucide-react';
+import { Printer, Loader2 } from 'lucide-react';
 import { useState, useCallback, type ReactNode } from 'react';
+import { toast } from 'sonner';
 
 export interface ConfirmPrintDialogProps {
   open: boolean;
@@ -18,6 +19,8 @@ export interface ConfirmPrintDialogProps {
   description?: ReactNode;
   confirmLabel?: string;
   onConfirm: () => void;
+  /** Mostra spinner e trava os botões enquanto o PDF é gerado */
+  running?: boolean;
 }
 
 export function ConfirmPrintDialog({
@@ -27,10 +30,13 @@ export function ConfirmPrintDialog({
   description,
   confirmLabel = 'Imprimir',
   onConfirm,
+  running = false,
 }: ConfirmPrintDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+    <AlertDialog open={open} onOpenChange={(o) => { if (running) return; onOpenChange(o); }}>
+      <AlertDialogContent
+        onEscapeKeyDown={(e) => { if (running) e.preventDefault(); }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description ? (
@@ -40,12 +46,15 @@ export function ConfirmPrintDialog({
           ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={running}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={(e) => { e.preventDefault(); onConfirm(); }}
+            disabled={running}
             className="gap-2"
           >
-            <Printer size={16} /> {confirmLabel}
+            {running
+              ? <><Loader2 size={16} className="animate-spin" /> Gerando…</>
+              : <><Printer size={16} /> {confirmLabel}</>}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -57,7 +66,7 @@ interface PendingPrint {
   title: string;
   description?: ReactNode;
   confirmLabel?: string;
-  run: () => void;
+  run: () => void | Promise<void>;
 }
 
 /**
@@ -68,16 +77,25 @@ interface PendingPrint {
  */
 export function useConfirmPrint() {
   const [pending, setPending] = useState<PendingPrint | null>(null);
+  const [running, setRunning] = useState(false);
 
   const askPrint = useCallback((p: PendingPrint) => setPending(p), []);
 
-  const onConfirm = useCallback(() => {
-    if (!pending) return;
+  const onConfirm = useCallback(async () => {
+    if (!pending || running) return;
     const fn = pending.run;
-    setPending(null);
-    // próximo tick para garantir que o diálogo fechou antes de disparar download
-    setTimeout(fn, 0);
-  }, [pending]);
+    setRunning(true);
+    try {
+      await fn();
+      setPending(null);
+    } catch (e: any) {
+      console.error('Erro ao gerar PDF:', e);
+      toast.error(`Erro ao gerar PDF: ${e?.message || e}`);
+      setPending(null);
+    } finally {
+      setRunning(false);
+    }
+  }, [pending, running]);
 
   const dialog = (
     <ConfirmPrintDialog
@@ -87,8 +105,9 @@ export function useConfirmPrint() {
       description={pending?.description}
       confirmLabel={pending?.confirmLabel}
       onConfirm={onConfirm}
+      running={running}
     />
   );
 
-  return { askPrint, dialog };
+  return { askPrint, dialog, running };
 }

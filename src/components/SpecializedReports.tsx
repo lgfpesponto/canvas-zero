@@ -5,7 +5,7 @@ import { useOrdersQuery } from '@/hooks/useOrdersQuery';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { recomputePricesBatch } from '@/lib/recomputePricesBatch';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1656,7 +1656,8 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
   };
 
   const generateReport = () => {
-    if (!activeReport) return;
+    if (!activeReport || ordersLoading) return;
+
     const isComissao = activeReport === 'comissao_bordado';
     const linhas: { label: string; value: ReactNode }[] = [];
     if (needsProgressFilter) linhas.push({ label: 'Progresso', value: fmtSet(filterProgresso) });
@@ -1955,11 +1956,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
           <button
             onClick={generateReport}
-            disabled={needsExtrasCintosFilter && (!filterTipoProduto || filterCampos.size === 0)}
+            disabled={ordersLoading || (needsExtrasCintosFilter && (!filterTipoProduto || filterCampos.size === 0))}
             className="orange-gradient text-primary-foreground px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={16} /> GERAR PDF
+            {ordersLoading
+              ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO PEDIDOS…</>
+              : <><Download size={16} /> GERAR PDF</>}
           </button>
+
         </div>
       )}
       {confirmPrintDialog}

@@ -748,17 +748,18 @@ const ReportsPage = () => {
     }
   }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters]);
 
-  const handleGenerateReportPDF = useCallback(async () => {
-    const list = await resolveOrdersForExport();
-    return generateReportPDF(list, { userName: user?.nomeCompleto || '' });
-  }, [resolveOrdersForExport, user]);
-  const handleGenerateProductionSheetPDF = useCallback(async () => {
-    const list = await resolveOrdersForExport();
-    await generateProductionSheetPDF(list, { userName: user?.nomeCompleto || '' });
-  }, [resolveOrdersForExport, user]);
+  const [preparingReport, setPreparingReport] = useState(false);
 
-  const askGenerateReportPDF = useCallback(() => {
-    const qtd = selectedIds.size > 0 ? ordersToExport.length : (serverCount || ordersToExport.length);
+  const askGenerateReportPDF = useCallback(async () => {
+    if (ordersLoading || preparingReport) return;
+    setPreparingReport(true);
+    let list: import('@/contexts/AuthContext').Order[] = [];
+    try {
+      list = await resolveOrdersForExport();
+    } finally {
+      setPreparingReport(false);
+    }
+    const qtd = list.length;
     askPrint({
       title: 'Gerar Relatório por Filtros?',
       description: (
@@ -779,12 +780,20 @@ const ReportsPage = () => {
         />
       ),
       confirmLabel: 'Gerar PDF',
-      run: () => { void handleGenerateReportPDF(); },
+      run: () => generateReportPDF(list, { userName: user?.nomeCompleto || '' }),
     });
-  }, [askPrint, selectedIds.size, ordersToExport.length, serverCount, handleGenerateReportPDF, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
+  }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
 
-  const askGenerateProductionSheetPDF = useCallback(() => {
-    const qtd = selectedIds.size > 0 ? ordersToExport.length : (serverCount || ordersToExport.length);
+  const askGenerateProductionSheetPDF = useCallback(async () => {
+    if (ordersLoading || preparingReport) return;
+    setPreparingReport(true);
+    let list: import('@/contexts/AuthContext').Order[] = [];
+    try {
+      list = await resolveOrdersForExport();
+    } finally {
+      setPreparingReport(false);
+    }
+    const qtd = list.length;
     askPrint({
       title: 'Imprimir Fichas de Produção?',
       description: (
@@ -799,9 +808,10 @@ const ReportsPage = () => {
         />
       ),
       confirmLabel: 'Imprimir',
-      run: () => { void handleGenerateProductionSheetPDF(); },
+      run: () => generateProductionSheetPDF(list, { userName: user?.nomeCompleto || '' }),
     });
-  }, [askPrint, selectedIds.size, ordersToExport.length, serverCount, handleGenerateProductionSheetPDF, filterVendedor, filterStatus, filterDate, filterDateEnd]);
+  }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, filterVendedor, filterStatus, filterDate, filterDateEnd]);
+
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
@@ -1429,9 +1439,16 @@ const ReportsPage = () => {
               </button>
               {showReportOptions && (
                 <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg western-shadow p-2 z-20 min-w-[220px]">
-                  <button onClick={() => { askGenerateReportPDF(); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
-                    <Download size={14} /> Relatório por Filtros
+                  <button
+                    onClick={() => { void askGenerateReportPDF(); setShowReportOptions(false); }}
+                    disabled={ordersLoading || preparingReport}
+                    className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {(ordersLoading || preparingReport)
+                      ? <><Loader2 size={14} className="animate-spin" /> Carregando pedidos…</>
+                      : <><Download size={14} /> Relatório por Filtros</>}
                   </button>
+
                   {isAdmin && (
                     <button onClick={() => { navigate('/relatorio-pecas'); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
                       <FileText size={14} /> Relatório por Peças
@@ -1445,9 +1462,16 @@ const ReportsPage = () => {
             </div>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-            <button onClick={askGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
-              <Printer size={16} /> IMPRIMIR FICHAS
+            <button
+              onClick={() => { void askGenerateProductionSheetPDF(); }}
+              disabled={ordersLoading || preparingReport}
+              className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {(ordersLoading || preparingReport)
+                ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO…</>
+                : <><Printer size={16} /> IMPRIMIR FICHAS</>}
             </button>
+
           </div>
         </div>
 
