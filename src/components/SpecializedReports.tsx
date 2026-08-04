@@ -1955,11 +1955,14 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
 
           <button
             onClick={generateReport}
-            disabled={needsExtrasCintosFilter && (!filterTipoProduto || filterCampos.size === 0)}
+            disabled={ordersLoading || (needsExtrasCintosFilter && (!filterTipoProduto || filterCampos.size === 0))}
             className="orange-gradient text-primary-foreground px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={16} /> GERAR PDF
+            {ordersLoading
+              ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO PEDIDOS…</>
+              : <><Download size={16} /> GERAR PDF</>}
           </button>
+
         </div>
       )}
       {confirmPrintDialog}
