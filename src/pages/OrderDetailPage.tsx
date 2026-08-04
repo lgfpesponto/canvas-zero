@@ -27,6 +27,7 @@ import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { isHttpUrl } from '@/lib/driveUrl';
 import { buildBootFichaCategories } from '@/lib/orderFichaCategories';
+import { getBolaGrandeQtd } from '@/lib/bolaGrande';
 import { InlineVariacaoOlhos } from '@/components/ficha/InlineVariacaoOlhos';
 import { extractVariationName } from '@/lib/variationLabels';
 import { buildBotaComposicao, formatBotaExtraLabel } from '@/lib/estoqueOrderComposition';
@@ -269,7 +270,7 @@ const OrderDetailPage = () => {
         ['Tipo Metal', order.tipoMetal],
         ['Cor Metal', order.corMetal],
         ['Strass', order.strassQtd ? `${order.strassQtd} un.` : ''],
-        ['Bola Grande', detP.bolaGrandeQtd ? `${detP.bolaGrandeQtd} un.` : ''],
+        ['Bola Grande', getBolaGrandeQtd(order) ? `${getBolaGrandeQtd(order)} un.` : ''],
         ['Cruz (metal)', order.cruzMetalQtd ? `${order.cruzMetalQtd} un.` : ''],
         ['Bridão (metal)', order.bridaoMetalQtd ? `${order.bridaoMetalQtd} un.` : ''],
         ['Cavalo (metal)', detP.cavaloMetal ? `${detP.cavaloMetalQtd || 0} un.` : ''],
@@ -431,6 +432,8 @@ const OrderDetailPage = () => {
   const areaP = AREA_METAL.find(a => a.label === order.metais)?.preco;
   if (areaP) priceItems.push(['Área Metal: ' + order.metais, areaP]);
   if (order.strassQtd) priceItems.push([`Strass (${order.strassQtd} un.)`, order.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO)]);
+  const bolaGrandeQtdCalc = getBolaGrandeQtd(order);
+  if (bolaGrandeQtdCalc) priceItems.push([`Bola Grande (${bolaGrandeQtdCalc} un.)`, bolaGrandeQtdCalc * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO)]);
   if (order.cruzMetalQtd) priceItems.push([`Cruz metal (${order.cruzMetalQtd} un.)`, order.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO)]);
   if (order.bridaoMetalQtd) priceItems.push([`Bridão metal (${order.bridaoMetalQtd} un.)`, order.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO)]);
   // detP already declared above for detailsGrouped

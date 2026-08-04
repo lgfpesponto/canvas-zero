@@ -24,6 +24,7 @@ import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
 } from './extrasConfig';
 import { getDynamicUnitPrice } from './dynamicUnitPrice';
+import { getBolaGrandeQtd } from './bolaGrande';
 
 export type FindFichaPrice = (nome: string, categoria: string) => number | undefined;
 export type GetByCategoria = (categoria: string) => { label: string; preco: number }[];
@@ -94,6 +95,8 @@ export function recomputeSubtotal(
   if (order.estampa === 'Sim') items.push(getDynamicUnitPrice('estampa', ESTAMPA_PRECO));
   push(AREA_METAL.find(a => a.label === order.metais)?.preco);
   if (order.strassQtd) items.push(order.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO));
+  const bolaGrandeQtd = getBolaGrandeQtd(order);
+  if (bolaGrandeQtd) items.push(bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO));
   if (order.cruzMetalQtd) items.push(order.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO));
   if (order.bridaoMetalQtd) items.push(order.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO));
   const det: any = order.extraDetalhes || {};

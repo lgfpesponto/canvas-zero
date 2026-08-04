@@ -280,6 +280,14 @@ function recomputeSubtotal(o: any, findFicha: any, getCustom: any): number {
   if (o.estampa === 'Sim') items.push(ESTAMPA_PRECO);
   push(AREA_METAL.find(a => a.label === o.metais)?.preco);
   if (o.strass_qtd) items.push(o.strass_qtd * STRASS_PRECO);
+  const bgQtd = (() => {
+    const d: any = o.extra_detalhes || {};
+    const direct = Number(d.bolaGrandeQtd) || 0;
+    if (direct > 0) return direct;
+    const m = String(o.tipo_metal || '').match(/Bola\s*Grande\s*:?\s*(\d+)/i);
+    return m ? Number(m[1]) || 0 : 0;
+  })();
+  if (bgQtd) items.push(bgQtd * BOLA_GRANDE_PRECO);
   if (o.cruz_metal_qtd) items.push(o.cruz_metal_qtd * CRUZ_METAL_PRECO);
   if (o.bridao_metal_qtd) items.push(o.bridao_metal_qtd * BRIDAO_METAL_PRECO);
   const det = o.extra_detalhes || {};
