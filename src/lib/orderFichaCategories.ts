@@ -1,3 +1,4 @@
+import { getBolaGrandeQtd } from './bolaGrande';
 // Constrói as categorias da ficha da bota no mesmo formato/ordem do PDF
 // (src/lib/pdfGenerators.ts linhas ~339-443). Reutilizado na tela de detalhes.
 
