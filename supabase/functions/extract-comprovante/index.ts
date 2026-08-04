@@ -215,7 +215,7 @@ NUNCA invente dados.`;
 
     return new Response(JSON.stringify({
       data_pagamento: extracted.data_pagamento || '',
-      valor: Number(extracted.valor) || 0,
+      valor: valorNum,
       destinatario,
       destinatario_nome_original: extracted.destinatario_nome || '',
       destinatario_documento: docDigits,
