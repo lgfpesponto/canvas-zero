@@ -3331,6 +3331,10 @@ export type Database = {
         Args: { _motivo: string; _order_ids: string[] }
         Returns: Json
       }
+      reabater_estoque_pedido: {
+        Args: { _extra_detalhes: Json }
+        Returns: Json
+      }
       recusar_ajuste_solicitacao: {
         Args: { _resposta?: string; _solicitacao_id: string }
         Returns: undefined
