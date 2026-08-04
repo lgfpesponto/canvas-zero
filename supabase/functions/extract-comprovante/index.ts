@@ -92,8 +92,13 @@ Exemplos:
 NUNCA transforme "339⁴" em 3394. Na dúvida entre 3394 e 339.40 quando o último dígito estiver menor/elevado, escolha 339.40.
 Se o valor aparecer repetido em outro ponto do documento (ou por extenso), use essa ocorrência para confirmar a leitura.
 
+OBRIGATÓRIO: além do campo "valor", preencha "valor_texto" com o valor EXATAMENTE como aparece impresso no comprovante,
+copiado caractere a caractere (ex.: "R$ 1517,20", "R$ 11.923,80", "R$ 339⁴⁰"). NÃO interprete, NÃO converta, NÃO remova
+nem acrescente dígitos em "valor_texto". Copie TODOS os dígitos antes da vírgula — nunca omita o primeiro dígito.
+
 Se algum campo não estiver claro no comprovante, retorne string vazia ou 0 para valor.
 NUNCA invente dados.`;
+
 
     // Monta o conteúdo do usuário conforme o tipo
     const userContent: any[] = [
