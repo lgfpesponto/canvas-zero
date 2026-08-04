@@ -373,6 +373,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
 
   const readyCount = items.filter(i => i.status === 'ready').length;
   const processingCount = items.filter(i => i.status === 'processing').length;
+  const duplicateCount = items.filter(i => i.status === 'duplicate').length;
+
 
   return (
     <Dialog open={open} onOpenChange={close}>
