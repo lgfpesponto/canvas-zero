@@ -28,6 +28,71 @@ function detectMimeFromName(name: string): string {
   return 'application/octet-stream';
 }
 
+const SUPERSCRIPTS: Record<string, string> = {
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+};
+
+/**
+ * Converte o valor literal impresso no comprovante (formato brasileiro) em número.
+ * Regras: vírgula = decimal; ponto + 3 dígitos = milhar; dígitos sobrescritos no
+ * fim = centavos; 1 dígito decimal = dezena de centavos (",8" -> ",80").
+ * Retorna 0 quando não conseguir interpretar.
+ */
+function parseValorBR(texto: string): number {
+  if (!texto) return 0;
+
+  let s = String(texto).trim();
+
+  // Centavos sobrescritos no final (ex.: "R$ 339⁴⁰" / "R$ 339⁴")
+  const supMatch = s.match(/([⁰¹²³⁴⁵⁶⁷⁸⁹]{1,2})\s*$/);
+  let centavosSup: string | null = null;
+  if (supMatch) {
+    centavosSup = supMatch[1].split('').map((c) => SUPERSCRIPTS[c] ?? '').join('');
+    s = s.slice(0, supMatch.index);
+  }
+
+  // Limpa tudo que não é dígito, ponto ou vírgula
+  s = s.replace(/[^\d.,]/g, '');
+  if (!s) return 0;
+
+  if (centavosSup && !s.includes(',')) {
+    const inteiro = s.replace(/\./g, '');
+    const cents = centavosSup.padEnd(2, '0');
+    const n = Number(`${inteiro}.${cents}`);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  if (s.includes(',')) {
+    const idx = s.lastIndexOf(',');
+    const inteiro = s.slice(0, idx).replace(/[.,]/g, '');
+    let dec = s.slice(idx + 1).replace(/\D/g, '');
+    if (dec.length === 0) dec = '00';
+    else if (dec.length === 1) dec = dec + '0';
+    else dec = dec.slice(0, 2);
+    const n = Number(`${inteiro || '0'}.${dec}`);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Só pontos: separadores de milhar se seguidos de 3 dígitos
+  const parts = s.split('.');
+  if (parts.length > 1) {
+    const last = parts[parts.length - 1];
+    if (last.length === 3) {
+      const n = Number(parts.join(''));
+      return Number.isFinite(n) ? n : 0;
+    }
+    if (last.length <= 2) {
+      const n = Number(`${parts.slice(0, -1).join('')}.${last.padEnd(2, '0')}`);
+      return Number.isFinite(n) ? n : 0;
+    }
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
