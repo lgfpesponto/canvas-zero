@@ -216,45 +216,13 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     for (const it of ready) {
       setItems(prev => prev.map(i => i.id === it.id ? { ...i, status: 'saving' } : i));
       try {
-        // 1) Duplicata por hash do arquivo
-        const { data: dupHash } = await supabase
-          .from('revendedor_comprovantes' as any)
-          .select('id, created_at, status')
-          .eq('vendedor', targetVendedor)
-          .eq('comprovante_hash', it.hash)
-          .limit(1);
-        if (dupHash && dupHash.length > 0) {
-          throw new Error('Esse comprovante já foi enviado anteriormente (arquivo idêntico).');
+        const dup = await findDuplicate(targetVendedor, it);
+        if (dup) {
+          setItems(prev => prev.map(i => i.id === it.id ? { ...i, status: 'duplicate', dupInfo: dup } : i));
+          throw new Error(dup);
         }
 
-        // 2) Duplicata por tripla: mesmo valor + mesma data + mesmo pagador (normalizado)
-        //    Documento tem prioridade; senão compara o nome sem acentos/pontuação/caixa.
-        const normKey = (doc?: string | null, nome?: string | null) => {
-          const d = (doc || '').replace(/[^0-9]/g, '');
-          if (d) return d;
-          return (nome || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, '');
-        };
-        const { data: sameValueDate } = await supabase
-          .from('revendedor_comprovantes' as any)
-          .select('id, created_at, status, pagador_nome, pagador_documento, data_pagamento, valor')
-          .eq('vendedor', targetVendedor)
-          .eq('valor', it.valor)
-          .eq('data_pagamento', it.data_pagamento);
-        const alvo = normKey(it.pagador_documento, it.pagador_nome);
-        const existente: any = (sameValueDate || []).find(
-          (r: any) => normKey(r.pagador_documento, r.pagador_nome) === alvo
-        );
-        if (existente) {
-          const quando = formatDateBR(String(existente.data_pagamento));
-          const pagador = (it.pagador_nome || existente.pagador_nome || '').trim();
-          throw new Error(
-            `Já existe um comprovante idêntico deste vendedor (valor ${formatCurrency(it.valor)}, data ${quando}${pagador ? `, pagador "${pagador}"` : ''}). Envio bloqueado para evitar duplicidade.`
-          );
-        }
+
 
 
         // Faz upload do arquivo no Storage para que o admin master possa conferir o PDF/foto na aprovação
