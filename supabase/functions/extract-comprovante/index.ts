@@ -181,11 +181,23 @@ NUNCA invente dados.`;
     }
 
     const extracted = JSON.parse(toolCall.function.arguments);
-    const valorNum = Number(extracted.valor) || 0;
+    const valorIA = Number(extracted.valor) || 0;
+    const valorTexto: string = extracted.valor_texto || '';
+    const valorParsed = parseValorBR(valorTexto);
+
+    // Fonte primária: o texto literal impresso no comprovante.
+    let valorNum = valorParsed > 0 ? valorParsed : valorIA;
+
+    if (valorParsed > 0 && Math.abs(valorParsed - valorIA) > 0.01) {
+      console.warn(
+        '[extract-comprovante] divergência valor: texto="%s" -> %s | IA -> %s | arquivo: %s',
+        valorTexto, valorParsed, valorIA, fileName,
+      );
+    }
     if (Number.isInteger(valorNum) && valorNum >= 1000) {
-      // Possível leitura de centavos sobrescritos como parte do inteiro (ex.: 339⁴ -> 3394).
       console.warn('[extract-comprovante] valor inteiro suspeito para auditoria:', valorNum, 'arquivo:', fileName);
     }
+
     const docDigits = normalizeDoc(extracted.destinatario_documento || '');
     const nomeNorm = normalizeText(extracted.destinatario_nome || '');
 
