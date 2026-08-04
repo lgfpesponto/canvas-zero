@@ -273,7 +273,15 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           pagador_documento: it.pagador_documento || null,
           tipo_detectado: it.tipo_detectado,
         });
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505' || /duplicad/i.test(error.message || '')) {
+            throw new Error(
+              (error.message || '').replace(/^.*Comprovante duplicado: /, 'Comprovante duplicado: ') ||
+              'Comprovante duplicado: já existe um registro idêntico para este vendedor.'
+            );
+          }
+          throw error;
+        }
         savedIds.push(it.id);
         okCount++;
       } catch (e: any) {
@@ -281,6 +289,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         setItems(prev => prev.map(i => i.id === it.id ? {
           ...i, status: 'error', error: msg,
         } : i));
+
         toast({
           title: `Falha ao enviar ${it.file.name}`,
           description: msg,
