@@ -31,7 +31,7 @@ interface Props {
 }
 
 
-type ItemStatus = 'processing' | 'ready' | 'error' | 'saving' | 'saved';
+type ItemStatus = 'processing' | 'ready' | 'error' | 'saving' | 'saved' | 'duplicate';
 
 interface ExtractedItem {
   id: string;
@@ -39,6 +39,8 @@ interface ExtractedItem {
   hash: string;
   status: ItemStatus;
   error?: string;
+  /** Mensagem explicando por que o comprovante é duplicado */
+  dupInfo?: string;
   // Dados extraídos pela IA
   data_pagamento: string;
   valor: number;
@@ -47,6 +49,60 @@ interface ExtractedItem {
   tipo_detectado: 'empresa' | 'fornecedor';
   observacao: string;
 }
+
+/** Normaliza o pagador: documento tem prioridade; senão nome sem acento/pontuação/caixa. */
+function normPagadorKey(doc?: string | null, nome?: string | null): string {
+  const d = (doc || '').replace(/[^0-9]/g, '');
+  if (d) return d;
+  return (nome || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Verifica se já existe comprovante igual desse vendedor.
+ * Duplicado = mesmo arquivo (hash) OU mesmo valor + data + pagador normalizado.
+ * Retorna a mensagem explicativa, ou null quando não há duplicidade.
+ */
+async function findDuplicate(
+  vendedor: string,
+  item: Pick<ExtractedItem, 'hash' | 'valor' | 'data_pagamento' | 'pagador_nome' | 'pagador_documento'>
+): Promise<string | null> {
+  if (!vendedor || !item.valor || !item.data_pagamento) return null;
+
+  const { data: dupHash } = await supabase
+    .from('revendedor_comprovantes' as any)
+    .select('id, created_at, valor, data_pagamento')
+    .eq('vendedor', vendedor)
+    .eq('comprovante_hash', item.hash)
+    .limit(1);
+  if (dupHash && dupHash.length > 0) {
+    const ex: any = dupHash[0];
+    return `Este mesmo arquivo já foi enviado para ${vendedor} (${formatCurrency(Number(ex.valor))} em ${formatDateBR(String(ex.data_pagamento))}).`;
+  }
+
+  const { data: sameValueDate } = await supabase
+    .from('revendedor_comprovantes' as any)
+    .select('id, created_at, pagador_nome, pagador_documento, data_pagamento, valor')
+    .eq('vendedor', vendedor)
+    .eq('valor', item.valor)
+    .eq('data_pagamento', item.data_pagamento);
+
+  const alvo = normPagadorKey(item.pagador_documento, item.pagador_nome);
+  const existente: any = (sameValueDate || []).find(
+    (r: any) => normPagadorKey(r.pagador_documento, r.pagador_nome) === alvo
+  );
+  if (existente) {
+    const pagador = (item.pagador_nome || existente.pagador_nome || '').trim();
+    const enviadoEm = existente.created_at ? formatDateBR(String(existente.created_at).slice(0, 10)) : null;
+    return `Já existe um comprovante de ${vendedor} com ${formatCurrency(item.valor)}, data ${formatDateBR(item.data_pagamento)}${pagador ? ` e pagador "${pagador}"` : ''}${enviadoEm ? ` (enviado em ${enviadoEm})` : ''}.`;
+  }
+
+  return null;
+}
+
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -116,14 +172,25 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setItems(prev => prev.map(i => i.id === item.id ? {
-        ...i,
-        status: 'ready',
+      const extracted = {
         data_pagamento: data.data_pagamento || todayISO(),
         valor: parseCurrencyInput(data.valor),
         pagador_nome: data.destinatario_nome_original || data.destinatario || '',
         pagador_documento: data.destinatario_documento || '',
         tipo_detectado: (data.tipo === 'empresa' ? 'empresa' : 'fornecedor') as 'empresa' | 'fornecedor',
+      };
+
+      // Checagem imediata de duplicidade (antes mesmo de o usuário clicar em salvar)
+      let dupInfo: string | null = null;
+      try {
+        dupInfo = await findDuplicate(targetVendedor, { hash: item.hash, ...extracted });
+      } catch { /* falha de rede não bloqueia; a trava do banco cobre no envio */ }
+
+      setItems(prev => prev.map(i => i.id === item.id ? {
+        ...i,
+        ...extracted,
+        status: dupInfo ? 'duplicate' : 'ready',
+        dupInfo: dupInfo || undefined,
       } : i));
     } catch (e: any) {
       setItems(prev => prev.map(i => i.id === item.id ? {
@@ -131,6 +198,29 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
       } : i));
     }
   };
+
+  // Reavalia duplicidade quando o vendedor selecionado muda (a regra é por vendedor)
+  useEffect(() => {
+    if (!targetVendedor) return;
+    const alvos = items.filter(i => i.status === 'ready' || i.status === 'duplicate');
+    if (alvos.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const it of alvos) {
+        let dupInfo: string | null = null;
+        try {
+          dupInfo = await findDuplicate(targetVendedor, it);
+        } catch { continue; }
+        if (cancelled) return;
+        setItems(prev => prev.map(i => i.id === it.id
+          ? { ...i, status: dupInfo ? 'duplicate' : 'ready', dupInfo: dupInfo || undefined }
+          : i));
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetVendedor]);
+
 
   const handleFilesSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -216,45 +306,13 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     for (const it of ready) {
       setItems(prev => prev.map(i => i.id === it.id ? { ...i, status: 'saving' } : i));
       try {
-        // 1) Duplicata por hash do arquivo
-        const { data: dupHash } = await supabase
-          .from('revendedor_comprovantes' as any)
-          .select('id, created_at, status')
-          .eq('vendedor', targetVendedor)
-          .eq('comprovante_hash', it.hash)
-          .limit(1);
-        if (dupHash && dupHash.length > 0) {
-          throw new Error('Esse comprovante já foi enviado anteriormente (arquivo idêntico).');
+        const dup = await findDuplicate(targetVendedor, it);
+        if (dup) {
+          setItems(prev => prev.map(i => i.id === it.id ? { ...i, status: 'duplicate', dupInfo: dup } : i));
+          throw new Error(dup);
         }
 
-        // 2) Duplicata por tripla: mesmo valor + mesma data + mesmo pagador (normalizado)
-        //    Documento tem prioridade; senão compara o nome sem acentos/pontuação/caixa.
-        const normKey = (doc?: string | null, nome?: string | null) => {
-          const d = (doc || '').replace(/[^0-9]/g, '');
-          if (d) return d;
-          return (nome || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, '');
-        };
-        const { data: sameValueDate } = await supabase
-          .from('revendedor_comprovantes' as any)
-          .select('id, created_at, status, pagador_nome, pagador_documento, data_pagamento, valor')
-          .eq('vendedor', targetVendedor)
-          .eq('valor', it.valor)
-          .eq('data_pagamento', it.data_pagamento);
-        const alvo = normKey(it.pagador_documento, it.pagador_nome);
-        const existente: any = (sameValueDate || []).find(
-          (r: any) => normKey(r.pagador_documento, r.pagador_nome) === alvo
-        );
-        if (existente) {
-          const quando = formatDateBR(String(existente.data_pagamento));
-          const pagador = (it.pagador_nome || existente.pagador_nome || '').trim();
-          throw new Error(
-            `Já existe um comprovante idêntico deste vendedor (valor ${formatCurrency(it.valor)}, data ${quando}${pagador ? `, pagador "${pagador}"` : ''}). Envio bloqueado para evitar duplicidade.`
-          );
-        }
+
 
 
         // Faz upload do arquivo no Storage para que o admin master possa conferir o PDF/foto na aprovação
@@ -315,6 +373,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
 
   const readyCount = items.filter(i => i.status === 'ready').length;
   const processingCount = items.filter(i => i.status === 'processing').length;
+  const duplicateCount = items.filter(i => i.status === 'duplicate').length;
+
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -395,6 +455,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                       {it.status === 'saving' && <Badge variant="secondary" className="shrink-0">Enviando...</Badge>}
                       {it.status === 'saved' && <Badge variant="default" className="shrink-0">Enviado</Badge>}
                       {it.status === 'error' && <Badge variant="destructive" className="shrink-0">Erro</Badge>}
+                      {it.status === 'duplicate' && <Badge variant="destructive" className="shrink-0">Duplicado</Badge>}
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeItem(it.id)} disabled={it.status === 'saving'}>
                       <X size={14} />
@@ -410,7 +471,14 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                     </div>
                   )}
 
-                  {(it.status === 'ready' || it.status === 'saving') && (
+                  {it.status === 'duplicate' && (
+                    <div className="text-xs text-destructive border border-destructive/30 bg-destructive/5 rounded p-2 mb-2">
+                      Comprovante duplicado — envio bloqueado. {it.dupInfo}
+                    </div>
+                  )}
+
+                  {(it.status === 'ready' || it.status === 'saving' || it.status === 'duplicate') && (
+
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div className="bg-muted/50 rounded p-2">
@@ -463,9 +531,12 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           >
             {savingAll ? (
               <><Loader2 size={14} className="animate-spin mr-1" /> Salvando...</>
+            ) : readyCount === 0 && duplicateCount > 0 ? (
+              <>Nenhum comprovante novo</>
             ) : (
               <>Salvar {readyCount} recebimento(s)</>
             )}
+
           </Button>
         </DialogFooter>
       </DialogContent>
