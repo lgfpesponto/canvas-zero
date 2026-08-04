@@ -531,9 +531,12 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           >
             {savingAll ? (
               <><Loader2 size={14} className="animate-spin mr-1" /> Salvando...</>
+            ) : readyCount === 0 && duplicateCount > 0 ? (
+              <>Nenhum comprovante novo</>
             ) : (
               <>Salvar {readyCount} recebimento(s)</>
             )}
+
           </Button>
         </DialogFooter>
       </DialogContent>
