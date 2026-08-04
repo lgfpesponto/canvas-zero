@@ -139,11 +139,13 @@ NUNCA invente dados.`;
               properties: {
                 data_pagamento: { type: 'string', description: 'Data no formato YYYY-MM-DD' },
                 valor: { type: 'number', description: 'Valor em reais' },
+                valor_texto: { type: 'string', description: 'Valor exatamente como impresso no comprovante, sem interpretar' },
                 destinatario_nome: { type: 'string' },
                 destinatario_documento: { type: 'string', description: 'Apenas dígitos' },
                 descricao: { type: 'string' },
               },
-              required: ['data_pagamento', 'valor', 'destinatario_nome', 'destinatario_documento'],
+              required: ['data_pagamento', 'valor', 'valor_texto', 'destinatario_nome', 'destinatario_documento'],
+
               additionalProperties: false,
             },
           },
