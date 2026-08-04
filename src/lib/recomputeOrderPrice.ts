@@ -14,7 +14,7 @@ import type { Order } from '@/contexts/AuthContext';
 import {
   MODELOS, ACESSORIOS, COURO_PRECOS, SOLADO, COR_VIRA, CARIMBO, AREA_METAL, DESENVOLVIMENTO,
   SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO, PINTURA_PRECO,
-  TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, CRUZ_METAL_PRECO,
+  TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, BOLA_GRANDE_PRECO, CRUZ_METAL_PRECO,
   BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO, FRANJA_PRECO, CORRENTE_PRECO,
   LASER_CANO_PRECO, LASER_GASPEA_PRECO, GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
   BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA,
@@ -24,6 +24,7 @@ import {
   BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO,
 } from './extrasConfig';
 import { getDynamicUnitPrice } from './dynamicUnitPrice';
+import { getBolaGrandeQtd } from './bolaGrande';
 
 export type FindFichaPrice = (nome: string, categoria: string) => number | undefined;
 export type GetByCategoria = (categoria: string) => { label: string; preco: number }[];
@@ -94,6 +95,8 @@ export function recomputeSubtotal(
   if (order.estampa === 'Sim') items.push(getDynamicUnitPrice('estampa', ESTAMPA_PRECO));
   push(AREA_METAL.find(a => a.label === order.metais)?.preco);
   if (order.strassQtd) items.push(order.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO));
+  const bolaGrandeQtd = getBolaGrandeQtd(order);
+  if (bolaGrandeQtd) items.push(bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO));
   if (order.cruzMetalQtd) items.push(order.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO));
   if (order.bridaoMetalQtd) items.push(order.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO));
   const det: any = order.extraDetalhes || {};

@@ -15,7 +15,7 @@ import {
   MODELOS, ACESSORIOS, BORDADOS_CANO, BORDADOS_GASPEA, BORDADOS_TALONEIRA,
   COURO_PRECOS, SOLADO, COR_VIRA, CARIMBO, AREA_METAL, DESENVOLVIMENTO,
   SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO, PINTURA_PRECO,
-  TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO,
+  TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, BOLA_GRANDE_PRECO,
   CRUZ_METAL_PRECO, BRIDAO_METAL_PRECO, LASER_CANO_PRECO, LASER_GASPEA_PRECO,
   GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO, getCorSolaPrecoContextual,
 } from '@/lib/orderFieldsConfig';
@@ -25,6 +25,7 @@ import {
 } from '@/lib/extrasConfig';
 import { stampPageNumbers } from '@/lib/pdfGenerators';
 import { priceWithFallback } from '@/lib/priceCache';
+import { getBolaGrandeQtd } from '@/lib/bolaGrande';
 
 const formatCurrency = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -252,6 +253,8 @@ export function buildCobrancaPdfDoc(orders: Order[], opts: BuildCobrancaOpts): B
       const areaP = AREA_METAL.find(a => a.label === o.metais)?.preco;
       if (areaP) priceItems.push(['Área Metal: ' + o.metais, areaP]);
       if (o.strassQtd) priceItems.push([`Strass (${o.strassQtd} un.)`, o.strassQtd * getDynamicUnitPrice('strass', STRASS_PRECO)]);
+      const bolaGrandeQtdMain = getBolaGrandeQtd(o);
+      if (bolaGrandeQtdMain) priceItems.push([`Bola Grande (${bolaGrandeQtdMain} un.)`, bolaGrandeQtdMain * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO)]);
       if (o.cruzMetalQtd) priceItems.push([`Cruz metal (${o.cruzMetalQtd} un.)`, o.cruzMetalQtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO)]);
       if (o.bridaoMetalQtd) priceItems.push([`Bridão metal (${o.bridaoMetalQtd} un.)`, o.bridaoMetalQtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO)]);
       if (o.trisce === 'Sim') priceItems.push(['Tricê', getDynamicUnitPrice('trice', TRICE_PRECO)]);

@@ -1259,6 +1259,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     corRecorteTaloneira: recorteTaloneira && corRecorteTaloneira ? corRecorteTaloneira : null,
     extraDetalhes: {
       cavaloMetal, cavaloMetalQtd: cavaloMetal ? cavaloMetalQtd : 0,
+      bolaGrandeQtd: bolaGrande ? bolaGrandeQtd : 0,
       franja, franjaCouro, franjaCor,
       corrente, correnteCor,
       corBordadoLaserCano, corBordadoLaserGaspea, corBordadoLaserTaloneira,

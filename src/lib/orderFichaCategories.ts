@@ -1,3 +1,4 @@
+import { getBolaGrandeQtd } from './bolaGrande';
 // Constrói as categorias da ficha da bota no mesmo formato/ordem do PDF
 // (src/lib/pdfGenerators.ts linhas ~339-443). Reutilizado na tela de detalhes.
 
@@ -95,7 +96,7 @@ export function buildBootFichaCategories(order: any, opts?: { showCliente?: bool
 
   // METAIS
   const cavaloMetalQtd = det.cavaloMetal ? (Number(det.cavaloMetalQtd) || 0) : 0;
-  const bolaGrandeQtd = Number(det.bolaGrandeQtd) || 0;
+  const bolaGrandeQtd = getBolaGrandeQtd(order);
   const hasMetalData = !!(order.metais || order.tipoMetal || order.corMetal ||
     order.strassQtd || order.cruzMetalQtd || order.bridaoMetalQtd || cavaloMetalQtd || bolaGrandeQtd);
   if (hasMetalData) {
