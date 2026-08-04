@@ -1462,9 +1462,16 @@ const ReportsPage = () => {
             </div>
           </div>
           <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-            <button onClick={askGenerateProductionSheetPDF} className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
-              <Printer size={16} /> IMPRIMIR FICHAS
+            <button
+              onClick={() => { void askGenerateProductionSheetPDF(); }}
+              disabled={ordersLoading || preparingReport}
+              className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {(ordersLoading || preparingReport)
+                ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO…</>
+                : <><Printer size={16} /> IMPRIMIR FICHAS</>}
             </button>
+
           </div>
         </div>
 
