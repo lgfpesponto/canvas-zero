@@ -455,6 +455,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                       {it.status === 'saving' && <Badge variant="secondary" className="shrink-0">Enviando...</Badge>}
                       {it.status === 'saved' && <Badge variant="default" className="shrink-0">Enviado</Badge>}
                       {it.status === 'error' && <Badge variant="destructive" className="shrink-0">Erro</Badge>}
+                      {it.status === 'duplicate' && <Badge variant="destructive" className="shrink-0">Duplicado</Badge>}
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeItem(it.id)} disabled={it.status === 'saving'}>
                       <X size={14} />
@@ -470,7 +471,14 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
                     </div>
                   )}
 
-                  {(it.status === 'ready' || it.status === 'saving') && (
+                  {it.status === 'duplicate' && (
+                    <div className="text-xs text-destructive border border-destructive/30 bg-destructive/5 rounded p-2 mb-2">
+                      Comprovante duplicado — envio bloqueado. {it.dupInfo}
+                    </div>
+                  )}
+
+                  {(it.status === 'ready' || it.status === 'saving' || it.status === 'duplicate') && (
+
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div className="bg-muted/50 rounded p-2">
