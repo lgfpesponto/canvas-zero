@@ -31,7 +31,7 @@ interface Props {
 }
 
 
-type ItemStatus = 'processing' | 'ready' | 'error' | 'saving' | 'saved';
+type ItemStatus = 'processing' | 'ready' | 'error' | 'saving' | 'saved' | 'duplicate';
 
 interface ExtractedItem {
   id: string;
@@ -39,6 +39,8 @@ interface ExtractedItem {
   hash: string;
   status: ItemStatus;
   error?: string;
+  /** Mensagem explicando por que o comprovante é duplicado */
+  dupInfo?: string;
   // Dados extraídos pela IA
   data_pagamento: string;
   valor: number;
@@ -47,6 +49,60 @@ interface ExtractedItem {
   tipo_detectado: 'empresa' | 'fornecedor';
   observacao: string;
 }
+
+/** Normaliza o pagador: documento tem prioridade; senão nome sem acento/pontuação/caixa. */
+function normPagadorKey(doc?: string | null, nome?: string | null): string {
+  const d = (doc || '').replace(/[^0-9]/g, '');
+  if (d) return d;
+  return (nome || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Verifica se já existe comprovante igual desse vendedor.
+ * Duplicado = mesmo arquivo (hash) OU mesmo valor + data + pagador normalizado.
+ * Retorna a mensagem explicativa, ou null quando não há duplicidade.
+ */
+async function findDuplicate(
+  vendedor: string,
+  item: Pick<ExtractedItem, 'hash' | 'valor' | 'data_pagamento' | 'pagador_nome' | 'pagador_documento'>
+): Promise<string | null> {
+  if (!vendedor || !item.valor || !item.data_pagamento) return null;
+
+  const { data: dupHash } = await supabase
+    .from('revendedor_comprovantes' as any)
+    .select('id, created_at, valor, data_pagamento')
+    .eq('vendedor', vendedor)
+    .eq('comprovante_hash', item.hash)
+    .limit(1);
+  if (dupHash && dupHash.length > 0) {
+    const ex: any = dupHash[0];
+    return `Este mesmo arquivo já foi enviado para ${vendedor} (${formatCurrency(Number(ex.valor))} em ${formatDateBR(String(ex.data_pagamento))}).`;
+  }
+
+  const { data: sameValueDate } = await supabase
+    .from('revendedor_comprovantes' as any)
+    .select('id, created_at, pagador_nome, pagador_documento, data_pagamento, valor')
+    .eq('vendedor', vendedor)
+    .eq('valor', item.valor)
+    .eq('data_pagamento', item.data_pagamento);
+
+  const alvo = normPagadorKey(item.pagador_documento, item.pagador_nome);
+  const existente: any = (sameValueDate || []).find(
+    (r: any) => normPagadorKey(r.pagador_documento, r.pagador_nome) === alvo
+  );
+  if (existente) {
+    const pagador = (item.pagador_nome || existente.pagador_nome || '').trim();
+    const enviadoEm = existente.created_at ? formatDateBR(String(existente.created_at).slice(0, 10)) : null;
+    return `Já existe um comprovante de ${vendedor} com ${formatCurrency(item.valor)}, data ${formatDateBR(item.data_pagamento)}${pagador ? ` e pagador "${pagador}"` : ''}${enviadoEm ? ` (enviado em ${enviadoEm})` : ''}.`;
+  }
+
+  return null;
+}
+
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
