@@ -1439,9 +1439,16 @@ const ReportsPage = () => {
               </button>
               {showReportOptions && (
                 <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg western-shadow p-2 z-20 min-w-[220px]">
-                  <button onClick={() => { askGenerateReportPDF(); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
-                    <Download size={14} /> Relatório por Filtros
+                  <button
+                    onClick={() => { void askGenerateReportPDF(); setShowReportOptions(false); }}
+                    disabled={ordersLoading || preparingReport}
+                    className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {(ordersLoading || preparingReport)
+                      ? <><Loader2 size={14} className="animate-spin" /> Carregando pedidos…</>
+                      : <><Download size={14} /> Relatório por Filtros</>}
                   </button>
+
                   {isAdmin && (
                     <button onClick={() => { navigate('/relatorio-pecas'); setShowReportOptions(false); }} className="w-full text-left px-3 py-2 text-sm font-semibold hover:bg-muted rounded-md flex items-center gap-2">
                       <FileText size={14} /> Relatório por Peças
