@@ -748,17 +748,18 @@ const ReportsPage = () => {
     }
   }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters]);
 
-  const handleGenerateReportPDF = useCallback(async () => {
-    const list = await resolveOrdersForExport();
-    return generateReportPDF(list, { userName: user?.nomeCompleto || '' });
-  }, [resolveOrdersForExport, user]);
-  const handleGenerateProductionSheetPDF = useCallback(async () => {
-    const list = await resolveOrdersForExport();
-    await generateProductionSheetPDF(list, { userName: user?.nomeCompleto || '' });
-  }, [resolveOrdersForExport, user]);
+  const [preparingReport, setPreparingReport] = useState(false);
 
-  const askGenerateReportPDF = useCallback(() => {
-    const qtd = selectedIds.size > 0 ? ordersToExport.length : (serverCount || ordersToExport.length);
+  const askGenerateReportPDF = useCallback(async () => {
+    if (ordersLoading || preparingReport) return;
+    setPreparingReport(true);
+    let list: import('@/contexts/AuthContext').Order[] = [];
+    try {
+      list = await resolveOrdersForExport();
+    } finally {
+      setPreparingReport(false);
+    }
+    const qtd = list.length;
     askPrint({
       title: 'Gerar Relatório por Filtros?',
       description: (
@@ -779,12 +780,20 @@ const ReportsPage = () => {
         />
       ),
       confirmLabel: 'Gerar PDF',
-      run: () => { void handleGenerateReportPDF(); },
+      run: () => generateReportPDF(list, { userName: user?.nomeCompleto || '' }),
     });
-  }, [askPrint, selectedIds.size, ordersToExport.length, serverCount, handleGenerateReportPDF, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
+  }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, displayTotalValue, displayTotalProdutos, filterVendedor, filterStatus, filterDate, filterDateEnd, searchQuery, onlyOverdue, formatCurrency]);
 
-  const askGenerateProductionSheetPDF = useCallback(() => {
-    const qtd = selectedIds.size > 0 ? ordersToExport.length : (serverCount || ordersToExport.length);
+  const askGenerateProductionSheetPDF = useCallback(async () => {
+    if (ordersLoading || preparingReport) return;
+    setPreparingReport(true);
+    let list: import('@/contexts/AuthContext').Order[] = [];
+    try {
+      list = await resolveOrdersForExport();
+    } finally {
+      setPreparingReport(false);
+    }
+    const qtd = list.length;
     askPrint({
       title: 'Imprimir Fichas de Produção?',
       description: (
@@ -799,9 +808,10 @@ const ReportsPage = () => {
         />
       ),
       confirmLabel: 'Imprimir',
-      run: () => { void handleGenerateProductionSheetPDF(); },
+      run: () => generateProductionSheetPDF(list, { userName: user?.nomeCompleto || '' }),
     });
-  }, [askPrint, selectedIds.size, ordersToExport.length, serverCount, handleGenerateProductionSheetPDF, filterVendedor, filterStatus, filterDate, filterDateEnd]);
+  }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, filterVendedor, filterStatus, filterDate, filterDateEnd]);
+
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
