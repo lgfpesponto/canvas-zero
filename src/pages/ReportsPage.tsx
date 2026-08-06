@@ -946,6 +946,25 @@ const ReportsPage = () => {
                   </button>
                 );
               })()}
+              {(() => {
+                const etiqOrders = serverOrders.filter(o =>
+                  selectedIds.has(o.id) &&
+                  o.vendedor === 'Estoque' &&
+                  o.status === 'Baixa Estoque',
+                );
+                if (etiqOrders.length === 0) return null;
+                return (
+                  <button
+                    onClick={() => handleGerarEtiquetas(etiqOrders)}
+                    disabled={gerandoEtiquetas}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-60"
+                    title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
+                  >
+                    {gerandoEtiquetas ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                    Gerar etiquetas ({etiqOrders.length})
+                  </button>
+                );
+              })()}
             </>
           )}
           {/* Bulk WhatsApp — disponível para todos (admin e vendedores) */}
