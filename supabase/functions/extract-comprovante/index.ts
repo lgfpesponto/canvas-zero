@@ -219,11 +219,14 @@ NUNCA invente dados.`;
                 data_pagamento: { type: 'string', description: 'Data no formato YYYY-MM-DD' },
                 valor: { type: 'number', description: 'Valor em reais' },
                 valor_texto: { type: 'string', description: 'Valor exatamente como impresso no comprovante, sem interpretar' },
+                origem_nome: { type: 'string', description: 'Quem PAGOU (conta de origem)' },
+                origem_documento: { type: 'string', description: 'Apenas dígitos' },
                 destinatario_nome: { type: 'string' },
                 destinatario_documento: { type: 'string', description: 'Apenas dígitos' },
                 descricao: { type: 'string' },
               },
               required: ['data_pagamento', 'valor', 'valor_texto', 'destinatario_nome', 'destinatario_documento'],
+
 
               additionalProperties: false,
             },
