@@ -489,21 +489,44 @@ const ReportsPage = () => {
   };
 
   const [gerandoEtiquetas, setGerandoEtiquetas] = useState(false);
-  const handleGerarEtiquetas = async (lista?: import('@/contexts/AuthContext').Order[]) => {
-    const alvo = lista && lista.length > 0 ? lista : estoqueBaixaSelecionados;
-    if (alvo.length === 0) return;
+  const handleGerarEtiquetas = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
     setGerandoEtiquetas(true);
     const toastId = toast.loading('Gerando etiquetas…');
     try {
-      const items = await resolveEtiquetaItems(
-        alvo.map(o => ({
-          id: o.id,
-          tamanho: o.tamanho,
-          estoqueProdutoId: (o as any).estoqueProdutoId,
-          nomeProdutoEstoque: (o as any).nomeProdutoEstoque,
-          skuEstoque: (o as any).skuEstoque,
-        })),
-      );
+      // Todos os selecionados entram no PDF — inclusive os que não estão na página carregada
+      const inputs = new Map<string, { id: string; tamanho?: string | null; estoqueProdutoId?: string | null; nomeProdutoEstoque?: string | null; skuEstoque?: string | null }>();
+      ids.forEach(id => {
+        const o = mergedOrdersMap.get(id) as any;
+        if (o) {
+          inputs.set(id, {
+            id,
+            tamanho: o.tamanho,
+            estoqueProdutoId: o.estoqueProdutoId,
+            nomeProdutoEstoque: o.nomeProdutoEstoque,
+            skuEstoque: o.skuEstoque,
+          });
+        }
+      });
+      const faltantes = ids.filter(id => !inputs.has(id));
+      if (faltantes.length > 0) {
+        const { data } = await supabase
+          .from('orders')
+          .select('id, tamanho, estoque_produto_id, nome_produto_estoque, sku_estoque')
+          .in('id', faltantes);
+        (data || []).forEach((o: any) => {
+          inputs.set(o.id, {
+            id: o.id,
+            tamanho: o.tamanho,
+            estoqueProdutoId: o.estoque_produto_id,
+            nomeProdutoEstoque: o.nome_produto_estoque,
+            skuEstoque: o.sku_estoque,
+          });
+        });
+      }
+
+      const items = await resolveEtiquetaItems(ids.map(id => inputs.get(id)).filter(Boolean) as any);
       const resultado = await gerarEtiquetasPDF(items, `Etiquetas_${new Date().toISOString().slice(0, 10)}.pdf`);
       if (resultado.fotosComFalha > 0) {
         toast.warning(
