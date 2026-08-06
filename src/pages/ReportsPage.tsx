@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { Filter, FileText, Download, Printer, CheckCircle, StickyNote, Pencil, Trash2, RefreshCw, ScanBarcode, X, Loader2, MessageCircle, SkipForward, Package } from 'lucide-react';
 import CompletarSkusBulkPanel from '@/components/estoque/CompletarSkusBulkPanel';
 import { criarEstoqueEmMassa } from '@/lib/criarEstoqueBulk';
+import { resolveEtiquetaItems, gerarEtiquetasPDF } from '@/lib/etiquetasPdf';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl } from '@/lib/whatsappSend';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -484,6 +485,31 @@ const ReportsPage = () => {
       toast.error(`Erro: ${e?.message || e}`, { id: toastId });
     } finally {
       setBulkCriandoEstoque(false);
+    }
+  };
+
+  const [gerandoEtiquetas, setGerandoEtiquetas] = useState(false);
+  const handleGerarEtiquetas = async () => {
+    const alvo = estoqueBaixaSelecionados;
+    if (alvo.length === 0) return;
+    setGerandoEtiquetas(true);
+    const toastId = toast.loading('Gerando etiquetas…');
+    try {
+      const items = await resolveEtiquetaItems(
+        alvo.map(o => ({
+          id: o.id,
+          tamanho: o.tamanho,
+          estoqueProdutoId: (o as any).estoqueProdutoId,
+          nomeProdutoEstoque: (o as any).nomeProdutoEstoque,
+          skuEstoque: (o as any).skuEstoque,
+        })),
+      );
+      await gerarEtiquetasPDF(items, `Etiquetas_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success(`${items.length} etiqueta(s) gerada(s).`, { id: toastId });
+    } catch (e: any) {
+      toast.error(`Erro ao gerar etiquetas: ${e?.message || e}`, { id: toastId });
+    } finally {
+      setGerandoEtiquetas(false);
     }
   };
 
@@ -1092,6 +1118,19 @@ const ReportsPage = () => {
                       >
                         {bulkCriandoEstoque ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
                         Criar produto ({estoqueBaixaSelecionados.length})
+                      </button>
+                    )}
+                    {estoqueBaixaSelecionados.length > 0 && (
+                      <button
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={handleGerarEtiquetas}
+                        disabled={gerandoEtiquetas}
+                        className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors disabled:opacity-60"
+                        title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
+                      >
+                        {gerandoEtiquetas ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                        Gerar etiquetas ({estoqueBaixaSelecionados.length})
                       </button>
                     )}
                     <button
