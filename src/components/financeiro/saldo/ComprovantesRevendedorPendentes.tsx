@@ -315,13 +315,31 @@ export const ComprovantesRevendedorPendentes = ({
                         </div>
                       </TableCell>
                       <TableCell className="text-xs max-w-[180px]">
-                        <div className="font-medium truncate">
-                          {c.pagador_nome || <span className="text-muted-foreground italic">Não identificado</span>}
+                        <div className="flex items-start gap-1">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">
+                              {c.pagador_nome || <span className="text-muted-foreground italic">Não identificado</span>}
+                            </div>
+                            {c.pagador_documento && (
+                              <div className="text-muted-foreground font-mono text-[10px]">{c.pagador_documento}</div>
+                            )}
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-primary"
+                            title="Corrigir quem recebeu o pagamento"
+                            onClick={() => {
+                              setPagadorTarget(c);
+                              setEditPagadorNome(c.pagador_nome || '');
+                              setEditPagadorDoc(c.pagador_documento || '');
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </Button>
                         </div>
-                        {c.pagador_documento && (
-                          <div className="text-muted-foreground font-mono text-[10px]">{c.pagador_documento}</div>
-                        )}
                       </TableCell>
+
                       <TableCell>
                         {c.tipo_detectado === 'empresa' ? (
                           <Badge variant="default" className="gap-1"><Building2 size={10} /> Empresa</Badge>
