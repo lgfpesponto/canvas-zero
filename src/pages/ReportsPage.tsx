@@ -489,8 +489,8 @@ const ReportsPage = () => {
   };
 
   const [gerandoEtiquetas, setGerandoEtiquetas] = useState(false);
-  const handleGerarEtiquetas = async () => {
-    const alvo = estoqueBaixaSelecionados;
+  const handleGerarEtiquetas = async (lista?: import('@/contexts/AuthContext').Order[]) => {
+    const alvo = lista && lista.length > 0 ? lista : estoqueBaixaSelecionados;
     if (alvo.length === 0) return;
     setGerandoEtiquetas(true);
     const toastId = toast.loading('Gerando etiquetas…');
@@ -946,6 +946,25 @@ const ReportsPage = () => {
                   </button>
                 );
               })()}
+              {(() => {
+                const etiqOrders = serverOrders.filter(o =>
+                  selectedIds.has(o.id) &&
+                  o.vendedor === 'Estoque' &&
+                  o.status === 'Baixa Estoque',
+                );
+                if (etiqOrders.length === 0) return null;
+                return (
+                  <button
+                    onClick={() => handleGerarEtiquetas(etiqOrders)}
+                    disabled={gerandoEtiquetas}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary font-bold text-sm hover:bg-primary/10 transition-colors disabled:opacity-60"
+                    title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
+                  >
+                    {gerandoEtiquetas ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                    Gerar etiquetas ({etiqOrders.length})
+                  </button>
+                );
+              })()}
             </>
           )}
           {/* Bulk WhatsApp — disponível para todos (admin e vendedores) */}
@@ -1124,7 +1143,7 @@ const ReportsPage = () => {
                       <button
                         type="button"
                         onMouseDown={e => e.preventDefault()}
-                        onClick={handleGerarEtiquetas}
+                        onClick={() => handleGerarEtiquetas()}
                         disabled={gerandoEtiquetas}
                         className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors disabled:opacity-60"
                         title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
