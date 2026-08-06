@@ -280,15 +280,31 @@ NUNCA invente dados.`;
       console.warn('[extract-comprovante] valor inteiro suspeito para auditoria:', valorNum, 'arquivo:', fileName);
     }
 
-    const docDigits = normalizeDoc(extracted.destinatario_documento || '');
-    const nomeNorm = normalizeText(extracted.destinatario_nome || '');
+    let docDigits = normalizeDoc(extracted.destinatario_documento || '');
+    let nomeExtraido = extracted.destinatario_nome || '';
+
+    // Guarda contra leitura invertida: se o "destinatário" for igual à origem (quem pagou),
+    // a leitura pegou o bloco errado — melhor deixar em branco para conferência manual.
+    const origemDoc = normalizeDoc(extracted.origem_documento || '');
+    const origemNome = normalizeText(extracted.origem_nome || '');
+    const nomeNormExtraido = normalizeText(nomeExtraido);
+    const mesmaOrigem =
+      (!!origemDoc && !!docDigits && origemDoc === docDigits) ||
+      (!!origemNome && !!nomeNormExtraido && origemNome === nomeNormExtraido);
+    if (mesmaOrigem) {
+      console.warn('[extract-comprovante] destinatário igual à origem — descartado:', nomeExtraido);
+      nomeExtraido = '';
+      docDigits = '';
+    }
+
+    const nomeNorm = normalizeText(nomeExtraido);
 
     let tipo: 'empresa' | 'fornecedor' = 'fornecedor';
-    let destinatario = extracted.destinatario_nome || '';
+    let destinatario = nomeExtraido;
 
     const isEmpresa =
-      docDigits === EMPRESA_CNPJ ||
-      EMPRESA_NOMES.some((n) => nomeNorm.includes(n));
+      (!!docDigits && docDigits === EMPRESA_CNPJ) ||
+      (!!nomeNorm && EMPRESA_NOMES.some((n) => nomeNorm.includes(n)));
 
     if (isEmpresa) {
       tipo = 'empresa';
@@ -299,10 +315,13 @@ NUNCA invente dados.`;
       data_pagamento: extracted.data_pagamento || '',
       valor: valorNum,
       destinatario,
-      destinatario_nome_original: extracted.destinatario_nome || '',
+      destinatario_nome_original: nomeExtraido,
       destinatario_documento: docDigits,
+      origem_nome: extracted.origem_nome || '',
+      origem_documento: origemDoc,
       tipo,
       descricao: extracted.descricao || '',
+
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
