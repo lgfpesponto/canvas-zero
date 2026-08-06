@@ -1173,7 +1173,8 @@ const ReportsPage = () => {
                         Criar produto ({estoqueBaixaSelecionados.length})
                       </button>
                     )}
-                    {estoqueBaixaSelecionados.length > 0 && (
+                    {selectedIds.size > 0 && (
+
                       <button
                         type="button"
                         onMouseDown={e => e.preventDefault()}
