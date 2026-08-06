@@ -118,9 +118,6 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
   const itemsComFoto = items.filter(item => Boolean(item.fotoUrl));
   const fotosCarregadas = itemsComFoto.filter(item => item.fotoUrl && cache.get(item.fotoUrl)).length;
   const fotosComFalha = items.length - fotosCarregadas;
-  if (fotosCarregadas === 0) {
-    throw new Error(`Nenhuma das ${items.length} fotos pôde ser carregada. Verifique se os arquivos do Google Drive estão compartilhados.`);
-  }
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = 210;
@@ -133,20 +130,9 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
   const cellW = (pageW - marginX * 2) / gridCols;
   const cellH = (pageH - marginY * 2) / rows;
 
-  const drawGrid = () => {
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < gridCols; c++) {
-        doc.rect(marginX + c * cellW, marginY + r * cellH, cellW, cellH);
-      }
-    }
-  };
-
   const totalPages = Math.ceil(items.length / perPage);
   for (let p = 0; p < totalPages; p++) {
     if (p > 0) doc.addPage();
-    drawGrid();
 
     const pageItems = items.slice(p * perPage, (p + 1) * perPage);
     pageItems.forEach((item, i) => {
@@ -155,6 +141,13 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
       const fotoX = marginX + pair * 2 * cellW;
       const textoX = fotoX + cellW;
       const y = marginY + row * cellH;
+
+      // Grade só nas células ocupadas
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.rect(fotoX, y, cellW, cellH);
+      doc.rect(textoX, y, cellW, cellH);
+
 
       // Foto proporcional, centralizada na célula
       const img = item.fotoUrl ? cache.get(item.fotoUrl) : null;
