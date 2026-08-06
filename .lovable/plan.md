@@ -19,8 +19,13 @@ Ou seja: não é problema da imagem nem do Google Drive — é falha de correspo
 3. **Etiqueta continua saindo**
    - Mesmo sem foto, a etiqueta é impressa com nome e tamanho (comportamento atual mantido).
 
+4. **Sem exigência de vendedor "Estoque"**
+   - O botão "Gerar etiquetas" passa a aparecer para qualquer pedido selecionado/escaneado, sem exigir vendedor `Estoque` (nem no painel do scanner nem na barra de seleção). O status "Baixa Estoque" também deixa de ser exigido para o botão de etiquetas.
+   - O botão "Criar estoque" mantém as regras atuais.
+
 ## Detalhes técnicos
 
 - `src/lib/etiquetasPdf.ts`: em `resolveEtiquetaItems`, substituir o `.in('nome', nomes)` exato por: busca por `sku_base` dos pedidos, mais busca `ilike` por prefixo normalizado, e casamento em memória com normalização (`NFD` + remoção de diacríticos). `gerarEtiquetasPDF` passa a devolver também a lista de itens sem foto com o motivo.
-- `src/pages/ReportsPage.tsx`: usar esse retorno no toast final, mostrando os pedidos sem foto.
+- `src/pages/ReportsPage.tsx`: remover as condições `vendedor === 'Estoque' && status === 'Baixa Estoque'` que controlam a exibição do botão de etiquetas (linhas ~982 e ~1176) e usar o retorno do gerador no toast final, mostrando os pedidos sem foto.
 - Sem alteração no banco de dados.
+
