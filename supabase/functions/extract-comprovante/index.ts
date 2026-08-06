@@ -129,9 +129,23 @@ Deno.serve(async (req) => {
 Extraia EXATAMENTE estes dados e retorne via tool call:
 - data_pagamento: data efetiva da transferência (formato YYYY-MM-DD)
 - valor: valor pago em reais como NÚMERO (float). Use SEMPRE ponto como separador decimal e NUNCA separador de milhar.
-- destinatario_nome: nome completo de quem RECEBEU o pagamento
+- origem_nome: nome de quem PAGOU / titular da conta de ORIGEM (quem foi debitado)
+- origem_documento: CPF ou CNPJ de quem PAGOU (apenas dígitos)
+- destinatario_nome: nome completo de quem RECEBEU o pagamento (conta de DESTINO / creditada)
 - destinatario_documento: CPF ou CNPJ de quem RECEBEU (apenas dígitos, sem máscara)
 - descricao: breve descrição se disponível (ex: "PIX enviado", "TED")
+
+IMPORTANTÍSSIMO sobre ORIGEM x DESTINO:
+Muitos apps (Mercado Pago, Nubank, PicPay, Inter, Itaú, C6) mostram uma seção única chamada
+"Origem e destino", "De / Para", "Pagador / Recebedor", "Debitado de / Creditado para".
+Nessa seção o PRIMEIRO bloco é SEMPRE quem PAGOU (origem) e o SEGUNDO bloco é quem RECEBEU (destino).
+NUNCA use o primeiro bloco como destinatário. Ignore também o titular exibido no topo/cabeçalho do
+comprovante e o nome da instituição (Mercado Pago, Bradesco, Nubank...) — instituição não é pessoa.
+Exemplo: "Origem e destino: 43.748.766 LAURA ... (Mercado Pago) → JULIANA CRISTINA RIBEIRO (Bradesco)"
+=> origem_nome = "LAURA ...", destinatario_nome = "JULIANA CRISTINA RIBEIRO".
+Se você não conseguir distinguir com segurança quem recebeu, retorne destinatario_nome vazio
+em vez de chutar o nome da origem.
+
 
 IMPORTANTÍSSIMO sobre o VALOR (formato brasileiro):
 No Brasil o PONTO (.) é separador de MILHAR e a VÍRGULA (,) é separador DECIMAL.
