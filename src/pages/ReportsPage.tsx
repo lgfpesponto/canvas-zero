@@ -1120,6 +1120,19 @@ const ReportsPage = () => {
                         Criar produto ({estoqueBaixaSelecionados.length})
                       </button>
                     )}
+                    {estoqueBaixaSelecionados.length > 0 && (
+                      <button
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={handleGerarEtiquetas}
+                        disabled={gerandoEtiquetas}
+                        className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors disabled:opacity-60"
+                        title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
+                      >
+                        {gerandoEtiquetas ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                        Gerar etiquetas ({estoqueBaixaSelecionados.length})
+                      </button>
+                    )}
                     <button
                       type="button"
                       onMouseDown={e => e.preventDefault()}
