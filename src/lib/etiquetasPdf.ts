@@ -262,12 +262,13 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
         }
       }
 
-      // Texto (nome em cima, tamanho grande embaixo)
+      // Texto (nome opcional em cima, tamanho grande embaixo)
       const tx = textoX + cellW / 2;
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(16);
-      const nomeLines = doc.splitTextToSize(item.nome || '', cellW - 6) as string[];
+      const nomeTexto = (item.nome || '').trim();
+      const nomeLines = nomeTexto ? (doc.splitTextToSize(nomeTexto, cellW - 6) as string[]) : [];
       const lineH = 7;
       const tamanhoH = 12;
       const totalH = nomeLines.length * lineH + tamanhoH;
@@ -277,7 +278,7 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
         ty += lineH;
       });
       doc.setFontSize(24);
-      doc.text(item.tamanho || '', tx, ty + 6, { align: 'center' });
+      doc.text(item.tamanho || '', tx, nomeLines.length > 0 ? ty + 6 : y + cellH / 2 + 4, { align: 'center' });
     });
   }
 
