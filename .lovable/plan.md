@@ -1,24 +1,18 @@
-# Etiquetas: fotos sem fundo
+# Etiquetas: incluir todos os selecionados + grade só onde tem produto
 
-Objetivo: nas etiquetas A4, a foto do produto sai recortada (só a bota), sem o fundo da imagem original.
+## O que está acontecendo
 
-## Abordagem
+O botão monta a lista a partir de `serverOrders` (apenas os pedidos já carregados na tela) e ainda filtra por `vendedor = 'Estoque'` e `status = 'Baixa Estoque'`. Um pedido selecionado que não passa por esse filtro — ou que não está na página carregada — simplesmente some do PDF, sem aviso. É por isso que o terceiro pedido não apareceu (o PDF enviado tem só as 2 etiquetas da grade).
 
-Remoção de fundo no navegador, na hora de gerar o PDF, em duas camadas:
+Diagnóstico do motivo exato (fora da página carregada vs. filtro de vendedor/status) fica confirmado no primeiro passo da implementação, buscando os IDs selecionados direto no banco.
 
-1. **IA (@imgly/background-removal)** — recorte de qualidade em qualquer foto. O modelo é baixado uma vez e fica em cache do navegador.
-2. **Fallback automático** — se a IA falhar (offline, erro de modelo, foto problemática), aplica recorte simples por cor de fundo: amostra as bordas da imagem, remove pixels dentro de uma tolerância dessa cor e faz um leve suavizado nas bordas.
+## O que muda
 
-O resultado é desenhado sobre fundo branco (a etiqueta é impressa em papel branco), mantendo proporção e centralizado na célula da grade. Grade divisória e layout 4 colunas x 5 linhas permanecem como estão.
-
-## Feedback ao usuário
-
-- O botão "Gerar etiquetas" mostra progresso ("Processando fotos X/Y") já que o recorte leva alguns segundos por foto.
-- Se alguma foto não puder ser recortada, ela entra com a foto original e o aviso final informa quantas ficaram sem recorte.
+1. **Todos os selecionados entram no PDF.** A lista passa a ser montada a partir de todos os `selectedIds`, buscando no banco os pedidos que não estão em memória. Sem filtro silencioso de vendedor/status na hora de gerar.
+2. **Nada é descartado por falta de dados.** Se um pedido não tem produto de estoque vinculado, a etiqueta ainda é emitida com o nome/tamanho que existir no pedido, e o aviso final informa quantas saíram sem foto.
+3. **Grade só onde tem produto.** Os retângulos passam a ser desenhados apenas nas células ocupadas (par foto + texto de cada etiqueta). Células vazias no fim da folha ficam em branco, sem moldura.
 
 ## Detalhes técnicos
 
-- `bun add @imgly/background-removal`.
-- `src/lib/etiquetasPdf.ts`: em `urlToDataUrl`, após obter o `ImageBitmap`/blob, passar pelo novo helper `removeBackground` em `src/lib/removeImageBackground.ts`, que exporta `cutoutToDataUrl(blob)` com a lógica IA + fallback por cor de borda.
-- Cache por URL já existente é mantido, então a mesma foto só é processada uma vez por geração.
-- Import dinâmico do pacote de IA para não pesar no bundle inicial.
+- `src/pages/ReportsPage.tsx`: em `handleGerarEtiquetas`, resolver o alvo a partir de `selectedIds` — usar os pedidos já em memória (`serverOrders`/`scannedOrdersMap`) e completar os faltantes com um `select` em `orders` por `in('id', faltantes)`. Manter o filtro vendedor/status apenas para decidir se o botão aparece, não para montar a lista.
+- `src/lib/etiquetasPdf.ts`: em `gerarEtiquetasPDF`, mover o desenho da grade para dentro do loop de itens (dois `doc.rect` por etiqueta: coluna da foto e coluna do texto), removendo `drawGrid()`; relaxar o erro de "nenhuma foto carregada" para apenas contabilizar falhas quando houver pelo menos texto para imprimir.
