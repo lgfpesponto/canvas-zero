@@ -1124,7 +1124,7 @@ const ReportsPage = () => {
                       <button
                         type="button"
                         onMouseDown={e => e.preventDefault()}
-                        onClick={handleGerarEtiquetas}
+                        onClick={() => handleGerarEtiquetas()}
                         disabled={gerandoEtiquetas}
                         className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors disabled:opacity-60"
                         title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
