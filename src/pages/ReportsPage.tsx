@@ -489,8 +489,8 @@ const ReportsPage = () => {
   };
 
   const [gerandoEtiquetas, setGerandoEtiquetas] = useState(false);
-  const handleGerarEtiquetas = async () => {
-    const alvo = estoqueBaixaSelecionados;
+  const handleGerarEtiquetas = async (lista?: import('@/contexts/AuthContext').Order[]) => {
+    const alvo = lista && lista.length > 0 ? lista : estoqueBaixaSelecionados;
     if (alvo.length === 0) return;
     setGerandoEtiquetas(true);
     const toastId = toast.loading('Gerando etiquetas…');
