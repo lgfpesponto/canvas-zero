@@ -20,6 +20,8 @@ export interface EtiquetaOrderInput {
   estoqueProdutoId?: string | null;
   nomeProdutoEstoque?: string | null;
   skuEstoque?: string | null;
+  /** Fotos salvas no próprio pedido (fonte principal da etiqueta) */
+  fotos?: string[] | null;
 }
 
 /** Normaliza texto: minúsculas, sem acentos, sem pontuação, espaços colapsados. */
