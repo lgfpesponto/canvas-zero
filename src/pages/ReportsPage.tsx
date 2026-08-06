@@ -985,12 +985,8 @@ const ReportsPage = () => {
                 );
               })()}
               {(() => {
-                const etiqOrders = serverOrders.filter(o =>
-                  selectedIds.has(o.id) &&
-                  o.vendedor === 'Estoque' &&
-                  o.status === 'Baixa Estoque',
-                );
-                if (etiqOrders.length === 0) return null;
+                if (selectedIds.size === 0) return null;
+
                 return (
                   <button
                     onClick={() => handleGerarEtiquetas()}
