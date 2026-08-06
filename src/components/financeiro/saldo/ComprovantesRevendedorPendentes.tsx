@@ -216,6 +216,44 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
+  const handleSavePagador = async () => {
+    if (!pagadorTarget) return;
+    const nome = editPagadorNome.trim();
+    if (!nome) {
+      toast({ title: 'Informe quem recebeu o pagamento', variant: 'destructive' });
+      return;
+    }
+    const doc = editPagadorDoc.replace(/\D/g, '');
+    const nomeNorm = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isEmpresa = doc === '02139487000113'
+      || ['leandro garcia feliciano', '7estrivos', 'sete estrivos'].some((n) => nomeNorm.includes(n));
+    setPagadorSaving(true);
+    try {
+      const { error } = await supabase
+        .from('revendedor_comprovantes')
+        .update({
+          pagador_nome: nome,
+          pagador_documento: doc || null,
+          tipo_detectado: isEmpresa ? 'empresa' : 'fornecedor',
+        })
+        .eq('id', pagadorTarget.id)
+        .eq('status', 'pendente');
+      if (error) throw error;
+      toast({ title: 'Destinatário atualizado', description: `Pago para: ${nome}` });
+      setPagadorTarget(null);
+      setEditPagadorNome('');
+      setEditPagadorDoc('');
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setPagadorSaving(false);
+    }
+  };
+
+
+
   if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
