@@ -167,12 +167,14 @@ export async function resolveEtiquetaItems(orders: EtiquetaOrderInput[]): Promis
   return orders.map(o => {
     const direto = o.estoqueProdutoId ? byId.get(o.estoqueProdutoId) : undefined;
     const { prod, ambiguo } = direto ? { prod: direto, ambiguo: false } : matchProduto(o);
+    // Foto do próprio pedido tem prioridade; produto de estoque é reserva.
+    const fotoPedido = (o.fotos || []).map(f => (f || '').trim()).find(f => /^https?:\/\//i.test(f)) || null;
     return {
       nome: (prod?.nome || o.nomeProdutoEstoque || o.skuEstoque || '').trim(),
       tamanho: String(o.tamanho || prod?.tamanho || '').trim(),
-      fotoUrl: prod?.foto_url || null,
+      fotoUrl: fotoPedido || prod?.foto_url || null,
       numero: o.numero || null,
-      produtoNaoEncontrado: !prod,
+      produtoNaoEncontrado: !prod && !fotoPedido,
       ambiguo: Boolean(ambiguo),
     };
   });
