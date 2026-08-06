@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
+import { getDriveFileId, isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 
 export interface EtiquetaItem {
   nome: string;
@@ -17,26 +18,44 @@ export interface EtiquetaOrderInput {
 
 /** Converte uma URL de imagem em dataURL JPEG (via canvas, resolve WEBP/PNG transparente). */
 async function urlToDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement('canvas');
-    const maxSide = 900;
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close?.();
-    return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), w: canvas.width, h: canvas.height };
-  } catch {
-    return null;
+  const driveId = isDriveUrl(url) ? getDriveFileId(url) : null;
+  const directDriveUrl = isDriveUrl(url) ? toDriveImageUrl(url) : null;
+  const candidates = Array.from(new Set([
+    directDriveUrl,
+    driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1600` : null,
+    isDriveUrl(url) ? null : url,
+  ].filter((candidate): candidate is string => Boolean(candidate))));
+
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(candidate, { mode: 'cors', referrerPolicy: 'no-referrer' });
+      if (!res.ok) continue;
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().startsWith('image/')) continue;
+
+      const blob = await res.blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement('canvas');
+      const maxSide = 900;
+      const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        bitmap.close?.();
+        continue;
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close?.();
+      return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), w: canvas.width, h: canvas.height };
+    } catch {
+      // Tenta a próxima forma de acesso à mesma imagem.
+    }
   }
+
+  return null;
 }
 
 
@@ -84,7 +103,7 @@ export async function resolveEtiquetaItems(orders: EtiquetaOrderInput[]): Promis
  * Gera PDF A4 de etiquetas: 4 colunas (foto, texto, foto, texto) x 5 linhas = 10 etiquetas/página.
  */
 export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiquetas.pdf') {
-  if (items.length === 0) return;
+  if (items.length === 0) return { fotosCarregadas: 0, fotosComFalha: 0 };
 
   // Cache de imagens por URL (pedidos da mesma grade reaproveitam a foto)
   type Img = { dataUrl: string; w: number; h: number };
@@ -95,6 +114,13 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
       cache.set(u, await urlToDataUrl(u));
     }),
   );
+
+  const itemsComFoto = items.filter(item => Boolean(item.fotoUrl));
+  const fotosCarregadas = itemsComFoto.filter(item => item.fotoUrl && cache.get(item.fotoUrl)).length;
+  const fotosComFalha = items.length - fotosCarregadas;
+  if (fotosCarregadas === 0) {
+    throw new Error(`Nenhuma das ${items.length} fotos pôde ser carregada. Verifique se os arquivos do Google Drive estão compartilhados.`);
+  }
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = 210;
@@ -165,5 +191,6 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
   }
 
   doc.save(fileName);
+  return { fotosCarregadas, fotosComFalha };
 }
 

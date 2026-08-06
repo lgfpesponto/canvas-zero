@@ -504,8 +504,15 @@ const ReportsPage = () => {
           skuEstoque: (o as any).skuEstoque,
         })),
       );
-      await gerarEtiquetasPDF(items, `Etiquetas_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast.success(`${items.length} etiqueta(s) gerada(s).`, { id: toastId });
+      const resultado = await gerarEtiquetasPDF(items, `Etiquetas_${new Date().toISOString().slice(0, 10)}.pdf`);
+      if (resultado.fotosComFalha > 0) {
+        toast.warning(
+          `${items.length} etiqueta(s) gerada(s), mas ${resultado.fotosComFalha} foto(s) não carregaram.`,
+          { id: toastId, duration: 8000 },
+        );
+      } else {
+        toast.success(`${items.length} etiqueta(s) gerada(s) com foto.`, { id: toastId });
+      }
     } catch (e: any) {
       toast.error(`Erro ao gerar etiquetas: ${e?.message || e}`, { id: toastId });
     } finally {
