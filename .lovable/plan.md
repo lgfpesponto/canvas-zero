@@ -25,7 +25,9 @@ O botão gera um PDF A4 com grade igual ao exemplo enviado:
 - Reutiliza o diálogo de confirmação com spinner já usado nos outros relatórios.
 - Sem mudanças de banco.
 
-## Pontos a confirmar
+## Regras definidas
 
-1. Pedido com mais de um par: repetir a etiqueta por par, ou uma etiqueta por pedido?
-2. Incluir o número do pedido em letra pequena na etiqueta, ou apenas nome + tamanho como no exemplo?
+- Uma etiqueta por pedido selecionado/escaneado, na ordem da seleção.
+- Sem número do pedido na etiqueta: apenas nome do produto e tamanho.
+- Pedidos da mesma grade reaproveitam a mesma foto (cache por produto).
+
