@@ -438,6 +438,57 @@ export const ComprovantesRevendedorPendentes = ({
         onOpenChange={(o) => { if (!o) setViewerPath(null); }}
       />
 
+      <Dialog
+        open={!!pagadorTarget}
+        onOpenChange={(o) => { if (!o && !pagadorSaving) { setPagadorTarget(null); setEditPagadorNome(''); setEditPagadorDoc(''); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Corrigir quem recebeu o pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Em comprovantes com "Origem e destino", o primeiro nome é quem pagou. Informe aqui o
+              destinatário (quem recebeu).
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="pagador-nome-pendente">Pago para (nome)</Label>
+              <Input
+                id="pagador-nome-pendente"
+                value={editPagadorNome}
+                onChange={(e) => setEditPagadorNome(e.target.value)}
+                placeholder="Ex.: Juliana Cristina Ribeiro"
+                disabled={pagadorSaving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pagador-doc-pendente">CPF / CNPJ (opcional)</Label>
+              <Input
+                id="pagador-doc-pendente"
+                value={editPagadorDoc}
+                onChange={(e) => setEditPagadorDoc(e.target.value)}
+                placeholder="Somente números"
+                inputMode="numeric"
+                disabled={pagadorSaving}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setPagadorTarget(null); setEditPagadorNome(''); setEditPagadorDoc(''); }}
+              disabled={pagadorSaving}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSavePagador} disabled={pagadorSaving}>
+              {pagadorSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Salvando...</> : 'Salvar destinatário'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o && !editSaving) { setEditTarget(null); setEditValor(''); } }}>
         <DialogContent>
           <DialogHeader>
