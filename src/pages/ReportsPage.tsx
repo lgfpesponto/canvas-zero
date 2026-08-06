@@ -496,12 +496,13 @@ const ReportsPage = () => {
     const toastId = toast.loading('Gerando etiquetas…');
     try {
       // Todos os selecionados entram no PDF — inclusive os que não estão na página carregada
-      const inputs = new Map<string, { id: string; tamanho?: string | null; estoqueProdutoId?: string | null; nomeProdutoEstoque?: string | null; skuEstoque?: string | null }>();
+      const inputs = new Map<string, { id: string; numero?: string | null; tamanho?: string | null; estoqueProdutoId?: string | null; nomeProdutoEstoque?: string | null; skuEstoque?: string | null }>();
       ids.forEach(id => {
         const o = mergedOrdersMap.get(id) as any;
         if (o) {
           inputs.set(id, {
             id,
+            numero: o.numero,
             tamanho: o.tamanho,
             estoqueProdutoId: o.estoqueProdutoId,
             nomeProdutoEstoque: o.nomeProdutoEstoque,
@@ -513,11 +514,12 @@ const ReportsPage = () => {
       if (faltantes.length > 0) {
         const { data } = await supabase
           .from('orders')
-          .select('id, tamanho, estoque_produto_id, nome_produto_estoque, sku_estoque')
+          .select('id, numero, tamanho, estoque_produto_id, nome_produto_estoque, sku_estoque')
           .in('id', faltantes);
         (data || []).forEach((o: any) => {
           inputs.set(o.id, {
             id: o.id,
+            numero: o.numero,
             tamanho: o.tamanho,
             estoqueProdutoId: o.estoque_produto_id,
             nomeProdutoEstoque: o.nome_produto_estoque,
@@ -529,13 +531,19 @@ const ReportsPage = () => {
       const items = await resolveEtiquetaItems(ids.map(id => inputs.get(id)).filter(Boolean) as any);
       const resultado = await gerarEtiquetasPDF(items, `Etiquetas_${new Date().toISOString().slice(0, 10)}.pdf`);
       if (resultado.fotosComFalha > 0) {
+        const naoEncontrados = resultado.semFoto.filter(s => s.motivo === 'produto-nao-encontrado').map(s => s.numero);
+        const naoCarregou = resultado.semFoto.filter(s => s.motivo === 'foto-nao-carregou').map(s => s.numero);
+        const partes: string[] = [];
+        if (naoEncontrados.length > 0) partes.push(`sem produto no estoque: ${naoEncontrados.slice(0, 6).join(', ')}${naoEncontrados.length > 6 ? '…' : ''}`);
+        if (naoCarregou.length > 0) partes.push(`foto não carregou: ${naoCarregou.slice(0, 6).join(', ')}${naoCarregou.length > 6 ? '…' : ''}`);
         toast.warning(
-          `${items.length} etiqueta(s) gerada(s), mas ${resultado.fotosComFalha} foto(s) não carregaram.`,
-          { id: toastId, duration: 8000 },
+          `${items.length} etiqueta(s) gerada(s), ${resultado.fotosComFalha} sem foto — ${partes.join(' | ')}`,
+          { id: toastId, duration: 12000 },
         );
       } else {
         toast.success(`${items.length} etiqueta(s) gerada(s) com foto.`, { id: toastId });
       }
+
     } catch (e: any) {
       toast.error(`Erro ao gerar etiquetas: ${e?.message || e}`, { id: toastId });
     } finally {
