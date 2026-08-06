@@ -95,7 +95,7 @@ export async function resolveEtiquetaItems(orders: EtiquetaOrderInput[]): Promis
     const skus = Array.from(new Set(semVinculo.map(o => (o.skuEstoque || '').trim()).filter(Boolean)));
     const nomes = Array.from(new Set(semVinculo.map(o => (o.nomeProdutoEstoque || '').trim()).filter(Boolean)));
 
-    const queries: Promise<any>[] = [];
+    const queries: PromiseLike<any>[] = [];
     if (skus.length > 0) {
       queries.push(
         supabase.from('estoque_produtos').select('id, nome, tamanho, foto_url, sku_base').in('sku_base', skus),
