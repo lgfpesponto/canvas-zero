@@ -58,6 +58,10 @@ export const ComprovantesRevendedorPendentes = ({
   const [editTarget, setEditTarget] = useState<RevendedorComprovante | null>(null);
   const [editValor, setEditValor] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [pagadorTarget, setPagadorTarget] = useState<RevendedorComprovante | null>(null);
+  const [editPagadorNome, setEditPagadorNome] = useState('');
+  const [editPagadorDoc, setEditPagadorDoc] = useState('');
+  const [pagadorSaving, setPagadorSaving] = useState(false);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
