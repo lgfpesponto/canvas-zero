@@ -496,7 +496,7 @@ const ReportsPage = () => {
     const toastId = toast.loading('Gerando etiquetas…');
     try {
       // Todos os selecionados entram no PDF — inclusive os que não estão na página carregada
-      const inputs = new Map<string, { id: string; numero?: string | null; tamanho?: string | null; estoqueProdutoId?: string | null; nomeProdutoEstoque?: string | null; skuEstoque?: string | null }>();
+      const inputs = new Map<string, { id: string; numero?: string | null; tamanho?: string | null; estoqueProdutoId?: string | null; nomeProdutoEstoque?: string | null; skuEstoque?: string | null; fotos?: string[] | null }>();
       ids.forEach(id => {
         const o = mergedOrdersMap.get(id) as any;
         if (o) {
@@ -507,6 +507,7 @@ const ReportsPage = () => {
             estoqueProdutoId: o.estoqueProdutoId,
             nomeProdutoEstoque: o.nomeProdutoEstoque,
             skuEstoque: o.skuEstoque,
+            fotos: Array.isArray(o.fotos) ? o.fotos : null,
           });
         }
       });
@@ -514,7 +515,7 @@ const ReportsPage = () => {
       if (faltantes.length > 0) {
         const { data } = await supabase
           .from('orders')
-          .select('id, numero, tamanho, estoque_produto_id, nome_produto_estoque, sku_estoque')
+          .select('id, numero, tamanho, estoque_produto_id, nome_produto_estoque, sku_estoque, fotos')
           .in('id', faltantes);
         (data || []).forEach((o: any) => {
           inputs.set(o.id, {
@@ -524,6 +525,7 @@ const ReportsPage = () => {
             estoqueProdutoId: o.estoque_produto_id,
             nomeProdutoEstoque: o.nome_produto_estoque,
             skuEstoque: o.sku_estoque,
+            fotos: Array.isArray(o.fotos) ? o.fotos : null,
           });
         });
       }

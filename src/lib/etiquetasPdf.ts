@@ -20,6 +20,8 @@ export interface EtiquetaOrderInput {
   estoqueProdutoId?: string | null;
   nomeProdutoEstoque?: string | null;
   skuEstoque?: string | null;
+  /** Fotos salvas no próprio pedido (fonte principal da etiqueta) */
+  fotos?: string[] | null;
 }
 
 /** Normaliza texto: minúsculas, sem acentos, sem pontuação, espaços colapsados. */
@@ -165,12 +167,14 @@ export async function resolveEtiquetaItems(orders: EtiquetaOrderInput[]): Promis
   return orders.map(o => {
     const direto = o.estoqueProdutoId ? byId.get(o.estoqueProdutoId) : undefined;
     const { prod, ambiguo } = direto ? { prod: direto, ambiguo: false } : matchProduto(o);
+    // Foto do próprio pedido tem prioridade; produto de estoque é reserva.
+    const fotoPedido = (o.fotos || []).map(f => (f || '').trim()).find(f => /^https?:\/\//i.test(f)) || null;
     return {
       nome: (prod?.nome || o.nomeProdutoEstoque || o.skuEstoque || '').trim(),
       tamanho: String(o.tamanho || prod?.tamanho || '').trim(),
-      fotoUrl: prod?.foto_url || null,
+      fotoUrl: fotoPedido || prod?.foto_url || null,
       numero: o.numero || null,
-      produtoNaoEncontrado: !prod,
+      produtoNaoEncontrado: !prod && !fotoPedido,
       ambiguo: Boolean(ambiguo),
     };
   });
@@ -258,12 +262,13 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
         }
       }
 
-      // Texto (nome em cima, tamanho grande embaixo)
+      // Texto (nome opcional em cima, tamanho grande embaixo)
       const tx = textoX + cellW / 2;
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(16);
-      const nomeLines = doc.splitTextToSize(item.nome || '', cellW - 6) as string[];
+      const nomeTexto = (item.nome || '').trim();
+      const nomeLines = nomeTexto ? (doc.splitTextToSize(nomeTexto, cellW - 6) as string[]) : [];
       const lineH = 7;
       const tamanhoH = 12;
       const totalH = nomeLines.length * lineH + tamanhoH;
@@ -273,7 +278,7 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
         ty += lineH;
       });
       doc.setFontSize(24);
-      doc.text(item.tamanho || '', tx, ty + 6, { align: 'center' });
+      doc.text(item.tamanho || '', tx, nomeLines.length > 0 ? ty + 6 : y + cellH / 2 + 4, { align: 'center' });
     });
   }
 
