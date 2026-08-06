@@ -15,22 +15,30 @@ export interface EtiquetaOrderInput {
   skuEstoque?: string | null;
 }
 
-/** Converte uma URL de imagem em dataURL (sem canvas, evita taint/CORS de canvas). */
-async function urlToDataUrl(url: string): Promise<string | null> {
+/** Converte uma URL de imagem em dataURL JPEG (via canvas, resolve WEBP/PNG transparente). */
+async function urlToDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
     const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) return null;
     const blob = await res.blob();
-    return await new Promise<string | null>(resolve => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    const maxSide = 900;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), w: canvas.width, h: canvas.height };
   } catch {
     return null;
   }
 }
+
 
 /** Resolve nome/tamanho/foto dos pedidos selecionados a partir do estoque. */
 export async function resolveEtiquetaItems(orders: EtiquetaOrderInput[]): Promise<EtiquetaItem[]> {
