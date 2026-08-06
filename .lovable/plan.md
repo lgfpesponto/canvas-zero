@@ -1,27 +1,28 @@
-# Corrigir fotos ausentes nas etiquetas
+# Etiquetas: usar sempre a foto do pedido
 
 ## Diagnóstico confirmado
 
-Os pedidos **Erro metais3601** e **ERRO METAIS3601** não possuem vínculo em `estoque_produto_id`. A geração tenta localizar o produto pelos campos de nome/SKU, mas os textos dos pedidos não correspondem ao cadastro atual:
+Os pedidos **Erro metais3601** e **ERRO METAIS3601** não têm vínculo com produto de estoque (`estoque_produto_id` vazio) e os nomes gravados não batem com o cadastro atual, então a busca por nome/SKU falha e a célula sai em branco.
 
-- `FLORENCIA RUSTICA` é genérico e não identifica com segurança qual variação “Florência Rústica” usar.
-- `LARA METAIS LATEGO PRETO` não corresponde ao SKU/nome atual encontrado no estoque.
+Porém os dois pedidos já têm uma foto válida salva em `orders.fotos` — o gerador simplesmente não usa esse campo hoje.
 
-Mesmo assim, os dois pedidos já possuem uma foto válida em `orders.fotos`. O gerador atual não consulta nem utiliza esse campo, por isso as células saem em branco no PDF enviado.
+## Nova regra
 
-## Correção
+A etiqueta deixa de depender do estoque. Ela precisa apenas de **foto + tamanho**; o nome do produto entra quando existir, mas é opcional.
 
-- Incluir a primeira foto de `orders.fotos` nos dados enviados ao gerador, tanto para pedidos já carregados na tela quanto para os buscados por ID.
-- Usar a foto do produto vinculado quando houver; se o vínculo ou a correspondência por nome/SKU falhar, usar automaticamente a foto salva no próprio pedido.
-- Manter nome e tamanho atuais da etiqueta, sem alterar pedidos nem cadastros de estoque.
-- Preservar o aviso de falha apenas quando nenhuma das fontes de foto puder ser carregada.
+- Fonte principal da foto: a primeira imagem de `orders.fotos` do próprio pedido.
+- Se o pedido não tiver foto e houver produto de estoque vinculado, usa a foto do produto como reserva.
+- Tamanho: sempre o tamanho do pedido.
+- Nome: usa o nome do produto/modelo quando houver; se não houver, a etiqueta sai só com a foto e o tamanho, sem texto vazio ocupando espaço.
+- Nenhum pedido é descartado por não ser de estoque.
 
 ## Validação
 
-- Gerar novamente as etiquetas dos dois pedidos e confirmar que ambas as fotos aparecem na grade do PDF.
-- Confirmar que etiquetas com vínculo direto ao estoque continuam usando normalmente a foto do produto.
-- Confirmar que a grade permanece somente nas células preenchidas.
+- Gerar etiquetas dos dois pedidos citados e confirmar que as fotos aparecem.
+- Gerar etiquetas de pedidos comuns (não estoque) e confirmar foto + tamanho corretos.
+- Confirmar que a grade continua desenhada apenas nas células preenchidas.
+- Aviso final de falha somente quando nenhuma fonte de foto carregar.
 
 ## Detalhes técnicos
 
-Arquivos envolvidos: `src/pages/ReportsPage.tsx` e `src/lib/etiquetasPdf.ts`. Não haverá mudança de banco nem armazenamento adicional de PDFs ou imagens.
+Arquivos: `src/pages/ReportsPage.tsx` (passar `fotos` do pedido, inclusive nos pedidos buscados por ID) e `src/lib/etiquetasPdf.ts` (prioridade de foto, nome opcional, layout ajustado quando não há nome). Sem mudanças de banco e sem armazenar imagens ou PDFs no servidor.
