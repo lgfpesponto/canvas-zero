@@ -87,7 +87,8 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
   if (items.length === 0) return;
 
   // Cache de imagens por URL (pedidos da mesma grade reaproveitam a foto)
-  const cache = new Map<string, string | null>();
+  type Img = { dataUrl: string; w: number; h: number };
+  const cache = new Map<string, Img | null>();
   const urls = Array.from(new Set(items.map(i => i.fotoUrl).filter(Boolean))) as string[];
   await Promise.all(
     urls.map(async u => {
@@ -100,57 +101,69 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
   const pageH = 297;
   const marginX = 6;
   const marginY = 6;
-  const cols = 2; // cada "coluna" = par foto + texto
+  const gridCols = 4; // foto | texto | foto | texto
   const rows = 5;
-  const perPage = cols * rows;
-  const blockW = (pageW - marginX * 2) / cols; // ~99mm
-  const blockH = (pageH - marginY * 2) / rows; // ~57mm
-  const photoW = blockW * 0.5;
-  const textW = blockW - photoW;
+  const perPage = 2 * rows; // 2 etiquetas por linha
+  const cellW = (pageW - marginX * 2) / gridCols;
+  const cellH = (pageH - marginY * 2) / rows;
 
-  items.forEach((item, idx) => {
-    if (idx > 0 && idx % perPage === 0) doc.addPage();
-    const posInPage = idx % perPage;
-    const col = posInPage % cols;
-    const row = Math.floor(posInPage / cols);
-    const x = marginX + col * blockW;
-    const y = marginY + row * blockH;
-
-    // Fundo branco da etiqueta
-    doc.setFillColor(255, 255, 255);
-    doc.rect(x, y, blockW, blockH, 'F');
-
-    // Foto (quadrada, centralizada na metade esquerda)
-    const dataUrl = item.fotoUrl ? cache.get(item.fotoUrl) : null;
-    const side = Math.min(photoW - 4, blockH - 4);
-    const ix = x + (photoW - side) / 2;
-    const iy = y + (blockH - side) / 2;
-    if (dataUrl) {
-      try {
-        const fmt = dataUrl.startsWith('data:image/png') ? 'PNG' : dataUrl.startsWith('data:image/webp') ? 'WEBP' : 'JPEG';
-        doc.addImage(dataUrl, fmt, ix, iy, side, side, undefined, 'FAST');
-      } catch {
-        /* ignora foto inválida */
+  const drawGrid = () => {
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < gridCols; c++) {
+        doc.rect(marginX + c * cellW, marginY + r * cellH, cellW, cellH);
       }
     }
+  };
 
-    // Texto (nome em cima, tamanho grande embaixo)
-    const tx = x + photoW + textW / 2;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(18);
-    const nomeLines = doc.splitTextToSize(item.nome || '', textW - 6) as string[];
-    const lineH = 8;
-    const tamanhoH = 14;
-    const totalH = nomeLines.length * lineH + tamanhoH;
-    let ty = y + (blockH - totalH) / 2 + lineH * 0.8;
-    nomeLines.forEach(l => {
-      doc.text(l, tx, ty, { align: 'center' });
-      ty += lineH;
+  const totalPages = Math.ceil(items.length / perPage);
+  for (let p = 0; p < totalPages; p++) {
+    if (p > 0) doc.addPage();
+    drawGrid();
+
+    const pageItems = items.slice(p * perPage, (p + 1) * perPage);
+    pageItems.forEach((item, i) => {
+      const row = Math.floor(i / 2);
+      const pair = i % 2; // 0 => colunas 0/1, 1 => colunas 2/3
+      const fotoX = marginX + pair * 2 * cellW;
+      const textoX = fotoX + cellW;
+      const y = marginY + row * cellH;
+
+      // Foto proporcional, centralizada na célula
+      const img = item.fotoUrl ? cache.get(item.fotoUrl) : null;
+      if (img) {
+        try {
+          const maxW = cellW - 4;
+          const maxH = cellH - 4;
+          const ratio = Math.min(maxW / img.w, maxH / img.h);
+          const w = img.w * ratio;
+          const h = img.h * ratio;
+          doc.addImage(img.dataUrl, 'JPEG', fotoX + (cellW - w) / 2, y + (cellH - h) / 2, w, h, undefined, 'FAST');
+        } catch {
+          /* ignora foto inválida */
+        }
+      }
+
+      // Texto (nome em cima, tamanho grande embaixo)
+      const tx = textoX + cellW / 2;
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(16);
+      const nomeLines = doc.splitTextToSize(item.nome || '', cellW - 6) as string[];
+      const lineH = 7;
+      const tamanhoH = 12;
+      const totalH = nomeLines.length * lineH + tamanhoH;
+      let ty = y + (cellH - totalH) / 2 + lineH * 0.8;
+      nomeLines.forEach(l => {
+        doc.text(l, tx, ty, { align: 'center' });
+        ty += lineH;
+      });
+      doc.setFontSize(24);
+      doc.text(item.tamanho || '', tx, ty + 6, { align: 'center' });
     });
-    doc.setFontSize(26);
-    doc.text(item.tamanho || '', tx, ty + 6, { align: 'center' });
-  });
+  }
 
   doc.save(fileName);
 }
+
