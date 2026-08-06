@@ -1179,7 +1179,7 @@ const ReportsPage = () => {
                         title="Gera PDF A4 com etiquetas (foto, nome e tamanho) dos pedidos selecionados"
                       >
                         {gerandoEtiquetas ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
-                        Gerar etiquetas ({estoqueBaixaSelecionados.length})
+                        Gerar etiquetas ({selectedIds.size})
                       </button>
                     )}
                     <button

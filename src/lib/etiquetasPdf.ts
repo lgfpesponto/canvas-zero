@@ -118,9 +118,6 @@ export async function gerarEtiquetasPDF(items: EtiquetaItem[], fileName = 'Etiqu
   const itemsComFoto = items.filter(item => Boolean(item.fotoUrl));
   const fotosCarregadas = itemsComFoto.filter(item => item.fotoUrl && cache.get(item.fotoUrl)).length;
   const fotosComFalha = items.length - fotosCarregadas;
-  if (fotosCarregadas === 0) {
-    throw new Error(`Nenhuma das ${items.length} fotos pôde ser carregada. Verifique se os arquivos do Google Drive estão compartilhados.`);
-  }
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = 210;
