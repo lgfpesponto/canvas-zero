@@ -58,6 +58,10 @@ export const ComprovantesRevendedorPendentes = ({
   const [editTarget, setEditTarget] = useState<RevendedorComprovante | null>(null);
   const [editValor, setEditValor] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [pagadorTarget, setPagadorTarget] = useState<RevendedorComprovante | null>(null);
+  const [editPagadorNome, setEditPagadorNome] = useState('');
+  const [editPagadorDoc, setEditPagadorDoc] = useState('');
+  const [pagadorSaving, setPagadorSaving] = useState(false);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
@@ -212,6 +216,44 @@ export const ComprovantesRevendedorPendentes = ({
     }
   };
 
+  const handleSavePagador = async () => {
+    if (!pagadorTarget) return;
+    const nome = editPagadorNome.trim();
+    if (!nome) {
+      toast({ title: 'Informe quem recebeu o pagamento', variant: 'destructive' });
+      return;
+    }
+    const doc = editPagadorDoc.replace(/\D/g, '');
+    const nomeNorm = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isEmpresa = doc === '02139487000113'
+      || ['leandro garcia feliciano', '7estrivos', 'sete estrivos'].some((n) => nomeNorm.includes(n));
+    setPagadorSaving(true);
+    try {
+      const { error } = await supabase
+        .from('revendedor_comprovantes')
+        .update({
+          pagador_nome: nome,
+          pagador_documento: doc || null,
+          tipo_detectado: isEmpresa ? 'empresa' : 'fornecedor',
+        })
+        .eq('id', pagadorTarget.id)
+        .eq('status', 'pendente');
+      if (error) throw error;
+      toast({ title: 'Destinatário atualizado', description: `Pago para: ${nome}` });
+      setPagadorTarget(null);
+      setEditPagadorNome('');
+      setEditPagadorDoc('');
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setPagadorSaving(false);
+    }
+  };
+
+
+
   if (hideWhenEmpty && !loading && pendentes.length === 0 && !showAdminUpload) return null;
 
   return (
@@ -315,13 +357,31 @@ export const ComprovantesRevendedorPendentes = ({
                         </div>
                       </TableCell>
                       <TableCell className="text-xs max-w-[180px]">
-                        <div className="font-medium truncate">
-                          {c.pagador_nome || <span className="text-muted-foreground italic">Não identificado</span>}
+                        <div className="flex items-start gap-1">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">
+                              {c.pagador_nome || <span className="text-muted-foreground italic">Não identificado</span>}
+                            </div>
+                            {c.pagador_documento && (
+                              <div className="text-muted-foreground font-mono text-[10px]">{c.pagador_documento}</div>
+                            )}
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-primary"
+                            title="Corrigir quem recebeu o pagamento"
+                            onClick={() => {
+                              setPagadorTarget(c);
+                              setEditPagadorNome(c.pagador_nome || '');
+                              setEditPagadorDoc(c.pagador_documento || '');
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </Button>
                         </div>
-                        {c.pagador_documento && (
-                          <div className="text-muted-foreground font-mono text-[10px]">{c.pagador_documento}</div>
-                        )}
                       </TableCell>
+
                       <TableCell>
                         {c.tipo_detectado === 'empresa' ? (
                           <Badge variant="default" className="gap-1"><Building2 size={10} /> Empresa</Badge>
@@ -377,6 +437,57 @@ export const ComprovantesRevendedorPendentes = ({
         open={!!viewerPath}
         onOpenChange={(o) => { if (!o) setViewerPath(null); }}
       />
+
+      <Dialog
+        open={!!pagadorTarget}
+        onOpenChange={(o) => { if (!o && !pagadorSaving) { setPagadorTarget(null); setEditPagadorNome(''); setEditPagadorDoc(''); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Corrigir quem recebeu o pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Em comprovantes com "Origem e destino", o primeiro nome é quem pagou. Informe aqui o
+              destinatário (quem recebeu).
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="pagador-nome-pendente">Pago para (nome)</Label>
+              <Input
+                id="pagador-nome-pendente"
+                value={editPagadorNome}
+                onChange={(e) => setEditPagadorNome(e.target.value)}
+                placeholder="Ex.: Juliana Cristina Ribeiro"
+                disabled={pagadorSaving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pagador-doc-pendente">CPF / CNPJ (opcional)</Label>
+              <Input
+                id="pagador-doc-pendente"
+                value={editPagadorDoc}
+                onChange={(e) => setEditPagadorDoc(e.target.value)}
+                placeholder="Somente números"
+                inputMode="numeric"
+                disabled={pagadorSaving}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setPagadorTarget(null); setEditPagadorNome(''); setEditPagadorDoc(''); }}
+              disabled={pagadorSaving}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSavePagador} disabled={pagadorSaving}>
+              {pagadorSaving ? <><Loader2 className="animate-spin mr-1" size={14} /> Salvando...</> : 'Salvar destinatário'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o && !editSaving) { setEditTarget(null); setEditValor(''); } }}>
         <DialogContent>

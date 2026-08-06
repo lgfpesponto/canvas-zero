@@ -129,9 +129,23 @@ Deno.serve(async (req) => {
 Extraia EXATAMENTE estes dados e retorne via tool call:
 - data_pagamento: data efetiva da transferência (formato YYYY-MM-DD)
 - valor: valor pago em reais como NÚMERO (float). Use SEMPRE ponto como separador decimal e NUNCA separador de milhar.
-- destinatario_nome: nome completo de quem RECEBEU o pagamento
+- origem_nome: nome de quem PAGOU / titular da conta de ORIGEM (quem foi debitado)
+- origem_documento: CPF ou CNPJ de quem PAGOU (apenas dígitos)
+- destinatario_nome: nome completo de quem RECEBEU o pagamento (conta de DESTINO / creditada)
 - destinatario_documento: CPF ou CNPJ de quem RECEBEU (apenas dígitos, sem máscara)
 - descricao: breve descrição se disponível (ex: "PIX enviado", "TED")
+
+IMPORTANTÍSSIMO sobre ORIGEM x DESTINO:
+Muitos apps (Mercado Pago, Nubank, PicPay, Inter, Itaú, C6) mostram uma seção única chamada
+"Origem e destino", "De / Para", "Pagador / Recebedor", "Debitado de / Creditado para".
+Nessa seção o PRIMEIRO bloco é SEMPRE quem PAGOU (origem) e o SEGUNDO bloco é quem RECEBEU (destino).
+NUNCA use o primeiro bloco como destinatário. Ignore também o titular exibido no topo/cabeçalho do
+comprovante e o nome da instituição (Mercado Pago, Bradesco, Nubank...) — instituição não é pessoa.
+Exemplo: "Origem e destino: 43.748.766 LAURA ... (Mercado Pago) → JULIANA CRISTINA RIBEIRO (Bradesco)"
+=> origem_nome = "LAURA ...", destinatario_nome = "JULIANA CRISTINA RIBEIRO".
+Se você não conseguir distinguir com segurança quem recebeu, retorne destinatario_nome vazio
+em vez de chutar o nome da origem.
+
 
 IMPORTANTÍSSIMO sobre o VALOR (formato brasileiro):
 No Brasil o PONTO (.) é separador de MILHAR e a VÍRGULA (,) é separador DECIMAL.
@@ -205,11 +219,14 @@ NUNCA invente dados.`;
                 data_pagamento: { type: 'string', description: 'Data no formato YYYY-MM-DD' },
                 valor: { type: 'number', description: 'Valor em reais' },
                 valor_texto: { type: 'string', description: 'Valor exatamente como impresso no comprovante, sem interpretar' },
+                origem_nome: { type: 'string', description: 'Quem PAGOU (conta de origem)' },
+                origem_documento: { type: 'string', description: 'Apenas dígitos' },
                 destinatario_nome: { type: 'string' },
                 destinatario_documento: { type: 'string', description: 'Apenas dígitos' },
                 descricao: { type: 'string' },
               },
               required: ['data_pagamento', 'valor', 'valor_texto', 'destinatario_nome', 'destinatario_documento'],
+
 
               additionalProperties: false,
             },
@@ -263,15 +280,31 @@ NUNCA invente dados.`;
       console.warn('[extract-comprovante] valor inteiro suspeito para auditoria:', valorNum, 'arquivo:', fileName);
     }
 
-    const docDigits = normalizeDoc(extracted.destinatario_documento || '');
-    const nomeNorm = normalizeText(extracted.destinatario_nome || '');
+    let docDigits = normalizeDoc(extracted.destinatario_documento || '');
+    let nomeExtraido = extracted.destinatario_nome || '';
+
+    // Guarda contra leitura invertida: se o "destinatário" for igual à origem (quem pagou),
+    // a leitura pegou o bloco errado — melhor deixar em branco para conferência manual.
+    const origemDoc = normalizeDoc(extracted.origem_documento || '');
+    const origemNome = normalizeText(extracted.origem_nome || '');
+    const nomeNormExtraido = normalizeText(nomeExtraido);
+    const mesmaOrigem =
+      (!!origemDoc && !!docDigits && origemDoc === docDigits) ||
+      (!!origemNome && !!nomeNormExtraido && origemNome === nomeNormExtraido);
+    if (mesmaOrigem) {
+      console.warn('[extract-comprovante] destinatário igual à origem — descartado:', nomeExtraido);
+      nomeExtraido = '';
+      docDigits = '';
+    }
+
+    const nomeNorm = normalizeText(nomeExtraido);
 
     let tipo: 'empresa' | 'fornecedor' = 'fornecedor';
-    let destinatario = extracted.destinatario_nome || '';
+    let destinatario = nomeExtraido;
 
     const isEmpresa =
-      docDigits === EMPRESA_CNPJ ||
-      EMPRESA_NOMES.some((n) => nomeNorm.includes(n));
+      (!!docDigits && docDigits === EMPRESA_CNPJ) ||
+      (!!nomeNorm && EMPRESA_NOMES.some((n) => nomeNorm.includes(n)));
 
     if (isEmpresa) {
       tipo = 'empresa';
@@ -282,10 +315,13 @@ NUNCA invente dados.`;
       data_pagamento: extracted.data_pagamento || '',
       valor: valorNum,
       destinatario,
-      destinatario_nome_original: extracted.destinatario_nome || '',
+      destinatario_nome_original: nomeExtraido,
       destinatario_documento: docDigits,
+      origem_nome: extracted.origem_nome || '',
+      origem_documento: origemDoc,
       tipo,
       descricao: extracted.descricao || '',
+
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
