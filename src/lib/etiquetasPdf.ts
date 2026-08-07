@@ -167,12 +167,13 @@ export async function resolveEtiquetaItems(orders: EtiquetaOrderInput[]): Promis
   return orders.map(o => {
     const direto = o.estoqueProdutoId ? byId.get(o.estoqueProdutoId) : undefined;
     const { prod, ambiguo } = direto ? { prod: direto, ambiguo: false } : matchProduto(o);
-    // Foto do próprio pedido tem prioridade; produto de estoque é reserva.
+    // Foto do produto de estoque tem prioridade; foto do pedido é reserva.
     const fotoPedido = (o.fotos || []).map(f => (f || '').trim()).find(f => /^https?:\/\//i.test(f)) || null;
     return {
       nome: (prod?.nome || o.nomeProdutoEstoque || o.skuEstoque || '').trim(),
       tamanho: String(o.tamanho || prod?.tamanho || '').trim(),
-      fotoUrl: fotoPedido || prod?.foto_url || null,
+      fotoUrl: prod?.foto_url || fotoPedido || null,
+
       numero: o.numero || null,
       produtoNaoEncontrado: !prod && !fotoPedido,
       ambiguo: Boolean(ambiguo),
