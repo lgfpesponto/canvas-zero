@@ -185,6 +185,13 @@ const VitrinePublicaPage = () => {
 
   const mostrarPreco = payload.mostrarPreco;
   const mostrarDesconto = payload.mostrarPreco && payload.mostrarDesconto;
+  const acrescimoValor = Number(payload.acrescimoValor) > 0 ? Number(payload.acrescimoValor) : 0;
+  const aplicarAcrescimo = (v: number) =>
+    acrescimoValor <= 0
+      ? v
+      : payload.acrescimoTipo === 'real'
+        ? v + acrescimoValor
+        : v * (1 + acrescimoValor / 100);
   // Tamanhos efetivos exibidos por card: intersecção entre escopo do link e escolha local
   const escopoTam = new Set(payload.tamanhos);
   const filtroEfetivo = tamanhosLocal.size > 0
