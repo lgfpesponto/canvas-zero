@@ -108,6 +108,42 @@ const CompartilharVitrineDialog = ({
                 <label className={`text-xs font-semibold ${!mostrarPreco ? 'opacity-40' : ''}`}>Mostrar descontos</label>
                 <Switch checked={mostrarDesconto && mostrarPreco} onCheckedChange={setMostrarDesconto} disabled={!mostrarPreco} />
               </div>
+
+              {mostrarPreco && (
+                <div className="pt-2 border-t border-border space-y-2">
+                  <label className="text-xs font-semibold block">Acréscimo (somente na vitrine)</label>
+                  <div className="flex gap-2">
+                    <div className="flex rounded-md border border-border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setAcrescimoTipo('percent')}
+                        className={`px-3 h-8 text-xs font-semibold ${acrescimoTipo === 'percent' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+                      >
+                        %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAcrescimoTipo('real')}
+                        className={`px-3 h-8 text-xs font-semibold ${acrescimoTipo === 'real' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+                      >
+                        R$
+                      </button>
+                    </div>
+                    <Input
+                      value={acrescimoValor}
+                      onChange={(e) => setAcrescimoValor(e.target.value)}
+                      inputMode="decimal"
+                      placeholder={acrescimoTipo === 'percent' ? 'Ex: 10' : 'Ex: 50'}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {acrescimoNum > 0
+                      ? `Exemplo: ${brl(500)} → ${brl(aplicarAcrescimo(500))}`
+                      : 'Deixe vazio ou 0 para não aplicar acréscimo. Não altera o valor real dos produtos.'}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-[11px] text-muted-foreground italic">
