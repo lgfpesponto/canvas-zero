@@ -8,6 +8,8 @@ export interface VitrinePayload {
   mostrarPreco: boolean;
   mostrarDesconto: boolean;
   titulo?: string;
+  acrescimoTipo?: 'real' | 'percent';
+  acrescimoValor?: number;
 }
 
 const toBase64Url = (s: string): string => {
@@ -44,6 +46,8 @@ export function decodeVitrineToken(token: string): VitrinePayload | null {
       mostrarPreco: !!obj.mostrarPreco,
       mostrarDesconto: !!obj.mostrarDesconto,
       titulo: obj.titulo ? String(obj.titulo) : undefined,
+      acrescimoTipo: obj.acrescimoTipo === 'real' ? 'real' : 'percent',
+      acrescimoValor: Number.isFinite(Number(obj.acrescimoValor)) ? Number(obj.acrescimoValor) : 0,
     };
   } catch {
     return null;

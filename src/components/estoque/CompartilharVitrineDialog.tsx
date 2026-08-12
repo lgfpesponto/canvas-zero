@@ -34,22 +34,37 @@ const CompartilharVitrineDialog = ({
 }: Props) => {
   const [mostrarPreco, setMostrarPreco] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
+  const [acrescimoTipo, setAcrescimoTipo] = useState<'real' | 'percent'>('percent');
+  const [acrescimoValor, setAcrescimoValor] = useState('');
   const { user } = useAuth();
 
   const titulo = (user?.nomeLoja || '').trim() || 'Vitrine 7ESTRIVOS';
 
+  const acrescimoNum = (() => {
+    const n = parseFloat(acrescimoValor.replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  })();
+
+  const aplicarAcrescimo = (v: number) =>
+    acrescimoTipo === 'percent' ? v * (1 + acrescimoNum / 100) : v + acrescimoNum;
+
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   const url = useMemo(() => {
+    const precoOn = canTogglePrecos ? mostrarPreco : false;
     const payload: VitrinePayload = {
       search: search.trim(),
       tamanhos: Array.from(tamanhos),
       ficha: Object.fromEntries(Object.entries(ficha).map(([k, v]) => [k, Array.from(v)])),
-      mostrarPreco: canTogglePrecos ? mostrarPreco : false,
+      mostrarPreco: precoOn,
       mostrarDesconto: canTogglePrecos ? mostrarDesconto : false,
       titulo,
+      acrescimoTipo,
+      acrescimoValor: precoOn ? acrescimoNum : 0,
     };
     const token = encodeVitrineToken(payload);
     return `${window.location.origin}/vitrine/${token}`;
-  }, [search, tamanhos, ficha, mostrarPreco, mostrarDesconto, titulo, canTogglePrecos]);
+  }, [search, tamanhos, ficha, mostrarPreco, mostrarDesconto, titulo, canTogglePrecos, acrescimoTipo, acrescimoNum]);
 
   const copiar = async () => {
     try {
@@ -93,6 +108,42 @@ const CompartilharVitrineDialog = ({
                 <label className={`text-xs font-semibold ${!mostrarPreco ? 'opacity-40' : ''}`}>Mostrar descontos</label>
                 <Switch checked={mostrarDesconto && mostrarPreco} onCheckedChange={setMostrarDesconto} disabled={!mostrarPreco} />
               </div>
+
+              {mostrarPreco && (
+                <div className="pt-2 border-t border-border space-y-2">
+                  <label className="text-xs font-semibold block">Acréscimo (somente na vitrine)</label>
+                  <div className="flex gap-2">
+                    <div className="flex rounded-md border border-border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setAcrescimoTipo('percent')}
+                        className={`px-3 h-8 text-xs font-semibold ${acrescimoTipo === 'percent' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+                      >
+                        %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAcrescimoTipo('real')}
+                        className={`px-3 h-8 text-xs font-semibold ${acrescimoTipo === 'real' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+                      >
+                        R$
+                      </button>
+                    </div>
+                    <Input
+                      value={acrescimoValor}
+                      onChange={(e) => setAcrescimoValor(e.target.value)}
+                      inputMode="decimal"
+                      placeholder={acrescimoTipo === 'percent' ? 'Ex: 10' : 'Ex: 50'}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {acrescimoNum > 0
+                      ? `Exemplo: ${brl(500)} → ${brl(aplicarAcrescimo(500))}`
+                      : 'Deixe vazio ou 0 para não aplicar acréscimo. Não altera o valor real dos produtos.'}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-[11px] text-muted-foreground italic">

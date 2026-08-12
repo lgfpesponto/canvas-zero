@@ -185,6 +185,13 @@ const VitrinePublicaPage = () => {
 
   const mostrarPreco = payload.mostrarPreco;
   const mostrarDesconto = payload.mostrarPreco && payload.mostrarDesconto;
+  const acrescimoValor = Number(payload.acrescimoValor) > 0 ? Number(payload.acrescimoValor) : 0;
+  const aplicarAcrescimo = (v: number) =>
+    acrescimoValor <= 0
+      ? v
+      : payload.acrescimoTipo === 'real'
+        ? v + acrescimoValor
+        : v * (1 + acrescimoValor / 100);
   // Tamanhos efetivos exibidos por card: intersecção entre escopo do link e escolha local
   const escopoTam = new Set(payload.tamanhos);
   const filtroEfetivo = tamanhosLocal.size > 0
@@ -318,10 +325,10 @@ const VitrinePublicaPage = () => {
                           <>
                             <div className="flex items-baseline gap-2 flex-wrap">
                               <span className="text-xs line-through text-muted-foreground">
-                                {formatBRL(g.preco)}
+                                {formatBRL(aplicarAcrescimo(g.preco))}
                               </span>
                               <span className="text-xl font-bold text-primary">
-                                {formatBRL(desc.precoFinal)}
+                                {formatBRL(aplicarAcrescimo(desc.precoFinal))}
                               </span>
                             </div>
                             <div className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-semibold rounded-full px-2 py-0.5">
@@ -329,7 +336,7 @@ const VitrinePublicaPage = () => {
                             </div>
                           </>
                         ) : (
-                          <span className="text-xl font-bold text-primary">{formatBRL(g.preco)}</span>
+                          <span className="text-xl font-bold text-primary">{formatBRL(aplicarAcrescimo(g.preco))}</span>
                         )}
                       </div>
                     )}
