@@ -34,22 +34,37 @@ const CompartilharVitrineDialog = ({
 }: Props) => {
   const [mostrarPreco, setMostrarPreco] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
+  const [acrescimoTipo, setAcrescimoTipo] = useState<'real' | 'percent'>('percent');
+  const [acrescimoValor, setAcrescimoValor] = useState('');
   const { user } = useAuth();
 
   const titulo = (user?.nomeLoja || '').trim() || 'Vitrine 7ESTRIVOS';
 
+  const acrescimoNum = (() => {
+    const n = parseFloat(acrescimoValor.replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  })();
+
+  const aplicarAcrescimo = (v: number) =>
+    acrescimoTipo === 'percent' ? v * (1 + acrescimoNum / 100) : v + acrescimoNum;
+
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   const url = useMemo(() => {
+    const precoOn = canTogglePrecos ? mostrarPreco : false;
     const payload: VitrinePayload = {
       search: search.trim(),
       tamanhos: Array.from(tamanhos),
       ficha: Object.fromEntries(Object.entries(ficha).map(([k, v]) => [k, Array.from(v)])),
-      mostrarPreco: canTogglePrecos ? mostrarPreco : false,
+      mostrarPreco: precoOn,
       mostrarDesconto: canTogglePrecos ? mostrarDesconto : false,
       titulo,
+      acrescimoTipo,
+      acrescimoValor: precoOn ? acrescimoNum : 0,
     };
     const token = encodeVitrineToken(payload);
     return `${window.location.origin}/vitrine/${token}`;
-  }, [search, tamanhos, ficha, mostrarPreco, mostrarDesconto, titulo, canTogglePrecos]);
+  }, [search, tamanhos, ficha, mostrarPreco, mostrarDesconto, titulo, canTogglePrecos, acrescimoTipo, acrescimoNum]);
 
   const copiar = async () => {
     try {
