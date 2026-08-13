@@ -165,6 +165,17 @@ const ModelosPage = () => {
   const [vVendedor, setVVendedor] = useState('');
   const [vCliente, setVCliente] = useState('');
   const [vWhats, setVWhats] = useState('');
+  // Numeração automática por prefixo do vendedor
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === vVendedor) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role } : null);
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => {
+    if (comprarOpen && numeroIsAuto && autoNumero && !vNumeroPedido.trim()) setVNumeroPedido(autoNumero);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprarOpen, numeroIsAuto, autoNumero]);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = role === 'vendedor';
   const [vTamanho, setVTamanho] = useState('');
   const [vObs, setVObs] = useState('');
   const [vSobMedida, setVSobMedida] = useState(false);
