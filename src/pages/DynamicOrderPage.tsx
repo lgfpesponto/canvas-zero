@@ -15,7 +15,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
-import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 
 import { getVersaoAtiva } from '@/lib/fichaVersoes';
@@ -46,7 +46,8 @@ export default function DynamicOrderPage() {
   const [observacao, setObservacao] = useState('');
   const [cliente, setCliente] = useState('');
 
-  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
+  const ocultarCliente = user?.role === 'vendedor';
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
   useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
   const { isDuplicate: numeroDuplicado, checking: numeroChecking } = useCheckDuplicateOrder(numeroPedido.trim());
 
@@ -260,20 +261,21 @@ export default function DynamicOrderPage() {
                 <Label className="text-xs lowercase">vendedor</Label>
                 <Input value={vendedor} onChange={e => setVendedor(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs lowercase">cliente</Label>
-                <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente" />
-              </div>
+              {!ocultarCliente && (
+                <div className="space-y-1">
+                  <Label className="text-xs lowercase">cliente</Label>
+                  <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente" />
+                </div>
+              )}
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-xs lowercase">número do pedido</Label>
                 <Input
                   value={numeroPedido}
-                  onChange={e => setNumeroPedido(e.target.value)}
+                  onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)}
                   placeholder="Ex: 7E-20250001"
-                  readOnly={numeroIsAuto}
-                  className={`${numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
-                {numeroIsAuto && <p className="text-xs text-muted-foreground">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+                {numeroIsAuto && <p className="text-xs text-muted-foreground">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
                 {numeroChecking && numeroPedido.trim() && !numeroDuplicado && (
                   <p className="text-xs text-muted-foreground">Verificando...</p>
                 )}

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
+import { CODIGO_ESTOQUE } from '@/lib/orderCodigos';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +58,7 @@ interface ResumoItem {
 const fmtBRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }: Props) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, allProfiles } = useAuth();
   const { descontos } = useDescontosAtivos();
   // map produto_id -> quantidade desejada
   const [quantidades, setQuantidades] = useState<Record<string, number>>({});
@@ -67,6 +69,17 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   const [whats, setWhats] = useState('');
   const [numero, setNumero] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Numeração automática por prefixo (pedido de estoque recebe código EST no final)
+  const vendorForAutoNum = isAdmin
+    ? ((allProfiles || []).find(p => p.nomeCompleto === vendedor) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum, CODIGO_ESTOQUE);
+  useEffect(() => {
+    if (open && numeroIsAuto && autoNumero && !numero.trim()) setNumero(autoNumero);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, numeroIsAuto, autoNumero]);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = user?.role === 'vendedor';
   // Reservas ativas por outros vendedores (produto_id -> qtd reservada)
   const [reservasOutros, setReservasOutros] = useState<Record<string, number>>({});
   // Espelho local dos saldos (atualizado por realtime)
@@ -427,16 +440,21 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
             </div>
             <div>
               <Label className="text-xs">Nº do pedido *</Label>
-              <Input value={numero} onChange={e => setNumero(e.target.value)} placeholder="7E-AAAA0001" className="h-9 text-sm font-mono" />
+              <Input value={numero} onChange={e => setNumero(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder="7E-AAAA0001" className="h-9 text-sm font-mono" />
+              {numeroIsAuto && <p className="text-[11px] text-muted-foreground mt-1">Sugerido automaticamente. Prefixo <span className="font-mono">{numeroPrefixo}-</span> fixo e código <span className="font-mono">{CODIGO_ESTOQUE}</span> no final.</p>}
             </div>
-            <div>
-              <Label className="text-xs">Cliente</Label>
-              <Input value={cliente} onChange={e => setCliente(e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div>
-              <Label className="text-xs">WhatsApp</Label>
-              <Input value={whats} onChange={e => setWhats(e.target.value)} className="h-9 text-sm" />
-            </div>
+            {!ocultarCliente && (
+              <>
+                <div>
+                  <Label className="text-xs">Cliente</Label>
+                  <Input value={cliente} onChange={e => setCliente(e.target.value)} className="h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">WhatsApp</Label>
+                  <Input value={whats} onChange={e => setWhats(e.target.value)} className="h-9 text-sm" />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Bloco A — Tamanhos e quantidades */}

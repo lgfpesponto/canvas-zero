@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
-import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -116,8 +116,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const vendorForAutoNum = isAdmin
     ? (allProfiles.find(p => p.nomeCompleto === vendedor) || null)
-    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
-  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = user?.role === 'vendedor';
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum);
   useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
   const [cliente, setCliente] = useState('');
   const [clienteWhatsapp, setClienteWhatsapp] = useState('');
@@ -776,14 +778,16 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!(estoqueJaCriado && vendedor === 'Estoque') && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
-                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(e.target.value)} placeholder={estoqueJaCriado && vendedor === 'Estoque' ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!(estoqueJaCriado && vendedor === 'Estoque')} readOnly={numeroIsAuto && !estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado && vendedor === 'Estoque' ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!(estoqueJaCriado && vendedor === 'Estoque')} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
                 {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-                {numeroIsAuto && !estoqueJaCriado && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+                {numeroIsAuto && !estoqueJaCriado && <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
               </div>
-              <div>
-                <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
-                <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
-              </div>
+              {!ocultarCliente && (
+                <div>
+                  <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
+                  <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+                </div>
+              )}
             </div>
 
             {vendedor === 'Estoque' && (

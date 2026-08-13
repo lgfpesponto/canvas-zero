@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
+import { codigoExtra } from '@/lib/orderCodigos';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -93,8 +94,10 @@ const ExtrasPage = () => {
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(form.numeroPedidoBota || '');
   const vendorForAutoNum = isAdmin
     ? (allProfiles.find(p => p.nomeCompleto === (form.vendedorSelecionado || '')) || null)
-    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
-  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = user?.role === 'vendedor';
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum, codigoExtra(openProduct));
   useEffect(() => { if (numeroIsAuto && autoNumero) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); }, [numeroIsAuto, autoNumero]);
 
   // Gravata stock
@@ -470,9 +473,9 @@ const ExtrasPage = () => {
         {/* Número do pedido — obrigatório em TODOS */}
         <div>
           <Label>{productId === 'bota_pronta_entrega' ? 'Nº do pedido (mesmo do site) *' : 'Nº do pedido *'}</Label>
-          <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', e.target.value)} placeholder="Ex: 7E-20240001" readOnly={numeroIsAuto} className={`${orderDuplicate ? 'border-destructive' : ''} ${numeroIsAuto ? 'opacity-70 cursor-not-allowed' : ''}`} />
+          <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
           {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-          {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número gerado automaticamente pelo prefixo do vendedor.</p>}
+          {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
         </div>
         {/* Número do pedido da bota — opcional, para produtos específicos */}
         {['tiras_laterais', 'desmanchar', 'kit_faca', 'kit_canivete', 'carimbo_fogo', 'adicionar_metais'].includes(productId) && (
@@ -481,20 +484,24 @@ const ExtrasPage = () => {
             <Input value={form.numeroPedidoBotaVinculo || ''} onChange={e => set('numeroPedidoBotaVinculo', e.target.value)} placeholder="Ex: 7E-20240010" />
           </div>
         )}
-        {/* Cliente — opcional */}
-        <div>
-          <Label>Cliente</Label>
-          <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
-        </div>
-        <div>
-          <Label>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></Label>
-          <Input
-            type="tel"
-            value={form.clienteWhatsapp || ''}
-            onChange={e => set('clienteWhatsapp', maskPhoneBR(e.target.value))}
-            placeholder="(XX) XXXXX-XXXX"
-          />
-        </div>
+        {/* Cliente — opcional (oculto para vendedor comum) */}
+        {!ocultarCliente && (
+          <>
+            <div>
+              <Label>Cliente</Label>
+              <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
+            </div>
+            <div>
+              <Label>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></Label>
+              <Input
+                type="tel"
+                value={form.clienteWhatsapp || ''}
+                onChange={e => set('clienteWhatsapp', maskPhoneBR(e.target.value))}
+                placeholder="(XX) XXXXX-XXXX"
+              />
+            </div>
+          </>
+        )}
 
         {/* Product-specific fields */}
         {productId === 'tiras_laterais' && (

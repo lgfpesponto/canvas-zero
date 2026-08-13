@@ -14,6 +14,7 @@ import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
 import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import OrderPage from '@/pages/OrderPage';
@@ -165,6 +166,17 @@ const ModelosPage = () => {
   const [vVendedor, setVVendedor] = useState('');
   const [vCliente, setVCliente] = useState('');
   const [vWhats, setVWhats] = useState('');
+  // Numeração automática por prefixo do vendedor
+  const vendorForAutoNum = isAdmin
+    ? (allProfiles.find(p => p.nomeCompleto === vVendedor) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role } : null);
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum);
+  useEffect(() => {
+    if (comprarOpen && numeroIsAuto && autoNumero && !vNumeroPedido.trim()) setVNumeroPedido(autoNumero);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprarOpen, numeroIsAuto, autoNumero]);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = role === 'vendedor';
   const [vTamanho, setVTamanho] = useState('');
   const [vObs, setVObs] = useState('');
   const [vSobMedida, setVSobMedida] = useState(false);
@@ -507,10 +519,13 @@ const ModelosPage = () => {
                 <Label>Número do pedido *</Label>
                 <Input
                   value={vNumeroPedido}
-                  onChange={e => setVNumeroPedido(e.target.value)}
+                  onChange={e => setVNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)}
                   placeholder="Digite o número"
                   className={numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {numeroIsAuto && (
+                  <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>
+                )}
                 {numeroChecking && vNumeroPedido.trim() && (
                   <p className="text-xs text-muted-foreground mt-1">Verificando...</p>
                 )}
@@ -541,16 +556,18 @@ const ModelosPage = () => {
               </div>
 
               {/* 3. Cliente */}
-              <div>
-                <Label>
-                  Cliente {clienteObrigatorio && <span className="text-destructive">*</span>}
-                </Label>
-                <Input
-                  value={vCliente}
-                  onChange={e => setVCliente(e.target.value)}
-                  placeholder={clienteObrigatorio ? 'Nome do cliente (obrigatório)' : 'Nome do cliente (opcional)'}
-                />
-              </div>
+              {!ocultarCliente && (
+                <div>
+                  <Label>
+                    Cliente {clienteObrigatorio && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Input
+                    value={vCliente}
+                    onChange={e => setVCliente(e.target.value)}
+                    placeholder={clienteObrigatorio ? 'Nome do cliente (obrigatório)' : 'Nome do cliente (opcional)'}
+                  />
+                </div>
+              )}
 
               {/* 4. WhatsApp — condicional */}
               {showWhatsapp && (
