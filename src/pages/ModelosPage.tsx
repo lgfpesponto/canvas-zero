@@ -14,6 +14,7 @@ import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
 import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
 import { isDriveUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { maskPhoneBR } from '@/lib/whatsappSend';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { TAMANHOS } from '@/lib/orderFieldsConfig';
 import GradeEstoque, { GradeItem } from '@/components/GradeEstoque';
 import OrderPage from '@/pages/OrderPage';
