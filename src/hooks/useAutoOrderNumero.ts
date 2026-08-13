@@ -44,8 +44,10 @@ export function shouldAutoNumber(v: VendedorAutoNumero | null | undefined): bool
 export function montarNumero(prefixo: string | null | undefined, base: string, codigo?: string | null): string {
   const p = normalizePrefixo(prefixo);
   const b = (base || '').trim();
+  const c = (codigo || '').trim().toUpperCase();
   if (!b) return '';
-  return `${b}${(codigo || '').trim().toUpperCase()}`.startsWith(`${p}-`) || !p ? `${b}${(codigo || '').trim().toUpperCase()}` : `${p}-${b}${(codigo || '').trim().toUpperCase()}`;
+  if (!p || b.toUpperCase().startsWith(`${p}-`)) return `${b}${c}`;
+  return `${p}-${b}${c}`;
 }
 
 /**
