@@ -440,16 +440,21 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
             </div>
             <div>
               <Label className="text-xs">Nº do pedido *</Label>
-              <Input value={numero} onChange={e => setNumero(e.target.value)} placeholder="7E-AAAA0001" className="h-9 text-sm font-mono" />
+              <Input value={numero} onChange={e => setNumero(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder="7E-AAAA0001" className="h-9 text-sm font-mono" />
+              {numeroIsAuto && <p className="text-[11px] text-muted-foreground mt-1">Sugerido automaticamente. Prefixo <span className="font-mono">{numeroPrefixo}-</span> fixo e código <span className="font-mono">{CODIGO_ESTOQUE}</span> no final.</p>}
             </div>
-            <div>
-              <Label className="text-xs">Cliente</Label>
-              <Input value={cliente} onChange={e => setCliente(e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div>
-              <Label className="text-xs">WhatsApp</Label>
-              <Input value={whats} onChange={e => setWhats(e.target.value)} className="h-9 text-sm" />
-            </div>
+            {!ocultarCliente && (
+              <>
+                <div>
+                  <Label className="text-xs">Cliente</Label>
+                  <Input value={cliente} onChange={e => setCliente(e.target.value)} className="h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">WhatsApp</Label>
+                  <Input value={whats} onChange={e => setWhats(e.target.value)} className="h-9 text-sm" />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Bloco A — Tamanhos e quantidades */}
