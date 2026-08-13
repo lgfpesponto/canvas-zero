@@ -116,8 +116,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   const vendorForAutoNum = isAdmin
     ? (allProfiles.find(p => p.nomeCompleto === vendedor) || null)
-    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo } : null);
-  const { autoNumero, isAuto: numeroIsAuto } = useAutoOrderNumero(vendorForAutoNum);
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = user?.role === 'vendedor';
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum, 'CINTO');
   useEffect(() => { if (numeroIsAuto && autoNumero) setNumeroPedido(autoNumero); }, [numeroIsAuto, autoNumero]);
   const [cliente, setCliente] = useState('');
   const [clienteWhatsapp, setClienteWhatsapp] = useState('');
