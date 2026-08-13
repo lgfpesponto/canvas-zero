@@ -1,6 +1,6 @@
 # Numeração automática de pedidos por prefixo
 
-Cada vendedor passa a ter um prefixo próprio. Ao abrir qualquer tela de pedido, o número já vem preenchido como `prefixo-sequência` (ex: `2-345`), editável pelo vendedor, mas sem poder remover o prefixo. Pedidos de estoque e de produtos extras recebem um código no final (ex: `2-346EST`, `2-347PALMI`).
+O admin master define o prefixo de cada vendedor na página Usuários; a numeração automática só liga para quem tiver prefixo preenchido. O vendedor não altera o próprio prefixo. Ao abrir qualquer tela de pedido, o número já vem preenchido como `prefixo-sequência` (ex: `2-345`): o vendedor pode editar a parte numérica, nunca o prefixo. Pedidos de estoque e de produtos extras recebem um código no final (ex: `2-346EST`, `2-347PALMI`).
 
 ## Regras
 
@@ -35,8 +35,8 @@ Ocultos apenas para usuários com papel `vendedor` (ficha de bota, cinto, compra
 | Bota Pronta Entrega | ESTMAN |
 | Gravata Pronta Entrega | GRAVATAETS |
 | Palmilha | PALMI |
-
-Observação: "Regata" e "Regata Pronta Entrega" existem no cadastro de extras e não têm código na sua lista — ficam sem código até você definir.
+| Regata | REGATA |
+| Regata Pronta Entrega | REGATAEST |
 
 ## Edição de usuários (prefixo)
 
