@@ -556,16 +556,18 @@ const ModelosPage = () => {
               </div>
 
               {/* 3. Cliente */}
-              <div>
-                <Label>
-                  Cliente {clienteObrigatorio && <span className="text-destructive">*</span>}
-                </Label>
-                <Input
-                  value={vCliente}
-                  onChange={e => setVCliente(e.target.value)}
-                  placeholder={clienteObrigatorio ? 'Nome do cliente (obrigatório)' : 'Nome do cliente (opcional)'}
-                />
-              </div>
+              {!ocultarCliente && (
+                <div>
+                  <Label>
+                    Cliente {clienteObrigatorio && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Input
+                    value={vCliente}
+                    onChange={e => setVCliente(e.target.value)}
+                    placeholder={clienteObrigatorio ? 'Nome do cliente (obrigatório)' : 'Nome do cliente (opcional)'}
+                  />
+                </div>
+              )}
 
               {/* 4. WhatsApp — condicional */}
               {showWhatsapp && (
