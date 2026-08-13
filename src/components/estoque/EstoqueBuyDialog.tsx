@@ -56,7 +56,7 @@ interface ResumoItem {
 const fmtBRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }: Props) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, allProfiles } = useAuth();
   const { descontos } = useDescontosAtivos();
   // map produto_id -> quantidade desejada
   const [quantidades, setQuantidades] = useState<Record<string, number>>({});
@@ -67,6 +67,17 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   const [whats, setWhats] = useState('');
   const [numero, setNumero] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Numeração automática por prefixo (pedido de estoque recebe código EST no final)
+  const vendorForAutoNum = isAdmin
+    ? ((allProfiles || []).find(p => p.nomeCompleto === vendedor) || null)
+    : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
+  const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum, CODIGO_ESTOQUE);
+  useEffect(() => {
+    if (open && numeroIsAuto && autoNumero && !numero.trim()) setNumero(autoNumero);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, numeroIsAuto, autoNumero]);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = user?.role === 'vendedor';
   // Reservas ativas por outros vendedores (produto_id -> qtd reservada)
   const [reservasOutros, setReservasOutros] = useState<Record<string, number>>({});
   // Espelho local dos saldos (atualizado por realtime)
