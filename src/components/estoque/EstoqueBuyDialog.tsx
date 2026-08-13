@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
+import { CODIGO_ESTOQUE } from '@/lib/orderCodigos';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
