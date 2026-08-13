@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
-import { useAutoOrderNumero } from '@/hooks/useAutoOrderNumero';
+import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -340,6 +340,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [vendedorSelecionado, setVendedorSelecionado] = useState(isAdminProducao ? '' : (user?.nomeCompleto || ''));
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
+  // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
+  const ocultarCliente = user?.role === 'vendedor';
 
   // Auto-preenchimento do número (vendedor com prefixo, exceto estoque/juliana/site)
   const vendorForAutoNum = isAdmin
