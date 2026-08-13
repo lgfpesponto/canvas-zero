@@ -415,16 +415,21 @@ const UsersManagementPage = () => {
               <Label>Telefone oficial da loja (WhatsApp)</Label>
               <Input value={editForm.telefone_loja || ''} onChange={(e) => setEditForm({ ...editForm, telefone_loja: e.target.value })} placeholder="(XX) XXXXX-XXXX" />
             </div>
-            {(editForm.role === 'vendedor' || editForm.role === 'vendedor_comissao') && (
+            {editForm.role === 'vendedor' && (
               <div>
                 <Label>Prefixo de pedido</Label>
-                <Input
-                  value={editForm.pedido_prefixo || ''}
-                  onChange={(e) => setEditForm({ ...editForm, pedido_prefixo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
-                  placeholder="Ex: RC"
-                  maxLength={6}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Se preenchido, o número do pedido será gerado automaticamente (prefixo + sequência).</p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editForm.pedido_prefixo || ''}
+                    onChange={(e) => setEditForm({ ...editForm, pedido_prefixo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                    placeholder="Ex: 4"
+                    maxLength={6}
+                  />
+                  <span className="text-sm font-mono text-muted-foreground">-1, -2, -3…</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Digite só o prefixo (sem hífen). O portal preenche o número do pedido como <span className="font-mono">prefixo-sequência</span> (ex.: <span className="font-mono">4-1</span>), seguindo o último número usado por este vendedor. Pedidos de estoque e extras recebem um código no final (ex.: <span className="font-mono">4-2EST</span>). Deixe vazio para numeração manual.
+                </p>
               </div>
             )}
             <div>
