@@ -106,6 +106,8 @@ const MultiSelect = ({
 }) => {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const hasSearch = label.toLowerCase().includes('bordado') || label.toLowerCase().includes('laser');
   const filtered = search
     ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
@@ -116,6 +118,39 @@ const MultiSelect = ({
     if (checked) onChange([...selected, l]);
     else onChange(selected.filter(s => s !== l));
   };
+
+  /** Foco "roving" nas opções: Enter marca, setas movem, Tab/clique fora segue. */
+  const opcoesEls = () => Array.from(gridRef.current?.querySelectorAll<HTMLElement>('[data-ms-opt="true"]') || []);
+  const focarOpcao = (idx: number) => {
+    const els = opcoesEls();
+    if (els.length === 0) return false;
+    const i = Math.max(0, Math.min(els.length - 1, idx));
+    els[i].focus();
+    return true;
+  };
+  const onOptionKeyDown = (e: React.KeyboardEvent<HTMLElement>, idx: number, itemLabel: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle(itemLabel, !selected.includes(itemLabel));
+      return;
+    }
+    if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const els = opcoesEls();
+      if (idx >= els.length - 1) focusNextFrom(gridRef.current);
+      else focarOpcao(idx + 1);
+      return;
+    }
+    if (['ArrowLeft', 'ArrowUp'].includes(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (idx === 0 && hasSearch) searchRef.current?.focus();
+      else focarOpcao(idx - 1);
+    }
+  };
+
 
   return (
     <div>
