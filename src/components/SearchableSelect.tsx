@@ -29,7 +29,15 @@ const SearchableSelect = ({
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const bloqueiaAberturaRef = useRef(false);
+
+  // Abertura programática: a navegação por Enter dispara este evento no trigger.
+  useEffect(() => {
+    const el = triggerRef.current;
+    if (!el || !autoOpenOnFocus) return;
+    const abrir = () => setOpen(true);
+    el.addEventListener(FICHA_FOCUS_OPEN, abrir as EventListener);
+    return () => el.removeEventListener(FICHA_FOCUS_OPEN, abrir as EventListener);
+  }, [autoOpenOnFocus]);
 
   const normalizedOptions = options.map(o => {
     if (typeof o === 'string') return { label: o, display: o };
@@ -40,29 +48,16 @@ const SearchableSelect = ({
   const selectedFoto = fotoLookup && value ? fotoLookup(value) : null;
 
   const fecharEAvancar = () => {
-    bloqueiaAberturaRef.current = true;
     setOpen(false);
-    setTimeout(() => {
-      if (advanceOnSelect) focusNextFrom(triggerRef.current);
-      bloqueiaAberturaRef.current = false;
-    }, 60);
+    if (!advanceOnSelect) return;
+    setTimeout(() => focusNextFrom(triggerRef.current), 60);
   };
 
   const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const sugNorm = sugerida ? norm(sugerida) : '';
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={o => {
-        if (o && bloqueiaAberturaRef.current) return;
-        setOpen(o);
-        if (!o && advanceOnSelect) {
-          bloqueiaAberturaRef.current = true;
-          setTimeout(() => { bloqueiaAberturaRef.current = false; }, 250);
-        }
-      }}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           ref={triggerRef}
@@ -70,7 +65,6 @@ const SearchableSelect = ({
           role="combobox"
           data-ficha-nav="true"
           aria-expanded={open}
-          onFocus={() => { if (autoOpenOnFocus && !bloqueiaAberturaRef.current) setOpen(true); }}
           className={cn(
             'w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none flex items-center justify-between text-left',
             !value && 'text-muted-foreground',
@@ -84,6 +78,7 @@ const SearchableSelect = ({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
+
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
           <CommandInput placeholder="Pesquisar..." />
