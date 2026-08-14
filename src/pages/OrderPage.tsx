@@ -2733,17 +2733,15 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
       </motion.div>
         {showFotoPanel && (
-          <div className="w-full lg:w-[400px] shrink-0">
-            <FotoPedidoSidePanel
-              url={currentFotoUrl}
-              onClose={() => setMostrarFotoPainel(false)}
-              onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
-              onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
-              showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
-              onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-              disabled={orderDuplicate && !estoqueJaCriado}
-            />
-          </div>
+          <FotoPedidoSidePanel
+            url={currentFotoUrl}
+            onClose={() => setMostrarFotoPainel(false)}
+            onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
+            onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
+            showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
+            onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
+            disabled={orderDuplicate && !estoqueJaCriado}
+          />
         )}
         {mode === 'order' && (
           <Button
