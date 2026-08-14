@@ -333,8 +333,13 @@ function EditPopover({
                     placeholder="URL da foto (opcional)"
                     className="h-7 text-[11px] px-2"
                   />
+                  {dup && (
+                    <p className="text-[10px] text-destructive">Já existe uma variação com este nome neste campo.</p>
+                  )}
                 </div>
-              ))}
+                );
+              })}
+
 
               {variacoes.length === 0 && drafts.length === 0 && (
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação.</p>
