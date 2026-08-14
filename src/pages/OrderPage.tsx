@@ -2089,10 +2089,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   return (
     <FichaEditProvider fichaSlug="bota">
-    <div className="container mx-auto px-4 py-8 max-w-[1500px]">
+    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
       <FichaEditBar />
-      <div className={`${comprarMode ? 'hidden' : ''} flex flex-col lg:flex-row lg:justify-center gap-6 items-start`}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0 w-full max-w-4xl">
+      <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
+
 
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <h1 className="text-3xl font-display font-bold">
@@ -2153,7 +2154,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </Dialog>
 
         <div className="relative">
-        <div className="hidden xl:block absolute right-full top-0 bottom-0 mr-4">
+        <div className="hidden min-[1500px]:block fixed left-4 top-28 z-30">
           <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} className="block" />
         </div>
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="w-full min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
@@ -2749,7 +2750,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             type="button"
             size="sm"
             onClick={() => setMenuAberto(true)}
-            className="xl:hidden fixed bottom-4 left-4 z-40 shadow-lg rounded-full h-12 w-12 p-0"
+            className="min-[1500px]:hidden fixed bottom-4 left-4 z-40 shadow-lg rounded-full h-12 w-12 p-0"
             title="Menu da ficha"
           >
             <List size={20} />
