@@ -82,10 +82,10 @@ const Section = ({ title, children, id }: { title: string; children: React.React
 const fotoLookupHolder: { fn?: (label: string) => string | null | undefined } = {};
 
 /** Campo de seleção da ficha (componente estável para não perder o foco). */
-const SelectField = ({ label, value, onChange, options, required: req, suggested, sugerida }: {
+const SelectField = ({ label, value, onChange, options, required: req, suggested, sugerida, navSkip }: {
   label: string; value: string; onChange: (v: string) => void;
   options: string[] | { label: string; preco: number }[];
-  required?: boolean; suggested?: boolean; sugerida?: string | null;
+  required?: boolean; suggested?: boolean; sugerida?: string | null; navSkip?: boolean;
 }) => (
   <div>
     <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
@@ -104,6 +104,7 @@ const SelectField = ({ label, value, onChange, options, required: req, suggested
       autoOpenOnFocus
       advanceOnSelect
       sugerida={sugerida}
+      navSkip={navSkip}
     />
   </div>
 );
