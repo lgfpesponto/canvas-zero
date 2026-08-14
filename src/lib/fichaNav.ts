@@ -57,6 +57,9 @@ export function abrirSelectNativo(el: HTMLElement | null | undefined) {
 
 /** Um campo já está preenchido? (usado para pular campos na navegação) */
 export function isNavFilled(el: HTMLElement): boolean {
+  // Marcação explícita tem prioridade (ex.: "Tem / Não tem" nunca é "preenchido").
+  if (el.getAttribute('data-ficha-filled') === 'false') return false;
+  if (el.closest('[data-ficha-toggle="true"]')) return false;
   if (el instanceof HTMLSelectElement) return el.value.trim() !== '';
   if (el instanceof HTMLInputElement) {
     if (el.type === 'checkbox' || el.type === 'radio') return el.checked;
