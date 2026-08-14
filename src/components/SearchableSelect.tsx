@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import VariacaoFotoIcon from '@/components/ficha/VariacaoFotoIcon';
+import { focusNextFrom } from '@/lib/fichaNav';
 
 interface SearchableSelectProps {
   options: string[] | { label: string; preco?: number }[];
@@ -13,10 +14,21 @@ interface SearchableSelectProps {
   className?: string;
   /** Optional lookup returning a photo URL for a given option label (renders 👁 icon). */
   fotoLookup?: (label: string) => string | null | undefined;
+  /** Abre a lista automaticamente quando o campo recebe o foco (navegação por Enter). */
+  autoOpenOnFocus?: boolean;
+  /** Após escolher (ou fechar), move o foco para o próximo campo da ficha. */
+  advanceOnSelect?: boolean;
+  /** Rótulo "sugerido" mostrado ao lado da primeira opção. */
+  sugerida?: string | null;
 }
 
-const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Selecione...', className, fotoLookup }: SearchableSelectProps) => {
+const SearchableSelect = ({
+  options, value, onValueChange, placeholder = 'Selecione...', className, fotoLookup,
+  autoOpenOnFocus, advanceOnSelect, sugerida,
+}: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const bloqueiaAberturaRef = useRef(false);
 
   const normalizedOptions = options.map(o => {
     if (typeof o === 'string') return { label: o, display: o };
@@ -26,13 +38,38 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
   const displayValue = normalizedOptions.find(o => o.label === value)?.display || '';
   const selectedFoto = fotoLookup && value ? fotoLookup(value) : null;
 
+  const fecharEAvancar = () => {
+    bloqueiaAberturaRef.current = true;
+    setOpen(false);
+    setTimeout(() => {
+      if (advanceOnSelect) focusNextFrom(triggerRef.current);
+      bloqueiaAberturaRef.current = false;
+    }, 60);
+  };
+
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const sugNorm = sugerida ? norm(sugerida) : '';
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={o => {
+        if (o && bloqueiaAberturaRef.current) return;
+        setOpen(o);
+        if (!o && advanceOnSelect) {
+          bloqueiaAberturaRef.current = true;
+          setTimeout(() => { bloqueiaAberturaRef.current = false; }, 250);
+        }
+      }}
+    >
       <PopoverTrigger asChild>
         <button
+          ref={triggerRef}
           type="button"
           role="combobox"
+          data-ficha-nav="true"
           aria-expanded={open}
+          onFocus={() => { if (autoOpenOnFocus && !bloqueiaAberturaRef.current) setOpen(true); }}
           className={cn(
             'w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none flex items-center justify-between text-left',
             !value && 'text-muted-foreground',
@@ -54,17 +91,19 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
             <CommandGroup>
               {normalizedOptions.map(o => {
                 const foto = fotoLookup ? fotoLookup(o.label) : null;
+                const isSug = !!sugNorm && (norm(o.label) === sugNorm || norm(o.label).includes(sugNorm));
                 return (
                   <CommandItem
                     key={o.label}
                     value={o.label}
                     onSelect={() => {
                       onValueChange(value === o.label ? '' : o.label);
-                      setOpen(false);
+                      fecharEAvancar();
                     }}
                   >
                     <Check className={cn('mr-2 h-4 w-4', value === o.label ? 'opacity-100' : 'opacity-0')} />
                     <span className="flex-1">{o.display}</span>
+                    {isSug && <span className="ml-2 text-[10px] font-semibold text-primary uppercase">sugerido</span>}
                     {foto && <VariacaoFotoIcon fotoUrl={foto} nome={o.label} />}
                   </CommandItem>
                 );
@@ -78,4 +117,3 @@ const SearchableSelect = ({ options, value, onValueChange, placeholder = 'Seleci
 };
 
 export default SearchableSelect;
-

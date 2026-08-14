@@ -17,6 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
+import { focusNextFrom } from '@/lib/fichaNav';
+import { useFichaKeyboardNav } from '@/hooks/useFichaKeyboardNav';
+import { sugerirCorLinha, sugerirCorBorrachinha, sugerirCorVivo, ordenarComSugestao, ehSugerida, SEGUNDA_SUGESTAO_VIVO } from '@/lib/corSugestoes';
+import FichaAtalhosPanel from '@/components/ficha/FichaAtalhosPanel';
+import FichaCategoriaMenu from '@/components/ficha/FichaCategoriaMenu';
 
 function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
   const validityById = useTemplatesValidity(props.templates as any, props.tipo);
@@ -66,18 +71,67 @@ const cls = {
   checkItem: 'flex items-center gap-2 text-sm',
 };
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="space-y-3">
+const Section = ({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) => (
+  <div className="space-y-3 scroll-mt-24" id={id}>
     <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-lg uppercase tracking-wide py-2 rounded-sm">{title}</h3>
     {children}
   </div>
 );
 
+/** Lookup de fotos das variações — preenchido pela página a cada render. */
+const fotoLookupHolder: { fn?: (label: string) => string | null | undefined } = {};
+
+/** Campo de seleção da ficha (componente estável para não perder o foco). */
+const SelectField = ({ label, value, onChange, options, required: req, suggested, sugerida }: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: string[] | { label: string; preco: number }[];
+  required?: boolean; suggested?: boolean; sugerida?: string | null;
+}) => (
+  <div>
+    <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
+      <span>{label}{req && <span className="text-destructive ml-0.5">*</span>}</span>
+      <FichaFieldControls labelText={label} defaultTipo="selecao" />
+      {(suggested || (sugerida && ehSugerida(value, sugerida))) && (
+        <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
+      )}
+    </label>
+    <SearchableSelect
+      options={options}
+      value={value}
+      onValueChange={onChange}
+      placeholder="Selecione..."
+      fotoLookup={fotoLookupHolder.fn}
+      autoOpenOnFocus
+      advanceOnSelect
+      sugerida={sugerida}
+    />
+  </div>
+);
+
+/** Campo de cor texto obrigatório que espelha o valor entre as partes da mesma categoria. */
+const CorEspelhadaInput = ({ label, value, onChange, sugerido }: {
+  label: string; value: string; onChange: (v: string) => void; sugerido?: boolean;
+}) => (
+  <div>
+    <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
+      <span>{label}<span className="text-destructive ml-0.5">*</span></span>
+      {sugerido && value && (
+        <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
+      )}
+    </label>
+    <input type="text" value={value} onChange={e => onChange(e.target.value)} className={cls.input} placeholder="Cor..." />
+  </div>
+);
+
+
+
+
 const ToggleField = ({
-  label, value, onChange, textValue, onTextChange, textPlaceholder,
+  label, value, onChange, textValue, onTextChange, textPlaceholder, required: req,
 }: {
   label: string; value: boolean; onChange: (v: boolean) => void;
   textValue?: string; onTextChange?: (v: string) => void; textPlaceholder?: string;
+  required?: boolean;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
@@ -89,10 +143,11 @@ const ToggleField = ({
       <option value="tem">Tem</option>
     </select>
     {value && textValue !== undefined && onTextChange && (
-      <input type="text" value={textValue} onChange={e => onTextChange(e.target.value)} placeholder={textPlaceholder || 'Descreva...'} className={cls.inputSmall + ' flex-1 min-w-[180px]'} />
+      <input type="text" value={textValue} onChange={e => onTextChange(e.target.value)} placeholder={(textPlaceholder || 'Descreva...') + (req ? ' (obrigatório)' : '')} className={cls.inputSmall + ' flex-1 min-w-[180px]' + (req && !textValue.trim() ? ' border-destructive' : '')} />
     )}
   </div>
 );
+
 
 const MultiSelect = ({
   label, items, selected, onChange,
@@ -104,6 +159,8 @@ const MultiSelect = ({
 }) => {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const hasSearch = label.toLowerCase().includes('bordado') || label.toLowerCase().includes('laser');
   const filtered = search
     ? items.filter(i => i.label.toLowerCase().includes(search.toLowerCase()))
@@ -114,6 +171,39 @@ const MultiSelect = ({
     if (checked) onChange([...selected, l]);
     else onChange(selected.filter(s => s !== l));
   };
+
+  /** Foco "roving" nas opções: Enter marca, setas movem, Tab/clique fora segue. */
+  const opcoesEls = () => Array.from(gridRef.current?.querySelectorAll<HTMLElement>('[data-ms-opt="true"]') || []);
+  const focarOpcao = (idx: number) => {
+    const els = opcoesEls();
+    if (els.length === 0) return false;
+    const i = Math.max(0, Math.min(els.length - 1, idx));
+    els[i].focus();
+    return true;
+  };
+  const onOptionKeyDown = (e: React.KeyboardEvent<HTMLElement>, idx: number, itemLabel: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle(itemLabel, !selected.includes(itemLabel));
+      return;
+    }
+    if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const els = opcoesEls();
+      if (idx >= els.length - 1) focusNextFrom(gridRef.current);
+      else focarOpcao(idx + 1);
+      return;
+    }
+    if (['ArrowLeft', 'ArrowUp'].includes(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (idx === 0 && hasSearch) searchRef.current?.focus();
+      else focarOpcao(idx - 1);
+    }
+  };
+
 
   return (
     <div>
@@ -166,23 +256,48 @@ const MultiSelect = ({
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={searchRef}
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            data-ficha-enter-manual="true"
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
+                focarOpcao(0);
+              } else if (e.key.toLowerCase() === 'x' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpanded(true);
+              }
+            }}
             placeholder={label.toLowerCase().includes('bordado') ? 'Pesquisar bordado...' : 'Pesquisar...'}
             className={cls.input + ' pl-8 !py-1.5 text-xs'}
           />
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+      <div
+        ref={gridRef}
+        data-ficha-nav-skip="true"
+        data-ficha-nav={hasSearch ? undefined : 'true'}
+        tabIndex={hasSearch ? -1 : 0}
+        onFocus={e => { if (!hasSearch && e.target === gridRef.current) focarOpcao(0); }}
+        className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50 outline-none"
+      >
         {filtered.map((item, idx) => (
           <React.Fragment key={item.label}>
             {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
-            <label className={cls.checkItem}>
-              <input type="checkbox" checked={selected.includes(item.label)} onChange={e => toggle(item.label, e.target.checked)} className="accent-primary w-4 h-4" />
+            <label
+              data-ms-opt="true"
+              tabIndex={-1}
+              onKeyDown={e => onOptionKeyDown(e, idx, item.label)}
+              className={cls.checkItem + ' rounded px-1 outline-none focus:ring-2 focus:ring-primary/60'}
+            >
+              <input type="checkbox" tabIndex={-1} checked={selected.includes(item.label)} onChange={e => toggle(item.label, e.target.checked)} className="accent-primary w-4 h-4" />
               <span>
                 {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
               </span>
@@ -191,6 +306,7 @@ const MultiSelect = ({
           </React.Fragment>
         ))}
       </div>
+
       <VariacaoExpandirDialog
         open={expanded}
         onOpenChange={setExpanded}
@@ -373,6 +489,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   // Flags visuais "Sugerido" quando o campo foi auto-preenchido por propagação.
   type CouroSug = { tipoCano?: boolean; tipoGaspea?: boolean; tipoTaloneira?: boolean; corCano?: boolean; corGaspea?: boolean; corTaloneira?: boolean };
   const [couroSug, setCouroSug] = useState<CouroSug>({});
+  /** Flags "sugestão" das cores espelhadas dentro de bordado/laser/recorte. */
+  const [corSug, setCorSug] = useState<Record<string, boolean>>({});
 
   // desenvolvimento LEGACY (pedidos antigos com Bordado/Laser/Estampa como valor único)
   const [desenvolvimento, setDesenvolvimento] = useState(df.desenvolvimento || '');
@@ -1012,6 +1130,34 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     }
   };
 
+  /* ───── Navegação por Enter + atalhos de teclado ───── */
+  const menuRef = useRef<HTMLDivElement>(null);
+  useFichaKeyboardNav(formRef, { enabled: mode === 'order', autoFocusFirst: mode === 'order' && !embedded });
+
+  const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
+  useEffect(() => {
+    if (mode !== 'order') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 's') { e.preventDefault(); formRef.current?.requestSubmit(); }
+      else if (k === 'r') { e.preventDefault(); handleSaveDraft(); }
+      else if (k === 'l') {
+        e.preventDefault();
+        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetForm(); toast.success('Ficha limpa.'); }
+      } else if (k === 'e') {
+        if (!podeEstoqueDireto) return;
+        e.preventDefault();
+        setEstoquePronto(true);
+        formRef.current?.requestSubmit();
+      } else if (k === 'm') { e.preventDefault(); menuRef.current?.focus(); menuRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, podeEstoqueDireto]);
+
+
   if (authLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
@@ -1181,6 +1327,23 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     const missingVariado = variadoChecks.filter(([sel, desc]) => sel.some(s => s.includes('Bordado Variado')) && !desc.trim());
     if (missingVariado.length > 0) {
       toast.error(`Preencha: ${missingVariado.map(([,, l]) => l).join(', ')}`);
+      return;
+    }
+    // Cores obrigatórias quando a parte tem bordado / laser / recorte preenchido
+    const corChecks: [boolean, string, string][] = [
+      [bordadoCano.length > 0, corBordadoCano, 'Cor do Bordado do Cano'],
+      [bordadoGaspea.length > 0, corBordadoGaspea, 'Cor do Bordado da Gáspea'],
+      [bordadoTaloneira.length > 0, corBordadoTaloneira, 'Cor do Bordado da Taloneira'],
+      [laserCano.length > 0, corBordadoLaserCano, 'Cor do Bordado (Cano)'],
+      [laserGaspea.length > 0, corBordadoLaserGaspea, 'Cor do Bordado (Gáspea)'],
+      [laserTaloneira.length > 0, corBordadoLaserTaloneira, 'Cor do Bordado (Taloneira)'],
+      [!!recorteCano, corRecorteCano, 'Cor do Recorte (Cano)'],
+      [!!recorteGaspea, corRecorteGaspea, 'Cor do Recorte (Gáspea)'],
+      [!!recorteTaloneira, corRecorteTaloneira, 'Cor do Recorte (Taloneira)'],
+    ];
+    const missingCor = corChecks.filter(([ativo, val]) => ativo && !val.trim());
+    if (missingCor.length > 0) {
+      toast.error(`Preencha: ${missingCor.map(([,, l]) => l).join(', ')}`);
       return;
     }
     // Validate toggle descriptions (TEM requires description)
@@ -1797,25 +1960,47 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     },
   ].filter(g => g.itens.length > 0);
 
-  /* ───── select helper ───── */
-  const SelectField = ({ label, value, onChange, options, required: req, suggested }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean; suggested?: boolean }) => (
-    <div>
-      <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
-        <span>{label}{req && <span className="text-destructive ml-0.5">*</span>}</span>
-        <FichaFieldControls labelText={label} defaultTipo="selecao" />
-        {suggested && (
-          <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
-        )}
-      </label>
-      <SearchableSelect
-        options={options}
-        value={value}
-        onValueChange={onChange}
-        placeholder="Selecione..."
-        fotoLookup={findFotoByName}
-      />
-    </div>
-  );
+  /* ───── select helper (usa o componente estável definido no módulo) ───── */
+  fotoLookupHolder.fn = findFotoByName;
+
+  /* ───── Espelhamento das cores dentro de Bordado / Laser / Recortes ─────
+     A primeira parte preenchida da categoria vira sugestão para as outras
+     partes que também estiverem marcadas como "tem". */
+  type CorGrupo = 'bordado' | 'laser' | 'recorte';
+  const gruposCor: Record<CorGrupo, { key: string; valor: string; set: (v: string) => void; ativo: boolean }[]> = {
+    bordado: [
+      { key: 'bordado_cano', valor: corBordadoCano, set: setCorBordadoCano, ativo: bordadoCano.length > 0 },
+      { key: 'bordado_gaspea', valor: corBordadoGaspea, set: setCorBordadoGaspea, ativo: bordadoGaspea.length > 0 },
+      { key: 'bordado_taloneira', valor: corBordadoTaloneira, set: setCorBordadoTaloneira, ativo: bordadoTaloneira.length > 0 },
+    ],
+    laser: [
+      { key: 'laser_cano', valor: corBordadoLaserCano, set: setCorBordadoLaserCano, ativo: laserCano.length > 0 },
+      { key: 'laser_gaspea', valor: corBordadoLaserGaspea, set: setCorBordadoLaserGaspea, ativo: laserGaspea.length > 0 },
+      { key: 'laser_taloneira', valor: corBordadoLaserTaloneira, set: setCorBordadoLaserTaloneira, ativo: laserTaloneira.length > 0 },
+    ],
+    recorte: [
+      { key: 'recorte_cano', valor: corRecorteCano, set: setCorRecorteCano, ativo: !!recorteCano },
+      { key: 'recorte_gaspea', valor: corRecorteGaspea, set: setCorRecorteGaspea, ativo: !!recorteGaspea },
+      { key: 'recorte_taloneira', valor: corRecorteTaloneira, set: setCorRecorteTaloneira, ativo: !!recorteTaloneira },
+    ],
+  };
+
+  /** Preenche a cor da parte e espelha nas outras partes ativas ainda vazias. */
+  const handleCorGrupo = (grupo: CorGrupo, key: string, v: string) => {
+    const partes = gruposCor[grupo];
+    partes.find(p => p.key === key)?.set(v);
+    setCorSug(prev => ({ ...prev, [key]: false }));
+    if (!v.trim()) return;
+    const novos: Record<string, boolean> = {};
+    partes.forEach(p => {
+      if (p.key === key || !p.ativo) return;
+      if (!p.valor.trim() || corSug[p.key]) { p.set(v); novos[p.key] = true; }
+    });
+    if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
+  };
+
+
+
 
 
   const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
@@ -1875,7 +2060,38 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           )}
         </div>
 
-        <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <div className="flex gap-6 items-start">
+        <FichaCategoriaMenu
+          menuRef={menuRef}
+          items={[
+            { id: 'ficha-identificacao', label: 'Identificação' },
+            { id: 'ficha-couros', label: 'Couros' },
+            { id: 'ficha-pesponto', label: 'Pesponto' },
+            { id: 'ficha-solado', label: 'Solado' },
+            { id: 'ficha-bordado', label: 'Bordado' },
+            { id: 'ficha-laser', label: 'Laser' },
+            { id: 'ficha-recortes', label: 'Recortes' },
+            { id: 'ficha-estampa', label: 'Estampa' },
+            { id: 'ficha-metais', label: 'Metais' },
+            { id: 'ficha-extras', label: 'Extras' },
+            { id: 'ficha-adicional', label: 'Adicional' },
+          ]}
+        />
+        <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="flex-1 min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+          {mode === 'order' && (
+            <FichaAtalhosPanel
+              atalhos={[
+                { combo: 'Enter', desc: 'Avança para o próximo campo' },
+                { combo: 'Ctrl + S', desc: 'Salvar / criar pedido' },
+                { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
+                { combo: 'Ctrl + L', desc: 'Limpar a ficha' },
+                ...(podeEstoqueDireto ? [{ combo: 'Ctrl + E', desc: 'Criar como estoque pronto' }] : []),
+                { combo: 'Ctrl + X', desc: 'Limpar seleção do campo múltiplo' },
+                { combo: 'Ctrl + M', desc: 'Ir para o menu de categorias' },
+              ]}
+            />
+          )}
+
 
           {/* Cabeçalho do Modelo (foto, nome, modelo+gênero, SKU base, tamanhos+SKU) */}
           {mode === 'template' && (
@@ -1900,7 +2116,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (
-            <Section title="Identificação">
+            <Section title="Identificação" id="ficha-identificacao">
               {/* Link da Foto de Referência (Drive) — primeiro campo */}
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Link da Foto de Referência" defaultTipo="texto" /></label>
@@ -2109,7 +2325,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             };
 
             return (
-              <Section title="Couros">
+              <Section title="Couros" id="ficha-couros">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={mergeFieldOptions('couro_cano', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
                   <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={v => handleCorChange('Cano', v)} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required suggested={!!couroSug.corCano && !!corCouroCano} />
@@ -2124,20 +2340,42 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           })()}
 
           {/* PESPONTO */}
-          <Section title="Pesponto">
+          <Section title="Pesponto" id="ficha-pesponto">
             <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
-              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={mergeFieldOptions('cor_linha', COR_LINHA as string[])} required />
+              <SelectField
+                label="Cor da Linha"
+                value={corLinha}
+                onChange={setCorLinha}
+                options={ordenarComSugestao(mergeFieldOptions('cor_linha', COR_LINHA as string[]), [sugerirCorLinha(corCouroCano)])}
+                sugerida={sugerirCorLinha(corCouroCano)}
+                required
+              />
               {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
                 <>
-                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={mergeFieldOptions('cor_borrachinha', COR_BORRACHINHA as string[])} required />
-                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={mergeFieldOptions('cor_vivo', COR_VIVO as string[])} required />
+                  <SelectField
+                    label="Cor da Borrachinha"
+                    value={corBorrachinha}
+                    onChange={setCorBorrachinha}
+                    options={ordenarComSugestao(mergeFieldOptions('cor_borrachinha', COR_BORRACHINHA as string[]), [sugerirCorBorrachinha(corCouroCano)])}
+                    sugerida={sugerirCorBorrachinha(corCouroCano)}
+                    required
+                  />
+                  <SelectField
+                    label="Cor do Vivo"
+                    value={corVivo}
+                    onChange={setCorVivo}
+                    options={ordenarComSugestao(mergeFieldOptions('cor_vivo', COR_VIVO as string[]), [sugerirCorVivo(corCouroCano), SEGUNDA_SUGESTAO_VIVO])}
+                    sugerida={sugerirCorVivo(corCouroCano)}
+                    required
+                  />
                 </>
               )}
             </div>
           </Section>
 
+
           {/* SOLADO */}
-          <Section title="Solado">
+          <Section title="Solado" id="ficha-solado">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {(() => {
                 const withDbPrice = (opts: { label: string; preco: number }[], cat: string, selections?: Record<string, string>) =>
@@ -2170,92 +2408,125 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </Section>
 
           {/* BORDADO */}
-          <Section title="Bordado">
+          <Section title="Bordado" id="ficha-bordado">
             <ToggleField label="Desenvolvimento (+R$50)" value={desenvBordado} onChange={setDesenvBordado} textValue={desenvBordadoDesc} onTextChange={setDesenvBordadoDesc} textPlaceholder="Descreva o desenvolvimento..." />
+            <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
+
             <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
-            <div><label className={cls.label}>Cor do Bordado do Cano</label><input type="text" value={corBordadoCano} onChange={e => setCorBordadoCano(e.target.value)} className={cls.input} /></div>
+            {bordadoCano.length > 0 && (
+              <CorEspelhadaInput label="Cor do Bordado do Cano" value={corBordadoCano} sugerido={!!corSug['bordado_cano']} onChange={v => handleCorGrupo('bordado', 'bordado_cano', v)} />
+            )}
 
             <MultiSelect label="Bordado da Gáspea" items={mergedBordadoGaspea} selected={bordadoGaspea} onChange={setBordadoGaspea} />
             {bordadoGaspea.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Gáspea)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescGaspea} onChange={e => setBordadoVariadoDescGaspea(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
-            <div><label className={cls.label}>Cor do Bordado da Gáspea</label><input type="text" value={corBordadoGaspea} onChange={e => setCorBordadoGaspea(e.target.value)} className={cls.input} /></div>
+            {bordadoGaspea.length > 0 && (
+              <CorEspelhadaInput label="Cor do Bordado da Gáspea" value={corBordadoGaspea} sugerido={!!corSug['bordado_gaspea']} onChange={v => handleCorGrupo('bordado', 'bordado_gaspea', v)} />
+            )}
 
             <MultiSelect label="Bordado da Taloneira" items={mergedBordadoTaloneira} selected={bordadoTaloneira} onChange={setBordadoTaloneira} />
             {bordadoTaloneira.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Taloneira)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescTaloneira} onChange={e => setBordadoVariadoDescTaloneira(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
-            <div><label className={cls.label}>Cor do Bordado da Taloneira</label><input type="text" value={corBordadoTaloneira} onChange={e => setCorBordadoTaloneira(e.target.value)} className={cls.input} /></div>
-
-            <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
+            {bordadoTaloneira.length > 0 && (
+              <CorEspelhadaInput label="Cor do Bordado da Taloneira" value={corBordadoTaloneira} sugerido={!!corSug['bordado_taloneira']} onChange={v => handleCorGrupo('bordado', 'bordado_taloneira', v)} />
+            )}
           </Section>
 
-          {/* LASER E RECORTES */}
-          <Section title="Laser e Recortes">
+          {/* LASER */}
+          <Section title="Laser" id="ficha-laser">
             <ToggleField label="Desenvolvimento (+R$100)" value={desenvLaser} onChange={setDesenvLaser} textValue={desenvLaserDesc} onTextChange={setDesenvLaserDesc} textPlaceholder="Descreva o desenvolvimento..." />
+
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
-            <div><label className={cls.label}>Cor do Bordado (Cano)</label><input type="text" value={corBordadoLaserCano} onChange={e => setCorBordadoLaserCano(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
-            <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
-            {recorteCano && (
-              <div><label className={cls.label}>Cor do Recorte (Cano)</label><input type="text" value={corRecorteCano} onChange={e => setCorRecorteCano(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            {laserCano.length > 0 && (
+              <>
+                <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
+                <CorEspelhadaInput label="Cor do Bordado (Cano)" value={corBordadoLaserCano} sugerido={!!corSug['laser_cano']} onChange={v => handleCorGrupo('laser', 'laser_cano', v)} />
+              </>
             )}
 
             <MultiSelect label="Laser da Gáspea" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} />
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
-            <div><label className={cls.label}>Cor do Bordado (Gáspea)</label><input type="text" value={corBordadoLaserGaspea} onChange={e => setCorBordadoLaserGaspea(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
-            <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
-            {recorteGaspea && (
-              <div><label className={cls.label}>Cor do Recorte (Gáspea)</label><input type="text" value={corRecorteGaspea} onChange={e => setCorRecorteGaspea(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            {laserGaspea.length > 0 && (
+              <>
+                <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
+                <CorEspelhadaInput label="Cor do Bordado (Gáspea)" value={corBordadoLaserGaspea} sugerido={!!corSug['laser_gaspea']} onChange={v => handleCorGrupo('laser', 'laser_gaspea', v)} />
+              </>
             )}
 
             <MultiSelect label="Laser da Taloneira" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
-            <div><label className={cls.label}>Cor do Bordado (Taloneira)</label><input type="text" value={corBordadoLaserTaloneira} onChange={e => setCorBordadoLaserTaloneira(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
-            <SelectField label="Recortes da Taloneira" value={recorteTaloneira} onChange={v => { setRecorteTaloneira(v); if (!v) setCorRecorteTaloneira(''); }} options={getDbItems('recorte_taloneira', [])} />
-            {recorteTaloneira && (
-              <div><label className={cls.label}>Cor do Recorte (Taloneira)</label><input type="text" value={corRecorteTaloneira} onChange={e => setCorRecorteTaloneira(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            {laserTaloneira.length > 0 && (
+              <>
+                <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
+                <CorEspelhadaInput label="Cor do Bordado (Taloneira)" value={corBordadoLaserTaloneira} sugerido={!!corSug['laser_taloneira']} onChange={v => handleCorGrupo('laser', 'laser_taloneira', v)} />
+              </>
             )}
 
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
           </Section>
 
+          {/* RECORTES */}
+          <Section title="Recortes" id="ficha-recortes">
+            <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
+            {recorteCano && (
+              <CorEspelhadaInput label="Cor do Recorte (Cano)" value={corRecorteCano} sugerido={!!corSug['recorte_cano']} onChange={v => handleCorGrupo('recorte', 'recorte_cano', v)} />
+            )}
+            <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
+            {recorteGaspea && (
+              <CorEspelhadaInput label="Cor do Recorte (Gáspea)" value={corRecorteGaspea} sugerido={!!corSug['recorte_gaspea']} onChange={v => handleCorGrupo('recorte', 'recorte_gaspea', v)} />
+            )}
+            <SelectField label="Recortes da Taloneira" value={recorteTaloneira} onChange={v => { setRecorteTaloneira(v); if (!v) setCorRecorteTaloneira(''); }} options={getDbItems('recorte_taloneira', [])} />
+            {recorteTaloneira && (
+              <CorEspelhadaInput label="Cor do Recorte (Taloneira)" value={corRecorteTaloneira} sugerido={!!corSug['recorte_taloneira']} onChange={v => handleCorGrupo('recorte', 'recorte_taloneira', v)} />
+            )}
+          </Section>
+
+
+
           {/* ESTAMPA */}
-          <Section title="Estampa">
+          <Section title="Estampa" id="ficha-estampa">
             <ToggleField label="Desenvolvimento (+R$150)" value={desenvEstampa} onChange={setDesenvEstampa} textValue={desenvEstampaDesc} onTextChange={setDesenvEstampaDesc} textPlaceholder="Descreva o desenvolvimento..." />
             <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
           </Section>
 
 
           {/* METAIS */}
-          <Section title="Metais">
+          <Section title="Metais" id="ficha-metais">
             <div className="grid sm:grid-cols-3 gap-4">
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={mergeFieldOptions('area_metal', AREA_METAL as { label: string; preco: number }[])} />
               <div>
                 <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
+                  <label className={cls.checkItem}>
+                    <input type="checkbox" checked={tipoMetal.includes('Não tem')} onChange={e => {
+                      setTipoMetal(e.target.checked ? ['Não tem'] : []);
+                      if (e.target.checked) { setAreaMetal(''); setCorMetal(''); }
+                    }} className="accent-primary w-4 h-4" />
+                    Não tem
+                  </label>
                   {mergeFieldOptions('tipo_metal', TIPO_METAL as string[]).map(t => (
                     <label key={t} className={cls.checkItem}>
                       <input type="checkbox" checked={tipoMetal.includes(t)} onChange={e => {
-                        if (e.target.checked) setTipoMetal(prev => [...prev, t]);
+                        if (e.target.checked) setTipoMetal(prev => [...prev.filter(x => x !== 'Não tem'), t]);
                         else setTipoMetal(prev => prev.filter(x => x !== t));
                       }} className="accent-primary w-4 h-4" />
                       {t}
                     </label>
                   ))}
                 </div>
+
               </div>
               <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={mergeFieldOptions('cor_metal', COR_METAL as string[])} />
             </div>
@@ -2286,20 +2557,21 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                     <input
                       type="number"
                       min={0}
-                      value={item.qtd}
-                      onChange={e => item.setQtd(Math.max(0, Number(e.target.value)))}
+                      value={item.qtd ? String(item.qtd) : ''}
+                      onChange={e => item.setQtd(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
                       onWheel={e => (e.target as HTMLInputElement).blur()}
                       className={cls.inputSmall + ' w-full'}
                       placeholder="Qtd"
                     />
                   )}
+
                 </div>
               ))}
             </div>
           </Section>
 
           {/* EXTRAS (Acessórios + Tricê + Tiras + Franja + Corrente + Carimbo a Fogo) */}
-          <Section title="Extras">
+          <Section title="Extras" id="ficha-extras">
             <MultiSelect label="Acessórios" items={mergeFieldOptions('acessorios', ACESSORIOS as { label: string; preco: number }[])} selected={acessorios} onChange={setAcessorios} />
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
@@ -2335,7 +2607,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </Section>
 
           {/* ADICIONAL */}
-          <Section title="Adicional">
+          <Section title="Adicional" id="ficha-adicional">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className={cls.label}>Descrição do Adicional</label>
@@ -2397,6 +2669,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             </button>
           )}
         </form>
+        </div>
+
       </motion.div>
         {showFotoPanel && (
           <FotoPedidoSidePanel
