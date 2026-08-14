@@ -122,7 +122,7 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
             <Button
               type="button"
               size="sm"
-              onClick={() => onOpenChange(false)}
+              onClick={() => { onOpenChange(false); onConfirm?.(); }}
               className="h-7 px-3 gap-1 mr-6"
             >
               <Check className="h-3.5 w-3.5" /> OK
