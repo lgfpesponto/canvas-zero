@@ -21,10 +21,11 @@ interface Props {
   selected: string[];
   onToggle: (label: string, checked: boolean) => void;
   onClearAll?: () => void;
+  onConfirm?: () => void;
 }
 
 
-export default function VariacaoExpandirDialog({ open, onOpenChange, title, items, selected, onToggle, onClearAll }: Props) {
+export default function VariacaoExpandirDialog({ open, onOpenChange, title, items, selected, onToggle, onClearAll, onConfirm }: Props) {
   const isMobile = useIsMobile();
   const pageSize = isMobile ? 2 : 6;
   const [page, setPage] = useState(0);
