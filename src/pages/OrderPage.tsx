@@ -108,6 +108,23 @@ const SelectField = ({ label, value, onChange, options, required: req, suggested
   </div>
 );
 
+/** Campo de cor texto obrigatório que espelha o valor entre as partes da mesma categoria. */
+const CorEspelhadaInput = ({ label, value, onChange, sugerido }: {
+  label: string; value: string; onChange: (v: string) => void; sugerido?: boolean;
+}) => (
+  <div>
+    <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
+      <span>{label}<span className="text-destructive ml-0.5">*</span></span>
+      {sugerido && value && (
+        <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
+      )}
+    </label>
+    <input type="text" value={value} onChange={e => onChange(e.target.value)} className={cls.input} placeholder="Cor..." />
+  </div>
+);
+
+
+
 
 const ToggleField = ({
   label, value, onChange, textValue, onTextChange, textPlaceholder, required: req,
