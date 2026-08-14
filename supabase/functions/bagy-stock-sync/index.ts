@@ -364,6 +364,7 @@ Deno.serve(async (req) => {
     .limit(MAX_BATCH);
 
   if (pendErr) {
+    await releaseLock();
     return new Response(JSON.stringify({ error: pendErr.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
