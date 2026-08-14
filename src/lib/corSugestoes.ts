@@ -59,12 +59,12 @@ type Opt = string | { label: string; preco?: number };
  * A comparação é tolerante a acento/caixa; opções inexistentes são ignoradas.
  */
 export function ordenarComSugestao<T extends Opt>(options: T[], sugeridas: (string | null | undefined)[]): T[] {
-  const alvos = sugeridas.filter(Boolean).map(s => norm(s as string));
+  const alvos = sugeridas.filter(Boolean).map(s => stem(s as string));
   if (alvos.length === 0) return options;
-  const labelOf = (o: T) => norm(typeof o === 'string' ? o : o.label);
+  const labelOf = (o: T) => stem(typeof o === 'string' ? o : o.label);
   const topo: T[] = [];
   alvos.forEach(a => {
-    const found = options.find(o => labelOf(o) === a || labelOf(o).includes(a));
+    const found = options.find(o => labelOf(o) === a) || options.find(o => labelOf(o).includes(a) || a.includes(labelOf(o)));
     if (found && !topo.includes(found)) topo.push(found);
   });
   if (topo.length === 0) return options;
@@ -73,5 +73,9 @@ export function ordenarComSugestao<T extends Opt>(options: T[], sugeridas: (stri
 
 /** Retorna true se `valor` é a cor sugerida para aquele couro. */
 export function ehSugerida(valor: string, sugerida: string | null): boolean {
-  return !!valor && !!sugerida && (norm(valor) === norm(sugerida) || norm(valor).includes(norm(sugerida)));
+  if (!valor || !sugerida) return false;
+  const a = stem(valor);
+  const b = stem(sugerida);
+  return a === b || a.includes(b) || b.includes(a);
 }
+
