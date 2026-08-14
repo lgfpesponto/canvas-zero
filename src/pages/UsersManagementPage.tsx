@@ -281,16 +281,55 @@ const UsersManagementPage = () => {
               <Loader2 className="animate-spin text-primary" size={32} />
             </div>
           ) : (
-            <Table>
+            <>
+            {/* Mobile: cards */}
+            <div className="md:hidden space-y-3">
+              {profiles.map((p) => (
+                <div key={p.id} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{p.nome_completo || '—'}</p>
+                      <p className="text-sm text-muted-foreground truncate">{p.nome_usuario}</p>
+                      <p className="text-xs text-muted-foreground truncate">{p.email || '—'}</p>
+                      <span className="mt-1 inline-block text-xs font-semibold px-2 py-1 rounded bg-muted">
+                        {ROLE_OPTIONS.find(r => r.value === p.role)?.label || p.role || '—'}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
+                        <Pencil size={14} />
+                      </Button>
+                      {user?.role === 'admin_master' && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={isProtected(p.nome_usuario)}
+                          title={isProtected(p.nome_usuario) ? 'Usuário protegido — não pode ser excluído' : 'Excluir usuário'}
+                          onClick={() => setDeleteProfile(p)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {profiles.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado.</p>
+              )}
+            </div>
+
+            {/* Desktop: table */}
+            <Table className="hidden md:table">
               <TableHeader>
                 <TableRow>
                  <TableHead>Nome Completo</TableHead>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>CPF/CNPJ</TableHead>
-                  <TableHead>Cadastro</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead className="hidden lg:table-cell">Email</TableHead>
+                  <TableHead className="hidden lg:table-cell">CPF/CNPJ</TableHead>
+                  <TableHead className="hidden xl:table-cell">Cadastro</TableHead>
+                  <TableHead className="text-right sticky right-0 z-10 bg-card">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -303,15 +342,21 @@ const UsersManagementPage = () => {
                         {ROLE_OPTIONS.find(r => r.value === p.role)?.label || p.role || '—'}
                       </span>
                     </TableCell>
-                    <TableCell>{p.email || '—'}</TableCell>
-                    <TableCell>{p.cpf_cnpj || '—'}</TableCell>
-                    <TableCell>{new Date(p.created_at).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="hidden lg:table-cell">{p.email || '—'}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{p.cpf_cnpj || '—'}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{new Date(p.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right space-x-2 sticky right-0 z-10 bg-card">
                       <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
                         <Pencil size={14} />
                       </Button>
-                      {user?.role === 'admin_master' && !isProtected(p.nome_usuario) && (
-                        <Button size="sm" variant="destructive" onClick={() => setDeleteProfile(p)}>
+                      {user?.role === 'admin_master' && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={isProtected(p.nome_usuario)}
+                          title={isProtected(p.nome_usuario) ? 'Usuário protegido — não pode ser excluído' : 'Excluir usuário'}
+                          onClick={() => setDeleteProfile(p)}
+                        >
                           <Trash2 size={14} />
                         </Button>
                       )}
@@ -327,7 +372,9 @@ const UsersManagementPage = () => {
                 )}
               </TableBody>
             </Table>
+            </>
           )}
+
         </CardContent>
       </Card>
 
