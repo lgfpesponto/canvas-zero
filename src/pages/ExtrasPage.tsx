@@ -475,7 +475,6 @@ const ExtrasPage = () => {
           <Label>{productId === 'bota_pronta_entrega' ? 'Nº do pedido (mesmo do site) *' : 'Nº do pedido *'}</Label>
           <Input value={form.numeroPedidoBota} onChange={e => set('numeroPedidoBota', numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder="Ex: 7E-20240001" className={orderDuplicate ? 'border-destructive' : ''} />
           {orderDuplicate && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
-          {numeroIsAuto && <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
         </div>
         {/* Número do pedido da bota — opcional, para produtos específicos */}
         {['tiras_laterais', 'desmanchar', 'kit_faca', 'kit_canivete', 'carimbo_fogo', 'adicionar_metais'].includes(productId) && (
