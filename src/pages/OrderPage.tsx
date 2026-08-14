@@ -1113,6 +1113,34 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     }
   };
 
+  /* ───── Navegação por Enter + atalhos de teclado ───── */
+  const menuRef = useRef<HTMLDivElement>(null);
+  useFichaKeyboardNav(formRef, { enabled: mode === 'order', autoFocusFirst: mode === 'order' && !embedded });
+
+  const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
+  useEffect(() => {
+    if (mode !== 'order') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 's') { e.preventDefault(); formRef.current?.requestSubmit(); }
+      else if (k === 'r') { e.preventDefault(); handleSaveDraft(); }
+      else if (k === 'l') {
+        e.preventDefault();
+        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetForm(); toast.success('Ficha limpa.'); }
+      } else if (k === 'e') {
+        if (!podeEstoqueDireto) return;
+        e.preventDefault();
+        setEstoquePronto(true);
+        formRef.current?.requestSubmit();
+      } else if (k === 'm') { e.preventDefault(); menuRef.current?.focus(); menuRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, podeEstoqueDireto]);
+
+
   if (authLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-muted-foreground">
