@@ -2089,10 +2089,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   return (
     <FichaEditProvider fichaSlug="bota">
-    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+    <div className="container mx-auto px-4 py-8 max-w-[1500px]">
       <FichaEditBar />
-      <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
+      <div className={`${comprarMode ? 'hidden' : ''} flex flex-col lg:flex-row lg:justify-center gap-6 items-start`}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0 w-full max-w-4xl">
+
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <h1 className="text-3xl font-display font-bold">
             {tmpl.isEditing ? 'Editar Modelo' : mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}
@@ -2152,7 +2153,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </Dialog>
 
         <div className="relative">
-        <div className="hidden xl:block absolute right-full top-0 mr-4">
+        <div className="hidden xl:block absolute right-full top-0 bottom-0 mr-4">
           <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} className="block" />
         </div>
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="w-full min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
@@ -2575,13 +2576,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <div>
                 <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
-                  <label className={cls.checkItem}>
-                    <input type="checkbox" checked={tipoMetal.includes('Não tem')} onChange={e => {
-                      setTipoMetal(e.target.checked ? ['Não tem'] : []);
-                      if (e.target.checked) { setAreaMetal(''); setCorMetal(''); }
-                    }} className="accent-primary w-4 h-4" />
-                    Não tem
-                  </label>
                   {mergeFieldOptions('tipo_metal', TIPO_METAL as string[]).map(t => (
                     <label key={t} className={cls.checkItem}>
                       <input type="checkbox" checked={tipoMetal.includes(t)} onChange={e => {
@@ -2739,15 +2733,28 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel
-            url={currentFotoUrl}
-            onClose={() => setMostrarFotoPainel(false)}
-            onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
-            onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
-            showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
-            onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-            disabled={orderDuplicate && !estoqueJaCriado}
-          />
+          <div className="w-full lg:w-[400px] shrink-0">
+            <FotoPedidoSidePanel
+              url={currentFotoUrl}
+              onClose={() => setMostrarFotoPainel(false)}
+              onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
+              onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
+              showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
+              onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
+              disabled={orderDuplicate && !estoqueJaCriado}
+            />
+          </div>
+        )}
+        {mode === 'order' && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setMenuAberto(true)}
+            className="xl:hidden fixed bottom-4 left-4 z-40 shadow-lg rounded-full h-12 w-12 p-0"
+            title="Menu da ficha"
+          >
+            <List size={20} />
+          </Button>
         )}
       </div>
 

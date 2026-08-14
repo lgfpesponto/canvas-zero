@@ -263,6 +263,7 @@ export const DESENVOLVIMENTO: { label: string; preco: number }[] = [
 
 // ==================== METAIS ====================
 export const AREA_METAL: { label: string; preco: number }[] = [
+  { label: 'Não tem', preco: 0 },
   { label: 'Inteira', preco: 30 },
   { label: 'Metade da Bota', preco: 15 },
 ];
