@@ -1752,6 +1752,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   };
 
 
+  saveDraftRef.current = () => handleSaveDraft();
+  resetFormRef.current = () => resetForm();
+
   const handleSaveDraft = () => {
     if (!user) return;
     if (!numeroPedido.trim() && !cliente.trim()) {
