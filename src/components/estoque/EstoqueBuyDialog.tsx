@@ -488,7 +488,8 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
                       type="number"
                       min={0}
                       max={disp}
-                      value={quantidades[t.id] ?? 0}
+                      value={quantidades[t.id] ? String(quantidades[t.id]) : ''}
+                      placeholder="0"
                       onChange={e => setQtd(t, e.target.value)}
                       disabled={esgotado}
                       className="h-8 text-sm text-center"
