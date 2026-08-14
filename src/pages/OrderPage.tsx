@@ -137,7 +137,20 @@ const ToggleField = ({
   const abertoRef = useRef(false);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
-    if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    // Seta para o lado: com "Tem" selecionado, vai direto para a descrição.
+    if (e.key === 'ArrowRight') {
+      const desc = selectRef.current?.parentElement?.querySelector<HTMLInputElement>('input[data-toggle-desc="true"]');
+      if (value && desc) {
+        e.preventDefault();
+        e.stopPropagation();
+        abertoRef.current = false;
+        desc.focus();
+        desc.select();
+      }
+      return;
+    }
+    if (e.key !== 'Enter') return;
     e.preventDefault();
     e.stopPropagation();
     const el = selectRef.current;
@@ -2255,7 +2268,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 <div>
                   <label className={cls.label + ' inline-flex items-center'}>Vendedor<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
                   {isAdmin ? (
-                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select} required>
+                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} data-ficha-filled="false" className={cls.select} required>
                       {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
                       {!isAdminProducao && !vendedorSelecionado && <option value="">Selecione...</option>}
                       {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
