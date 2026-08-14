@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox, Eraser } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox, Eraser, Keyboard } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { TemplateHeaderFields } from '@/components/template/TemplateHeaderFields';
 import { isHttpUrl } from '@/lib/driveUrl';
@@ -20,7 +20,7 @@ import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
 import { focusNextFrom } from '@/lib/fichaNav';
 import { useFichaKeyboardNav } from '@/hooks/useFichaKeyboardNav';
 import { sugerirCorLinha, sugerirCorBorrachinha, sugerirCorVivo, ordenarComSugestao, ehSugerida, SEGUNDA_SUGESTAO_VIVO } from '@/lib/corSugestoes';
-import FichaAtalhosPanel from '@/components/ficha/FichaAtalhosPanel';
+import FichaAtalhosLista from '@/components/ficha/FichaAtalhosPanel';
 import FichaCategoriaMenu from '@/components/ficha/FichaCategoriaMenu';
 
 function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
