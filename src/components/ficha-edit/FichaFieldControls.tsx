@@ -159,7 +159,29 @@ function EditPopover({
     return data as any as FichaCampo;
   };
 
+  const normNome = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  /** Nome já usado por outra variação do campo (ou por outro rascunho aberto)? */
+  const nomeDuplicado = (valor: string, ignoreDraftId?: string) => {
+    const n = normNome(valor);
+    if (!n) return false;
+    if (variacoes.some(v => normNome(v.nome || '') === n)) return true;
+    return drafts.some(d => d.id !== ignoreDraftId && normNome(d.nome) === n);
+  };
+
   const handleSalvar = async () => {
+    const validos = drafts.filter(d => d.nome.trim());
+    // Bloqueia duplicidade entre rascunhos e contra as variações já existentes.
+    const vistos = new Set<string>();
+    for (const d of validos) {
+      const n = normNome(d.nome);
+      if (variacoes.some(v => normNome(v.nome || '') === n) || vistos.has(n)) {
+        toast.error(`Já existe a variação "${d.nome.trim()}" neste campo`);
+        return;
+      }
+      vistos.add(n);
+    }
+
     const c = await ensureCampo();
     if (!c) return;
     const patch: any = { id: c.id, nome, obrigatorio };
@@ -167,8 +189,7 @@ function EditPopover({
     await updateCampo.mutateAsync(patch);
 
     // Persist any pending drafts (variações novas)
-    for (const d of drafts) {
-      if (!d.nome.trim()) continue;
+    for (const d of validos) {
       await insertVar.mutateAsync({
         categoria_id: c.categoria_id!,
         campo_id: c.id,
@@ -190,6 +211,10 @@ function EditPopover({
   const commitDraft = async (id: string) => {
     const d = drafts.find(x => x.id === id);
     if (!d || !d.nome.trim()) { toast.error('Informe o nome'); return; }
+    if (nomeDuplicado(d.nome, d.id)) {
+      toast.error(`Já existe a variação "${d.nome.trim()}" neste campo`);
+      return;
+    }
     const c = await ensureCampo();
     if (!c) return;
     await insertVar.mutateAsync({
@@ -203,6 +228,7 @@ function EditPopover({
     removeDraft(id);
     toast.success('Variação criada');
   };
+
 
 
 
@@ -275,7 +301,9 @@ function EditPopover({
               className="h-8 text-xs"
             />
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
-              {filteredDrafts.map(d => (
+              {filteredDrafts.map(d => {
+                const dup = nomeDuplicado(d.nome, d.id);
+                return (
                 <div key={d.id} className="bg-primary/5 rounded px-2 py-1.5 border border-primary/30 space-y-1">
                   <div className="flex items-center gap-1.5 text-xs">
                     <Input
@@ -284,8 +312,9 @@ function EditPopover({
                       onChange={e => updateDraft(d.id, { nome: e.target.value })}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(d.id); } }}
                       placeholder="nome"
-                      className="h-8 text-xs flex-1 px-2"
+                      className={`h-8 text-xs flex-1 px-2 ${dup ? 'border-destructive text-destructive' : ''}`}
                     />
+
                     <Input
                       type="number" step="0.01"
                       value={d.preco}
@@ -304,8 +333,13 @@ function EditPopover({
                     placeholder="URL da foto (opcional)"
                     className="h-7 text-[11px] px-2"
                   />
+                  {dup && (
+                    <p className="text-[10px] text-destructive">Já existe uma variação com este nome neste campo.</p>
+                  )}
                 </div>
-              ))}
+                );
+              })}
+
 
               {variacoes.length === 0 && drafts.length === 0 && (
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação.</p>
@@ -314,7 +348,7 @@ function EditPopover({
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação encontrada para "{varSearch}".</p>
               )}
               {filteredVariacoes.map(v => (
-                <VarLine key={v.id} v={v} todosCampos={campos} todasVars={allVars} />
+                <VarLine key={v.id} v={v} todosCampos={campos} todasVars={allVars} irmas={variacoes} />
               ))}
             </div>
           </div>
@@ -328,10 +362,11 @@ function EditPopover({
   );
 }
 
-function VarLine({ v, todosCampos, todasVars }: {
+function VarLine({ v, todosCampos, todasVars, irmas = [] }: {
   v: FichaVariacao & { relacionamento?: any };
   todosCampos: FichaCampo[];
   todasVars: FichaVariacao[];
+  irmas?: FichaVariacao[];
 }) {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(v.nome);
@@ -346,6 +381,14 @@ function VarLine({ v, todosCampos, todasVars }: {
 
   const updateVar = useUpdateVariacao();
   const deleteVar = useDeleteVariacao();
+
+  const nomeRepetido = useMemo(() => {
+    const n = nome.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!n) return false;
+    return irmas.some(x => x.id !== v.id && (x.nome || '').trim().toLowerCase().replace(/\s+/g, ' ') === n);
+  }, [nome, irmas, v.id]);
+
+
 
   const camposComVars = useMemo(() => {
     const arr: { campo: FichaCampo; vars: FichaVariacao[] }[] = [];
@@ -374,13 +417,23 @@ function VarLine({ v, todosCampos, todasVars }: {
       {editing ? (
         <div className="space-y-1">
           <div className="flex items-center gap-1 text-xs">
-            <Input value={nome} onChange={e => setNome(e.target.value)} className="h-6 text-[11px] flex-1 px-1" />
+            <Input
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              className={`h-6 text-[11px] flex-1 px-1 ${nomeRepetido ? 'border-destructive text-destructive' : ''}`}
+            />
             <Input type="number" step="0.01" value={preco} onChange={e => setPreco(parseFloat(e.target.value) || 0)} className="h-6 text-[11px] w-16 px-1" />
             <Button size="sm" className="h-6 px-2 text-[11px]" onClick={async () => {
-              await updateVar.mutateAsync({ id: v.id, nome, preco_adicional: preco, foto_url: fotoUrl.trim() || null });
+              if (!nome.trim()) { toast.error('Informe o nome'); return; }
+              if (nomeRepetido) { toast.error(`Já existe a variação "${nome.trim()}" neste campo`); return; }
+              await updateVar.mutateAsync({ id: v.id, nome: nome.trim(), preco_adicional: preco, foto_url: fotoUrl.trim() || null });
               setEditing(false); toast.success('salvo');
             }}>ok</Button>
           </div>
+          {nomeRepetido && (
+            <p className="text-[10px] text-destructive">Já existe uma variação com este nome neste campo.</p>
+          )}
+
           <Input
             value={fotoUrl}
             onChange={e => setFotoUrl(e.target.value)}
