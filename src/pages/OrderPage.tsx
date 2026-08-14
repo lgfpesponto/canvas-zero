@@ -1182,6 +1182,29 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [menuAberto, setMenuAberto] = useState(false);
   useFichaKeyboardNav(formRef, { enabled: mode === 'order', autoFocusFirst: mode === 'order' && !embedded });
 
+  /* Quando uma parte passa a ter bordado/laser/recorte DEPOIS da cor já
+     informada na categoria, o campo de cor nasce com a sugestão.
+     (hook no topo: o mapa de grupos é preenchido na ref mais abaixo) */
+  const gruposCorRef = useRef<Record<string, { key: string; valor: string; set: (v: string) => void; ativo: boolean }[]>>({});
+  useEffect(() => {
+    const novos: Record<string, boolean> = {};
+    Object.keys(gruposCorRef.current).forEach(grupo => {
+      const cor = (ultimaCorGrupo[grupo] || '').trim();
+      if (!cor) return;
+      gruposCorRef.current[grupo].forEach(p => {
+        if (!p.ativo || p.valor.trim()) return;
+        p.set(cor);
+        novos[p.key] = true;
+      });
+    });
+    if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ultimaCorGrupo, bordadoCano.length, bordadoGaspea.length, bordadoTaloneira.length,
+      laserCano.length, laserGaspea.length, laserTaloneira.length,
+      recorteCano, recorteGaspea, recorteTaloneira]);
+
+
+
 
   const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
   // Refs para evitar TDZ (as funções são declaradas mais abaixo no componente).
@@ -2055,26 +2078,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
   };
 
-  /* Quando uma parte passa a ter bordado/laser/recorte DEPOIS da cor já
-     informada na categoria, o campo de cor nasce com a sugestão. */
-  const gruposCorRef = useRef(gruposCor);
+  // Ref alimentada a cada render; o efeito que usa isso fica no topo do componente.
   gruposCorRef.current = gruposCor;
-  useEffect(() => {
-    const novos: Record<string, boolean> = {};
-    (Object.keys(gruposCorRef.current) as CorGrupo[]).forEach(grupo => {
-      const cor = (ultimaCorGrupo[grupo] || '').trim();
-      if (!cor) return;
-      gruposCorRef.current[grupo].forEach(p => {
-        if (!p.ativo || p.valor.trim()) return;
-        p.set(cor);
-        novos[p.key] = true;
-      });
-    });
-    if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ultimaCorGrupo, bordadoCano.length, bordadoGaspea.length, bordadoTaloneira.length,
-      laserCano.length, laserGaspea.length, laserTaloneira.length,
-      recorteCano, recorteGaspea, recorteTaloneira]);
 
 
 
