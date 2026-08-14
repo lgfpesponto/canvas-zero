@@ -413,17 +413,20 @@ export async function generateProductionSheetPDF(ordersToExport: any[], meta?: {
     const metaisFields: CatField[] = [];
     const det: any = order.extraDetalhes || {};
     const cavaloMetalQtd = det.cavaloMetal ? (Number(det.cavaloMetalQtd) || 0) : 0;
+    const bolaGrandeQtd = getBolaGrandeQtd(order);
     const hasMetalData = !!(order.metais || order.tipoMetal || order.corMetal ||
-      order.strassQtd || order.cruzMetalQtd || order.bridaoMetalQtd || cavaloMetalQtd);
+      order.strassQtd || order.cruzMetalQtd || order.bridaoMetalQtd || cavaloMetalQtd || bolaGrandeQtd);
     if (hasMetalData) {
-      if (order.metais) {
-        const metalParts = [order.metais.toLowerCase()];
+      if (order.metais || order.tipoMetal || order.corMetal) {
+        const metalParts: string[] = [];
+        if (order.metais) metalParts.push(order.metais.toLowerCase());
         if (order.tipoMetal) metalParts.push(order.tipoMetal.toLowerCase());
         if (order.corMetal) metalParts.push(order.corMetal.toLowerCase());
         metaisFields.push({ label: 'Metais:', value: metalParts.join(', ') });
       }
       const metalExtras: string[] = [];
       if (order.strassQtd) metalExtras.push(`strass x${order.strassQtd}`);
+      if (bolaGrandeQtd) metalExtras.push(`bola grande x${bolaGrandeQtd}`);
       if (order.cruzMetalQtd) metalExtras.push(`cruz x${order.cruzMetalQtd}`);
       if (order.bridaoMetalQtd) metalExtras.push(`bridão x${order.bridaoMetalQtd}`);
       if (cavaloMetalQtd) metalExtras.push(`cavalo x${cavaloMetalQtd}`);
