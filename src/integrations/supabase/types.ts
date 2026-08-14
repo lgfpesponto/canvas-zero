@@ -3237,23 +3237,42 @@ export type Database = {
         }
         Returns: number
       }
-      get_orders_totals: {
-        Args: {
-          _conferido?: string
-          _date_from?: string
-          _date_to?: string
-          _ids_mudou?: string[]
-          _produtos?: string[]
-          _search?: string
-          _status?: string[]
-          _vendedores?: string[]
-        }
-        Returns: {
-          total_pedidos: number
-          total_produtos: number
-          valor_total: number
-        }[]
-      }
+      get_orders_totals:
+        | {
+            Args: {
+              _conferido?: string
+              _date_from?: string
+              _date_to?: string
+              _ids_mudou?: string[]
+              _produtos?: string[]
+              _search?: string
+              _status?: string[]
+              _vendedores?: string[]
+            }
+            Returns: {
+              total_pedidos: number
+              total_produtos: number
+              valor_total: number
+            }[]
+          }
+        | {
+            Args: {
+              _cliente?: string
+              _conferido?: string
+              _date_from?: string
+              _date_to?: string
+              _ids_mudou?: string[]
+              _produtos?: string[]
+              _search?: string
+              _status?: string[]
+              _vendedores?: string[]
+            }
+            Returns: {
+              total_pedidos: number
+              total_produtos: number
+              valor_total: number
+            }[]
+          }
       get_pending_value: { Args: { vendor?: string }; Returns: number }
       get_preco_regra_versao: { Args: never; Returns: number }
       get_production_counts: {

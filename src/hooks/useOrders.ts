@@ -8,6 +8,8 @@ import { usePrecoBackfillBackground } from '@/hooks/usePrecoBackfillBackground';
 
 export interface OrderFilters {
   searchQuery?: string;
+  /** Filtro dedicado por nome do cliente (busca parcial) */
+  filterCliente?: string;
   filterDate?: string;
   filterDateEnd?: string;
   filterStatus?: Set<string>;
@@ -23,7 +25,7 @@ export interface OrderFilters {
 }
 
 /** Busca IDs via RPC quando há filtro "mudou para status". Retorna null se filtro inativo. */
-async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] | null> {
+export async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] | null> {
   if (!filters.mudouParaStatus || filters.mudouParaStatus.size === 0) return null;
   const de = filters.mudouParaStatusDe || filters.mudouParaStatusAte;
   const ate = filters.mudouParaStatusAte || filters.mudouParaStatusDe;
@@ -72,6 +74,11 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
       // Search filter
       if (filters.searchQuery) {
         query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
+      }
+
+      // Filtro dedicado por cliente
+      if (filters.filterCliente && filters.filterCliente.trim()) {
+        query = query.ilike('cliente', `%${filters.filterCliente.trim()}%`);
       }
 
       // Date filters
@@ -146,6 +153,7 @@ export function useOrders(filters: OrderFilters, page: number, enabled = true) {
         _vendedores: filters.filterVendedor && filters.filterVendedor.size > 0 ? [...filters.filterVendedor] : null,
         _ids_mudou: idsMudou,
         _conferido: filters.filterConferido ?? null,
+        _cliente: filters.filterCliente?.trim() || null,
       });
       if (totalsErr) {
         console.error('Erro get_orders_totals:', totalsErr);
@@ -190,6 +198,9 @@ export async function fetchAllFilteredOrders(filters: OrderFilters): Promise<Ord
 
     if (filters.searchQuery) {
       query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
+    }
+    if (filters.filterCliente && filters.filterCliente.trim()) {
+      query = query.ilike('cliente', `%${filters.filterCliente.trim()}%`);
     }
     if (filters.filterDate) query = query.gte('data_criacao', filters.filterDate);
     if (filters.filterDateEnd) query = query.lte('data_criacao', filters.filterDateEnd);
@@ -251,6 +262,9 @@ export async function fetchAllFilteredOrderIds(filters: OrderFilters): Promise<s
 
     if (filters.searchQuery) {
       query = query.or(`numero.ilike.%${filters.searchQuery}%,cliente.ilike.%${filters.searchQuery}%`);
+    }
+    if (filters.filterCliente && filters.filterCliente.trim()) {
+      query = query.ilike('cliente', `%${filters.filterCliente.trim()}%`);
     }
     if (filters.filterDate) query = query.gte('data_criacao', filters.filterDate);
     if (filters.filterDateEnd) query = query.lte('data_criacao', filters.filterDateEnd);

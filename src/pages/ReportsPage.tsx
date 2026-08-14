@@ -1,5 +1,5 @@
 import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue, matchOrderBarcode, type Order } from '@/contexts/AuthContext';
-import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchAllFilteredOrderIds, fetchOrdersByIds, type OrderFilters } from '@/hooks/useOrders';
+import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchAllFilteredOrderIds, fetchOrdersByIds, type OrderFilters, fetchIdsMudouParaStatus } from '@/hooks/useOrders';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, getOrderFinalValue } from '@/lib/order-logic';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
@@ -105,6 +105,7 @@ const ReportsPage = () => {
     return v ? new Set(v.split(',')) : new Set<string>();
   });
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
+  const [filterCliente, setFilterCliente] = useState(() => searchParams.get('cliente') || '');
   const [filterVendedor, setFilterVendedor] = useState<Set<string>>(() => {
     const v = searchParams.get('vendedor');
     return v ? new Set(v.split(',')) : new Set<string>();
@@ -197,6 +198,7 @@ const ReportsPage = () => {
     const cf = searchParams.get('conferido');
     return {
       searchQuery: searchParams.get('q') || '',
+      filterCliente: searchParams.get('cliente') || '',
       filterDate: searchParams.get('de') || '',
       filterDateEnd: searchParams.get('ate') || '',
       filterStatus: new Set(filterStatus),
@@ -209,9 +211,10 @@ const ReportsPage = () => {
     };
   });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean; conferido?: 'todos' | 'sim' | 'nao' }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterCliente?: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean; conferido?: 'todos' | 'sim' | 'nao' }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
+    if (filters.filterCliente) params.set('cliente', filters.filterCliente);
     if (filters.filterDate) params.set('de', filters.filterDate);
     if (filters.filterDateEnd) params.set('ate', filters.filterDateEnd);
     if (filters.filterStatus.size > 0) params.set('status', [...filters.filterStatus].join(','));
@@ -246,6 +249,7 @@ const ReportsPage = () => {
     }
     const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean; conferido: 'todos' | 'sim' | 'nao' } = {
       searchQuery,
+      filterCliente,
       filterDate,
       filterDateEnd,
       filterStatus: new Set(filterStatus),
@@ -296,6 +300,10 @@ const ReportsPage = () => {
         }
       }
 
+      // Filtro "mudou para status" (mesma RPC usada na listagem paginada).
+      const idsMudou = await fetchIdsMudouParaStatus(appliedFilters);
+      if (cancelled) return;
+
       // Busca em lotes para não perder pedidos antigos (atrasados costumam ser os mais antigos).
       const BATCH = 1000;
       let offset = 0;
@@ -336,6 +344,18 @@ const ReportsPage = () => {
         if (f.searchQuery) {
           const s = String(f.searchQuery).replace(/%/g, '\\%');
           q = q.or(`numero.ilike.%${s}%,cliente.ilike.%${s}%`);
+        }
+
+        if (f.filterCliente && String(f.filterCliente).trim()) {
+          q = q.ilike('cliente', `%${String(f.filterCliente).trim()}%`);
+        }
+
+        if (f.filterConferido === 'sim') q = q.eq('conferido', true);
+        else if (f.filterConferido === 'nao') q = q.eq('conferido', false);
+
+        if (idsMudou !== null) {
+          if (idsMudou.length === 0) { if (!cancelled) { setOverdueOrders([]); setOverdueLoading(false); } return; }
+          q = q.in('id', idsMudou);
         }
 
         const { data, error } = await q;
@@ -801,6 +821,8 @@ const ReportsPage = () => {
   // para que o PDF inclua tudo, e não apenas os 50 visíveis. Quando há seleção, usa a seleção.
   const resolveOrdersForExport = useCallback(async (): Promise<import('@/contexts/AuthContext').Order[]> => {
     if (selectedIds.size > 0) return ordersToExport;
+    // "Apenas atrasados" é aplicado no cliente: exporta exatamente a lista já filtrada.
+    if (onlyOverdue) return overdueOrders;
     const expected = serverCount || 0;
     if (expected <= serverOrders.length) return serverOrders;
     const tid = toast.loading(`Carregando ${expected.toLocaleString('pt-BR')} pedidos…`);
@@ -812,7 +834,7 @@ const ReportsPage = () => {
       toast.error(`Erro ao carregar pedidos: ${e?.message || e}`, { id: tid });
       return serverOrders;
     }
-  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters]);
+  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters, onlyOverdue, overdueOrders]);
 
   const [preparingReport, setPreparingReport] = useState(false);
 
@@ -841,6 +863,9 @@ const ReportsPage = () => {
             { label: 'Status', value: fmtSet(filterStatus) },
             { label: 'Período', value: fmtPeriodo(filterDate, filterDateEnd) },
             { label: 'Busca', value: searchQuery || '—' },
+            { label: 'Cliente', value: filterCliente || '—' },
+            { label: 'Mudou para', value: mudouStatus.size > 0 ? `${fmtSet(mudouStatus)} (${fmtPeriodo(mudouDe, mudouAte)})` : '—' },
+            { label: 'Conferido', value: filterConferido === 'todos' ? '—' : (filterConferido === 'sim' ? 'Sim' : 'Não') },
             { label: 'Apenas atrasados', value: onlyOverdue ? 'Sim' : 'Não' },
           ]}
         />
@@ -1216,6 +1241,10 @@ const ReportsPage = () => {
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Ex: 7E-2024..." className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none" />
             </div>
             <div>
+              <label className="block text-xs font-semibold mb-1">Cliente</label>
+              <input type="text" value={filterCliente} onChange={e => setFilterCliente(e.target.value)} placeholder="Nome do cliente" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none" />
+            </div>
+            <div>
               <label className="block text-xs font-semibold mb-1">Data de Criação (a partir de)</label>
               <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none" />
             </div>
@@ -1441,6 +1470,7 @@ const ReportsPage = () => {
                     }
                     const newFilters: any = {
                       searchQuery,
+                      filterCliente,
                       filterDate,
                       filterDateEnd,
                       filterStatus: new Set(filterStatus),
@@ -1486,6 +1516,7 @@ const ReportsPage = () => {
               </button>
               <button onClick={() => {
                 setSearchQuery('');
+                setFilterCliente('');
                 setFilterDate('');
                 setFilterDateEnd('');
                 setFilterStatus(new Set());
@@ -1496,7 +1527,7 @@ const ReportsPage = () => {
                 setMudouAte('');
                 setOnlyOverdue(false);
                 setFilterConferido('todos');
-                setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
+                setAppliedFilters({ searchQuery: '', filterCliente: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
               }} className="border border-border text-muted-foreground px-4 py-2 rounded-lg font-bold text-sm hover:bg-muted transition-colors flex items-center gap-2">
