@@ -380,12 +380,13 @@ const UsersManagementPage = () => {
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90dvh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Criar Novo Usuário</DialogTitle>
             <DialogDescription>Preencha os dados do novo usuário.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+
             <div>
               <Label>Nome Completo</Label>
               <Input value={createForm.nomeCompleto} onChange={(e) => setCreateForm({ ...createForm, nomeCompleto: e.target.value })} placeholder="Nome completo" />
@@ -416,8 +417,9 @@ const UsersManagementPage = () => {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+
             <Button onClick={handleCreate} disabled={creating}>
               {creating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Criar
@@ -428,12 +430,13 @@ const UsersManagementPage = () => {
 
       {/* Edit Dialog */}
       <Dialog open={!!editProfile} onOpenChange={() => setEditProfile(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90dvh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Editar Usuário: {editProfile?.nome_usuario}</DialogTitle>
             <DialogDescription>Altere os dados do usuário abaixo.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+
             <div>
               <Label>Nome Completo</Label>
               <Input value={editForm.nome_completo || ''} onChange={(e) => setEditForm({ ...editForm, nome_completo: e.target.value })} />
@@ -493,7 +496,8 @@ const UsersManagementPage = () => {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
+
             <Button variant="outline" onClick={() => setEditProfile(null)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
@@ -505,7 +509,7 @@ const UsersManagementPage = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteProfile} onOpenChange={() => setDeleteProfile(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain">
           <DialogHeader>
             <DialogTitle>Confirmar Exclusão</DialogTitle>
             <DialogDescription>
