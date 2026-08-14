@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { focusFirstInSection } from '@/lib/fichaNav';
+
 
 export interface CategoriaMenuItem { id: string; label: string }
 
