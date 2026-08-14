@@ -2255,7 +2255,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 <div>
                   <label className={cls.label + ' inline-flex items-center'}>Vendedor<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
                   {isAdmin ? (
-                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} className={cls.select} required>
+                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} data-ficha-filled="false" className={cls.select} required>
                       {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
                       {!isAdminProducao && !vendedorSelecionado && <option value="">Selecione...</option>}
                       {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
