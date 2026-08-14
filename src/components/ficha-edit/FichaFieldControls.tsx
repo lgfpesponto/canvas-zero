@@ -362,10 +362,11 @@ function EditPopover({
   );
 }
 
-function VarLine({ v, todosCampos, todasVars }: {
+function VarLine({ v, todosCampos, todasVars, irmas = [] }: {
   v: FichaVariacao & { relacionamento?: any };
   todosCampos: FichaCampo[];
   todasVars: FichaVariacao[];
+  irmas?: FichaVariacao[];
 }) {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(v.nome);
