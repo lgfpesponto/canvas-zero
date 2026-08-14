@@ -55,7 +55,7 @@ const FichaCategoriaMenu = ({
           key={i.id}
           type="button"
           onClick={() => irPara(i.id)}
-          className={`text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
+          className={`text-left text-[11px] px-1.5 py-1 rounded-md transition-colors ${
             ativo === i.id ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-muted text-muted-foreground'
           }`}
         >
