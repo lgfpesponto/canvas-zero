@@ -74,10 +74,11 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const ToggleField = ({
-  label, value, onChange, textValue, onTextChange, textPlaceholder,
+  label, value, onChange, textValue, onTextChange, textPlaceholder, required: req,
 }: {
   label: string; value: boolean; onChange: (v: boolean) => void;
   textValue?: string; onTextChange?: (v: string) => void; textPlaceholder?: string;
+  required?: boolean;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
@@ -89,10 +90,11 @@ const ToggleField = ({
       <option value="tem">Tem</option>
     </select>
     {value && textValue !== undefined && onTextChange && (
-      <input type="text" value={textValue} onChange={e => onTextChange(e.target.value)} placeholder={textPlaceholder || 'Descreva...'} className={cls.inputSmall + ' flex-1 min-w-[180px]'} />
+      <input type="text" value={textValue} onChange={e => onTextChange(e.target.value)} placeholder={(textPlaceholder || 'Descreva...') + (req ? ' (obrigatório)' : '')} className={cls.inputSmall + ' flex-1 min-w-[180px]' + (req && !textValue.trim() ? ' border-destructive' : '')} />
     )}
   </div>
 );
+
 
 const MultiSelect = ({
   label, items, selected, onChange,
