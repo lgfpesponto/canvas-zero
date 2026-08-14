@@ -1132,7 +1132,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   /* ───── Navegação por Enter + atalhos de teclado ───── */
   const menuRef = useRef<HTMLDivElement>(null);
+  const [atalhosAberto, setAtalhosAberto] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
   useFichaKeyboardNav(formRef, { enabled: mode === 'order', autoFocusFirst: mode === 'order' && !embedded });
+
 
   const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
   useEffect(() => {
