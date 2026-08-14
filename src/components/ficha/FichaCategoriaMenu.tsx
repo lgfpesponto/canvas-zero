@@ -13,12 +13,14 @@ const FichaCategoriaMenu = ({
   variant = 'desktop',
   onNavigate,
   children,
+  className = '',
 }: {
   items: CategoriaMenuItem[];
   menuRef?: React.RefObject<HTMLDivElement>;
   variant?: 'desktop' | 'inline';
   onNavigate?: () => void;
   children?: React.ReactNode;
+  className?: string;
 }) => {
 
   const localRef = useRef<HTMLDivElement>(null);
