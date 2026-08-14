@@ -409,13 +409,23 @@ function VarLine({ v, todosCampos, todasVars, irmas = [] }: {
       {editing ? (
         <div className="space-y-1">
           <div className="flex items-center gap-1 text-xs">
-            <Input value={nome} onChange={e => setNome(e.target.value)} className="h-6 text-[11px] flex-1 px-1" />
+            <Input
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              className={`h-6 text-[11px] flex-1 px-1 ${nomeRepetido ? 'border-destructive text-destructive' : ''}`}
+            />
             <Input type="number" step="0.01" value={preco} onChange={e => setPreco(parseFloat(e.target.value) || 0)} className="h-6 text-[11px] w-16 px-1" />
             <Button size="sm" className="h-6 px-2 text-[11px]" onClick={async () => {
-              await updateVar.mutateAsync({ id: v.id, nome, preco_adicional: preco, foto_url: fotoUrl.trim() || null });
+              if (!nome.trim()) { toast.error('Informe o nome'); return; }
+              if (nomeRepetido) { toast.error(`Já existe a variação "${nome.trim()}" neste campo`); return; }
+              await updateVar.mutateAsync({ id: v.id, nome: nome.trim(), preco_adicional: preco, foto_url: fotoUrl.trim() || null });
               setEditing(false); toast.success('salvo');
             }}>ok</Button>
           </div>
+          {nomeRepetido && (
+            <p className="text-[10px] text-destructive">Já existe uma variação com este nome neste campo.</p>
+          )}
+
           <Input
             value={fotoUrl}
             onChange={e => setFotoUrl(e.target.value)}
