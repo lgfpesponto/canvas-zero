@@ -776,53 +776,68 @@ Deno.serve(async (req) => {
       processado_em: new Date().toISOString(),
     }).eq("id", pedidoRow.id);
 
-    // === Cancelamento / Devolução na Bagy: propaga para o pedido do portal ===
-    if (isRefund && pedidoExistente?.order_id_portal) {
+    // === Cancelamento / Devolução na Bagy: propaga para TODOS os pedidos do portal ===
+    if (isRefund) {
       try {
-        const { data: ordAtual } = await supabase
-          .from("orders")
-          .select("id, status, historico")
-          .eq("id", pedidoExistente.order_id_portal)
-          .maybeSingle();
+        const idsAlvo = new Set<string>();
+        (await loadPortalOrders()).forEach((o) => idsAlvo.add(o.id));
+        if (createdOrderId) idsAlvo.add(createdOrderId);
+        if (primaryExistingOrderId) idsAlvo.add(primaryExistingOrderId);
+        if (pedidoExistente?.order_id_portal) idsAlvo.add(pedidoExistente.order_id_portal);
 
-        if (ordAtual && ordAtual.status !== "Cancelado") {
+        if (idsAlvo.size > 0) {
+          const { data: ordens, error: selErr } = await supabase
+            .from("orders")
+            .select("id, status, historico")
+            .in("id", Array.from(idsAlvo));
+          if (selErr) console.error("bagy-webhook: erro ao carregar pedidos p/ cancelar", selErr);
+
           const nowSp = new Date().toLocaleString("sv-SE", { timeZone: "America/Sao_Paulo" });
           const dataSp = nowSp.slice(0, 10);
           const horaSp = nowSp.slice(11, 16);
           const motivo = `Cancelado na Bagy (status: ${finalStatusBagy})`;
-          const novaEntrada = {
-            data: dataSp,
-            hora: horaSp,
-            local: "Cancelado",
-            descricao: motivo,
-            de: ordAtual.status,
-            para: "Cancelado",
-            motivo,
-            usuario: "Bagy (webhook)",
-          };
-          const historicoAtual = Array.isArray(ordAtual.historico) ? ordAtual.historico : [];
-          await supabase
-            .from("orders")
-            .update({
-              status: "Cancelado",
-              motivo_cancelamento: motivo,
-              historico: [...historicoAtual, novaEntrada],
-            })
-            .eq("id", ordAtual.id);
 
-          // Indexa a mudança de etapa
-          await supabase.from("order_status_changes").insert({
-            order_id: ordAtual.id,
-            status: "Cancelado",
-            changed_on: dataSp,
-            changed_hora: horaSp,
-            usuario: "Bagy (webhook)",
-          });
+          for (const ordAtual of ordens || []) {
+            if (ordAtual.status === "Cancelado") continue;
+            const novaEntrada = {
+              data: dataSp,
+              hora: horaSp,
+              local: "Cancelado",
+              descricao: motivo,
+              de: ordAtual.status,
+              para: "Cancelado",
+              motivo,
+              usuario: "Bagy (webhook)",
+            };
+            const historicoAtual = Array.isArray(ordAtual.historico) ? ordAtual.historico : [];
+            const { error: updErr } = await supabase
+              .from("orders")
+              .update({
+                status: "Cancelado",
+                historico: [...historicoAtual, novaEntrada],
+              })
+              .eq("id", ordAtual.id);
+            if (updErr) {
+              console.error("bagy-webhook: falha ao cancelar pedido", ordAtual.id, updErr);
+              continue;
+            }
+
+            // Indexa a mudança de etapa
+            const { error: chgErr } = await supabase.from("order_status_changes").insert({
+              order_id: ordAtual.id,
+              status: "Cancelado",
+              changed_on: dataSp,
+              changed_hora: horaSp,
+              usuario: "Bagy (webhook)",
+            });
+            if (chgErr) console.error("bagy-webhook: falha ao indexar cancelamento", ordAtual.id, chgErr);
+          }
         }
       } catch (cancelErr) {
         console.error("bagy-webhook: falha ao propagar cancelamento", cancelErr);
       }
     }
+
 
 
     await supabase.from("bagy_webhook_log").update({
