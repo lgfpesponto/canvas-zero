@@ -359,7 +359,9 @@ const MultiSelect = ({
         selected={selected}
         onToggle={toggle}
         onClearAll={() => onChange([])}
-
+        onConfirm={() => {
+          setTimeout(() => focusNextFrom(searchRef.current ?? gridRef.current), 0);
+        }}
       />
     </div>
   );
