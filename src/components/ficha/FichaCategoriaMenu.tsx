@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { focusFirstInSection } from '@/lib/fichaNav';
+
 
 export interface CategoriaMenuItem { id: string; label: string }
 
@@ -46,16 +48,41 @@ const FichaCategoriaMenu = ({
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     onNavigate?.();
+    setTimeout(() => focusFirstInSection(el), 450);
+  };
+
+  const onItemKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      irPara(items[idx].id);
+      return;
+    }
+    if (e.key === 'Escape') {
+      (e.currentTarget as HTMLElement).blur();
+      return;
+    }
+    const prox = e.key === 'ArrowDown' || e.key === 'ArrowRight';
+    const ant = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
+    if (!prox && !ant) return;
+    e.preventDefault();
+    const botoes = Array.from(
+      (e.currentTarget.closest('nav') as HTMLElement | null)?.querySelectorAll<HTMLElement>('[data-ficha-menu-item="true"]') || [],
+    );
+    const alvo = prox ? Math.min(botoes.length - 1, idx + 1) : Math.max(0, idx - 1);
+    botoes[alvo]?.focus();
   };
 
   const lista = (
     <nav className="flex flex-col gap-0.5" aria-label="Menu da ficha">
-      {items.map(i => (
+      {items.map((i, idx) => (
         <button
           key={i.id}
           type="button"
+          data-ficha-menu-item="true"
+          data-ficha-nav="false"
           onClick={() => irPara(i.id)}
-          className={`text-left text-[11px] px-1.5 py-1 rounded-md transition-colors ${
+          onKeyDown={(e) => onItemKeyDown(e, idx)}
+          className={`text-left text-[11px] px-1.5 py-1 rounded-md transition-colors outline-none focus:ring-2 focus:ring-primary/60 ${
             ativo === i.id ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-muted text-muted-foreground'
           }`}
         >
@@ -64,6 +91,7 @@ const FichaCategoriaMenu = ({
       ))}
     </nav>
   );
+
 
   if (variant === 'inline') {
     return <div className="bg-card border border-border rounded-xl p-2">{lista}</div>;

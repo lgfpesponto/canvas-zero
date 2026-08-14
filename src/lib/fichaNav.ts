@@ -108,3 +108,11 @@ export function focusFirst(root: HTMLElement | null | undefined) {
   list[0].focus({ preventScroll: true });
   return true;
 }
+
+/** Foca o primeiro campo navegável dentro de uma seção/categoria da ficha. */
+export function focusFirstInSection(section: HTMLElement | null | undefined) {
+  const list = getNavElements(section);
+  if (!list[0]) return false;
+  focusNavElement(list[0]);
+  return true;
+}
