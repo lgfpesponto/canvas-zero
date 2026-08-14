@@ -782,12 +782,10 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 {numeroIsAuto && !estoqueJaCriado && <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
               </div>
-              {!ocultarCliente && (
-                <div>
-                  <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
-                  <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
-                </div>
-              )}
+              <div>
+                <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
+                <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" className={cls.input} />
+              </div>
             </div>
 
             {vendedor === 'Estoque' && (
