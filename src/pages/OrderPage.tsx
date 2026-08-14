@@ -2009,6 +2009,84 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
   const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
 
+  const categoriasFicha = [
+    { id: 'ficha-identificacao', label: 'Identificação' },
+    { id: 'ficha-couros', label: 'Couros' },
+    { id: 'ficha-pesponto', label: 'Pesponto' },
+    { id: 'ficha-solado', label: 'Solado' },
+    { id: 'ficha-bordado', label: 'Bordado' },
+    { id: 'ficha-laser', label: 'Laser' },
+    { id: 'ficha-recortes', label: 'Recortes' },
+    { id: 'ficha-estampa', label: 'Estampa' },
+    { id: 'ficha-metais', label: 'Metais' },
+    { id: 'ficha-extras', label: 'Extras' },
+    { id: 'ficha-adicional', label: 'Adicional' },
+  ];
+
+  const atalhosItens = [
+    { combo: 'Enter', desc: 'Avança para o próximo campo' },
+    { combo: 'Ctrl + S', desc: 'Salvar / criar pedido' },
+    { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
+    { combo: 'Ctrl + L', desc: 'Limpar a ficha' },
+    ...(podeEstoqueDireto ? [{ combo: 'Ctrl + E', desc: 'Criar como estoque pronto' }] : []),
+    { combo: 'Ctrl + X', desc: 'Limpar seleção do campo múltiplo' },
+    { combo: 'Ctrl + M', desc: 'Ir para o menu de categorias' },
+  ];
+
+  const bootUnseenCount = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto' && t.seen === false).length;
+
+  const botaoLimpar = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
+          resetForm();
+          toast.success('Ficha limpa.');
+        }
+      }}
+      title="Limpar todos os campos da ficha"
+    >
+      <Eraser size={16} /> Limpar
+    </Button>
+  );
+
+  const botaoCriarModelo = (
+    <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
+      <Plus size={16} /> Criar Modelo
+    </Button>
+  );
+
+  const botaoModelos = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="relative"
+      onClick={async () => {
+        if (user) { await tmpl.loadTemplates(user.id); }
+        tmpl.setShowTemplates(true);
+        tmpl.setTemplateSearch('');
+        if (user) { await tmpl.markTemplatesAsSeen(user.id); }
+      }}
+    >
+      <List size={16} /> Modelos
+      {bootUnseenCount > 0 && (
+        <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+          {bootUnseenCount}
+        </span>
+      )}
+    </Button>
+  );
+
+  const botaoTrocarCinto = (
+    <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
+      Trocar para Cinto
+    </Button>
+  );
+
+
   return (
     <FichaEditProvider fichaSlug="bota">
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
