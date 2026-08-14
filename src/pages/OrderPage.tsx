@@ -1929,6 +1929,44 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   /* ───── select helper (usa o componente estável definido no módulo) ───── */
   fotoLookupHolder.fn = findFotoByName;
 
+  /* ───── Espelhamento das cores dentro de Bordado / Laser / Recortes ─────
+     A primeira parte preenchida da categoria vira sugestão para as outras
+     partes que também estiverem marcadas como "tem". */
+  type CorGrupo = 'bordado' | 'laser' | 'recorte';
+  const gruposCor: Record<CorGrupo, { key: string; valor: string; set: (v: string) => void; ativo: boolean }[]> = {
+    bordado: [
+      { key: 'bordado_cano', valor: corBordadoCano, set: setCorBordadoCano, ativo: bordadoCano.length > 0 },
+      { key: 'bordado_gaspea', valor: corBordadoGaspea, set: setCorBordadoGaspea, ativo: bordadoGaspea.length > 0 },
+      { key: 'bordado_taloneira', valor: corBordadoTaloneira, set: setCorBordadoTaloneira, ativo: bordadoTaloneira.length > 0 },
+    ],
+    laser: [
+      { key: 'laser_cano', valor: corBordadoLaserCano, set: setCorBordadoLaserCano, ativo: laserCano.length > 0 },
+      { key: 'laser_gaspea', valor: corBordadoLaserGaspea, set: setCorBordadoLaserGaspea, ativo: laserGaspea.length > 0 },
+      { key: 'laser_taloneira', valor: corBordadoLaserTaloneira, set: setCorBordadoLaserTaloneira, ativo: laserTaloneira.length > 0 },
+    ],
+    recorte: [
+      { key: 'recorte_cano', valor: corRecorteCano, set: setCorRecorteCano, ativo: !!recorteCano },
+      { key: 'recorte_gaspea', valor: corRecorteGaspea, set: setCorRecorteGaspea, ativo: !!recorteGaspea },
+      { key: 'recorte_taloneira', valor: corRecorteTaloneira, set: setCorRecorteTaloneira, ativo: !!recorteTaloneira },
+    ],
+  };
+
+  /** Preenche a cor da parte e espelha nas outras partes ativas ainda vazias. */
+  const handleCorGrupo = (grupo: CorGrupo, key: string, v: string) => {
+    const partes = gruposCor[grupo];
+    partes.find(p => p.key === key)?.set(v);
+    setCorSug(prev => ({ ...prev, [key]: false }));
+    if (!v.trim()) return;
+    const novos: Record<string, boolean> = {};
+    partes.forEach(p => {
+      if (p.key === key || !p.ativo) return;
+      if (!p.valor.trim() || prevSugRef.current[p.key]) { p.set(v); novos[p.key] = true; }
+    });
+    if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
+  };
+
+
+
 
 
   const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
