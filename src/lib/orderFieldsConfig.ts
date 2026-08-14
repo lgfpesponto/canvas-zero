@@ -350,6 +350,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
   if (t >= 34 && t <= 45) {
     allowed.push(
       'Bota Tradicional', 'Bota Feminino', 'Bota Peão',
+      'Bota Montaria (40)',
       'Coturno', 'Destroyer', 'Capota',
       'Bota Over', 'Capota Bico Fino Perfilado',
       'Cano Médio', 'Botina', 'Urbano',
@@ -357,10 +358,7 @@ export function getModelosForTamanho(tamanho: string): { label: string; preco: n
     );
     allowed.push('Cano Inteiro');
   }
-  // Bota Montaria (40): liberada para todos os tamanhos
-  if (t >= 24 && t <= 45) {
-    allowed.push('Bota Montaria (40)');
-  }
+
   // 33-40: bico fino feminino + capota bico fino
   if (t >= 33 && t <= 40) {
     allowed.push('Bota Bico Fino Feminino', 'Capota Bico Fino');
