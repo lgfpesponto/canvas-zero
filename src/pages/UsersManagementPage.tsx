@@ -496,7 +496,8 @@ const UsersManagementPage = () => {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
+
             <Button variant="outline" onClick={() => setEditProfile(null)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
