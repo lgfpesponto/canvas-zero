@@ -203,23 +203,48 @@ const MultiSelect = ({
         <div className="relative mb-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={searchRef}
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            data-ficha-enter-manual="true"
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
+                focarOpcao(0);
+              } else if (e.key.toLowerCase() === 'x' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpanded(true);
+              }
+            }}
             placeholder={label.toLowerCase().includes('bordado') ? 'Pesquisar bordado...' : 'Pesquisar...'}
             className={cls.input + ' pl-8 !py-1.5 text-xs'}
           />
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50">
+      <div
+        ref={gridRef}
+        data-ficha-nav-skip="true"
+        data-ficha-nav={hasSearch ? undefined : 'true'}
+        tabIndex={hasSearch ? -1 : 0}
+        onFocus={e => { if (!hasSearch && e.target === gridRef.current) focarOpcao(0); }}
+        className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto border border-border rounded-lg p-3 bg-muted/50 outline-none"
+      >
         {filtered.map((item, idx) => (
           <React.Fragment key={item.label}>
             {hasSearch && idx === firstVariadoIdx && firstVariadoIdx > 0 && (
               <div className="col-span-full text-xs font-bold text-muted-foreground uppercase tracking-wider border-t border-border pt-2 mt-1 mb-1">Bordados Variados</div>
             )}
-            <label className={cls.checkItem}>
-              <input type="checkbox" checked={selected.includes(item.label)} onChange={e => toggle(item.label, e.target.checked)} className="accent-primary w-4 h-4" />
+            <label
+              data-ms-opt="true"
+              tabIndex={-1}
+              onKeyDown={e => onOptionKeyDown(e, idx, item.label)}
+              className={cls.checkItem + ' rounded px-1 outline-none focus:ring-2 focus:ring-primary/60'}
+            >
+              <input type="checkbox" tabIndex={-1} checked={selected.includes(item.label)} onChange={e => toggle(item.label, e.target.checked)} className="accent-primary w-4 h-4" />
               <span>
                 {item.label} {item.preco > 0 && <span className="text-muted-foreground text-xs">(R${item.preco})</span>}
               </span>
@@ -228,6 +253,7 @@ const MultiSelect = ({
           </React.Fragment>
         ))}
       </div>
+
       <VariacaoExpandirDialog
         open={expanded}
         onOpenChange={setExpanded}
