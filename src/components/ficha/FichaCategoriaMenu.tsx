@@ -55,7 +55,7 @@ const FichaCategoriaMenu = ({
           key={i.id}
           type="button"
           onClick={() => irPara(i.id)}
-          className={`text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
+          className={`text-left text-[11px] px-1.5 py-1 rounded-md transition-colors ${
             ativo === i.id ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-muted text-muted-foreground'
           }`}
         >
@@ -70,9 +70,9 @@ const FichaCategoriaMenu = ({
   }
 
   return (
-    <div ref={ref} tabIndex={-1} className={`${className || 'hidden lg:block'} sticky top-24 self-start w-44 shrink-0 outline-none space-y-3`}>
-      <div className="bg-card border border-border rounded-xl p-2">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground px-2 py-1">Menu</p>
+    <div ref={ref} tabIndex={-1} className={`${className || 'hidden lg:block'} sticky top-24 self-start w-36 shrink-0 outline-none space-y-3`}>
+      <div className="bg-card border border-border rounded-xl p-1.5">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground px-1.5 py-1">Menu</p>
         {lista}
       </div>
       {children}
