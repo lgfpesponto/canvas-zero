@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { List } from 'lucide-react';
 
 export interface CategoriaMenuItem { id: string; label: string }
 
 /**
- * Menu lateral com as categorias da ficha. Clicar rola até a seção.
+ * Menu com as categorias da ficha. Clicar rola até a seção.
+ * Desktop: coluna fixa à esquerda. Mobile: painel controlado pela página.
  * Ctrl+M (tratado na página) foca o menu.
  */
-const FichaCategoriaMenu = ({ items, menuRef }: { items: CategoriaMenuItem[]; menuRef?: React.RefObject<HTMLDivElement> }) => {
-  const [aberto, setAberto] = useState(false);
+const FichaCategoriaMenu = ({
+  items,
+  menuRef,
+  variant = 'desktop',
+  onNavigate,
+}: {
+  items: CategoriaMenuItem[];
+  menuRef?: React.RefObject<HTMLDivElement>;
+  variant?: 'desktop' | 'inline';
+  onNavigate?: () => void;
+}) => {
   const localRef = useRef<HTMLDivElement>(null);
   const ref = menuRef || localRef;
   const [ativo, setAtivo] = useState<string>('');
@@ -31,11 +40,11 @@ const FichaCategoriaMenu = ({ items, menuRef }: { items: CategoriaMenuItem[]; me
     const el = document.getElementById(id);
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setAberto(false);
+    onNavigate?.();
   };
 
   const lista = (
-    <nav className="flex flex-col gap-0.5" aria-label="Categorias da ficha">
+    <nav className="flex flex-col gap-0.5" aria-label="Menu da ficha">
       {items.map(i => (
         <button
           key={i.id}
@@ -51,28 +60,17 @@ const FichaCategoriaMenu = ({ items, menuRef }: { items: CategoriaMenuItem[]; me
     </nav>
   );
 
-  return (
-    <>
-      {/* Desktop: coluna fixa */}
-      <div ref={ref} tabIndex={-1} className="hidden lg:block sticky top-24 self-start w-44 shrink-0 outline-none">
-        <div className="bg-card border border-border rounded-xl p-2">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground px-2 py-1">Ficha</p>
-          {lista}
-        </div>
-      </div>
+  if (variant === 'inline') {
+    return <div className="bg-card border border-border rounded-xl p-2">{lista}</div>;
+  }
 
-      {/* Mobile: barra recolhível */}
-      <div className="lg:hidden mb-3">
-        <button
-          type="button"
-          onClick={() => setAberto(v => !v)}
-          className="inline-flex items-center gap-2 text-xs font-semibold border border-border rounded-lg px-3 py-1.5 bg-card"
-        >
-          <List size={14} /> Categorias da ficha
-        </button>
-        {aberto && <div className="mt-2 bg-card border border-border rounded-xl p-2">{lista}</div>}
+  return (
+    <div ref={ref} tabIndex={-1} className="hidden lg:block sticky top-24 self-start w-44 shrink-0 outline-none space-y-3">
+      <div className="bg-card border border-border rounded-xl p-2">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground px-2 py-1">Menu</p>
+        {lista}
       </div>
-    </>
+    </div>
   );
 };
 
