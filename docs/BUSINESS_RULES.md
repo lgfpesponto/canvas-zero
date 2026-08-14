@@ -503,6 +503,32 @@ Cada pedido possui um link público de acompanhamento (sem login):
 `{origem}/rastreio/{order.id}`
 
 - O detalhe do pedido no portal exibe, na linha do prazo, dois botões: **Copiar** (copia o link) e **Abrir** (abre em nova aba).
-- A página `/rastreio/:id` fica fora do `ChromeWrapper` (sem Header/Banner/FAB) e mostra: cabeçalho com Pedido + Vendedor, prazo total + restante, stepper de progresso (Em aberto → Corte/Laser → Bordado → Pesponto → Montagem → Revisão → Expedição → Entregue), histórico de produção (`order.historico`), detalhes/ficha do pedido e QR Code (`order.fotos[0]`).
+- A página `/rastreio/:id` fica fora do `ChromeWrapper` (sem Header/Banner/FAB) e mostra: cabeçalho com Pedido + Vendedor, prazo total + restante, stepper de progresso (Em aberto → Corte/Laser → Bordado → Pesponto → Montagem → Revisão → Expedição → Entregue), detalhes/ficha do pedido e QR Code (`order.fotos[0]`). O histórico de produção **não** é exibido.
 - Dados sensíveis são omitidos: valores em R$, cliente, comissão, conferido, ajustes, comprovantes.
 - Acesso é feito via RPC `public.get_public_tracking(uuid)` (security definer, executável por `anon`). Não há `SELECT` direto liberado para `anon` em `orders`. UUID na URL funciona como token (não enumerável).
+
+## AC. Ficha atual — regras de preenchimento (versão 20 da ficha bota)
+
+Estas regras vivem no **código**, não no snapshot de `ficha_versoes`. Salvar uma nova versão no modo "editar ficha" (ou reverter uma versão antiga) altera apenas **dados** — categorias, campos, variações e prazo. O formato da ficha e as regras abaixo **nunca** são descartados por uma edição de variação.
+
+**Navegação por Enter** (`src/lib/fichaNav.ts`, `src/hooks/useFichaKeyboardNav.ts`)
+- Foco inicial no campo "URL da foto"; Enter avança campo a campo na ordem **visual** da ficha, atravessando categorias.
+- Ordenação usa o bloco do campo (rótulo + controle), para que rótulos em 2 linhas não desalinhem a sequência.
+- Campos já preenchidos são pulados; campos marcados `data-ficha-filled="false"` (Tem/Não tem, vendedor, metais quantificáveis) nunca são pulados.
+- Enter em campo de seleção abre a lista; segundo Enter confirma e avança. Em textarea, Enter avança e Shift+Enter quebra linha.
+- Campos "Tem / Não tem": 1º Enter abre, 2º seleciona; com "Tem" e campo de descrição, seta → leva à descrição e Enter avança.
+- Múltipla seleção: Enter/Espaço marca variações sem sair do campo; no pop-up "expandir" o foco inicia na busca, setas navegam e OK/Enter fecha e avança.
+
+**Sugestões automáticas de cor** (`src/lib/corSugestoes.ts`)
+- Cor da Linha / Borrachinha / Vivo sugeridas a partir da cor do couro do cano (comparação por radical: branco/branca, preto/preta...).
+- Cores de Bordado / Laser / Recorte: ao ativar outra parte, a cor já usada na categoria é sugerida.
+- Tipo e cor do couro preenchidos em uma parte (cano/gáspea/taloneira) são sugeridos para as demais.
+
+**Metais**
+- "Não tem" em Área do Metal (R$ 0) pula Tipo e Cor e vai para Strass; "Metade/Inteira" marca Rebite e foca a Cor.
+- Enter percorre os 5 metais quantificáveis (strass, bola grande, cruz, bridão, cavalo) antes de Acessórios.
+
+**Layout e atalhos**
+- Ficha centralizada; Menu de categorias e Atalhos como botões flutuantes (pop-up), painel de foto acompanhando a rolagem.
+- Atalhos: Ctrl+S salvar, Ctrl+R modelos, Ctrl+L limpar (sem confirmação), Ctrl+E criar modelo, Ctrl+X expandir campo de múltipla seleção, Ctrl+M menu de categorias (setas + Enter levam ao primeiro campo da categoria).
+- Cabeçalho: número do pedido automático por prefixo (sem texto explicativo), cliente opcional; campos de quantidade começam vazios.
