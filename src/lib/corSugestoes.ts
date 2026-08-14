@@ -8,14 +8,26 @@ const norm = (s?: string | null) =>
 
 const has = (cor: string, ...termos: string[]) => termos.some(t => norm(cor).includes(t));
 
+/** Remove a vogal final das palavras: "branco"/"branca" → "branc" (tolerância de gênero). */
+const stem = (s?: string | null) => norm(s).replace(/([a-z])[oa](\b|$)/g, '$1');
+
 /** Cor da Linha sugerida para a cor do couro do cano. */
 export function sugerirCorLinha(corCouro: string): string | null {
   if (!corCouro) return null;
-  if (has(corCouro, 'off white', 'branco', 'branca')) return 'Branco';
-  if (has(corCouro, 'malhado', 'preto', 'preta')) return 'Preto';
-  if (has(corCouro, 'marrom', 'nescau', 'chocolate', 'cafe', 'caramelo', 'whisky', 'tabaco')) return 'Café';
+  if (has(corCouro, 'preto e branco', 'malhado', 'preto', 'preta')) return 'Preta';
+  if (has(corCouro, 'off white', 'branco', 'branca', 'cru')) return 'Branca';
+  if (has(corCouro, 'bege', 'areia')) return 'Bege';
+  if (has(corCouro, 'marrom', 'nescau', 'chocolate', 'cafe', 'caramelo', 'whisky', 'tabaco',
+    'cappuccino', 'castor', 'havana', 'pinhao', 'mustang', 'brasileiro', 'americano')) return 'Café';
+  if (has(corCouro, 'rosa')) return 'Rosa';
+  if (has(corCouro, 'vermelho', 'vermelha')) return 'Vermelha';
+  if (has(corCouro, 'azul', 'petroleo')) return 'Azul';
+  if (has(corCouro, 'verde')) return 'Verde';
+  if (has(corCouro, 'amarelo', 'mostarda')) return 'Amarelo';
+  if (has(corCouro, 'laranja', 'telha')) return 'Laranja';
   return corCouro;
 }
+
 
 /** Cor da Borrachinha sugerida. */
 export function sugerirCorBorrachinha(corCouro: string): string | null {
