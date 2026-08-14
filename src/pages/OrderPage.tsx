@@ -1865,25 +1865,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     },
   ].filter(g => g.itens.length > 0);
 
-  /* ───── select helper ───── */
-  const SelectField = ({ label, value, onChange, options, required: req, suggested }: { label: string; value: string; onChange: (v: string) => void; options: string[] | { label: string; preco: number }[]; required?: boolean; suggested?: boolean }) => (
-    <div>
-      <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
-        <span>{label}{req && <span className="text-destructive ml-0.5">*</span>}</span>
-        <FichaFieldControls labelText={label} defaultTipo="selecao" />
-        {suggested && (
-          <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
-        )}
-      </label>
-      <SearchableSelect
-        options={options}
-        value={value}
-        onValueChange={onChange}
-        placeholder="Selecione..."
-        fotoLookup={findFotoByName}
-      />
-    </div>
-  );
+  /* ───── select helper (usa o componente estável definido no módulo) ───── */
+  fotoLookupHolder.fn = findFotoByName;
+
 
 
   const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
