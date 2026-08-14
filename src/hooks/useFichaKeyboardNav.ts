@@ -1,5 +1,5 @@
 import { useEffect, RefObject } from 'react';
-import { focusNextFrom, focusFirst, FICHA_FOCUS_OPEN } from '@/lib/fichaNav';
+import { focusNextFrom, focusFirst, FICHA_FOCUS_OPEN, abrirSelectNativo } from '@/lib/fichaNav';
 
 /**
  * Ativa a navegação por Enter dentro de um formulário de ficha.
