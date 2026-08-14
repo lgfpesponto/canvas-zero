@@ -31,6 +31,7 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
   const [query, setQuery] = useState('');
 
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const focoPendente = useRef<'first' | 'last' | null>(null);
 
   useEffect(() => { setPage(0); }, [query, isMobile]);
@@ -57,9 +58,16 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
     [filtered, page, pageSize],
   );
 
-  // Foco automático: ao abrir e ao trocar de página pelo teclado.
+  // Ao abrir: foco no campo de pesquisa.
   useEffect(() => {
     if (!open) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // Troca de página pelo teclado: mantém o foco nas variações.
+  useEffect(() => {
+    if (!open || !focoPendente.current) return;
     const t = setTimeout(() => {
       const els = cards();
       if (els.length === 0) return;
@@ -69,6 +77,16 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
     }, 50);
     return () => clearTimeout(t);
   }, [open, page, pageItems, cards]);
+
+  const colunas = isMobile ? 1 : 3;
+
+  const onBuscaKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      e.stopPropagation();
+      focarCard(0);
+    }
+  };
 
   const onCardKeyDown = (e: React.KeyboardEvent<HTMLElement>, idx: number, label: string) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -87,8 +105,10 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
       if (idx < total - 1) focarCard(idx + 1);
       else if (page < totalPages - 1) { focoPendente.current = 'first'; setPage(p => p + 1); }
     } else {
+      if (e.key === 'ArrowUp' && idx < colunas) { inputRef.current?.focus(); return; }
       if (idx > 0) focarCard(idx - 1);
       else if (page > 0) { focoPendente.current = 'last'; setPage(p => p - 1); }
+      else inputRef.current?.focus();
     }
   };
 
@@ -111,8 +131,10 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
+            onKeyDown={onBuscaKeyDown}
             placeholder="Pesquisar variação..."
             className="pl-8 h-8 text-sm"
           />
