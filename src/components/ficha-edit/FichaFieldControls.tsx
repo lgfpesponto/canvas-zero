@@ -301,7 +301,9 @@ function EditPopover({
               className="h-8 text-xs"
             />
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
-              {filteredDrafts.map(d => (
+              {filteredDrafts.map(d => {
+                const dup = nomeDuplicado(d.nome, d.id);
+                return (
                 <div key={d.id} className="bg-primary/5 rounded px-2 py-1.5 border border-primary/30 space-y-1">
                   <div className="flex items-center gap-1.5 text-xs">
                     <Input
@@ -310,8 +312,9 @@ function EditPopover({
                       onChange={e => updateDraft(d.id, { nome: e.target.value })}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(d.id); } }}
                       placeholder="nome"
-                      className="h-8 text-xs flex-1 px-2"
+                      className={`h-8 text-xs flex-1 px-2 ${dup ? 'border-destructive text-destructive' : ''}`}
                     />
+
                     <Input
                       type="number" step="0.01"
                       value={d.preco}
