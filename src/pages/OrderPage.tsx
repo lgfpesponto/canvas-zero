@@ -2733,15 +2733,28 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
       </motion.div>
         {showFotoPanel && (
-          <FotoPedidoSidePanel
-            url={currentFotoUrl}
-            onClose={() => setMostrarFotoPainel(false)}
-            onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
-            onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
-            showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
-            onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
-            disabled={orderDuplicate && !estoqueJaCriado}
-          />
+          <div className="w-full lg:w-[400px] shrink-0">
+            <FotoPedidoSidePanel
+              url={currentFotoUrl}
+              onClose={() => setMostrarFotoPainel(false)}
+              onFinalizar={mode === 'order' ? () => formRef.current?.requestSubmit() : undefined}
+              onSaveDraft={mode === 'order' ? handleSaveDraft : undefined}
+              showEstoquePronto={mode === 'order' && vendedorSelecionado === 'Estoque'}
+              onEstoquePronto={() => { setEstoquePronto(true); formRef.current?.requestSubmit(); }}
+              disabled={orderDuplicate && !estoqueJaCriado}
+            />
+          </div>
+        )}
+        {mode === 'order' && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setMenuAberto(true)}
+            className="xl:hidden fixed bottom-4 left-4 z-40 shadow-lg rounded-full h-12 w-12 p-0"
+            title="Menu da ficha"
+          >
+            <List size={20} />
+          </Button>
         )}
       </div>
 
