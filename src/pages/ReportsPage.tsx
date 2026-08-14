@@ -1,5 +1,5 @@
 import { useAuth, PRODUCTION_STATUSES, PRODUCTION_STATUSES_USER, EXTRAS_STATUSES, BELT_STATUSES, orderBarcodeValue, matchOrderBarcode, type Order } from '@/contexts/AuthContext';
-import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchAllFilteredOrderIds, fetchOrdersByIds, type OrderFilters } from '@/hooks/useOrders';
+import { useOrders, fetchOrderByScan, fetchVendedores, fetchAllFilteredOrders, fetchAllFilteredOrderIds, fetchOrdersByIds, type OrderFilters, fetchIdsMudouParaStatus } from '@/hooks/useOrders';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, getOrderFinalValue } from '@/lib/order-logic';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
@@ -300,6 +300,10 @@ const ReportsPage = () => {
         }
       }
 
+      // Filtro "mudou para status" (mesma RPC usada na listagem paginada).
+      const idsMudou = await fetchIdsMudouParaStatus(appliedFilters);
+      if (cancelled) return;
+
       // Busca em lotes para não perder pedidos antigos (atrasados costumam ser os mais antigos).
       const BATCH = 1000;
       let offset = 0;
@@ -349,7 +353,10 @@ const ReportsPage = () => {
         if (f.filterConferido === 'sim') q = q.eq('conferido', true);
         else if (f.filterConferido === 'nao') q = q.eq('conferido', false);
 
-        if (idsMudou !== null) q = q.in('id', idsMudou);
+        if (idsMudou !== null) {
+          if (idsMudou.length === 0) { if (!cancelled) { setOverdueOrders([]); setOverdueLoading(false); } return; }
+          q = q.in('id', idsMudou);
+        }
 
         const { data, error } = await q;
         if (cancelled) return;
@@ -814,6 +821,8 @@ const ReportsPage = () => {
   // para que o PDF inclua tudo, e não apenas os 50 visíveis. Quando há seleção, usa a seleção.
   const resolveOrdersForExport = useCallback(async (): Promise<import('@/contexts/AuthContext').Order[]> => {
     if (selectedIds.size > 0) return ordersToExport;
+    // "Apenas atrasados" é aplicado no cliente: exporta exatamente a lista já filtrada.
+    if (onlyOverdue) return overdueFiltered;
     const expected = serverCount || 0;
     if (expected <= serverOrders.length) return serverOrders;
     const tid = toast.loading(`Carregando ${expected.toLocaleString('pt-BR')} pedidos…`);
@@ -825,7 +834,7 @@ const ReportsPage = () => {
       toast.error(`Erro ao carregar pedidos: ${e?.message || e}`, { id: tid });
       return serverOrders;
     }
-  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters]);
+  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters, onlyOverdue, overdueFiltered]);
 
   const [preparingReport, setPreparingReport] = useState(false);
 

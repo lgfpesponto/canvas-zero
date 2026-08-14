@@ -25,7 +25,7 @@ export interface OrderFilters {
 }
 
 /** Busca IDs via RPC quando há filtro "mudou para status". Retorna null se filtro inativo. */
-async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] | null> {
+export async function fetchIdsMudouParaStatus(filters: OrderFilters): Promise<string[] | null> {
   if (!filters.mudouParaStatus || filters.mudouParaStatus.size === 0) return null;
   const de = filters.mudouParaStatusDe || filters.mudouParaStatusAte;
   const ate = filters.mudouParaStatusAte || filters.mudouParaStatusDe;
