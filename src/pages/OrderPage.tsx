@@ -2063,7 +2063,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="flex-1 min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
           {mode === 'order' && (
             <FichaAtalhosPanel
-              items={[
+              atalhos={[
                 { combo: 'Enter', desc: 'Avança para o próximo campo' },
                 { combo: 'Ctrl + S', desc: 'Salvar / criar pedido' },
                 { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
