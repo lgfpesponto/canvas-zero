@@ -1180,6 +1180,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const menuRef = useRef<HTMLDivElement>(null);
   const [atalhosAberto, setAtalhosAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
+  useFichaKeyboardNav(formRef, { enabled: mode === 'order', autoFocusFirst: mode === 'order' && !embedded });
 
   /* Quando uma parte passa a ter bordado/laser/recorte DEPOIS da cor já
      informada na categoria, o campo de cor nasce com a sugestão.
