@@ -523,9 +523,6 @@ const ModelosPage = () => {
                   placeholder="Digite o número"
                   className={numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
-                {numeroIsAuto && (
-                  <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>
-                )}
                 {numeroChecking && vNumeroPedido.trim() && (
                   <p className="text-xs text-muted-foreground mt-1">Verificando...</p>
                 )}
