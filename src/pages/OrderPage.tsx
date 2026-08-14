@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
 import { supabase } from '@/integrations/supabase/client';
-import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox, Eraser } from 'lucide-react';
+import { Link2, X, Eye, Image as ImageIcon, Plus, List, Trash2, Grid3X3, Search, Pencil, Check, Send, Inbox, Eraser, Keyboard } from 'lucide-react';
 import { FotoPedidoSidePanel } from '@/components/FotoPedidoSidePanel';
 import { TemplateHeaderFields } from '@/components/template/TemplateHeaderFields';
 import { isHttpUrl } from '@/lib/driveUrl';
@@ -20,7 +20,7 @@ import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
 import { focusNextFrom } from '@/lib/fichaNav';
 import { useFichaKeyboardNav } from '@/hooks/useFichaKeyboardNav';
 import { sugerirCorLinha, sugerirCorBorrachinha, sugerirCorVivo, ordenarComSugestao, ehSugerida, SEGUNDA_SUGESTAO_VIVO } from '@/lib/corSugestoes';
-import FichaAtalhosPanel from '@/components/ficha/FichaAtalhosPanel';
+import FichaAtalhosLista from '@/components/ficha/FichaAtalhosPanel';
 import FichaCategoriaMenu from '@/components/ficha/FichaCategoriaMenu';
 
 function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
@@ -1132,7 +1132,10 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   /* ───── Navegação por Enter + atalhos de teclado ───── */
   const menuRef = useRef<HTMLDivElement>(null);
+  const [atalhosAberto, setAtalhosAberto] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
   useFichaKeyboardNav(formRef, { enabled: mode === 'order', autoFocusFirst: mode === 'order' && !embedded });
+
 
   const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
   useEffect(() => {
@@ -2006,52 +2009,102 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const currentFotoUrl = mode === 'template' ? tmpl.templateFotoUrl : fotoUrl;
   const showFotoPanel = mostrarFotoPainel && isHttpUrl(currentFotoUrl);
 
+  const categoriasFicha = [
+    { id: 'ficha-identificacao', label: 'Identificação' },
+    { id: 'ficha-couros', label: 'Couros' },
+    { id: 'ficha-pesponto', label: 'Pesponto' },
+    { id: 'ficha-solado', label: 'Solado' },
+    { id: 'ficha-bordado', label: 'Bordado' },
+    { id: 'ficha-laser', label: 'Laser' },
+    { id: 'ficha-recortes', label: 'Recortes' },
+    { id: 'ficha-estampa', label: 'Estampa' },
+    { id: 'ficha-metais', label: 'Metais' },
+    { id: 'ficha-extras', label: 'Extras' },
+    { id: 'ficha-adicional', label: 'Adicional' },
+  ];
+
+  const atalhosItens = [
+    { combo: 'Enter', desc: 'Avança para o próximo campo' },
+    { combo: 'Ctrl + S', desc: 'Salvar / criar pedido' },
+    { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
+    { combo: 'Ctrl + L', desc: 'Limpar a ficha' },
+    ...(podeEstoqueDireto ? [{ combo: 'Ctrl + E', desc: 'Criar como estoque pronto' }] : []),
+    { combo: 'Ctrl + X', desc: 'Limpar seleção do campo múltiplo' },
+    { combo: 'Ctrl + M', desc: 'Ir para o menu de categorias' },
+  ];
+
+  const bootUnseenCount = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto' && t.seen === false).length;
+
+  const botaoLimpar = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
+          resetForm();
+          toast.success('Ficha limpa.');
+        }
+      }}
+      title="Limpar todos os campos da ficha"
+    >
+      <Eraser size={16} /> Limpar
+    </Button>
+  );
+
+  const botaoCriarModelo = (
+    <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
+      <Plus size={16} /> Criar Modelo
+    </Button>
+  );
+
+  const botaoModelos = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="relative"
+      onClick={async () => {
+        if (user) { await tmpl.loadTemplates(user.id); }
+        tmpl.setShowTemplates(true);
+        tmpl.setTemplateSearch('');
+        if (user) { await tmpl.markTemplatesAsSeen(user.id); }
+      }}
+    >
+      <List size={16} /> Modelos
+      {bootUnseenCount > 0 && (
+        <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
+          {bootUnseenCount}
+        </span>
+      )}
+    </Button>
+  );
+
+  const botaoTrocarCinto = (
+    <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
+      Trocar para Cinto
+    </Button>
+  );
+
+
   return (
     <FichaEditProvider fichaSlug="bota">
     <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
       <FichaEditBar />
       <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
-        <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <h1 className="text-3xl font-display font-bold">
             {tmpl.isEditing ? 'Editar Modelo' : mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}
           </h1>
           {mode === 'order' && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
-                    resetForm();
-                    toast.success('Ficha limpa.');
-                  }
-                }}
-                title="Limpar todos os campos da ficha"
-              >
-                <Eraser size={16} /> Limpar
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { setMode('template'); setProductChoice('bota'); }}>
-                <Plus size={16} /> Criar Modelo
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="relative" onClick={async () => { if (user) { await tmpl.loadTemplates(user.id); } tmpl.setShowTemplates(true); tmpl.setTemplateSearch(''); if (user) { await tmpl.markTemplatesAsSeen(user.id); } }}>
-                <List size={16} /> Modelos
-                {(() => {
-                  const bootUnseen = tmpl.templates.filter(t => (t.form_data as any)?.__tipo !== 'cinto' && t.seen === false).length;
-                  return bootUnseen > 0 ? (
-                    <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                      {bootUnseen}
-                    </span>
-                  ) : null;
-                })()}
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => navigate('/pedido-cinto')}>
-                Trocar para Cinto
-              </Button>
+            <div className="hidden lg:flex flex-wrap items-center gap-3">
+              {botaoLimpar}
+              {botaoCriarModelo}
+              {botaoModelos}
+              {botaoTrocarCinto}
               <FichaEditToggle />
-
-            </>
+            </div>
           )}
           {mode === 'template' && (
             <Button type="button" variant="ghost" size="sm" onClick={() => { setMode('order'); tmpl.cancelEditing(); }}>
@@ -2060,37 +2113,47 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           )}
         </div>
 
+        {/* Mobile: botões fora da ficha, 2 por linha */}
+        {mode === 'order' && (
+          <div className="lg:hidden mb-4 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => { setAtalhosAberto(v => !v); setMenuAberto(false); }}>
+                <Keyboard size={16} /> Atalhos
+              </Button>
+              {botaoLimpar}
+              {botaoCriarModelo}
+              {botaoModelos}
+              <Button type="button" variant="outline" size="sm" onClick={() => { setMenuAberto(v => !v); setAtalhosAberto(false); }}>
+                <List size={16} /> Menu
+              </Button>
+              {botaoTrocarCinto}
+            </div>
+            {atalhosAberto && <FichaAtalhosLista atalhos={atalhosItens} />}
+            {menuAberto && (
+              <FichaCategoriaMenu items={categoriasFicha} variant="inline" onNavigate={() => setMenuAberto(false)} />
+            )}
+            <div><FichaEditToggle /></div>
+          </div>
+        )}
+
         <div className="flex gap-6 items-start">
-        <FichaCategoriaMenu
-          menuRef={menuRef}
-          items={[
-            { id: 'ficha-identificacao', label: 'Identificação' },
-            { id: 'ficha-couros', label: 'Couros' },
-            { id: 'ficha-pesponto', label: 'Pesponto' },
-            { id: 'ficha-solado', label: 'Solado' },
-            { id: 'ficha-bordado', label: 'Bordado' },
-            { id: 'ficha-laser', label: 'Laser' },
-            { id: 'ficha-recortes', label: 'Recortes' },
-            { id: 'ficha-estampa', label: 'Estampa' },
-            { id: 'ficha-metais', label: 'Metais' },
-            { id: 'ficha-extras', label: 'Extras' },
-            { id: 'ficha-adicional', label: 'Adicional' },
-          ]}
-        />
+        {mode === 'order' ? (
+          <FichaCategoriaMenu
+            menuRef={menuRef}
+            items={categoriasFicha}
+          >
+            <div className="space-y-2">
+              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setAtalhosAberto(v => !v)}>
+                <Keyboard size={16} /> Atalhos
+              </Button>
+              {atalhosAberto && <FichaAtalhosLista atalhos={atalhosItens} />}
+            </div>
+          </FichaCategoriaMenu>
+        ) : (
+          <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} />
+        )}
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="flex-1 min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
-          {mode === 'order' && (
-            <FichaAtalhosPanel
-              atalhos={[
-                { combo: 'Enter', desc: 'Avança para o próximo campo' },
-                { combo: 'Ctrl + S', desc: 'Salvar / criar pedido' },
-                { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
-                { combo: 'Ctrl + L', desc: 'Limpar a ficha' },
-                ...(podeEstoqueDireto ? [{ combo: 'Ctrl + E', desc: 'Criar como estoque pronto' }] : []),
-                { combo: 'Ctrl + X', desc: 'Limpar seleção do campo múltiplo' },
-                { combo: 'Ctrl + M', desc: 'Ir para o menu de categorias' },
-              ]}
-            />
-          )}
+
 
 
           {/* Cabeçalho do Modelo (foto, nome, modelo+gênero, SKU base, tamanhos+SKU) */}
