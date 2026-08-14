@@ -67,6 +67,7 @@ Ao final, registrar uma nova versão da ficha da bota (snapshot ativo em `ficha_
 - Campos de quantidade passam a usar valor string vazio (`''`) sem placeholder, convertendo para número só no cálculo — sem alterar as fórmulas de soma.
 - Criar `src/lib/corSugestoes.ts` com os mapas cor-do-couro → cor sugerida (linha, borrachinha, vivo) e o espelhamento por categoria (bordados, laser, recortes) a partir da primeira parte preenchida. Aplicado só na ordenação/pré-preenchimento — nenhum preço muda.
 
+- Ajustes de obrigatoriedade dentro do bloco `required` / `toggleChecks` de `handleSubmit` em `OrderPage.tsx`, sempre condicionados ao campo pai preenchido.
 - A variação "Não tem" da Área do Metal é criada em `ficha_variacoes` (preço 0) via migração, com fallback no config caso o registro não exista.
 - Atalhos em um listener global montado na página, ignorando quando o foco está em campo de texto para não conflitar com digitação (exceto Ctrl+X no campo de busca).
 - Menu de categorias como novo componente `src/components/ficha/FichaCategoriaMenu.tsx` usando `scrollIntoView` nas seções.
