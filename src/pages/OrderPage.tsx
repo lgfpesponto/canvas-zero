@@ -2055,26 +2055,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
   };
 
-  /* Quando uma parte passa a ter bordado/laser/recorte DEPOIS da cor já
-     informada na categoria, o campo de cor nasce com a sugestão. */
-  const gruposCorRef = useRef(gruposCor);
+  // Ref alimentada a cada render; o efeito que usa isso fica no topo do componente.
   gruposCorRef.current = gruposCor;
-  useEffect(() => {
-    const novos: Record<string, boolean> = {};
-    (Object.keys(gruposCorRef.current) as CorGrupo[]).forEach(grupo => {
-      const cor = (ultimaCorGrupo[grupo] || '').trim();
-      if (!cor) return;
-      gruposCorRef.current[grupo].forEach(p => {
-        if (!p.ativo || p.valor.trim()) return;
-        p.set(cor);
-        novos[p.key] = true;
-      });
-    });
-    if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ultimaCorGrupo, bordadoCano.length, bordadoGaspea.length, bordadoTaloneira.length,
-      laserCano.length, laserGaspea.length, laserTaloneira.length,
-      recorteCano, recorteGaspea, recorteTaloneira]);
 
 
 
