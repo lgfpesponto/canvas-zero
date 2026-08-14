@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
-import { focusNextFrom } from '@/lib/fichaNav';
+import { focusNextFrom, abrirSelectNativo } from '@/lib/fichaNav';
 import { useFichaKeyboardNav } from '@/hooks/useFichaKeyboardNav';
 import { sugerirCorLinha, sugerirCorBorrachinha, sugerirCorVivo, ordenarComSugestao, ehSugerida, SEGUNDA_SUGESTAO_VIVO } from '@/lib/corSugestoes';
 import FichaAtalhosLista from '@/components/ficha/FichaAtalhosPanel';
