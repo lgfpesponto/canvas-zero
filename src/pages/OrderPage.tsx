@@ -2343,64 +2343,91 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </Section>
 
           {/* BORDADO */}
-          <Section title="Bordado">
+          <Section title="Bordado" id="ficha-bordado">
             <ToggleField label="Desenvolvimento (+R$50)" value={desenvBordado} onChange={setDesenvBordado} textValue={desenvBordadoDesc} onTextChange={setDesenvBordadoDesc} textPlaceholder="Descreva o desenvolvimento..." />
+            <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
+
             <MultiSelect label="Bordado do Cano" items={mergedBordadoCano} selected={bordadoCano} onChange={setBordadoCano} />
             {bordadoCano.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Cano)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescCano} onChange={e => setBordadoVariadoDescCano(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
-            <div><label className={cls.label}>Cor do Bordado do Cano</label><input type="text" value={corBordadoCano} onChange={e => setCorBordadoCano(e.target.value)} className={cls.input} /></div>
+            {bordadoCano.length > 0 && (
+              <CorEspelhadaInput label="Cor do Bordado do Cano" value={corBordadoCano} sugerido={!!corSug['bordado_cano']} onChange={v => handleCorGrupo('bordado', 'bordado_cano', v)} />
+            )}
 
             <MultiSelect label="Bordado da Gáspea" items={mergedBordadoGaspea} selected={bordadoGaspea} onChange={setBordadoGaspea} />
             {bordadoGaspea.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Gáspea)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescGaspea} onChange={e => setBordadoVariadoDescGaspea(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
-            <div><label className={cls.label}>Cor do Bordado da Gáspea</label><input type="text" value={corBordadoGaspea} onChange={e => setCorBordadoGaspea(e.target.value)} className={cls.input} /></div>
+            {bordadoGaspea.length > 0 && (
+              <CorEspelhadaInput label="Cor do Bordado da Gáspea" value={corBordadoGaspea} sugerido={!!corSug['bordado_gaspea']} onChange={v => handleCorGrupo('bordado', 'bordado_gaspea', v)} />
+            )}
 
             <MultiSelect label="Bordado da Taloneira" items={mergedBordadoTaloneira} selected={bordadoTaloneira} onChange={setBordadoTaloneira} />
             {bordadoTaloneira.some(b => b.includes('Bordado Variado')) && (
               <div><label className={cls.label}>Descrever bordado (Taloneira)<span className="text-destructive ml-0.5">*</span></label><input type="text" value={bordadoVariadoDescTaloneira} onChange={e => setBordadoVariadoDescTaloneira(e.target.value)} placeholder="Descreva o bordado variado..." className={cls.input} /></div>
             )}
-            <div><label className={cls.label}>Cor do Bordado da Taloneira</label><input type="text" value={corBordadoTaloneira} onChange={e => setCorBordadoTaloneira(e.target.value)} className={cls.input} /></div>
-
-            <ToggleField label={`Nome Bordado (+R$${NOME_BORDADO_PRECO})`} value={nomeBordado} onChange={setNomeBordado} textValue={nomeBordadoDesc} onTextChange={setNomeBordadoDesc} textPlaceholder="Nome, cor, local..." />
+            {bordadoTaloneira.length > 0 && (
+              <CorEspelhadaInput label="Cor do Bordado da Taloneira" value={corBordadoTaloneira} sugerido={!!corSug['bordado_taloneira']} onChange={v => handleCorGrupo('bordado', 'bordado_taloneira', v)} />
+            )}
           </Section>
 
-          {/* LASER E RECORTES */}
-          <Section title="Laser e Recortes">
+          {/* LASER */}
+          <Section title="Laser" id="ficha-laser">
             <ToggleField label="Desenvolvimento (+R$100)" value={desenvLaser} onChange={setDesenvLaser} textValue={desenvLaserDesc} onTextChange={setDesenvLaserDesc} textPlaceholder="Descreva o desenvolvimento..." />
+
             <MultiSelect label="Laser do Cano" items={mergedLaserCano} selected={laserCano} onChange={setLaserCano} />
             {laserCano.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Cano</label><input type="text" value={laserOutroCanoText} onChange={e => setLaserOutroCanoText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
-            <div><label className={cls.label}>Cor do Bordado (Cano)</label><input type="text" value={corBordadoLaserCano} onChange={e => setCorBordadoLaserCano(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
-            <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
-            {recorteCano && (
-              <div><label className={cls.label}>Cor do Recorte (Cano)</label><input type="text" value={corRecorteCano} onChange={e => setCorRecorteCano(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            {laserCano.length > 0 && (
+              <>
+                <SelectField label="Cor Glitter/Tecido do Cano (+R$30)" value={corGlitterCano} onChange={setCorGlitterCano} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
+                <CorEspelhadaInput label="Cor do Bordado (Cano)" value={corBordadoLaserCano} sugerido={!!corSug['laser_cano']} onChange={v => handleCorGrupo('laser', 'laser_cano', v)} />
+              </>
             )}
 
             <MultiSelect label="Laser da Gáspea" items={mergedLaserGaspea} selected={laserGaspea} onChange={setLaserGaspea} />
             {laserGaspea.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Gáspea</label><input type="text" value={laserOutroGaspeaText} onChange={e => setLaserOutroGaspeaText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
-            <div><label className={cls.label}>Cor do Bordado (Gáspea)</label><input type="text" value={corBordadoLaserGaspea} onChange={e => setCorBordadoLaserGaspea(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
-            <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
-            {recorteGaspea && (
-              <div><label className={cls.label}>Cor do Recorte (Gáspea)</label><input type="text" value={corRecorteGaspea} onChange={e => setCorRecorteGaspea(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+            {laserGaspea.length > 0 && (
+              <>
+                <SelectField label="Cor Glitter/Tecido da Gáspea (+R$30)" value={corGlitterGaspea} onChange={setCorGlitterGaspea} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
+                <CorEspelhadaInput label="Cor do Bordado (Gáspea)" value={corBordadoLaserGaspea} sugerido={!!corSug['laser_gaspea']} onChange={v => handleCorGrupo('laser', 'laser_gaspea', v)} />
+              </>
             )}
 
             <MultiSelect label="Laser da Taloneira" items={mergedLaserTaloneira} selected={laserTaloneira} onChange={setLaserTaloneira} />
             {laserTaloneira.includes('Outro') && (
               <div><label className={cls.label}>Descreva o laser (Outro) - Taloneira</label><input type="text" value={laserOutroTaloneiraText} onChange={e => setLaserOutroTaloneiraText(e.target.value)} className={cls.input} placeholder="Nome do laser..." /></div>
             )}
-            <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
-            <div><label className={cls.label}>Cor do Bordado (Taloneira)</label><input type="text" value={corBordadoLaserTaloneira} onChange={e => setCorBordadoLaserTaloneira(e.target.value)} className={cls.input} placeholder="Cor do bordado..." /></div>
+            {laserTaloneira.length > 0 && (
+              <>
+                <SelectField label="Cor Glitter/Tecido da Taloneira (sem custo)" value={corGlitterTaloneira} onChange={setCorGlitterTaloneira} options={mergeFieldOptions('cor_glitter', COR_GLITTER as string[])} />
+                <CorEspelhadaInput label="Cor do Bordado (Taloneira)" value={corBordadoLaserTaloneira} sugerido={!!corSug['laser_taloneira']} onChange={v => handleCorGrupo('laser', 'laser_taloneira', v)} />
+              </>
+            )}
+
+            <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
+          </Section>
+
+          {/* RECORTES */}
+          <Section title="Recortes" id="ficha-recortes">
+            <SelectField label="Recortes do Cano" value={recorteCano} onChange={v => { setRecorteCano(v); if (!v) setCorRecorteCano(''); }} options={getDbItems('recorte_cano', [])} />
+            {recorteCano && (
+              <CorEspelhadaInput label="Cor do Recorte (Cano)" value={corRecorteCano} sugerido={!!corSug['recorte_cano']} onChange={v => handleCorGrupo('recorte', 'recorte_cano', v)} />
+            )}
+            <SelectField label="Recortes da Gáspea" value={recorteGaspea} onChange={v => { setRecorteGaspea(v); if (!v) setCorRecorteGaspea(''); }} options={getDbItems('recorte_gaspea', [])} />
+            {recorteGaspea && (
+              <CorEspelhadaInput label="Cor do Recorte (Gáspea)" value={corRecorteGaspea} sugerido={!!corSug['recorte_gaspea']} onChange={v => handleCorGrupo('recorte', 'recorte_gaspea', v)} />
+            )}
             <SelectField label="Recortes da Taloneira" value={recorteTaloneira} onChange={v => { setRecorteTaloneira(v); if (!v) setCorRecorteTaloneira(''); }} options={getDbItems('recorte_taloneira', [])} />
             {recorteTaloneira && (
-              <div><label className={cls.label}>Cor do Recorte (Taloneira)</label><input type="text" value={corRecorteTaloneira} onChange={e => setCorRecorteTaloneira(e.target.value)} className={cls.input} placeholder="Cor do recorte..." /></div>
+              <CorEspelhadaInput label="Cor do Recorte (Taloneira)" value={corRecorteTaloneira} sugerido={!!corSug['recorte_taloneira']} onChange={v => handleCorGrupo('recorte', 'recorte_taloneira', v)} />
             )}
+          </Section>
+
 
             <ToggleField label={`Pintura (+R$${PINTURA_PRECO})`} value={pintura} onChange={setPintura} textValue={pinturaDesc} onTextChange={setPinturaDesc} textPlaceholder="Cor da tinta..." />
           </Section>
