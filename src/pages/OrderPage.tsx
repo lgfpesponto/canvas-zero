@@ -1232,13 +1232,18 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       else if (k === 'r') { e.preventDefault(); saveDraftRef.current?.(); }
       else if (k === 'l') {
         e.preventDefault();
-        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetFormRef.current?.(); toast.success('Ficha limpa.'); }
+        resetFormRef.current?.(); toast.success('Ficha limpa.');
       } else if (k === 'e') {
         if (!podeEstoqueDireto) return;
         e.preventDefault();
         setEstoquePronto(true);
         formRef.current?.requestSubmit();
-      } else if (k === 'm') { e.preventDefault(); menuRef.current?.focus(); menuRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      } else if (k === 'm') {
+        e.preventDefault();
+        const primeiro = menuRef.current?.querySelector<HTMLElement>('[data-ficha-menu-item="true"]');
+        menuRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        primeiro?.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -2121,7 +2126,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
     { combo: 'Ctrl + L', desc: 'Limpar a ficha' },
     ...(podeEstoqueDireto ? [{ combo: 'Ctrl + E', desc: 'Criar como estoque pronto' }] : []),
-    { combo: 'Ctrl + X', desc: 'Limpar seleção do campo múltiplo' },
+    { combo: 'Ctrl + X', desc: 'Expandir campo de múltipla seleção' },
     { combo: 'Ctrl + M', desc: 'Ir para o menu de categorias' },
   ];
 
@@ -2133,10 +2138,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       variant="outline"
       size="sm"
       onClick={() => {
-        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) {
-          resetForm();
-          toast.success('Ficha limpa.');
-        }
+        resetForm();
+        toast.success('Ficha limpa.');
       }}
       title="Limpar todos os campos da ficha"
     >
