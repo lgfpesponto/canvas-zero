@@ -331,6 +331,7 @@ Deno.serve(async (req) => {
     }
     const { data: prods, error } = await q;
     if (error) {
+      await releaseLock();
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
