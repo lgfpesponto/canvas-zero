@@ -2532,13 +2532,14 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                     <input
                       type="number"
                       min={0}
-                      value={item.qtd}
-                      onChange={e => item.setQtd(Math.max(0, Number(e.target.value)))}
+                      value={item.qtd ? String(item.qtd) : ''}
+                      onChange={e => item.setQtd(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
                       onWheel={e => (e.target as HTMLInputElement).blur()}
                       className={cls.inputSmall + ' w-full'}
                       placeholder="Qtd"
                     />
                   )}
+
                 </div>
               ))}
             </div>
