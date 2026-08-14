@@ -137,7 +137,20 @@ const ToggleField = ({
   const abertoRef = useRef(false);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
-    if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    // Seta para o lado: com "Tem" selecionado, vai direto para a descrição.
+    if (e.key === 'ArrowRight') {
+      const desc = selectRef.current?.parentElement?.querySelector<HTMLInputElement>('input[data-toggle-desc="true"]');
+      if (value && desc) {
+        e.preventDefault();
+        e.stopPropagation();
+        abertoRef.current = false;
+        desc.focus();
+        desc.select();
+      }
+      return;
+    }
+    if (e.key !== 'Enter') return;
     e.preventDefault();
     e.stopPropagation();
     const el = selectRef.current;
