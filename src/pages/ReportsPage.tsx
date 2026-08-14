@@ -105,6 +105,7 @@ const ReportsPage = () => {
     return v ? new Set(v.split(',')) : new Set<string>();
   });
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
+  const [filterCliente, setFilterCliente] = useState(() => searchParams.get('cliente') || '');
   const [filterVendedor, setFilterVendedor] = useState<Set<string>>(() => {
     const v = searchParams.get('vendedor');
     return v ? new Set(v.split(',')) : new Set<string>();
@@ -197,6 +198,7 @@ const ReportsPage = () => {
     const cf = searchParams.get('conferido');
     return {
       searchQuery: searchParams.get('q') || '',
+      filterCliente: searchParams.get('cliente') || '',
       filterDate: searchParams.get('de') || '',
       filterDateEnd: searchParams.get('ate') || '',
       filterStatus: new Set(filterStatus),
@@ -209,9 +211,10 @@ const ReportsPage = () => {
     };
   });
 
-  const syncSearchParams = useCallback((filters: { searchQuery: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean; conferido?: 'todos' | 'sim' | 'nao' }) => {
+  const syncSearchParams = useCallback((filters: { searchQuery: string; filterCliente?: string; filterDate: string; filterDateEnd: string; filterStatus: Set<string>; filterVendedor: Set<string>; filterProduto: Set<string>; mudouStatus?: Set<string>; mudouDe?: string; mudouAte?: string; onlyOverdue?: boolean; conferido?: 'todos' | 'sim' | 'nao' }) => {
     const params = new URLSearchParams();
     if (filters.searchQuery) params.set('q', filters.searchQuery);
+    if (filters.filterCliente) params.set('cliente', filters.filterCliente);
     if (filters.filterDate) params.set('de', filters.filterDate);
     if (filters.filterDateEnd) params.set('ate', filters.filterDateEnd);
     if (filters.filterStatus.size > 0) params.set('status', [...filters.filterStatus].join(','));
@@ -246,6 +249,7 @@ const ReportsPage = () => {
     }
     const newFilters: OrderFilters & { mudouStatus: Set<string>; mudouDe: string; mudouAte: string; onlyOverdue: boolean; conferido: 'todos' | 'sim' | 'nao' } = {
       searchQuery,
+      filterCliente,
       filterDate,
       filterDateEnd,
       filterStatus: new Set(filterStatus),
@@ -337,6 +341,15 @@ const ReportsPage = () => {
           const s = String(f.searchQuery).replace(/%/g, '\\%');
           q = q.or(`numero.ilike.%${s}%,cliente.ilike.%${s}%`);
         }
+
+        if (f.filterCliente && String(f.filterCliente).trim()) {
+          q = q.ilike('cliente', `%${String(f.filterCliente).trim()}%`);
+        }
+
+        if (f.filterConferido === 'sim') q = q.eq('conferido', true);
+        else if (f.filterConferido === 'nao') q = q.eq('conferido', false);
+
+        if (idsMudou !== null) q = q.in('id', idsMudou);
 
         const { data, error } = await q;
         if (cancelled) return;
@@ -841,6 +854,9 @@ const ReportsPage = () => {
             { label: 'Status', value: fmtSet(filterStatus) },
             { label: 'Período', value: fmtPeriodo(filterDate, filterDateEnd) },
             { label: 'Busca', value: searchQuery || '—' },
+            { label: 'Cliente', value: filterCliente || '—' },
+            { label: 'Mudou para', value: mudouStatus.size > 0 ? `${fmtSet(mudouStatus)} (${fmtPeriodo(mudouDe, mudouAte)})` : '—' },
+            { label: 'Conferido', value: filterConferido === 'todos' ? '—' : (filterConferido === 'sim' ? 'Sim' : 'Não') },
             { label: 'Apenas atrasados', value: onlyOverdue ? 'Sim' : 'Não' },
           ]}
         />
@@ -1216,6 +1232,10 @@ const ReportsPage = () => {
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Ex: 7E-2024..." className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none" />
             </div>
             <div>
+              <label className="block text-xs font-semibold mb-1">Cliente</label>
+              <input type="text" value={filterCliente} onChange={e => setFilterCliente(e.target.value)} placeholder="Nome do cliente" className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none" />
+            </div>
+            <div>
               <label className="block text-xs font-semibold mb-1">Data de Criação (a partir de)</label>
               <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="bg-muted rounded-lg px-3 py-2 text-sm border border-border focus:border-primary outline-none" />
             </div>
@@ -1441,6 +1461,7 @@ const ReportsPage = () => {
                     }
                     const newFilters: any = {
                       searchQuery,
+                      filterCliente,
                       filterDate,
                       filterDateEnd,
                       filterStatus: new Set(filterStatus),
@@ -1486,6 +1507,7 @@ const ReportsPage = () => {
               </button>
               <button onClick={() => {
                 setSearchQuery('');
+                setFilterCliente('');
                 setFilterDate('');
                 setFilterDateEnd('');
                 setFilterStatus(new Set());
@@ -1496,7 +1518,7 @@ const ReportsPage = () => {
                 setMudouAte('');
                 setOnlyOverdue(false);
                 setFilterConferido('todos');
-                setAppliedFilters({ searchQuery: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
+                setAppliedFilters({ searchQuery: '', filterCliente: '', filterDate: '', filterDateEnd: '', filterStatus: new Set(), filterVendedor: new Set(), filterProduto: new Set(['bota', 'cinto', ...EXTRA_PRODUCTS.map(p => p.id)]) });
                 setSelectedIds(new Set());
                 setSearchParams({}, { replace: true });
               }} className="border border-border text-muted-foreground px-4 py-2 rounded-lg font-bold text-sm hover:bg-muted transition-colors flex items-center gap-2">
