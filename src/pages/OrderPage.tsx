@@ -2643,6 +2643,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             </button>
           )}
         </form>
+        </div>
+
       </motion.div>
         {showFotoPanel && (
           <FotoPedidoSidePanel
