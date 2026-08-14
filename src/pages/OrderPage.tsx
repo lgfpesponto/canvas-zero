@@ -82,10 +82,10 @@ const Section = ({ title, children, id }: { title: string; children: React.React
 const fotoLookupHolder: { fn?: (label: string) => string | null | undefined } = {};
 
 /** Campo de seleção da ficha (componente estável para não perder o foco). */
-const SelectField = ({ label, value, onChange, options, required: req, suggested, sugerida }: {
+const SelectField = ({ label, value, onChange, options, required: req, suggested, sugerida, navSkip }: {
   label: string; value: string; onChange: (v: string) => void;
   options: string[] | { label: string; preco: number }[];
-  required?: boolean; suggested?: boolean; sugerida?: string | null;
+  required?: boolean; suggested?: boolean; sugerida?: string | null; navSkip?: boolean;
 }) => (
   <div>
     <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
@@ -104,6 +104,7 @@ const SelectField = ({ label, value, onChange, options, required: req, suggested
       autoOpenOnFocus
       advanceOnSelect
       sugerida={sugerida}
+      navSkip={navSkip}
     />
   </div>
 );
@@ -609,6 +610,16 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [bridaoMetalQtd, setBridaoMetalQtd] = useState(Number(df.bridaoMetalQtd) || 0);
   const [cavaloMetal, setCavaloMetal] = useState(df.cavaloMetal === 'true');
   const [cavaloMetalQtd, setCavaloMetalQtd] = useState(Number(df.cavaloMetalQtd) || 0);
+
+  // Área do Metal comanda Tipo/Cor: "Não tem" limpa; Metade/Inteira já marca Rebite.
+  useEffect(() => {
+    if (!areaMetal || areaMetal === 'Não tem') {
+      setTipoMetal(prev => (prev.length ? [] : prev));
+      setCorMetal(prev => (prev ? '' : prev));
+      return;
+    }
+    setTipoMetal(prev => (prev.length ? prev : ['Rebite']));
+  }, [areaMetal]);
 
   // extras (tiras + tricê)
   const [trice, setTrice] = useState(df.trice === 'true');
@@ -2656,7 +2667,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={mergeFieldOptions('area_metal', AREA_METAL as { label: string; preco: number }[])} />
               <div>
                 <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1" data-ficha-nav-skip="true">
                   {mergeFieldOptions('tipo_metal', TIPO_METAL as string[]).map(t => (
                     <label key={t} className={cls.checkItem}>
                       <input type="checkbox" checked={tipoMetal.includes(t)} onChange={e => {
@@ -2669,7 +2680,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 </div>
 
               </div>
-              <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={mergeFieldOptions('cor_metal', COR_METAL as string[])} />
+              <SelectField label="Cor do Metal" value={corMetal} onChange={setCorMetal} options={mergeFieldOptions('cor_metal', COR_METAL as string[])} navSkip={!areaMetal || areaMetal === 'Não tem'} />
             </div>
 
             {/* Linha fina ilustrativa separando Área/Tipo/Cor dos metais quantificáveis */}

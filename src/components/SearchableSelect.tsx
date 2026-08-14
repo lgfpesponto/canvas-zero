@@ -21,11 +21,13 @@ interface SearchableSelectProps {
   advanceOnSelect?: boolean;
   /** Rótulo "sugerido" mostrado ao lado da primeira opção. */
   sugerida?: string | null;
+  /** Ignora este campo na navegação por Enter da ficha. */
+  navSkip?: boolean;
 }
 
 const SearchableSelect = ({
   options, value, onValueChange, placeholder = 'Selecione...', className, fotoLookup,
-  autoOpenOnFocus, advanceOnSelect, sugerida,
+  autoOpenOnFocus, advanceOnSelect, sugerida, navSkip,
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -63,7 +65,7 @@ const SearchableSelect = ({
           ref={triggerRef}
           type="button"
           role="combobox"
-          data-ficha-nav="true"
+          data-ficha-nav={navSkip ? 'false' : 'true'}
           data-ficha-filled={value ? 'true' : 'false'}
           aria-expanded={open}
           className={cn(
