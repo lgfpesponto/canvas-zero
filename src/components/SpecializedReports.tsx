@@ -874,8 +874,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.tipoMetal) metalParts.push(`Tipo: ${o.tipoMetal}`);
       if (o.corMetal) metalParts.push(`Cor: ${o.corMetal}`);
       if (o.strassQtd && o.strassQtd > 0) metalParts.push(`Strass: ${o.strassQtd} un.`);
+      const bolaQtd = getBolaGrandeQtd(o);
+      if (bolaQtd > 0) metalParts.push(`Bola Grande: ${bolaQtd} un.`);
       if (o.cruzMetalQtd && o.cruzMetalQtd > 0) metalParts.push(`Cruz: ${o.cruzMetalQtd} un.`);
       if (o.bridaoMetalQtd && o.bridaoMetalQtd > 0) metalParts.push(`Bridão: ${o.bridaoMetalQtd} un.`);
+      const detRow: any = (o as any).extraDetalhes || {};
+      const cavaloQtdRow = detRow.cavaloMetal ? (Number(detRow.cavaloMetalQtd) || 0) : 0;
+      if (cavaloQtdRow > 0) metalParts.push(`Cavalo: ${cavaloQtdRow} un.`);
       const metalText = metalParts.join(' | ');
       const lines = doc.splitTextToSize(metalText, cols[1] - 4);
       const rowH = Math.max(18, lines.length * 3.5 + 6);
