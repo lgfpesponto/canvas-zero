@@ -86,10 +86,6 @@ export default function PublicTrackingPage() {
     return PROGRESS_STEPS.findIndex(s => s.matches(order.status));
   }, [order?.status]);
 
-  const historicoDesc = useMemo(() => {
-    if (!order?.historico) return [];
-    return [...order.historico].reverse();
-  }, [order?.historico]);
 
   const fichaCategorias = useMemo(
     () => order ? buildBootFichaCategories(order, { showCliente: false }) : [],
@@ -222,35 +218,6 @@ export default function PublicTrackingPage() {
           </p>
         </section>
 
-        {/* Histórico de produção */}
-        <section className="bg-card rounded-xl p-5 western-shadow">
-          <h2 className="font-display font-bold mb-3">Histórico de produção</h2>
-          {historicoDesc.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem registros ainda.</p>
-          ) : (
-            <ol className="space-y-3">
-              {historicoDesc.map((h: any, i: number) => (
-                <li key={i} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${i === 0 ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
-                    {i < historicoDesc.length - 1 && <div className="w-px flex-1 bg-border" />}
-                  </div>
-                  <div className="flex-1 pb-2">
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-semibold text-sm">{h.local || '—'}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {fmtDateBR(h.data)} {h.hora || ''}
-                      </span>
-                    </div>
-                    {h.descricao && (
-                      <p className="text-sm text-muted-foreground mt-0.5">{h.descricao}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
 
         {/* Detalhes da Bota — mesmo formato da ficha interna */}
         <section className="bg-card rounded-xl p-5 western-shadow">
