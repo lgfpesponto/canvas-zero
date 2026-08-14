@@ -382,6 +382,14 @@ function VarLine({ v, todosCampos, todasVars, irmas = [] }: {
   const updateVar = useUpdateVariacao();
   const deleteVar = useDeleteVariacao();
 
+  const nomeRepetido = useMemo(() => {
+    const n = nome.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!n) return false;
+    return irmas.some(x => x.id !== v.id && (x.nome || '').trim().toLowerCase().replace(/\s+/g, ' ') === n);
+  }, [nome, irmas, v.id]);
+
+
+
   const camposComVars = useMemo(() => {
     const arr: { campo: FichaCampo; vars: FichaVariacao[] }[] = [];
     for (const c of todosCampos) {
