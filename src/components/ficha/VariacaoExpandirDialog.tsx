@@ -58,9 +58,16 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
     [filtered, page, pageSize],
   );
 
-  // Foco automático: ao abrir e ao trocar de página pelo teclado.
+  // Ao abrir: foco no campo de pesquisa.
   useEffect(() => {
     if (!open) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // Troca de página pelo teclado: mantém o foco nas variações.
+  useEffect(() => {
+    if (!open || !focoPendente.current) return;
     const t = setTimeout(() => {
       const els = cards();
       if (els.length === 0) return;
@@ -70,6 +77,16 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
     }, 50);
     return () => clearTimeout(t);
   }, [open, page, pageItems, cards]);
+
+  const colunas = isMobile ? 1 : 3;
+
+  const onBuscaKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      e.stopPropagation();
+      focarCard(0);
+    }
+  };
 
   const onCardKeyDown = (e: React.KeyboardEvent<HTMLElement>, idx: number, label: string) => {
     if (e.key === 'Enter' || e.key === ' ') {
