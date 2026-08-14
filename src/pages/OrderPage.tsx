@@ -535,6 +535,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [couroSug, setCouroSug] = useState<CouroSug>({});
   /** Flags "sugestão" das cores espelhadas dentro de bordado/laser/recorte. */
   const [corSug, setCorSug] = useState<Record<string, boolean>>({});
+  /** Última cor informada em cada categoria (bordado/laser/recorte) para sugerir nas próximas partes. */
+  const [ultimaCorGrupo, setUltimaCorGrupo] = useState<Record<string, string>>({});
 
   // desenvolvimento LEGACY (pedidos antigos com Bordado/Laser/Estampa como valor único)
   const [desenvolvimento, setDesenvolvimento] = useState(df.desenvolvimento || '');
@@ -2043,6 +2045,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     const partes = gruposCor[grupo];
     partes.find(p => p.key === key)?.set(v);
     setCorSug(prev => ({ ...prev, [key]: false }));
+    setUltimaCorGrupo(prev => ({ ...prev, [grupo]: v }));
     if (!v.trim()) return;
     const novos: Record<string, boolean> = {};
     partes.forEach(p => {
@@ -2051,6 +2054,27 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     });
     if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
   };
+
+  /* Quando uma parte passa a ter bordado/laser/recorte DEPOIS da cor já
+     informada na categoria, o campo de cor nasce com a sugestão. */
+  const gruposCorRef = useRef(gruposCor);
+  gruposCorRef.current = gruposCor;
+  useEffect(() => {
+    const novos: Record<string, boolean> = {};
+    (Object.keys(gruposCorRef.current) as CorGrupo[]).forEach(grupo => {
+      const cor = (ultimaCorGrupo[grupo] || '').trim();
+      if (!cor) return;
+      gruposCorRef.current[grupo].forEach(p => {
+        if (!p.ativo || p.valor.trim()) return;
+        p.set(cor);
+        novos[p.key] = true;
+      });
+    });
+    if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ultimaCorGrupo, bordadoCano.length, bordadoGaspea.length, bordadoTaloneira.length,
+      laserCano.length, laserGaspea.length, laserTaloneira.length,
+      recorteCano, recorteGaspea, recorteTaloneira]);
 
 
 
