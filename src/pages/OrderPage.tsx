@@ -2068,7 +2068,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* IDENTIFICAÇÃO — campos principais + foto */}
           {mode === 'order' ? (
-            <Section title="Identificação">
+            <Section title="Identificação" id="ficha-identificacao">
               {/* Link da Foto de Referência (Drive) — primeiro campo */}
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Link da Foto de Referência" defaultTipo="texto" /></label>
@@ -2277,7 +2277,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             };
 
             return (
-              <Section title="Couros">
+              <Section title="Couros" id="ficha-couros">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <SelectField label="Tipo Couro do Cano" value={tipoCouroCano} onChange={v => handleTipoChange('Cano', v)} options={mergeFieldOptions('couro_cano', TIPOS_COURO as string[])} required suggested={!!couroSug.tipoCano && !!tipoCouroCano} />
                   <SelectField label="Cor Couro do Cano" value={corCouroCano} onChange={v => handleCorChange('Cano', v)} options={getDynCoresCouro(tipoCouroCano, 'couro_cano', 'cor_couro_cano')} required suggested={!!couroSug.corCano && !!corCouroCano} />
@@ -2327,7 +2327,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
 
           {/* SOLADO */}
-          <Section title="Solado">
+          <Section title="Solado" id="ficha-solado">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {(() => {
                 const withDbPrice = (opts: { label: string; preco: number }[], cat: string, selections?: Record<string, string>) =>
@@ -2448,14 +2448,14 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
 
           {/* ESTAMPA */}
-          <Section title="Estampa">
+          <Section title="Estampa" id="ficha-estampa">
             <ToggleField label="Desenvolvimento (+R$150)" value={desenvEstampa} onChange={setDesenvEstampa} textValue={desenvEstampaDesc} onTextChange={setDesenvEstampaDesc} textPlaceholder="Descreva o desenvolvimento..." />
             <ToggleField label={`Estampa (+R$${ESTAMPA_PRECO})`} value={estampa} onChange={setEstampa} textValue={estampaDesc} onTextChange={setEstampaDesc} textPlaceholder="Descreva a estampa..." />
           </Section>
 
 
           {/* METAIS */}
-          <Section title="Metais">
+          <Section title="Metais" id="ficha-metais">
             <div className="grid sm:grid-cols-3 gap-4">
               <SelectField label="Área do Metal" value={areaMetal} onChange={setAreaMetal} options={mergeFieldOptions('area_metal', AREA_METAL as { label: string; preco: number }[])} />
               <div>
@@ -2514,7 +2514,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </Section>
 
           {/* EXTRAS (Acessórios + Tricê + Tiras + Franja + Corrente + Carimbo a Fogo) */}
-          <Section title="Extras">
+          <Section title="Extras" id="ficha-extras">
             <MultiSelect label="Acessórios" items={mergeFieldOptions('acessorios', ACESSORIOS as { label: string; preco: number }[])} selected={acessorios} onChange={setAcessorios} />
             <ToggleField label={`Tricê (+R$${TRICE_PRECO})`} value={trice} onChange={setTrice} textValue={triceDesc} onTextChange={setTriceDesc} textPlaceholder="Cor do tricê..." />
             <ToggleField label={`Tiras (+R$${TIRAS_PRECO})`} value={tiras} onChange={setTiras} textValue={tirasDesc} onTextChange={setTirasDesc} textPlaceholder="Cor das tiras..." />
@@ -2550,7 +2550,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </Section>
 
           {/* ADICIONAL */}
-          <Section title="Adicional">
+          <Section title="Adicional" id="ficha-adicional">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className={cls.label}>Descrição do Adicional</label>
