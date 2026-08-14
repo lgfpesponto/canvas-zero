@@ -25,6 +25,7 @@ import { BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO, EX
 import { getCouroSortKey, stampPageNumbers, generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { recordPrintHistory } from '@/lib/printHistory';
 import { registrarPdfSnapshot } from '@/lib/pdfHistorico';
+import { getBolaGrandeQtd } from '@/lib/bolaGrande';
 import { buildCobrancaPdfDoc, buildCobrancaFileName } from '@/lib/cobrancaPdf';
 import { ensurePriceCache, priceWithFallback } from '@/lib/priceCache';
 import { supabase } from '@/integrations/supabase/client';
@@ -836,7 +837,9 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
     const filtered = sourceOrders.filter(o => {
       if (!progressoMatches(o.status)) return false;
       // Only include orders that have metal fields filled
-      const hasMetals = (o.metais && o.metais !== '' && o.metais !== 'Não' && o.metais !== '-') || (o.tipoMetal && o.tipoMetal !== '' && o.tipoMetal !== '-') || (o.corMetal && o.corMetal !== '' && o.corMetal !== '-') || (o.strassQtd && o.strassQtd > 0) || (o.cruzMetalQtd && o.cruzMetalQtd > 0) || (o.bridaoMetalQtd && o.bridaoMetalQtd > 0);
+      const detM: any = (o as any).extraDetalhes || {};
+      const cavaloQtdM = detM.cavaloMetal ? (Number(detM.cavaloMetalQtd) || 0) : 0;
+      const hasMetals = (o.metais && o.metais !== '' && o.metais !== 'Não' && o.metais !== '-') || (o.tipoMetal && o.tipoMetal !== '' && o.tipoMetal !== '-') || (o.corMetal && o.corMetal !== '' && o.corMetal !== '-') || (o.strassQtd && o.strassQtd > 0) || (o.cruzMetalQtd && o.cruzMetalQtd > 0) || (o.bridaoMetalQtd && o.bridaoMetalQtd > 0) || getBolaGrandeQtd(o) > 0 || cavaloQtdM > 0;
       return !!hasMetals;
     });
 
@@ -871,8 +874,13 @@ const SpecializedReports = ({ reports, showTitle = true }: SpecializedReportsPro
       if (o.tipoMetal) metalParts.push(`Tipo: ${o.tipoMetal}`);
       if (o.corMetal) metalParts.push(`Cor: ${o.corMetal}`);
       if (o.strassQtd && o.strassQtd > 0) metalParts.push(`Strass: ${o.strassQtd} un.`);
+      const bolaQtd = getBolaGrandeQtd(o);
+      if (bolaQtd > 0) metalParts.push(`Bola Grande: ${bolaQtd} un.`);
       if (o.cruzMetalQtd && o.cruzMetalQtd > 0) metalParts.push(`Cruz: ${o.cruzMetalQtd} un.`);
       if (o.bridaoMetalQtd && o.bridaoMetalQtd > 0) metalParts.push(`Bridão: ${o.bridaoMetalQtd} un.`);
+      const detRow: any = (o as any).extraDetalhes || {};
+      const cavaloQtdRow = detRow.cavaloMetal ? (Number(detRow.cavaloMetalQtd) || 0) : 0;
+      if (cavaloQtdRow > 0) metalParts.push(`Cavalo: ${cavaloQtdRow} un.`);
       const metalText = metalParts.join(' | ');
       const lines = doc.splitTextToSize(metalText, cols[1] - 4);
       const rowH = Math.max(18, lines.length * 3.5 + 6);
