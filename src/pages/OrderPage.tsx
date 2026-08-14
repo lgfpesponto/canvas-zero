@@ -2099,6 +2099,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           </h1>
           {mode === 'order' && (
             <div className="hidden lg:flex flex-wrap items-center gap-3">
+              <Button type="button" variant="outline" size="sm" onClick={() => setAtalhosAberto(true)}>
+                <Keyboard size={16} /> Atalhos
+              </Button>
               {botaoLimpar}
               {botaoCriarModelo}
               {botaoModelos}
@@ -2117,42 +2120,44 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         {mode === 'order' && (
           <div className="lg:hidden mb-4 space-y-2">
             <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => { setAtalhosAberto(v => !v); setMenuAberto(false); }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setAtalhosAberto(true)}>
                 <Keyboard size={16} /> Atalhos
               </Button>
               {botaoLimpar}
               {botaoCriarModelo}
               {botaoModelos}
-              <Button type="button" variant="outline" size="sm" onClick={() => { setMenuAberto(v => !v); setAtalhosAberto(false); }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setMenuAberto(true)}>
                 <List size={16} /> Menu
               </Button>
               {botaoTrocarCinto}
             </div>
-            {atalhosAberto && <FichaAtalhosLista atalhos={atalhosItens} />}
-            {menuAberto && (
-              <FichaCategoriaMenu items={categoriasFicha} variant="inline" onNavigate={() => setMenuAberto(false)} />
-            )}
             <div><FichaEditToggle /></div>
           </div>
         )}
 
-        <div className="flex gap-6 items-start">
-        {mode === 'order' ? (
-          <FichaCategoriaMenu
-            menuRef={menuRef}
-            items={categoriasFicha}
-          >
-            <div className="space-y-2">
-              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setAtalhosAberto(v => !v)}>
-                <Keyboard size={16} /> Atalhos
-              </Button>
-              {atalhosAberto && <FichaAtalhosLista atalhos={atalhosItens} />}
-            </div>
-          </FichaCategoriaMenu>
-        ) : (
-          <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} />
-        )}
-        <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="flex-1 min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        {/* Pop-up dos atalhos */}
+        <Dialog open={atalhosAberto} onOpenChange={setAtalhosAberto}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Atalhos do teclado</DialogTitle></DialogHeader>
+            <FichaAtalhosLista atalhos={atalhosItens} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Pop-up do menu de categorias (mobile) */}
+        <Dialog open={menuAberto} onOpenChange={setMenuAberto}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Menu</DialogTitle></DialogHeader>
+            <FichaCategoriaMenu items={categoriasFicha} variant="inline" onNavigate={() => setMenuAberto(false)} />
+          </DialogContent>
+        </Dialog>
+
+        <div className="relative">
+        <FichaCategoriaMenu
+          menuRef={menuRef}
+          items={categoriasFicha}
+          className="hidden xl:block absolute right-full mr-4 top-0"
+        />
+        <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="w-full min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
 
 
