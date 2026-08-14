@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import VariacaoFotoIcon from '@/components/ficha/VariacaoFotoIcon';
-import { focusNextFrom } from '@/lib/fichaNav';
+import { focusNextFrom, FICHA_FOCUS_OPEN } from '@/lib/fichaNav';
+
 
 interface SearchableSelectProps {
   options: string[] | { label: string; preco?: number }[];
