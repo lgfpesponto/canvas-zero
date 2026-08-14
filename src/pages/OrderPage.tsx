@@ -71,12 +71,43 @@ const cls = {
   checkItem: 'flex items-center gap-2 text-sm',
 };
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="space-y-3">
+const Section = ({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) => (
+  <div className="space-y-3 scroll-mt-24" id={id}>
     <h3 className="bg-primary text-primary-foreground text-center font-display font-bold text-lg uppercase tracking-wide py-2 rounded-sm">{title}</h3>
     {children}
   </div>
 );
+
+/** Lookup de fotos das variações — preenchido pela página a cada render. */
+const fotoLookupHolder: { fn?: (label: string) => string | null | undefined } = {};
+
+/** Campo de seleção da ficha (componente estável para não perder o foco). */
+const SelectField = ({ label, value, onChange, options, required: req, suggested, sugerida }: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: string[] | { label: string; preco: number }[];
+  required?: boolean; suggested?: boolean; sugerida?: string | null;
+}) => (
+  <div>
+    <label className={cls.label + ' inline-flex items-center flex-wrap gap-1'}>
+      <span>{label}{req && <span className="text-destructive ml-0.5">*</span>}</span>
+      <FichaFieldControls labelText={label} defaultTipo="selecao" />
+      {(suggested || (sugerida && ehSugerida(value, sugerida))) && (
+        <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-normal">Sugerido</Badge>
+      )}
+    </label>
+    <SearchableSelect
+      options={options}
+      value={value}
+      onValueChange={onChange}
+      placeholder="Selecione..."
+      fotoLookup={fotoLookupHolder.fn}
+      autoOpenOnFocus
+      advanceOnSelect
+      sugerida={sugerida}
+    />
+  </div>
+);
+
 
 const ToggleField = ({
   label, value, onChange, textValue, onTextChange, textPlaceholder, required: req,
