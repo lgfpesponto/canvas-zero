@@ -1167,16 +1167,19 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
 
   const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
+  // Refs para evitar TDZ (as funções são declaradas mais abaixo no componente).
+  const saveDraftRef = useRef<(() => void) | null>(null);
+  const resetFormRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (mode !== 'order') return;
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 's') { e.preventDefault(); formRef.current?.requestSubmit(); }
-      else if (k === 'r') { e.preventDefault(); handleSaveDraft(); }
+      else if (k === 'r') { e.preventDefault(); saveDraftRef.current?.(); }
       else if (k === 'l') {
         e.preventDefault();
-        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetForm(); toast.success('Ficha limpa.'); }
+        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetFormRef.current?.(); toast.success('Ficha limpa.'); }
       } else if (k === 'e') {
         if (!podeEstoqueDireto) return;
         e.preventDefault();
