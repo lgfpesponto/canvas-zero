@@ -430,12 +430,13 @@ const UsersManagementPage = () => {
 
       {/* Edit Dialog */}
       <Dialog open={!!editProfile} onOpenChange={() => setEditProfile(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90dvh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Editar Usuário: {editProfile?.nome_usuario}</DialogTitle>
             <DialogDescription>Altere os dados do usuário abaixo.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+
             <div>
               <Label>Nome Completo</Label>
               <Input value={editForm.nome_completo || ''} onChange={(e) => setEditForm({ ...editForm, nome_completo: e.target.value })} />
