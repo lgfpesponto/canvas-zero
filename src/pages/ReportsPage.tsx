@@ -822,7 +822,7 @@ const ReportsPage = () => {
   const resolveOrdersForExport = useCallback(async (): Promise<import('@/contexts/AuthContext').Order[]> => {
     if (selectedIds.size > 0) return ordersToExport;
     // "Apenas atrasados" é aplicado no cliente: exporta exatamente a lista já filtrada.
-    if (onlyOverdue) return overdueFiltered;
+    if (onlyOverdue) return overdueOrders;
     const expected = serverCount || 0;
     if (expected <= serverOrders.length) return serverOrders;
     const tid = toast.loading(`Carregando ${expected.toLocaleString('pt-BR')} pedidos…`);
@@ -834,7 +834,7 @@ const ReportsPage = () => {
       toast.error(`Erro ao carregar pedidos: ${e?.message || e}`, { id: tid });
       return serverOrders;
     }
-  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters, onlyOverdue, overdueFiltered]);
+  }, [selectedIds, ordersToExport, serverCount, serverOrders, appliedFilters, onlyOverdue, overdueOrders]);
 
   const [preparingReport, setPreparingReport] = useState(false);
 
