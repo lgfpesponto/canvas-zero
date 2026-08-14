@@ -13,12 +13,14 @@ const FichaCategoriaMenu = ({
   variant = 'desktop',
   onNavigate,
   children,
+  className = '',
 }: {
   items: CategoriaMenuItem[];
   menuRef?: React.RefObject<HTMLDivElement>;
   variant?: 'desktop' | 'inline';
   onNavigate?: () => void;
   children?: React.ReactNode;
+  className?: string;
 }) => {
 
   const localRef = useRef<HTMLDivElement>(null);
@@ -68,7 +70,7 @@ const FichaCategoriaMenu = ({
   }
 
   return (
-    <div ref={ref} tabIndex={-1} className="hidden lg:block sticky top-24 self-start w-44 shrink-0 outline-none space-y-3">
+    <div ref={ref} tabIndex={-1} className={`${className || 'hidden lg:block'} sticky top-24 self-start w-44 shrink-0 outline-none space-y-3`}>
       <div className="bg-card border border-border rounded-xl p-2">
         <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground px-2 py-1">Menu</p>
         {lista}
