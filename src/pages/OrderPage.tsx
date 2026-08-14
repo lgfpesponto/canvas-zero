@@ -1329,6 +1329,23 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       toast.error(`Preencha: ${missingVariado.map(([,, l]) => l).join(', ')}`);
       return;
     }
+    // Cores obrigatórias quando a parte tem bordado / laser / recorte preenchido
+    const corChecks: [boolean, string, string][] = [
+      [bordadoCano.length > 0, corBordadoCano, 'Cor do Bordado do Cano'],
+      [bordadoGaspea.length > 0, corBordadoGaspea, 'Cor do Bordado da Gáspea'],
+      [bordadoTaloneira.length > 0, corBordadoTaloneira, 'Cor do Bordado da Taloneira'],
+      [laserCano.length > 0, corBordadoLaserCano, 'Cor do Bordado (Cano)'],
+      [laserGaspea.length > 0, corBordadoLaserGaspea, 'Cor do Bordado (Gáspea)'],
+      [laserTaloneira.length > 0, corBordadoLaserTaloneira, 'Cor do Bordado (Taloneira)'],
+      [!!recorteCano, corRecorteCano, 'Cor do Recorte (Cano)'],
+      [!!recorteGaspea, corRecorteGaspea, 'Cor do Recorte (Gáspea)'],
+      [!!recorteTaloneira, corRecorteTaloneira, 'Cor do Recorte (Taloneira)'],
+    ];
+    const missingCor = corChecks.filter(([ativo, val]) => ativo && !val.trim());
+    if (missingCor.length > 0) {
+      toast.error(`Preencha: ${missingCor.map(([,, l]) => l).join(', ')}`);
+      return;
+    }
     // Validate toggle descriptions (TEM requires description)
     const toggleChecks: [boolean, string, string][] = [
       [sobMedida, sobMedidaDesc, 'Sob Medida'],
