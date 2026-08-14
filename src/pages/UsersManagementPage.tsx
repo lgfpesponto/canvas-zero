@@ -418,8 +418,8 @@ const UsersManagementPage = () => {
             </div>
           </div>
           <DialogFooter className="shrink-0">
-
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+
             <Button onClick={handleCreate} disabled={creating}>
               {creating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Criar
