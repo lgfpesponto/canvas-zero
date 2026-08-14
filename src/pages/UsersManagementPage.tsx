@@ -380,12 +380,13 @@ const UsersManagementPage = () => {
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90dvh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Criar Novo Usuário</DialogTitle>
             <DialogDescription>Preencha os dados do novo usuário.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
+
             <div>
               <Label>Nome Completo</Label>
               <Input value={createForm.nomeCompleto} onChange={(e) => setCreateForm({ ...createForm, nomeCompleto: e.target.value })} placeholder="Nome completo" />
