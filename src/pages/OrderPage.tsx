@@ -611,6 +611,16 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [cavaloMetal, setCavaloMetal] = useState(df.cavaloMetal === 'true');
   const [cavaloMetalQtd, setCavaloMetalQtd] = useState(Number(df.cavaloMetalQtd) || 0);
 
+  // Área do Metal comanda Tipo/Cor: "Não tem" limpa; Metade/Inteira já marca Rebite.
+  useEffect(() => {
+    if (!areaMetal || areaMetal === 'Não tem') {
+      setTipoMetal(prev => (prev.length ? [] : prev));
+      setCorMetal(prev => (prev ? '' : prev));
+      return;
+    }
+    setTipoMetal(prev => (prev.length ? prev : ['Rebite']));
+  }, [areaMetal]);
+
   // extras (tiras + tricê)
   const [trice, setTrice] = useState(df.trice === 'true');
   const [triceDesc, setTriceDesc] = useState(df.triceDesc || '');
