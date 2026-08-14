@@ -11,6 +11,7 @@ import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
+import BagyResyncAllButton from '@/components/estoque/BagyResyncAllButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
 import CompartilharVitrineDialog from '@/components/estoque/CompartilharVitrineDialog';
 import GerenciarDescontosDialog from '@/components/estoque/GerenciarDescontosDialog';
