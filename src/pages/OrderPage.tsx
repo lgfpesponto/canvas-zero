@@ -1964,7 +1964,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                     />
                     <p className="text-xs text-muted-foreground mt-1">Nome que aparecerá na página Estoque.</p>
                   </div>
-                ) : ocultarCliente ? null : (
+                ) : (
                   <div>
                     <label className={cls.label + ' inline-flex items-center'}>Cliente{vendedorSelecionado === 'Juliana Cristina Ribeiro' && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
                     <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder={vendedorSelecionado === 'Juliana Cristina Ribeiro' ? "Nome do cliente (obrigatório)" : "Nome do cliente (opcional)"} className={cls.input} />
