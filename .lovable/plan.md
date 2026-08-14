@@ -1,15 +1,16 @@
 # Ficha da bota: navegação por Enter, sugestões e atalhos
 
-Escopo: página "Faça seu Pedido" da bota (`/pedido`), sem alterar regras de cálculo/soma de preço. Cinto e extras ficam como estão.
+Escopo: ficha da bota (`/pedido`) e, para a navegação por Enter e campos de quantidade, também cinto, extras, produtos de estoque e a compra direto na página Modelos. Nenhuma regra de cálculo muda — a soma final continua somando tudo que tem valor na ficha.
 
 ## 1. Navegação sequencial com Enter
 
 - Ao abrir a ficha, o campo "Link da Foto de Referência" já vem focado.
-- Enter em qualquer campo avança para o próximo campo da ficha, na ordem visual.
-- Campos de seleção (couros, solado, cores...): ao receber o foco pelo Enter, a lista de variações já abre com a busca pronta. Escolher com o mouse ou clicar fora conta como Enter e avança.
+- Enter em qualquer campo avança para o próximo campo, na ordem visual.
+- Campos de seleção (couros, solado, cores...): ao receber o foco pelo Enter, a lista de variações já abre com a busca pronta. Dá para navegar com as setas para cima/baixo e confirmar com Enter, ou escolher com o mouse. Escolher (teclado ou mouse) ou clicar fora conta como Enter e avança.
 - Campos "Tem / Não tem": Enter abre as opções, Enter de novo confirma a opção destacada e avança. Se marcar "Tem" e existir campo de descrição, o Enter leva para a descrição.
-- Campos de múltipla seleção (Bordado do Cano, Laser...): o Enter do campo anterior cai direto no campo de busca. Depois de marcar o que quiser, Enter avança para o próximo campo.
-- Acessórios: o Enter percorre acessório por acessório; Enter marca, seta para o lado pula sem marcar; no último acessório desce para os campos seguintes.
+- Campos de múltipla seleção (Bordado do Cano, Laser...): o Enter do campo anterior cai no campo de busca; a seta para baixo entra na lista de opções, Enter marca a opção destacada e as setas laterais passam para a próxima sem marcar. Nesses campos o Enter **não** avança — só marca; para seguir para o próximo campo, clica fora (ou Tab).
+- Acessórios: mesma lógica — Enter marca, seta para o lado pula sem marcar; no último acessório desce para os campos seguintes.
+- Todos os campos de quantidade (strass, bridão, cruz, cavalo, bola grande, grade de estoque etc.) ficam **vazios**, sem o `0` pré-preenchido e sem placeholder, para o usuário digitar direto.
 
 ## 2. Sugestões automáticas de cor
 
@@ -18,7 +19,8 @@ Todas seguem a cor do couro do cano, aparecem no topo da lista de variações co
 - **Cor da Linha**: marrom / nescau / chocolate → café; preto e malhado → preto; branco / off white → branco; demais cores → a cor equivalente do couro.
 - **Cor da Borrachinha**: preto → preto; branca / off white → branca; rosa → rosa; laranja → laranja; demais → marrom.
 - **Cor do Vivo**: branca / off white → branca; rosa → rosa; laranja → laranja; azul → azul; demais → preto (branco como segunda sugestão).
-- **Cor do Bordado (Gáspea / Taloneira)**: pré-preenchidas com o mesmo texto de "Cor do Bordado do Cano", marcadas como "sugestão", e só quando aquela parte tiver bordado selecionado.
+- **Cores dentro de Bordados, Laser e Recortes**: a primeira cor preenchida na categoria vira sugestão para as demais partes **da mesma categoria** que também estiverem marcadas como "tem" — não precisa ser o cano primeiro; vale a parte que for preenchida primeiro. O campo pré-preenchido aparece com a etiqueta "sugestão" e pode ser alterado.
+
 
 ## 3. Campos condicionais e obrigatoriedade
 
@@ -61,8 +63,10 @@ Ao final, registrar uma nova versão da ficha da bota (snapshot ativo em `ficha_
 
 ## Detalhes técnicos
 
-- Criar `src/hooks/useFichaKeyboardNav.ts`: registra os campos em ordem (ref + tipo), expõe `focusNext()` e trata Enter/click-fora. `SearchableSelect` ganha props opcionais `autoOpenOnFocus`, `onCommit` e ref imperativa; `MultiSelect` e `ToggleField` (em `OrderPage.tsx`) ganham suporte a foco/abertura programática.
-- Criar `src/lib/corSugestoes.ts` com os mapas cor-do-couro → cor sugerida (linha, borrachinha, vivo) e função que reordena as opções colocando a sugerida em primeiro com rótulo "sugerido". Aplicada só na ordenação/exibição — nenhum preço muda.
+- Criar `src/hooks/useFichaKeyboardNav.ts`: registra os campos em ordem (ref + tipo), expõe `focusNext()` e trata Enter/setas/click-fora. `SearchableSelect` ganha props opcionais `autoOpenOnFocus`, `onCommit` e ref imperativa (o `Command` já dá navegação por setas); `MultiSelect` e `ToggleField` (em `OrderPage.tsx`) ganham suporte a foco/abertura programática e roving focus nas opções. O mesmo hook é reaproveitado em `BeltOrderPage`, `ExtrasPage`/`DynamicOrderPage`, `EstoqueBuyDialog` e no fluxo embarcado de `ModelosPage`.
+- Campos de quantidade passam a usar valor string vazio (`''`) sem placeholder, convertendo para número só no cálculo — sem alterar as fórmulas de soma.
+- Criar `src/lib/corSugestoes.ts` com os mapas cor-do-couro → cor sugerida (linha, borrachinha, vivo) e o espelhamento por categoria (bordados, laser, recortes) a partir da primeira parte preenchida. Aplicado só na ordenação/pré-preenchimento — nenhum preço muda.
+
 - Ajustes de obrigatoriedade dentro do bloco `required` / `toggleChecks` de `handleSubmit` em `OrderPage.tsx`, sempre condicionados ao campo pai preenchido.
 - A variação "Não tem" da Área do Metal é criada em `ficha_variacoes` (preço 0) via migração, com fallback no config caso o registro não exista.
 - Atalhos em um listener global montado na página, ignorando quando o foco está em campo de texto para não conflitar com digitação (exceto Ctrl+X no campo de busca).
