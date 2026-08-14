@@ -341,7 +341,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const [numeroPedido, setNumeroPedido] = useState(draftState?.numeroPedido || '');
   const { isDuplicate: orderDuplicate } = useCheckDuplicateOrder(numeroPedido);
   // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
-  const ocultarCliente = user?.role === 'vendedor';
+  const ocultarCliente = !user?.role || user.role === 'vendedor';
 
   // Auto-preenchimento do número (vendedor com prefixo, exceto estoque/juliana/site)
   const vendorForAutoNum = isAdmin
