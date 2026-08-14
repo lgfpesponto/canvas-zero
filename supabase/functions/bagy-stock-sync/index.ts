@@ -506,8 +506,15 @@ Deno.serve(async (req) => {
     }
   }
 
+  const { count: restantes } = await admin
+    .from("bagy_stock_sync_queue")
+    .select("id", { count: "exact", head: true })
+    .is("processado_em", null);
+
+  await releaseLock();
+
   return new Response(
-    JSON.stringify({ ok: true, processados: results.length, results }),
+    JSON.stringify({ ok: true, processados: results.length, results, pendentes_restantes: restantes ?? 0 }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
