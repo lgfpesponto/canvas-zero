@@ -34,7 +34,15 @@ export function getNavElements(root: HTMLElement | null | undefined): HTMLElemen
   return list
     .map((el, i) => {
       const r = el.getBoundingClientRect();
-      return { el, i, top: Math.round(r.top + window.scrollY), left: Math.round(r.left) };
+      // Ordena pela posição do BLOCO do campo (rótulo + controle), para que rótulos
+      // que quebram em 2 linhas não desalinhem a "linha" visual da grade.
+      let topRef = r.top;
+      const parent = el.parentElement;
+      if (parent && parent.querySelector('label')) {
+        const pr = parent.getBoundingClientRect();
+        if (pr.height > 0) topRef = pr.top;
+      }
+      return { el, i, top: Math.round(topRef + window.scrollY), left: Math.round(r.left) };
     })
     .sort((a, b) => {
       // mesma "linha" (tolerância de 12px) → ordena pela esquerda
