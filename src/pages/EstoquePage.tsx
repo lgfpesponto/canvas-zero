@@ -11,6 +11,7 @@ import EstoqueBuyDialog from '@/components/estoque/EstoqueBuyDialog';
 import EstoqueFoto from '@/components/estoque/EstoqueFoto';
 import EstoqueEmprestimosPanel from '@/components/estoque/EstoqueEmprestimosPanel';
 import BagySyncPendingButton from '@/components/estoque/BagySyncPendingButton';
+import BagyResyncAllButton from '@/components/estoque/BagyResyncAllButton';
 import EstoqueProdutoConfigButton from '@/components/estoque/EstoqueProdutoConfigButton';
 import CompartilharVitrineDialog from '@/components/estoque/CompartilharVitrineDialog';
 import GerenciarDescontosDialog from '@/components/estoque/GerenciarDescontosDialog';
@@ -244,6 +245,7 @@ const EstoquePage = () => {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <BagySyncPendingButton canSync={canSeeBagySync} currentUserId={user?.id} currentUserNome={user?.nomeCompleto} />
+        <BagyResyncAllButton canSync={canSeeBagySync} />
         {canManageDescontos && (
           <Button variant="outline" size="sm" onClick={() => setDescontosOpen(true)}>
             <Percent size={14} /> Adicionar desconto
