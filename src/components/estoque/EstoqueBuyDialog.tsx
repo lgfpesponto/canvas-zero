@@ -100,13 +100,15 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
       setVendedor(user?.nomeCompleto || '');
       setCliente('');
       setWhats('');
-      setNumero('');
+      setNumero(numeroIsAuto && autoNumero ? autoNumero : '');
       // seeda saldos a partir do prop
       const initSaldos: Record<string, number> = {};
       produto.tamanhos.forEach(t => { initSaldos[t.id] = t.quantidade; });
       setSaldos(initSaldos);
     }
-  }, [open, produto, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, produto, user, numeroIsAuto, autoNumero]);
+
 
   // Realtime: atualiza saldos e reservas ativas de outros usuários enquanto o dialog está aberto
   useEffect(() => {
