@@ -2232,7 +2232,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 <div>
                   <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!estoqueJaCriado && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
                   <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
-                  {numeroIsAuto && !estoqueJaCriado && <p className="text-xs text-muted-foreground mt-1">Número sugerido automaticamente. Você pode alterar o número, mas o prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
                   {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                 </div>
                 {vendedorSelecionado === 'Estoque' ? (

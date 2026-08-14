@@ -273,7 +273,6 @@ export default function DynamicOrderPage() {
                   placeholder="Ex: 7E-20250001"
                   className={numeroDuplicado ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
-                {numeroIsAuto && <p className="text-xs text-muted-foreground">Número sugerido automaticamente. O prefixo <span className="font-mono">{numeroPrefixo}-</span> é fixo.</p>}
                 {numeroChecking && numeroPedido.trim() && !numeroDuplicado && (
                   <p className="text-xs text-muted-foreground">Verificando...</p>
                 )}
