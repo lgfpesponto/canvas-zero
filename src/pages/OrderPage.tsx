@@ -2089,10 +2089,11 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
   return (
     <FichaEditProvider fichaSlug="bota">
-    <div className={`container mx-auto px-4 py-8 ${showFotoPanel ? 'max-w-6xl' : 'max-w-4xl'} transition-[max-width] duration-300`}>
+    <div className="container mx-auto px-4 py-8 max-w-[1500px]">
       <FichaEditBar />
-      <div className={`${comprarMode ? 'hidden' : ''} ${showFotoPanel ? 'grid lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start' : ''}`}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
+      <div className={`${comprarMode ? 'hidden' : ''} flex flex-col lg:flex-row lg:justify-center gap-6 items-start`}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-w-0 w-full max-w-4xl">
+
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <h1 className="text-3xl font-display font-bold">
             {tmpl.isEditing ? 'Editar Modelo' : mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}
