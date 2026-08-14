@@ -12,12 +12,15 @@ const FichaCategoriaMenu = ({
   menuRef,
   variant = 'desktop',
   onNavigate,
+  children,
 }: {
   items: CategoriaMenuItem[];
   menuRef?: React.RefObject<HTMLDivElement>;
   variant?: 'desktop' | 'inline';
   onNavigate?: () => void;
+  children?: React.ReactNode;
 }) => {
+
   const localRef = useRef<HTMLDivElement>(null);
   const ref = menuRef || localRef;
   const [ativo, setAtivo] = useState<string>('');
