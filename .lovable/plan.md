@@ -63,9 +63,10 @@ Ao final, registrar uma nova versão da ficha da bota (snapshot ativo em `ficha_
 
 ## Detalhes técnicos
 
-- Criar `src/hooks/useFichaKeyboardNav.ts`: registra os campos em ordem (ref + tipo), expõe `focusNext()` e trata Enter/click-fora. `SearchableSelect` ganha props opcionais `autoOpenOnFocus`, `onCommit` e ref imperativa; `MultiSelect` e `ToggleField` (em `OrderPage.tsx`) ganham suporte a foco/abertura programática.
-- Criar `src/lib/corSugestoes.ts` com os mapas cor-do-couro → cor sugerida (linha, borrachinha, vivo) e função que reordena as opções colocando a sugerida em primeiro com rótulo "sugerido". Aplicada só na ordenação/exibição — nenhum preço muda.
-- Ajustes de obrigatoriedade dentro do bloco `required` / `toggleChecks` de `handleSubmit` em `OrderPage.tsx`, sempre condicionados ao campo pai preenchido.
+- Criar `src/hooks/useFichaKeyboardNav.ts`: registra os campos em ordem (ref + tipo), expõe `focusNext()` e trata Enter/setas/click-fora. `SearchableSelect` ganha props opcionais `autoOpenOnFocus`, `onCommit` e ref imperativa (o `Command` já dá navegação por setas); `MultiSelect` e `ToggleField` (em `OrderPage.tsx`) ganham suporte a foco/abertura programática e roving focus nas opções. O mesmo hook é reaproveitado em `BeltOrderPage`, `ExtrasPage`/`DynamicOrderPage`, `EstoqueBuyDialog` e no fluxo embarcado de `ModelosPage`.
+- Campos de quantidade passam a usar valor string vazio (`''`) sem placeholder, convertendo para número só no cálculo — sem alterar as fórmulas de soma.
+- Criar `src/lib/corSugestoes.ts` com os mapas cor-do-couro → cor sugerida (linha, borrachinha, vivo) e o espelhamento por categoria (bordados, laser, recortes) a partir da primeira parte preenchida. Aplicado só na ordenação/pré-preenchimento — nenhum preço muda.
+
 - A variação "Não tem" da Área do Metal é criada em `ficha_variacoes` (preço 0) via migração, com fallback no config caso o registro não exista.
 - Atalhos em um listener global montado na página, ignorando quando o foco está em campo de texto para não conflitar com digitação (exceto Ctrl+X no campo de busca).
 - Menu de categorias como novo componente `src/components/ficha/FichaCategoriaMenu.tsx` usando `scrollIntoView` nas seções.
