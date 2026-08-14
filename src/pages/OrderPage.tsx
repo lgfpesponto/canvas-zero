@@ -2315,7 +2315,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               )}
 
               <div className="grid sm:grid-cols-3 gap-4">
-                {(isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum ? (
+                {(isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) ? (
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                       <label className={cls.label + ' mb-0'}>{isVendedorComum && gradeItems.length === 0 ? 'Tamanho' : 'Tamanho / Grade'}{isVendedorComum && gradeItems.length === 0 && <span className="text-destructive ml-0.5">*</span>}</label>
