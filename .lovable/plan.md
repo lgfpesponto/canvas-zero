@@ -1,40 +1,35 @@
-# Por que o portal ficou lento — e como corrigir
+# Por que a Bagy parou de sincronizar depois do "Resincronizar"
 
-## O que eu medi
+## O que está acontecendo (verificado agora)
 
-Consultei as consultas mais lentas do banco (pg_stat_statements) e o tamanho da tabela `orders`:
+Estado real do banco neste momento:
 
-- `orders`: 11.506 pedidos, 61 MB, ~1,9 KB por linha (os campos JSON `extra_detalhes`, `ficha_snapshot`, `historico` são pesados).
-- Listagem de pedidos (`select *` com filtros + ordenação): média de 474 ms a 1.046 ms por chamada, picos de 6-7 segundos.
-- Uma consulta que lê `vendedor, cliente` de **todos** os pedidos foi executada 20.411 vezes (média 191 ms) — é a lista de filtros/sugestões sendo recarregada a cada abertura de página.
-- As políticas de segurança (RLS) de leitura em `orders` chamam `auth.uid()`, `is_any_admin()` e `has_role()` sem estarem "envelopadas", o que faz o Postgres reavaliar essas funções **linha a linha** — em 11 mil linhas isso multiplica o custo de toda listagem, relatório e contagem.
+- 243 produtos ativos; 146 já com status `ok`, 91 ainda `pendente`, 6 `não encontrado na Bagy`, 0 com erro.
+- 97 produtos estão sem `bagy_variation_id` (o vínculo com a variação na Bagy).
+- Fila `bagy_stock_sync_queue`: 91 itens pendentes, nenhum com tentativa acumulada.
 
-Ou seja: não foi uma única mudança recente que quebrou tudo — é o volume de pedidos crescendo somado a três padrões caros que agora pesam.
+Nos logs da função `bagy-stock-sync` a sincronização **está rodando agora** (vários `put ok` nos últimos minutos). O problema é outro:
+
+1. O botão envia `force_rediscover: true`, que **apaga o `bagy_variation_id` de todos os produtos**. Sem esse cache, cada SKU precisa ser redescoberto na Bagy testando até 5 endpoints diferentes — e vários respondem 404 antes de acertar. Isso torna cada item lento (2-3 s).
+2. Cada chamada da função processa no máximo **50 itens** da fila. O botão chama a função **uma única vez**, então de 243 produtos só 50 são tratados por clique. Os 91 restantes ficam parados até alguém clicar de novo ou o cron passar — dando a impressão de "não sincroniza mais".
+3. Não há trava de execução: o botão e o drenador automático podem rodar ao mesmo tempo sobre a mesma fila, refazendo trabalho (nos logs o mesmo `queueId` aparece sendo processado em paralelo).
+
+Ou seja: nada quebrou de fato — a resincronização total ficou lenta e incompleta por desenho.
 
 ## Correções propostas
 
-1. **RLS mais barata (maior ganho, sem mudar comportamento)**
-   Reescrever as políticas de SELECT/UPDATE de `orders` usando `(select auth.uid())`, `(select is_any_admin(auth.uid()))` e `(select has_role(...))`, para o Postgres avaliar uma única vez por consulta em vez de por linha. As permissões continuam exatamente iguais.
-
-2. **Parar de baixar a tabela inteira para montar filtros**
-   Substituir a leitura de `vendedor, cliente` de todos os pedidos por uma função no banco que devolve apenas os valores distintos (como já existe `get_vendedores_distinct`), com cache no front — deixa de trafegar 11 mil linhas em cada abertura de tela.
-
-3. **Listagem mais leve**
-   Nas telas de lista (Meus Pedidos / Relatórios), buscar apenas as colunas exibidas em vez de `select *`, deixando os campos JSON grandes (`ficha_snapshot`, `extra_detalhes`, `historico`, `fotos`, `alteracoes`) para quando o pedido for aberto. Isso reduz drasticamente o tamanho da resposta e o tempo de rede.
-
-4. **Índices complementares**
-   Adicionar índice para o filtro padrão da lista (`estoque_pronto` + `data_criacao DESC, hora_criacao DESC`) e para `created_at DESC, id DESC`, que hoje fazem varredura ordenada completa.
-
-5. **Menos requisições repetidas**
-   Ajustar o cache do React Query (staleTime) das listas de apoio (perfis, vendedores, campos da ficha, avisos) para não refazer as mesmas consultas a cada troca de página.
+1. **Botão processa até o fim**: em vez de uma chamada única, o botão enfileira e depois chama a função em ciclo até a fila zerar, mostrando o progresso real ("X de Y sincronizados") no overlay em vez de um spinner mudo.
+2. **Não apagar o vínculo por padrão**: `force_rediscover` deixa de ser automático no botão. O comportamento normal reaproveita o `bagy_variation_id` já validado (a função já detecta e corrige vínculo furado sozinha). Redescoberta total vira uma opção separada dentro do diálogo de confirmação, para casos raros.
+3. **Descoberta de SKU mais rápida**: reduzir a lista de endpoints tentados, começando pelo que a Bagy realmente responde, e parar de repetir caminhos que retornam 404 de forma consistente na mesma execução.
+4. **Trava de execução**: marcar a execução em `internal_config` (ou uma coluna de "em processamento" na fila) para que duas resincronizações simultâneas não disputem os mesmos itens.
+5. **Retomar os 91 pendentes agora**: após o ajuste, disparar o ciclo para terminar a fila atual e relatar os 6 SKUs realmente ausentes na Bagy (esses precisam ser cadastrados lá).
 
 ## Detalhes técnicos
 
-- Migração SQL: `ALTER POLICY` nas políticas de `orders` (e nas equivalentes em tabelas grandes relacionadas, se apresentarem o mesmo padrão) + `CREATE INDEX idx_orders_pronto_data ON public.orders (estoque_pronto, data_criacao DESC, hora_criacao DESC)` e `CREATE INDEX idx_orders_created_id_desc ON public.orders (created_at DESC, id DESC)`.
-- Nova função `get_clientes_distinct()` (SECURITY DEFINER, STABLE) espelhando `get_vendedores_distinct`.
-- Front: ajustar `useOrders.ts` e as telas de lista para usar uma projeção de colunas explícita (tipada com `.returns<T>()`), mantendo a busca por detalhe completa na página do pedido.
-- Verificação: rodar `EXPLAIN (ANALYZE)` na consulta de listagem antes e depois e comparar o tempo médio em pg_stat_statements.
+- `src/components/estoque/BagyResyncAllButton.tsx`: laço de invocações sequenciais (`while` com limite de segurança), leitura da contagem pendente de `bagy_stock_sync_queue` para exibir progresso, e checkbox "Redescobrir vínculos na Bagy" (envia `force_rediscover`).
+- `supabase/functions/bagy-stock-sync/index.ts`: enxugar `bagyGetVariationIdBySku` (memorizar em memória quais caminhos retornaram 404 na execução), retornar `pendentes_restantes` no JSON de resposta para o front controlar o laço, e trava simples de concorrência.
+- Sem mudanças de schema além, se necessário, de uma chave em `internal_config` para a trava.
 
 ## O que não muda
 
-Nenhuma regra de negócio, permissão, layout ou campo de ficha é alterado — apenas desempenho.
+Saldos, preços e regras de estoque continuam iguais — a alteração é só na forma como a resincronização é disparada e concluída.
