@@ -8,14 +8,26 @@ const norm = (s?: string | null) =>
 
 const has = (cor: string, ...termos: string[]) => termos.some(t => norm(cor).includes(t));
 
+/** Remove a vogal final das palavras: "branco"/"branca" → "branc" (tolerância de gênero). */
+const stem = (s?: string | null) => norm(s).replace(/([a-z])[oa](\b|$)/g, '$1');
+
 /** Cor da Linha sugerida para a cor do couro do cano. */
 export function sugerirCorLinha(corCouro: string): string | null {
   if (!corCouro) return null;
-  if (has(corCouro, 'off white', 'branco', 'branca')) return 'Branco';
-  if (has(corCouro, 'malhado', 'preto', 'preta')) return 'Preto';
-  if (has(corCouro, 'marrom', 'nescau', 'chocolate', 'cafe', 'caramelo', 'whisky', 'tabaco')) return 'Café';
+  if (has(corCouro, 'preto e branco', 'malhado', 'preto', 'preta')) return 'Preta';
+  if (has(corCouro, 'off white', 'branco', 'branca', 'cru')) return 'Branca';
+  if (has(corCouro, 'bege', 'areia')) return 'Bege';
+  if (has(corCouro, 'marrom', 'nescau', 'chocolate', 'cafe', 'caramelo', 'whisky', 'tabaco',
+    'cappuccino', 'castor', 'havana', 'pinhao', 'mustang', 'brasileiro', 'americano')) return 'Café';
+  if (has(corCouro, 'rosa')) return 'Rosa';
+  if (has(corCouro, 'vermelho', 'vermelha')) return 'Vermelha';
+  if (has(corCouro, 'azul', 'petroleo')) return 'Azul';
+  if (has(corCouro, 'verde')) return 'Verde';
+  if (has(corCouro, 'amarelo', 'mostarda')) return 'Amarelo';
+  if (has(corCouro, 'laranja', 'telha')) return 'Laranja';
   return corCouro;
 }
+
 
 /** Cor da Borrachinha sugerida. */
 export function sugerirCorBorrachinha(corCouro: string): string | null {
@@ -47,12 +59,12 @@ type Opt = string | { label: string; preco?: number };
  * A comparação é tolerante a acento/caixa; opções inexistentes são ignoradas.
  */
 export function ordenarComSugestao<T extends Opt>(options: T[], sugeridas: (string | null | undefined)[]): T[] {
-  const alvos = sugeridas.filter(Boolean).map(s => norm(s as string));
+  const alvos = sugeridas.filter(Boolean).map(s => stem(s as string));
   if (alvos.length === 0) return options;
-  const labelOf = (o: T) => norm(typeof o === 'string' ? o : o.label);
+  const labelOf = (o: T) => stem(typeof o === 'string' ? o : o.label);
   const topo: T[] = [];
   alvos.forEach(a => {
-    const found = options.find(o => labelOf(o) === a || labelOf(o).includes(a));
+    const found = options.find(o => labelOf(o) === a) || options.find(o => labelOf(o).includes(a) || a.includes(labelOf(o)));
     if (found && !topo.includes(found)) topo.push(found);
   });
   if (topo.length === 0) return options;
@@ -61,5 +73,9 @@ export function ordenarComSugestao<T extends Opt>(options: T[], sugeridas: (stri
 
 /** Retorna true se `valor` é a cor sugerida para aquele couro. */
 export function ehSugerida(valor: string, sugerida: string | null): boolean {
-  return !!valor && !!sugerida && (norm(valor) === norm(sugerida) || norm(valor).includes(norm(sugerida)));
+  if (!valor || !sugerida) return false;
+  const a = stem(valor);
+  const b = stem(sugerida);
+  return a === b || a.includes(b) || b.includes(a);
 }
+
