@@ -261,12 +261,10 @@ export default function DynamicOrderPage() {
                 <Label className="text-xs lowercase">vendedor</Label>
                 <Input value={vendedor} onChange={e => setVendedor(e.target.value)} />
               </div>
-              {!ocultarCliente && (
-                <div className="space-y-1">
-                  <Label className="text-xs lowercase">cliente</Label>
-                  <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente" />
-                </div>
-              )}
+              <div className="space-y-1">
+                <Label className="text-xs lowercase">cliente</Label>
+                <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente (opcional)" />
+              </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-xs lowercase">número do pedido</Label>
                 <Input
