@@ -485,12 +485,12 @@ const ExtrasPage = () => {
           </div>
         )}
         {/* Cliente — opcional (oculto para vendedor comum) */}
+        <div>
+          <Label>Cliente</Label>
+          <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
+        </div>
         {!ocultarCliente && (
           <>
-            <div>
-              <Label>Cliente</Label>
-              <Input value={form.cliente || ''} onChange={e => set('cliente', e.target.value)} placeholder="Nome do cliente (opcional)" />
-            </div>
             <div>
               <Label>WhatsApp do Cliente <span className="text-xs font-normal text-muted-foreground">(opcional, para enviar link de rastreio)</span></Label>
               <Input
