@@ -14,15 +14,11 @@ Criar uma nova versão ativa a partir do estado atual, com descrição:
 
 Assim fica um marco no Histórico de Fichas, e os pedidos novos apontam para essa versão.
 
-### 2. Deixar explícito que editar a ficha não descarta as regras
-- Na barra de "modo edição": aviso curto — "Salvar versão registra só as variações e campos. As regras de preenchimento e o formato da ficha não são alterados."
-- No aviso de "reverter versão": deixar claro que a reversão volta apenas variações/campos, nunca o formato ou as regras de navegação.
-
-### 3. Documentar as regras para não regredirem
-Registrar em `docs/BUSINESS_RULES.md` (e na memória do projeto) o bloco "Ficha v-atual — regras de preenchimento", listando as regras de Enter, sugestões de cor, atalhos e layout, marcadas como regras de código independentes das versões de dados.
+### 2. Documentar as regras para não regredirem
+Registrar em `docs/BUSINESS_RULES.md` (e na memória do projeto) o bloco "Ficha atual — regras de preenchimento", listando as regras de Enter, sugestões de cor, atalhos e layout, marcadas como regras de código independentes das versões de dados. Nenhum aviso novo no portal.
 
 ## Técnico
 
 - Nova linha em `ficha_versoes` para o tipo `bota` (snapshot atual + `ativa = true`), via a rotina já existente `salvarNovaVersao`.
-- Texto informativo em `src/components/ficha-edit/FichaEditBar.tsx` e no confirm de reverter em `src/components/gestao/HistoricoFichasTab.tsx`.
+- Nenhuma mudança de interface.
 - Sem mudanças em preços, variações existentes ou pedidos.
