@@ -104,21 +104,31 @@ async function authorizeRequest(req: Request, admin: any, body: any): Promise<Re
   return null;
 }
 
+// Caminhos que já falharam com 404 nesta instância (evita repetir chamadas inúteis)
+const deadPaths = new Set<string>();
+// Caminho que funcionou por último — tentado primeiro nas próximas buscas
+let preferredPattern: string | null = null;
+
+const LOOKUP_PATTERNS = [
+  "/variations?sku=",
+  "/products/variations?sku=",
+  "/variations?reference=",
+  "/products/variations?reference=",
+  "/variations?q=",
+];
+
 async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
-  // Tenta múltiplos caminhos da API Dooca/Bagy
-  const candidates = [
-    `${BAGY_BASE}/variations?sku=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/variations?reference=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/products/variations?reference=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/variations?q=${encodeURIComponent(sku)}`,
-  ];
+  const patterns = preferredPattern
+    ? [preferredPattern, ...LOOKUP_PATTERNS.filter((p) => p !== preferredPattern)]
+    : [...LOOKUP_PATTERNS];
+
   let lastError = "";
   const skuLower = sku.toLowerCase();
 
-  for (const url of candidates) {
+  for (const pattern of patterns) {
+    if (deadPaths.has(pattern)) continue;
+    const url = `${BAGY_BASE}${pattern}${encodeURIComponent(sku)}`;
     try {
-      console.log("bagy-stock-sync lookup", { sku, path: url.replace(BAGY_BASE, "") });
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${BAGY_TOKEN}`,
@@ -126,7 +136,12 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
         },
       });
       if (!res.ok) {
-        lastError = `GET ${url.replace(BAGY_BASE, "")} HTTP ${res.status}`;
+        lastError = `GET ${pattern} HTTP ${res.status}`;
+        if (res.status === 404) {
+          // Endpoint inexistente nesta conta: não tenta de novo nesta instância
+          deadPaths.add(pattern);
+          if (preferredPattern === pattern) preferredPattern = null;
+        }
         console.error("bagy-stock-sync lookup failed", { sku, error: lastError });
         continue;
       }
@@ -144,7 +159,8 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
         continue;
       }
       const id = hit?.id ?? hit?.variation_id ?? null;
-      console.log("bagy-stock-sync lookup ok", { sku, variationId: id });
+      preferredPattern = pattern;
+      console.log("bagy-stock-sync lookup ok", { sku, variationId: id, path: pattern });
       return { id: id ? String(id) : null, raw: hit };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
@@ -269,6 +285,40 @@ Deno.serve(async (req) => {
   const authResponse = await authorizeRequest(req, admin, body);
   if (authResponse) return authResponse;
 
+  // Trava simples: evita duas execuções simultâneas disputando a mesma fila
+  const lockKey = "bagy_stock_sync_lock";
+  const lockTtlMs = 120_000;
+  const { data: lockRow } = await admin
+    .from("internal_config")
+    .select("value")
+    .eq("key", lockKey)
+    .maybeSingle();
+  const lockedAt = lockRow?.value ? Date.parse(lockRow.value) : NaN;
+  if (!Number.isNaN(lockedAt) && Date.now() - lockedAt < lockTtlMs) {
+    const { count } = await admin
+      .from("bagy_stock_sync_queue")
+      .select("id", { count: "exact", head: true })
+      .is("processado_em", null);
+    return new Response(
+      JSON.stringify({ ok: true, em_execucao: true, processados: 0, results: [], pendentes_restantes: count ?? 0 }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  await admin.from("internal_config").upsert({
+    key: lockKey,
+    value: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as any);
+
+  const releaseLock = async () => {
+    await admin.from("internal_config").upsert({
+      key: lockKey,
+      value: new Date(0).toISOString(),
+      updated_at: new Date().toISOString(),
+    } as any);
+  };
+
+
   // Retry: reenfileira itens específicos
   if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced) {
     let q = admin.from("estoque_produtos").select("id, sku_base, quantidade").eq("ativo", true);
@@ -281,6 +331,7 @@ Deno.serve(async (req) => {
     }
     const { data: prods, error } = await q;
     if (error) {
+      await releaseLock();
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -313,6 +364,7 @@ Deno.serve(async (req) => {
     .limit(MAX_BATCH);
 
   if (pendErr) {
+    await releaseLock();
     return new Response(JSON.stringify({ error: pendErr.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -456,8 +508,15 @@ Deno.serve(async (req) => {
     }
   }
 
+  const { count: restantes } = await admin
+    .from("bagy_stock_sync_queue")
+    .select("id", { count: "exact", head: true })
+    .is("processado_em", null);
+
+  await releaseLock();
+
   return new Response(
-    JSON.stringify({ ok: true, processados: results.length, results }),
+    JSON.stringify({ ok: true, processados: results.length, results, pendentes_restantes: restantes ?? 0 }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
