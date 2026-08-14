@@ -2154,7 +2154,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </Dialog>
 
         <div className="relative">
-        <div className="hidden xl:block absolute right-full top-0 bottom-0 mr-4">
+        <div className="hidden min-[1500px]:block fixed left-4 top-28 z-30">
           <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} className="block" />
         </div>
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="w-full min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
@@ -2750,7 +2750,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             type="button"
             size="sm"
             onClick={() => setMenuAberto(true)}
-            className="xl:hidden fixed bottom-4 left-4 z-40 shadow-lg rounded-full h-12 w-12 p-0"
+            className="min-[1500px]:hidden fixed bottom-4 left-4 z-40 shadow-lg rounded-full h-12 w-12 p-0"
             title="Menu da ficha"
           >
             <List size={20} />
