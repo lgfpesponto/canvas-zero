@@ -64,6 +64,7 @@ const SearchableSelect = ({
           type="button"
           role="combobox"
           data-ficha-nav="true"
+          data-ficha-filled={value ? 'true' : 'false'}
           aria-expanded={open}
           className={cn(
             'w-full bg-muted rounded-lg px-4 py-2.5 text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none flex items-center justify-between text-left',

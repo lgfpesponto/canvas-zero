@@ -47,6 +47,26 @@ export function getNavElements(root: HTMLElement | null | undefined): HTMLElemen
 const rootOf = (el: HTMLElement) =>
   (el.closest('form') || el.closest('[data-ficha-nav-root]')) as HTMLElement | null;
 
+/** Abre a lista de um <select> nativo, quando o navegador suportar. */
+export function abrirSelectNativo(el: HTMLElement | null | undefined) {
+  if (!(el instanceof HTMLSelectElement)) return false;
+  const anySel = el as HTMLSelectElement & { showPicker?: () => void };
+  if (typeof anySel.showPicker !== 'function') return false;
+  try { anySel.showPicker(); return true; } catch { return false; }
+}
+
+/** Um campo já está preenchido? (usado para pular campos na navegação) */
+export function isNavFilled(el: HTMLElement): boolean {
+  if (el instanceof HTMLSelectElement) return el.value.trim() !== '';
+  if (el instanceof HTMLInputElement) {
+    if (el.type === 'checkbox' || el.type === 'radio') return el.checked;
+    return el.value.trim() !== '';
+  }
+  if (el instanceof HTMLTextAreaElement) return el.value.trim() !== '';
+  if (el.getAttribute('data-ficha-filled') === 'true') return true;
+  return false;
+}
+
 /** Foca um campo e avisa (evento) para que selects abram a lista. */
 export function focusNavElement(el: HTMLElement | null | undefined) {
   if (!el) return;
@@ -55,17 +75,27 @@ export function focusNavElement(el: HTMLElement | null | undefined) {
     try { el.select(); } catch { /* noop */ }
   }
   el.scrollIntoView({ block: 'center' });
+  if (el instanceof HTMLSelectElement) {
+    el.setAttribute('data-ficha-open', 'true');
+    abrirSelectNativo(el);
+    return;
+  }
   el.dispatchEvent(new CustomEvent(FICHA_FOCUS_OPEN, { bubbles: false }));
 }
 
-/** Move o foco para o próximo campo navegável depois de `el`. */
+/**
+ * Move o foco para o próximo campo navegável depois de `el`.
+ * Pula campos que já estão preenchidos; se todos estiverem, usa o próximo imediato.
+ */
 export function focusNextFrom(el: HTMLElement | null | undefined) {
   if (!el) return;
   const list = getNavElements(rootOf(el) || document.body);
   const idx = list.indexOf(el);
-  const next = idx >= 0 ? list[idx + 1] : undefined;
-  if (!next) return;
-  focusNavElement(next);
+  if (idx < 0) return;
+  const seguintes = list.slice(idx + 1);
+  if (seguintes.length === 0) return;
+  const vazio = seguintes.find(n => !isNavFilled(n));
+  focusNavElement(vazio || seguintes[0]);
 }
 
 /** Foca o primeiro campo navegável do container (usado ao abrir a ficha). */

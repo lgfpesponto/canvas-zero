@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
-import { focusNextFrom } from '@/lib/fichaNav';
+import { focusNextFrom, abrirSelectNativo } from '@/lib/fichaNav';
 import { useFichaKeyboardNav } from '@/hooks/useFichaKeyboardNav';
 import { sugerirCorLinha, sugerirCorBorrachinha, sugerirCorVivo, ordenarComSugestao, ehSugerida, SEGUNDA_SUGESTAO_VIVO } from '@/lib/corSugestoes';
 import FichaAtalhosLista from '@/components/ficha/FichaAtalhosPanel';
@@ -134,27 +134,28 @@ const ToggleField = ({
   required?: boolean;
 }) => {
   const selectRef = useRef<HTMLSelectElement | null>(null);
-  const confirmadoRef = useRef(false);
+  const abertoRef = useRef(false);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
     if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
     const el = selectRef.current;
-    if (!confirmadoRef.current) {
-      // Primeiro Enter: confirma a escolha atual do campo.
-      confirmadoRef.current = true;
+    if (!abertoRef.current) {
+      // Primeiro Enter: abre as opções.
+      abertoRef.current = true;
+      abrirSelectNativo(el);
       return;
     }
-    confirmadoRef.current = false;
-    // Segundo Enter: vai para a descrição (se houver) ou para o próximo campo.
+    abertoRef.current = false;
+    // Segundo Enter: confirma. "Tem" com descrição → vai para a descrição.
     const desc = el?.parentElement?.querySelector<HTMLInputElement>('input[data-toggle-desc="true"]');
     if (value && desc) { desc.focus(); desc.select(); return; }
     if (el) focusNextFrom(el);
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3" data-ficha-toggle="true">
       <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
         {label}:
         <FichaFieldControls labelText={label} defaultTipo="checkbox" />
@@ -162,8 +163,9 @@ const ToggleField = ({
       <select
         ref={selectRef}
         value={value ? 'tem' : 'nao'}
-        onChange={e => { confirmadoRef.current = false; onChange(e.target.value === 'tem'); }}
-        onBlur={() => { confirmadoRef.current = false; }}
+        data-ficha-filled="false"
+        onChange={e => onChange(e.target.value === 'tem')}
+        onBlur={() => { abertoRef.current = false; }}
         onKeyDown={onKeyDown}
         className={cls.inputSmall + ' w-28'}
       >

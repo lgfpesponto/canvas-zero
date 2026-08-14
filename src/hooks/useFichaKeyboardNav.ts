@@ -1,5 +1,5 @@
 import { useEffect, RefObject } from 'react';
-import { focusNextFrom, focusFirst, FICHA_FOCUS_OPEN } from '@/lib/fichaNav';
+import { focusNextFrom, focusFirst, FICHA_FOCUS_OPEN, abrirSelectNativo } from '@/lib/fichaNav';
 
 /**
  * Ativa a navegação por Enter dentro de um formulário de ficha.
@@ -45,8 +45,20 @@ export function useFichaKeyboardNav(
         return;
       }
 
-      // Select nativo (Tem / Não tem) trata o próprio Enter.
-      if (target.tagName === 'SELECT') return;
+      // Select nativo: 1º Enter abre a lista, 2º Enter confirma e avança.
+      if (target instanceof HTMLSelectElement) {
+        if (target.closest('[data-ficha-toggle="true"]')) return; // ToggleField trata
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (target.getAttribute('data-ficha-open') !== 'true') {
+          target.setAttribute('data-ficha-open', 'true');
+          if (!abrirSelectNativo(target)) { /* navegador sem showPicker: setas escolhem */ }
+          return;
+        }
+        target.removeAttribute('data-ficha-open');
+        focusNextFrom(target);
+        return;
+      }
 
       // Botões que não fazem parte da navegação: comportamento padrão.
       if (target.tagName === 'BUTTON' && target.getAttribute('data-ficha-nav') !== 'true') return;
