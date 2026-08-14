@@ -509,7 +509,7 @@ const UsersManagementPage = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteProfile} onOpenChange={() => setDeleteProfile(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain">
           <DialogHeader>
             <DialogTitle>Confirmar Exclusão</DialogTitle>
             <DialogDescription>
