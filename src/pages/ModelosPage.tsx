@@ -176,7 +176,7 @@ const ModelosPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comprarOpen, numeroIsAuto, autoNumero]);
   // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
-  const ocultarCliente = role === 'vendedor';
+  const ocultarCliente = !role || role === 'vendedor';
   const [vTamanho, setVTamanho] = useState('');
   const [vObs, setVObs] = useState('');
   const [vSobMedida, setVSobMedida] = useState(false);

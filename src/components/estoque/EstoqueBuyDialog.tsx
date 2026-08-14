@@ -79,7 +79,7 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, numeroIsAuto, autoNumero]);
   // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
-  const ocultarCliente = user?.role === 'vendedor';
+  const ocultarCliente = !user?.role || user.role === 'vendedor';
   // Reservas ativas por outros vendedores (produto_id -> qtd reservada)
   const [reservasOutros, setReservasOutros] = useState<Record<string, number>>({});
   // Espelho local dos saldos (atualizado por realtime)

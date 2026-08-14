@@ -96,7 +96,7 @@ const ExtrasPage = () => {
     ? (allProfiles.find(p => p.nomeCompleto === (form.vendedorSelecionado || '')) || null)
     : (user ? { nomeUsuario: user.nomeUsuario, pedidoPrefixo: user.pedidoPrefixo, role: user.role } : null);
   // Vendedor comum (papel "vendedor") não preenche cliente/WhatsApp.
-  const ocultarCliente = user?.role === 'vendedor';
+  const ocultarCliente = !user?.role || user.role === 'vendedor';
   const { autoNumero, isAuto: numeroIsAuto, prefixo: numeroPrefixo } = useAutoOrderNumero(vendorForAutoNum, codigoExtra(openProduct));
   useEffect(() => { if (numeroIsAuto && autoNumero) setForm(f => ({ ...f, numeroPedidoBota: autoNumero })); }, [numeroIsAuto, autoNumero]);
 
