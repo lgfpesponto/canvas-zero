@@ -31,6 +31,7 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
   const [query, setQuery] = useState('');
 
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const focoPendente = useRef<'first' | 'last' | null>(null);
 
   useEffect(() => { setPage(0); }, [query, isMobile]);
