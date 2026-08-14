@@ -2699,6 +2699,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   <span className="text-xs font-semibold leading-tight">{item.label} <span className="text-muted-foreground font-normal">(R${item.preco})</span> <FichaFieldControls labelText={item.label} defaultTipo="checkbox" defaultCategoriaSlug="metais" /></span>
                   <select
                     value={item.value ? 'Sim' : 'Não'}
+                    data-ficha-filled="false"
                     onChange={e => item.setValue(e.target.value === 'Sim')}
                     className={cls.inputSmall + ' w-full'}
                   >
