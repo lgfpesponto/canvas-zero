@@ -105,8 +105,10 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
       if (idx < total - 1) focarCard(idx + 1);
       else if (page < totalPages - 1) { focoPendente.current = 'first'; setPage(p => p + 1); }
     } else {
+      if (e.key === 'ArrowUp' && idx < colunas) { inputRef.current?.focus(); return; }
       if (idx > 0) focarCard(idx - 1);
       else if (page > 0) { focoPendente.current = 'last'; setPage(p => p - 1); }
+      else inputRef.current?.focus();
     }
   };
 
