@@ -2043,7 +2043,38 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           )}
         </div>
 
-        <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+        <div className="flex gap-6 items-start">
+        <FichaCategoriaMenu
+          menuRef={menuRef}
+          items={[
+            { id: 'ficha-identificacao', label: 'Identificação' },
+            { id: 'ficha-couros', label: 'Couros' },
+            { id: 'ficha-pesponto', label: 'Pesponto' },
+            { id: 'ficha-solado', label: 'Solado' },
+            { id: 'ficha-bordado', label: 'Bordado' },
+            { id: 'ficha-laser', label: 'Laser' },
+            { id: 'ficha-recortes', label: 'Recortes' },
+            { id: 'ficha-estampa', label: 'Estampa' },
+            { id: 'ficha-metais', label: 'Metais' },
+            { id: 'ficha-extras', label: 'Extras' },
+            { id: 'ficha-adicional', label: 'Adicional' },
+          ]}
+        />
+        <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="flex-1 min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
+          {mode === 'order' && (
+            <FichaAtalhosPanel
+              items={[
+                { combo: 'Enter', desc: 'Avança para o próximo campo' },
+                { combo: 'Ctrl + S', desc: 'Salvar / criar pedido' },
+                { combo: 'Ctrl + R', desc: 'Salvar como modelo rascunho' },
+                { combo: 'Ctrl + L', desc: 'Limpar a ficha' },
+                ...(podeEstoqueDireto ? [{ combo: 'Ctrl + E', desc: 'Criar como estoque pronto' }] : []),
+                { combo: 'Ctrl + X', desc: 'Limpar seleção do campo múltiplo' },
+                { combo: 'Ctrl + M', desc: 'Ir para o menu de categorias' },
+              ]}
+            />
+          )}
+
 
           {/* Cabeçalho do Modelo (foto, nome, modelo+gênero, SKU base, tamanhos+SKU) */}
           {mode === 'template' && (
