@@ -2207,17 +2207,39 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           })()}
 
           {/* PESPONTO */}
-          <Section title="Pesponto">
+          <Section title="Pesponto" id="ficha-pesponto">
             <div className={`grid gap-4 ${HIDE_PESPONTO_EXTRAS.includes(modelo) ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
-              <SelectField label="Cor da Linha" value={corLinha} onChange={setCorLinha} options={mergeFieldOptions('cor_linha', COR_LINHA as string[])} required />
+              <SelectField
+                label="Cor da Linha"
+                value={corLinha}
+                onChange={setCorLinha}
+                options={ordenarComSugestao(mergeFieldOptions('cor_linha', COR_LINHA as string[]), [sugerirCorLinha(corCouroCano)])}
+                sugerida={sugerirCorLinha(corCouroCano)}
+                required
+              />
               {!HIDE_PESPONTO_EXTRAS.includes(modelo) && (
                 <>
-                  <SelectField label="Cor da Borrachinha" value={corBorrachinha} onChange={setCorBorrachinha} options={mergeFieldOptions('cor_borrachinha', COR_BORRACHINHA as string[])} required />
-                  <SelectField label="Cor do Vivo" value={corVivo} onChange={setCorVivo} options={mergeFieldOptions('cor_vivo', COR_VIVO as string[])} required />
+                  <SelectField
+                    label="Cor da Borrachinha"
+                    value={corBorrachinha}
+                    onChange={setCorBorrachinha}
+                    options={ordenarComSugestao(mergeFieldOptions('cor_borrachinha', COR_BORRACHINHA as string[]), [sugerirCorBorrachinha(corCouroCano)])}
+                    sugerida={sugerirCorBorrachinha(corCouroCano)}
+                    required
+                  />
+                  <SelectField
+                    label="Cor do Vivo"
+                    value={corVivo}
+                    onChange={setCorVivo}
+                    options={ordenarComSugestao(mergeFieldOptions('cor_vivo', COR_VIVO as string[]), [sugerirCorVivo(corCouroCano), SEGUNDA_SUGESTAO_VIVO])}
+                    sugerida={sugerirCorVivo(corCouroCano)}
+                    required
+                  />
                 </>
               )}
             </div>
           </Section>
+
 
           {/* SOLADO */}
           <Section title="Solado">
