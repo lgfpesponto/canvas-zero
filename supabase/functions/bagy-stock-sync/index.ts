@@ -285,6 +285,40 @@ Deno.serve(async (req) => {
   const authResponse = await authorizeRequest(req, admin, body);
   if (authResponse) return authResponse;
 
+  // Trava simples: evita duas execuções simultâneas disputando a mesma fila
+  const lockKey = "bagy_stock_sync_lock";
+  const lockTtlMs = 120_000;
+  const { data: lockRow } = await admin
+    .from("internal_config")
+    .select("value")
+    .eq("key", lockKey)
+    .maybeSingle();
+  const lockedAt = lockRow?.value ? Date.parse(lockRow.value) : NaN;
+  if (!Number.isNaN(lockedAt) && Date.now() - lockedAt < lockTtlMs) {
+    const { count } = await admin
+      .from("bagy_stock_sync_queue")
+      .select("id", { count: "exact", head: true })
+      .is("processado_em", null);
+    return new Response(
+      JSON.stringify({ ok: true, em_execucao: true, processados: 0, results: [], pendentes_restantes: count ?? 0 }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  await admin.from("internal_config").upsert({
+    key: lockKey,
+    value: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as any);
+
+  const releaseLock = async () => {
+    await admin.from("internal_config").upsert({
+      key: lockKey,
+      value: new Date(0).toISOString(),
+      updated_at: new Date().toISOString(),
+    } as any);
+  };
+
+
   // Retry: reenfileira itens específicos
   if (body?.retry_produto_id || body?.retry_all_errors || body?.force_all_active || body?.retry_unsynced) {
     let q = admin.from("estoque_produtos").select("id, sku_base, quantidade").eq("ativo", true);
