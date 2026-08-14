@@ -1,34 +1,55 @@
-# Corrigir a navegação por Enter na ficha
+# Menu, Atalhos e correções da navegação por Enter
 
-Quatro problemas relatados: Enter não avança, o campo do link da foto não vem focado, os campos de variação não abrem a lista ao receberem o foco, e o campo "Tem / Não tem" prende o foco.
+Duas frentes na ficha do "Faça seu pedido": reorganizar os botões de Menu/Atalhos e consertar a navegação por teclado.
 
-## Diagnóstico (a confirmar no primeiro passo)
+## Parte 1 — Menu e Atalhos
 
-A navegação hoje é um único listener de `keydown` no `<form>`, em fase de bolha (`useFichaKeyboardNav`). Isso tem duas consequências prováveis:
+1. **Nome "Menu"**: o título "FICHA" do menu lateral (desktop) e o botão "Categorias da ficha" (mobile) passam a se chamar **"Menu"**.
 
-- O Radix (Popover do select, Command, Select nativo) trata o Enter antes e, em vários casos, para a propagação — então o listener do form nunca roda e o foco fica parado no mesmo campo. É o que bate com "fica só nele".
-- O foco inicial usa um `setTimeout` fixo de 250 ms; como as variações da ficha vêm do banco, os campos ainda não existem nesse instante e o `focusFirst` não acha nada — o link da foto fica sem foco.
+2. **Atalhos vira botão**: o painel de atalhos sai de dentro da ficha. No desktop aparece um botão **"Atalhos"** logo abaixo do menu de categorias, na coluna da esquerda; clicando, abre/fecha a lista de atalhos e o que cada um faz.
 
-Primeiro passo da implementação: confirmar as duas hipóteses com log temporário no listener (se o evento chega e qual é o alvo) antes de aplicar as correções abaixo.
+3. **Texto removido**: sai o parágrafo "Enter avança para o próximo campo. Nos campos de seleção... clique fora (ou Tab) para seguir." A linha "Enter — Avança para o próximo campo" continua na lista de atalhos.
 
-## Correções
+4. **Mobile**: todos os botões acima da ficha, fora dela, em grade de 2 por linha, nesta ordem:
 
-1. **Enter passa a ser capturado antes dos componentes**: o listener do form escuta em fase de captura, decide o que fazer conforme o tipo do campo e só então deixa (ou não) o evento seguir. Assim o Enter funciona igual em input de texto, select de variação, "Tem / Não tem" e campos numéricos.
+```text
+Atalhos        | Limpar
+Criar Modelo   | Modelos
+Menu           | Trocar para Cinto
+```
 
-2. **Link da foto focado ao abrir**: em vez de um tempo fixo, a ficha espera os campos existirem (observa o formulário e tenta focar até achar o primeiro campo), com um limite de tempo. Sem foco roubado depois que as variações carregam.
+"Menu" e "Atalhos" abrem seus painéis logo abaixo da grade de botões.
 
-3. **Campo de variação abre a lista ao receber o foco**: a abertura deixa de depender do evento de foco do botão e passa a ser um comando explícito de quem move o foco ("foca e abre"). Ao chegar pelo Enter, a lista abre com a busca pronta; navegar com as setas e confirmar com Enter escolhe a opção, fecha e avança. Escolher com o mouse ou clicar fora também avança. Abrir com clique direto continua sem avançar sozinho.
+## Parte 2 — Navegação por Enter
 
-4. **"Tem / Não tem" não prende mais o foco**: Enter no campo abre as opções; com as opções abertas, Enter confirma a destacada; com o campo já resolvido, Enter avança. Se marcar "Tem" e existir campo de descrição, o Enter leva primeiro para a descrição e depois segue.
+Quatro problemas: Enter não avança, o campo do link da foto não vem focado, os campos de variação não abrem a lista ao receberem o foco, e o campo "Tem / Não tem" prende o foco.
 
-5. **Ordem de avanço**: o próximo campo passa a ser calculado pela ordem visual real (posição na página) e não só pela ordem do DOM, para não "pular de linha" em blocos com colunas.
+### Diagnóstico (a confirmar no primeiro passo)
 
-Nada de preço, validação ou regra de pedido muda — só o comportamento de foco/teclado. As mesmas correções valem para a ficha de cinto, extras e a compra embarcada em Modelos, que usam o mesmo hook.
+A navegação hoje é um único listener de `keydown` no `<form>`, em fase de bolha. Isso tem duas consequências prováveis:
+
+- Radix (Popover do select, Command) e o select nativo tratam o Enter antes e, em vários casos, param a propagação — então o listener do form nunca roda e o foco fica parado no mesmo campo. É o que bate com "fica só nele".
+- O foco inicial usa um `setTimeout` fixo de 250 ms; como as variações vêm do banco, os campos ainda não existem nesse instante e o `focusFirst` não acha nada — o link da foto fica sem foco.
+
+Primeiro passo da implementação: confirmar as duas hipóteses com log temporário no listener antes de aplicar as correções.
+
+### Correções
+
+1. **Enter capturado antes dos componentes**: o listener do form escuta em fase de captura, decide conforme o tipo do campo e só então deixa (ou não) o evento seguir. Funciona igual em input de texto, select de variação, "Tem / Não tem" e campos numéricos.
+2. **Link da foto focado ao abrir**: em vez de tempo fixo, a ficha espera os campos existirem e foca o primeiro assim que ele aparece, com limite de tempo.
+3. **Campo de variação abre a lista ao receber o foco**: a abertura passa a ser um comando explícito de quem move o foco ("foca e abre"). Chegando pelo Enter a lista abre com a busca pronta; setas navegam, Enter escolhe, fecha e avança. Mouse e clique fora também avançam. Abrir por clique direto continua sem avançar sozinho.
+4. **"Tem / Não tem" não prende o foco**: Enter abre as opções; com as opções abertas, Enter confirma; com o campo resolvido, Enter avança. Marcando "Tem" com campo de descrição, o Enter leva primeiro para a descrição.
+5. **Ordem de avanço** calculada pela posição visual real, para não pular de linha em blocos com colunas.
+
+Nada de preço, validação ou regra de pedido muda. As correções valem também para cinto, extras e a compra embarcada em Modelos, que usam o mesmo hook.
 
 ## Detalhes técnicos
 
-- `src/hooks/useFichaKeyboardNav.ts`: listener em `capture`, com roteamento por tipo de campo (`input`, `select` nativo, `[data-ficha-nav="true"]`) e `preventDefault`/`stopPropagation` seletivos; substituir o `setTimeout(250)` por `MutationObserver` + retry curto até o primeiro campo aparecer.
-- `src/lib/fichaNav.ts`: `getNavElements` ordena por `getBoundingClientRect()` (top, depois left) e `focusNextFrom` dispara um evento custom `ficha:focus-open` no destino, para que selects saibam abrir; `scrollIntoView` sem `smooth` para não competir com o foco.
-- `src/components/SearchableSelect.tsx`: remove a abertura via `onFocus`; escuta o evento `ficha:focus-open` no trigger para abrir programaticamente; trata `Enter` no trigger (abre) e mantém `advanceOnSelect` no `onSelect`/fechamento por clique fora. Remove o `bloqueiaAberturaRef` baseado em timeout.
-- `ToggleField` em `src/pages/OrderPage.tsx`: o `<select>` nativo ganha handler próprio de `Enter` (abre / confirma / avança, indo antes para o input de descrição quando "Tem").
+- `FichaCategoriaMenu.tsx`: label "Ficha" → "Menu"; no mobile o botão deixa de renderizar a própria barra e passa a ser controlado pela página (`aberto`/`onToggle`), para a ordem dos botões ficar em `OrderPage`.
+- `FichaAtalhosPanel.tsx`: remove o parágrafo explicativo e vira colapsável (botão "Atalhos" + conteúdo), reutilizado no desktop e no mobile.
+- `OrderPage.tsx`: `<FichaAtalhosPanel>` sai do `<form>` e vai para a coluna esquerda no desktop; no mobile, barra de ações em `grid grid-cols-2 gap-2` na ordem pedida, com o cabeçalho atual virando `hidden lg:flex`.
+- `useFichaKeyboardNav.ts`: listener em `capture`, roteamento por tipo de campo (`input`, `select` nativo, `[data-ficha-nav="true"]`) com `preventDefault`/`stopPropagation` seletivos; troca do `setTimeout(250)` por `MutationObserver` + retry curto.
+- `fichaNav.ts`: `getNavElements` ordena por `getBoundingClientRect()` (top, depois left); `focusNextFrom` dispara evento custom `ficha:focus-open` no destino; `scrollIntoView` sem `smooth`.
+- `SearchableSelect.tsx`: remove abertura via `onFocus`, escuta `ficha:focus-open` no trigger, trata `Enter` no trigger (abre) e mantém `advanceOnSelect`; remove o `bloqueiaAberturaRef` por timeout.
+- `ToggleField` em `OrderPage.tsx`: `<select>` nativo com handler próprio de `Enter` (abre / confirma / avança, indo antes para a descrição quando "Tem").
 - `MultiSelect` mantém o comportamento atual (Enter marca, setas movem, Tab/clique fora segue).
