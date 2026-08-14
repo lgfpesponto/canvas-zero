@@ -104,21 +104,31 @@ async function authorizeRequest(req: Request, admin: any, body: any): Promise<Re
   return null;
 }
 
+// Caminhos que já falharam com 404 nesta instância (evita repetir chamadas inúteis)
+const deadPaths = new Set<string>();
+// Caminho que funcionou por último — tentado primeiro nas próximas buscas
+let preferredPattern: string | null = null;
+
+const LOOKUP_PATTERNS = [
+  "/variations?sku=",
+  "/products/variations?sku=",
+  "/variations?reference=",
+  "/products/variations?reference=",
+  "/variations?q=",
+];
+
 async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null; raw?: any; error?: string }> {
-  // Tenta múltiplos caminhos da API Dooca/Bagy
-  const candidates = [
-    `${BAGY_BASE}/variations?sku=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/products/variations?sku=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/variations?reference=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/products/variations?reference=${encodeURIComponent(sku)}`,
-    `${BAGY_BASE}/variations?q=${encodeURIComponent(sku)}`,
-  ];
+  const patterns = preferredPattern
+    ? [preferredPattern, ...LOOKUP_PATTERNS.filter((p) => p !== preferredPattern)]
+    : [...LOOKUP_PATTERNS];
+
   let lastError = "";
   const skuLower = sku.toLowerCase();
 
-  for (const url of candidates) {
+  for (const pattern of patterns) {
+    if (deadPaths.has(pattern)) continue;
+    const url = `${BAGY_BASE}${pattern}${encodeURIComponent(sku)}`;
     try {
-      console.log("bagy-stock-sync lookup", { sku, path: url.replace(BAGY_BASE, "") });
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${BAGY_TOKEN}`,
@@ -126,7 +136,12 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
         },
       });
       if (!res.ok) {
-        lastError = `GET ${url.replace(BAGY_BASE, "")} HTTP ${res.status}`;
+        lastError = `GET ${pattern} HTTP ${res.status}`;
+        if (res.status === 404) {
+          // Endpoint inexistente nesta conta: não tenta de novo nesta instância
+          deadPaths.add(pattern);
+          if (preferredPattern === pattern) preferredPattern = null;
+        }
         console.error("bagy-stock-sync lookup failed", { sku, error: lastError });
         continue;
       }
@@ -144,7 +159,8 @@ async function bagyGetVariationIdBySku(sku: string): Promise<{ id: string | null
         continue;
       }
       const id = hit?.id ?? hit?.variation_id ?? null;
-      console.log("bagy-stock-sync lookup ok", { sku, variationId: id });
+      preferredPattern = pattern;
+      console.log("bagy-stock-sync lookup ok", { sku, variationId: id, path: pattern });
       return { id: id ? String(id) : null, raw: hit };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
