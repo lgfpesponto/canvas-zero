@@ -1960,7 +1960,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     const novos: Record<string, boolean> = {};
     partes.forEach(p => {
       if (p.key === key || !p.ativo) return;
-      if (!p.valor.trim() || prevSugRef.current[p.key]) { p.set(v); novos[p.key] = true; }
+      if (!p.valor.trim() || corSug[p.key]) { p.set(v); novos[p.key] = true; }
     });
     if (Object.keys(novos).length) setCorSug(prev => ({ ...prev, ...novos }));
   };
