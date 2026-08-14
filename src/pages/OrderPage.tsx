@@ -17,6 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { TemplatesDialog } from '@/components/template/TemplatesDialog';
 import { useTemplatesValidity } from '@/hooks/useTemplateValidity';
+import { focusNextFrom } from '@/lib/fichaNav';
+import { useFichaKeyboardNav } from '@/hooks/useFichaKeyboardNav';
+import { sugerirCorLinha, sugerirCorBorrachinha, sugerirCorVivo, ordenarComSugestao, ehSugerida, SEGUNDA_SUGESTAO_VIVO } from '@/lib/corSugestoes';
+import FichaAtalhosPanel from '@/components/ficha/FichaAtalhosPanel';
+import FichaCategoriaMenu from '@/components/ficha/FichaCategoriaMenu';
 
 function TemplatesDialogWithValidity(props: React.ComponentProps<typeof TemplatesDialog> & { tipo: 'bota' | 'cinto' }) {
   const validityById = useTemplatesValidity(props.templates as any, props.tipo);
