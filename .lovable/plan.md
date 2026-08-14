@@ -16,13 +16,19 @@ Nos logs da função `bagy-stock-sync` a sincronização **está rodando agora**
 
 Ou seja: nada quebrou de fato — a resincronização total ficou lenta e incompleta por desenho.
 
+## Função do botão (definição)
+
+O botão "Resincronizar Bagy" serve **apenas para reenviar o saldo atual de estoque dos produtos ativos para a Bagy**, garantindo que a quantidade lá fique igual à do portal. Ele não altera nada no portal, não muda preços, não cria nem apaga produtos, e não mexe nos vínculos já validados — só empurra o saldo.
+
 ## Correções propostas
 
 1. **Botão processa até o fim**: em vez de uma chamada única, o botão enfileira e depois chama a função em ciclo até a fila zerar, mostrando o progresso real ("X de Y sincronizados") no overlay em vez de um spinner mudo.
-2. **Não apagar o vínculo por padrão**: `force_rediscover` deixa de ser automático no botão. O comportamento normal reaproveita o `bagy_variation_id` já validado (a função já detecta e corrige vínculo furado sozinha). Redescoberta total vira uma opção separada dentro do diálogo de confirmação, para casos raros.
+2. **Não apagar o vínculo por padrão**: `force_rediscover` deixa de ser automático no botão — reenviar saldo não exige redescobrir a variação. O comportamento normal reaproveita o `bagy_variation_id` já validado (a função já detecta e corrige vínculo furado sozinha). Redescoberta total vira uma opção separada dentro do diálogo de confirmação, para casos raros.
 3. **Descoberta de SKU mais rápida**: reduzir a lista de endpoints tentados, começando pelo que a Bagy realmente responde, e parar de repetir caminhos que retornam 404 de forma consistente na mesma execução.
 4. **Trava de execução**: marcar a execução em `internal_config` (ou uma coluna de "em processamento" na fila) para que duas resincronizações simultâneas não disputem os mesmos itens.
 5. **Retomar os 91 pendentes agora**: após o ajuste, disparar o ciclo para terminar a fila atual e relatar os 6 SKUs realmente ausentes na Bagy (esses precisam ser cadastrados lá).
+6. **Resumo ao final**: ao terminar, mostrar quantos SKUs tiveram o saldo confirmado na Bagy, quantos falharam e quais não existem lá — deixando claro que o objetivo (estoque igual dos dois lados) foi atingido.
+
 
 ## Detalhes técnicos
 
