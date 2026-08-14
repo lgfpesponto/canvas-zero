@@ -472,6 +472,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   // Flags visuais "Sugerido" quando o campo foi auto-preenchido por propagação.
   type CouroSug = { tipoCano?: boolean; tipoGaspea?: boolean; tipoTaloneira?: boolean; corCano?: boolean; corGaspea?: boolean; corTaloneira?: boolean };
   const [couroSug, setCouroSug] = useState<CouroSug>({});
+  /** Flags "sugestão" das cores espelhadas dentro de bordado/laser/recorte. */
+  const [corSug, setCorSug] = useState<Record<string, boolean>>({});
 
   // desenvolvimento LEGACY (pedidos antigos com Bordado/Laser/Estampa como valor único)
   const [desenvolvimento, setDesenvolvimento] = useState(df.desenvolvimento || '');
