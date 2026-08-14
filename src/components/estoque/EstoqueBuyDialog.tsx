@@ -204,6 +204,14 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   };
 
   const setQtd = async (t: EstoqueRow, raw: string) => {
+    if (raw.trim() === '') {
+      setQuantidades(prev => {
+        const next = { ...prev };
+        delete next[t.id];
+        return next;
+      });
+      return;
+    }
     const n = Math.max(0, parseInt(raw) || 0);
     const disp = disponivelReal(t);
     if (n > disp) {
