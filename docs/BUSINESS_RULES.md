@@ -40,8 +40,8 @@
 | Faixa | Modelos disponíveis |
 |-------|---------------------|
 | 24–33 | Bota Infantil, Botina Infantil, Cano Médio Infantil |
-| 34–45 | Bota Tradicional, Bota Feminino, Bota Peão, Coturno, Destroyer, Capota, Bota Over, Capota Bico Fino Perfilado, Cano Médio, Botina, Urbano, Bota Bico Fino Perfilado, Tradicional Bico Fino, Cano Inteiro |
-| 34–40 | Bota Montaria (40) *(só até 40)* |
+| 34–45 | Bota Tradicional, Bota Feminino, Bota Peão, Bota Montaria (40), Coturno, Destroyer, Capota, Bota Over, Capota Bico Fino Perfilado, Cano Médio, Botina, Urbano, Bota Bico Fino Perfilado, Tradicional Bico Fino, Cano Inteiro |
+
 | 33–40 | Bota Bico Fino Feminino, Capota Bico Fino |
 | 34–40 | City |
 
