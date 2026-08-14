@@ -2575,13 +2575,6 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
               <div>
                 <label className={cls.label}>Tipo do Metal <FichaFieldControls labelText="Tipo do Metal" defaultTipo="multipla" defaultCategoriaSlug="metais" /></label>
                 <div className="flex flex-col gap-1">
-                  <label className={cls.checkItem}>
-                    <input type="checkbox" checked={tipoMetal.includes('Não tem')} onChange={e => {
-                      setTipoMetal(e.target.checked ? ['Não tem'] : []);
-                      if (e.target.checked) { setAreaMetal(''); setCorMetal(''); }
-                    }} className="accent-primary w-4 h-4" />
-                    Não tem
-                  </label>
                   {mergeFieldOptions('tipo_metal', TIPO_METAL as string[]).map(t => (
                     <label key={t} className={cls.checkItem}>
                       <input type="checkbox" checked={tipoMetal.includes(t)} onChange={e => {
