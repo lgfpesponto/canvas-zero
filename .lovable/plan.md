@@ -1,15 +1,16 @@
 # Ficha da bota: navegação por Enter, sugestões e atalhos
 
-Escopo: página "Faça seu Pedido" da bota (`/pedido`), sem alterar regras de cálculo/soma de preço. Cinto e extras ficam como estão.
+Escopo: ficha da bota (`/pedido`) e, para a navegação por Enter e campos de quantidade, também cinto, extras, produtos de estoque e a compra direto na página Modelos. Nenhuma regra de cálculo muda — a soma final continua somando tudo que tem valor na ficha.
 
 ## 1. Navegação sequencial com Enter
 
 - Ao abrir a ficha, o campo "Link da Foto de Referência" já vem focado.
-- Enter em qualquer campo avança para o próximo campo da ficha, na ordem visual.
-- Campos de seleção (couros, solado, cores...): ao receber o foco pelo Enter, a lista de variações já abre com a busca pronta. Escolher com o mouse ou clicar fora conta como Enter e avança.
+- Enter em qualquer campo avança para o próximo campo, na ordem visual.
+- Campos de seleção (couros, solado, cores...): ao receber o foco pelo Enter, a lista de variações já abre com a busca pronta. Dá para navegar com as setas para cima/baixo e confirmar com Enter, ou escolher com o mouse. Escolher (teclado ou mouse) ou clicar fora conta como Enter e avança.
 - Campos "Tem / Não tem": Enter abre as opções, Enter de novo confirma a opção destacada e avança. Se marcar "Tem" e existir campo de descrição, o Enter leva para a descrição.
-- Campos de múltipla seleção (Bordado do Cano, Laser...): o Enter do campo anterior cai direto no campo de busca. Depois de marcar o que quiser, Enter avança para o próximo campo.
-- Acessórios: o Enter percorre acessório por acessório; Enter marca, seta para o lado pula sem marcar; no último acessório desce para os campos seguintes.
+- Campos de múltipla seleção (Bordado do Cano, Laser...): o Enter do campo anterior cai no campo de busca; a seta para baixo entra na lista de opções, Enter marca a opção destacada e as setas laterais passam para a próxima sem marcar. Nesses campos o Enter **não** avança — só marca; para seguir para o próximo campo, clica fora (ou Tab).
+- Acessórios: mesma lógica — Enter marca, seta para o lado pula sem marcar; no último acessório desce para os campos seguintes.
+- Todos os campos de quantidade (strass, bridão, cruz, cavalo, bola grande, grade de estoque etc.) ficam **vazios**, sem o `0` pré-preenchido e sem placeholder, para o usuário digitar direto.
 
 ## 2. Sugestões automáticas de cor
 
@@ -18,7 +19,8 @@ Todas seguem a cor do couro do cano, aparecem no topo da lista de variações co
 - **Cor da Linha**: marrom / nescau / chocolate → café; preto e malhado → preto; branco / off white → branco; demais cores → a cor equivalente do couro.
 - **Cor da Borrachinha**: preto → preto; branca / off white → branca; rosa → rosa; laranja → laranja; demais → marrom.
 - **Cor do Vivo**: branca / off white → branca; rosa → rosa; laranja → laranja; azul → azul; demais → preto (branco como segunda sugestão).
-- **Cor do Bordado (Gáspea / Taloneira)**: pré-preenchidas com o mesmo texto de "Cor do Bordado do Cano", marcadas como "sugestão", e só quando aquela parte tiver bordado selecionado.
+- **Cores dentro de Bordados, Laser e Recortes**: a primeira cor preenchida na categoria vira sugestão para as demais partes **da mesma categoria** que também estiverem marcadas como "tem" — não precisa ser o cano primeiro; vale a parte que for preenchida primeiro. O campo pré-preenchido aparece com a etiqueta "sugestão" e pode ser alterado.
+
 
 ## 3. Campos condicionais e obrigatoriedade
 
