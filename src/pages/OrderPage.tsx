@@ -2152,11 +2152,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </Dialog>
 
         <div className="relative">
-        <FichaCategoriaMenu
-          menuRef={menuRef}
-          items={categoriasFicha}
-          className="hidden xl:block absolute right-full mr-4 top-0"
-        />
+        <div className="hidden xl:block absolute right-full top-0 mr-4">
+          <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} className="block" />
+        </div>
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="w-full min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
 
 
