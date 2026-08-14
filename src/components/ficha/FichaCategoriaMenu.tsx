@@ -73,8 +73,10 @@ const FichaCategoriaMenu = ({
         <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground px-2 py-1">Menu</p>
         {lista}
       </div>
+      {children}
     </div>
   );
+
 };
 
 export default FichaCategoriaMenu;
