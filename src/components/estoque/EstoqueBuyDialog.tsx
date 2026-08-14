@@ -204,6 +204,14 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
   };
 
   const setQtd = async (t: EstoqueRow, raw: string) => {
+    if (raw.trim() === '') {
+      setQuantidades(prev => {
+        const next = { ...prev };
+        delete next[t.id];
+        return next;
+      });
+      return;
+    }
     const n = Math.max(0, parseInt(raw) || 0);
     const disp = disponivelReal(t);
     if (n > disp) {
@@ -488,7 +496,8 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
                       type="number"
                       min={0}
                       max={disp}
-                      value={quantidades[t.id] ?? 0}
+                      value={quantidades[t.id] ? String(quantidades[t.id]) : ''}
+                      placeholder="0"
                       onChange={e => setQtd(t, e.target.value)}
                       disabled={esgotado}
                       className="h-8 text-sm text-center"
