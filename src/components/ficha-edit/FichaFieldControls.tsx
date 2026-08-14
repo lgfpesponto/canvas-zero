@@ -159,7 +159,29 @@ function EditPopover({
     return data as any as FichaCampo;
   };
 
+  const normNome = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  /** Nome já usado por outra variação do campo (ou por outro rascunho aberto)? */
+  const nomeDuplicado = (valor: string, ignoreDraftId?: string) => {
+    const n = normNome(valor);
+    if (!n) return false;
+    if (variacoes.some(v => normNome(v.nome || '') === n)) return true;
+    return drafts.some(d => d.id !== ignoreDraftId && normNome(d.nome) === n);
+  };
+
   const handleSalvar = async () => {
+    const validos = drafts.filter(d => d.nome.trim());
+    // Bloqueia duplicidade entre rascunhos e contra as variações já existentes.
+    const vistos = new Set<string>();
+    for (const d of validos) {
+      const n = normNome(d.nome);
+      if (variacoes.some(v => normNome(v.nome || '') === n) || vistos.has(n)) {
+        toast.error(`Já existe a variação "${d.nome.trim()}" neste campo`);
+        return;
+      }
+      vistos.add(n);
+    }
+
     const c = await ensureCampo();
     if (!c) return;
     const patch: any = { id: c.id, nome, obrigatorio };
@@ -167,8 +189,7 @@ function EditPopover({
     await updateCampo.mutateAsync(patch);
 
     // Persist any pending drafts (variações novas)
-    for (const d of drafts) {
-      if (!d.nome.trim()) continue;
+    for (const d of validos) {
       await insertVar.mutateAsync({
         categoria_id: c.categoria_id!,
         campo_id: c.id,
@@ -190,6 +211,10 @@ function EditPopover({
   const commitDraft = async (id: string) => {
     const d = drafts.find(x => x.id === id);
     if (!d || !d.nome.trim()) { toast.error('Informe o nome'); return; }
+    if (nomeDuplicado(d.nome, d.id)) {
+      toast.error(`Já existe a variação "${d.nome.trim()}" neste campo`);
+      return;
+    }
     const c = await ensureCampo();
     if (!c) return;
     await insertVar.mutateAsync({
@@ -203,6 +228,7 @@ function EditPopover({
     removeDraft(id);
     toast.success('Variação criada');
   };
+
 
 
 
