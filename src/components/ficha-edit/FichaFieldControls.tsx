@@ -348,7 +348,7 @@ function EditPopover({
                 <p className="text-[11px] text-muted-foreground italic">Nenhuma variação encontrada para "{varSearch}".</p>
               )}
               {filteredVariacoes.map(v => (
-                <VarLine key={v.id} v={v} todosCampos={campos} todasVars={allVars} />
+                <VarLine key={v.id} v={v} todosCampos={campos} todasVars={allVars} irmas={variacoes} />
               ))}
             </div>
           </div>
