@@ -131,8 +131,10 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
+            onKeyDown={onBuscaKeyDown}
             placeholder="Pesquisar variação..."
             className="pl-8 h-8 text-sm"
           />
