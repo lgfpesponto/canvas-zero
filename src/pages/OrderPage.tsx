@@ -132,21 +132,50 @@ const ToggleField = ({
   label: string; value: boolean; onChange: (v: boolean) => void;
   textValue?: string; onTextChange?: (v: string) => void; textPlaceholder?: string;
   required?: boolean;
-}) => (
-  <div className="flex flex-wrap items-center gap-3">
-    <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
-      {label}:
-      <FichaFieldControls labelText={label} defaultTipo="checkbox" />
-    </span>
-    <select value={value ? 'tem' : 'nao'} onChange={e => onChange(e.target.value === 'tem')} className={cls.inputSmall + ' w-28'}>
-      <option value="nao">Não tem</option>
-      <option value="tem">Tem</option>
-    </select>
-    {value && textValue !== undefined && onTextChange && (
-      <input type="text" value={textValue} onChange={e => onTextChange(e.target.value)} placeholder={(textPlaceholder || 'Descreva...') + (req ? ' (obrigatório)' : '')} className={cls.inputSmall + ' flex-1 min-w-[180px]' + (req && !textValue.trim() ? ' border-destructive' : '')} />
-    )}
-  </div>
-);
+}) => {
+  const selectRef = useRef<HTMLSelectElement | null>(null);
+  const confirmadoRef = useRef(false);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
+    if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = selectRef.current;
+    if (!confirmadoRef.current) {
+      // Primeiro Enter: confirma a escolha atual do campo.
+      confirmadoRef.current = true;
+      return;
+    }
+    confirmadoRef.current = false;
+    // Segundo Enter: vai para a descrição (se houver) ou para o próximo campo.
+    const desc = el?.parentElement?.querySelector<HTMLInputElement>('input[data-toggle-desc="true"]');
+    if (value && desc) { desc.focus(); desc.select(); return; }
+    if (el) focusNextFrom(el);
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="text-sm font-semibold min-w-[120px] inline-flex items-center">
+        {label}:
+        <FichaFieldControls labelText={label} defaultTipo="checkbox" />
+      </span>
+      <select
+        ref={selectRef}
+        value={value ? 'tem' : 'nao'}
+        onChange={e => { confirmadoRef.current = false; onChange(e.target.value === 'tem'); }}
+        onBlur={() => { confirmadoRef.current = false; }}
+        onKeyDown={onKeyDown}
+        className={cls.inputSmall + ' w-28'}
+      >
+        <option value="nao">Não tem</option>
+        <option value="tem">Tem</option>
+      </select>
+      {value && textValue !== undefined && onTextChange && (
+        <input type="text" data-toggle-desc="true" value={textValue} onChange={e => onTextChange(e.target.value)} placeholder={(textPlaceholder || 'Descreva...') + (req ? ' (obrigatório)' : '')} className={cls.inputSmall + ' flex-1 min-w-[180px]' + (req && !textValue.trim() ? ' border-destructive' : '')} />
+      )}
+    </div>
+  );
+};
 
 
 const MultiSelect = ({
@@ -1138,16 +1167,19 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
 
   const podeEstoqueDireto = user?.role === 'admin_master' || user?.role === 'admin_producao';
+  // Refs para evitar TDZ (as funções são declaradas mais abaixo no componente).
+  const saveDraftRef = useRef<(() => void) | null>(null);
+  const resetFormRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (mode !== 'order') return;
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 's') { e.preventDefault(); formRef.current?.requestSubmit(); }
-      else if (k === 'r') { e.preventDefault(); handleSaveDraft(); }
+      else if (k === 'r') { e.preventDefault(); saveDraftRef.current?.(); }
       else if (k === 'l') {
         e.preventDefault();
-        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetForm(); toast.success('Ficha limpa.'); }
+        if (window.confirm('Limpar todos os campos preenchidos na ficha?')) { resetFormRef.current?.(); toast.success('Ficha limpa.'); }
       } else if (k === 'e') {
         if (!podeEstoqueDireto) return;
         e.preventDefault();
@@ -1719,6 +1751,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     }
   };
 
+
+  saveDraftRef.current = () => handleSaveDraft();
+  resetFormRef.current = () => resetForm();
 
   const handleSaveDraft = () => {
     if (!user) return;
