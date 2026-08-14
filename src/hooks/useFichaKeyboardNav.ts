@@ -25,6 +25,8 @@ export function useFichaKeyboardNav(
       const form = formRef.current;
       if (!form || !form.contains(target)) return;
       if (target.closest('[data-ficha-enter-manual="true"]')) return;
+      // Opções de múltipla seleção e diálogo "expandir": Enter marca a variação.
+      if (target.closest('[data-ms-opt="true"], [data-ficha-expandir="true"]')) return;
 
       // Textarea: Shift+Enter quebra linha, Enter avança.
       if (target.tagName === 'TEXTAREA') {

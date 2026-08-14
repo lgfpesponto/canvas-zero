@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,7 +30,20 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
 
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const focoPendente = useRef<'first' | 'last' | null>(null);
+
   useEffect(() => { setPage(0); }, [query, isMobile]);
+
+  const cards = useCallback(
+    () => Array.from(gridRef.current?.querySelectorAll<HTMLElement>('[data-exp-opt="true"]') || []),
+    [],
+  );
+  const focarCard = useCallback((idx: number) => {
+    const els = cards();
+    if (els.length === 0) return;
+    els[Math.max(0, Math.min(els.length - 1, idx))].focus();
+  }, [cards]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,6 +56,41 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
     () => filtered.slice(page * pageSize, page * pageSize + pageSize),
     [filtered, page, pageSize],
   );
+
+  // Foco automático: ao abrir e ao trocar de página pelo teclado.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const els = cards();
+      if (els.length === 0) return;
+      if (focoPendente.current === 'last') els[els.length - 1].focus();
+      else els[0].focus();
+      focoPendente.current = null;
+    }, 50);
+    return () => clearTimeout(t);
+  }, [open, page, pageItems, cards]);
+
+  const onCardKeyDown = (e: React.KeyboardEvent<HTMLElement>, idx: number, label: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onToggle(label, !selected.includes(label));
+      return;
+    }
+    const proximo = ['ArrowRight', 'ArrowDown'].includes(e.key);
+    const anterior = ['ArrowLeft', 'ArrowUp'].includes(e.key);
+    if (!proximo && !anterior) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const total = cards().length;
+    if (proximo) {
+      if (idx < total - 1) focarCard(idx + 1);
+      else if (page < totalPages - 1) { focoPendente.current = 'first'; setPage(p => p + 1); }
+    } else {
+      if (idx > 0) focarCard(idx - 1);
+      else if (page > 0) { focoPendente.current = 'last'; setPage(p => p - 1); }
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPage(0); setQuery(''); } }}>
@@ -106,18 +154,19 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
           </div>
         )}
 
-        <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+        <div ref={gridRef} data-ficha-expandir="true" className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
           {pageItems.length === 0 && (
             <p className="col-span-full text-center text-sm text-muted-foreground py-6">
               Nenhuma variação encontrada.
             </p>
           )}
-          {pageItems.map(it => (
+          {pageItems.map((it, idx) => (
             <VarCard
               key={it.label}
               item={it}
               checked={selected.includes(it.label)}
               onChange={(c) => onToggle(it.label, c)}
+              onKeyDown={(e) => onCardKeyDown(e, idx, it.label)}
             />
           ))}
         </div>
@@ -137,9 +186,17 @@ export default function VariacaoExpandirDialog({ open, onOpenChange, title, item
   );
 }
 
-function VarCard({ item, checked, onChange }: { item: ExpandirItem; checked: boolean; onChange: (c: boolean) => void }) {
+function VarCard({ item, checked, onChange, onKeyDown }: {
+  item: ExpandirItem; checked: boolean; onChange: (c: boolean) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLElement>) => void;
+}) {
   return (
-    <div className="border rounded-md p-1.5 flex flex-col items-center gap-1 bg-card">
+    <div
+      data-exp-opt="true"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+      className="border rounded-md p-1.5 flex flex-col items-center gap-1 bg-card outline-none focus:ring-2 focus:ring-primary/60"
+    >
       <div className="w-full h-28">
         {item.foto_url ? (
           <ScannedQr fotoUrl={item.foto_url} nome={item.label} className="w-full h-full" />
