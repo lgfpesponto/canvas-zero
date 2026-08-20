@@ -24,7 +24,12 @@ Causas prováveis dessa inflação (a confirmar como primeiro passo):
 - Alterações de quantidade feitas por funções internas (webhook Bagy, reconciliação, criação de produto) **não gravam** em `estoque_ajustes_log` — só ajustes manuais gravam. Hoje é impossível auditar de onde veio cada unidade.
 - Pedidos criados pelo webhook da Bagy ficam com `estoque_produto_id` vazio e `estoque_baixado = false`, mesmo tendo consumido estoque. Nas telas eles não parecem baixa de estoque.
 
+## Sobre o cancelamento do pedido da Larissa
+
+Hoje, no banco, os dois pedidos da Larissa desse SKU (**3-13EST** e **3-14EST**) continuam na etapa **Cobrado** — nenhum está em "Cancelado" — e o saldo do produto segue em **0**. Ou seja, o cancelamento não chegou ao banco ou foi feito em outro pedido. Primeiro passo do trabalho: localizar o pedido cancelado, confirmar se a devolução de 1 par ao estoque ocorreu e corrigir o saldo se não tiver ocorrido.
+
 ## O que fazer
+
 
 ### 1. Auditoria (primeiro passo, antes de qualquer trava)
 - Trigger em `estoque_produtos` que grava **toda** mudança de quantidade em `estoque_ajustes_log` (antes, depois, delta, origem: venda portal / venda Bagy / criação de produto / reconciliação / ajuste manual / devolução, e o pedido relacionado quando houver).
