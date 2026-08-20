@@ -2,6 +2,29 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { dbRowToOrder, orderToDbRow, CAMEL_TO_SNAKE, FIELD_LABELS } from '@/lib/order-logic';
+import { ensureFreshSession } from '@/lib/sessionGuard';
+
+/* ───── Último erro de criação de pedido ─────
+ * addOrder/addOrderBatch continuam retornando boolean (muitos call sites),
+ * mas guardam aqui o motivo real da falha para a tela exibir a mensagem certa
+ * em vez do genérico "faça login novamente". */
+export type AddOrderErrorReason = 'session_expired' | 'duplicate_numero' | 'db_error' | 'no_user' | 'unknown';
+let lastAddOrderError: { reason: AddOrderErrorReason; message: string } | null = null;
+function setAddOrderError(reason: AddOrderErrorReason, message: string) {
+  lastAddOrderError = { reason, message };
+}
+export function getLastAddOrderError() {
+  return lastAddOrderError;
+}
+/** Mensagem pronta para toast a partir do último erro de criação de pedido. */
+export function lastAddOrderErrorMessage(): string {
+  const e = lastAddOrderError;
+  if (!e) return 'Não foi possível salvar o pedido. Tente novamente.';
+  if (e.reason === 'session_expired') {
+    return 'Sua sessão expirou. Seus dados continuam preenchidos — recarregue a página, entre novamente e clique em salvar.';
+  }
+  return e.message || 'Não foi possível salvar o pedido. Tente novamente.';
+}
 
 /* ───── Brasilia helpers (unchanged) ───── */
 function nowBrasilia(): Date {
