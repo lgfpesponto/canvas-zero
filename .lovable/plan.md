@@ -29,4 +29,5 @@ Causa confirmada pelo vendedor: ele trabalha com a tela dividida, o portal abert
 
 - `src/contexts/AuthContext.tsx` — `addOrder` / `addOrderBatch`: trocar o retorno `boolean` por `{ ok, reason, message }` (ou lançar erro tipado), tentar `supabase.auth.refreshSession()` antes de `logout()`, e propagar a mensagem do erro do insert.
 - `src/pages/ExtrasPage.tsx:382`, `src/pages/OrderPage.tsx:1800`, `src/pages/BeltOrderPage.tsx:576`: usar o motivo retornado; em `session_expired` guardar rascunho do formulário e redirecionar para `/login` com retorno.
+- `src/integrations/supabase/client.ts`: habilitar bloqueio de renovação compartilhado entre abas (Web Locks / `navigator.locks`) e revalidar sessão no evento de foco/visibilidade da aba.
 - Configuração de auth do Supabase: verificar rotação/intervalo de reuso de refresh token.
