@@ -683,10 +683,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const dbRow = orderToDbRow(newOrder, targetUserId);
       const { error } = await supabase.from('orders').insert(dbRow).select().single();
-      if (error) { console.error('Error adding order:', error); return false; }
+      if (error) {
+        console.error('Error adding order:', error);
+        setAddOrderError('db_error', error.message || 'Erro ao gravar o pedido no banco.');
+        return false;
+      }
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('addOrder exception:', err);
+      setAddOrderError('unknown', err?.message || 'Erro inesperado ao salvar o pedido.');
       return false;
     }
   }, [user, logout, isAdmin]);
@@ -698,9 +703,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     numeroPedidoBase: string,
   ): Promise<boolean> => {
     try {
-      if (!user) return false;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { await logout(); return false; }
+      lastAddOrderError = null;
+      if (!user) { setAddOrderError('no_user', 'Usuário não identificado. Entre novamente.'); return false; }
+      const sess = await ensureFreshSession();
+      if (!sess.ok) { setAddOrderError('session_expired', 'Sessão expirada.'); return false; }
+
 
       const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
       const numbers: { tamanho: string; numero: string; sku?: string }[] = [];
