@@ -11,7 +11,7 @@ O que os registros mostram no momento do erro:
 
 Ou seja: a sessão do vendedor realmente caducou no momento do clique (o app parecia logado porque a tela não tinha atualizado ainda). Ao salvar, o código verifica a sessão, não encontra, faz logout silencioso e mostra aquele texto genérico.
 
-Causa provável do token perdido: a mesma conta sendo usada em mais de uma aba/dispositivo (a Bagy/site e o portal), o que invalida o refresh token antigo na rotação do Supabase. Isso precisa ser confirmado com o vendedor.
+Causa confirmada pelo vendedor: ele trabalha com a tela dividida, o portal aberto em duas abas ao mesmo tempo. As duas abas renovam a sessão em paralelo e uma delas fica com o token antigo, que o Supabase já invalidou na rotação — daí o `refresh_token_not_found` exatamente na hora de salvar.
 
 ## Correções propostas
 
