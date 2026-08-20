@@ -91,14 +91,14 @@ export function RegistrarErroDialog({ open, onOpenChange, order }: Props) {
       payload.numero = numeroErro;
       payload.preco = 0;
       payload.quantidade = 1;
-      payload.status = 'Em aberto';
+      payload.status = 'Erro';
       payload.data_criacao = dataHoje;
       payload.hora_criacao = horaAgora;
       payload.dias_restantes = originalRow.dias_restantes ?? 10;
       payload.historico = [{
         data: dataHoje,
         hora: horaAgora,
-        local: 'Em aberto',
+        local: 'Erro',
         descricao: `Pedido ERRO registrado a partir de #${order.numero}: ${desc}`,
         usuario: usuarioNome,
       }];
