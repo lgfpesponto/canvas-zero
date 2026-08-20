@@ -634,6 +634,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const { data: existingOrder } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
       if (existingOrder) {
+        setAddOrderError('duplicate_numero', 'Número de pedido já cadastrado no sistema. Utilize outro número.');
         toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
         return false;
       }
