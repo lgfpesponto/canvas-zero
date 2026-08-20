@@ -771,10 +771,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const { error } = await supabase.from('orders').insert(rows).select();
-      if (error) { console.error('Error adding batch orders:', error); toast.error('Erro ao gerar grade de pedidos.'); return false; }
+      if (error) {
+        console.error('Error adding batch orders:', error);
+        setAddOrderError('db_error', error.message || 'Erro ao gerar grade de pedidos.');
+        toast.error('Erro ao gerar grade: ' + (error.message || 'erro desconhecido'));
+        return false;
+      }
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('addOrderBatch exception:', err);
+      setAddOrderError('unknown', err?.message || 'Erro inesperado ao gerar grade.');
       toast.error('Erro inesperado ao gerar grade.');
       return false;
     }
