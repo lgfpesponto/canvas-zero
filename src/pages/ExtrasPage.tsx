@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, lastAddOrderErrorMessage } from '@/contexts/AuthContext';
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { codigoExtra } from '@/lib/orderCodigos';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
@@ -379,7 +379,7 @@ const ExtrasPage = () => {
         setSelectedRegataStockId('');
         toast({ title: `${product.nome} ${numeroSalvo} lançado em Meus Pedidos!` });
       } else {
-        toast({ title: 'Erro ao salvar o pedido. Faça login novamente e tente.', variant: 'destructive' });
+        toast({ title: lastAddOrderErrorMessage(), variant: 'destructive' });
       }
     } catch (err) {
       console.error('handleSubmit error:', err);

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import { useAuth, formatBrasiliaDate, formatBrasiliaTime, lastAddOrderErrorMessage } from '@/contexts/AuthContext';
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
@@ -1797,7 +1797,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           }
 
         } else {
-          toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
+          toast.error(lastAddOrderErrorMessage());
         }
       }
     } catch (err) {

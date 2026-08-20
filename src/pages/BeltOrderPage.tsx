@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth, formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
+import { useAuth, formatBrasiliaDate, formatBrasiliaTime, lastAddOrderErrorMessage } from '@/contexts/AuthContext';
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
@@ -573,7 +573,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
         if (comprarMode && onComprarSaved) onComprarSaved();
         else resetForm();
       } else {
-        toast.error('Erro ao salvar o pedido. Faça login novamente e tente.');
+        toast.error(lastAddOrderErrorMessage());
       }
     } catch (err) {
       console.error('confirmOrder error:', err);
