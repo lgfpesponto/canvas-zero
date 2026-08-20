@@ -37,6 +37,7 @@ export function getOrderFinalValue(
 /* ───── Production statuses ───── */
 
 export const PRODUCTION_STATUSES = [
+  "Erro",
   "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Aguardando Sola", "Emprestado",
   "Corte", "Baixa Corte",
   "Entrada Laser Dinei", "Baixa Laser Dinei",
@@ -53,6 +54,7 @@ export const PRODUCTION_STATUSES = [
 ];
 
 export const PRODUCTION_STATUSES_USER = [
+  "Erro",
   "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Aguardando Sola", "Emprestado",
   "Corte", "Baixa Corte",
   "Entrada Laser Dinei", "Baixa Laser Dinei",
@@ -68,10 +70,12 @@ export const PRODUCTION_STATUSES_USER = [
 ];
 
 export const EXTRAS_STATUSES = [
+  "Erro",
   "Em aberto", "Produzindo", "Expedição", "Entregue", "Conferido", "Cobrado", "Pago", "Cancelado"
 ];
 
 export const BELT_STATUSES = [
+  "Erro",
   "Em aberto", "Impresso", "Aguardando", "Aguardando Couro", "Emprestado",
   "Corte", "Baixa Corte",
   "Entrada Laser Dinei", "Baixa Laser Dinei",

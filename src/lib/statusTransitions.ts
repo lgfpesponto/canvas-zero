@@ -28,6 +28,7 @@ const GIOVANE_NEXT = [
 ];
 
 const FLOW: Record<string, string[]> = {
+  'Erro': [],
   'Em aberto': ['Impresso'],
   'Impresso': ['Corte'],
   'Corte': ['Baixa Corte', 'Aguardando Couro', 'Aguardando Sola'],
@@ -80,7 +81,7 @@ export const ALWAYS_AVAILABLE = ['Aguardando', 'Cancelado'];
 export const MANUALLY_BLOCKED = new Set(['Cobrado', 'Pago']);
 
 /** Status a partir dos quais qualquer destino é permitido (sem checagem de fluxo). */
-const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
+const FREE_FROM = new Set(['Aguardando', 'Cancelado', 'Erro']);
 
 /**
  * Fluxo dos extras (qualquer `tipoExtra` diferente de 'cinto').
@@ -88,6 +89,7 @@ const FREE_FROM = new Set(['Aguardando', 'Cancelado']);
  * - A partir de Expedição → Entregue → Conferido → Cobrado → Pago em sequência estrita.
  */
 const EXTRAS_FLOW: Record<string, string[]> = {
+  'Erro': [],
   'Em aberto': ['Produzindo', 'Expedição'],
   'Produzindo': ['Em aberto', 'Expedição'],
   'Expedição': ['Baixa Site (Despachado)', 'Baixa Estoque'],
@@ -106,6 +108,7 @@ const EXTRAS_FLOW: Record<string, string[]> = {
  * - Pesponto Ailton / Pespontando → Revisão | Expedição | Baixa Estoque | Baixa Site (Despachado)
  */
 const BELT_FLOW: Record<string, string[]> = {
+  'Erro': [],
   'Em aberto': ['Impresso'],
   'Impresso': ['Corte'],
   'Corte': ['Baixa Corte', 'Aguardando Couro'],

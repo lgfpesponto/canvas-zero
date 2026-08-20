@@ -8,7 +8,7 @@ import { PRODUCTION_STATUSES } from './order-logic';
 import { isDirectFlowNext } from './statusTransitions';
 
 /** Ordem canônica derivada de PRODUCTION_STATUSES, sem 'Cancelado' (tratado à parte). */
-export const STATUS_ORDER: string[] = PRODUCTION_STATUSES.filter(s => s !== 'Cancelado');
+export const STATUS_ORDER: string[] = PRODUCTION_STATUSES.filter(s => s !== 'Cancelado' && s !== 'Erro');
 
 /** Ordem canônica para extras (qualquer tipoExtra != 'cinto'). */
 export const EXTRAS_STATUS_ORDER: string[] = [
@@ -46,6 +46,8 @@ export function isStatusRegression(
   if (!current || !next) return false;
   if (current === next) return false;
   if (next === 'Cancelado' || current === 'Cancelado') return false;
+  // 'Erro' fica fora da linha de produção: entrar/sair dele nunca é retrocesso.
+  if (next === 'Erro' || current === 'Erro') return false;
 
   if (isPureExtra(tipoExtra)) {
     // Trio livre: nenhuma transição entre eles é regressão
@@ -80,6 +82,7 @@ export function requiresJustification(
   if (!current || !next) return null;
   if (current === next) return null;
 
+  if (next === 'Erro' || current === 'Erro') return null;
   if (CANCEL_STATUSES.includes(next)) return 'cancel';
   if (PAUSE_STATUSES.includes(next)) return 'pause';
   // Sair de Cancelado para qualquer outra etapa = retrocesso (precisa justificar)
