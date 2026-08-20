@@ -2,6 +2,29 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { dbRowToOrder, orderToDbRow, CAMEL_TO_SNAKE, FIELD_LABELS } from '@/lib/order-logic';
+import { ensureFreshSession } from '@/lib/sessionGuard';
+
+/* ───── Último erro de criação de pedido ─────
+ * addOrder/addOrderBatch continuam retornando boolean (muitos call sites),
+ * mas guardam aqui o motivo real da falha para a tela exibir a mensagem certa
+ * em vez do genérico "faça login novamente". */
+export type AddOrderErrorReason = 'session_expired' | 'duplicate_numero' | 'db_error' | 'no_user' | 'unknown';
+let lastAddOrderError: { reason: AddOrderErrorReason; message: string } | null = null;
+function setAddOrderError(reason: AddOrderErrorReason, message: string) {
+  lastAddOrderError = { reason, message };
+}
+export function getLastAddOrderError() {
+  return lastAddOrderError;
+}
+/** Mensagem pronta para toast a partir do último erro de criação de pedido. */
+export function lastAddOrderErrorMessage(): string {
+  const e = lastAddOrderError;
+  if (!e) return 'Não foi possível salvar o pedido. Tente novamente.';
+  if (e.reason === 'session_expired') {
+    return 'Sua sessão expirou. Seus dados continuam preenchidos — recarregue a página, entre novamente e clique em salvar.';
+  }
+  return e.message || 'Não foi possível salvar o pedido. Tente novamente.';
+}
 
 /* ───── Brasilia helpers (unchanged) ───── */
 function nowBrasilia(): Date {
@@ -546,10 +569,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /* ───── Add Order ───── */
   const addOrder = useCallback(async (orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes'> & { numeroPedido?: string }): Promise<boolean> => {
     try {
-      if (!user) { console.error('addOrder: user is null'); return false; }
+      lastAddOrderError = null;
+      if (!user) {
+        console.error('addOrder: user is null');
+        setAddOrderError('no_user', 'Usuário não identificado. Entre novamente.');
+        return false;
+      }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { console.error('addOrder: session expired'); await logout(); return false; }
+      // Renova a sessão (serializado entre abas) antes de desistir.
+      const sess = await ensureFreshSession();
+      if (!sess.ok) {
+        console.error('addOrder: session expired');
+        setAddOrderError('session_expired', 'Sessão expirada.');
+        return false;
+      }
+
 
       const { numeroPedido, ...rest } = orderData;
       const dataHoje = formatBrasiliaDate();
@@ -600,6 +634,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const { data: existingOrder } = await supabase.from('orders').select('id').eq('numero', numero).maybeSingle();
       if (existingOrder) {
+        setAddOrderError('duplicate_numero', 'Número de pedido já cadastrado no sistema. Utilize outro número.');
         toast.error('Número de pedido já cadastrado no sistema. Por favor, utilize outro número.');
         return false;
       }
@@ -648,10 +683,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const dbRow = orderToDbRow(newOrder, targetUserId);
       const { error } = await supabase.from('orders').insert(dbRow).select().single();
-      if (error) { console.error('Error adding order:', error); return false; }
+      if (error) {
+        console.error('Error adding order:', error);
+        setAddOrderError('db_error', error.message || 'Erro ao gravar o pedido no banco.');
+        return false;
+      }
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('addOrder exception:', err);
+      setAddOrderError('unknown', err?.message || 'Erro inesperado ao salvar o pedido.');
       return false;
     }
   }, [user, logout, isAdmin]);
@@ -663,9 +703,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     numeroPedidoBase: string,
   ): Promise<boolean> => {
     try {
-      if (!user) return false;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { await logout(); return false; }
+      lastAddOrderError = null;
+      if (!user) { setAddOrderError('no_user', 'Usuário não identificado. Entre novamente.'); return false; }
+      const sess = await ensureFreshSession();
+      if (!sess.ok) { setAddOrderError('session_expired', 'Sessão expirada.'); return false; }
+
 
       const sorted = [...gradeItems].sort((a, b) => Number(a.tamanho) - Number(b.tamanho));
       const numbers: { tamanho: string; numero: string; sku?: string }[] = [];
@@ -729,10 +771,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const { error } = await supabase.from('orders').insert(rows).select();
-      if (error) { console.error('Error adding batch orders:', error); toast.error('Erro ao gerar grade de pedidos.'); return false; }
+      if (error) {
+        console.error('Error adding batch orders:', error);
+        setAddOrderError('db_error', error.message || 'Erro ao gerar grade de pedidos.');
+        toast.error('Erro ao gerar grade: ' + (error.message || 'erro desconhecido'));
+        return false;
+      }
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('addOrderBatch exception:', err);
+      setAddOrderError('unknown', err?.message || 'Erro inesperado ao gerar grade.');
       toast.error('Erro inesperado ao gerar grade.');
       return false;
     }
