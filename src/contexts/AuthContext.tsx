@@ -569,10 +569,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /* ───── Add Order ───── */
   const addOrder = useCallback(async (orderData: Omit<Order, 'id' | 'numero' | 'dataCriacao' | 'horaCriacao' | 'diasRestantes' | 'historico' | 'status' | 'alteracoes'> & { numeroPedido?: string }): Promise<boolean> => {
     try {
-      if (!user) { console.error('addOrder: user is null'); return false; }
+      lastAddOrderError = null;
+      if (!user) {
+        console.error('addOrder: user is null');
+        setAddOrderError('no_user', 'Usuário não identificado. Entre novamente.');
+        return false;
+      }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { console.error('addOrder: session expired'); await logout(); return false; }
+      // Renova a sessão (serializado entre abas) antes de desistir.
+      const sess = await ensureFreshSession();
+      if (!sess.ok) {
+        console.error('addOrder: session expired');
+        setAddOrderError('session_expired', 'Sessão expirada.');
+        return false;
+      }
+
 
       const { numeroPedido, ...rest } = orderData;
       const dataHoje = formatBrasiliaDate();
