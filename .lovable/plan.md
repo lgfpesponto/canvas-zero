@@ -1,50 +1,30 @@
-# Estoque vendido duas vezes (site + Larissa) — auditoria e travas
+# Corrigir preço do Modelo na composição de bota de estoque
 
-## O que eu já verifiquei no banco
+## O problema
 
-Produto: **SARA PERFILADO tam 36** (`sara-perfilado-36`).
+Na composição de um pedido de bota comprada do estoque, a linha do **Modelo** aparece com um valor que "nunca existiu" (ex.: R$ 412,37 em vez do valor padrão do modelo).
 
-Histórico reconstruído pelas filas de sincronização e pelos pedidos:
+Causa confirmada no código:
 
-```text
-14/08 19:10  saldo 5
-16/08 18:10  venda site (RC-17869037046983)   -> 4   (sem registro visível)
-17/08 21:11  venda site (RC-17870010227247)   -> 3   (sem registro visível)
-18/08 12:03  venda Gabi  (4-74EST)            -> 2
-18/08 12:29  venda Larissa (3-13EST)          -> 1
-18/08 14:06  venda Larissa (3-14EST)          -> 0
-```
-
-Ou seja: **o abatimento funcionou** em todas as vendas. O portal deixou a Larissa comprar porque, na conta dele, ainda existiam 3 pares em 17/08 — mesmo que fisicamente só houvesse 1.
-
-O saldo do portal subiu sozinho em pelo menos dois momentos (13/08: 7 -> 8; 14/08: 4 -> 5) **sem nenhuma venda cancelada e sem nenhum registro no log de ajustes**. Isso indica que o número de pares no portal está inflado, não que faltou baixa.
-
-Causas prováveis dessa inflação (a confirmar como primeiro passo):
-- "Criar produto de estoque" a partir de um pedido **soma** quantidade quando o SKU/tamanho já existe. Criar o mesmo produto duas vezes dobra o saldo, sem log.
-- Alterações de quantidade feitas por funções internas (webhook Bagy, reconciliação, criação de produto) **não gravam** em `estoque_ajustes_log` — só ajustes manuais gravam. Hoje é impossível auditar de onde veio cada unidade.
-- Pedidos criados pelo webhook da Bagy ficam com `estoque_produto_id` vazio e `estoque_baixado = false`, mesmo tendo consumido estoque. Nas telas eles não parecem baixa de estoque.
-
-## Sobre o cancelamento do pedido da Larissa
-
-Hoje, no banco, os dois pedidos da Larissa desse SKU (**3-13EST** e **3-14EST**) continuam na etapa **Cobrado** — nenhum está em "Cancelado" — e o saldo do produto segue em **0**. Ou seja, o cancelamento não chegou ao banco ou foi feito em outro pedido. Primeiro passo do trabalho: localizar o pedido cancelado, confirmar se a devolução de 1 par ao estoque ocorreu e corrigir o saldo se não tiver ocorrido.
+1. A composição de cada bota é montada em `buildBotaComposicao` recebendo o **valor congelado** do item (o preço realmente cobrado na compra).
+2. Quando a soma das linhas da ficha não fecha exatamente com esse valor, a função joga **toda a diferença dentro da linha do Modelo** (bloco final "Preço congelado: normaliza a composição..."), distorcendo o preço padrão do modelo.
+3. A diferença hoje é grande porque, no detalhe do pedido, a composição da bota é montada **sem a tabela de opções customizadas** (o parâmetro de busca por categoria é passado como `undefined`). Bordados, recortes e afins acabam valendo R$ 0 na soma, gerando um resíduo enorme que vai todo para o Modelo. Some-se a isso descontos/acréscimos aplicados na venda de estoque, que também não são linha própria.
 
 ## O que fazer
 
-
-### 1. Auditoria (primeiro passo, antes de qualquer trava)
-- Trigger em `estoque_produtos` que grava **toda** mudança de quantidade em `estoque_ajustes_log` (antes, depois, delta, origem: venda portal / venda Bagy / criação de produto / reconciliação / ajuste manual / devolução, e o pedido relacionado quando houver).
-- Com isso, rodar um levantamento dos SKUs cujo saldo subiu sem entrada justificada, para corrigir os saldos hoje inflados.
-
-### 2. Rastreabilidade das vendas do site
-- Nos pedidos criados pelo webhook da Bagy, preencher `estoque_produto_id` e `estoque_baixado = true` (a baixa já ocorre; só não fica registrada no pedido).
-- Assim a tela de estoque e os relatórios mostram todas as saídas, inclusive as do site.
-
-### 3. Trava contra venda de par inexistente
-- Na criação de produto a partir de pedido, avisar quando o SKU+tamanho já existe e pedir confirmação explícita ("somar ao saldo existente" x "não somar"), em vez de somar silenciosamente.
-- Antes de confirmar a compra no portal, checar o saldo real na Bagy para aquele produto (reconciliação pontual) e bloquear se a Bagy já estiver zerada — evita exatamente o caso do dia 18/08.
+1. **Nunca alterar o preço do Modelo.** Remover a normalização que embute o resíduo na linha do Modelo.
+2. **Mostrar a diferença como linha própria**, logo antes do subtotal do item:
+   - resíduo positivo: `Acréscimo / arredondamento`
+   - resíduo negativo: `Desconto aplicado`
+   Assim o subtotal continua fechando exatamente com o valor cobrado, mas cada preço de ficha permanece o real.
+3. **Passar a tabela de opções customizadas** para a composição no detalhe do pedido, para que bordados/recortes/lasers deixem de valer R$ 0 e o resíduo fique pequeno ou zero.
+4. Manter o total do item e o total do pedido exatamente como estão hoje (nada muda no valor cobrado, só na exibição da composição).
 
 ## Detalhes técnicos
-- Nova trigger `AFTER UPDATE OF quantidade ON public.estoque_produtos` gravando em `estoque_ajustes_log`, lendo a origem de um `set_config` local (`app.estoque_origem`) definido por `comprar_estoque`, `comprar_estoque_bagy`, `criar_estoque_produto`, `devolver_estoque_pedido` e pela reconciliação.
-- `supabase/functions/bagy-webhook/index.ts` + `comprar_estoque_bagy`: setar `estoque_produto_id` e `estoque_baixado` nos pedidos gerados.
-- `supabase/functions/bagy-stock-reconcile/index.ts`: chamada pontual por produto no fluxo de compra (`EstoqueBuyDialog`), com fallback silencioso se a Bagy não responder.
-- `criar_estoque_produto`: novo parâmetro `_permitir_somar` (default false) e mensagem clara na UI quando o SKU já existir.
+
+- `src/lib/estoqueOrderComposition.ts`
+  - Trocar o bloco de normalização final: em vez de somar o resíduo em `Modelo: ...`, adicionar `{ label: 'Acréscimo / arredondamento' | 'Desconto aplicado', valor: residuo }` ao fim de `linhas` (usar apenas quando `Math.abs(residuo) >= 0.01`).
+  - Retornar também o resíduo no objeto de retorno para quem quiser tratá-lo à parte.
+- `src/pages/OrderDetailPage.tsx` (linha ~1073)
+  - `buildBotaComposicao(b, findFichaPrice, getByCategoria, valorManual)` — passar `getByCategoria` (já disponível via `useCustomOptions`) no lugar de `undefined`.
+- Sem mudanças de banco, de preço gravado ou de regra de cobrança.
