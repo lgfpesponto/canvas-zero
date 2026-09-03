@@ -2,20 +2,19 @@
 
 ## O que aconteceu
 
-O pedido nasceu zerado porque o **produto do estoque estava cadastrado com preço R$ 0,00**.
+Achei o bug de verdade: **o pré-cadastro de tamanhos com quantidade zero grava o preço fixo em 0**.
 
 Produto: "Texana Florência Radiante Bico Fino Perfilado Ponta Quadrada" (tam 38)
-- Criado avulso (manualmente) por Stefany em 14/08 19:46, com quantidade 1 e **preço 0** — não veio de nenhum pedido de produção (não existe pedido com esse SKU)
-- Compra feita por Maria Gabriela em 27/08 → o pedido copiou o preço do produto (0)
-- Em 01/09 a Juliana corrigiu manualmente: "Alterado Valor total de 0 para 415,60 — ela estava sem valor cobrando"
+- Criado em 14/08 19:46 com **quantidade 0 e preço 0**, pelo fluxo "Estoque já criado" da ficha de produção — nesse fluxo, os tamanhos que ficam com quantidade 0 são inseridos direto na tabela de estoque com `preco: 0` fixo no código, ignorando o valor calculado da ficha
+- Um minuto depois (19:47) a Stefany ajustou a quantidade de 0 para 1 — o ajuste de quantidade não mexe no preço, então continuou 0
+- 27/08: compra da Maria Gabriela copiou o preço do produto (0) → pedido 4-299EST zerado
+- 01/09: Juliana corrigiu manualmente para R$ 415,60
 
-Respondendo à dúvida: o preço do produto de estoque **não é somado da ficha**. A ficha é guardada só como snapshot descritivo. O campo `preco` do produto é preenchido de duas formas: copiado do `preco` do pedido que originou o estoque, ou digitado à mão quando o produto é criado avulso. Nesse caso foi criação avulsa e o campo ficou vazio (0).
+Respondendo à dúvida: a ficha realmente calcula o valor, mas ele só é aproveitado quando o produto nasce de um pedido com quantidade (aí o preço do pedido é copiado). No caminho de tamanho zerado o código nunca usa esse valor — insere 0 direto. Por isso a ficha/composição mostra tudo certo e só o total fica zerado:
+- **Composição exibida**: calculada na hora pelo snapshot da ficha, linha a linha → correta.
+- **Total do pedido**: cópia de `estoque_produtos.preco` = 0 → é o que fica gravado e cobrado.
 
-Por isso a composição aparece certa e só o total ficou zerado:
-- **Composição exibida**: calculada na hora a partir do snapshot da ficha, cada linha com seu próprio preço → itens corretos.
-- **Total do pedido**: valor copiado de `estoque_produtos.preco`, que era 0 → é esse que fica gravado e cobrado.
-
-Não é bug de cálculo nem tem relação com a mudança da Bola Grande: o produto foi cadastrado sem preço e a compra foi aceita assim mesmo, sem nenhum aviso.
+Nada a ver com a mudança da Bola Grande.
 
 ## Correção proposta
 
