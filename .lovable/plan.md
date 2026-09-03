@@ -9,7 +9,11 @@ Produto: "Texana Florência Radiante Bico Fino Perfilado Ponta Quadrada" (tam 38
 - Compra feita por Maria Gabriela em 27/08 → o pedido copiou o preço do produto (0)
 - Em 01/09 a Juliana corrigiu manualmente: "Alterado Valor total de 0 para 415,60 — ela estava sem valor cobrando"
 
-Ou seja: não é bug de cálculo nem tem relação com a mudança da Bola Grande. A tela de compra usa o preço do tamanho/produto direto, e como esse valor era 0, o total ficou 0 e ninguém foi avisado.
+Por isso a composição aparecia certa e só o total ficou zerado — são duas origens diferentes:
+- **Composição exibida**: calculada na hora a partir da ficha do produto, cada linha com seu próprio preço → itens corretos.
+- **Total do pedido**: valor copiado do cadastro do produto no momento da compra (`estoque_produtos.preco`), que era 0 → é esse que fica gravado e cobrado.
+
+Não é bug de cálculo nem tem relação com a mudança da Bola Grande: o produto foi cadastrado sem preço e a compra foi aceita assim mesmo, sem nenhum aviso.
 
 ## Correção proposta
 
