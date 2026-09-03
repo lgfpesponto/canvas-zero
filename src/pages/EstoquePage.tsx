@@ -236,6 +236,8 @@ const EstoquePage = () => {
   );
   useEffect(() => { setPage(1); }, [search, selTamanhos, selFicha]);
 
+  const semPrecoRows = useMemo(() => rows.filter(r => !(Number(r.preco) > 0)), [rows]);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-6">
