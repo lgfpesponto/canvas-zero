@@ -1651,7 +1651,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             sku_base: (it.sku?.trim() || `${skuBase}-${it.tamanho}`),
             tamanho: it.tamanho,
             quantidade: 0,
-            preco: 0,
+            preco: Number((orderData as any).preco) || 0,
             foto_url: (orderData as any).fotos?.[0] || null,
             ficha_snapshot: {
               // Identificação básica
