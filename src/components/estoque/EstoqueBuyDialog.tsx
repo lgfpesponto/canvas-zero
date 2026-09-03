@@ -266,6 +266,15 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
     if (!vendedor.trim()) { toast.error('Vendedor obrigatório.'); return; }
     if (!numero.trim()) { toast.error('Informe o nº do pedido.'); return; }
     if (itens.length === 0) { toast.error('Adicione ao menos uma unidade.'); return; }
+    if (itens.some(it => !(it.preco_unit > 0))) {
+      toast.error('Há item sem preço cadastrado. Peça ao admin para corrigir o preço do produto antes de comprar.');
+      return;
+    }
+    if (!(total > 0)) {
+      toast.error('Total do pedido ficou R$ 0,00 — compra bloqueada. Verifique o preço do produto.');
+      return;
+    }
+
 
     // Agrupa itens por produto_id, preservando ordem dos extras por unidade
     const grouped = new Map<string, { produto_id: string; quantidade: number; preco_unit: number; descricao: string; extras_por_unidade: any[][] }>();
