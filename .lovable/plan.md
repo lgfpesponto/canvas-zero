@@ -18,25 +18,26 @@ Nada a ver com a mudança da Bola Grande.
 
 ## Correção proposta
 
-1. **Bloquear compra de produto sem preço**
-   Na tela de compra do estoque, se o preço do tamanho for 0 ou vazio, o item aparece marcado em vermelho ("Produto sem preço cadastrado") e o botão de confirmar fica desabilitado, com aviso para procurar o admin.
+1. **Corrigir o pré-cadastro de tamanho zerado (causa raiz)**
+   No fluxo "Estoque já criado", em vez de gravar preço 0, usar o valor calculado da ficha (o mesmo preço unitário que o pedido teria), para que o produto já nasça com preço correto.
 
-2. **Impedir cadastro/edição de produto com preço 0**
-   No formulário de produto do estoque, exigir preço maior que zero para salvar (inclusive na criação avulsa e na edição de preço por tamanho), sugerindo automaticamente o preço somado da ficha como valor inicial.
+2. **Bloquear compra de produto sem preço**
+   Na tela de compra do estoque, item com preço 0 aparece destacado ("Produto sem preço cadastrado") e o botão de confirmar fica desabilitado.
 
 3. **Salvaguarda no salvamento do pedido**
-   Se, mesmo assim, o total calculado ficar 0 em um pedido de estoque, o salvamento é recusado com mensagem clara em vez de gravar um pedido zerado.
+   Se o total de um pedido de estoque ficar 0, recusar o salvamento com mensagem clara em vez de gravar pedido zerado.
 
-4. **Lista de produtos com preço zerado (só admin)**
-   Aviso na página de Estoque mostrando quantos produtos estão com preço 0, para corrigir antes que gere outro pedido zerado.
+4. **Lista de produtos com preço zerado (admin)**
+   Aviso na página de Estoque listando os produtos ativos com preço 0, para corrigir antes de virar outro pedido zerado.
 
 ## Observações
 
-- Nada de valor de pedidos existentes é alterado. O 4-299EST já está correto (R$ 415,60).
-- Ainda vale corrigir o cadastro do produto "Texana Florência Radiante..." que segue com preço 0.
+- Nenhum valor de pedido existente é alterado. O 4-299EST já está correto (R$ 415,60).
+- O produto "Texana Florência Radiante..." segue com preço 0 no cadastro e precisa ser corrigido.
 
 ## Detalhes técnicos
 
-- `EstoqueBuyDialog.tsx`: `preco_unit` vem de `t.preco` dos tamanhos; adicionar validação/disable quando `preco_unit <= 0` (considerando desconto promocional).
-- Formulário de criação/edição de produto (`estoque_produtos` / tamanhos): validação `preco > 0` antes do submit.
-- Handler de criação de pedido a partir do estoque: retornar erro se `total <= 0`.
+- `OrderPage.tsx` (~linha 1652): `rowsToInsert` usa `preco: 0` fixo — trocar pelo preço unitário calculado da ficha.
+- `EstoqueBuyDialog.tsx`: `preco_unit` vem de `t.preco`; desabilitar quando `<= 0` (considerando desconto promocional).
+- Criação de pedido a partir do estoque: erro se `total <= 0`.
+- Query auxiliar: `estoque_produtos` com `preco = 0 and ativo = true`.
