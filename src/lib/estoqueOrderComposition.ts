@@ -28,6 +28,7 @@ import {
   TIRAS_PRECO,
   COSTURA_ATRAS_PRECO,
   STRASS_PRECO,
+  BOLA_GRANDE_PRECO,
   CRUZ_METAL_PRECO,
   BRIDAO_METAL_PRECO,
   CAVALO_METAL_PRECO,
@@ -43,6 +44,7 @@ import {
   getCorSolaPrecoContextual,
 } from './orderFieldsConfig';
 import { getDynamicUnitPrice } from './dynamicUnitPrice';
+import { getBolaGrandeQtd } from './bolaGrande';
 
 export type FindFichaPrice = (nome: string, categoria: string) => number | undefined;
 export type GetByCategoria = (categoria: string) => { label: string; preco: number }[];
@@ -55,6 +57,8 @@ export interface BotaComposicaoLinha {
 export interface BotaComposicao {
   linhas: BotaComposicaoLinha[];
   subtotalFicha: number;
+  /** Diferença entre o valor cobrado e a soma da ficha (0 quando fecha exato). */
+  residuo: number;
 }
 
 const EXTRA_LABELS: Record<string, string> = {
@@ -197,6 +201,8 @@ export function buildBotaComposicao(
     push('Metais: ' + metais, p);
   }
   if (snap.strass_qtd) pushFixed(`Strass x${snap.strass_qtd}`, snap.strass_qtd * getDynamicUnitPrice('strass', STRASS_PRECO));
+  const bolaGrandeQtd = getBolaGrandeQtd(snap);
+  if (bolaGrandeQtd) pushFixed(`Bola Grande x${bolaGrandeQtd}`, bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO));
   if (snap.cruz_metal_qtd) pushFixed(`Cruz Metal x${snap.cruz_metal_qtd}`, snap.cruz_metal_qtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO));
   if (snap.bridao_metal_qtd) pushFixed(`Bridão Metal x${snap.bridao_metal_qtd}`, snap.bridao_metal_qtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO));
   if (det.cavaloMetal && det.cavaloMetalQtd) {
@@ -254,22 +260,25 @@ export function buildBotaComposicao(
     );
   }
 
-  // Preço congelado: normaliza a composição para fechar com o valor cobrado na compra.
-  // A diferença (para mais ou para menos) fica embutida na linha do Modelo.
+  // Preço congelado: a composição precisa fechar com o valor cobrado na compra.
+  // ⚠️ NUNCA embutir a diferença no Modelo (gera "preço de modelo que nunca existiu").
+  // A diferença vira uma LINHA PRÓPRIA, preservando o preço real de cada item da ficha.
+  let residuo = 0;
   if (typeof valorCongelado === 'number' && valorCongelado > 0 && linhas.length > 0) {
     const soma = linhas.reduce((s, l) => s + l.valor, 0);
-    const residuo = Math.round((valorCongelado - soma) * 100) / 100;
+    residuo = Math.round((valorCongelado - soma) * 100) / 100;
     if (Math.abs(residuo) >= 0.01) {
-      const idxModelo = linhas.findIndex(l => l.label.startsWith('Modelo: '));
-      if (idxModelo >= 0) {
-        const novo = Math.round((linhas[idxModelo].valor + residuo) * 100) / 100;
-        if (novo > 0) linhas[idxModelo] = { ...linhas[idxModelo], valor: novo };
-      }
+      linhas.push({
+        label: residuo > 0 ? 'Acréscimo / arredondamento' : 'Desconto aplicado',
+        valor: residuo,
+      });
+    } else {
+      residuo = 0;
     }
   }
 
   const subtotalFicha = linhas.reduce((s, l) => s + l.valor, 0);
-  return { linhas, subtotalFicha };
+  return { linhas, subtotalFicha, residuo };
 }
 
 /** Formata o rótulo de um extra embutido (usado tanto na composição por item quanto em fallback). */

@@ -1070,7 +1070,7 @@ const OrderDetailPage = () => {
                         if (temSnapshot) {
                           botasEstruturadas = botas.map((b, idx) => {
                             const valorManual = parseFloat(b.valorManual) || 0;
-                            const comp = buildBotaComposicao(b, findFichaPrice, undefined, valorManual);
+                            const comp = buildBotaComposicao(b, findFichaPrice, getByCategoria, valorManual);
                             const extras: [string, number][] = Array.isArray(b.extras)
                               ? b.extras.map((ex: any) => [`↳ ${formatBotaExtraLabel(ex)}`, ex.preco || 0] as [string, number])
                               : [];
