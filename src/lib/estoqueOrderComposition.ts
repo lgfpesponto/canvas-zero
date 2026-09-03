@@ -44,6 +44,7 @@ import {
   getCorSolaPrecoContextual,
 } from './orderFieldsConfig';
 import { getDynamicUnitPrice } from './dynamicUnitPrice';
+import { getBolaGrandeQtd } from './bolaGrande';
 
 export type FindFichaPrice = (nome: string, categoria: string) => number | undefined;
 export type GetByCategoria = (categoria: string) => { label: string; preco: number }[];
