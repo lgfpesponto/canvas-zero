@@ -236,6 +236,8 @@ const EstoquePage = () => {
   );
   useEffect(() => { setPage(1); }, [search, selTamanhos, selFicha]);
 
+  const semPrecoRows = useMemo(() => rows.filter(r => !(Number(r.preco) > 0)), [rows]);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-6">
@@ -256,6 +258,24 @@ const EstoquePage = () => {
           <Share2 size={14} /> Compartilhar vitrine
         </Button>
       </div>
+
+      {isAdmin && semPrecoRows.length > 0 && (
+        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/5 p-3">
+          <p className="text-sm font-semibold text-destructive">
+            {semPrecoRows.length} produto(s) sem preço cadastrado (R$ 0,00)
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            A compra desses itens está bloqueada até o preço ser corrigido, para não gerar pedido zerado.
+          </p>
+          <ul className="mt-2 space-y-0.5 max-h-40 overflow-y-auto">
+            {semPrecoRows.map(r => (
+              <li key={r.id} className="text-xs text-foreground">
+                {r.nome} — Tam {r.tamanho} <span className="text-muted-foreground">({r.sku_base})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <EstoqueEmprestimosPanel
         canManage={canManageEmprestimos}

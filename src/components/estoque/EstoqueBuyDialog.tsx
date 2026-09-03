@@ -266,6 +266,15 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
     if (!vendedor.trim()) { toast.error('Vendedor obrigatório.'); return; }
     if (!numero.trim()) { toast.error('Informe o nº do pedido.'); return; }
     if (itens.length === 0) { toast.error('Adicione ao menos uma unidade.'); return; }
+    if (itens.some(it => !(it.preco_unit > 0))) {
+      toast.error('Há item sem preço cadastrado. Peça ao admin para corrigir o preço do produto antes de comprar.');
+      return;
+    }
+    if (!(total > 0)) {
+      toast.error('Total do pedido ficou R$ 0,00 — compra bloqueada. Verifique o preço do produto.');
+      return;
+    }
+
 
     // Agrupa itens por produto_id, preservando ordem dos extras por unidade
     const grouped = new Map<string, { produto_id: string; quantidade: number; preco_unit: number; descricao: string; extras_por_unidade: any[][] }>();
@@ -479,19 +488,23 @@ const EstoqueBuyDialog = ({ open, onClose, produto, onSuccess, vendedores = [] }
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
               {tamanhosOrdenados.map(t => {
                 const disp = disponivelReal(t);
-                const esgotado = disp === 0;
+                const semPreco = !(Number(t.preco) > 0);
+                const esgotado = disp === 0 || semPreco;
                 const reservadoOutros = reservasOutros[t.id] || 0;
                 return (
-                  <div key={t.id} className={`p-2 rounded border ${esgotado ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-muted/40'}`}>
+                  <div key={t.id} className={`p-2 rounded border ${semPreco ? 'border-destructive/60 bg-destructive/5' : esgotado ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-muted/40'}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-bold">{t.tamanho}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        {esgotado ? 'esgotado' : `${disp} disp.`}
+                        {semPreco ? <span className="text-destructive font-semibold">sem preço</span> : esgotado ? 'esgotado' : `${disp} disp.`}
                         {reservadoOutros > 0 && !esgotado && (
                           <span className="ml-1 text-amber-600" title={`${reservadoOutros} reservado(s) por outro vendedor`}>·{reservadoOutros}res</span>
                         )}
                       </span>
                     </div>
+                    {semPreco && (
+                      <p className="text-[10px] text-destructive mb-1">Produto sem preço cadastrado — avise o admin.</p>
+                    )}
                     <Input
                       type="number"
                       min={0}
