@@ -23,7 +23,7 @@ Não é bug de cálculo nem tem relação com a mudança da Bola Grande: o produ
    Na tela de compra do estoque, se o preço do tamanho for 0 ou vazio, o item aparece marcado em vermelho ("Produto sem preço cadastrado") e o botão de confirmar fica desabilitado, com aviso para procurar o admin.
 
 2. **Impedir cadastro/edição de produto com preço 0**
-   No formulário de produto do estoque, exigir preço maior que zero para salvar (mesma validação na edição de preço por tamanho).
+   No formulário de produto do estoque, exigir preço maior que zero para salvar (inclusive na criação avulsa e na edição de preço por tamanho), sugerindo automaticamente o preço somado da ficha como valor inicial.
 
 3. **Salvaguarda no salvamento do pedido**
    Se, mesmo assim, o total calculado ficar 0 em um pedido de estoque, o salvamento é recusado com mensagem clara em vez de gravar um pedido zerado.
