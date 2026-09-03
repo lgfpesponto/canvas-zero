@@ -197,6 +197,8 @@ export function buildBotaComposicao(
     push('Metais: ' + metais, p);
   }
   if (snap.strass_qtd) pushFixed(`Strass x${snap.strass_qtd}`, snap.strass_qtd * getDynamicUnitPrice('strass', STRASS_PRECO));
+  const bolaGrandeQtd = getBolaGrandeQtd(snap);
+  if (bolaGrandeQtd) pushFixed(`Bola Grande x${bolaGrandeQtd}`, bolaGrandeQtd * getDynamicUnitPrice('bola_grande', BOLA_GRANDE_PRECO));
   if (snap.cruz_metal_qtd) pushFixed(`Cruz Metal x${snap.cruz_metal_qtd}`, snap.cruz_metal_qtd * getDynamicUnitPrice('cruz_metal', CRUZ_METAL_PRECO));
   if (snap.bridao_metal_qtd) pushFixed(`Bridão Metal x${snap.bridao_metal_qtd}`, snap.bridao_metal_qtd * getDynamicUnitPrice('bridao_metal', BRIDAO_METAL_PRECO));
   if (det.cavaloMetal && det.cavaloMetalQtd) {
