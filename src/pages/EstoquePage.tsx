@@ -257,6 +257,24 @@ const EstoquePage = () => {
         </Button>
       </div>
 
+      {isAdmin && semPrecoRows.length > 0 && (
+        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/5 p-3">
+          <p className="text-sm font-semibold text-destructive">
+            {semPrecoRows.length} produto(s) sem preço cadastrado (R$ 0,00)
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            A compra desses itens está bloqueada até o preço ser corrigido, para não gerar pedido zerado.
+          </p>
+          <ul className="mt-2 space-y-0.5 max-h-40 overflow-y-auto">
+            {semPrecoRows.map(r => (
+              <li key={r.id} className="text-xs text-foreground">
+                {r.nome} — Tam {r.tamanho} <span className="text-muted-foreground">({r.sku_base})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <EstoqueEmprestimosPanel
         canManage={canManageEmprestimos}
         currentUserId={user?.id}
