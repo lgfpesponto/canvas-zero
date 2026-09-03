@@ -2,42 +2,42 @@
 
 ## O que aconteceu
 
-O pedido nasceu zerado porque o **produto do estoque estava cadastrado com preço R$ 0,00**.
+Achei o bug de verdade: **o pré-cadastro de tamanhos com quantidade zero grava o preço fixo em 0**.
 
 Produto: "Texana Florência Radiante Bico Fino Perfilado Ponta Quadrada" (tam 38)
-- Criado avulso (manualmente) por Stefany em 14/08 19:46, com quantidade 1 e **preço 0** — não veio de nenhum pedido de produção (não existe pedido com esse SKU)
-- Compra feita por Maria Gabriela em 27/08 → o pedido copiou o preço do produto (0)
-- Em 01/09 a Juliana corrigiu manualmente: "Alterado Valor total de 0 para 415,60 — ela estava sem valor cobrando"
+- Criado em 14/08 19:46 com **quantidade 0 e preço 0**, pelo fluxo "Estoque já criado" da ficha de produção — nesse fluxo, os tamanhos que ficam com quantidade 0 são inseridos direto na tabela de estoque com `preco: 0` fixo no código, ignorando o valor calculado da ficha
+- Um minuto depois (19:47) a Stefany ajustou a quantidade de 0 para 1 — o ajuste de quantidade não mexe no preço, então continuou 0
+- 27/08: compra da Maria Gabriela copiou o preço do produto (0) → pedido 4-299EST zerado
+- 01/09: Juliana corrigiu manualmente para R$ 415,60
 
-Respondendo à dúvida: o preço do produto de estoque **não é somado da ficha**. A ficha é guardada só como snapshot descritivo. O campo `preco` do produto é preenchido de duas formas: copiado do `preco` do pedido que originou o estoque, ou digitado à mão quando o produto é criado avulso. Nesse caso foi criação avulsa e o campo ficou vazio (0).
+Respondendo à dúvida: a ficha realmente calcula o valor, mas ele só é aproveitado quando o produto nasce de um pedido com quantidade (aí o preço do pedido é copiado). No caminho de tamanho zerado o código nunca usa esse valor — insere 0 direto. Por isso a ficha/composição mostra tudo certo e só o total fica zerado:
+- **Composição exibida**: calculada na hora pelo snapshot da ficha, linha a linha → correta.
+- **Total do pedido**: cópia de `estoque_produtos.preco` = 0 → é o que fica gravado e cobrado.
 
-Por isso a composição aparece certa e só o total ficou zerado:
-- **Composição exibida**: calculada na hora a partir do snapshot da ficha, cada linha com seu próprio preço → itens corretos.
-- **Total do pedido**: valor copiado de `estoque_produtos.preco`, que era 0 → é esse que fica gravado e cobrado.
-
-Não é bug de cálculo nem tem relação com a mudança da Bola Grande: o produto foi cadastrado sem preço e a compra foi aceita assim mesmo, sem nenhum aviso.
+Nada a ver com a mudança da Bola Grande.
 
 ## Correção proposta
 
-1. **Bloquear compra de produto sem preço**
-   Na tela de compra do estoque, se o preço do tamanho for 0 ou vazio, o item aparece marcado em vermelho ("Produto sem preço cadastrado") e o botão de confirmar fica desabilitado, com aviso para procurar o admin.
+1. **Corrigir o pré-cadastro de tamanho zerado (causa raiz)**
+   No fluxo "Estoque já criado", em vez de gravar preço 0, usar o valor calculado da ficha (o mesmo preço unitário que o pedido teria), para que o produto já nasça com preço correto.
 
-2. **Impedir cadastro/edição de produto com preço 0**
-   No formulário de produto do estoque, exigir preço maior que zero para salvar (inclusive na criação avulsa e na edição de preço por tamanho), sugerindo automaticamente o preço somado da ficha como valor inicial.
+2. **Bloquear compra de produto sem preço**
+   Na tela de compra do estoque, item com preço 0 aparece destacado ("Produto sem preço cadastrado") e o botão de confirmar fica desabilitado.
 
 3. **Salvaguarda no salvamento do pedido**
-   Se, mesmo assim, o total calculado ficar 0 em um pedido de estoque, o salvamento é recusado com mensagem clara em vez de gravar um pedido zerado.
+   Se o total de um pedido de estoque ficar 0, recusar o salvamento com mensagem clara em vez de gravar pedido zerado.
 
-4. **Lista de produtos com preço zerado (só admin)**
-   Aviso na página de Estoque mostrando quantos produtos estão com preço 0, para corrigir antes que gere outro pedido zerado.
+4. **Lista de produtos com preço zerado (admin)**
+   Aviso na página de Estoque listando os produtos ativos com preço 0, para corrigir antes de virar outro pedido zerado.
 
 ## Observações
 
-- Nada de valor de pedidos existentes é alterado. O 4-299EST já está correto (R$ 415,60).
-- Ainda vale corrigir o cadastro do produto "Texana Florência Radiante..." que segue com preço 0.
+- Nenhum valor de pedido existente é alterado. O 4-299EST já está correto (R$ 415,60).
+- O produto "Texana Florência Radiante..." segue com preço 0 no cadastro e precisa ser corrigido.
 
 ## Detalhes técnicos
 
-- `EstoqueBuyDialog.tsx`: `preco_unit` vem de `t.preco` dos tamanhos; adicionar validação/disable quando `preco_unit <= 0` (considerando desconto promocional).
-- Formulário de criação/edição de produto (`estoque_produtos` / tamanhos): validação `preco > 0` antes do submit.
-- Handler de criação de pedido a partir do estoque: retornar erro se `total <= 0`.
+- `OrderPage.tsx` (~linha 1652): `rowsToInsert` usa `preco: 0` fixo — trocar pelo preço unitário calculado da ficha.
+- `EstoqueBuyDialog.tsx`: `preco_unit` vem de `t.preco`; desabilitar quando `<= 0` (considerando desconto promocional).
+- Criação de pedido a partir do estoque: erro se `total <= 0`.
+- Query auxiliar: `estoque_produtos` com `preco = 0 and ativo = true`.
