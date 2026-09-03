@@ -57,6 +57,8 @@ export interface BotaComposicaoLinha {
 export interface BotaComposicao {
   linhas: BotaComposicaoLinha[];
   subtotalFicha: number;
+  /** Diferença entre o valor cobrado e a soma da ficha (0 quando fecha exato). */
+  residuo: number;
 }
 
 const EXTRA_LABELS: Record<string, string> = {
