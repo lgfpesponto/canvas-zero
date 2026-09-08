@@ -3015,6 +3015,10 @@ export type Database = {
       }
       decrement_regata_stock: { Args: { stock_id: string }; Returns: undefined }
       decrement_stock: { Args: { stock_id: string }; Returns: undefined }
+      decrement_stock_qty: {
+        Args: { qtd: number; stock_id: string }
+        Returns: number
+      }
       descartar_comprovantes_historico: {
         Args: { _ids: string[]; _motivo: string }
         Returns: Json

@@ -309,10 +309,17 @@ const OrderDetailPage = () => {
     if (!order.tipoExtra || !order.extraDetalhes) return [];
     const det: any = order.extraDetalhes;
     const labelOf = (k: string) => EXTRA_DETAIL_LABELS[k] || k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-    const valOf = (v: any) => Array.isArray(v) ? v.join(', ') : String(v);
+    const valOf = (k: string, v: any) => {
+      if (k === 'gravatas' && Array.isArray(v)) {
+        return v
+          .map((g: any) => `${[g?.corTira, g?.tipoMetal, g?.corBrilho].filter(Boolean).join(' + ')} — ${parseInt(g?.quantidade) || 1}x`)
+          .join(' | ');
+      }
+      return Array.isArray(v) ? v.join(', ') : String(v);
+    };
     return Object.entries(det)
       .filter(([k, v]) => !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(v) && k !== 'botas')
-      .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
+      .map(([k, v]) => [labelOf(k), valOf(k, v)] as [string, string]);
   })();
 
   // Categorized extras for cinto (mirror "ficha" layout)
@@ -483,8 +490,15 @@ const OrderDetailPage = () => {
       case 'revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
       case 'kit_revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 26 * qty; break; }
       case 'palmilha': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
-      case 'gravata_country': t += 30; break;
-      case 'gravata_pronta_entrega': t += 30; break;
+      case 'gravata_country': { const qty = parseInt(det.quantidade) || 1; t += 30 * qty; break; }
+      case 'gravata_pronta_entrega': {
+        const lista = (det.gravatas as any[]) || [];
+        const qty = lista.length > 0
+          ? lista.reduce((s: number, g: any) => s + (parseInt(g?.quantidade) || 1), 0)
+          : (parseInt(det.quantidade) || 1);
+        t += 30 * qty;
+        break;
+      }
       case 'regata_pronta_entrega': t += 50; break;
       case 'adicionar_metais': {
         const sel = (det.metaisSelecionados as string[]) || [];
@@ -1030,12 +1044,25 @@ const OrderDetailPage = () => {
                       extraPriceItems.push([`Palmilha${qty > 1 ? ` (${qty}x)` : ''}`, 10 * qty]);
                       break;
                     }
-                    case 'gravata_country':
-                      extraPriceItems.push(['Gravata Country', 30]);
+                    case 'gravata_country': {
+                      const qty = parseInt(det.quantidade) || 1;
+                      extraPriceItems.push([`Gravata Country${qty > 1 ? ` (${qty}x R$30,00)` : ''}`, 30 * qty]);
                       break;
-                    case 'gravata_pronta_entrega':
-                      extraPriceItems.push(['Gravata Pronta Entrega', 30]);
+                    }
+                    case 'gravata_pronta_entrega': {
+                      const lista = (det.gravatas as any[]) || [];
+                      if (lista.length > 0) {
+                        lista.forEach((g: any) => {
+                          const q = parseInt(g?.quantidade) || 1;
+                          const nome = [g?.corTira, g?.tipoMetal, g?.corBrilho].filter(Boolean).join(' + ');
+                          extraPriceItems.push([`Gravata Pronta Entrega — ${nome} (${q}x R$30,00)`, 30 * q]);
+                        });
+                      } else {
+                        const qty = parseInt(det.quantidade) || 1;
+                        extraPriceItems.push([`Gravata Pronta Entrega${qty > 1 ? ` (${qty}x R$30,00)` : ''}`, 30 * qty]);
+                      }
                       break;
+                    }
                     case 'regata_pronta_entrega':
                       extraPriceItems.push(['Regata Pronta Entrega', 50]);
                       break;

@@ -111,6 +111,13 @@ const ExtrasPage = () => {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockQtd, setEditingStockQtd] = useState('');
   const [gravataSearch, setGravataSearch] = useState('');
+  // Gravata Pronta Entrega: várias variações por pedido → { stockId: quantidade (string) }
+  const [gravataQtds, setGravataQtds] = useState<Record<string, string>>({});
+  const setGravataQtd = (id: string, v: string) => setGravataQtds(prev => ({ ...prev, [id]: v }));
+  const gravataSelecionadas = () =>
+    Object.entries(gravataQtds)
+      .map(([id, q]) => ({ item: stockItems.find(s => s.id === id), qtd: parseInt(q) || 0 }))
+      .filter(x => x.item && x.qtd > 0) as { item: StockItem; qtd: number }[];
 
   // Regata stock
   const [regataStockItems, setRegataStockItems] = useState<RegataStockItem[]>([]);
@@ -146,6 +153,7 @@ const ExtrasPage = () => {
     }
     setForm(emptyForm());
     setSelectedStockId('');
+    setGravataQtds({});
     setSelectedRegataStockId('');
     setBotasPE([emptyBotaPE()]);
     setOpenProduct(productId);
@@ -183,8 +191,12 @@ const ExtrasPage = () => {
       }
       case 'revitalizador': return (base ?? 10) * (parseInt(form.quantidade) || 1);
       case 'kit_revitalizador': return (base ?? 26) * (parseInt(form.quantidade) || 1);
-      case 'gravata_country': return base ?? 30;
-      case 'gravata_pronta_entrega': return base ?? 30;
+      case 'gravata_country': return (base ?? 30) * (parseInt(form.quantidade) || 1);
+      case 'gravata_pronta_entrega': {
+        const unit = base ?? 30;
+        const totalQtd = gravataSelecionadas().reduce((s, g) => s + g.qtd, 0);
+        return unit * (totalQtd || 1);
+      }
       case 'adicionar_metais': {
         let total = 0;
         const sel = form.metaisSelecionados as string[];
@@ -234,13 +246,17 @@ const ExtrasPage = () => {
       }
 
       if (productId === 'gravata_pronta_entrega') {
-        if (!selectedStockId) {
-          toast({ title: 'Selecione uma variação disponível', variant: 'destructive' });
+        const sel = gravataSelecionadas();
+        if (sel.length === 0) {
+          toast({ title: 'Selecione ao menos uma gravata e informe a quantidade', variant: 'destructive' });
           return;
         }
-        const stockItem = stockItems.find(s => s.id === selectedStockId);
-        if (!stockItem || stockItem.quantidade <= 0) {
-          toast({ title: 'Variação sem estoque disponível', variant: 'destructive' });
+        const semEstoque = sel.find(g => g.qtd > g.item.quantidade);
+        if (semEstoque) {
+          toast({
+            title: `Quantidade acima do disponível: ${semEstoque.item.cor_tira} + ${semEstoque.item.tipo_metal} (${semEstoque.item.quantidade} disponíve${semEstoque.item.quantidade === 1 ? 'l' : 'is'})`,
+            variant: 'destructive',
+          });
           return;
         }
       }
@@ -283,7 +299,7 @@ const ExtrasPage = () => {
         carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
         revitalizador: ['tipoRevitalizador', 'quantidade'],
         kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
-        gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
+        gravata_country: ['corTira', 'tipoMetal', 'corBridao', 'quantidade'],
         gravata_pronta_entrega: ['corTira', 'tipoMetal'],
         adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
@@ -306,9 +322,20 @@ const ExtrasPage = () => {
           detalhes.valorManual = botasPE[0].valor;
         }
       } else if (productId === 'gravata_pronta_entrega') {
-        const stockItem = stockItems.find(s => s.id === selectedStockId)!;
-        detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
-        if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
+        const sel = gravataSelecionadas();
+        detalhes = {
+          gravatas: sel.map(g => ({
+            corTira: g.item.cor_tira,
+            tipoMetal: g.item.tipo_metal,
+            ...(g.item.cor_brilho ? { corBrilho: g.item.cor_brilho } : {}),
+            quantidade: g.qtd,
+          })),
+        };
+        if (sel.length === 1) {
+          detalhes.corTira = sel[0].item.cor_tira;
+          detalhes.tipoMetal = sel[0].item.tipo_metal;
+          if (sel[0].item.cor_brilho) detalhes.corBrilho = sel[0].item.cor_brilho;
+        }
       } else if (productId === 'regata_pronta_entrega') {
         const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId)!;
         detalhes = {
@@ -350,7 +377,11 @@ const ExtrasPage = () => {
         desenvolvimento: '-',
         sobMedida: false,
         observacao: '',
-        quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
+        quantidade: productId === 'gravata_pronta_entrega'
+          ? (gravataSelecionadas().reduce((s, g) => s + g.qtd, 0) || 1)
+          : ['revitalizador', 'kit_revitalizador', 'palmilha', 'gravata_country'].includes(productId)
+            ? (parseInt(form.quantidade) || 1)
+            : 1,
         // Modelo v2: preco já é o TOTAL FINAL (calcPrice retorna total cheio incl. quantidade).
         preco: price,
         precoMigradoV2: true,
@@ -364,7 +395,10 @@ const ExtrasPage = () => {
 
       if (success) {
         if (productId === 'gravata_pronta_entrega') {
-          await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
+          for (const g of gravataSelecionadas()) {
+            await (supabase as any).rpc('decrement_stock_qty', { stock_id: g.item.id, qtd: g.qtd });
+          }
+          setGravataQtds({});
           fetchStock();
         }
         if (productId === 'regata_pronta_entrega') {
@@ -672,6 +706,15 @@ const ExtrasPage = () => {
                 <SearchableSelect options={['Cristal', 'Rosa', 'Azul', 'Preto']} value={form.corBridao} onValueChange={v => set('corBridao', v)} placeholder="Selecione" />
               </div>
             )}
+            <div>
+              <Label>Quantidade *</Label>
+              <Input
+                type="number"
+                min="1"
+                value={form.quantidade ?? '1'}
+                onChange={e => set('quantidade', e.target.value)}
+              />
+            </div>
           </>
         )}
 
@@ -686,9 +729,10 @@ const ExtrasPage = () => {
               if (available.length === 0) {
                 return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
               }
+              const totalSel = gravataSelecionadas().reduce((s, g) => s + g.qtd, 0);
               return (
                 <div>
-                  <Label>Selecione a variação *</Label>
+                  <Label>Selecione as gravatas e a quantidade *</Label>
                   <div className="relative mt-1 mb-2">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -698,17 +742,38 @@ const ExtrasPage = () => {
                       className="pl-8 h-8 text-xs"
                     />
                   </div>
-                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="space-y-2">
-                    {filtered.map(item => (
-                      <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
-                        <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
-                        <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                          {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    {filtered.map(item => {
+                      const qtdStr = gravataQtds[item.id] ?? '';
+                      const qtd = parseInt(qtdStr) || 0;
+                      const excede = qtd > item.quantidade;
+                      return (
+                        <div key={item.id} className={`flex items-center gap-2 rounded-lg border p-3 ${excede ? 'border-destructive' : 'border-border'}`}>
+                          <Checkbox
+                            id={`stock-${item.id}`}
+                            checked={qtd > 0}
+                            onCheckedChange={c => setGravataQtd(item.id, c ? '1' : '')}
+                          />
+                          <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
+                            {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={item.quantidade}
+                            value={qtdStr}
+                            onChange={e => setGravataQtd(item.id, e.target.value)}
+                            placeholder="Qtd"
+                            className="h-8 w-20 text-center"
+                          />
+                        </div>
+                      );
+                    })}
                     {filtered.length === 0 && <p className="text-sm text-muted-foreground">Nenhum resultado para "{gravataSearch}".</p>}
-                  </RadioGroup>
+                  </div>
+                  {totalSel > 0 && (
+                    <p className="mt-2 text-sm text-muted-foreground">Total selecionado: {totalSel} gravata{totalSel === 1 ? '' : 's'}</p>
+                  )}
                 </div>
               );
             })()}

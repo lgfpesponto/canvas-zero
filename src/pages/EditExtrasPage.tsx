@@ -80,6 +80,7 @@ const EditExtrasPage = () => {
       corBrilho: det.corBrilho || '',
       tamanhoPalmilha: det.tamanhoPalmilha || '',
       formatoBicoPalmilha: det.formatoBicoPalmilha || '',
+      gravatas: Array.isArray(det.gravatas) ? det.gravatas : [],
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
@@ -120,7 +121,7 @@ const EditExtrasPage = () => {
       }
       case 'revitalizador': return 10 * (parseInt(form.quantidade) || 1);
       case 'kit_revitalizador': return 26 * (parseInt(form.quantidade) || 1);
-      case 'gravata_country': return 30;
+      case 'gravata_country': return 30 * (parseInt(form.quantidade) || 1);
       case 'adicionar_metais': {
         let total = 0;
         const sel = (form.metaisSelecionados || []) as string[];
@@ -133,7 +134,13 @@ const EditExtrasPage = () => {
       case 'bainha_celular': return 50 + couroExtraAdicional(form.tipoCouro);
       case 'regata': return 50;
       case 'regata_pronta_entrega': return 50;
-      case 'gravata_pronta_entrega': return 30;
+      case 'gravata_pronta_entrega': {
+        const lista = (form.gravatas || []) as any[];
+        const qty = lista.length > 0
+          ? lista.reduce((s: number, g: any) => s + (parseInt(g?.quantidade) || 1), 0)
+          : (parseInt(form.quantidade) || 1);
+        return 30 * qty;
+      }
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       case 'palmilha': return PALMILHA_PRECO_UNITARIO * (parseInt(form.quantidade) || 1);
       default: return 0;
@@ -148,8 +155,8 @@ const EditExtrasPage = () => {
     carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
     revitalizador: ['tipoRevitalizador', 'quantidade'],
     kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
-    gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
-    gravata_pronta_entrega: ['corTira', 'tipoMetal', 'corBrilho'],
+    gravata_country: ['corTira', 'tipoMetal', 'corBridao', 'quantidade'],
+    gravata_pronta_entrega: ['corTira', 'tipoMetal', 'corBrilho', 'gravatas'],
     adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
     chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
     bainha_cartao: ['tipoCouro', 'corCouro'],
@@ -215,7 +222,11 @@ const EditExtrasPage = () => {
       preco: Math.max(0, price - (Number(order.desconto) || 0)),
       precoMigradoV2: true,
       precoCongelado: false,
-      quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
+      quantidade: productId === 'gravata_pronta_entrega'
+        ? (((form.gravatas || []) as any[]).reduce((s: number, g: any) => s + (parseInt(g?.quantidade) || 1), 0) || (parseInt(form.quantidade) || 1))
+        : ['revitalizador', 'kit_revitalizador', 'palmilha', 'gravata_country'].includes(productId)
+          ? (parseInt(form.quantidade) || 1)
+          : 1,
       extraDetalhes: detalhes,
     };
 
@@ -458,6 +469,10 @@ const EditExtrasPage = () => {
                   </Select>
                 </div>
               )}
+              <div>
+                <Label>Quantidade *</Label>
+                <Input type="number" min="1" value={form.quantidade || '1'} onChange={e => set('quantidade', e.target.value)} />
+              </div>
             </>
           )}
 
@@ -548,9 +563,19 @@ const EditExtrasPage = () => {
           {productId === 'gravata_pronta_entrega' && (
             <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
               <p className="font-semibold mb-1">Variação do estoque (não editável)</p>
-              <p>Cor da tira: <span className="font-medium">{form.corTira || '—'}</span></p>
-              <p>Tipo de metal: <span className="font-medium">{form.tipoMetal || '—'}</span></p>
-              {form.corBrilho && <p>Cor do brilho: <span className="font-medium">{form.corBrilho}</span></p>}
+              {((form.gravatas || []) as any[]).length > 0 ? (
+                ((form.gravatas || []) as any[]).map((g: any, i: number) => (
+                  <p key={i}>
+                    {[g?.corTira, g?.tipoMetal, g?.corBrilho].filter(Boolean).join(' + ')} — <span className="font-medium">{parseInt(g?.quantidade) || 1}x</span>
+                  </p>
+                ))
+              ) : (
+                <>
+                  <p>Cor da tira: <span className="font-medium">{form.corTira || '—'}</span></p>
+                  <p>Tipo de metal: <span className="font-medium">{form.tipoMetal || '—'}</span></p>
+                  {form.corBrilho && <p>Cor do brilho: <span className="font-medium">{form.corBrilho}</span></p>}
+                </>
+              )}
             </div>
           )}
 
