@@ -222,7 +222,11 @@ const EditExtrasPage = () => {
       preco: Math.max(0, price - (Number(order.desconto) || 0)),
       precoMigradoV2: true,
       precoCongelado: false,
-      quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
+      quantidade: productId === 'gravata_pronta_entrega'
+        ? (((form.gravatas || []) as any[]).reduce((s: number, g: any) => s + (parseInt(g?.quantidade) || 1), 0) || (parseInt(form.quantidade) || 1))
+        : ['revitalizador', 'kit_revitalizador', 'palmilha', 'gravata_country'].includes(productId)
+          ? (parseInt(form.quantidade) || 1)
+          : 1,
       extraDetalhes: detalhes,
     };
 
