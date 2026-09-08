@@ -73,6 +73,7 @@ const OrderDetailPage = () => {
   const linkedBoot = useLinkedBoot(order);
   const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
   const { findFichaPrice } = useFichaPriceForOrder(order);
+  const podeEditarPedido = useCanEditOrder(order);
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
 
