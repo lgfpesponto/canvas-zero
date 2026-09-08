@@ -322,9 +322,20 @@ const ExtrasPage = () => {
           detalhes.valorManual = botasPE[0].valor;
         }
       } else if (productId === 'gravata_pronta_entrega') {
-        const stockItem = stockItems.find(s => s.id === selectedStockId)!;
-        detalhes = { corTira: stockItem.cor_tira, tipoMetal: stockItem.tipo_metal };
-        if (stockItem.cor_brilho) detalhes.corBrilho = stockItem.cor_brilho;
+        const sel = gravataSelecionadas();
+        detalhes = {
+          gravatas: sel.map(g => ({
+            corTira: g.item.cor_tira,
+            tipoMetal: g.item.tipo_metal,
+            ...(g.item.cor_brilho ? { corBrilho: g.item.cor_brilho } : {}),
+            quantidade: g.qtd,
+          })),
+        };
+        if (sel.length === 1) {
+          detalhes.corTira = sel[0].item.cor_tira;
+          detalhes.tipoMetal = sel[0].item.tipo_metal;
+          if (sel[0].item.cor_brilho) detalhes.corBrilho = sel[0].item.cor_brilho;
+        }
       } else if (productId === 'regata_pronta_entrega') {
         const stockItem = regataStockItems.find(s => s.id === selectedRegataStockId)!;
         detalhes = {
