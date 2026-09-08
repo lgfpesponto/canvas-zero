@@ -515,9 +515,14 @@ const EditOrderPage = () => {
       }
     }
 
+    // Edição sempre passa a usar a ficha na versão atual.
+    const { getVersaoAtivaIdBySlug } = await import('@/lib/fichaVersoes');
+    const versaoAtualId = await getVersaoAtivaIdBySlug('bota');
+
     const payload: Partial<Order> = {
       numero: numeroPedido, tamanho, genero, modelo, sobMedida, sobMedidaDesc,
       ...(isAdmin ? { vendedor } : {}),
+      ...(versaoAtualId ? { fichaVersaoId: versaoAtualId } as any : {}),
       solado, formatoBico, quantidade: 1,
       // Modelo v2: preco gravado é o TOTAL FINAL (subtotal − desconto/+acréscimo aplicado).
       preco: Math.max(0, total - (Number(order.desconto) || 0)),
