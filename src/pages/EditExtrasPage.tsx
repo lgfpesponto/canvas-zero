@@ -469,6 +469,10 @@ const EditExtrasPage = () => {
                   </Select>
                 </div>
               )}
+              <div>
+                <Label>Quantidade *</Label>
+                <Input type="number" min="1" value={form.quantidade || '1'} onChange={e => set('quantidade', e.target.value)} />
+              </div>
             </>
           )}
 
