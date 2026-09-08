@@ -395,7 +395,10 @@ const ExtrasPage = () => {
 
       if (success) {
         if (productId === 'gravata_pronta_entrega') {
-          await supabase.rpc('decrement_stock', { stock_id: selectedStockId });
+          for (const g of gravataSelecionadas()) {
+            await (supabase as any).rpc('decrement_stock_qty', { stock_id: g.item.id, qtd: g.qtd });
+          }
+          setGravataQtds({});
           fetchStock();
         }
         if (productId === 'regata_pronta_entrega') {
