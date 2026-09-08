@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS } from '@/lib/orderFieldsConfig';
+import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS, couroExtraAdicional } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, GRAVATA_COR_TIRA, GRAVATA_TIPO_METAL, COR_BRILHO_GRAVATA, PALMILHA_FORMATO_BICO, PALMILHA_PRECO_UNITARIO } from '@/lib/extrasConfig';
 import { getExtraLeadTime } from '@/lib/orderDeadline';
 import { ShoppingCart, Package, Settings, Pencil, Trash2, Check, X, Search, Plus } from 'lucide-react';
@@ -192,9 +192,9 @@ const ExtrasPage = () => {
         if (sel.includes('Strass')) total += getOptPrice(productId, 'itens', 'Strass', 0.60) * (parseInt(form.qtdStrass) || 1);
         return total;
       }
-      case 'chaveiro_carimbo': return base ?? 50;
-      case 'bainha_cartao': return base ?? 15;
-      case 'bainha_celular': return base ?? 50;
+      case 'chaveiro_carimbo': return (base ?? 50) + couroExtraAdicional(form.tipoCouro);
+      case 'bainha_cartao': return (base ?? 15) + couroExtraAdicional(form.tipoCouro);
+      case 'bainha_celular': return (base ?? 50) + couroExtraAdicional(form.tipoCouro);
       case 'regata': return base ?? 50;
       case 'regata_pronta_entrega': return base ?? 50;
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);

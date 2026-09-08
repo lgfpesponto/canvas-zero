@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import SearchableSelect from '@/components/SearchableSelect';
 import { toast } from 'sonner';
 import { TemplateTag } from '@/components/orders/TemplateTag';
-import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS } from '@/lib/orderFieldsConfig';
+import { TIPOS_COURO, CORES_COURO, getCoresCouroFiltradas, TAMANHOS, couroExtraAdicional } from '@/lib/orderFieldsConfig';
 import { EXTRA_PRODUCTS, EXTRA_PRODUCT_NAME_MAP, PALMILHA_FORMATO_BICO, PALMILHA_PRECO_UNITARIO } from '@/lib/extrasConfig';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -128,9 +128,9 @@ const EditExtrasPage = () => {
         if (sel.includes('Strass')) total += 0.60 * (parseInt(form.qtdStrass) || 1);
         return total;
       }
-      case 'chaveiro_carimbo': return 50;
-      case 'bainha_cartao': return 15;
-      case 'bainha_celular': return 50;
+      case 'chaveiro_carimbo': return 50 + couroExtraAdicional(form.tipoCouro);
+      case 'bainha_cartao': return 15 + couroExtraAdicional(form.tipoCouro);
+      case 'bainha_celular': return 50 + couroExtraAdicional(form.tipoCouro);
       case 'regata': return 50;
       case 'regata_pronta_entrega': return 50;
       case 'gravata_pronta_entrega': return 30;
