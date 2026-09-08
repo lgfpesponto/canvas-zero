@@ -121,7 +121,7 @@ const EditExtrasPage = () => {
       }
       case 'revitalizador': return 10 * (parseInt(form.quantidade) || 1);
       case 'kit_revitalizador': return 26 * (parseInt(form.quantidade) || 1);
-      case 'gravata_country': return 30;
+      case 'gravata_country': return 30 * (parseInt(form.quantidade) || 1);
       case 'adicionar_metais': {
         let total = 0;
         const sel = (form.metaisSelecionados || []) as string[];
