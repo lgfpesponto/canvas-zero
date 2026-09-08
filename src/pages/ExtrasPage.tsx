@@ -113,7 +113,13 @@ const ExtrasPage = () => {
   const [gravataSearch, setGravataSearch] = useState('');
   // Gravata Pronta Entrega: várias variações por pedido → { stockId: quantidade (string) }
   const [gravataQtds, setGravataQtds] = useState<Record<string, string>>({});
-  const setGravataQtd = (id: string, v: string) => setGravataQtds(prev => ({ ...prev, [id]: v }));
+  const setGravataQtd = (id: string, v: string, max?: number) => {
+    if (v === '') { setGravataQtds(prev => ({ ...prev, [id]: '' })); return; }
+    let n = parseInt(v.replace(/\D/g, '')) || 0;
+    if (n < 0) n = 0;
+    if (typeof max === 'number' && n > max) n = max;
+    setGravataQtds(prev => ({ ...prev, [id]: n > 0 ? String(n) : '' }));
+  };
   const gravataSelecionadas = () =>
     Object.entries(gravataQtds)
       .map(([id, q]) => ({ item: stockItems.find(s => s.id === id), qtd: parseInt(q) || 0 }))
