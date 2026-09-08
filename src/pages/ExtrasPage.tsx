@@ -246,13 +246,17 @@ const ExtrasPage = () => {
       }
 
       if (productId === 'gravata_pronta_entrega') {
-        if (!selectedStockId) {
-          toast({ title: 'Selecione uma variação disponível', variant: 'destructive' });
+        const sel = gravataSelecionadas();
+        if (sel.length === 0) {
+          toast({ title: 'Selecione ao menos uma gravata e informe a quantidade', variant: 'destructive' });
           return;
         }
-        const stockItem = stockItems.find(s => s.id === selectedStockId);
-        if (!stockItem || stockItem.quantidade <= 0) {
-          toast({ title: 'Variação sem estoque disponível', variant: 'destructive' });
+        const semEstoque = sel.find(g => g.qtd > g.item.quantidade);
+        if (semEstoque) {
+          toast({
+            title: `Quantidade acima do disponível: ${semEstoque.item.cor_tira} + ${semEstoque.item.tipo_metal} (${semEstoque.item.quantidade} disponíve${semEstoque.item.quantidade === 1 ? 'l' : 'is'})`,
+            variant: 'destructive',
+          });
           return;
         }
       }
