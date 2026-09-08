@@ -398,18 +398,20 @@ const EditBeltPage = () => {
               )}
             </Section>
 
-            <Section title="Adicional">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={cls.label}>Valor do Adicional (R$)</label>
-                  <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} placeholder="0,00" className={cls.input} />
+            {isAdmin && (
+              <Section title="Adicional">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={cls.label}>Valor do Adicional (R$)</label>
+                    <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} placeholder="0,00" className={cls.input} />
+                  </div>
+                  <div>
+                    <label className={cls.label}>Descrição do Adicional</label>
+                    <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
+                  </div>
                 </div>
-                <div>
-                  <label className={cls.label}>Descrição do Adicional</label>
-                  <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
-                </div>
-              </div>
-            </Section>
+              </Section>
+            )}
 
             <div>
               <label className={cls.label}>Observação</label>
