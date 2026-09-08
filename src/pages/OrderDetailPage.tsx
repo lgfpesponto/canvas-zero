@@ -1037,12 +1037,25 @@ const OrderDetailPage = () => {
                       extraPriceItems.push([`Palmilha${qty > 1 ? ` (${qty}x)` : ''}`, 10 * qty]);
                       break;
                     }
-                    case 'gravata_country':
-                      extraPriceItems.push(['Gravata Country', 30]);
+                    case 'gravata_country': {
+                      const qty = parseInt(det.quantidade) || 1;
+                      extraPriceItems.push([`Gravata Country${qty > 1 ? ` (${qty}x R$30,00)` : ''}`, 30 * qty]);
                       break;
-                    case 'gravata_pronta_entrega':
-                      extraPriceItems.push(['Gravata Pronta Entrega', 30]);
+                    }
+                    case 'gravata_pronta_entrega': {
+                      const lista = (det.gravatas as any[]) || [];
+                      if (lista.length > 0) {
+                        lista.forEach((g: any) => {
+                          const q = parseInt(g?.quantidade) || 1;
+                          const nome = [g?.corTira, g?.tipoMetal, g?.corBrilho].filter(Boolean).join(' + ');
+                          extraPriceItems.push([`Gravata Pronta Entrega — ${nome} (${q}x R$30,00)`, 30 * q]);
+                        });
+                      } else {
+                        const qty = parseInt(det.quantidade) || 1;
+                        extraPriceItems.push([`Gravata Pronta Entrega${qty > 1 ? ` (${qty}x R$30,00)` : ''}`, 30 * qty]);
+                      }
                       break;
+                    }
                     case 'regata_pronta_entrega':
                       extraPriceItems.push(['Regata Pronta Entrega', 50]);
                       break;
