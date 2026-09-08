@@ -299,7 +299,7 @@ const ExtrasPage = () => {
         carimbo_fogo: ['qtdCarimbos', 'descCarimbos', 'ondeAplicado', 'numeroPedidoBotaVinculo', 'vinculadoBota'],
         revitalizador: ['tipoRevitalizador', 'quantidade'],
         kit_revitalizador: ['tipoRevitalizador', 'quantidade'],
-        gravata_country: ['corTira', 'tipoMetal', 'corBridao'],
+        gravata_country: ['corTira', 'tipoMetal', 'corBridao', 'quantidade'],
         gravata_pronta_entrega: ['corTira', 'tipoMetal'],
         adicionar_metais: ['metaisSelecionados', 'qtdStrass', 'qtdBolaGrande', 'numeroPedidoBotaVinculo'],
         chaveiro_carimbo: ['tipoCouro', 'corCouro', 'descCarimbos'],
