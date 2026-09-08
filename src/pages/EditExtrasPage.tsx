@@ -20,6 +20,7 @@ import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BotaPEItem, BotaPEExtra, BOTA_PE_EXTRA_TYPES, BOTA_PE_EXTRA_LABEL, calcEmbeddedExtraPrice, calcBootTotal, emptyBotaPE, serializeBota, deserializeBota } from '@/lib/botaExtraHelpers';
 import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { useCanEditOrder } from '@/hooks/useCanEditOrder';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 
 const EditExtrasPage = () => {
@@ -27,6 +28,7 @@ const EditExtrasPage = () => {
   const { isAdmin, updateOrder, allProfiles, user } = useAuth();
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
+  const canEdit = useCanEditOrder(order);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const fotoParam = searchParams.get('foto') === '1';
@@ -96,7 +98,7 @@ const EditExtrasPage = () => {
     setLoaded(true);
   }, [order, loaded]);
 
-  if (!isAdmin) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Acesso restrito ao administrador.</p></div>;
+  if (!canEdit) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Este pedido não pode mais ser editado.</p></div>;
   if (!order) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Pedido não encontrado.</p></div>;
 
   const productId = order.tipoExtra || '';

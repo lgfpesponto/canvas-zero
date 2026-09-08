@@ -15,7 +15,10 @@ import { useAuth, Order } from '@/contexts/AuthContext';
 export function useEditWithJustification() {
   const { user } = useAuth();
   const requiresJustification =
-    user?.role === 'admin_master' || user?.role === 'admin_producao';
+    user?.role === 'admin_master' ||
+    user?.role === 'admin_producao' ||
+    user?.role === 'vendedor' ||
+    user?.role === 'vendedor_comissao';
 
   const [pending, setPending] = useState<{
     id: string;

@@ -10,6 +10,7 @@ import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recompu
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
+import { useCanEditOrder } from '@/hooks/useCanEditOrder';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
@@ -73,6 +74,7 @@ const OrderDetailPage = () => {
   const linkedBoot = useLinkedBoot(order);
   const { linked: linkedErro } = useLinkedErro(order?.erroDePedidoId ? null : order?.id);
   const { findFichaPrice } = useFichaPriceForOrder(order);
+  const podeEditarPedido = useCanEditOrder(order);
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
 
@@ -1378,7 +1380,7 @@ const OrderDetailPage = () => {
             <h2 className="text-lg font-display font-bold">
               {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
             </h2>
-            {isAdmin && (
+            {podeEditarPedido && (
               <button
                 onClick={() => {
                   const editPath = order.tipoExtra === 'cinto'

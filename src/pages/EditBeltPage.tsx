@@ -18,6 +18,7 @@ import {
   FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
 import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { useCanEditOrder } from '@/hooks/useCanEditOrder';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 
 const cls = {
@@ -39,6 +40,7 @@ const EditBeltPage = () => {
   const { isAdmin, updateOrder, allProfiles } = useAuth();
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
+  const canEdit = useCanEditOrder(order);
   const { items: fichaItems } = useFichaVariacoesLookup();
   const _bnorm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   const mergeBeltOptions = useCallback(<T extends string | { label: string; preco: number }>(
@@ -136,7 +138,7 @@ const EditBeltPage = () => {
     setLoaded(true);
   }, [order, loaded]);
 
-  if (!isAdmin) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Acesso restrito ao administrador.</p></div>;
+  if (!canEdit) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Este pedido não pode mais ser editado.</p></div>;
   if (orderLoading) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
   if (!order) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Pedido não encontrado.</p></div>;
   if (order.tipoExtra !== 'cinto') {
@@ -396,18 +398,20 @@ const EditBeltPage = () => {
               )}
             </Section>
 
-            <Section title="Adicional">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={cls.label}>Valor do Adicional (R$)</label>
-                  <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} placeholder="0,00" className={cls.input} />
+            {isAdmin && (
+              <Section title="Adicional">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={cls.label}>Valor do Adicional (R$)</label>
+                    <input type="number" step="0.01" min="0" value={adicionalValor} onChange={e => setAdicionalValor(e.target.value)} placeholder="0,00" className={cls.input} />
+                  </div>
+                  <div>
+                    <label className={cls.label}>Descrição do Adicional</label>
+                    <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
+                  </div>
                 </div>
-                <div>
-                  <label className={cls.label}>Descrição do Adicional</label>
-                  <input type="text" value={adicionalDesc} onChange={e => setAdicionalDesc(e.target.value)} placeholder="Motivo do adicional..." className={cls.input} />
-                </div>
-              </div>
-            </Section>
+              </Section>
+            )}
 
             <div>
               <label className={cls.label}>Observação</label>
