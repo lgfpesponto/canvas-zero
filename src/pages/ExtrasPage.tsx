@@ -729,9 +729,10 @@ const ExtrasPage = () => {
               if (available.length === 0) {
                 return <p className="text-sm text-muted-foreground">Nenhuma variação com estoque disponível.</p>;
               }
+              const totalSel = gravataSelecionadas().reduce((s, g) => s + g.qtd, 0);
               return (
                 <div>
-                  <Label>Selecione a variação *</Label>
+                  <Label>Selecione as gravatas e a quantidade *</Label>
                   <div className="relative mt-1 mb-2">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -741,17 +742,38 @@ const ExtrasPage = () => {
                       className="pl-8 h-8 text-xs"
                     />
                   </div>
-                  <RadioGroup value={selectedStockId} onValueChange={setSelectedStockId} className="space-y-2">
-                    {filtered.map(item => (
-                      <div key={item.id} className="flex items-center space-x-2 rounded-lg border border-border p-3">
-                        <RadioGroupItem value={item.id} id={`stock-${item.id}`} />
-                        <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                          {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    {filtered.map(item => {
+                      const qtdStr = gravataQtds[item.id] ?? '';
+                      const qtd = parseInt(qtdStr) || 0;
+                      const excede = qtd > item.quantidade;
+                      return (
+                        <div key={item.id} className={`flex items-center gap-2 rounded-lg border p-3 ${excede ? 'border-destructive' : 'border-border'}`}>
+                          <Checkbox
+                            id={`stock-${item.id}`}
+                            checked={qtd > 0}
+                            onCheckedChange={c => setGravataQtd(item.id, c ? '1' : '')}
+                          />
+                          <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
+                            {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={item.quantidade}
+                            value={qtdStr}
+                            onChange={e => setGravataQtd(item.id, e.target.value)}
+                            placeholder="Qtd"
+                            className="h-8 w-20 text-center"
+                          />
+                        </div>
+                      );
+                    })}
                     {filtered.length === 0 && <p className="text-sm text-muted-foreground">Nenhum resultado para "{gravataSearch}".</p>}
-                  </RadioGroup>
+                  </div>
+                  {totalSel > 0 && (
+                    <p className="mt-2 text-sm text-muted-foreground">Total selecionado: {totalSel} gravata{totalSel === 1 ? '' : 's'}</p>
+                  )}
                 </div>
               );
             })()}
