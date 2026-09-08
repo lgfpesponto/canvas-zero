@@ -121,8 +121,8 @@ const EditOrderPage = () => {
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order } = useOrderById(id);
   const { getByCategoria, loading: customOptsLoading } = useCustomOptions();
-  const { getByCustomCategory, loading: fichaLoading } = useFichaVariacoesLookup();
-  const { findFichaPrice } = useFichaPriceForOrder(order);
+  const { getByCustomCategory, findFichaPrice, loading: fichaLoading } = useFichaVariacoesLookup();
+  const canEdit = useCanEditOrder(order);
   const catalogReady = !customOptsLoading && !fichaLoading;
 
   // Unified hardcoded list — keeps bota/cinto/extras consistent.
