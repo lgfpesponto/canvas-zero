@@ -52,7 +52,7 @@ import {
   TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, BOLA_GRANDE_PRECO, CRUZ_METAL_PRECO,
   BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO, FRANJA_PRECO, CORRENTE_PRECO,
   LASER_CANO_PRECO, LASER_GASPEA_PRECO, GLITTER_CANO_PRECO, GLITTER_GASPEA_PRECO,
-  VIRA_HIDDEN, getCorSolaPrecoContextual,
+  VIRA_HIDDEN, getCorSolaPrecoContextual, couroExtraAdicional,
 } from '@/lib/orderFieldsConfig';
 import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
@@ -492,9 +492,9 @@ const OrderDetailPage = () => {
         if (sel.includes('Strass')) { const qty = parseInt(det.qtdStrass) || 1; t += 0.60 * qty; }
         break;
       }
-      case 'chaveiro_carimbo': t += 50; break;
-      case 'bainha_cartao': t += 15; break;
-      case 'bainha_celular': t += 50; break;
+      case 'chaveiro_carimbo': t += 50 + couroExtraAdicional(det.tipoCouro); break;
+      case 'bainha_cartao': t += 15 + couroExtraAdicional(det.tipoCouro); break;
+      case 'bainha_celular': t += 50 + couroExtraAdicional(det.tipoCouro); break;
       case 'regata': t += 50; break;
       case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(order); break;
     }
@@ -1053,12 +1053,15 @@ const OrderDetailPage = () => {
                     }
                     case 'chaveiro_carimbo':
                       extraPriceItems.push(['Chaveiro c/ Carimbo a Fogo', 50]);
+                      if (couroExtraAdicional(det.tipoCouro)) extraPriceItems.push([`Couro ${det.tipoCouro}`, couroExtraAdicional(det.tipoCouro)]);
                       break;
                     case 'bainha_cartao':
                       extraPriceItems.push(['Bainha de Cartão', 15]);
+                      if (couroExtraAdicional(det.tipoCouro)) extraPriceItems.push([`Couro ${det.tipoCouro}`, couroExtraAdicional(det.tipoCouro)]);
                       break;
                     case 'bainha_celular':
                       extraPriceItems.push(['Bainha de Celular', 50]);
+                      if (couroExtraAdicional(det.tipoCouro)) extraPriceItems.push([`Couro ${det.tipoCouro}`, couroExtraAdicional(det.tipoCouro)]);
                       break;
                     case 'regata':
                       extraPriceItems.push(['Regata', 50]);

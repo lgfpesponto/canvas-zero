@@ -46,7 +46,7 @@ export const TIPOS_COURO = [
   'Egípcio','Estilizado em Jacaré','Estilizado em Cobra',
   'Estilizado em Dinossauro','Aramado','Escamado','Estilizado Duplo',
   'Estilizado em Tatu','Vaca Holandesa','Vaca Pintada','Metalizado',
-  'Estilizado em Madeira',
+  'Estilizado em Madeira','Malhado Pintado',
 ];
 
 export const COURO_PRECOS: Record<string, number> = {
@@ -58,7 +58,19 @@ export const COURO_PRECOS: Record<string, number> = {
   'Estilizado Duplo': 20,
   'Vaca Holandesa': 15,
   'Vaca Pintada': 15,
+  'Malhado Pintado': 15,
 };
+
+/** Acréscimo de couro aplicado aos extras de couro (chaveiro, bainhas). */
+export const COURO_EXTRA_ADICIONAL: Record<string, number> = {
+  'Malhado Pintado': 15,
+};
+
+export function couroExtraAdicional(tipoCouro?: string | null): number {
+  if (!tipoCouro) return 0;
+  return COURO_EXTRA_ADICIONAL[tipoCouro] || 0;
+}
+
 
 export const CORES_COURO = [
   'Nescau','Café','Marrom','Preto','Telha','Mostarda','Bege','Azul',

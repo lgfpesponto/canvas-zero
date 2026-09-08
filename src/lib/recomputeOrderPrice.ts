@@ -12,7 +12,7 @@
  */
 import type { Order } from '@/contexts/AuthContext';
 import {
-  MODELOS, ACESSORIOS, COURO_PRECOS, SOLADO, COR_VIRA, CARIMBO, AREA_METAL, DESENVOLVIMENTO,
+  MODELOS, ACESSORIOS, COURO_PRECOS, couroExtraAdicional, SOLADO, COR_VIRA, CARIMBO, AREA_METAL, DESENVOLVIMENTO,
   SOB_MEDIDA_PRECO, NOME_BORDADO_PRECO, ESTAMPA_PRECO, PINTURA_PRECO,
   TRICE_PRECO, TIRAS_PRECO, COSTURA_ATRAS_PRECO, STRASS_PRECO, BOLA_GRANDE_PRECO, CRUZ_METAL_PRECO,
   BRIDAO_METAL_PRECO, CAVALO_METAL_PRECO, FRANJA_PRECO, CORRENTE_PRECO,
@@ -152,9 +152,9 @@ function computeExtraTotal(order: Order): number {
       if (sel.includes('Strass')) { const qty = parseInt(det.qtdStrass) || 1; t += 0.60 * qty; }
       break;
     }
-    case 'chaveiro_carimbo': t += 50; break;
-    case 'bainha_cartao': t += 15; break;
-    case 'bainha_celular': t += 50; break;
+    case 'chaveiro_carimbo': t += 50 + couroExtraAdicional(det.tipoCouro); break;
+    case 'bainha_cartao': t += 15 + couroExtraAdicional(det.tipoCouro); break;
+    case 'bainha_celular': t += 50 + couroExtraAdicional(det.tipoCouro); break;
     case 'regata': t += 50; break;
     case 'bota_pronta_entrega': t += computeBotaProntaEntregaBruto(order); break;
   }
