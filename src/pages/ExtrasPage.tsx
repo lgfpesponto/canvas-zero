@@ -706,6 +706,15 @@ const ExtrasPage = () => {
                 <SearchableSelect options={['Cristal', 'Rosa', 'Azul', 'Preto']} value={form.corBridao} onValueChange={v => set('corBridao', v)} placeholder="Selecione" />
               </div>
             )}
+            <div>
+              <Label>Quantidade *</Label>
+              <Input
+                type="number"
+                min="1"
+                value={form.quantidade ?? '1'}
+                onChange={e => set('quantidade', e.target.value)}
+              />
+            </div>
           </>
         )}
 
