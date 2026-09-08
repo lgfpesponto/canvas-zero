@@ -483,8 +483,15 @@ const OrderDetailPage = () => {
       case 'revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
       case 'kit_revitalizador': { const qty = parseInt(det.quantidade) || 1; t += 26 * qty; break; }
       case 'palmilha': { const qty = parseInt(det.quantidade) || 1; t += 10 * qty; break; }
-      case 'gravata_country': t += 30; break;
-      case 'gravata_pronta_entrega': t += 30; break;
+      case 'gravata_country': { const qty = parseInt(det.quantidade) || 1; t += 30 * qty; break; }
+      case 'gravata_pronta_entrega': {
+        const lista = (det.gravatas as any[]) || [];
+        const qty = lista.length > 0
+          ? lista.reduce((s: number, g: any) => s + (parseInt(g?.quantidade) || 1), 0)
+          : (parseInt(det.quantidade) || 1);
+        t += 30 * qty;
+        break;
+      }
       case 'regata_pronta_entrega': t += 50; break;
       case 'adicionar_metais': {
         const sel = (det.metaisSelecionados as string[]) || [];
