@@ -153,6 +153,7 @@ const ExtrasPage = () => {
     }
     setForm(emptyForm());
     setSelectedStockId('');
+    setGravataQtds({});
     setSelectedRegataStockId('');
     setBotasPE([emptyBotaPE()]);
     setOpenProduct(productId);
