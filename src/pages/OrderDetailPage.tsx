@@ -10,6 +10,7 @@ import { computeTotalToSave, computeBotaProntaEntregaBruto } from '@/lib/recompu
 import { getCurrentPrecoRegraVersao } from '@/lib/precoRegraVersao';
 import { useOrderById } from '@/hooks/useOrderById';
 import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
+import { useCanEditOrder } from '@/hooks/useCanEditOrder';
 import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import { useSelectedOrders } from '@/hooks/useSelectedOrders';
