@@ -563,9 +563,19 @@ const EditExtrasPage = () => {
           {productId === 'gravata_pronta_entrega' && (
             <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
               <p className="font-semibold mb-1">Variação do estoque (não editável)</p>
-              <p>Cor da tira: <span className="font-medium">{form.corTira || '—'}</span></p>
-              <p>Tipo de metal: <span className="font-medium">{form.tipoMetal || '—'}</span></p>
-              {form.corBrilho && <p>Cor do brilho: <span className="font-medium">{form.corBrilho}</span></p>}
+              {((form.gravatas || []) as any[]).length > 0 ? (
+                ((form.gravatas || []) as any[]).map((g: any, i: number) => (
+                  <p key={i}>
+                    {[g?.corTira, g?.tipoMetal, g?.corBrilho].filter(Boolean).join(' + ')} — <span className="font-medium">{parseInt(g?.quantidade) || 1}x</span>
+                  </p>
+                ))
+              ) : (
+                <>
+                  <p>Cor da tira: <span className="font-medium">{form.corTira || '—'}</span></p>
+                  <p>Tipo de metal: <span className="font-medium">{form.tipoMetal || '—'}</span></p>
+                  {form.corBrilho && <p>Cor do brilho: <span className="font-medium">{form.corBrilho}</span></p>}
+                </>
+              )}
             </div>
           )}
 
