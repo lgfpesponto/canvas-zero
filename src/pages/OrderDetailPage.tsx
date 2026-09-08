@@ -309,10 +309,17 @@ const OrderDetailPage = () => {
     if (!order.tipoExtra || !order.extraDetalhes) return [];
     const det: any = order.extraDetalhes;
     const labelOf = (k: string) => EXTRA_DETAIL_LABELS[k] || k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-    const valOf = (v: any) => Array.isArray(v) ? v.join(', ') : String(v);
+    const valOf = (k: string, v: any) => {
+      if (k === 'gravatas' && Array.isArray(v)) {
+        return v
+          .map((g: any) => `${[g?.corTira, g?.tipoMetal, g?.corBrilho].filter(Boolean).join(' + ')} — ${parseInt(g?.quantidade) || 1}x`)
+          .join(' | ');
+      }
+      return Array.isArray(v) ? v.join(', ') : String(v);
+    };
     return Object.entries(det)
       .filter(([k, v]) => !EXTRA_INTERNAL_KEYS.has(k) && !isExtraValueEmpty(v) && k !== 'botas')
-      .map(([k, v]) => [labelOf(k), valOf(v)] as [string, string]);
+      .map(([k, v]) => [labelOf(k), valOf(k, v)] as [string, string]);
   })();
 
   // Categorized extras for cinto (mirror "ficha" layout)
