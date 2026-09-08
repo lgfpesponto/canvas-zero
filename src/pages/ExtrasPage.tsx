@@ -377,7 +377,11 @@ const ExtrasPage = () => {
         desenvolvimento: '-',
         sobMedida: false,
         observacao: '',
-        quantidade: ['revitalizador', 'kit_revitalizador', 'palmilha'].includes(productId) ? (parseInt(form.quantidade) || 1) : 1,
+        quantidade: productId === 'gravata_pronta_entrega'
+          ? (gravataSelecionadas().reduce((s, g) => s + g.qtd, 0) || 1)
+          : ['revitalizador', 'kit_revitalizador', 'palmilha', 'gravata_country'].includes(productId)
+            ? (parseInt(form.quantidade) || 1)
+            : 1,
         // Modelo v2: preco já é o TOTAL FINAL (calcPrice retorna total cheio incl. quantidade).
         preco: price,
         precoMigradoV2: true,
