@@ -113,7 +113,13 @@ const ExtrasPage = () => {
   const [gravataSearch, setGravataSearch] = useState('');
   // Gravata Pronta Entrega: várias variações por pedido → { stockId: quantidade (string) }
   const [gravataQtds, setGravataQtds] = useState<Record<string, string>>({});
-  const setGravataQtd = (id: string, v: string) => setGravataQtds(prev => ({ ...prev, [id]: v }));
+  const setGravataQtd = (id: string, v: string, max?: number) => {
+    if (v === '') { setGravataQtds(prev => ({ ...prev, [id]: '' })); return; }
+    let n = parseInt(v.replace(/\D/g, '')) || 0;
+    if (n < 0) n = 0;
+    if (typeof max === 'number' && n > max) n = max;
+    setGravataQtds(prev => ({ ...prev, [id]: n > 0 ? String(n) : '' }));
+  };
   const gravataSelecionadas = () =>
     Object.entries(gravataQtds)
       .map(([id, q]) => ({ item: stockItems.find(s => s.id === id), qtd: parseInt(q) || 0 }))
@@ -746,33 +752,67 @@ const ExtrasPage = () => {
                     {filtered.map(item => {
                       const qtdStr = gravataQtds[item.id] ?? '';
                       const qtd = parseInt(qtdStr) || 0;
-                      const excede = qtd > item.quantidade;
+                      const nome = `${item.cor_tira} + ${item.tipo_metal}${item.cor_brilho ? ` + ${item.cor_brilho}` : ''}`;
                       return (
-                        <div key={item.id} className={`flex items-center gap-2 rounded-lg border p-3 ${excede ? 'border-destructive' : 'border-border'}`}>
-                          <Checkbox
-                            id={`stock-${item.id}`}
-                            checked={qtd > 0}
-                            onCheckedChange={c => setGravataQtd(item.id, c ? '1' : '')}
-                          />
-                          <Label htmlFor={`stock-${item.id}`} className="flex-1 cursor-pointer font-normal">
-                            {item.cor_tira} + {item.tipo_metal}{item.cor_brilho ? ` + ${item.cor_brilho}` : ''} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={item.quantidade}
-                            value={qtdStr}
-                            onChange={e => setGravataQtd(item.id, e.target.value)}
-                            placeholder="Qtd"
-                            className="h-8 w-20 text-center"
-                          />
+                        <div key={item.id} className={`flex items-center gap-2 rounded-lg border p-3 ${qtd > 0 ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                          <span className="flex-1 text-sm">
+                            {nome} <span className="text-muted-foreground">({item.quantidade} disponíve{item.quantidade === 1 ? 'l' : 'is'})</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setGravataQtd(item.id, String(Math.max(0, qtd - 1)), item.quantidade)}
+                              className="h-8 w-8 rounded-md border border-border text-sm disabled:opacity-40"
+                              disabled={qtd <= 0}
+                            >
+                              −
+                            </button>
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              max={item.quantidade}
+                              value={qtdStr}
+                              onChange={e => setGravataQtd(item.id, e.target.value, item.quantidade)}
+                              onWheel={e => (e.target as HTMLInputElement).blur()}
+                              placeholder="Qtd"
+                              className="h-8 w-16 text-center"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setGravataQtd(item.id, String(qtd + 1), item.quantidade)}
+                              className="h-8 w-8 rounded-md border border-border text-sm disabled:opacity-40"
+                              disabled={qtd >= item.quantidade}
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
                     {filtered.length === 0 && <p className="text-sm text-muted-foreground">Nenhum resultado para "{gravataSearch}".</p>}
                   </div>
                   {totalSel > 0 && (
-                    <p className="mt-2 text-sm text-muted-foreground">Total selecionado: {totalSel} gravata{totalSel === 1 ? '' : 's'}</p>
+                    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="mb-2 text-sm font-semibold">Pedido montado</p>
+                      <div className="space-y-1">
+                        {gravataSelecionadas().map((g, i) => (
+                          <div key={g.item.id} className="flex items-center gap-2 text-sm">
+                            <span className="flex-1">
+                              Gravata {i + 1} — {g.item.cor_tira} + {g.item.tipo_metal}{g.item.cor_brilho ? ` + ${g.item.cor_brilho}` : ''} — quantidade {g.qtd}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setGravataQtd(g.item.id, '')}
+                              className="text-xs text-destructive hover:underline"
+                            >
+                              remover
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">Total: {totalSel} gravata{totalSel === 1 ? '' : 's'}</p>
+                    </div>
                   )}
                 </div>
               );
