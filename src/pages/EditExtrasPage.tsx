@@ -134,7 +134,13 @@ const EditExtrasPage = () => {
       case 'bainha_celular': return 50 + couroExtraAdicional(form.tipoCouro);
       case 'regata': return 50;
       case 'regata_pronta_entrega': return 50;
-      case 'gravata_pronta_entrega': return 30;
+      case 'gravata_pronta_entrega': {
+        const lista = (form.gravatas || []) as any[];
+        const qty = lista.length > 0
+          ? lista.reduce((s: number, g: any) => s + (parseInt(g?.quantidade) || 1), 0)
+          : (parseInt(form.quantidade) || 1);
+        return 30 * qty;
+      }
       case 'bota_pronta_entrega': return botasPE.reduce((sum, b) => sum + calcBootTotal(b), 0);
       case 'palmilha': return PALMILHA_PRECO_UNITARIO * (parseInt(form.quantidade) || 1);
       default: return 0;
