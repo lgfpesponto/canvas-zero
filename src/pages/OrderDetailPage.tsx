@@ -1378,7 +1378,7 @@ const OrderDetailPage = () => {
             <h2 className="text-lg font-display font-bold">
               {order.tipoExtra ? `Detalhes — ${EXTRA_PRODUCT_NAME_MAP[order.tipoExtra] || order.tipoExtra}` : 'Detalhes da Bota'}
             </h2>
-            {isAdmin && (
+            {podeEditarPedido && (
               <button
                 onClick={() => {
                   const editPath = order.tipoExtra === 'cinto'
