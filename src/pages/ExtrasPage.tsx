@@ -191,8 +191,12 @@ const ExtrasPage = () => {
       }
       case 'revitalizador': return (base ?? 10) * (parseInt(form.quantidade) || 1);
       case 'kit_revitalizador': return (base ?? 26) * (parseInt(form.quantidade) || 1);
-      case 'gravata_country': return base ?? 30;
-      case 'gravata_pronta_entrega': return base ?? 30;
+      case 'gravata_country': return (base ?? 30) * (parseInt(form.quantidade) || 1);
+      case 'gravata_pronta_entrega': {
+        const unit = base ?? 30;
+        const totalQtd = gravataSelecionadas().reduce((s, g) => s + g.qtd, 0);
+        return unit * (totalQtd || 1);
+      }
       case 'adicionar_metais': {
         let total = 0;
         const sel = form.metaisSelecionados as string[];
