@@ -80,6 +80,7 @@ const EditExtrasPage = () => {
       corBrilho: det.corBrilho || '',
       tamanhoPalmilha: det.tamanhoPalmilha || '',
       formatoBicoPalmilha: det.formatoBicoPalmilha || '',
+      gravatas: Array.isArray(det.gravatas) ? det.gravatas : [],
     });
     // Load multi-bota data
     if (order.tipoExtra === 'bota_pronta_entrega' && Array.isArray(det.botas) && det.botas.length > 0) {
