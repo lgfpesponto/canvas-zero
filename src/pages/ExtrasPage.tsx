@@ -111,6 +111,13 @@ const ExtrasPage = () => {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockQtd, setEditingStockQtd] = useState('');
   const [gravataSearch, setGravataSearch] = useState('');
+  // Gravata Pronta Entrega: várias variações por pedido → { stockId: quantidade (string) }
+  const [gravataQtds, setGravataQtds] = useState<Record<string, string>>({});
+  const setGravataQtd = (id: string, v: string) => setGravataQtds(prev => ({ ...prev, [id]: v }));
+  const gravataSelecionadas = () =>
+    Object.entries(gravataQtds)
+      .map(([id, q]) => ({ item: stockItems.find(s => s.id === id), qtd: parseInt(q) || 0 }))
+      .filter(x => x.item && x.qtd > 0) as { item: StockItem; qtd: number }[];
 
   // Regata stock
   const [regataStockItems, setRegataStockItems] = useState<RegataStockItem[]>([]);
