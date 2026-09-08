@@ -13,6 +13,7 @@ import { useCustomOptions } from '@/hooks/useCustomOptions';
 import { useFichaVariacoesLookup } from '@/hooks/useFichaVariacoesLookup';
 import { useFichaPriceForOrder } from '@/hooks/useFichaPriceForOrder';
 import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { useCanEditOrder } from '@/hooks/useCanEditOrder';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 import {
   MODELOS, TAMANHOS, GENEROS, ACESSORIOS, TIPOS_COURO, COURO_PRECOS, getCoresCouroFiltradas,
@@ -419,7 +420,7 @@ const EditOrderPage = () => {
     setCorSola(cso === null ? '' : cso.length === 1 ? cso[0].label : (cso.find(c => c.label === corSola) ? corSola : ''));
   };
 
-  if (!isAdmin) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Acesso restrito ao administrador.</p></div>;
+  if (!canEdit) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Este pedido não pode mais ser editado.</p></div>;
   if (!order) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Pedido não encontrado.</p></div>;
 
   const modeloPreco = findFichaPrice(modelo, 'modelo') ?? MODELOS.find(m => m.label === modelo)?.preco ?? 0;

@@ -18,6 +18,7 @@ import {
   FIVELA_OPTIONS,
 } from '@/lib/extrasConfig';
 import { useEditWithJustification } from '@/hooks/useEditWithJustification';
+import { useCanEditOrder } from '@/hooks/useCanEditOrder';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 
 const cls = {
@@ -136,7 +137,7 @@ const EditBeltPage = () => {
     setLoaded(true);
   }, [order, loaded]);
 
-  if (!isAdmin) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Acesso restrito ao administrador.</p></div>;
+  if (!canEdit) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Este pedido não pode mais ser editado.</p></div>;
   if (orderLoading) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
   if (!order) return <div className="min-h-[60vh] flex items-center justify-center"><p className="text-muted-foreground">Pedido não encontrado.</p></div>;
   if (order.tipoExtra !== 'cinto') {
