@@ -28,6 +28,7 @@ const EditExtrasPage = () => {
   const { isAdmin, updateOrder, allProfiles, user } = useAuth();
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
+  const canEdit = useCanEditOrder(order);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const fotoParam = searchParams.get('foto') === '1';

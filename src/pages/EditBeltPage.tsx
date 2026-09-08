@@ -40,6 +40,7 @@ const EditBeltPage = () => {
   const { isAdmin, updateOrder, allProfiles } = useAuth();
   const { requestSave, dialogProps } = useEditWithJustification();
   const { order, loading: orderLoading } = useOrderById(id);
+  const canEdit = useCanEditOrder(order);
   const { items: fichaItems } = useFichaVariacoesLookup();
   const _bnorm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   const mergeBeltOptions = useCallback(<T extends string | { label: string; preco: number }>(
