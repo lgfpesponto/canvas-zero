@@ -21,6 +21,7 @@ import { ReportConfirmSummary, fmtSet, fmtPeriodo } from '@/components/common/Re
 import OrderCard from '@/components/OrderCard';
 import { useAjustesPendentesIds } from '@/hooks/useAjustesPendentesIds';
 import { generateReportPDF, generateProductionSheetPDF } from '@/lib/pdfGenerators';
+import { generateFichaAdesivaPDF } from '@/lib/fichaAdesivaPdf';
 import { requiresJustification, type JustificationKind } from '@/lib/statusRegression';
 import { isTransitionAllowed } from '@/lib/statusTransitions';
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
@@ -903,6 +904,40 @@ const ReportsPage = () => {
     });
   }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, filterVendedor, filterStatus, filterDate, filterDateEnd]);
 
+  const askGenerateAdhesiveSheetPDF = useCallback(async () => {
+    if (ordersLoading || preparingReport) return;
+    setPreparingReport(true);
+    let source: import('@/contexts/AuthContext').Order[] = [];
+    try {
+      source = await resolveOrdersForExport();
+    } finally {
+      setPreparingReport(false);
+    }
+    const list = source.filter(order => !order.tipoExtra || order.tipoExtra === 'cinto');
+    const ignored = source.length - list.length;
+    if (list.length === 0) {
+      toast.warning('Nenhuma bota ou cinto encontrado para imprimir.');
+      return;
+    }
+    askPrint({
+      title: 'Imprimir Fichas Adesivas?',
+      description: (
+        <ReportConfirmSummary
+          intro="Cada bota ou cinto vira uma ficha vertical de 10 × 15 cm para a impressora térmica."
+          destaque={{ label: 'Fichas a imprimir', value: `${list.length} ficha${list.length !== 1 ? 's' : ''}` }}
+          linhas={[
+            ...(ignored > 0 ? [{ label: 'Outros produtos ignorados', value: ignored.toLocaleString('pt-BR') }] : []),
+            { label: 'Vendedor', value: fmtSet(filterVendedor) },
+            { label: 'Status', value: fmtSet(filterStatus) },
+            { label: 'Período', value: fmtPeriodo(filterDate, filterDateEnd) },
+          ]}
+        />
+      ),
+      confirmLabel: 'Imprimir adesivas',
+      run: () => generateFichaAdesivaPDF(list, { userName: user?.nomeCompleto || '' }),
+    });
+  }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, filterVendedor, filterStatus, filterDate, filterDateEnd]);
+
 
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [showSpecializedReports, setShowSpecializedReports] = useState(false);
@@ -1587,16 +1622,26 @@ const ReportsPage = () => {
               )}
             </div>
           </div>
-          <div className="bg-card rounded-xl p-4 western-shadow flex items-center justify-center">
-            <button
+          <div className="bg-card rounded-xl p-4 western-shadow flex flex-wrap items-center justify-center gap-2">
+            <Button
               onClick={() => { void askGenerateProductionSheetPDF(); }}
               disabled={ordersLoading || preparingReport}
-              className="leather-gradient text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+              className="leather-gradient text-primary-foreground font-bold text-sm gap-2 hover:opacity-90"
             >
               {(ordersLoading || preparingReport)
                 ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO…</>
-                : <><Printer size={16} /> IMPRIMIR FICHAS</>}
-            </button>
+                : <><Printer size={16} /> IMPRIMIR FICHA</>}
+            </Button>
+            <Button
+              onClick={() => { void askGenerateAdhesiveSheetPDF(); }}
+              disabled={ordersLoading || preparingReport}
+              variant="outline"
+              className="font-bold text-sm gap-2"
+            >
+              {(ordersLoading || preparingReport)
+                ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO…</>
+                : <><Printer size={16} /> IMPRIMIR FICHA ADESIVA</>}
+            </Button>
 
           </div>
         </div>
