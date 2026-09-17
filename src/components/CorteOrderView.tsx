@@ -280,7 +280,7 @@ export function CorteOrderView({ order: initialOrder, onBack }: { order: Order; 
               {/* Detalhes da Bota — sem lápis, sem preços */}
               <div className="bg-card rounded-xl p-6 md:p-8 western-shadow">
                 <div className="flex items-center justify-between mb-3 gap-3">
-                  <h2 className="text-lg font-display font-bold">Detalhes da Bota</h2>
+                  <h2 className="text-lg font-display font-bold">Detalhes do Pedido</h2>
                 </div>
                 <div className="border border-border rounded-lg p-4 md:p-5 bg-background mb-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">

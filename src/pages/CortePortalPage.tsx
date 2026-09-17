@@ -469,7 +469,7 @@ const CortePortalPage = () => {
             <div className={`text-center mb-4 px-3 py-2 rounded-lg ${isBaixaMode ? 'bg-emerald-950/40 border-emerald-700' : 'bg-amber-950/40 border-amber-700'} border`}>
               <p className={`text-xs uppercase font-bold ${isBaixaMode ? 'text-emerald-300' : 'text-amber-300'}`}>Progresso aplicado automaticamente</p>
               <p className={`text-base font-bold ${isBaixaMode ? 'text-emerald-200' : 'text-amber-200'}`}>
-                {isBaixaMode ? 'Corte → Baixa Corte' : 'Qualquer status anterior → Corte'}
+                {isBaixaMode ? 'Corte → Baixa Corte' : 'Impresso → Corte (só bota e cinto)'}
               </p>
             </div>
 
