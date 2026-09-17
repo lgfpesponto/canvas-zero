@@ -1144,3 +1144,143 @@ export function generateBaixaMontagemPDF(items: BaixaMontagemItem[], operador: s
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
   doc.save(`Baixa-Montagem-${stamp}.pdf`);
 }
+
+/**
+ * Resumo de baixas do Portal Corte: lista os pedidos que tiveram baixa de corte
+ * no período, agrupados pela data da baixa.
+ */
+export async function generateCorteBaixaResumoPDF(orders: any[], dataDe: string, dataAte: string, userName: string) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const FONT = 'helvetica';
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 12;
+  const periodoLabel = dataDe === dataAte ? formatDateBR(dataDe) : `${formatDateBR(dataDe)} a ${formatDateBR(dataAte)}`;
+
+  type Linha = { numero: string; tipo: string; vendedor: string; dataEntrada: string; dataBaixa: string };
+  const linhas: Linha[] = [];
+
+  for (const o of orders) {
+    const tipoExtra = (o.tipo_extra || o.tipoExtra || '').trim();
+    if (tipoExtra && tipoExtra !== 'cinto') continue;
+    const tipo = tipoExtra === 'cinto' ? 'Cinto' : 'Bota';
+    const hist = Array.isArray(o.historico) ? o.historico : [];
+    const sorted = [...hist]
+      .filter((h: any) => h && typeof h.data === 'string')
+      .sort((a: any, b: any) => `${a.data} ${a.hora || '00:00'}` < `${b.data} ${b.hora || '00:00'}` ? -1 : 1);
+    const baixas = sorted.filter((h: any) => h?.local === 'Baixa Corte' && h.data >= dataDe && h.data <= dataAte);
+    if (baixas.length === 0) continue;
+    const baixa = baixas[baixas.length - 1];
+    const entrada = sorted.find((h: any) => h?.local === 'Corte');
+    linhas.push({
+      numero: String(o.numero || ''),
+      tipo,
+      vendedor: String(o.vendedor || ''),
+      dataEntrada: entrada?.data || '',
+      dataBaixa: String(baixa.data || ''),
+    });
+  }
+
+  const grupos = new Map<string, Linha[]>();
+  for (const l of linhas) {
+    if (!grupos.has(l.dataBaixa)) grupos.set(l.dataBaixa, []);
+    grupos.get(l.dataBaixa)!.push(l);
+  }
+  const datas = [...grupos.keys()].sort();
+
+  const drawHeader = () => {
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(FONT, 'bold');
+    doc.setFontSize(13);
+    doc.text('Resumo de Baixas — Corte', margin, 10);
+    doc.setFont(FONT, 'normal');
+    doc.setFontSize(9);
+    doc.text(periodoLabel, pageW - margin, 10, { align: 'right' });
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 14, pageW - margin, 14);
+  };
+  drawHeader();
+
+  let y = 24;
+  doc.setFont(FONT, 'normal');
+  doc.setFontSize(9);
+  const totBotas = linhas.filter(l => l.tipo === 'Bota').length;
+  const totCintos = linhas.filter(l => l.tipo === 'Cinto').length;
+  doc.text(`Total: ${linhas.length} pedido(s) • ${totBotas} bota(s) • ${totCintos} cinto(s)`, margin, y);
+  doc.text(`Gerado por: ${userName}`, pageW - margin, y, { align: 'right' });
+  y += 7;
+
+  if (linhas.length === 0) {
+    doc.setFontSize(11);
+    doc.text('Nenhuma baixa de corte no período.', margin, y + 8);
+    stampPageNumbers(doc);
+    doc.save(`Baixas-Corte-${dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`}.pdf`);
+    return;
+  }
+
+  const colSeq = margin + 2;
+  const colNum = margin + 12;
+  const colTipo = margin + 60;
+  const colVend = margin + 82;
+  const colEntrada = pageW - margin - 2;
+
+  const drawTableHeader = () => {
+    doc.setFillColor(235, 235, 235);
+    doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
+    doc.setFont(FONT, 'bold');
+    doc.setFontSize(8.5);
+    doc.text('#', colSeq, y + 5);
+    doc.text('Nº Pedido', colNum, y + 5);
+    doc.text('Tipo', colTipo, y + 5);
+    doc.text('Vendedor', colVend, y + 5);
+    doc.text('Entrada corte', colEntrada, y + 5, { align: 'right' });
+    y += 8;
+    doc.setFont(FONT, 'normal');
+  };
+
+  const ensureSpace = (need: number) => {
+    if (y + need > pageH - 14) {
+      doc.addPage();
+      drawHeader();
+      y = 24;
+      drawTableHeader();
+    }
+  };
+
+  for (const data of datas) {
+    const itens = grupos.get(data)!;
+    ensureSpace(16);
+    doc.setFillColor(254, 243, 199);
+    doc.rect(margin, y, pageW - 2 * margin, 7, 'F');
+    doc.setFont(FONT, 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(120, 53, 15);
+    doc.text(`Baixa: ${formatDateBR(data)} — ${itens.length} pedido(s)`, margin + 2, y + 5);
+    doc.setTextColor(0, 0, 0);
+    y += 8;
+    drawTableHeader();
+
+    let seq = 0;
+    for (const l of itens) {
+      ensureSpace(8);
+      seq++;
+      doc.setFont(FONT, 'normal');
+      doc.setFontSize(9);
+      doc.text(String(seq), colSeq, y + 5);
+      doc.setFont(FONT, 'bold');
+      doc.text(l.numero, colNum, y + 5);
+      doc.setFont(FONT, 'normal');
+      doc.text(l.tipo, colTipo, y + 5);
+      doc.text((l.vendedor || '').slice(0, 28), colVend, y + 5);
+      doc.text(l.dataEntrada ? formatDateBR(l.dataEntrada) : '—', colEntrada, y + 5, { align: 'right' });
+      doc.setDrawColor(225, 225, 225);
+      doc.line(margin, y + 7, pageW - margin, y + 7);
+      y += 8;
+    }
+    y += 4;
+  }
+
+  stampPageNumbers(doc);
+  doc.save(`Baixas-Corte-${dataDe === dataAte ? dataDe : `${dataDe}_a_${dataAte}`}.pdf`);
+}
