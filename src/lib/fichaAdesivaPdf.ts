@@ -163,7 +163,7 @@ export async function generateFichaAdesivaPDF(
     doc.setFont('helvetica', 'bold');
     doc.text('Modelo:', 48, 38);
     doc.setFont('helvetica', 'normal');
-    doc.text(fitText(doc, model || '—', 32, 1)[0], 61, 38);
+    doc.text(fitText(doc, model || '—', 31, 1)[0], 62, 38);
 
     type Section = { title: string; value: string; maxLines: number };
     const sections: Section[] = [];
@@ -186,22 +186,22 @@ export async function generateFichaAdesivaPDF(
       if (beltAccessories) sections.push({ title: 'ACESSÓRIOS', value: beltAccessories, maxLines: 3 });
     }
 
-    let y = 43;
+    let y = 42;
     const bodyBottom = 112;
     for (const section of sections) {
-      if (y + 8 > bodyBottom) break;
+      if (y + 7 > bodyBottom) break;
       doc.setFillColor(232, 232, 232);
       doc.rect(margin, y, contentWidth, 5, 'F');
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'bold');
       doc.text(section.title, margin + 1.5, y + 3.6);
-      y += 8;
-      doc.setFontSize(8.5);
+      y += 7;
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      const availableLines = Math.max(1, Math.min(section.maxLines, Math.floor((bodyBottom - y) / 4)));
+      const availableLines = Math.max(1, Math.min(section.maxLines, Math.floor((bodyBottom - y) / 3.5)));
       const lines = fitText(doc, section.value, contentWidth - 3, availableLines);
       doc.text(lines, margin + 1.5, y);
-      y += lines.length * 4 + 2;
+      y += lines.length * 3.5 + 1;
     }
 
     const stubTop = 114;
