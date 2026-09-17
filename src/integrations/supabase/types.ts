@@ -2992,6 +2992,14 @@ export type Database = {
             }
             Returns: Json
           }
+      corte_baixar_pedido: {
+        Args: {
+          _justificativa?: string
+          _novo_status: string
+          _order_id: string
+        }
+        Returns: Json
+      }
       criar_ajuste_solicitacao: {
         Args: { _desconto: number; _motivo: string; _order_id: string }
         Returns: string
@@ -3313,6 +3321,7 @@ export type Database = {
         Returns: number
       }
       list_bordado_usuarios: { Args: never; Returns: string[] }
+      list_corte_usuarios: { Args: never; Returns: string[] }
       list_profiles_minimal: {
         Args: never
         Returns: {
