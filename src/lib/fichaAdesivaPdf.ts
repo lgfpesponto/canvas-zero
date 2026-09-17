@@ -43,11 +43,11 @@ function bootAccessories(order: Order): string {
   if (order.acessorios) values.push(order.acessorios);
   if (order.trisce === 'Sim') values.push(`Tricê${order.triceDesc ? `: ${order.triceDesc}` : ''}`);
   if (order.tiras === 'Sim') values.push(`Tiras${order.tirasDesc ? `: ${order.tirasDesc}` : ''}`);
-  if (det.franja || order.franja === 'Sim') {
+  if (det.franja) {
     const detail = [det.franjaCouro, det.franjaCor].filter(Boolean).join(' ');
     values.push(`Franja${detail ? `: ${detail}` : ''}`);
   }
-  if (det.corrente || order.corrente === 'Sim') values.push(`Corrente${det.correnteCor ? `: ${det.correnteCor}` : ''}`);
+  if (det.corrente) values.push(`Corrente${det.correnteCor ? `: ${det.correnteCor}` : ''}`);
   if (order.costuraAtras === 'Sim') values.push('Costura atrás');
   return values.join(' | ');
 }
@@ -249,7 +249,7 @@ export async function generateFichaAdesivaPDF(
   }
 
   const now = new Date();
-  const date = now.toLocaleDateString('pt-BR').replaceAll('/', '-');
+  const date = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
   const time = `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
   void recordPrintHistory(list.map(order => order.id), 'Ficha de Produção Adesiva', meta?.userName || '');
   doc.save(`Fichas Adesivas - ${date} - ${time}.pdf`);

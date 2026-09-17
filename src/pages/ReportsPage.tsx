@@ -934,7 +934,7 @@ const ReportsPage = () => {
         />
       ),
       confirmLabel: 'Imprimir adesivas',
-      run: () => generateFichaAdesivaPDF(list, { userName: user?.nomeCompleto || '' }),
+      run: async () => { await generateFichaAdesivaPDF(list, { userName: user?.nomeCompleto || '' }); },
     });
   }, [askPrint, ordersLoading, preparingReport, resolveOrdersForExport, user, filterVendedor, filterStatus, filterDate, filterDateEnd]);
 
