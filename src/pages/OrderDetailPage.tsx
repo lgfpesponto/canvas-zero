@@ -58,6 +58,7 @@ import {
 import { getDynamicUnitPrice } from '@/lib/dynamicUnitPrice';
 import { EXTRA_PRODUCT_NAME_MAP, EXTRA_DETAIL_LABELS, EXTRA_INTERNAL_KEYS, isExtraValueEmpty, BELT_SIZES, BORDADO_P_PRECO, NOME_BORDADO_CINTO_PRECO, BELT_CARIMBO } from '@/lib/extrasConfig';
 import { BordadoOrderView } from '@/components/BordadoOrderView';
+import { CorteOrderView } from '@/components/CorteOrderView';
 import { AjusteValorSolicitacao } from '@/components/AjusteValorSolicitacao';
 import EstoqueAdminPanel from '@/components/estoque/EstoqueAdminPanel';
 
@@ -180,6 +181,11 @@ const OrderDetailPage = () => {
   // ─── Modo BORDADO: render minimal sem preços/composição ───
   if (role === 'bordado') {
     return <BordadoOrderView order={order} onBack={() => navigate('/bordado')} />;
+  }
+
+  // ─── Modo CORTE: mesma visão restrita, etapas do corte ───
+  if (role === 'corte') {
+    return <CorteOrderView order={order} onBack={() => navigate('/corte')} />;
   }
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

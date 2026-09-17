@@ -18,6 +18,7 @@ const LoginPage = () => {
   const destinationForRole = (r: string | null | undefined) => {
     if (r === 'bordado') return '/bordado';
     if (r === 'montagem') return '/montagem';
+    if (r === 'corte') return '/corte';
     return '/';
   };
 
