@@ -42,7 +42,7 @@ export function formatBrasiliaTime(): string {
 }
 
 /* ───── Types ───── */
-export type AppRole = 'admin_master' | 'admin_producao' | 'vendedor' | 'vendedor_comissao' | 'bordado' | 'montagem' | 'admin' | 'user';
+export type AppRole = 'admin_master' | 'admin_producao' | 'vendedor' | 'vendedor_comissao' | 'bordado' | 'montagem' | 'corte' | 'admin' | 'user';
 
 export interface User {
   id: string;

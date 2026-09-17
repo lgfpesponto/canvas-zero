@@ -78,8 +78,11 @@ export function useOrderNeighbors(currentId: string | undefined): NeighborInfo {
       try {
         const filters = buildFiltersFromParams(searchParams);
 
-        // Bordado role: sequence follows the portal list (Entrada/Baixa Bordado, oldest first).
-        if (role === 'bordado' && !filters) {
+        // Portais restritos: sequência segue a lista do portal (etapas do setor, mais antigos primeiro).
+        if ((role === 'bordado' || role === 'corte') && !filters) {
+          const portalStatuses = role === 'corte'
+            ? ['Corte', 'Baixa Corte']
+            : ['Entrada Bordado 7Estrivos', 'Baixa Bordado 7Estrivos'];
           const BATCH = 1000;
           let all: { id: string }[] = [];
           let offset = 0;
@@ -87,7 +90,7 @@ export function useOrderNeighbors(currentId: string | undefined): NeighborInfo {
             const { data, error } = await supabase
               .from('orders')
               .select('id')
-              .in('status', ['Entrada Bordado 7Estrivos', 'Baixa Bordado 7Estrivos'])
+              .in('status', portalStatuses)
               .order('data_criacao', { ascending: true })
               .order('hora_criacao', { ascending: true })
               .order('id', { ascending: true })
