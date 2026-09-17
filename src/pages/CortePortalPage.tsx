@@ -8,7 +8,7 @@ import type { Order } from '@/contexts/AuthContext';
 import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo-7estrivos.png';
-import { generateBordadoBaixaResumoPDF } from '@/lib/pdfGenerators';
+import { generateCorteBaixaResumoPDF } from '@/lib/pdfGenerators';
 import { JustificativaDialog } from '@/components/JustificativaDialog';
 import { useConfirmPrint } from '@/components/common/ConfirmPrintDialog';
 import { ReportConfirmSummary, fmtPeriodo } from '@/components/common/ReportConfirmSummary';
@@ -71,18 +71,7 @@ const CortePortalPage = () => {
   // Justificativa para retroceder Baixa → Entrada
   const [pendingRetrocesso, setPendingRetrocesso] = useState<Order | null>(null);
 
-  // Nomes dos usuários com role 'bordado' (Neto, Débora) — usado para isolar
-  // quadro de Baixa e PDF do portal das baixas feitas por outros usuários (admin).
-  const [bordadoNames, setBordadoNames] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc('list_bordado_usuarios' as any);
-      if (!error && Array.isArray(data)) {
-        setBordadoNames(new Set((data as string[]).map(s => (s || '').trim()).filter(Boolean)));
-      }
-    })();
-  }, []);
+  // O portal do corte mostra TODOS os pedidos das duas etapas, sem filtrar por autor.
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -98,7 +87,7 @@ const CortePortalPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && isLoggedIn && role === 'bordado') fetchOrders();
+    if (!authLoading && isLoggedIn && (role === 'corte' || role === 'admin_master')) fetchOrders();
   }, [authLoading, isLoggedIn, role, fetchOrders]);
 
   const refocusScanInput = useCallback(() => {
@@ -148,11 +137,17 @@ const CortePortalPage = () => {
           toast.error(`${match.numero} já está em Baixa Corte — voltar etapa exige justificativa no pedido`);
           return;
         }
-        if (match.status === 'Cancelado') {
+        if (match.status !== 'Impresso') {
           playBeep(false);
-          toast.error(`${match.numero} está cancelado`);
+          toast.error(`${match.numero} está em "${match.status}" — só entra no corte a partir de "Impresso"`);
           return;
         }
+      }
+      const tipoProduto = ((match as any).tipoExtra || '').trim();
+      if (tipoProduto && tipoProduto !== 'cinto') {
+        playBeep(false);
+        toast.error(`${match.numero} não é bota nem cinto — não passa pelo corte`);
+        return;
       }
       const novoStatus = mode === 'baixa' ? 'Baixa Corte' : 'Corte';
       const r = await aplicarStatus(match.id, novoStatus);
@@ -230,12 +225,9 @@ const CortePortalPage = () => {
       if (fErr) throw fErr;
       const list = (rows || []).map(dbRowToOrder) as Order[];
       // Inclui TODOS que tiveram baixa de corte no período, independente do status atual.
-      // Única exclusão: Cancelado (essa baixa não vale para comissão).
       const valid = list.filter(o => o.status !== 'Cancelado');
       if (valid.length === 0) { toast.info('Nenhum pedido baixado no período.'); return; }
-      // PDF do portal: só lista baixas feitas por usuários do setor bordado (Neto/Débora).
-      const filtroNomes = bordadoNames.size > 0 ? [...bordadoNames] : undefined;
-      await generateBordadoBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Bordado', filtroNomes);
+      await generateCorteBaixaResumoPDF(valid, pdfDe, pdfAte, user?.nomeCompleto || 'Corte');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + (err?.message || err));
     } finally { setPdfLoading(false); }
@@ -302,23 +294,15 @@ const CortePortalPage = () => {
   }, [orders, searchEntrada]);
 
   const baixa = useMemo(() => {
-    const list = orders.filter(o => {
-      if (o.status !== 'Baixa Corte') return false;
-      // Só mostrar se a última baixa foi feita por usuário do setor bordado
-      const hist = Array.isArray((o as any).historico) ? (o as any).historico : [];
-      const baixas = hist.filter((h: any) => h?.local === 'Baixa Corte');
-      const ultima = baixas[baixas.length - 1];
-      const autor = (ultima?.usuario || '').trim();
-      return bordadoNames.has(autor);
-    });
+    const list = orders.filter(o => o.status === 'Baixa Corte');
     if (!searchBaixa.trim()) return list;
     const q = searchBaixa.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));
-  }, [orders, searchBaixa, bordadoNames]);
+  }, [orders, searchBaixa]);
 
   if (authLoading) return <div className="min-h-screen bg-background" />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
-  if (role !== 'bordado') return <Navigate to="/" replace />;
+  if (role !== 'corte' && role !== 'admin_master') return <Navigate to="/" replace />;
 
   const isBaixaMode = scannerMode === 'baixa';
   const accent = isBaixaMode ? 'emerald' : 'sky';
@@ -396,7 +380,7 @@ const CortePortalPage = () => {
               </div>
               <button
                 onClick={() => askPrint({
-                  title: 'Gerar PDF de Baixas de Bordado?',
+                  title: 'Gerar PDF de Baixas de Corte?',
                   description: (
                     <ReportConfirmSummary
                       intro="Resumo das baixas de corte feitas no período informado."
