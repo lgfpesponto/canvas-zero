@@ -33,8 +33,23 @@ function orderDate(order: Order): string {
   const raw = clean(order.dataCriacao);
   if (!raw) return '';
   const parts = raw.split('-');
-  const date = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : raw;
+  const date = parts.length === 3 ? `${parts[2]}/${parts[1]}` : raw;
   return `${date}${order.horaCriacao ? ` ${order.horaCriacao}` : ''}`;
+}
+
+/** Exibe apenas o primeiro nome; exceção: Maria Gabriela → Gabriela. */
+function shortVendorName(value: unknown): string {
+  const name = clean(value);
+  if (!name) return '—';
+  const lowerName = name.toLowerCase();
+  if (lowerName.startsWith('maria gabriela')) return 'Gabriela';
+  return name.split(/\s+/)[0];
+}
+
+/** Cliente só aparece para Stefany, Site (Rancho Chique) e Juliana. */
+function canShowCliente(vendedor: unknown): boolean {
+  const name = clean(vendedor).toLowerCase();
+  return name.includes('stefany') || name.includes('juliana') || name === 'site' || name.includes('rancho chique');
 }
 
 function bootExtras(order: Order): string[] {
