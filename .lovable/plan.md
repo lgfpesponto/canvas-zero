@@ -14,3 +14,6 @@
 ## Detalhes técnicos
 - Alterar somente o gerador da ficha adesiva em `src/lib/fichaAdesivaPdf.ts`.
 - Reaproveitar o cálculo dinâmico de altura do cabeçalho após aumentar a fonte.
+
+## Regra adicional (aprovada em chat)
+- O campo **Cliente** só aparece no cabeçalho quando o vendedor for **Stefany**, **Site (Rancho Chique)** ou **Juliana**; para os demais, a linha mostra "—".
