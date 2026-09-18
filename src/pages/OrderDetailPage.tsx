@@ -626,64 +626,12 @@ const OrderDetailPage = () => {
               <CheckSquare size={16} className="inline mr-1" />
               {count} pedido{count > 1 ? 's' : ''} selecionado{count > 1 ? 's' : ''}
             </span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Select value={bulkStatus} onValueChange={(v) => { setBulkStatus(v); if (v !== 'Cancelado') setBulkCancelReason(''); }}>
-                <SelectTrigger className="w-48 h-8 text-xs">
-                  <SelectValue placeholder="Novo progresso..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRODUCTION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {bulkStatus === 'Cancelado' && (
-                <Input
-                  value={bulkCancelReason}
-                  onChange={(e) => setBulkCancelReason(e.target.value)}
-                  placeholder="Motivo do cancelamento *"
-                  className="h-8 text-xs w-56"
-                />
-              )}
-              <Button
-                size="sm"
-                disabled={!bulkStatus || (bulkStatus === 'Cancelado' && !bulkCancelReason.trim())}
-                onClick={async () => {
-                  if (!bulkStatus) return;
-                  if (bulkStatus === 'Cancelado' && !bulkCancelReason.trim()) {
-                    toast.error('Informe o motivo do cancelamento.');
-                    return;
-                  }
-                  const ids = Array.from(selectedIds);
-                  const observacao = bulkStatus === 'Cancelado' ? bulkCancelReason.trim() : undefined;
-                  // Pré-busca numero+status de cada pedido para o relatório de bloqueados
-                  const { data: rows } = await supabase.from('orders').select('id, numero, status').in('id', ids);
-                  const meta = new Map<string, { numero: string; status: string }>();
-                  (rows || []).forEach(r => meta.set(r.id, { numero: r.numero, status: r.status }));
-                  let updated = 0;
-                  const blockedItems: BlockedItem[] = [];
-                  for (const oid of ids) {
-                    try {
-                      await updateOrderStatus(oid, bulkStatus, observacao);
-                      updated++;
-                    } catch {
-                      const m = meta.get(oid);
-                      if (m) blockedItems.push({ numero: m.numero, statusAtual: m.status });
-                    }
-                  }
-                  if (updated > 0) toast.success(`${updated} pedido${updated > 1 ? 's' : ''} atualizado${updated > 1 ? 's' : ''} para "${bulkStatus}"`);
-                  if (blockedItems.length > 0) {
-                    setBulkBlocked({ open: true, destino: bulkStatus, blocked: blockedItems, movedCount: updated });
-                  }
-                  clear();
-                  setBulkStatus('');
-                  setBulkCancelReason('');
-                }}
-              >
-                Mudar progresso
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => { clear(); setBulkStatus(''); setBulkCancelReason(''); }}>
-                Limpar
-              </Button>
-            </div>
+            <BulkProgressChanger
+              ids={Array.from(selectedIds)}
+              onDone={() => clear()}
+              formatDateBR={(d?: string, h?: string) => `${d ? formatDateBR(d) : ''}${h ? ` às ${h}` : ''}`.trim()}
+            />
+
           </div>
         )}
         {showScanner && (
