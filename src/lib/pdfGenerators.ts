@@ -95,18 +95,8 @@ export function generateReportPDF(ordersToExport: any[], meta?: { userName: stri
 }
 
 export async function generateProductionSheetPDF(ordersToExport: any[], meta?: { userName: string }) {
-  const list = ordersToExport.slice().sort((a, b) => {
-    const prioA = getCouroSortKey(a.couroCano || '');
-    const prioB = getCouroSortKey(b.couroCano || '');
-    if (prioA !== prioB) return prioA - prioB;
-    const tipoComp = (a.couroCano || '').localeCompare(b.couroCano || '');
-    if (tipoComp !== 0) return tipoComp;
-    const corComp = (a.corCouroCano || '').localeCompare(b.corCouroCano || '');
-    if (corComp !== 0) return corComp;
-    const numA = parseInt(a.numero.replace(/\D/g, ''), 10) || 0;
-    const numB = parseInt(b.numero.replace(/\D/g, ''), 10) || 0;
-    return numA - numB;
-  });
+  const { sortOrdersForPrint } = await import('@/lib/orderPrintSort');
+  const list = sortOrdersForPrint(ordersToExport);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [148.5, 210] });
   const pw = 210;
   const ph = 148.5;
