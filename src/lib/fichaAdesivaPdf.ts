@@ -203,8 +203,8 @@ export async function generateFichaAdesivaPDF(
     let bodyFontSize = 8.8;
     let lineHeight = 3.8;
     const titleFontSize = 8.2;
-    const sectionTitleHeight = 5.2;
-    const sectionGap = 1.6;
+    const sectionTitleHeight = 6.4;
+    const sectionGap = 2;
 
     type LaidOutSection = Section & { lines: string[]; height: number };
     const layoutSections = (fontSize: number, lh: number): LaidOutSection[] => {
@@ -245,10 +245,10 @@ export async function generateFichaAdesivaPDF(
       const x = section.column === 0 ? margin : bodyRightX;
       doc.setFontSize(titleFontSize);
       doc.setFont('helvetica', 'bold');
-      doc.text(section.title, x, section.y + 3.4);
+      doc.text(section.title, x, section.y + 3.3);
       doc.setFontSize(bodyFontSize);
       doc.setFont('helvetica', 'normal');
-      if (section.lines.length) doc.text(section.lines, x + 1, section.y + sectionTitleHeight + 0.4);
+      if (section.lines.length) doc.text(section.lines, x + 1, section.y + sectionTitleHeight + 0.8);
     }
 
     if (qrDataUrl) {
