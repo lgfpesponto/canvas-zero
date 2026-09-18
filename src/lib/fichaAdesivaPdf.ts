@@ -155,13 +155,13 @@ export async function generateFichaAdesivaPDF(
     const headerColWidth = (contentWidth - headerGap) / 2;
     const headerRightX = margin + headerColWidth + headerGap;
     const headerRows = [
-      [{ label: 'Código:', value: code }, { label: 'Vendedor:', value: clean(order.vendedor) || '—' }],
-      [{ label: 'Data:', value: orderDate(order) || '—' }, { label: 'Cliente:', value: clean(order.cliente) || '—' }],
+      [{ label: 'Código:', value: code }, { label: 'Vendedor:', value: shortVendorName(order.vendedor) }],
+      [{ label: 'Data:', value: orderDate(order) || '—' }, { label: 'Cliente:', value: canShowCliente(order.vendedor) ? clean(order.cliente) || '—' : '—' }],
       [{ label: 'Tamanho:', value: size || '—' }, { label: 'Modelo:', value: model || '—' }],
     ];
-    const headerFontSize = 9.2;
-    const headerLineHeight = 4;
-    const headerRowGap = 0.9;
+    const headerFontSize = 10.8;
+    const headerLineHeight = 4.7;
+    const headerRowGap = 1;
     const measureHeaderField = (label: string, value: string) => {
       doc.setFontSize(headerFontSize);
       doc.setFont('helvetica', 'bold');
