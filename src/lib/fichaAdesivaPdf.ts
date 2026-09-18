@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { orderBarcodeValue, type Order } from '@/contexts/AuthContext';
 import { getBolaGrandeQtd } from '@/lib/bolaGrande';
 import { recordPrintHistory } from '@/lib/printHistory';
+import { sortOrdersForPrint } from '@/lib/orderPrintSort';
 
 export interface FichaAdesivaResult {
   generated: number;
@@ -116,7 +117,7 @@ export async function generateFichaAdesivaPDF(
   orders: Order[],
   meta?: { userName?: string },
 ): Promise<FichaAdesivaResult> {
-  const list = orders.filter(order => !order.tipoExtra || order.tipoExtra === 'cinto');
+  const list = sortOrdersForPrint(orders.filter(order => !order.tipoExtra || order.tipoExtra === 'cinto'));
   const ignored = orders.length - list.length;
   if (list.length === 0) return { generated: 0, ignored };
 
