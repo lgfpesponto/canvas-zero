@@ -12,7 +12,9 @@ Na ficha adesiva (10 × 15 cm, `src/lib/fichaAdesivaPdf.ts`), a primeira categor
    - A divisória ocupa apenas a largura da coluna onde a categoria está (não atravessa o QR code nem a outra coluna).
    - A última categoria de cada coluna não recebe divisória depois dela (nada abaixo para separar).
 
-3. **Nada mais muda**: fontes, negrito, QR, canhoto, código de barras, solas, rodapé e a lógica de encolher fonte quando não couber permanecem iguais. As divisórias não alteram as alturas, então o encolhimento automático continua funcionando.
+3. **Linha vertical no cabeçalho**: entre as duas colunas do cabeçalho (Código/Data/Tamanho × Vendedor/Cliente/Modelo), desenhar uma linha divisória vertical do topo até a linha horizontal do cabeçalho, no meio do vão entre elas.
+
+4. **Nada mais muda**: fontes, negrito, QR, canhoto, código de barras, solas, rodapé e a lógica de encolher fonte quando não couber permanecem iguais. As divisórias não alteram as alturas, então o encolhimento automático continua funcionando.
 
 ## Validação
 - Typecheck (`bunx tsgo`) e build.
