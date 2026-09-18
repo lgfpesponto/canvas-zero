@@ -151,7 +151,6 @@ export async function generateFichaAdesivaPDF(
       doc.setFontSize(headerFontSize);
       doc.setFont('helvetica', 'bold');
       const labelWidth = doc.getTextWidth(label) + 1.1;
-      doc.setFont('helvetica', 'normal');
       return { labelWidth, lines: wrapText(doc, value, Math.max(8, headerColWidth - labelWidth)) };
     };
 
@@ -163,7 +162,6 @@ export async function generateFichaAdesivaPDF(
       doc.setFont('helvetica', 'bold');
       doc.text(row[0].label, margin, headerY);
       doc.text(row[1].label, headerRightX, headerY);
-      doc.setFont('helvetica', 'normal');
       doc.text(left.lines, margin + left.labelWidth, headerY);
       doc.text(right.lines, headerRightX + right.labelWidth, headerY);
       headerY += Math.max(left.lines.length, right.lines.length) * headerLineHeight + headerRowGap;
@@ -200,15 +198,16 @@ export async function generateFichaAdesivaPDF(
     const bodyGap = 5;
     const bodyColWidth = (contentWidth - bodyGap) / 2;
     const bodyRightX = margin + bodyColWidth + bodyGap;
-    let bodyFontSize = 8.8;
-    let lineHeight = 3.8;
-    const titleFontSize = 8.2;
-    const sectionTitleHeight = 6.4;
+    let bodyFontSize = 9.6;
+    let lineHeight = 4.1;
+    const titleFontSize = 9;
+    const sectionTitleHeight = 6.8;
     const sectionGap = 2;
 
     type LaidOutSection = Section & { lines: string[]; height: number };
     const layoutSections = (fontSize: number, lh: number): LaidOutSection[] => {
       doc.setFontSize(fontSize);
+      doc.setFont('helvetica', 'bold');
       return sections.map(section => {
         const lines = section.values.flatMap(value => wrapText(doc, value, bodyColWidth - 2));
         return { ...section, lines, height: sectionTitleHeight + lines.length * lh + sectionGap };
@@ -217,7 +216,7 @@ export async function generateFichaAdesivaPDF(
 
     const placeSections = (items: LaidOutSection[]) => {
       const placements: Array<LaidOutSection & { column: number; y: number }> = [];
-      const limits = [qrDataUrl ? qrY - 1 : bodyBottom, bodyBottom];
+      const limits = [bodyBottom, qrDataUrl ? qrY - 1 : bodyBottom];
       let column = 0;
       let y = bodyTop;
       for (const section of items) {
@@ -247,13 +246,17 @@ export async function generateFichaAdesivaPDF(
       doc.setFont('helvetica', 'bold');
       doc.text(section.title, x, section.y + 3.3);
       doc.setFontSize(bodyFontSize);
-      doc.setFont('helvetica', 'normal');
-      if (section.lines.length) doc.text(section.lines, x + 1, section.y + sectionTitleHeight + 0.8);
+      doc.setFont('helvetica', 'bold');
+      if (section.lines.length) {
+        doc.text(section.lines, x + 1, section.y + sectionTitleHeight + 0.8, {
+          lineHeightFactor: lineHeight / (bodyFontSize * 0.352778),
+        });
+      }
     }
 
     if (qrDataUrl) {
       try {
-        doc.addImage(qrDataUrl, 'PNG', margin, qrY, qrSize, qrSize);
+        doc.addImage(qrDataUrl, 'PNG', pageWidth - margin - qrSize, qrY, qrSize, qrSize);
       } catch {
         // Mantém a ficha legível mesmo se o navegador não conseguir inserir a imagem.
       }
@@ -276,12 +279,6 @@ export async function generateFichaAdesivaPDF(
     doc.setFont('helvetica', 'bold');
     doc.text(code, margin + 23, stubTop + 20.5, { align: 'center' });
 
-    doc.setTextColor(105, 105, 105);
-    doc.setFontSize(5.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text('7ESTRIVOS', margin + 23, stubTop + 24.3, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-
     const stubX = 53;
     const stubWidth = pageWidth - margin - stubX;
     const isRustica = order.solado === 'Rústica';
@@ -294,25 +291,29 @@ export async function generateFichaAdesivaPDF(
           order.forma ? `FORMA: ${order.forma}` : '',
         ].filter(Boolean);
 
-    let stubFontSize = 7.8;
-    let stubLineHeight = 3.5;
+    let stubFontSize = 8.8;
+    let stubLineHeight = 3.9;
     let soleLines: string[] = [];
     const fitStub = () => {
       doc.setFontSize(stubFontSize);
+      doc.setFont('helvetica', 'bold');
       soleLines = soleValues.flatMap(line => wrapText(doc, line.toUpperCase(), stubWidth));
     };
     fitStub();
-    while (soleLines.length * stubLineHeight > 23 && stubFontSize > 6) {
+    while (soleLines.length * stubLineHeight > 18.5 && stubFontSize > 7) {
       stubFontSize -= 0.25;
-      stubLineHeight = Math.max(2.8, stubFontSize * 0.45);
+      stubLineHeight = Math.max(3.1, stubFontSize * 0.44);
       fitStub();
     }
     doc.setFontSize(stubFontSize);
     doc.setFont('helvetica', 'bold');
-    doc.text(soleLines, stubX, stubTop + 5);
+    doc.text(soleLines, stubX, stubTop + 5, {
+      lineHeightFactor: stubLineHeight / (stubFontSize * 0.352778),
+    });
 
     doc.setFontSize(5.5);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'bold');
+    doc.text('7ESTRIVOS', margin, pageHeight - 2.5);
     doc.text(`${index + 1}/${list.length}`, pageWidth - margin, pageHeight - 2.5, { align: 'right' });
   }
 
