@@ -98,7 +98,6 @@ const OrderDetailPage = () => {
   const [justificativaInput, setJustificativaInput] = useState('');
   const [tipoAjuste, setTipoAjuste] = useState<'desconto' | 'acrescimo'>('desconto');
   const [showScanner, setShowScanner] = useState(false);
-  const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkBlocked, setBulkBlocked] = useState<{ open: boolean; destino: string; blocked: BlockedItem[]; movedCount: number }>({ open: false, destino: '', blocked: [], movedCount: 0 });
