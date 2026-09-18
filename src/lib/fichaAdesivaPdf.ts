@@ -124,69 +124,53 @@ export async function generateFichaAdesivaPDF(
     doc.setDrawColor(0, 0, 0);
     doc.setTextColor(0, 0, 0);
     doc.setLineWidth(0.3);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(17);
-    doc.text('7ESTRIVOS', margin, 10);
 
-    const qrSize = 24;
-    const qrX = pageWidth - margin - qrSize;
-    let hasQr = false;
+    const qrSize = 19;
+    let qrDataUrl = '';
     const photo = order.fotos?.find(url => typeof url === 'string' && url.startsWith('http'));
     if (photo) {
       try {
-        const qr = await QRCode.toDataURL(photo, { width: 280, margin: 1 });
-        doc.addImage(qr, 'PNG', qrX, 4, qrSize, qrSize);
-        hasQr = true;
+        qrDataUrl = await QRCode.toDataURL(photo, { width: 280, margin: 1 });
       } catch {
-        hasQr = false;
+        qrDataUrl = '';
       }
     }
 
-    const leftHeaderWidth = hasQr ? qrX - margin - 2 : contentWidth;
-    const drawHeaderField = (label: string, value: string, y: number, width = leftHeaderWidth): number => {
-      doc.setFontSize(8.3);
+    const headerGap = 5;
+    const headerColWidth = (contentWidth - headerGap) / 2;
+    const headerRightX = margin + headerColWidth + headerGap;
+    const headerRows = [
+      [{ label: 'Código:', value: code }, { label: 'Vendedor:', value: clean(order.vendedor) || '—' }],
+      [{ label: 'Data:', value: orderDate(order) || '—' }, { label: 'Cliente:', value: clean(order.cliente) || '—' }],
+      [{ label: 'Tamanho:', value: size || '—' }, { label: 'Modelo:', value: model || '—' }],
+    ];
+    const headerFontSize = 9.2;
+    const headerLineHeight = 4;
+    const headerRowGap = 0.9;
+    const measureHeaderField = (label: string, value: string) => {
+      doc.setFontSize(headerFontSize);
       doc.setFont('helvetica', 'bold');
-      doc.text(label, margin, y);
-      const labelWidth = doc.getTextWidth(label) + 1.3;
+      const labelWidth = doc.getTextWidth(label) + 1.1;
       doc.setFont('helvetica', 'normal');
-      const lines = wrapText(doc, value || '—', Math.max(8, width - labelWidth));
-      doc.text(lines, margin + labelWidth, y);
-      return y + Math.max(1, lines.length) * 3.4;
+      return { labelWidth, lines: wrapText(doc, value, Math.max(8, headerColWidth - labelWidth)) };
     };
 
-    let headerY = 15;
-    headerY = drawHeaderField('Código:', code, headerY);
-    headerY = drawHeaderField('Vendedor:', clean(order.vendedor), headerY);
-    headerY = drawHeaderField('Data:', orderDate(order), headerY);
-    headerY = drawHeaderField('Cliente:', clean(order.cliente) || '—', headerY);
-
-    const infoTop = Math.max(headerY + 0.8, hasQr ? 31 : headerY + 0.8);
-    const infoGap = 4;
-    const infoColWidth = (contentWidth - infoGap) / 2;
-    doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Tamanho:', margin, infoTop);
-    doc.setFont('helvetica', 'normal');
-    const sizeLabelWidth = doc.getTextWidth('Tamanho:') + 1.3;
-    const sizeLines = wrapText(doc, size || '—', infoColWidth - sizeLabelWidth);
-    doc.text(sizeLines, margin + sizeLabelWidth, infoTop);
-
-    const modelX = margin + infoColWidth + infoGap;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Modelo:', modelX, infoTop);
-    const modelLabelWidth = doc.getTextWidth('Modelo:') + 1.3;
-    doc.setFont('helvetica', 'normal');
-    const modelLines = wrapText(doc, model || '—', infoColWidth - modelLabelWidth);
-    doc.text(modelLines, modelX + modelLabelWidth, infoTop);
-
-    const headerBottom = infoTop + Math.max(sizeLines.length, modelLines.length) * 3.4 + 1.5;
-    doc.line(margin, headerBottom, pageWidth - margin, headerBottom);
-
-    if (hasQr) {
-      doc.setFontSize(5.8);
-      doc.setFont('helvetica', 'italic');
-      doc.text('Foto', qrX + qrSize / 2, 30, { align: 'center' });
+    let headerY = 8;
+    for (const row of headerRows) {
+      const left = measureHeaderField(row[0].label, row[0].value);
+      const right = measureHeaderField(row[1].label, row[1].value);
+      doc.setFontSize(headerFontSize);
+      doc.setFont('helvetica', 'bold');
+      doc.text(row[0].label, margin, headerY);
+      doc.text(row[1].label, headerRightX, headerY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(left.lines, margin + left.labelWidth, headerY);
+      doc.text(right.lines, headerRightX + right.labelWidth, headerY);
+      headerY += Math.max(left.lines.length, right.lines.length) * headerLineHeight + headerRowGap;
     }
+
+    const headerBottom = headerY + 0.5;
+    doc.line(margin, headerBottom, pageWidth - margin, headerBottom);
 
     type Section = { title: string; values: string[] };
     const sections: Section[] = [];
@@ -210,41 +194,69 @@ export async function generateFichaAdesivaPDF(
     }
 
     const stubTop = 120;
-    const bodyTop = headerBottom + 3;
+    const qrY = stubTop - qrSize - 2;
+    const bodyTop = headerBottom;
     const bodyBottom = stubTop - 2;
-    let bodyFontSize = 8;
-    let lineHeight = 3.45;
-    const sectionTitleHeight = 6.2;
-    const sectionGap = 1.5;
+    const bodyGap = 5;
+    const bodyColWidth = (contentWidth - bodyGap) / 2;
+    const bodyRightX = margin + bodyColWidth + bodyGap;
+    let bodyFontSize = 8.8;
+    let lineHeight = 3.8;
+    const titleFontSize = 8.2;
+    const sectionTitleHeight = 6.4;
+    const sectionGap = 2;
 
-    const layoutSections = (fontSize: number, lh: number) => {
+    type LaidOutSection = Section & { lines: string[]; height: number };
+    const layoutSections = (fontSize: number, lh: number): LaidOutSection[] => {
       doc.setFontSize(fontSize);
-      return sections.map(section => ({
-        ...section,
-        lines: section.values.flatMap(value => wrapText(doc, value, contentWidth - 3)),
-      }));
+      return sections.map(section => {
+        const lines = section.values.flatMap(value => wrapText(doc, value, bodyColWidth - 2));
+        return { ...section, lines, height: sectionTitleHeight + lines.length * lh + sectionGap };
+      });
+    };
+
+    const placeSections = (items: LaidOutSection[]) => {
+      const placements: Array<LaidOutSection & { column: number; y: number }> = [];
+      const limits = [qrDataUrl ? qrY - 1 : bodyBottom, bodyBottom];
+      let column = 0;
+      let y = bodyTop;
+      for (const section of items) {
+        if (y + section.height > limits[column] && column === 0) {
+          column = 1;
+          y = bodyTop;
+        }
+        if (y + section.height > limits[column]) return null;
+        placements.push({ ...section, column, y });
+        y += section.height;
+      }
+      return placements;
     };
 
     let laidOut = layoutSections(bodyFontSize, lineHeight);
-    const contentHeight = () => laidOut.reduce((sum, section) => sum + sectionTitleHeight + section.lines.length * lineHeight + sectionGap, 0);
-    while (contentHeight() > bodyBottom - bodyTop && bodyFontSize > 5) {
+    let placements = placeSections(laidOut);
+    while (!placements && bodyFontSize > 6) {
       bodyFontSize -= 0.25;
-      lineHeight = Math.max(2.65, bodyFontSize * 0.43);
+      lineHeight = Math.max(3, bodyFontSize * 0.43);
       laidOut = layoutSections(bodyFontSize, lineHeight);
+      placements = placeSections(laidOut);
     }
 
-    let y = bodyTop;
-    for (const section of laidOut) {
-      doc.setLineWidth(0.22);
-      doc.line(margin, y, pageWidth - margin, y);
-      doc.setFontSize(7.2);
+    for (const section of placements || []) {
+      const x = section.column === 0 ? margin : bodyRightX;
+      doc.setFontSize(titleFontSize);
       doc.setFont('helvetica', 'bold');
-      doc.text(section.title, margin, y + 3.1);
-      y += sectionTitleHeight;
+      doc.text(section.title, x, section.y + 3.3);
       doc.setFontSize(bodyFontSize);
       doc.setFont('helvetica', 'normal');
-      if (section.lines.length) doc.text(section.lines, margin + 1, y);
-      y += section.lines.length * lineHeight + sectionGap;
+      if (section.lines.length) doc.text(section.lines, x + 1, section.y + sectionTitleHeight + 0.8);
+    }
+
+    if (qrDataUrl) {
+      try {
+        doc.addImage(qrDataUrl, 'PNG', margin, qrY, qrSize, qrSize);
+      } catch {
+        // Mantém a ficha legível mesmo se o navegador não conseguir inserir a imagem.
+      }
     }
 
     doc.setLineDashPattern([1, 1], 0);
@@ -263,6 +275,12 @@ export async function generateFichaAdesivaPDF(
     doc.setFontSize(7.8);
     doc.setFont('helvetica', 'bold');
     doc.text(code, margin + 23, stubTop + 20.5, { align: 'center' });
+
+    doc.setTextColor(105, 105, 105);
+    doc.setFontSize(5.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('7ESTRIVOS', margin + 23, stubTop + 24.3, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
 
     const stubX = 53;
     const stubWidth = pageWidth - margin - stubX;
