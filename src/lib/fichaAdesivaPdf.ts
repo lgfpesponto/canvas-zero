@@ -214,7 +214,7 @@ export async function generateFichaAdesivaPDF(
     const bodyBottom = stubTop - 2;
     let bodyFontSize = 8;
     let lineHeight = 3.45;
-    const sectionTitleHeight = 5;
+    const sectionTitleHeight = 6.2;
     const sectionGap = 1.5;
 
     const layoutSections = (fontSize: number, lh: number) => {
@@ -239,7 +239,7 @@ export async function generateFichaAdesivaPDF(
       doc.line(margin, y, pageWidth - margin, y);
       doc.setFontSize(7.2);
       doc.setFont('helvetica', 'bold');
-      doc.text(section.title, margin, y + 3.2);
+      doc.text(section.title, margin, y + 3.1);
       y += sectionTitleHeight;
       doc.setFontSize(bodyFontSize);
       doc.setFont('helvetica', 'normal');
