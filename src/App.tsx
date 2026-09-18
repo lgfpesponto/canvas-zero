@@ -68,16 +68,25 @@ const ChromeWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { role, loading: authLoading, isLoggedIn } = useAuth();
   useSyncDynamicUnitPrices();
+  const isPublicRoute = location.pathname.startsWith('/rastreio/') || location.pathname.startsWith('/vitrine/');
+
   // Enquanto o role hidrata, não renderizar nada — evita flash do dashboard de
   // vendedor para usuários de portal restrito (bordado/montagem) logo após o login.
   if (authLoading && isLoggedIn && location.pathname !== '/login') {
     return <div className="min-h-screen bg-background" />;
   }
+
+  // Trava global de sessão: qualquer rota privada sem usuário logado vai
+  // direto para a tela de login. Sem isso, páginas como /pedido/:id ficavam
+  // visíveis (com o menu completo de vendedor) quando a sessão expirava.
+  if (!authLoading && !isLoggedIn && !isPublicRoute && location.pathname !== '/login') {
+    return <Navigate to="/login" replace />;
+  }
+
   const isBordado = role === 'bordado';
   const isMontagem = role === 'montagem';
   const isCorte = role === 'corte';
   const isAdminProducao = role === 'admin_producao';
-  const isPublicRoute = location.pathname.startsWith('/rastreio/') || location.pathname.startsWith('/vitrine/');
   const isBordadoRoute = location.pathname === '/bordado' || location.pathname.startsWith('/pedido/');
   const isCorteRoute = location.pathname === '/corte' || location.pathname.startsWith('/pedido/');
   const isPreview = new URLSearchParams(location.search).get('preview') === '1';
