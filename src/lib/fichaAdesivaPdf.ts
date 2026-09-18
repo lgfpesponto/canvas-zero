@@ -154,11 +154,6 @@ export async function generateFichaAdesivaPDF(
     const headerGap = 5;
     const headerColWidth = (contentWidth - headerGap) / 2;
     const headerRightX = margin + headerColWidth + headerGap;
-    const headerRows = [
-      [{ label: 'Código:', value: code }, { label: 'Vendedor:', value: shortVendorName(order.vendedor) }],
-      [{ label: 'Data:', value: orderDate(order) || '—' }, { label: 'Cliente:', value: canShowCliente(order.vendedor) ? clean(order.cliente) || '—' : '—' }],
-      [{ label: 'Tamanho:', value: size || '—' }, { label: 'Modelo:', value: model || '—' }],
-    ];
     const headerFontSize = 10.8;
     const headerLineHeight = 4.7;
     const headerRowGap = 1;
@@ -169,20 +164,35 @@ export async function generateFichaAdesivaPDF(
       return { labelWidth, lines: wrapText(doc, value, Math.max(8, headerColWidth - labelWidth)) };
     };
 
-    let headerY = 8;
-    for (const row of headerRows) {
-      const left = measureHeaderField(row[0].label, row[0].value);
-      const right = measureHeaderField(row[1].label, row[1].value);
-      doc.setFontSize(headerFontSize);
-      doc.setFont('helvetica', 'bold');
-      doc.text(row[0].label, margin, headerY);
-      doc.text(row[1].label, headerRightX, headerY);
-      doc.text(left.lines, margin + left.labelWidth, headerY);
-      doc.text(right.lines, headerRightX + right.labelWidth, headerY);
-      headerY += Math.max(left.lines.length, right.lines.length) * headerLineHeight + headerRowGap;
-    }
+    // Colunas independentes: quando o cliente não aparece, "Modelo" sobe — sem linha vazia.
+    const col1Fields = [
+      { label: 'Código:', value: code },
+      { label: 'Data:', value: orderDate(order) || '—' },
+      { label: 'Tamanho:', value: size || '—' },
+    ];
+    const col2Fields = [
+      { label: 'Vendedor:', value: shortVendorName(order.vendedor) },
+      ...(canShowCliente(order.vendedor) ? [{ label: 'Cliente:', value: clean(order.cliente) || '—' }] : []),
+      { label: 'Modelo:', value: model || '—' },
+    ];
 
-    const headerBottom = headerY + 0.5;
+    const drawHeaderColumn = (fields: Array<{ label: string; value: string }>, x: number) => {
+      let y = 8;
+      for (const field of fields) {
+        const measured = measureHeaderField(field.label, field.value);
+        doc.setFontSize(headerFontSize);
+        doc.setFont('helvetica', 'bold');
+        doc.text(field.label, x, y);
+        doc.text(measured.lines, x + measured.labelWidth, y);
+        y += measured.lines.length * headerLineHeight + headerRowGap;
+      }
+      return y - headerRowGap;
+    };
+
+    const headerBottom = Math.max(
+      drawHeaderColumn(col1Fields, margin),
+      drawHeaderColumn(col2Fields, headerRightX),
+    ) + 0.5;
     doc.line(margin, headerBottom, pageWidth - margin, headerBottom);
 
     type Section = { title: string; values: string[] };
@@ -213,9 +223,9 @@ export async function generateFichaAdesivaPDF(
     const bodyGap = 5;
     const bodyColWidth = (contentWidth - bodyGap) / 2;
     const bodyRightX = margin + bodyColWidth + bodyGap;
-    let bodyFontSize = 9.6;
-    let lineHeight = 4.1;
-    const titleFontSize = 9;
+    let bodyFontSize = headerFontSize;
+    let lineHeight = 4.6;
+    const titleFontSize = headerFontSize;
     const sectionTitleHeight = 6.8;
     const sectionGap = 2;
 
