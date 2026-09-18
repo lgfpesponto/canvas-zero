@@ -88,7 +88,12 @@ export function installSessionRevalidation() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     if (isExpiringSoon(session.expires_at)) {
-      await ensureFreshSession();
+      const res = await ensureFreshSession();
+      // Sessão realmente morta: força o SIGNED_OUT para o AuthContext limpar
+      // o usuário e a trava global de rotas mandar para a tela de login.
+      if (res.expired) {
+        try { await supabase.auth.signOut({ scope: 'local' } as any); } catch { /* noop */ }
+      }
     }
   };
 
