@@ -209,7 +209,7 @@ export async function generateFichaAdesivaPDF(
       if (beltAccessories.length) sections.push({ title: 'ACESSÓRIOS', values: beltAccessories });
     }
 
-    const stubTop = 116;
+    const stubTop = 120;
     const bodyTop = headerBottom + 3;
     const bodyBottom = stubTop - 2;
     let bodyFontSize = 8;
@@ -227,7 +227,7 @@ export async function generateFichaAdesivaPDF(
 
     let laidOut = layoutSections(bodyFontSize, lineHeight);
     const contentHeight = () => laidOut.reduce((sum, section) => sum + sectionTitleHeight + section.lines.length * lineHeight + sectionGap, 0);
-    while (contentHeight() > bodyBottom - bodyTop && bodyFontSize > 5.5) {
+    while (contentHeight() > bodyBottom - bodyTop && bodyFontSize > 5) {
       bodyFontSize -= 0.25;
       lineHeight = Math.max(2.65, bodyFontSize * 0.43);
       laidOut = layoutSections(bodyFontSize, lineHeight);
