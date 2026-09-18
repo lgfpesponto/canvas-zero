@@ -101,8 +101,8 @@ const OrderDetailPage = () => {
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
-  const [bulkCancelReason, setBulkCancelReason] = useState('');
   const [bulkBlocked, setBulkBlocked] = useState<{ open: boolean; destino: string; blocked: BlockedItem[]; movedCount: number }>({ open: false, destino: '', blocked: [], movedCount: 0 });
+
   const [fotoOpen, setFotoOpen] = useState(true);
   const [expProducao, setExpProducao] = useState(false);
   const [expAlteracoes, setExpAlteracoes] = useState(false);
