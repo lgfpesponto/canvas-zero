@@ -248,11 +248,11 @@ export async function generateFichaAdesivaPDF(
       const placements: Array<LaidOutSection & { column: number; y: number }> = [];
       const limits = [bodyBottom, qrDataUrl ? qrY - 1 : bodyBottom];
       let column = 0;
-      let y = bodyTop;
+      let y = bodyTop + bodyTopPadding;
       for (const section of items) {
         if (y + section.height > limits[column] && column === 0) {
           column = 1;
-          y = bodyTop;
+          y = bodyTop + bodyTopPadding;
         }
         if (y + section.height > limits[column]) return null;
         placements.push({ ...section, column, y });
@@ -270,8 +270,15 @@ export async function generateFichaAdesivaPDF(
       placements = placeSections(laidOut);
     }
 
+    // Divisórias horizontais entre categorias dentro da mesma coluna.
+    const sectionStarted: boolean[] = [false, false];
     for (const section of placements || []) {
       const x = section.column === 0 ? margin : bodyRightX;
+      const colRight = section.column === 0 ? margin + bodyColWidth : pageWidth - margin;
+      if (sectionStarted[section.column]) {
+        doc.line(x, section.y - sectionGap / 2, colRight, section.y - sectionGap / 2);
+      }
+      sectionStarted[section.column] = true;
       doc.setFontSize(titleFontSize);
       doc.setFont('helvetica', 'bold');
       doc.text(section.title, x, section.y + 3.3);
