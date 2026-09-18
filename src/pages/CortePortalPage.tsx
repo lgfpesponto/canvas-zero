@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
+import { sortOrdersForPrint } from '@/lib/orderPrintSort';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
 import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw } from 'lucide-react';
@@ -287,7 +288,7 @@ const CortePortalPage = () => {
   };
 
   const entrada = useMemo(() => {
-    const list = orders.filter(o => o.status === 'Corte');
+    const list = sortOrdersForPrint(orders.filter(o => o.status === 'Corte'));
     if (!searchEntrada.trim()) return list;
     const q = searchEntrada.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));
