@@ -195,6 +195,9 @@ export async function generateFichaAdesivaPDF(
       drawHeaderColumn(col2Fields, headerRightX),
     ) + 0.5;
     doc.line(margin, headerBottom, pageWidth - margin, headerBottom);
+    // Divisória vertical entre as duas colunas do cabeçalho.
+    const headerMidX = margin + headerColWidth + headerGap / 2;
+    doc.line(headerMidX, 8, headerMidX, headerBottom);
 
     type Section = { title: string; values: string[] };
     const sections: Section[] = [];
@@ -230,6 +233,7 @@ export async function generateFichaAdesivaPDF(
     const sectionTitleHeight = 6.8;
     const sectionGap = 2;
 
+    const bodyTopPadding = 2.5;
     type LaidOutSection = Section & { lines: string[]; height: number };
     const layoutSections = (fontSize: number, lh: number): LaidOutSection[] => {
       doc.setFontSize(fontSize);
