@@ -18,6 +18,8 @@ import { useCanSeeValues } from '@/hooks/useCanSeeValues';
 import { TemplateTag } from '@/components/orders/TemplateTag';
 
 import { BulkBlockedDialog, type BlockedItem } from '@/components/BulkBlockedDialog';
+import BulkProgressChanger from '@/components/orders/BulkProgressChanger';
+
 
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle, AlertTriangle } from 'lucide-react';
