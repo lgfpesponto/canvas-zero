@@ -25,14 +25,15 @@ export function corCouroEquivalente(tipoCouro?: string | null, cor?: string | nu
 
 /** Couro/cor principais do pedido (cano → gáspea → taloneira → extra/cinto). */
 export function getOrderCouroInfo(o: any): { tipo: string; cor: string } {
-  const det = o?.extraDetalhes || {};
+  const det = o?.extraDetalhes || o?.extra_detalhes || {};
   const pares: [any, any][] = [
-    [o?.couroCano, o?.corCouroCano],
-    [o?.couroGaspea, o?.corCouroGaspea],
-    [o?.couroTaloneira, o?.corCouroTaloneira],
+    [o?.couroCano ?? o?.couro_cano, o?.corCouroCano ?? o?.cor_couro_cano],
+    [o?.couroGaspea ?? o?.couro_gaspea, o?.corCouroGaspea ?? o?.cor_couro_gaspea],
+    [o?.couroTaloneira ?? o?.couro_taloneira, o?.corCouroTaloneira ?? o?.cor_couro_taloneira],
     [det.tipoCouro, det.corCouro],
     [det.couro, det.cor],
   ];
+
   for (const [tipo, cor] of pares) {
     if (!isVazio(tipo)) return { tipo: String(tipo).trim(), cor: String(cor ?? '').trim() };
   }
