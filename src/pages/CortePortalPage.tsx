@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { dbRowToOrder, PRODUCTION_STATUSES } from '@/lib/order-logic';
-import { sortOrdersForPrint } from '@/lib/orderPrintSort';
+import { sortOrdersForPrint, getOrderCouroInfo } from '@/lib/orderPrintSort';
 import { fetchOrderByScan } from '@/hooks/useOrders';
 import type { Order } from '@/contexts/AuthContext';
 import { ScanBarcode, LogOut, FileText, Loader2, X, RefreshCw, CheckCircle2, ArrowDownToLine, ArrowUpToLine, RotateCcw } from 'lucide-react';
@@ -295,7 +295,7 @@ const CortePortalPage = () => {
   }, [orders, searchEntrada]);
 
   const baixa = useMemo(() => {
-    const list = orders.filter(o => o.status === 'Baixa Corte');
+    const list = sortOrdersForPrint(orders.filter(o => o.status === 'Baixa Corte'));
     if (!searchBaixa.trim()) return list;
     const q = searchBaixa.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));
@@ -625,6 +625,13 @@ const CorteColumn = ({
             >
               <div className="min-w-0 flex-1">
                 <div className="font-bold text-sm">{o.numero}</div>
+                {(() => {
+                  const { tipo, cor } = getOrderCouroInfo(o);
+                  const produto = o.modelo || (o.tipoExtra ? o.tipoExtra.toUpperCase() : '');
+                  const linha = [[tipo, cor].filter(Boolean).join(' '), produto].filter(Boolean).join(' • ');
+                  if (!linha) return null;
+                  return <div className="text-xs font-semibold line-clamp-1">{linha}</div>;
+                })()}
                 <div className="text-xs opacity-80 line-clamp-1">
                   {formatDataCriacao(o.dataCriacao)} • {o.vendedor}
                 </div>

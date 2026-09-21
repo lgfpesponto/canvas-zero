@@ -2,14 +2,53 @@ import { getCouroSortKey } from '@/lib/pdfGenerators';
 
 const norm = (v: any) => String(v ?? '').trim().toLowerCase();
 
+const isVazio = (v: any) => {
+  const s = norm(v);
+  return !s || s === '-' || s === 'sem couro' || s === 'nao' || s === 'não';
+};
+
+/**
+ * Cor equivalente para agrupamento: nescau / chocolate / marrom são a mesma
+ * família e variam conforme o tipo de couro. Crazy Horse → Nescau,
+ * Nobuck → Chocolate, todos os demais → Marrom.
+ * Serve só para agrupar/ordenar; nenhum dado do pedido é alterado.
+ */
+export function corCouroEquivalente(tipoCouro?: string | null, cor?: string | null): string {
+  const c = norm(cor);
+  const t = norm(tipoCouro);
+  const familiaMarrom = ['nescau', 'chocolate', 'marrom'];
+  if (!familiaMarrom.includes(c)) return c;
+  if (t.includes('crazy')) return 'nescau';
+  if (t.includes('nobuck')) return 'chocolate';
+  return 'marrom';
+}
+
+/** Couro/cor principais do pedido (cano → gáspea → taloneira → extra/cinto). */
+export function getOrderCouroInfo(o: any): { tipo: string; cor: string } {
+  const det = o?.extraDetalhes || {};
+  const pares: [any, any][] = [
+    [o?.couroCano, o?.corCouroCano],
+    [o?.couroGaspea, o?.corCouroGaspea],
+    [o?.couroTaloneira, o?.corCouroTaloneira],
+    [det.tipoCouro, det.corCouro],
+    [det.couro, det.cor],
+  ];
+  for (const [tipo, cor] of pares) {
+    if (!isVazio(tipo)) return { tipo: String(tipo).trim(), cor: String(cor ?? '').trim() };
+  }
+  return { tipo: '', cor: '' };
+}
+
 /**
  * Ordem de impressão/produção:
- * 1) tipo de couro (prioridade), 2) cor do couro, 3) modelo, 4) número do pedido.
- * Pedidos sem couro (ex.: cintos/extras) vão para o final.
+ * 1) tipo de couro (prioridade), 2) cor do couro (equivalente), 3) modelo, 4) número do pedido.
+ * Pedidos sem couro vão para o final.
  */
 export function compareOrdersForPrint(a: any, b: any): number {
-  const couroA = norm(a?.couroCano);
-  const couroB = norm(b?.couroCano);
+  const ia = getOrderCouroInfo(a);
+  const ib = getOrderCouroInfo(b);
+  const couroA = norm(ia.tipo);
+  const couroB = norm(ib.tipo);
 
   const semA = couroA ? 0 : 1;
   const semB = couroB ? 0 : 1;
@@ -21,11 +60,15 @@ export function compareOrdersForPrint(a: any, b: any): number {
     if (prioA !== prioB) return prioA - prioB;
     const tipoComp = couroA.localeCompare(couroB, 'pt-BR');
     if (tipoComp !== 0) return tipoComp;
-    const corComp = norm(a?.corCouroCano).localeCompare(norm(b?.corCouroCano), 'pt-BR');
+    const corA = corCouroEquivalente(ia.tipo, ia.cor);
+    const corB = corCouroEquivalente(ib.tipo, ib.cor);
+    const corComp = corA.localeCompare(corB, 'pt-BR');
     if (corComp !== 0) return corComp;
   }
 
-  const modeloComp = norm(a?.modelo).localeCompare(norm(b?.modelo), 'pt-BR');
+  const modeloA = norm(a?.modelo) || norm(a?.tipoExtra);
+  const modeloB = norm(b?.modelo) || norm(b?.tipoExtra);
+  const modeloComp = modeloA.localeCompare(modeloB, 'pt-BR');
   if (modeloComp !== 0) return modeloComp;
 
   const numA = parseInt(String(a?.numero ?? '').replace(/\D/g, ''), 10) || 0;

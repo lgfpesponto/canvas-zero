@@ -39,7 +39,7 @@ const COURO_PRIORITY: Record<string, number> = {
   'látego': 2, 'latego': 2,
   'nobuck': 3,
   'fóssil': 4, 'fossil': 4,
-  'floater': 5,
+  'floater': 5, 'floter': 5,
   'napa flay': 6,
 };
 
