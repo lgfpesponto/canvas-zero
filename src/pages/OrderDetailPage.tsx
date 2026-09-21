@@ -409,6 +409,12 @@ const OrderDetailPage = () => {
   });
   const desenvP = DESENVOLVIMENTO.find(d => d.label === order.desenvolvimento)?.preco;
   if (desenvP) priceItems.push(['Desenvolvimento: ' + order.desenvolvimento, desenvP]);
+  {
+    const detD: any = order.extraDetalhes || {};
+    if (detD.desenvBordado) priceItems.push([`Desenvolvimento Bordado${detD.desenvBordadoDesc ? ': ' + detD.desenvBordadoDesc : ''}`, 50]);
+    if (detD.desenvLaser) priceItems.push([`Desenvolvimento Laser${detD.desenvLaserDesc ? ': ' + detD.desenvLaserDesc : ''}`, 100]);
+    if (detD.desenvEstampa) priceItems.push([`Desenvolvimento Estampa${detD.desenvEstampaDesc ? ': ' + detD.desenvEstampaDesc : ''}`, 150]);
+  }
   const findDetailPrice = (b: string, cat: string, fallback: { label: string; preco: number }[]) =>
     findFichaPrice(b, cat) ?? getByCategoria(cat).find(x => x.label === b)?.preco ?? fallback.find(x => x.label === b)?.preco ?? 0;
 
