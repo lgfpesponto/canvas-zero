@@ -25,26 +25,37 @@ export function corCouroEquivalente(tipoCouro?: string | null, cor?: string | nu
 
 /** Couro/cor principais do pedido (cano → gáspea → taloneira → extra/cinto). */
 export function getOrderCouroInfo(o: any): { tipo: string; cor: string } {
-  const det = o?.extraDetalhes || {};
+  const det = o?.extraDetalhes || o?.extra_detalhes || {};
   const pares: [any, any][] = [
-    [o?.couroCano, o?.corCouroCano],
-    [o?.couroGaspea, o?.corCouroGaspea],
-    [o?.couroTaloneira, o?.corCouroTaloneira],
+    [o?.couroCano ?? o?.couro_cano, o?.corCouroCano ?? o?.cor_couro_cano],
+    [o?.couroGaspea ?? o?.couro_gaspea, o?.corCouroGaspea ?? o?.cor_couro_gaspea],
+    [o?.couroTaloneira ?? o?.couro_taloneira, o?.corCouroTaloneira ?? o?.cor_couro_taloneira],
     [det.tipoCouro, det.corCouro],
     [det.couro, det.cor],
   ];
+
   for (const [tipo, cor] of pares) {
     if (!isVazio(tipo)) return { tipo: String(tipo).trim(), cor: String(cor ?? '').trim() };
   }
   return { tipo: '', cor: '' };
 }
 
+/** Cintos vão sempre depois das botas/demais produtos. */
+function isCinto(o: any): boolean {
+  return norm(o?.tipoExtra ?? o?.tipo_extra) === 'cinto';
+}
+
 /**
  * Ordem de impressão/produção:
- * 1) tipo de couro (prioridade), 2) cor do couro (equivalente), 3) modelo, 4) número do pedido.
- * Pedidos sem couro vão para o final.
+ * 0) cintos sempre por último, 1) tipo de couro (prioridade),
+ * 2) cor do couro (equivalente), 3) modelo, 4) número do pedido.
+ * Pedidos sem couro vão para o final de cada grupo.
  */
 export function compareOrdersForPrint(a: any, b: any): number {
+  const cintoA = isCinto(a) ? 1 : 0;
+  const cintoB = isCinto(b) ? 1 : 0;
+  if (cintoA !== cintoB) return cintoA - cintoB;
+
   const ia = getOrderCouroInfo(a);
   const ib = getOrderCouroInfo(b);
   const couroA = norm(ia.tipo);
@@ -53,6 +64,7 @@ export function compareOrdersForPrint(a: any, b: any): number {
   const semA = couroA ? 0 : 1;
   const semB = couroB ? 0 : 1;
   if (semA !== semB) return semA - semB;
+
 
   if (couroA || couroB) {
     const prioA = getCouroSortKey(couroA);
