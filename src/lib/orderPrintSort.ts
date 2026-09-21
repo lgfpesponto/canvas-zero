@@ -39,12 +39,22 @@ export function getOrderCouroInfo(o: any): { tipo: string; cor: string } {
   return { tipo: '', cor: '' };
 }
 
+/** Cintos vão sempre depois das botas/demais produtos. */
+function isCinto(o: any): boolean {
+  return norm(o?.tipoExtra ?? o?.tipo_extra) === 'cinto';
+}
+
 /**
  * Ordem de impressão/produção:
- * 1) tipo de couro (prioridade), 2) cor do couro (equivalente), 3) modelo, 4) número do pedido.
- * Pedidos sem couro vão para o final.
+ * 0) cintos sempre por último, 1) tipo de couro (prioridade),
+ * 2) cor do couro (equivalente), 3) modelo, 4) número do pedido.
+ * Pedidos sem couro vão para o final de cada grupo.
  */
 export function compareOrdersForPrint(a: any, b: any): number {
+  const cintoA = isCinto(a) ? 1 : 0;
+  const cintoB = isCinto(b) ? 1 : 0;
+  if (cintoA !== cintoB) return cintoA - cintoB;
+
   const ia = getOrderCouroInfo(a);
   const ib = getOrderCouroInfo(b);
   const couroA = norm(ia.tipo);
@@ -53,6 +63,7 @@ export function compareOrdersForPrint(a: any, b: any): number {
   const semA = couroA ? 0 : 1;
   const semB = couroB ? 0 : 1;
   if (semA !== semB) return semA - semB;
+
 
   if (couroA || couroB) {
     const prioA = getCouroSortKey(couroA);
