@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAllFilteredOrderIds, type OrderFilters } from '@/hooks/useOrders';
 import { EXTRA_PRODUCTS } from '@/lib/extrasConfig';
+import { sortOrdersForPrint } from '@/lib/orderPrintSort';
+
 
 interface NeighborInfo {
   prevId: string | null;
