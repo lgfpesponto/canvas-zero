@@ -295,7 +295,7 @@ const CortePortalPage = () => {
   }, [orders, searchEntrada]);
 
   const baixa = useMemo(() => {
-    const list = orders.filter(o => o.status === 'Baixa Corte');
+    const list = sortOrdersForPrint(orders.filter(o => o.status === 'Baixa Corte'));
     if (!searchBaixa.trim()) return list;
     const q = searchBaixa.trim().toLowerCase();
     return list.filter(o => o.numero.toLowerCase().includes(q));

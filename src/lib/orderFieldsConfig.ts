@@ -106,6 +106,17 @@ const TODAS_CORES_RESTRITAS = Object.keys(CORES_RESTRITAS);
 // e DEVEM continuar na lista geral.
 const CORES_EXCLUSIVAS_REAIS = ['Malhado', 'Caramelo', 'Preto e Branco', 'Rosa Neon', 'Whisky'];
 
+// Família marrom: cada tipo de couro só aceita UMA destas cores.
+// Crazy Horse → Nescau | Nobuck → Chocolate | demais → Marrom
+const FAMILIA_MARROM = ['Nescau', 'Chocolate', 'Marrom'];
+
+export function corMarromPermitida(tipoCouro?: string | null): string {
+  const t = (tipoCouro || '').toLowerCase();
+  if (t.includes('crazy')) return 'Nescau';
+  if (t.includes('nobuck')) return 'Chocolate';
+  return 'Marrom';
+}
+
 export function getCoresCouroFiltradas(tipoCouro: string): string[] {
   // Se tipo tem lista fechada, retorna somente suas cores exclusivas
   if (tipoCouro && COURO_CORES_EXCLUSIVAS[tipoCouro]) {
@@ -121,7 +132,11 @@ export function getCoresCouroFiltradas(tipoCouro: string): string[] {
   for (const [cor, tipos] of Object.entries(CORES_RESTRITAS)) {
     if (tipos.includes(tipoCouro)) extras.push(cor);
   }
-  return [...filtrada, ...extras];
+  const lista = [...filtrada, ...extras];
+  // Aplica a regra da família marrom: só a cor correta do tipo permanece
+  const permitida = corMarromPermitida(tipoCouro);
+  const semFamilia = lista.filter(c => !FAMILIA_MARROM.includes(c));
+  return [...semFamilia, permitida];
 }
 
 // ==================== BORDADOS (legacy – kept for backward compatibility) ====================
