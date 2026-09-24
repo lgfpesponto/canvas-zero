@@ -125,7 +125,32 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
   const [selectedVendedor, setSelectedVendedor] = useState<string>('');
   const [vendedoresList, setVendedoresList] = useState<string[]>([]);
   const [loadingVendedores, setLoadingVendedores] = useState(false);
+  const [cobrancas, setCobrancas] = useState<CobrancaAberta[]>([]);
+  const [loadingCobrancas, setLoadingCobrancas] = useState(false);
+  const [cobrancaId, setCobrancaId] = useState<string>('');
   const targetVendedor = vendedor || selectedVendedor;
+
+  // Carrega as cobranças (relatórios) em aberto do vendedor alvo
+  useEffect(() => {
+    if (!open || !targetVendedor) { setCobrancas([]); setCobrancaId(''); return; }
+    let cancelled = false;
+    setLoadingCobrancas(true);
+    (async () => {
+      try {
+        const lista = await fetchCobrancasAbertas(targetVendedor);
+        if (cancelled) return;
+        setCobrancas(lista);
+        // Pré-seleciona a mais antiga em aberto (com 1 só, fica automática)
+        setCobrancaId(lista.length > 0 ? lista[0].snapshot_id : '');
+      } catch {
+        if (!cancelled) { setCobrancas([]); setCobrancaId(''); }
+      } finally {
+        if (!cancelled) setLoadingCobrancas(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, targetVendedor]);
+
 
   // Carrega lista de vendedores quando o dialog abre em modo admin
   useEffect(() => {
