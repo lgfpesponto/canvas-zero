@@ -20,6 +20,8 @@ export interface RevendedorComprovante {
   pagador_nome: string | null;
   pagador_documento: string | null;
   tipo_detectado: 'empresa' | 'fornecedor' | null;
+  cobranca_snapshot_id?: string | null;
+
 }
 
 export interface RevendedorSaldo {
@@ -192,6 +194,34 @@ export async function reprovarComprovante(id: string, motivo: string) {
     _motivo: motivo,
   });
   if (error) throw error;
+}
+
+/** Lote de cobrança (relatório PDF) com pedidos ainda em "Cobrado". */
+export interface CobrancaAberta {
+  snapshot_id: string;
+  gerado_em: string;
+  nome_arquivo: string | null;
+  valor_total: number;
+  qtd_pedidos_total: number;
+  valor_aberto: number;
+  qtd_pedidos_aberto: number;
+}
+
+/** Cobranças (relatórios) do vendedor que ainda têm pedidos aguardando pagamento. */
+export async function fetchCobrancasAbertas(vendedor: string): Promise<CobrancaAberta[]> {
+  const { data, error } = await supabase.rpc('listar_cobrancas_abertas_vendedor' as any, {
+    _vendedor: vendedor,
+  });
+  if (error) throw error;
+  return ((data as any) || []).map((r: any) => ({
+    snapshot_id: r.snapshot_id,
+    gerado_em: r.gerado_em,
+    nome_arquivo: r.nome_arquivo,
+    valor_total: Number(r.valor_total || 0),
+    qtd_pedidos_total: Number(r.qtd_pedidos_total || 0),
+    valor_aberto: Number(r.valor_aberto || 0),
+    qtd_pedidos_aberto: Number(r.qtd_pedidos_aberto || 0),
+  }));
 }
 
 export async function ajustarSaldo(vendedor: string, delta: number, descricao: string) {

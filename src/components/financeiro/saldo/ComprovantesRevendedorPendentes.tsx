@@ -64,6 +64,8 @@ export const ComprovantesRevendedorPendentes = ({
   const [editPagadorDoc, setEditPagadorDoc] = useState('');
   const [pagadorSaving, setPagadorSaving] = useState(false);
   const [ajustesPorVendedor, setAjustesPorVendedor] = useState<Record<string, number>>({});
+  const [cobrancaDatas, setCobrancaDatas] = useState<Record<string, string>>({});
+
   const [confirmAjusteTarget, setConfirmAjusteTarget] = useState<RevendedorComprovante | null>(null);
   const reloadTimer = useRef<number | null>(null);
 
@@ -83,6 +85,23 @@ export const ComprovantesRevendedorPendentes = ({
         mapa[v] = (mapa[v] || 0) + 1;
       });
       setAjustesPorVendedor(mapa);
+
+      // Data da cobrança (relatório) vinculada a cada comprovante
+      const snapIds = Array.from(new Set(
+        p.map(c => (c as any).cobranca_snapshot_id).filter(Boolean) as string[]
+      ));
+      if (snapIds.length > 0) {
+        const { data: snaps } = await supabase
+          .from('pdf_snapshots')
+          .select('id, gerado_em')
+          .in('id', snapIds);
+        const sm: Record<string, string> = {};
+        ((snaps as any[]) || []).forEach(s => { sm[s.id] = s.gerado_em; });
+        setCobrancaDatas(sm);
+      } else {
+        setCobrancaDatas({});
+      }
+
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -400,6 +419,12 @@ export const ComprovantesRevendedorPendentes = ({
                             />
                           )}
                         </div>
+                        {(c as any).cobranca_snapshot_id && cobrancaDatas[(c as any).cobranca_snapshot_id] && (
+                          <div className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                            Cobrança {formatDateBR(String(cobrancaDatas[(c as any).cobranca_snapshot_id]).slice(0, 10))}
+                          </div>
+                        )}
+
                       </TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
                       <TableCell className="text-right font-bold">

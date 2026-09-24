@@ -19,7 +19,7 @@ import {
   validateComprovante, fileHash, todayISO, formatDateBR, parseCurrencyInput,
 } from '@/components/financeiro/financeiroHelpers';
 import { formatCurrency } from '@/lib/order-logic';
-import { uploadComprovanteRevendedor } from '@/lib/revendedorSaldo';
+import { uploadComprovanteRevendedor, fetchCobrancasAbertas, type CobrancaAberta } from '@/lib/revendedorSaldo';
 
 interface Props {
   open: boolean;
@@ -125,7 +125,32 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
   const [selectedVendedor, setSelectedVendedor] = useState<string>('');
   const [vendedoresList, setVendedoresList] = useState<string[]>([]);
   const [loadingVendedores, setLoadingVendedores] = useState(false);
+  const [cobrancas, setCobrancas] = useState<CobrancaAberta[]>([]);
+  const [loadingCobrancas, setLoadingCobrancas] = useState(false);
+  const [cobrancaId, setCobrancaId] = useState<string>('');
   const targetVendedor = vendedor || selectedVendedor;
+
+  // Carrega as cobranças (relatórios) em aberto do vendedor alvo
+  useEffect(() => {
+    if (!open || !targetVendedor) { setCobrancas([]); setCobrancaId(''); return; }
+    let cancelled = false;
+    setLoadingCobrancas(true);
+    (async () => {
+      try {
+        const lista = await fetchCobrancasAbertas(targetVendedor);
+        if (cancelled) return;
+        setCobrancas(lista);
+        // Pré-seleciona a mais antiga em aberto (com 1 só, fica automática)
+        setCobrancaId(lista.length > 0 ? lista[0].snapshot_id : '');
+      } catch {
+        if (!cancelled) { setCobrancas([]); setCobrancaId(''); }
+      } finally {
+        if (!cancelled) setLoadingCobrancas(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, targetVendedor]);
+
 
   // Carrega lista de vendedores quando o dialog abre em modo admin
   useEffect(() => {
@@ -152,7 +177,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     })();
   }, [open, isAdminMode]);
 
-  const reset = () => { setItems([]); setSelectedVendedor(''); };
+  const reset = () => { setItems([]); setSelectedVendedor(''); setCobrancas([]); setCobrancaId(''); };
 
   const close = () => {
     if (savingAll) return;
@@ -330,6 +355,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           pagador_nome: it.pagador_nome || null,
           pagador_documento: it.pagador_documento || null,
           tipo_detectado: it.tipo_detectado,
+          cobranca_snapshot_id: cobrancaId || null,
+
         });
         if (error) {
           if (error.code === '23505' || /duplicad/i.test(error.message || '')) {
@@ -411,6 +438,57 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
               </Select>
             )}
           </div>
+
+          {targetVendedor && (
+            <div>
+              <Label>Cobrança de referência</Label>
+              {loadingCobrancas ? (
+                <div className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Procurando cobranças em aberto...
+                </div>
+              ) : cobrancas.length === 0 ? (
+                <div className="mt-1 text-xs rounded border border-border bg-muted/40 p-2 text-muted-foreground">
+                  Nenhuma cobrança em aberto. O valor entra como saldo e quita os pedidos mais antigos
+                  que estiverem em Cobrado.
+                </div>
+              ) : cobrancas.length === 1 ? (
+                <div className="mt-1 rounded border border-primary/30 bg-primary/5 p-2 text-sm">
+                  <div className="font-semibold">
+                    Cobrança de {formatDateBR(String(cobrancas[0].gerado_em).slice(0, 10))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total {formatCurrency(cobrancas[0].valor_total)} • Em aberto{' '}
+                    <span className="font-semibold text-primary">
+                      {formatCurrency(cobrancas[0].valor_aberto)}
+                    </span>{' '}
+                    ({cobrancas[0].qtd_pedidos_aberto} pedido(s) aguardando pagamento)
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Select value={cobrancaId} onValueChange={setCobrancaId} disabled={savingAll}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Selecione a cobrança que está pagando" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cobrancas.map(c => (
+                        <SelectItem key={c.snapshot_id} value={c.snapshot_id}>
+                          {formatDateBR(String(c.gerado_em).slice(0, 10))} — em aberto{' '}
+                          {formatCurrency(c.valor_aberto)} ({c.qtd_pedidos_aberto} pedidos)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Se o valor enviado for maior que a cobrança escolhida, o que sobrar quita
+                    automaticamente a próxima cobrança da fila.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+
 
           <div>
             <Label>Comprovantes (PDF ou foto — pode arrastar vários)</Label>
