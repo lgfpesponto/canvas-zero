@@ -308,6 +308,30 @@ export const ComprovantesRevendedorPendentes = ({
           </div>
         </CardHeader>
         <CardContent>
+          {vendedoresComAjuste.length > 0 && (
+            <div className="mb-3 rounded-md border-2 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30 px-3 py-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="text-yellow-600 shrink-0 mt-0.5" size={18} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200">
+                    Atenção: existem solicitações de ajuste de preço aguardando decisão.
+                  </p>
+                  <p className="text-xs text-yellow-800 dark:text-yellow-300 mt-0.5">
+                    Aprove ou recuse os ajustes antes de liberar os comprovantes, para que os pedidos sejam
+                    baixados pelos valores corretos.
+                  </p>
+                  <ul className="mt-1 text-xs text-yellow-900 dark:text-yellow-200 font-medium">
+                    {vendedoresComAjuste.map(([v, n]) => (
+                      <li key={v}>• {v} — {n} ajuste(s) pendente(s)</li>
+                    ))}
+                  </ul>
+                  <Button asChild size="sm" variant="outline" className="mt-2 border-yellow-600 text-yellow-900 dark:text-yellow-200">
+                    <Link to="/admin/solicitacoes-ajuste">Ver solicitações de ajuste</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           {selectedIds.size > 0 && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2">
               <span className="text-sm font-medium">
