@@ -419,6 +419,12 @@ export const ComprovantesRevendedorPendentes = ({
                             />
                           )}
                         </div>
+                        {(c as any).cobranca_snapshot_id && cobrancaDatas[(c as any).cobranca_snapshot_id] && (
+                          <div className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                            Cobrança {formatDateBR(String(cobrancaDatas[(c as any).cobranca_snapshot_id]).slice(0, 10))}
+                          </div>
+                        )}
+
                       </TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
                       <TableCell className="text-right font-bold">
