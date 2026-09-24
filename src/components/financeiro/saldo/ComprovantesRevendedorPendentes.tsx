@@ -63,6 +63,8 @@ export const ComprovantesRevendedorPendentes = ({
   const [editPagadorNome, setEditPagadorNome] = useState('');
   const [editPagadorDoc, setEditPagadorDoc] = useState('');
   const [pagadorSaving, setPagadorSaving] = useState(false);
+  const [ajustesPorVendedor, setAjustesPorVendedor] = useState<Record<string, number>>({});
+  const [confirmAjusteTarget, setConfirmAjusteTarget] = useState<RevendedorComprovante | null>(null);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
@@ -70,6 +72,17 @@ export const ComprovantesRevendedorPendentes = ({
     try {
       const p = await fetchComprovantesPendentes();
       setPendentes(p);
+      const { data: ajustes } = await supabase
+        .from('order_ajuste_solicitacoes')
+        .select('vendedor')
+        .eq('status', 'pendente');
+      const mapa: Record<string, number> = {};
+      ((ajustes as any[]) || []).forEach(a => {
+        const v = String(a.vendedor || '').trim();
+        if (!v) return;
+        mapa[v] = (mapa[v] || 0) + 1;
+      });
+      setAjustesPorVendedor(mapa);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
