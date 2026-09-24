@@ -504,6 +504,44 @@ export const ComprovantesRevendedorPendentes = ({
         onOpenChange={(o) => { if (!o) setViewerPath(null); }}
       />
 
+      <AlertDialog
+        open={!!confirmAjusteTarget}
+        onOpenChange={(o) => { if (!o) setConfirmAjusteTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-yellow-600" size={18} />
+              Ajustes de preço pendentes
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left">
+                <p>
+                  {confirmAjusteTarget?.vendedor} tem{' '}
+                  <strong>{confirmAjusteTarget ? ajustesDoVendedor(confirmAjusteTarget.vendedor) : 0} solicitação(ões)
+                  de ajuste de preço</strong> aguardando decisão.
+                </p>
+                <p>
+                  Se aprovar o comprovante agora, os pedidos podem ser quitados pelos valores antigos e sobrar
+                  saldo ou faltar dinheiro na conta do vendedor. O recomendado é decidir os ajustes primeiro.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <Button asChild variant="outline">
+              <Link to="/admin/solicitacoes-ajuste">Ver solicitações de ajuste</Link>
+            </Button>
+            <AlertDialogAction
+              onClick={() => { if (confirmAjusteTarget) handleAprovar(confirmAjusteTarget); }}
+            >
+              Aprovar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog
         open={!!pagadorTarget}
         onOpenChange={(o) => { if (!o && !pagadorSaving) { setPagadorTarget(null); setEditPagadorNome(''); setEditPagadorDoc(''); } }}
