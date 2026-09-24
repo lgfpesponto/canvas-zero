@@ -439,6 +439,57 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
             )}
           </div>
 
+          {targetVendedor && (
+            <div>
+              <Label>Cobrança de referência</Label>
+              {loadingCobrancas ? (
+                <div className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Procurando cobranças em aberto...
+                </div>
+              ) : cobrancas.length === 0 ? (
+                <div className="mt-1 text-xs rounded border border-border bg-muted/40 p-2 text-muted-foreground">
+                  Nenhuma cobrança em aberto. O valor entra como saldo e quita os pedidos mais antigos
+                  que estiverem em Cobrado.
+                </div>
+              ) : cobrancas.length === 1 ? (
+                <div className="mt-1 rounded border border-primary/30 bg-primary/5 p-2 text-sm">
+                  <div className="font-semibold">
+                    Cobrança de {formatDateBR(String(cobrancas[0].gerado_em).slice(0, 10))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total {formatCurrency(cobrancas[0].valor_total)} • Em aberto{' '}
+                    <span className="font-semibold text-primary">
+                      {formatCurrency(cobrancas[0].valor_aberto)}
+                    </span>{' '}
+                    ({cobrancas[0].qtd_pedidos_aberto} pedido(s) aguardando pagamento)
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Select value={cobrancaId} onValueChange={setCobrancaId} disabled={savingAll}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Selecione a cobrança que está pagando" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cobrancas.map(c => (
+                        <SelectItem key={c.snapshot_id} value={c.snapshot_id}>
+                          {formatDateBR(String(c.gerado_em).slice(0, 10))} — em aberto{' '}
+                          {formatCurrency(c.valor_aberto)} ({c.qtd_pedidos_aberto} pedidos)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Se o valor enviado for maior que a cobrança escolhida, o que sobrar quita
+                    automaticamente a próxima cobrança da fila.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+
+
           <div>
             <Label>Comprovantes (PDF ou foto — pode arrastar vários)</Label>
             <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mt-1">
