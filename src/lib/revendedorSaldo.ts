@@ -20,6 +20,8 @@ export interface RevendedorComprovante {
   pagador_nome: string | null;
   pagador_documento: string | null;
   tipo_detectado: 'empresa' | 'fornecedor' | null;
+  cobranca_snapshot_id?: string | null;
+
 }
 
 export interface RevendedorSaldo {
