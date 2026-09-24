@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive, Pencil, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
