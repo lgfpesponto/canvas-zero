@@ -177,7 +177,7 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
     })();
   }, [open, isAdminMode]);
 
-  const reset = () => { setItems([]); setSelectedVendedor(''); };
+  const reset = () => { setItems([]); setSelectedVendedor(''); setCobrancas([]); setCobrancaId(''); };
 
   const close = () => {
     if (savingAll) return;
