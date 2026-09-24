@@ -3420,16 +3420,10 @@ export type Database = {
       saldo_atual_revendedor: { Args: { _vendedor: string }; Returns: number }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
-      tentar_baixa_automatica:
-        | { Args: { _admin_id?: string; _vendedor: string }; Returns: number }
-        | {
-            Args: {
-              _admin_id?: string
-              _snapshot_id?: string
-              _vendedor: string
-            }
-            Returns: number
-          }
+      tentar_baixa_automatica: {
+        Args: { _admin_id?: string; _snapshot_id?: string; _vendedor: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role:
