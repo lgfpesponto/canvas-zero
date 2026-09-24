@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, FileText, CheckCircle2, XCircle, Building2, User, Upload, Archive, Pencil, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,8 @@ export const ComprovantesRevendedorPendentes = ({
   const [editPagadorNome, setEditPagadorNome] = useState('');
   const [editPagadorDoc, setEditPagadorDoc] = useState('');
   const [pagadorSaving, setPagadorSaving] = useState(false);
+  const [ajustesPorVendedor, setAjustesPorVendedor] = useState<Record<string, number>>({});
+  const [confirmAjusteTarget, setConfirmAjusteTarget] = useState<RevendedorComprovante | null>(null);
   const reloadTimer = useRef<number | null>(null);
 
   const load = async () => {
@@ -69,6 +72,17 @@ export const ComprovantesRevendedorPendentes = ({
     try {
       const p = await fetchComprovantesPendentes();
       setPendentes(p);
+      const { data: ajustes } = await supabase
+        .from('order_ajuste_solicitacoes')
+        .select('vendedor')
+        .eq('status', 'pendente');
+      const mapa: Record<string, number> = {};
+      ((ajustes as any[]) || []).forEach(a => {
+        const v = String(a.vendedor || '').trim();
+        if (!v) return;
+        mapa[v] = (mapa[v] || 0) + 1;
+      });
+      setAjustesPorVendedor(mapa);
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
@@ -103,7 +117,21 @@ export const ComprovantesRevendedorPendentes = ({
     [pendentes]
   );
 
+  /** Vendedores da lista de pendentes que têm solicitação de ajuste de preço aguardando decisão. */
+  const vendedoresComAjuste = useMemo(() => {
+    const set = new Map<string, number>();
+    pendentes.forEach(c => {
+      const n = ajustesPorVendedor[String(c.vendedor || '').trim()] || 0;
+      if (n > 0) set.set(c.vendedor, n);
+    });
+    return Array.from(set.entries());
+  }, [pendentes, ajustesPorVendedor]);
+
+  const ajustesDoVendedor = (vendedor: string) =>
+    ajustesPorVendedor[String(vendedor || '').trim()] || 0;
+
   const handleAprovar = async (c: RevendedorComprovante) => {
+    setConfirmAjusteTarget(null);
     setActionId(c.id);
     try {
       const result: any = await aprovarComprovante(c.id);
@@ -280,6 +308,30 @@ export const ComprovantesRevendedorPendentes = ({
           </div>
         </CardHeader>
         <CardContent>
+          {vendedoresComAjuste.length > 0 && (
+            <div className="mb-3 rounded-md border-2 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30 px-3 py-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="text-yellow-600 shrink-0 mt-0.5" size={18} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200">
+                    Atenção: existem solicitações de ajuste de preço aguardando decisão.
+                  </p>
+                  <p className="text-xs text-yellow-800 dark:text-yellow-300 mt-0.5">
+                    Aprove ou recuse os ajustes antes de liberar os comprovantes, para que os pedidos sejam
+                    baixados pelos valores corretos.
+                  </p>
+                  <ul className="mt-1 text-xs text-yellow-900 dark:text-yellow-200 font-medium">
+                    {vendedoresComAjuste.map(([v, n]) => (
+                      <li key={v}>• {v} — {n} ajuste(s) pendente(s)</li>
+                    ))}
+                  </ul>
+                  <Button asChild size="sm" variant="outline" className="mt-2 border-yellow-600 text-yellow-900 dark:text-yellow-200">
+                    <Link to="/admin/solicitacoes-ajuste">Ver solicitações de ajuste</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           {selectedIds.size > 0 && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2">
               <span className="text-sm font-medium">
@@ -337,7 +389,18 @@ export const ComprovantesRevendedorPendentes = ({
                       <TableCell className="text-xs">
                         {new Date(c.created_at).toLocaleString('pt-BR')}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">{c.vendedor}</TableCell>
+                      <TableCell className="text-sm font-medium">
+                        <div className="flex items-center gap-1">
+                          <span>{c.vendedor}</span>
+                          {ajustesDoVendedor(c.vendedor) > 0 && (
+                            <AlertTriangle
+                              size={14}
+                              className="text-yellow-600 shrink-0"
+                              aria-label="Ajustes de preço pendentes"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
                       <TableCell className="text-right font-bold">
                         <div className="inline-flex items-center gap-1 justify-end">
@@ -405,7 +468,10 @@ export const ComprovantesRevendedorPendentes = ({
                         <div className="flex gap-1 justify-end">
                           <Button
                             size="sm" variant="default"
-                            onClick={() => handleAprovar(c)}
+                            onClick={() => {
+                              if (ajustesDoVendedor(c.vendedor) > 0) { setConfirmAjusteTarget(c); return; }
+                              handleAprovar(c);
+                            }}
                             disabled={actionId === c.id}
                           >
                             {actionId === c.id ? (
@@ -437,6 +503,44 @@ export const ComprovantesRevendedorPendentes = ({
         open={!!viewerPath}
         onOpenChange={(o) => { if (!o) setViewerPath(null); }}
       />
+
+      <AlertDialog
+        open={!!confirmAjusteTarget}
+        onOpenChange={(o) => { if (!o) setConfirmAjusteTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-yellow-600" size={18} />
+              Ajustes de preço pendentes
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left">
+                <p>
+                  {confirmAjusteTarget?.vendedor} tem{' '}
+                  <strong>{confirmAjusteTarget ? ajustesDoVendedor(confirmAjusteTarget.vendedor) : 0} solicitação(ões)
+                  de ajuste de preço</strong> aguardando decisão.
+                </p>
+                <p>
+                  Se aprovar o comprovante agora, os pedidos podem ser quitados pelos valores antigos e sobrar
+                  saldo ou faltar dinheiro na conta do vendedor. O recomendado é decidir os ajustes primeiro.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <Button asChild variant="outline">
+              <Link to="/admin/solicitacoes-ajuste">Ver solicitações de ajuste</Link>
+            </Button>
+            <AlertDialogAction
+              onClick={() => { if (confirmAjusteTarget) handleAprovar(confirmAjusteTarget); }}
+            >
+              Aprovar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={!!pagadorTarget}
