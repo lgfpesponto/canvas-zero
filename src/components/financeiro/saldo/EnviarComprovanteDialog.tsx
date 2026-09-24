@@ -355,6 +355,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           pagador_nome: it.pagador_nome || null,
           pagador_documento: it.pagador_documento || null,
           tipo_detectado: it.tipo_detectado,
+          cobranca_snapshot_id: cobrancaId || null,
+
         });
         if (error) {
           if (error.code === '23505' || /duplicad/i.test(error.message || '')) {
