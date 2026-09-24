@@ -468,7 +468,10 @@ export const ComprovantesRevendedorPendentes = ({
                         <div className="flex gap-1 justify-end">
                           <Button
                             size="sm" variant="default"
-                            onClick={() => handleAprovar(c)}
+                            onClick={() => {
+                              if (ajustesDoVendedor(c.vendedor) > 0) { setConfirmAjusteTarget(c); return; }
+                              handleAprovar(c);
+                            }}
                             disabled={actionId === c.id}
                           >
                             {actionId === c.id ? (
