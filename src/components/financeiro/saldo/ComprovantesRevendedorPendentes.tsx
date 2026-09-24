@@ -64,6 +64,8 @@ export const ComprovantesRevendedorPendentes = ({
   const [editPagadorDoc, setEditPagadorDoc] = useState('');
   const [pagadorSaving, setPagadorSaving] = useState(false);
   const [ajustesPorVendedor, setAjustesPorVendedor] = useState<Record<string, number>>({});
+  const [cobrancaDatas, setCobrancaDatas] = useState<Record<string, string>>({});
+
   const [confirmAjusteTarget, setConfirmAjusteTarget] = useState<RevendedorComprovante | null>(null);
   const reloadTimer = useRef<number | null>(null);
 
