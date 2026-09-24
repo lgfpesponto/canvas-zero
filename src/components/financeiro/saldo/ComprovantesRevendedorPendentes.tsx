@@ -389,7 +389,18 @@ export const ComprovantesRevendedorPendentes = ({
                       <TableCell className="text-xs">
                         {new Date(c.created_at).toLocaleString('pt-BR')}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">{c.vendedor}</TableCell>
+                      <TableCell className="text-sm font-medium">
+                        <div className="flex items-center gap-1">
+                          <span>{c.vendedor}</span>
+                          {ajustesDoVendedor(c.vendedor) > 0 && (
+                            <AlertTriangle
+                              size={14}
+                              className="text-yellow-600 shrink-0"
+                              aria-label="Ajustes de preço pendentes"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_pagamento)}</TableCell>
                       <TableCell className="text-right font-bold">
                         <div className="inline-flex items-center gap-1 justify-end">
