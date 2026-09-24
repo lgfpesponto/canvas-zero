@@ -117,7 +117,21 @@ export const ComprovantesRevendedorPendentes = ({
     [pendentes]
   );
 
+  /** Vendedores da lista de pendentes que têm solicitação de ajuste de preço aguardando decisão. */
+  const vendedoresComAjuste = useMemo(() => {
+    const set = new Map<string, number>();
+    pendentes.forEach(c => {
+      const n = ajustesPorVendedor[String(c.vendedor || '').trim()] || 0;
+      if (n > 0) set.set(c.vendedor, n);
+    });
+    return Array.from(set.entries());
+  }, [pendentes, ajustesPorVendedor]);
+
+  const ajustesDoVendedor = (vendedor: string) =>
+    ajustesPorVendedor[String(vendedor || '').trim()] || 0;
+
   const handleAprovar = async (c: RevendedorComprovante) => {
+    setConfirmAjusteTarget(null);
     setActionId(c.id);
     try {
       const result: any = await aprovarComprovante(c.id);
