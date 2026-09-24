@@ -83,6 +83,23 @@ export const ComprovantesRevendedorPendentes = ({
         mapa[v] = (mapa[v] || 0) + 1;
       });
       setAjustesPorVendedor(mapa);
+
+      // Data da cobrança (relatório) vinculada a cada comprovante
+      const snapIds = Array.from(new Set(
+        p.map(c => (c as any).cobranca_snapshot_id).filter(Boolean) as string[]
+      ));
+      if (snapIds.length > 0) {
+        const { data: snaps } = await supabase
+          .from('pdf_snapshots')
+          .select('id, gerado_em')
+          .in('id', snapIds);
+        const sm: Record<string, string> = {};
+        ((snaps as any[]) || []).forEach(s => { sm[s.id] = s.gerado_em; });
+        setCobrancaDatas(sm);
+      } else {
+        setCobrancaDatas({});
+      }
+
     } catch (e: any) {
       toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' });
     } finally {
