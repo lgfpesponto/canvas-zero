@@ -2552,6 +2552,7 @@ export type Database = {
         Row: {
           aprovado_em: string | null
           aprovado_por: string | null
+          cobranca_snapshot_id: string | null
           comprovante_hash: string | null
           comprovante_url: string
           created_at: string
@@ -2571,6 +2572,7 @@ export type Database = {
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          cobranca_snapshot_id?: string | null
           comprovante_hash?: string | null
           comprovante_url: string
           created_at?: string
@@ -2590,6 +2592,7 @@ export type Database = {
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          cobranca_snapshot_id?: string | null
           comprovante_hash?: string | null
           comprovante_url?: string
           created_at?: string
@@ -2606,7 +2609,15 @@ export type Database = {
           valor?: number
           vendedor?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "revendedor_comprovantes_cobranca_snapshot_id_fkey"
+            columns: ["cobranca_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       revendedor_saldo_movimentos: {
         Row: {
@@ -3330,6 +3341,18 @@ export type Database = {
           nome_usuario: string
         }[]
       }
+      listar_cobrancas_abertas_vendedor: {
+        Args: { _vendedor: string }
+        Returns: {
+          gerado_em: string
+          nome_arquivo: string
+          qtd_pedidos_aberto: number
+          qtd_pedidos_total: number
+          snapshot_id: string
+          valor_aberto: number
+          valor_total: number
+        }[]
+      }
       marcar_ajuste_visto: {
         Args: { _solicitacao_id: string }
         Returns: undefined
@@ -3397,10 +3420,16 @@ export type Database = {
       saldo_atual_revendedor: { Args: { _vendedor: string }; Returns: number }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
-      tentar_baixa_automatica: {
-        Args: { _admin_id?: string; _vendedor: string }
-        Returns: number
-      }
+      tentar_baixa_automatica:
+        | { Args: { _admin_id?: string; _vendedor: string }; Returns: number }
+        | {
+            Args: {
+              _admin_id?: string
+              _snapshot_id?: string
+              _vendedor: string
+            }
+            Returns: number
+          }
     }
     Enums: {
       app_role:
