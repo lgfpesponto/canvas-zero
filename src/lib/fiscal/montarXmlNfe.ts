@@ -76,7 +76,7 @@ export async function validarEmissao(pedidoId: string, destinatarioId: string | 
     if (!ref) erros.push(`Cadastre a referência tributária "${refNome}" na tela de Tributação.`);
     else {
       if (dig(ref.ncm).length !== 8) erros.push(`Referência "${refNome}" sem NCM válido (8 dígitos).`);
-      if (!ref.csosn) erros.push(`Referência "${refNome}" sem CSOSN (confirmar com o contador).`);
+      if (!(ref.csosn || ref.cst_icms)) erros.push(`Referência "${refNome}" sem CSOSN (confirmar com o contador).`);
     }
     if (getOrderFinalValue(order as any) <= 0) erros.push('Pedido sem valor (ERRO/R$ 0,00) não pode ter nota de venda.');
   }
@@ -104,7 +104,7 @@ export async function montarXmlNfe(pedidoId: string, destinatarioId: string): Pr
   const vTotal = Number(getOrderFinalValue(order as any).toFixed(2));
   const vUnit = vTotal / qtd;
   const docDest = dig(dest.cpf_cnpj);
-  const csosn = String(ref.csosn);
+  const csosn = String(ref.csosn || ref.cst_icms);
   const origem = Number(ref.origem_mercadoria ?? 0);
   const unidade = ref.unidade_comercial || (referenciaDoPedido(order) === 'BOTA' ? 'PAR' : 'UN');
   const descricao = descricaoItem(order);
