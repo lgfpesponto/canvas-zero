@@ -24,6 +24,7 @@ import BulkProgressChanger from '@/components/orders/BulkProgressChanger';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock, History, Pencil, ScanBarcode, CheckSquare, Loader2, Printer, Image as ImageIcon, MessageCircle, AlertTriangle } from 'lucide-react';
 import { BagySyncButton } from '@/components/BagySyncButton';
+import { EmitirNfeButton } from '@/components/fiscal/EmitirNfeButton';
 import { buildTrackingMessage, buildWhatsappUrl, getPublicTrackingUrl, maskPhoneBR } from '@/lib/whatsappSend';
 import { WhatsappShareButton } from '@/components/WhatsappShareButton';
 import { useOrderNeighbors } from '@/hooks/useOrderNeighbors';
@@ -620,6 +621,7 @@ const OrderDetailPage = () => {
             {order && (order as any).bagy_order_id && (
               <BagySyncButton order={order as any} onDone={() => window.location.reload()} />
             )}
+            {order && <EmitirNfeButton order={order as any} />}
             <Button variant="outline" size="sm" onClick={() => { setShowScanner(!showScanner); setTimeout(() => scanInputRef.current?.focus(), 100); }}>
               <ScanBarcode size={16} /> Buscar Pedido
             </Button>

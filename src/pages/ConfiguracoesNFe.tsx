@@ -88,10 +88,10 @@ export default function ConfiguracoesNFe() {
   async function testarConexao() {
     setTesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("nfe-status-servico", { body: {} });
-      if (error) throw error;
-      if (data?.ok) toast.success(`Conexão OK (HTTP ${data.http_status}) — ${data.endpoint}`);
-      else toast.error(`Sem resposta: ${data?.preview?.slice(0, 200) || "erro de rede"}`);
+      const { getFiscalProvider } = await import("@/lib/fiscal/provider");
+      const data: any = await getFiscalProvider().consultarStatusServico();
+      if (String(data?.cStat) === "107") toast.success(`SEFAZ em operação — ${data.xMotivo ?? ""}`);
+      else toast.error(`${data?.cStat ?? ""} ${data?.xMotivo ?? data?.error ?? "Sem resposta"}`);
       if (data?.aviso) toast.message(data.aviso);
     } catch (e: any) { toast.error(e.message || String(e)); }
     finally { setTesting(false); }
