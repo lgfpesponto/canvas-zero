@@ -36,9 +36,30 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("NFE_PROXY_URL");
     const token = Deno.env.get("NFE_PROXY_TOKEN");
     if (!url || !token) return json({ error: "Proxy NF-e ainda não configurado" }, 412);
-    const pfx = Deno.env.get("NFE_CERT_PFX_BASE64");
-    if (!pfx) return json({ error: "Certificado digital ainda não configurado" }, 412);
+    const pfxRaw = (Deno.env.get("NFE_CERT_PFX_BASE64") ?? "").replace(/^data:[^,]*,/, "").replace(/\s+/g, "");
+    if (!pfxRaw) return json({ error: "Certificado digital ainda não configurado" }, 412);
     const senha = Deno.env.get("NFE_CERT_SENHA") ?? "";
+    // Certificados antigos (RC2/3DES) são recusados pelo OpenSSL 3 do proxy:
+    // regrava o PFX com criptografia moderna (AES-256) antes de enviar.
+    let pfx = pfxRaw;
+    try {
+      const forge = (await import("npm:node-forge@1.3.1")).default;
+      const der = forge.util.decode64(pfxRaw);
+      const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(der), senha);
+      const certs: any[] = [];
+      let key: any = null;
+      for (const sc of p12.safeContents) for (const bag of sc.safeBags) {
+        if (bag.cert) certs.push(bag.cert);
+        if (bag.key) key = bag.key;
+      }
+      if (!key || !certs.length) return json({ error: "Certificado inválido: chave ou certificado ausente no arquivo" }, 422);
+      const novo = forge.pkcs12.toPkcs12Asn1(key, certs, senha, { algorithm: "aes256", generateLocalKeyId: true, friendlyName: "nfe" });
+      pfx = forge.util.encode64(forge.asn1.toDer(novo).getBytes());
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e);
+      const senhaErrada = /mac|password|invalid/i.test(m);
+      return json({ error: senhaErrada ? "Senha do certificado incorreta ou arquivo corrompido" : "Não foi possível ler o certificado digital", detalhe: m }, 422);
+    }
 
     const { data: cfg } = await sb.from("nfe_config").select("ambiente, uf").order("created_at").limit(1).maybeSingle();
 
