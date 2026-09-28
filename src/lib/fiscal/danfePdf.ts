@@ -10,6 +10,7 @@ type FiscalData = {
   dest: any;
   itens: any[];
   order: any;
+  refs: any[];
   logo?: string;
   infCpl: string;
 };
@@ -89,9 +90,13 @@ async function loadDanfe(notaId: string, mode: DanfeMode): Promise<FiscalData> {
     nota.pedido_id ? supabase.from('orders').select('numero').eq('id', nota.pedido_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   if (!config) throw new Error('Configuração do emitente não encontrada.');
+  const ncms = [...new Set((itens ?? []).map(item => clean(item.ncm)).filter(Boolean))];
+  const { data: refs } = ncms.length
+    ? await supabase.from('nfe_tributacao_referencias').select('ncm, aliq_tributos_federais, aliq_tributos_estaduais').in('ncm', ncms)
+    : { data: [] };
   const dest = nota.destinatario_snapshot && typeof nota.destinatario_snapshot === 'object' ? nota.destinatario_snapshot : {};
   const logo = config.logo_path ? await imageAsDataUrl(config.logo_path, mode === 'etiqueta').catch(() => undefined) : undefined;
-  return { nota, config, dest, itens: itens ?? [], order, logo, infCpl: extractInfCpl(nota.xml_autorizado || nota.xml_assinado) || clean(nota.observacoes) };
+  return { nota, config, dest, itens: itens ?? [], order, refs: refs ?? [], logo, infCpl: extractInfCpl(nota.xml_autorizado || nota.xml_assinado) || clean(nota.observacoes) };
 }
 
 function address(person: any) {
@@ -99,13 +104,27 @@ function address(person: any) {
 }
 
 function infoText(data: FiscalData) {
-  const refs = data.itens.map(i => clean(i.ncm)).filter(Boolean);
+  let federal = 0;
+  let estadual = 0;
+  let configuredValue = 0;
+  for (const item of data.itens) {
+    const ref = data.refs.find(r => digits(r.ncm) === digits(item.ncm));
+    if (ref?.aliq_tributos_federais != null && ref?.aliq_tributos_estaduais != null) {
+      const value = Number(item.valor_total || 0);
+      federal += value * Number(ref.aliq_tributos_federais) / 100;
+      estadual += value * Number(ref.aliq_tributos_estaduais) / 100;
+      configuredValue += value;
+    }
+  }
+  const taxes = configuredValue > 0
+    ? `Total aproximado de tributos: R$ ${money(federal + estadual)} (${money((federal + estadual) / configuredValue * 100)}%). Federais R$ ${money(federal)}; Estaduais R$ ${money(estadual)}. Fonte IBPT.`
+    : '';
   const orderInfo = data.order?.numero ? `Nº Pedido: ${data.order.numero}.` : '';
   const delivery = `Endereço de entrega: ${data.dest.nome}, ${address(data.dest)}.`;
-  return [data.infCpl, delivery, orderInfo].filter(Boolean).join(' ');
+  return [taxes, data.infCpl, delivery, orderInfo].filter(Boolean).join(' ');
 }
 
-function drawEtiqueta(data: FiscalData) {
+export function drawEtiqueta(data: FiscalData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
   const margin = 4;
   const width = 92;
@@ -161,7 +180,7 @@ function drawEtiqueta(data: FiscalData) {
   return doc;
 }
 
-function drawA4(data: FiscalData) {
+export function drawA4(data: FiscalData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const x = 16, w = 178;
   let y = 8;

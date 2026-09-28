@@ -101,7 +101,7 @@ export async function montarXmlNfe(pedidoId: string, destinatarioId: string, cfo
   const interno = dest.uf.toUpperCase() === cfg!.uf.toUpperCase();
   const contribuinte = Number(dest.ind_ie_dest) === 1;
   const cfopPadrao = interno ? (contribuinte ? '5101' : '5107') : (contribuinte ? '6101' : '6107');
-  const cfop = digits(cfopEscolhido || cfopPadrao);
+  const cfop = dig(cfopEscolhido || cfopPadrao);
   if (!['5101', '5107', '6101', '6107'].includes(cfop)) throw new Error('CFOP inválido para venda de produção própria.');
   const qtd = Math.max(1, Number(order!.quantidade) || 1);
   const vTotal = Number(getOrderFinalValue(order as any).toFixed(2));
