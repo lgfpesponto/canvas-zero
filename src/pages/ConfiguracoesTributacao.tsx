@@ -24,6 +24,9 @@ type Row = {
   aliq_icms: number | null;
   aliq_pis: number | null;
   aliq_cofins: number | null;
+  csosn: string | null;
+  aliq_tributos_federais: number | null;
+  aliq_tributos_estaduais: number | null;
 };
 
 export default function ConfiguracoesTributacao() {
@@ -43,7 +46,7 @@ export default function ConfiguracoesTributacao() {
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("nfe_tributacao_referencias")
-      .select("id, referencia, descricao, ncm, cest, cfop_padrao, unidade_comercial, origem_mercadoria, cst_icms, cst_pis, cst_cofins, aliq_icms, aliq_pis, aliq_cofins")
+      .select("id, referencia, descricao, ncm, cest, cfop_padrao, unidade_comercial, origem_mercadoria, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, aliq_pis, aliq_cofins, aliq_tributos_federais, aliq_tributos_estaduais")
       .order("referencia");
     setRows((data as Row[]) || []);
     setLoading(false);
@@ -156,11 +159,14 @@ export default function ConfiguracoesTributacao() {
                 <TableHead>Un.</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>CST ICMS</TableHead>
+                <TableHead>CSOSN</TableHead>
                 <TableHead>% ICMS</TableHead>
                 <TableHead>CST PIS</TableHead>
                 <TableHead>% PIS</TableHead>
                 <TableHead>CST COFINS</TableHead>
                 <TableHead>% COFINS</TableHead>
+                <TableHead>% Trib. federal</TableHead>
+                <TableHead>% Trib. estadual</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -174,16 +180,19 @@ export default function ConfiguracoesTributacao() {
                   <TableCell><Input className="h-8 w-14" value={r.unidade_comercial || ""} onChange={e => patch(r.id, "unidade_comercial", e.target.value)} /></TableCell>
                   <TableCell><Input className="h-8 w-12" value={r.origem_mercadoria ?? 0} onChange={e => patch(r.id, "origem_mercadoria", Number(e.target.value))} /></TableCell>
                   <TableCell><Input className="h-8 w-16" value={r.cst_icms || ""} onChange={e => patch(r.id, "cst_icms", e.target.value)} /></TableCell>
+                  <TableCell><Input className="h-8 w-16" value={r.csosn || ""} onChange={e => patch(r.id, "csosn", e.target.value)} /></TableCell>
                   <TableCell><Input className="h-8 w-16" value={r.aliq_icms ?? 0} onChange={e => patch(r.id, "aliq_icms", Number(e.target.value))} /></TableCell>
                   <TableCell><Input className="h-8 w-16" value={r.cst_pis || ""} onChange={e => patch(r.id, "cst_pis", e.target.value)} /></TableCell>
                   <TableCell><Input className="h-8 w-16" value={r.aliq_pis ?? 0} onChange={e => patch(r.id, "aliq_pis", Number(e.target.value))} /></TableCell>
                   <TableCell><Input className="h-8 w-16" value={r.cst_cofins || ""} onChange={e => patch(r.id, "cst_cofins", e.target.value)} /></TableCell>
                   <TableCell><Input className="h-8 w-16" value={r.aliq_cofins ?? 0} onChange={e => patch(r.id, "aliq_cofins", Number(e.target.value))} /></TableCell>
+                  <TableCell><Input className="h-8 w-20" value={r.aliq_tributos_federais ?? ''} onChange={e => patch(r.id, "aliq_tributos_federais", e.target.value === '' ? null : Number(e.target.value))} /></TableCell>
+                  <TableCell><Input className="h-8 w-20" value={r.aliq_tributos_estaduais ?? ''} onChange={e => patch(r.id, "aliq_tributos_estaduais", e.target.value === '' ? null : Number(e.target.value))} /></TableCell>
                   <TableCell><Button size="icon" variant="ghost" onClick={() => remover(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-6">Nenhuma referência cadastrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={16} className="text-center text-muted-foreground py-6">Nenhuma referência cadastrada.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

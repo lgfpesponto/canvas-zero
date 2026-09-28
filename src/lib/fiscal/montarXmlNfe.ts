@@ -83,7 +83,7 @@ export async function validarEmissao(pedidoId: string, destinatarioId: string | 
   return { erros, cfg, order, ref };
 }
 
-export async function montarXmlNfe(pedidoId: string, destinatarioId: string): Promise<MontagemResultado> {
+export async function montarXmlNfe(pedidoId: string, destinatarioId: string, cfopEscolhido?: string): Promise<MontagemResultado> {
   const { erros, cfg, order, ref } = await validarEmissao(pedidoId, destinatarioId);
   if (erros.length) throw new Error(erros.join('\n'));
   const { data: dest, error: dErr } = await supabase.from('nfe_destinatarios').select('*').eq('id', destinatarioId).single();
@@ -99,7 +99,10 @@ export async function montarXmlNfe(pedidoId: string, destinatarioId: string): Pr
   const dhEmi = new Date(agora.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 19) + '-03:00';
 
   const interno = dest.uf.toUpperCase() === cfg!.uf.toUpperCase();
-  const cfop = interno ? '5102' : '6102';
+  const contribuinte = Number(dest.ind_ie_dest) === 1;
+  const cfopPadrao = interno ? (contribuinte ? '5101' : '5107') : (contribuinte ? '6101' : '6107');
+  const cfop = digits(cfopEscolhido || cfopPadrao);
+  if (!['5101', '5107', '6101', '6107'].includes(cfop)) throw new Error('CFOP inválido para venda de produção própria.');
   const qtd = Math.max(1, Number(order!.quantidade) || 1);
   const vTotal = Number(getOrderFinalValue(order as any).toFixed(2));
   const vUnit = vTotal / qtd;

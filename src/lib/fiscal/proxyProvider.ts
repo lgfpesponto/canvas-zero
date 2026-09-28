@@ -29,8 +29,8 @@ async function chamar(acao: 'autorizar' | 'evento' | 'status', payload: Record<s
 }
 
 export class ProxyProvider {
-  async transmitir(pedidoId: string, destinatarioId: string) {
-    const m = await montarXmlNfe(pedidoId, destinatarioId);
+  async transmitir(pedidoId: string, destinatarioId: string, cfop?: string) {
+    const m = await montarXmlNfe(pedidoId, destinatarioId, cfop);
     const { data: nota, error } = await supabase.from('nfe_notas').insert({
       pedido_id: pedidoId, destinatario_id: destinatarioId, numero: m.numero, serie: m.serie, modelo: 55,
       chave_acesso: m.chave, ambiente: m.ambiente, status: 'processando', natureza_operacao: 'VENDA DE MERCADORIA',

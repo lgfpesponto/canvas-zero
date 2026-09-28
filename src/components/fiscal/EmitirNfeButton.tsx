@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Loader2 } from 'lucide-react';
+import { Download, FileText, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
 import { getFiscalProvider } from '@/lib/fiscal/provider';
 import { validarEmissao } from '@/lib/fiscal/montarXmlNfe';
+import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 
 const vazio = {
   tipo: 'cliente', vendedor_nome: '', nome: '', cpf_cnpj: '', inscricao_estadual: '', ind_ie_dest: 9,
@@ -25,6 +26,7 @@ export function EmitirNfeButton({ order }: { order: any }) {
   const [novo, setNovo] = useState<typeof vazio | null>(null);
   const [erros, setErros] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [cfop, setCfop] = useState('5107');
 
   async function load() {
     const [{ data: n }, { data: d }] = await Promise.all([
@@ -37,7 +39,12 @@ export function EmitirNfeButton({ order }: { order: any }) {
     setDestId(pre);
   }
   useEffect(() => { if (open) load(); }, [open]);
-  useEffect(() => { if (open) validarEmissao(order.id, destId || null).then(r => setErros(r.erros)); }, [open, destId]);
+  useEffect(() => {
+    if (!open) return;
+    validarEmissao(order.id, destId || null).then(r => setErros(r.erros));
+    const dest = dests.find(d => d.id === destId);
+    if (dest) setCfop(dest.uf === 'SP' ? (dest.ind_ie_dest === 1 ? '5101' : '5107') : (dest.ind_ie_dest === 1 ? '6101' : '6107'));
+  }, [open, destId, dests]);
 
   if (!acesso) return null;
 
@@ -81,7 +88,7 @@ export function EmitirNfeButton({ order }: { order: any }) {
     setBusy(true);
     try {
       await supabase.from('orders').update({ nfe_destinatario_id: destId } as any).eq('id', order.id);
-      const r = await getFiscalProvider().transmitir(order.id, destId);
+      const r = await getFiscalProvider().transmitir(order.id, destId, cfop);
       if (r.autorizada) toast.success(`NF-e autorizada — chave ${r.chave}`);
       else toast.error(`NF-e rejeitada: ${r.cStat} - ${r.xMotivo ?? ''}`);
     } catch (e: any) {
@@ -102,6 +109,13 @@ export function EmitirNfeButton({ order }: { order: any }) {
       if (tipo === 'cancelar') await p.cancelar(nota.id, txt.trim()); else await p.cartaCorrecao(nota.id, txt.trim());
       toast.success('Evento registrado');
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); load(); }
+  }
+
+  async function danfe(notaId: string, tipo: 'etiqueta' | 'a4', action: 'save' | 'print') {
+    setBusy(true);
+    try { await gerarDanfePdf(notaId, tipo, action); }
+    catch (e: any) { toast.error(e.message || String(e)); }
+    finally { setBusy(false); }
   }
 
   const f = (k: keyof typeof vazio, label: string, cls = '') => novo && (
@@ -127,7 +141,10 @@ export function EmitirNfeButton({ order }: { order: any }) {
                   {n.protocolo && <div className="text-xs">Protocolo: {n.protocolo}</div>}
                   {n.motivo_rejeicao && <div className="text-xs text-destructive">{n.motivo_rejeicao}</div>}
                   {n.status === 'autorizada' && (
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => danfe(n.id, 'etiqueta', 'print')}><Printer size={14} /> DANFE etiqueta</Button>
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => danfe(n.id, 'a4', 'print')}><Printer size={14} /> Imprimir DANFE</Button>
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => danfe(n.id, 'a4', 'save')}><Download size={14} /> Baixar PDF</Button>
                       <Button size="sm" variant="outline" disabled={busy} onClick={() => evento(n, 'cce')}>Carta de correção</Button>
                       <Button size="sm" variant="destructive" disabled={busy} onClick={() => evento(n, 'cancelar')}>Cancelar nota</Button>
                     </div>
@@ -147,6 +164,20 @@ export function EmitirNfeButton({ order }: { order: any }) {
                     {dests.map(d => <SelectItem key={d.id} value={d.id}>{d.nome} — {d.cpf_cnpj} ({d.tipo === 'revendedor' ? 'revendedor' : 'cliente'}, {d.uf})</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {destId && (
+                  <div className="mt-2 max-w-xs">
+                    <label className="text-sm font-medium">CFOP da nota</label>
+                    <Select value={cfop} onValueChange={setCfop}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5101">5101 — SP / contribuinte</SelectItem>
+                        <SelectItem value="5107">5107 — SP / não contribuinte</SelectItem>
+                        <SelectItem value="6101">6101 — outro estado / contribuinte</SelectItem>
+                        <SelectItem value="6107">6107 — outro estado / não contribuinte</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="flex gap-2 mt-2">
                   <Button size="sm" variant="ghost" onClick={() => abrirNovo('cliente')}>+ Cliente do pedido</Button>
                   <Button size="sm" variant="ghost" onClick={() => abrirNovo('revendedor')}>+ Revendedor ({order.vendedor})</Button>
