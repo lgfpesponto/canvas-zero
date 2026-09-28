@@ -1481,6 +1481,72 @@ export type Database = {
         }
         Relationships: []
       }
+      nfe_destinatarios: {
+        Row: {
+          bairro: string
+          cep: string
+          cod_municipio: string
+          complemento: string | null
+          cpf_cnpj: string
+          created_at: string
+          email: string | null
+          id: string
+          ind_ie_dest: number
+          inscricao_estadual: string | null
+          logradouro: string
+          municipio: string
+          nome: string
+          numero: string
+          telefone: string | null
+          tipo: string
+          uf: string
+          updated_at: string
+          vendedor_nome: string | null
+        }
+        Insert: {
+          bairro: string
+          cep: string
+          cod_municipio: string
+          complemento?: string | null
+          cpf_cnpj: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ind_ie_dest?: number
+          inscricao_estadual?: string | null
+          logradouro: string
+          municipio: string
+          nome: string
+          numero: string
+          telefone?: string | null
+          tipo?: string
+          uf: string
+          updated_at?: string
+          vendedor_nome?: string | null
+        }
+        Update: {
+          bairro?: string
+          cep?: string
+          cod_municipio?: string
+          complemento?: string | null
+          cpf_cnpj?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ind_ie_dest?: number
+          inscricao_estadual?: string | null
+          logradouro?: string
+          municipio?: string
+          nome?: string
+          numero?: string
+          telefone?: string | null
+          tipo?: string
+          uf?: string
+          updated_at?: string
+          vendedor_nome?: string | null
+        }
+        Relationships: []
+      }
       nfe_eventos: {
         Row: {
           created_at: string
@@ -1610,6 +1676,7 @@ export type Database = {
           danfe_pdf_url: string | null
           data_autorizacao: string | null
           data_emissao: string
+          destinatario_id: string | null
           destinatario_snapshot: Json
           id: string
           modelo: number
@@ -1634,6 +1701,7 @@ export type Database = {
           danfe_pdf_url?: string | null
           data_autorizacao?: string | null
           data_emissao?: string
+          destinatario_id?: string | null
           destinatario_snapshot?: Json
           id?: string
           modelo?: number
@@ -1658,6 +1726,7 @@ export type Database = {
           danfe_pdf_url?: string | null
           data_autorizacao?: string | null
           data_emissao?: string
+          destinatario_id?: string | null
           destinatario_snapshot?: Json
           id?: string
           modelo?: number
@@ -1677,6 +1746,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "nfe_notas_destinatario_id_fkey"
+            columns: ["destinatario_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_destinatarios"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "nfe_notas_pedido_id_fkey"
             columns: ["pedido_id"]
             isOneToOne: false
@@ -1693,6 +1769,7 @@ export type Database = {
           cest: string | null
           cfop_padrao: string | null
           created_at: string
+          csosn: string | null
           cst_cofins: string | null
           cst_icms: string | null
           cst_pis: string | null
@@ -1711,6 +1788,7 @@ export type Database = {
           cest?: string | null
           cfop_padrao?: string | null
           created_at?: string
+          csosn?: string | null
           cst_cofins?: string | null
           cst_icms?: string | null
           cst_pis?: string | null
@@ -1729,6 +1807,7 @@ export type Database = {
           cest?: string | null
           cfop_padrao?: string | null
           created_at?: string
+          csosn?: string | null
           cst_cofins?: string | null
           cst_icms?: string | null
           cst_pis?: string | null
@@ -1987,6 +2066,7 @@ export type Database = {
           lead_time_snapshot: number | null
           metais: string
           modelo: string
+          nfe_destinatario_id: string | null
           nome_bordado_desc: string | null
           nome_produto_estoque: string | null
           numero: string
@@ -2107,6 +2187,7 @@ export type Database = {
           lead_time_snapshot?: number | null
           metais?: string
           modelo?: string
+          nfe_destinatario_id?: string | null
           nome_bordado_desc?: string | null
           nome_produto_estoque?: string | null
           numero: string
@@ -2227,6 +2308,7 @@ export type Database = {
           lead_time_snapshot?: number | null
           metais?: string
           modelo?: string
+          nfe_destinatario_id?: string | null
           nome_bordado_desc?: string | null
           nome_produto_estoque?: string | null
           numero?: string
@@ -2281,6 +2363,13 @@ export type Database = {
             columns: ["ficha_versao_id"]
             isOneToOne: false
             referencedRelation: "ficha_versoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_nfe_destinatario_id_fkey"
+            columns: ["nfe_destinatario_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_destinatarios"
             referencedColumns: ["id"]
           },
         ]
@@ -3159,6 +3248,7 @@ export type Database = {
           lead_time_snapshot: number | null
           metais: string
           modelo: string
+          nfe_destinatario_id: string | null
           nome_bordado_desc: string | null
           nome_produto_estoque: string | null
           numero: string
@@ -3417,6 +3507,7 @@ export type Database = {
         Args: { _produto_id: string; _qtd: number }
         Returns: Json
       }
+      reservar_numero_nfe: { Args: never; Returns: Json }
       saldo_atual_revendedor: { Args: { _vendedor: string }; Returns: number }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
