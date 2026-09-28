@@ -107,16 +107,18 @@ function infoText(data: FiscalData) {
   let federal = 0;
   let estadual = 0;
   let configuredValue = 0;
+  let taxableValue = 0;
   for (const item of data.itens) {
+    const value = Number(item.valor_total || 0);
+    if (value > 0) taxableValue += value;
     const ref = data.refs.find(r => digits(r.ncm) === digits(item.ncm));
     if (ref?.aliq_tributos_federais != null && ref?.aliq_tributos_estaduais != null) {
-      const value = Number(item.valor_total || 0);
       federal += value * Number(ref.aliq_tributos_federais) / 100;
       estadual += value * Number(ref.aliq_tributos_estaduais) / 100;
       configuredValue += value;
     }
   }
-  const taxes = configuredValue > 0
+  const taxes = configuredValue > 0 && Math.abs(configuredValue - taxableValue) < .01
     ? `Total aproximado de tributos: R$ ${money(federal + estadual)} (${money((federal + estadual) / configuredValue * 100)}%). Federais R$ ${money(federal)}; Estaduais R$ ${money(estadual)}. Fonte IBPT.`
     : '';
   const orderInfo = data.order?.numero ? `Nº Pedido: ${data.order.numero}.` : '';
@@ -147,7 +149,7 @@ export function drawEtiqueta(data: FiscalData) {
   wrapped(data.config.razao_social, emitX, data.logo ? 57 : 88, 7, true);
   wrapped(`CNPJ: ${formatDoc(data.config.cnpj)}  IE: ${data.config.inscricao_estadual}`, emitX, data.logo ? 57 : 88);
   wrapped(address(data.config), emitX, data.logo ? 57 : 88);
-  y = Math.max(y, emitY + 25); dashed();
+  y = Math.max(y, data.logo ? emitY + 25 : y + 2); dashed();
   doc.addImage(barcode(digits(data.nota.chave_acesso)), 'PNG', 8, y, 84, 12, undefined, 'FAST'); y += 14;
   center(accessKey(data.nota.chave_acesso), 6.6);
   center('Protocolo de autorização de uso', 6);
@@ -189,6 +191,14 @@ export function drawA4(data: FiscalData) {
   const field = (label: string, value: unknown, fx: number, fy: number, fw: number, fh = 10) => { box(fx, fy, fw, fh); txt(label, fx + 1, fy + 2.5, 5.8); const lines = doc.splitTextToSize(clean(value) || ' ', fw - 2) as string[]; doc.setFontSize(7); doc.text(lines, fx + 1, fy + 6); };
   const section = (title: string) => { txt(title, x, y - 1, 8, true); };
 
+  if (data.nota.ambiente === 2) {
+    doc.setTextColor(230);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(27);
+    doc.text('SEM VALOR FISCAL', 105, 150, { align: 'center', angle: 35 });
+    doc.setTextColor(0);
+  }
+
   txt(`RECEBEMOS DE ${data.config.razao_social} OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO`, x, y + 3, 6);
   box(170, y, 24, 14); txt('NF-e', 182, y + 4, 7, true, 'center'); txt(`Nº ${padNfe(data.nota.numero)}`, 182, y + 8, 9.7, true, 'center'); txt(`Série ${data.nota.serie}`, 182, y + 12, 7, true, 'center');
   field('Data de recebimento', '', x, y + 7, 43, 7); field('Identificação e assinatura do recebedor', '', x + 43, y + 7, 111, 7);
@@ -229,7 +239,6 @@ export function drawA4(data: FiscalData) {
   if (y < 225) { box(x, y, w, 225-y); y = 225; }
   y += 5; section('Cálculo do ISSQN'); box(x,y,w,10); y += 14;
   section('Dados adicionais'); field('Observações', infoText(data), x, y, 115, 28); field('Reservado ao fisco', '', x + 115, y, 63, 28);
-  if (data.nota.ambiente === 2) { doc.setTextColor(180); txt('SEM VALOR FISCAL', 105, 145, 30, true, 'center'); doc.setTextColor(0); }
   txt(`Impresso em ${new Date().toLocaleString('pt-BR')}`, 194, 292, 5.5, false, 'right');
   return doc;
 }

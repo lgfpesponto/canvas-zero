@@ -3,6 +3,14 @@
 > **Última atualização**: 2026-04-10
 > Este documento reflete fielmente as regras implementadas no código-fonte. Qualquer alteração no sistema deve ser refletida aqui.
 
+## NF-e e DANFE
+
+- O DANFE só pode ser impresso para NF-e autorizada, com chave de acesso e protocolo.
+- O DANFE simplificado usa etiqueta térmica fixa de 100 × 150 mm; o DANFE completo usa A4.
+- Em homologação, ambos exibem “SEM VALOR FISCAL”.
+- Venda de produção própria usa CFOP 5101/6101 para contribuinte e 5107/6107 para não contribuinte, com escolha editável antes da emissão.
+- O total aproximado de tributos só aparece quando os percentuais federal e estadual estão configurados para todos os itens com valor.
+
 ---
 
 ## A. Modelos e Preços
