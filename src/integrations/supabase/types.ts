@@ -1404,9 +1404,11 @@ export type Database = {
           crt: number
           csc: string | null
           csc_id: string | null
+          email: string | null
           id: string
           inscricao_estadual: string
           inscricao_municipal: string | null
+          logo_path: string | null
           logradouro: string
           municipio: string
           nome_fantasia: string | null
@@ -1418,6 +1420,7 @@ export type Database = {
           telefone: string | null
           uf: string
           updated_at: string
+          website: string | null
         }
         Insert: {
           ambiente?: number
@@ -1434,9 +1437,11 @@ export type Database = {
           crt?: number
           csc?: string | null
           csc_id?: string | null
+          email?: string | null
           id?: string
           inscricao_estadual: string
           inscricao_municipal?: string | null
+          logo_path?: string | null
           logradouro: string
           municipio: string
           nome_fantasia?: string | null
@@ -1448,6 +1453,7 @@ export type Database = {
           telefone?: string | null
           uf: string
           updated_at?: string
+          website?: string | null
         }
         Update: {
           ambiente?: number
@@ -1464,9 +1470,11 @@ export type Database = {
           crt?: number
           csc?: string | null
           csc_id?: string | null
+          email?: string | null
           id?: string
           inscricao_estadual?: string
           inscricao_municipal?: string | null
+          logo_path?: string | null
           logradouro?: string
           municipio?: string
           nome_fantasia?: string | null
@@ -1478,6 +1486,7 @@ export type Database = {
           telefone?: string | null
           uf?: string
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -1766,6 +1775,8 @@ export type Database = {
           aliq_cofins: number | null
           aliq_icms: number | null
           aliq_pis: number | null
+          aliq_tributos_estaduais: number | null
+          aliq_tributos_federais: number | null
           cest: string | null
           cfop_padrao: string | null
           created_at: string
@@ -1785,6 +1796,8 @@ export type Database = {
           aliq_cofins?: number | null
           aliq_icms?: number | null
           aliq_pis?: number | null
+          aliq_tributos_estaduais?: number | null
+          aliq_tributos_federais?: number | null
           cest?: string | null
           cfop_padrao?: string | null
           created_at?: string
@@ -1804,6 +1817,8 @@ export type Database = {
           aliq_cofins?: number | null
           aliq_icms?: number | null
           aliq_pis?: number | null
+          aliq_tributos_estaduais?: number | null
+          aliq_tributos_federais?: number | null
           cest?: string | null
           cfop_padrao?: string | null
           created_at?: string

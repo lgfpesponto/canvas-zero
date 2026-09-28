@@ -22,6 +22,7 @@ type NFeConfig = {
   ambiente: number; serie: number; proximo_numero: number;
   csc?: string; csc_id?: string;
   certificado_path?: string | null; certificado_nome?: string | null; certificado_validade?: string | null;
+  email?: string | null; website?: string | null; logo_path?: string | null;
 };
 
 const EMPTY: NFeConfig = {
@@ -37,6 +38,7 @@ export default function ConfiguracoesNFe() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => { if (allowed) load(); }, [allowed]);
 
@@ -85,6 +87,22 @@ export default function ConfiguracoesNFe() {
     load();
   }
 
+  async function uploadLogo(file: File) {
+    if (!file.type.startsWith('image/')) { toast.error('Envie uma imagem PNG ou JPG.'); return; }
+    setUploadingLogo(true);
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const path = `logos/logo-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('nfe-certificados').upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { setUploadingLogo(false); toast.error(error.message); return; }
+    const payload = { logo_path: path };
+    const result = cfg.id
+      ? await supabase.from('nfe_config').update(payload).eq('id', cfg.id)
+      : await supabase.from('nfe_config').insert({ ...cfg, ...payload } as any);
+    setUploadingLogo(false);
+    if (result.error) { toast.error(result.error.message); return; }
+    toast.success('Logo do DANFE enviada'); load();
+  }
+
   async function testarConexao() {
     setTesting(true);
     try {
@@ -121,6 +139,8 @@ export default function ConfiguracoesNFe() {
           <div><Label>Inscrição Municipal</Label><Input value={cfg.inscricao_municipal || ""} onChange={e => set("inscricao_municipal", e.target.value)} /></div>
           <div><Label>CNAE</Label><Input value={cfg.cnae || ""} onChange={e => set("cnae", e.target.value)} /></div>
           <div><Label>Telefone</Label><Input value={cfg.telefone || ""} onChange={e => set("telefone", e.target.value)} /></div>
+          <div><Label>Site</Label><Input value={cfg.website || ""} onChange={e => set("website", e.target.value)} /></div>
+          <div><Label>E-mail</Label><Input value={cfg.email || ""} onChange={e => set("email", e.target.value)} /></div>
           <div>
             <Label>Regime Tributário *</Label>
             <Select value={String(cfg.regime_tributario)} onValueChange={v => set("regime_tributario", Number(v))}>
@@ -144,6 +164,20 @@ export default function ConfiguracoesNFe() {
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Logo do DANFE</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">Usada no DANFE A4 e convertida para preto e branco na etiqueta 100 × 150 mm.</p>
+          <label className="inline-flex">
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
+            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm cursor-pointer">
+              {uploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {cfg.logo_path ? 'Trocar logo' : 'Enviar logo'}
+            </span>
+          </label>
         </CardContent>
       </Card>
 
@@ -212,10 +246,6 @@ export default function ConfiguracoesNFe() {
         </Button>
       </div>
 
-      <div className="text-xs text-muted-foreground border-l-2 border-amber-500 pl-3">
-        <strong>Fase 1:</strong> esta tela permite cadastrar emitente, enviar certificado A1 e testar rede SEFAZ.
-        Emissão real (assinatura XML + autorização + DANFE) requer Fase 2.
-      </div>
     </div>
   );
 }
