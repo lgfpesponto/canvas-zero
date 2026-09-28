@@ -72,7 +72,8 @@ export default function ConfiguracoesNFe() {
       toast.error("Envie um arquivo .pfx ou .p12"); return;
     }
     setUploading(true);
-    const path = `cert-${Date.now()}-${file.name}`;
+    const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `cert-${Date.now()}-${safeName}`;
     const { error } = await supabase.storage.from("nfe-certificados").upload(path, file, { upsert: true });
     if (error) { setUploading(false); toast.error(error.message); return; }
     const updates = { certificado_path: path, certificado_nome: file.name };
