@@ -21,11 +21,11 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Record<string, Resultado>>({});
+  const [editOpen, setEditOpen] = useState(false);
 
-  useEffect(() => {
-    if (!pedidoIds?.length) return;
-    setLoading(true); setIdx(0); setRes({});
-    prepararNotasBagy(pedidoIds, portalIdPorBagy)
+  const carregar = (ids: string[]) => {
+    setLoading(true);
+    return prepararNotasBagy(ids, portalIdPorBagy)
       .then(n => {
         setNotas(n);
         const r: Record<string, Resultado> = {};
@@ -34,6 +34,12 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
       })
       .catch(e => toast.error(e.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!pedidoIds?.length) return;
+    setIdx(0); setRes({}); setEditOpen(false);
+    carregar(pedidoIds);
   }, [pedidoIds]);
 
   const n = notas[idx];
