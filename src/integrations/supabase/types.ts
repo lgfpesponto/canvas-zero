@@ -1698,6 +1698,7 @@ export type Database = {
           protocolo: string | null
           serie: number
           status: string
+          tipo_nota: string
           updated_at: string
           valor_produtos: number
           valor_total: number
@@ -1724,6 +1725,7 @@ export type Database = {
           protocolo?: string | null
           serie: number
           status?: string
+          tipo_nota?: string
           updated_at?: string
           valor_produtos?: number
           valor_total?: number
@@ -1750,6 +1752,7 @@ export type Database = {
           protocolo?: string | null
           serie?: number
           status?: string
+          tipo_nota?: string
           updated_at?: string
           valor_produtos?: number
           valor_total?: number
