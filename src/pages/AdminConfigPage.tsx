@@ -20,11 +20,12 @@ import HistoricoFichasTab from '@/components/gestao/HistoricoFichasTab';
 import AtacadoSyncPanel from '@/components/admin/AtacadoSyncPanel';
 import { FinanceiroInner } from './FinanceiroPage';
 import ConfiguracoesNFe from './ConfiguracoesNFe';
+import { NotasFiscaisInner } from './NotasFiscaisPage';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
 
 type SectionKey =
   | 'historico-fichas' | 'extras' | 'progresso' | 'relatorios'
-  | 'usuarios' | 'gestao' | 'atacado-sync' | 'financeiro' | 'nfe';
+  | 'usuarios' | 'gestao' | 'atacado-sync' | 'financeiro' | 'nfe' | 'notas-fiscais';
 
 export default function AdminConfigPage() {
   const { user } = useAuth();
@@ -66,7 +67,8 @@ export default function AdminConfigPage() {
     { key: 'gestao', label: 'gestão', Icon: Activity, visible: isAdminMaster },
     { key: 'atacado-sync', label: 'sincronização atacado', Icon: RefreshCw, visible: isAdminMaster },
     { key: 'financeiro', label: 'financeiro', Icon: Wallet, visible: isAdminMaster },
-    { key: 'nfe', label: 'nf-e', Icon: FileText, visible: isAdminMaster && hasNfeAccess },
+    { key: 'nfe', label: 'configurações nf-e', Icon: FileText, visible: isAdminMaster && hasNfeAccess },
+    { key: 'notas-fiscais', label: 'notas fiscais', Icon: FileText, visible: isAdminMaster && hasNfeAccess },
   ];
 
   const activeSection = sections.find(s => s.key === currentTab && s.visible);
@@ -162,6 +164,7 @@ export default function AdminConfigPage() {
         {activeSection?.key === 'atacado-sync' && <AtacadoSyncPanel />}
         {activeSection?.key === 'financeiro' && <FinanceiroInner />}
         {activeSection?.key === 'nfe' && <ConfiguracoesNFe />}
+        {activeSection?.key === 'notas-fiscais' && <NotasFiscaisInner />}
       </motion.div>
 
       {/* Delete confirmation */}

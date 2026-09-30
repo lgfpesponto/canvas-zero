@@ -34,6 +34,7 @@ import GestaoPage from "./pages/GestaoPage";
 import SolicitacoesAjustePage from "./pages/SolicitacoesAjustePage";
 import ConfiguracoesNFe from "./pages/ConfiguracoesNFe";
 import ConfiguracoesTributacao from "./pages/ConfiguracoesTributacao";
+import NotasFiscaisPage from "./pages/NotasFiscaisPage";
 import RanchoChiquePedidosPage from "./pages/RanchoChiquePedidosPage";
 import { PresenceTracker } from "@/hooks/usePresenceTracker";
 import AdminAssistantFab from "@/components/admin/AdminAssistantFab";
@@ -174,6 +175,7 @@ const App = () => (
             <Route path="/admin/solicitacoes-ajuste" element={<SolicitacoesAjustePage />} />
             <Route path="/configuracoes/nfe" element={<ConfiguracoesNFe />} />
             <Route path="/configuracoes/tributacao" element={<ConfiguracoesTributacao />} />
+            <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
             <Route path="/rancho-chique/pedidos" element={<RanchoChiquePedidosPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
