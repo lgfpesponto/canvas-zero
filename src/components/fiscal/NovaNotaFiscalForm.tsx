@@ -22,25 +22,44 @@ const destVazio = {
   logradouro: '', numero: '', complemento: '', bairro: '', cep: '', cod_municipio: '', municipio: '', uf: '',
 };
 
-const NATUREZAS = ['VENDA DE MERCADORIA', 'REMESSA PARA CONSERTO', 'REMESSA EM BONIFICACAO', 'OUTRAS SAIDAS'];
+const NATUREZAS: [string, string][] = [
+  ['5101', 'VENDA NO ESTADO'], ['5102', 'VENDA NO ESTADO'], ['5202', 'DEVOLUÇÃO DE COMPRA'],
+  ['5901', 'REMESSA P/ INDUSTRIALIZAÇÃO'], ['5902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
+  ['5124', 'INDUSTRIALIZAÇÃO EFETUADA P/ OUTRA EMPRESA'], ['5910', 'REMESSA EM BONIFICAÇÃO'],
+  ['5915', 'REMESSA P/ CONSERTO'], ['5916', 'RETORNO DE CONSERTO'], ['6101', 'VENDA FORA DO ESTADO'],
+  ['6102', 'VENDA FORA DO ESTADO'], ['6902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
+];
 const PAGAMENTOS: [string, string][] = [['01', 'Dinheiro'], ['03', 'Cartão de crédito'], ['04', 'Cartão de débito'], ['15', 'Boleto'], ['17', 'PIX'], ['90', 'Sem pagamento'], ['99', 'Outros']];
+const agoraLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+const hojeMais = (dias: number) => { const d = new Date(); d.setDate(d.getDate() + dias); return d.toISOString().slice(0, 10); };
+type Parcela = { dias: string; venc: string; valor: string; forma: string; obs: string };
+const extraVazio = () => ({
+  loja: '', cnpjEmit: '', razaoEmit: '', cfopNat: '', dhEmi: agoraLocal(), dhSaida: agoraLocal(), vendedor: '',
+  transp: { razao: '', cnpj: '', ie: '', endereco: '', municipio: '', uf: '', placa: '', ufPlaca: '', rntc: '', qVol: '', esp: '', marca: '', nVol: '', pesoL: '', pesoB: '' },
+  entregaDif: false,
+  entrega: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
+  condPag: '', parcelas: [{ dias: '0', venc: hojeMais(0), valor: '', forma: '17', obs: '' }] as Parcela[],
+});
 
 function Secao({ titulo, children, aberta = true }: { titulo: string; children: React.ReactNode; aberta?: boolean }) {
   const [open, setOpen] = useState(aberta);
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 font-semibold">
-        {titulo} <ChevronDown size={16} className={open ? 'rotate-180 transition' : 'transition'} />
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card shadow-sm">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-3.5 text-sm font-bold">
+        {titulo} <ChevronDown size={16} className={open ? 'rotate-180 text-muted-foreground transition' : 'text-muted-foreground transition'} />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-4 pb-4">{children}</CollapsibleContent>
+      <CollapsibleContent className="px-5 pb-5">{children}</CollapsibleContent>
     </Collapsible>
   );
 }
-const Campo = ({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) => (
-  <div className={className}><label className="mb-1 block text-xs font-semibold">{label}</label>{children}</div>
+const Campo = ({ label, children, className = '', hint }: { label: string; children: React.ReactNode; className?: string; hint?: string }) => (
+  <div className={className}>
+    <label className="mb-1 block text-xs font-medium text-foreground/80">{label}</label>{children}
+    {hint && <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{hint}</p>}
+  </div>
 );
 const Sel = (p: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...p} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
+  <select {...p} className={`h-10 w-full rounded-md border border-input bg-background px-3 text-sm ${p.className ?? ''}`} />
 );
 
 export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId?: string | null; onClose: () => void }) {
