@@ -13,7 +13,7 @@ const docFmt = (d: string) => d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})
 
 type Resultado = { notaId: string; numero: number; autorizada: boolean; motivo: string };
 
-export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
+export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose, onRemainingChange }: {
   pedidoIds: string[] | null; portalIdPorBagy: Record<string, string | null>; onClose: () => void;
   onRemainingChange?: (ids: string[]) => void;
 }) {
