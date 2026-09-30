@@ -40,7 +40,9 @@ const STATUS_SELLO: Record<string, { label: string; cls: string }> = {
   processando: { label: 'NF-e PROCESSANDO', cls: 'bg-yellow-500 text-white' },
 };
 
-export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onGerarNfe: () => void }) {
+export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged, hideSello }: {
+  pedido?: BagyPedidoMin; onGerarNfe?: () => void; notaId?: string; onChanged?: () => void; hideSello?: boolean;
+}) {
   const [nota, setNota] = useState<NotaRow | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -57,11 +59,17 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
   const [devMotivo, setDevMotivo] = useState('');
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('nfe_notas').select('id, numero, serie, status, chave_acesso, valor_total, valor_produtos, motivo_rejeicao, destinatario_snapshot, data_autorizacao')
-      .eq('bagy_pedido_id', pedido.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    let q = supabase
+      .from('nfe_notas').select('id, numero, serie, status, chave_acesso, valor_total, valor_produtos, motivo_rejeicao, destinatario_snapshot, data_autorizacao');
+    q = notaId ? q.eq('id', notaId) : q.eq('bagy_pedido_id', pedidoProp!.id);
+    const { data } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
     setNota((data as NotaRow | null) ?? null);
-  }, [pedido.id]);
+  }, [notaId, pedidoProp?.id]);
+  const dSnap: any = nota?.destinatario_snapshot || {};
+  const pedido: BagyPedidoMin = pedidoProp ?? {
+    id: '', numero_bagy: '', cliente_nome: dSnap.nome ?? null, cliente_email: dSnap.email ?? null,
+    cliente_whats: dSnap.telefone ?? null, total: nota?.valor_total ?? null,
+  };
   useEffect(() => { load(); }, [load]);
 
   const autorizada = nota?.status === 'autorizada';
@@ -69,7 +77,7 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
 
   const run = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
-    try { await fn(); await load(); } catch (e: any) { toast.error(e.message || 'Falha na operação.'); }
+    try { await fn(); await load(); onChanged?.(); } catch (e: any) { toast.error(e.message || 'Falha na operação.'); }
     finally { setBusy(null); }
   };
 
@@ -77,7 +85,7 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
     const fone = (pedido.cliente_whats || '').replace(/\D/g, '');
     if (!fone) { toast.error('Cliente sem WhatsApp cadastrado.'); return; }
     const msg = nota?.chave_acesso
-      ? `Olá ${pedido.cliente_nome || ''}! Sua NF-e nº ${nota.numero} (pedido RC-${pedido.numero_bagy}) foi emitida. Chave: ${nota.chave_acesso}`
+      ? `Olá ${pedido.cliente_nome || ''}! Sua NF-e nº ${nota.numero} ${pedido.numero_bagy ? `(pedido RC-${pedido.numero_bagy})` : ''} foi emitida. Chave: ${nota.chave_acesso}`
       : `Olá ${pedido.cliente_nome || ''}! Sobre seu pedido RC-${pedido.numero_bagy}.`;
     window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
@@ -168,7 +176,7 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
 
   return (
     <span className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-      {sello && nota && (
+      {!hideSello && sello && nota && (
         <span className={`text-[10px] font-bold px-2 py-1 rounded ${sello.cls}`}
           title={nota.motivo_rejeicao || undefined}>
           {sello.label}{nota.status === 'autorizada' ? ` nº ${nota.numero}` : ''}
@@ -181,10 +189,12 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={onGerarNfe}>
-            <Pencil size={14} className="mr-2" /> {nota ? 'Alterar rascunho' : 'Gerar NF-e'}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {onGerarNfe && (<>
+            <DropdownMenuItem onClick={onGerarNfe}>
+              <Pencil size={14} className="mr-2" /> {nota ? 'Alterar rascunho' : 'Gerar NF-e'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>)}
           <DropdownMenuItem onClick={enviarEmail}><Mail size={14} className="mr-2" /> Enviar por e-mail</DropdownMenuItem>
           <DropdownMenuItem onClick={enviarWhats}><MessageCircle size={14} className="mr-2" /> Enviar por WhatsApp</DropdownMenuItem>
           <DropdownMenuItem disabled={!nota} onClick={espelhoNf}><Eye size={14} className="mr-2" /> Enviar espelho NF</DropdownMenuItem>
