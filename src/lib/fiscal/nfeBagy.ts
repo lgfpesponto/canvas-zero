@@ -76,9 +76,12 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
     if (!UF_COD[uf]) erros.push('UF do cliente inválida.');
 
     const interno = cfg && uf === String(cfg.uf).toUpperCase();
-    const cfop = interno ? (ind_ie_dest === 1 ? '5101' : '5107') : (ind_ie_dest === 1 ? '6101' : '6107');
+    // PJ (CNPJ) → 5101/6101; PF (CPF) → 5107/6107. Brinde (R$ 0) → 5910/6910.
+    const pj = doc.length === 14;
+    const cfop = interno ? (pj ? '5101' : '5107') : (pj ? '6101' : '6107');
+    const cfopBrinde = interno ? '5910' : '6910';
 
-    const lista = (itens ?? []).filter((i: any) => i.pedido_id === id && Number(i.preco_unit || 0) > 0 && !String(i.status ?? '').startsWith('brinde'));
+    const lista = (itens ?? []).filter((i: any) => i.pedido_id === id);
     if (!lista.length) erros.push('Pedido sem itens.');
     const base: ItemRascunho[] = lista.map((i: any, idx: number) => {
       const descricao = [i.nome_produto, i.variacao_nome || (i.tamanho ? `Tam ${i.tamanho}` : '')].filter(Boolean).join(' - ') || 'Produto';
@@ -89,9 +92,9 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
       if (ncm.length !== 8) erros.push(`Item ${idx + 1} (${descricao}): NCM não identificado.`);
       const qtd = Math.max(1, Number(i.quantidade) || 1);
       const unit = Number(i.preco_unit || 0);
-      if (unit <= 0) erros.push(`Item ${idx + 1} (${descricao}): sem preço.`);
+      const brinde = unit <= 0 || String(i.status ?? '').startsWith('brinde');
       return {
-        codigo: i.sku || `RC-${p.numero_bagy}-${idx + 1}`, descricao, ncm, cfop,
+        codigo: i.sku || `RC-${p.numero_bagy}-${idx + 1}`, descricao: brinde && !/brinde/i.test(descricao) ? `${descricao} (BRINDE)` : descricao, ncm, cfop: brinde ? cfopBrinde : cfop,
         unidade: ref?.unidade_comercial || (refNome === 'BOTA' ? 'PAR' : 'UN'),
         quantidade: qtd, valorUnit: unit, valorTotal: r2(unit * qtd), desconto: 0, frete: 0,
         csosn: String(ref?.csosn || ref?.cst_icms || '102'), origem: Number(ref?.origem_mercadoria ?? 0),
