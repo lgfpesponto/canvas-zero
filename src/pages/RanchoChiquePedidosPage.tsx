@@ -12,6 +12,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BagyFichaDialog, type BagyFichaQueueItem } from '@/components/bagy/BagyFichaDialog';
 import { bagyLetterSuffix } from '@/lib/bagySuffix';
+import { NfeBagyDialog } from '@/components/fiscal/NfeBagyDialog';
+import { useNfeAccess } from '@/hooks/useNfeAccess';
 
 type BagyPedido = {
   id: string;
@@ -130,6 +132,8 @@ const RanchoChiquePedidosPage = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number } | null>(null);
   const [fichaQueue, setFichaQueue] = useState<BagyFichaQueueItem[] | null>(null);
+  const [nfeIds, setNfeIds] = useState<string[] | null>(null);
+  const nfeAcesso = useNfeAccess();
 
   const allowed = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
 
@@ -697,16 +701,11 @@ const RanchoChiquePedidosPage = () => {
                         {reprocessing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RefreshCw size={14} className="mr-1" />}
                         Reprocessar
                       </Button>
-                      <TooltipProvider><Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button size="sm" variant="outline" disabled>
-                              <FileText size={14} className="mr-1" /> Gerar NF-e
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>Integração NF-e em configuração.</TooltipContent>
-                      </Tooltip></TooltipProvider>
+                      {nfeAcesso && (
+                        <Button size="sm" variant="outline" onClick={() => setNfeIds([p.id])}>
+                          <FileText size={14} className="mr-1" /> Gerar NF-e
+                        </Button>
+                      )}
                       <TooltipProvider><Tooltip>
                         <TooltipTrigger asChild>
                           <span>
@@ -776,12 +775,9 @@ const RanchoChiquePedidosPage = () => {
               ? <><Loader2 size={14} className="mr-1 animate-spin"/> {syncProgress ? `${syncProgress.done}/${syncProgress.total}` : 'Enviando...'}</>
               : <><Send size={14} className="mr-1"/> Atualizar Bagy ({selectedPortalIds.length}/{selected.size})</>}
           </Button>
-          <TooltipProvider><Tooltip>
-            <TooltipTrigger asChild>
-              <span><Button size="sm" variant="outline" disabled><FileText size={14} className="mr-1"/> Gerar NF-e</Button></span>
-            </TooltipTrigger>
-            <TooltipContent>Integração NF-e em configuração.</TooltipContent>
-          </Tooltip></TooltipProvider>
+          {nfeAcesso && (
+            <Button size="sm" variant="outline" onClick={() => setNfeIds(Array.from(selected))}><FileText size={14} className="mr-1"/> Gerar NF-e ({selected.size})</Button>
+          )}
           <TooltipProvider><Tooltip>
             <TooltipTrigger asChild>
               <span><Button size="sm" variant="outline" disabled><Printer size={14} className="mr-1"/> Imprimir etiqueta</Button></span>
@@ -816,6 +812,12 @@ const RanchoChiquePedidosPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <NfeBagyDialog
+        pedidoIds={nfeIds}
+        portalIdPorBagy={Object.fromEntries((nfeIds ?? []).map(id => { const pd = pedidos.find(x => x.id === id); return [id, pd ? getPrimaryPortalId(pd) : null]; }))}
+        onClose={() => setNfeIds(null)}
+      />
 
       <BagyFichaDialog
         open={!!fichaQueue}
