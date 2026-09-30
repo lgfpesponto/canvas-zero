@@ -1,6 +1,6 @@
 /** NCM fixo por tipo de produto (regra definida pela 7 Estrivos). */
 const REGRAS: { test: RegExp; ncm: string; ref: string }[] = [
-  { test: /\bbotas?\b/i, ncm: '64039990', ref: 'BOTA' },
+  { test: /\b(botas?|texanas?)\b/i, ncm: '64039990', ref: 'BOTA' },
   { test: /\b(cintos?|gravatas?)\b/i, ncm: '42033000', ref: 'CINTO' },
   { test: /\bregatas?\b/i, ncm: '61061000', ref: 'EXTRAS' },
   { test: /(creme|revitalizador)/i, ncm: '34051000', ref: 'EXTRAS' },
