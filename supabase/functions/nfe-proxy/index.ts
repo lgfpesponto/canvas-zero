@@ -42,6 +42,8 @@ Deno.serve(async (req) => {
     // Certificados antigos (RC2/3DES) são recusados pelo OpenSSL 3 do proxy:
     // regrava o PFX com criptografia moderna (AES-256) antes de enviar.
     let pfx = pfxRaw;
+    let keyPem = "";
+    let certPem = "";
     try {
       const forge = (await import("npm:node-forge@1.3.1")).default;
       const der = forge.util.decode64(pfxRaw);
@@ -53,12 +55,28 @@ Deno.serve(async (req) => {
         if (bag.key) key = bag.key;
       }
       if (!key || !certs.length) return json({ error: "Certificado inválido: chave ou certificado ausente no arquivo" }, 422);
+      // Certificado do emitente = o que corresponde à chave privada (o arquivo pode trazer a cadeia).
+      const leaf = certs.find((c) => c.publicKey?.n && key.n && c.publicKey.n.equals(key.n)) ?? certs[0];
+      keyPem = forge.pki.privateKeyToPem(key);
+      certPem = forge.pki.certificateToPem(leaf);
       const novo = forge.pkcs12.toPkcs12Asn1(key, certs, senha, { algorithm: "aes256", generateLocalKeyId: true, friendlyName: "nfe" });
       pfx = forge.util.encode64(forge.asn1.toDer(novo).getBytes());
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
       const senhaErrada = /mac|password|invalid/i.test(m);
       return json({ error: senhaErrada ? "Senha do certificado incorreta ou arquivo corrompido" : "Não foi possível ler o certificado digital", detalhe: m }, 422);
+    }
+
+    // O proxy exige o XML da NF-e já assinado (XML-DSig enveloped, RSA-SHA1, C14N) no campo xmlAssinado.
+    let extra: Record<string, unknown> = {};
+    if (acao === "autorizar") {
+      const xml = String((payload as any).xmlAssinado ?? (payload as any).xml ?? "");
+      if (!xml) return json({ error: "XML da nota não informado" }, 400);
+      try {
+        extra = { xmlAssinado: await assinarNfe(xml, keyPem, certPem) };
+      } catch (e) {
+        return json({ error: "Não foi possível assinar o XML da nota", detalhe: e instanceof Error ? e.message : String(e) }, 422);
+      }
     }
 
     const { data: cfg } = await sb.from("nfe_config").select("ambiente, uf").order("created_at").limit(1).maybeSingle();
@@ -75,6 +93,7 @@ Deno.serve(async (req) => {
         ambiente: cfg?.ambiente ?? 2,
         uf: cfg?.uf ?? "SP",
         ...payload,
+        ...extra,
       }),
     }).finally(() => clearTimeout(t));
     const text = await res.text();
@@ -87,3 +106,25 @@ Deno.serve(async (req) => {
     return json({ error: msg }, 502);
   }
 });
+
+async function assinarNfe(xml: string, keyPem: string, certPem: string): Promise<string> {
+  const { SignedXml } = await import("npm:xml-crypto@6.0.1");
+  const limpo = xml.replace(/^\s*<\?xml[^>]*\?>\s*/, "");
+  const xpath = "//*[local-name(.)='infNFe']";
+  const sig = new SignedXml({
+    privateKey: keyPem,
+    publicCert: certPem,
+    signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+  });
+  sig.addReference({
+    xpath,
+    transforms: [
+      "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+      "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+    ],
+    digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  });
+  sig.computeSignature(limpo, { location: { reference: xpath, action: "after" } });
+  return sig.getSignedXml();
+}
