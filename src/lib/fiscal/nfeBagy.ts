@@ -76,9 +76,9 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
     if (!UF_COD[uf]) erros.push('UF do cliente inválida.');
 
     const interno = cfg && uf === String(cfg.uf).toUpperCase();
-    // PJ (CNPJ) → 5101/6101; PF (CPF) → 5107/6107. Brinde (R$ 0) → 5910/6910.
+    // PJ (CNPJ) → 5101/6101; PF (CPF) → 5101 (dentro do estado; 5107 não existe)/6107. Brinde (R$ 0) → 5910/6910.
     const pj = doc.length === 14;
-    const cfop = interno ? (pj ? '5101' : '5107') : (pj ? '6101' : '6107');
+    const cfop = interno ? '5101' : (pj ? '6101' : '6107');
     const cfopBrinde = interno ? '5910' : '6910';
 
     const lista = (itens ?? []).filter((i: any) => i.pedido_id === id);

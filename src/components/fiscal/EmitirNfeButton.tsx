@@ -26,7 +26,7 @@ export function EmitirNfeButton({ order }: { order: any }) {
   const [novo, setNovo] = useState<typeof vazio | null>(null);
   const [erros, setErros] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [cfop, setCfop] = useState('5107');
+  const [cfop, setCfop] = useState('5101');
 
   async function load() {
     const [{ data: n }, { data: d }] = await Promise.all([
@@ -43,7 +43,7 @@ export function EmitirNfeButton({ order }: { order: any }) {
     if (!open) return;
     validarEmissao(order.id, destId || null).then(r => setErros(r.erros));
     const dest = dests.find(d => d.id === destId);
-    if (dest) setCfop(dest.uf === 'SP' ? (dest.ind_ie_dest === 1 ? '5101' : '5107') : (dest.ind_ie_dest === 1 ? '6101' : '6107'));
+    if (dest) setCfop(dest.uf === 'SP' ? '5101' : (dest.ind_ie_dest === 1 ? '6101' : '6107'));
   }, [open, destId, dests]);
 
   if (!acesso) return null;
@@ -171,7 +171,6 @@ export function EmitirNfeButton({ order }: { order: any }) {
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="5101">5101 — SP / contribuinte</SelectItem>
-                        <SelectItem value="5107">5107 — SP / não contribuinte</SelectItem>
                         <SelectItem value="6101">6101 — outro estado / contribuinte</SelectItem>
                         <SelectItem value="6107">6107 — outro estado / não contribuinte</SelectItem>
                       </SelectContent>
