@@ -283,11 +283,12 @@ export function drawA4(data: FiscalData) {
   field('Endereço', [data.dest.logradouro, data.dest.numero].filter(Boolean).join(', '), x, y, 69);
   field('Bairro', data.dest.bairro, x + 69, y, 48);
   field('CEP', data.dest.cep, x + 117, y, 48);
-  field('Data saída', value(node(nfe, 'ide'), 'dhSaiEnt')?.slice(0, 10), x + 165, y, 25); y += 7;
+  const departure = value(node(nfe, 'ide'), 'dhSaiEnt');
+  field('Data saída', dateOnly(departure), x + 165, y, 25); y += 7;
   field('Município', data.dest.municipio, x, y, 69);
   field('UF', data.dest.uf, x + 69, y, 17);
   field('Fone/Fax', data.dest.telefone, x + 86, y, 79);
-  field('Hora saída', value(node(nfe, 'ide'), 'dhSaiEnt')?.slice(11, 19), x + 165, y, 25); y += 10;
+  field('Hora saída', departure.slice(11, 19), x + 165, y, 25); y += 10;
 
   section('Faturas');
   const bills = duplicatas.slice(0, 3);
