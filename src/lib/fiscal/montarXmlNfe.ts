@@ -128,7 +128,7 @@ export async function montarXmlNfe(pedidoId: string, destinatarioId: string, cfo
     `<ide><cUF>${UF_COD[cfg!.uf]}</cUF><cNF>${cNF}</cNF><natOp>VENDA DE MERCADORIA</natOp><mod>55</mod>` +
     `<serie>${serie}</serie><nNF>${numero}</nNF><dhEmi>${dhEmi}</dhEmi><tpNF>1</tpNF><idDest>${interno ? 1 : 2}</idDest>` +
     `<cMunFG>${dig(cfg!.cod_municipio)}</cMunFG><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${chave.slice(-1)}</cDV>` +
-    `<tpAmb>${ambiente}</tpAmb><finNFe>1</finNFe><indFinal>${dest.ind_ie_dest === 9 ? 1 : 0}</indFinal><indPres>9</indPres>` +
+    `<tpAmb>${ambiente}</tpAmb><finNFe>1</finNFe><indFinal>${dest.ind_ie_dest === 9 ? 1 : 0}</indFinal><indPres>9</indPres><indIntermed>0</indIntermed>` +
     `<procEmi>0</procEmi><verProc>Portal7Estrivos 1.0</verProc></ide>` +
     `<emit><CNPJ>${dig(cfg!.cnpj)}</CNPJ>${tag('xNome', cfg!.razao_social)}${tag('xFant', cfg!.nome_fantasia)}` +
     `<enderEmit>${tag('xLgr', cfg!.logradouro)}${tag('nro', cfg!.numero)}${tag('xCpl', cfg!.complemento)}${tag('xBairro', cfg!.bairro)}` +
