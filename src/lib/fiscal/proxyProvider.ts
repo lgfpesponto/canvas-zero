@@ -13,7 +13,7 @@ export interface ProxyResposta {
   [k: string]: unknown;
 }
 
-async function chamar(acao: 'autorizar' | 'evento' | 'status', payload: Record<string, unknown>): Promise<ProxyResposta> {
+export async function chamar(acao: 'autorizar' | 'evento' | 'status', payload: Record<string, unknown>): Promise<ProxyResposta> {
   const { data, error } = await supabase.functions.invoke('nfe-proxy', { body: { acao, payload } });
   if (error) {
     let msg = error.message;
