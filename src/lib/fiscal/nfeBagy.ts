@@ -26,6 +26,9 @@ export interface NotaRascunho {
   valorProdutos: number; desconto: number; frete: number; valorTotal: number;
   cfop: string; ambiente: number; erros: string[];
   notaExistente: any | null;
+  /** Campos opcionais usados na emissão avulsa. */
+  natOp?: string; finNFe?: number; indPres?: number; indFinal?: number; infCpl?: string; observacoes?: string;
+  tPag?: string; modFrete?: number; seguro?: number; outras?: number; bagyPedidoIdNull?: boolean;
 }
 
 /** Monta os rascunhos das notas (sem reservar número nem falar com a SEFAZ). */
@@ -147,10 +150,10 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
 
   const xml =
     `<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe versao="4.00" Id="NFe${chave}">` +
-    `<ide><cUF>${UF_COD[cfg.uf]}</cUF><cNF>${cNF}</cNF><natOp>VENDA DE MERCADORIA</natOp><mod>55</mod>` +
+    `<ide><cUF>${UF_COD[cfg.uf]}</cUF><cNF>${cNF}</cNF><natOp>${esc(r.natOp || 'VENDA DE MERCADORIA')}</natOp><mod>55</mod>` +
     `<serie>${serie}</serie><nNF>${numero}</nNF><dhEmi>${dhEmi}</dhEmi><tpNF>1</tpNF><idDest>${interno ? 1 : 2}</idDest>` +
     `<cMunFG>${dig(cfg.cod_municipio)}</cMunFG><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${chave.slice(-1)}</cDV>` +
-    `<tpAmb>${ambiente}</tpAmb><finNFe>1</finNFe><indFinal>${dest.ind_ie_dest === 9 ? 1 : 0}</indFinal><indPres>2</indPres>` +
+    `<tpAmb>${ambiente}</tpAmb><finNFe>${r.finNFe ?? 1}</finNFe><indFinal>${r.indFinal ?? (dest.ind_ie_dest === 9 ? 1 : 0)}</indFinal><indPres>${r.indPres ?? 2}</indPres>` +
     `<procEmi>0</procEmi><verProc>Portal7Estrivos 1.0</verProc></ide>` +
     `<emit><CNPJ>${dig(cfg.cnpj)}</CNPJ>${tag('xNome', cfg.razao_social)}${tag('xFant', cfg.nome_fantasia)}` +
     `<enderEmit>${tag('xLgr', cfg.logradouro)}${tag('nro', cfg.numero)}${tag('xCpl', cfg.complemento)}${tag('xBairro', cfg.bairro)}` +
@@ -164,12 +167,12 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
     `<indIEDest>${dest.ind_ie_dest}</indIEDest>${dest.ind_ie_dest === 1 ? tag('IE', dest.inscricao_estadual) : ''}${tag('email', dest.email)}</dest>` +
     dets +
     `<total><ICMSTot><vBC>0.00</vBC><vICMS>0.00</vICMS><vICMSDeson>0.00</vICMSDeson><vFCP>0.00</vFCP><vBCST>0.00</vBCST><vST>0.00</vST>` +
-    `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet><vProd>${n2(r.valorProdutos)}</vProd><vFrete>${n2(r.frete)}</vFrete><vSeg>0.00</vSeg><vDesc>${n2(r.desconto)}</vDesc>` +
-    `<vII>0.00</vII><vIPI>0.00</vIPI><vIPIDevol>0.00</vIPIDevol><vPIS>0.00</vPIS><vCOFINS>0.00</vCOFINS><vOutro>0.00</vOutro>` +
+    `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet><vProd>${n2(r.valorProdutos)}</vProd><vFrete>${n2(r.frete)}</vFrete><vSeg>${n2(r.seguro ?? 0)}</vSeg><vDesc>${n2(r.desconto)}</vDesc>` +
+    `<vII>0.00</vII><vIPI>0.00</vIPI><vIPIDevol>0.00</vIPIDevol><vPIS>0.00</vPIS><vCOFINS>0.00</vCOFINS><vOutro>${n2(r.outras ?? 0)}</vOutro>` +
     `<vNF>${n2(r.valorTotal)}</vNF></ICMSTot></total>` +
-    `<transp><modFrete>${r.frete > 0 ? 0 : 9}</modFrete></transp>` +
-    `<pag><detPag><indPag>0</indPag><tPag>99</tPag><xPag>OUTROS</xPag><vPag>${n2(r.valorTotal)}</vPag></detPag></pag>` +
-    `<infAdic><infCpl>${esc(`Pedido Bagy RC-${r.numeroBagy}. Documento emitido por ME ou EPP optante pelo Simples Nacional. Nao gera direito a credito fiscal de IPI.`)}</infCpl></infAdic>` +
+    `<transp><modFrete>${r.modFrete ?? (r.frete > 0 ? 0 : 9)}</modFrete></transp>` +
+    `<pag><detPag><indPag>0</indPag>${(r.tPag ?? '99') === '99' ? '<tPag>99</tPag><xPag>OUTROS</xPag>' : `<tPag>${r.tPag}</tPag>`}<vPag>${n2(r.valorTotal)}</vPag></detPag></pag>` +
+    `<infAdic><infCpl>${esc(`${r.infCpl ? r.infCpl + ' ' : (r.numeroBagy ? `Pedido Bagy RC-${r.numeroBagy}. ` : '')}Documento emitido por ME ou EPP optante pelo Simples Nacional. Nao gera direito a credito fiscal de IPI.`)}</infCpl></infAdic>` +
     `</infNFe></NFe>`;
   return { xml, chave };
 }
@@ -183,9 +186,9 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
   const { xml, chave } = montarXml(r, numero, serie, ambiente);
 
   const { data: nota, error } = await supabase.from('nfe_notas').insert({
-    pedido_id: r.portalOrderId, bagy_pedido_id: r.bagyPedidoId, numero, serie, modelo: 55, chave_acesso: chave, ambiente,
-    status: 'processando', natureza_operacao: 'VENDA DE MERCADORIA', valor_produtos: r.valorProdutos, valor_total: r.valorTotal,
-    destinatario_snapshot: r.destinatario, observacoes: `Pedido Bagy RC-${r.numeroBagy}`,
+    pedido_id: r.portalOrderId, bagy_pedido_id: r.bagyPedidoId || null, numero, serie, modelo: 55, chave_acesso: chave, ambiente,
+    status: 'processando', natureza_operacao: r.natOp || 'VENDA DE MERCADORIA', valor_produtos: r.valorProdutos, valor_total: r.valorTotal,
+    destinatario_snapshot: r.destinatario, observacoes: r.observacoes ?? `Pedido Bagy RC-${r.numeroBagy}`,
   } as any).select().single();
   if (error) throw new Error(error.message);
   await supabase.from('nfe_itens').insert(r.itens.map((it, k) => ({
