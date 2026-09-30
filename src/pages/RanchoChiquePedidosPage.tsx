@@ -15,6 +15,7 @@ import { BagyNfeMenu } from '@/components/fiscal/BagyNfeMenu';
 import { bagyLetterSuffix } from '@/lib/bagySuffix';
 import { NfeBagyDialog } from '@/components/fiscal/NfeBagyDialog';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
+import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 
 type BagyPedido = {
   id: string;
@@ -71,6 +72,15 @@ type BagyItem = {
   order_id_portal: string | null;
 };
 
+type BagyNfeInfo = {
+  id: string;
+  numero: number;
+  status: string;
+  tipo_nota: string;
+  chave_acesso: string | null;
+  protocolo: string | null;
+};
+
 const FLAG_BADGE: Record<string, { label: string; cls: string }> = {
   pedido_criado: { label: 'PEDIDO CRIADO', cls: 'bg-green-600 text-white' },
   aguardando_ficha: { label: 'GERAR FICHA', cls: 'bg-blue-600 text-white' },
@@ -119,6 +129,7 @@ const RanchoChiquePedidosPage = () => {
   const [itensByPed, setItensByPed] = useState<Record<string, BagyItem[]>>({});
   const [syncByOrder, setSyncByOrder] = useState<Record<string, OrderSyncInfo>>({});
   const [portalOrdersByBagy, setPortalOrdersByBagy] = useState<Record<string, PortalOrderInfo[]>>({});
+  const [nfeByPedido, setNfeByPedido] = useState<Record<string, BagyNfeInfo>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
@@ -155,15 +166,31 @@ const RanchoChiquePedidosPage = () => {
     setPedidos((peds || []) as any);
     const ids = (peds || []).map((p: any) => p.id);
     if (ids.length > 0) {
-      const { data: itens } = await supabase
-        .from('bagy_pedido_itens')
-        .select('*')
-        .in('pedido_id', ids);
+      const [{ data: itens }, { data: notas }] = await Promise.all([
+        supabase.from('bagy_pedido_itens').select('*').in('pedido_id', ids),
+        supabase.from('nfe_notas')
+          .select('id, numero, status, tipo_nota, chave_acesso, protocolo, bagy_pedido_id, created_at')
+          .in('bagy_pedido_id', ids)
+          .eq('tipo_nota', 'normal')
+          .order('created_at', { ascending: false }),
+      ]);
       const map: Record<string, BagyItem[]> = {};
       (itens || []).forEach((i: any) => {
         (map[i.pedido_id] ||= []).push(i);
       });
       setItensByPed(map);
+      const nfeMap: Record<string, BagyNfeInfo> = {};
+      (notas || []).forEach((nota: any) => {
+        if (!nota.bagy_pedido_id) return;
+        const atual = nfeMap[nota.bagy_pedido_id];
+        const ativa = ['autorizada', 'processando'].includes(nota.status);
+        const atualAtiva = atual && ['autorizada', 'processando'].includes(atual.status);
+        if (!atual || (ativa && !atualAtiva)) nfeMap[nota.bagy_pedido_id] = nota;
+      });
+      setNfeByPedido(nfeMap);
+    } else {
+      setItensByPed({});
+      setNfeByPedido({});
     }
     // Carrega todos os pedidos do portal vinculados à Bagy (inclui RC-...A, B, C quando há mais de 1 par)
     const bagyOrderIds = Array.from(new Set((peds || []).map((p: any) => p.bagy_order_id).filter(Boolean)));
@@ -525,6 +552,9 @@ const RanchoChiquePedidosPage = () => {
             const portalOrderIds = portalOrders.map(o => o.id);
             const displayPortalIds = portalOrderIds.length > 0 ? portalOrderIds : (primaryPortalId ? [primaryPortalId] : []);
             const syncError = portalOrders.find(o => o.bagy_last_sync_error)?.bagy_last_sync_error;
+            const notaFiscal = nfeByPedido[p.id];
+            const nfeAutorizada = notaFiscal?.status === 'autorizada' && !!notaFiscal.chave_acesso && !!notaFiscal.protocolo;
+            const nfeBloqueada = notaFiscal?.status === 'autorizada' || notaFiscal?.status === 'processando';
             return (
               <div key={p.id} className="border rounded-lg bg-card overflow-hidden">
                 <div className="w-full flex items-center gap-3 p-3 hover:bg-accent/30">
@@ -706,7 +736,7 @@ const RanchoChiquePedidosPage = () => {
                         {reprocessing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RefreshCw size={14} className="mr-1" />}
                         Reprocessar
                       </Button>
-                      {nfeAcesso && (
+                      {nfeAcesso && !nfeBloqueada && (
                         <Button size="sm" variant="outline" onClick={() => setNfeIds([p.id])}>
                           <FileText size={14} className="mr-1" /> Gerar NF-e
                         </Button>
@@ -714,12 +744,24 @@ const RanchoChiquePedidosPage = () => {
                       <TooltipProvider><Tooltip>
                         <TooltipTrigger asChild>
                           <span>
-                            <Button size="sm" variant="outline" disabled>
-                              <Printer size={14} className="mr-1" /> Imprimir etiqueta
+                            <Button size="sm" variant="outline" disabled={!nfeAutorizada}
+                              onClick={() => notaFiscal && gerarDanfePdf(notaFiscal.id, 'a4', 'print').catch(e => toast.error(e.message))}>
+                              <Printer size={14} className="mr-1" /> Imprimir NF-e
                             </Button>
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
+                        {!nfeAutorizada && <TooltipContent>Disponível após a autorização da NF-e.</TooltipContent>}
+                      </Tooltip></TooltipProvider>
+                      <TooltipProvider><Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button size="sm" variant="outline" disabled={!nfeAutorizada}
+                              onClick={() => notaFiscal && gerarDanfePdf(notaFiscal.id, 'etiqueta', 'print').catch(e => toast.error(e.message))}>
+                              <Printer size={14} className="mr-1" /> Imprimir etiqueta NF-e
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {!nfeAutorizada && <TooltipContent>Disponível após a autorização da NF-e.</TooltipContent>}
                       </Tooltip></TooltipProvider>
                       <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
                         <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}

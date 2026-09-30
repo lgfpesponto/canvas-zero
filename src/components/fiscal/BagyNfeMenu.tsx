@@ -30,7 +30,7 @@ export interface BagyPedidoMin {
 type NotaRow = {
   id: string; numero: number; serie: number; status: string; chave_acesso: string | null;
   valor_total: number; valor_produtos: number; motivo_rejeicao: string | null;
-  destinatario_snapshot: any; data_autorizacao: string | null;
+  destinatario_snapshot: any; data_autorizacao: string | null; tipo_nota: string;
 };
 
 const STATUS_SELLO: Record<string, { label: string; cls: string }> = {
@@ -62,10 +62,11 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
 
   const load = useCallback(async () => {
     let q = supabase
-      .from('nfe_notas').select('id, numero, serie, status, chave_acesso, valor_total, valor_produtos, motivo_rejeicao, destinatario_snapshot, data_autorizacao');
-    q = notaId ? q.eq('id', notaId) : q.eq('bagy_pedido_id', pedidoProp!.id);
-    const { data } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
-    setNota((data as NotaRow | null) ?? null);
+      .from('nfe_notas').select('id, numero, serie, status, chave_acesso, valor_total, valor_produtos, motivo_rejeicao, destinatario_snapshot, data_autorizacao, tipo_nota');
+    q = notaId ? q.eq('id', notaId) : q.eq('bagy_pedido_id', pedidoProp?.id ?? '').eq('tipo_nota', 'normal');
+    const { data } = await q.order('created_at', { ascending: false }).limit(notaId ? 1 : 20);
+    const rows = (data ?? []) as NotaRow[];
+    setNota(rows.find(item => ['autorizada', 'processando'].includes(item.status)) ?? rows[0] ?? null);
   }, [notaId, pedidoProp?.id]);
   const dSnap: any = nota?.destinatario_snapshot || {};
   const pedido: BagyPedidoMin = pedidoProp ?? {
@@ -75,6 +76,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
   useEffect(() => { load(); }, [load]);
 
   const autorizada = nota?.status === 'autorizada';
+  const bloqueiaNova = nota?.status === 'autorizada' || nota?.status === 'processando';
   const excluivel = nota && !['autorizada', 'cancelada'].includes(nota.status);
 
   const run = async (key: string, fn: () => Promise<void>) => {
@@ -197,7 +199,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
               <FileEdit size={14} className="mr-2" /> Editar pedido
             </DropdownMenuItem>
           </>)}
-          {onGerarNfe && !autorizada && (<>
+          {onGerarNfe && !bloqueiaNova && (<>
             <DropdownMenuItem onClick={onGerarNfe}>
               <Pencil size={14} className="mr-2" /> Gerar NF-e
             </DropdownMenuItem>
