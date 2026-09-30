@@ -440,12 +440,6 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         </div>
       </Secao>
 
-      <Secao titulo="Pagamento" aberta={false}>
-        <Campo label="Forma de pagamento" className="max-w-sm"><Sel value={tPag} onChange={e => setTPag(e.target.value)}>
-          {PAGAMENTOS.map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
-        </Sel></Campo>
-      </Secao>
-
       <Secao titulo="Informações adicionais" aberta={false}>
         <div className="grid gap-3">
           <Campo label="Nº pedido loja externa"><Input value={pedidoExterno} onChange={e => setPedidoExterno(e.target.value)} /></Campo>
