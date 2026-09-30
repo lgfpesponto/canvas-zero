@@ -78,7 +78,7 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
     const interno = cfg && uf === String(cfg.uf).toUpperCase();
     const cfop = interno ? (ind_ie_dest === 1 ? '5101' : '5107') : (ind_ie_dest === 1 ? '6101' : '6107');
 
-    const lista = (itens ?? []).filter((i: any) => i.pedido_id === id);
+    const lista = (itens ?? []).filter((i: any) => i.pedido_id === id && Number(i.preco_unit || 0) > 0 && !String(i.status ?? '').startsWith('brinde'));
     if (!lista.length) erros.push('Pedido sem itens.');
     const base: ItemRascunho[] = lista.map((i: any, idx: number) => {
       const descricao = [i.nome_produto, i.variacao_nome || (i.tamanho ? `Tam ${i.tamanho}` : '')].filter(Boolean).join(' - ') || 'Produto';

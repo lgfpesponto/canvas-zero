@@ -146,8 +146,8 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
               <Button
                 variant="outline"
-                disabled={busy || !!r?.autorizada || !portalIdPorBagy[n.bagyPedidoId]}
-                title={portalIdPorBagy[n.bagyPedidoId] ? 'Corrigir dados do pedido sem abrir a Bagy' : 'Pedido sem mapeamento no portal'}
+                disabled={busy || !!r?.autorizada}
+                title="Corrigir dados do pedido sem abrir a Bagy"
                 onClick={() => setEditOpen(true)}
               >
                 <Pencil size={16} className="mr-1" /> Editar pedido
@@ -160,9 +160,9 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
             </div>
           </div>
         )}
-        {n && portalIdPorBagy[n.bagyPedidoId] && (
+        {n && (
           <BagyPedidoEditDialog
-            pedidoId={portalIdPorBagy[n.bagyPedidoId]!}
+            pedidoId={n.bagyPedidoId}
             open={editOpen}
             onOpenChange={setEditOpen}
             onSaved={() => { if (pedidoIds) carregar(pedidoIds); }}
