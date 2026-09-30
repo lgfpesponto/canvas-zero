@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, ArrowLeft, ChevronDown, Eye, Loader2, Plus, Save, Send, Trash2 } from 'lucide-react';
 import { ncmPorDescricao, formatNcm } from '@/lib/fiscal/ncm';
 import { transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
@@ -273,15 +274,29 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
 
       <Secao titulo="Cabeçalho da nota">
         <div className="grid gap-3 md:grid-cols-4">
-          <Campo label="CNPJ emitente"><Input value={cfg?.cnpj ?? ''} disabled /></Campo>
-          <Campo label="Razão social emitente" className="md:col-span-2"><Input value={cfg?.razao_social ?? ''} disabled /></Campo>
-          <Campo label="Série / Número"><Input value={`${cfg?.serie ?? ''} / reservado na emissão`} disabled /></Campo>
-          <Campo label="Natureza da operação" className="md:col-span-2">
-            <Input list="naturezas" value={natOp} onChange={e => setNatOp(e.target.value.toUpperCase())} />
-            <datalist id="naturezas">{NATUREZAS.map(n => <option key={n} value={n} />)}</datalist>
+          <Campo label="Loja"><Input value={ex.loja || cfg?.nome_fantasia || ''} onChange={e => setEx({ ...ex, loja: e.target.value })} /></Campo>
+          <Campo label="CNPJ emitente" hint="Editável para esta nota (não altera cadastro)">
+            <Input value={ex.cnpjEmit || cfg?.cnpj || ''} onChange={e => setEx({ ...ex, cnpjEmit: e.target.value })} />
           </Campo>
+          <Campo label="Razão social emitente" className="md:col-span-2" hint="Editável para esta nota (não altera cadastro)">
+            <Input value={ex.razaoEmit || cfg?.razao_social || ''} onChange={e => setEx({ ...ex, razaoEmit: e.target.value })} />
+          </Campo>
+          <Campo label="Série"><Input value={cfg?.serie ?? 1} disabled /></Campo>
+          <Campo label="Número" hint="Reservado automaticamente na emissão (configurável em Tributação)">
+            <Input value="Automático" disabled className="bg-muted" />
+          </Campo>
+          <Campo label="Regime tributário"><Input value={`CRT ${cfg?.crt ?? 1}`} disabled /></Campo>
+          <div className="hidden md:block" />
+          <Campo label="Natureza da operação" className="md:col-span-2">
+            <Sel value={ex.cfopNat} onChange={e => escolherNatureza(e.target.value)}>
+              <option value="">{natOp || 'Selecione'}</option>
+              {NATUREZAS.map(([c, n]) => <option key={c} value={c}>{c} - {n}</option>)}
+            </Sel>
+          </Campo>
+          <Campo label="Data/hora emissão"><Input type="datetime-local" value={ex.dhEmi} onChange={e => setEx({ ...ex, dhEmi: e.target.value })} /></Campo>
+          <Campo label="Data/hora saída"><Input type="datetime-local" value={ex.dhSaida} onChange={e => setEx({ ...ex, dhSaida: e.target.value })} /></Campo>
           <Campo label="Finalidade"><Sel value={finNFe} onChange={e => setFinNFe(Number(e.target.value))}>
-            <option value={1}>1 - NF-e normal</option><option value={2}>2 - Complementar</option><option value={3}>3 - Ajuste</option>
+            <option value={1}>1 - NF-e normal</option><option value={2}>2 - Complementar</option><option value={3}>3 - Ajuste</option><option value={4}>4 - Devolução</option>
           </Sel></Campo>
           <Campo label="Indicador de presença"><Sel value={indPres} onChange={e => setIndPres(Number(e.target.value))}>
             <option value={1}>1 - Presencial</option><option value={2}>2 - Internet</option><option value={3}>3 - Teleatendimento</option><option value={9}>9 - Outros</option>
@@ -289,6 +304,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
           <Campo label="Consumidor final"><Sel value={consFinal} onChange={e => setConsFinal(Number(e.target.value))}>
             <option value={1}>Sim</option><option value={0}>Não</option>
           </Sel></Campo>
+          <Campo label="Vendedor"><Input value={ex.vendedor} onChange={e => setEx({ ...ex, vendedor: e.target.value })} /></Campo>
         </div>
       </Secao>
 
@@ -364,11 +380,64 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         </div>
       </Secao>
 
-      <Secao titulo="Transportador / volumes" aberta={false}>
-        <Campo label="Modalidade do frete" className="max-w-sm"><Sel value={modFrete} onChange={e => setModFrete(Number(e.target.value))}>
-          <option value={0}>0 - Por conta do emitente</option><option value={1}>1 - Por conta do destinatário</option>
-          <option value={2}>2 - Por conta de terceiros</option><option value={9}>9 - Sem frete</option>
-        </Sel></Campo>
+      <Secao titulo="Transportador / volumes">
+        <div className="grid gap-3 md:grid-cols-4">
+          <Campo label="Modalidade do frete"><Sel value={modFrete} onChange={e => setModFrete(Number(e.target.value))}>
+            <option value={0}>0 - Emitente</option><option value={1}>1 - Destinatário</option>
+            <option value={2}>2 - Terceiros</option><option value={9}>9 - Sem frete</option>
+          </Sel></Campo>
+          <div className="hidden md:col-span-3 md:block" />
+          {([['razao', 'Razão social'], ['cnpj', 'CNPJ'], ['ie', 'IE'], ['endereco', 'Endereço'], ['municipio', 'Município'], ['uf', 'UF'], ['placa', 'Placa'], ['ufPlaca', 'UF placa'], ['rntc', 'RNTC']] as const).map(([k, l]) => (
+            <Campo key={k} label={l}><Input value={ex.transp[k]} onChange={e => setT(k, e.target.value)} /></Campo>
+          ))}
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-6">
+          {([['qVol', 'Qtd volumes'], ['esp', 'Espécie'], ['marca', 'Marca'], ['nVol', 'Numeração'], ['pesoL', 'Peso líquido (kg)'], ['pesoB', 'Peso bruto (kg)']] as const).map(([k, l]) => (
+            <Campo key={k} label={l}><Input value={ex.transp[k]} onChange={e => setT(k, e.target.value)} /></Campo>
+          ))}
+        </div>
+      </Secao>
+
+      <Secao titulo="Endereço de entrega">
+        <label className="flex items-center gap-2 text-xs">
+          <Switch checked={ex.entregaDif} onCheckedChange={v => setEx({ ...ex, entregaDif: v })} /> Entregar em endereço diferente do destinatário
+        </label>
+        {ex.entregaDif && (
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            {([['cep', 'CEP'], ['logradouro', 'Logradouro'], ['numero', 'Número'], ['bairro', 'Bairro'], ['municipio', 'Município'], ['uf', 'UF']] as const).map(([k, l]) => (
+              <Campo key={k} label={l}><Input value={ex.entrega[k]} onChange={e => setE(k, e.target.value)} /></Campo>
+            ))}
+          </div>
+        )}
+      </Secao>
+
+      <Secao titulo="Pagamento">
+        <Campo label="Condição de pagamento" className="max-w-sm">
+          <Input value={ex.condPag} placeholder="Ex.: PIX 1 dia" onChange={e => setEx({ ...ex, condPag: e.target.value })} />
+        </Campo>
+        <div className="mt-3 space-y-2">
+          <div className="hidden grid-cols-[48px_64px_160px_1fr_1fr_1fr_40px] gap-2 text-xs font-medium text-foreground/80 md:grid">
+            <span>Nº</span><span>Dias</span><span>Vencimento</span><span>Valor</span><span>Forma</span><span>Obs.</span><span />
+          </div>
+          {ex.parcelas.map((p, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 md:grid-cols-[48px_64px_160px_1fr_1fr_1fr_40px]">
+              <Input value={i + 1} disabled />
+              <Input inputMode="numeric" value={p.dias} onChange={e => setP(i, { dias: e.target.value, venc: hojeMais(Number(e.target.value) || 0) })} />
+              <Input type="date" value={p.venc} onChange={e => setP(i, { venc: e.target.value })} />
+              <Input inputMode="decimal" value={p.valor} placeholder={i === 0 && ex.parcelas.length === 1 ? String(total).replace('.', ',') : '0'} onChange={e => setP(i, { valor: e.target.value })} />
+              <Sel value={p.forma} onChange={e => setP(i, { forma: e.target.value })}>
+                {PAGAMENTOS.map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
+              </Sel>
+              <Input value={p.obs} placeholder="Obs." onChange={e => setP(i, { obs: e.target.value })} />
+              <Button variant="ghost" size="sm" disabled={ex.parcelas.length === 1} onClick={() => setEx(s => ({ ...s, parcelas: s.parcelas.filter((_, k) => k !== i) }))}>
+                <Trash2 size={14} className="text-destructive" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setEx(s => ({ ...s, parcelas: [...s.parcelas, { dias: '30', venc: hojeMais(30), valor: '', forma: s.parcelas[0]?.forma || '17', obs: '' }] }))}>
+            <Plus size={14} className="mr-1" /> Nova parcela
+          </Button>
+        </div>
       </Secao>
 
       <Secao titulo="Pagamento" aberta={false}>
