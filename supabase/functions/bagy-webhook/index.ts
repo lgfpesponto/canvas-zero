@@ -466,8 +466,6 @@ Deno.serve(async (req) => {
     const rawItems: any[] = order.items || order.products || order.order_items ||
       [];
 
-    // Remove itens antigos e insere os novos (mais simples que diff)
-    await supabase.from("bagy_pedido_itens").delete().eq("pedido_id", pedidoRow.id);
 
     const isApproved = APPROVED_STATUSES.has(finalStatusBagy);
     const isRefund = REFUND_STATUSES.has(finalStatusBagy);
@@ -643,6 +641,9 @@ Deno.serve(async (req) => {
 
 
     // Insere itens — já preenchendo order_id_portal quando o pedido portal existia (re-entrega de webhook).
+    // Remove itens antigos logo antes de inserir: se a Bagy mandar o mesmo pedido
+    // duas vezes em sequência, evita que as duas entregas apaguem antes e ambas insiram (itens duplicados).
+    await supabase.from("bagy_pedido_itens").delete().eq("pedido_id", pedidoRow.id);
     if (classifiedItems.length > 0) {
       const portalIdForExisting = primaryExistingOrderId;
       await supabase.from("bagy_pedido_itens").insert(
