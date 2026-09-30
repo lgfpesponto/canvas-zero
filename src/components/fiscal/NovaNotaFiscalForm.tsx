@@ -82,6 +82,10 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [rascId, setRascId] = useState<string | null>(rascunhoId ?? null);
+  const [ex, setEx] = useState(extraVazio());
+  const setT = (k: string, v: string) => setEx(s => ({ ...s, transp: { ...s.transp, [k]: v } }));
+  const setE = (k: string, v: string) => setEx(s => ({ ...s, entrega: { ...s.entrega, [k]: v } }));
+  const setP = (i: number, patch: Partial<Parcela>) => setEx(s => ({ ...s, parcelas: s.parcelas.map((p, k) => k === i ? { ...p, ...patch } : p) }));
 
   useEffect(() => {
     (async () => {
@@ -99,13 +103,21 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
           setConsFinal(f.consFinal); setItens(f.itens); setFrete(f.frete); setSeguro(f.seguro); setOutras(f.outras);
           setDesconto(f.desconto); setModFrete(f.modFrete); setTPag(f.tPag); setPedidoExterno(f.pedidoExterno);
           setInfCpl(f.infCpl); setInfFisco(f.infFisco);
+          if (f.ex) setEx({ ...extraVazio(), ...f.ex });
         }
       }
     })();
   }, [rascunhoId]);
 
   const interno = !dest.uf || String(dest.uf).toUpperCase() === String(cfg?.uf ?? '').toUpperCase();
-  const cfopPadrao = dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5107' : '6107');
+  const cfopPadrao = ex.cfopNat
+    ? (interno ? '5' : '6') + ex.cfopNat.slice(1)
+    : dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5107' : '6107');
+  const escolherNatureza = (cfop: string) => {
+    const n = NATUREZAS.find(x => x[0] === cfop);
+    setEx(s => ({ ...s, cfopNat: cfop }));
+    if (n) setNatOp(n[1]);
+  };
 
   const escolherDest = (id: string) => {
     setDestId(id);
