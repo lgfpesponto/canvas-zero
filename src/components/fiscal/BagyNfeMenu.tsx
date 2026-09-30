@@ -13,11 +13,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
   MoreVertical, Pencil, Mail, MessageCircle, Eye, Ban, MoreHorizontal,
-  FileEdit, FilePlus2, FileDown, Trash2, Loader2,
+  FileEdit, FilePlus2, FileDown, Trash2, Loader2, Undo2,
 } from 'lucide-react';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { getFiscalProvider } from '@/lib/fiscal/provider';
-import { emitirComplementar } from '@/lib/fiscal/nfeBagy';
+import { emitirComplementar, emitirDevolucao } from '@/lib/fiscal/nfeBagy';
 
 const brl = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -51,6 +51,10 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
   const [correcao, setCorrecao] = useState('');
   const [complValor, setComplValor] = useState('');
   const [complDesc, setComplDesc] = useState('');
+  const [devOpen, setDevOpen] = useState(false);
+  const [devItens, setDevItens] = useState<any[]>([]);
+  const [devQtd, setDevQtd] = useState<Record<string, number>>({});
+  const [devMotivo, setDevMotivo] = useState('');
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -133,6 +137,24 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
     setComplOpen(false); setComplValor(''); setComplDesc('');
   });
 
+  const abrirDevolucao = async () => {
+    if (!nota) return;
+    const { data } = await supabase.from('nfe_itens').select('*').eq('nota_id', nota.id).order('ordem');
+    setDevItens(data || []);
+    setDevQtd(Object.fromEntries((data || []).map((i: any) => [i.id, Number(i.quantidade)])));
+    setDevOpen(true);
+  };
+
+  const devolucao = () => run('dev', async () => {
+    if (!nota) return;
+    const r = await emitirDevolucao(nota.id, devItens.map(i => ({ itemId: i.id, quantidade: devQtd[i.id] || 0 })), devMotivo.trim());
+    if (r.autorizada) toast.success(`NF-e de devolução nº ${r.numero} autorizada.`);
+    else toast.error(`Devolução rejeitada: ${r.motivo}`);
+    setDevOpen(false); setDevMotivo('');
+  });
+
+  const devTotal = devItens.reduce((s, i) => s + (devQtd[i.id] || 0) * Number(i.valor_unitario), 0);
+
   const excluir = () => run('excluir', async () => {
     if (!nota) return;
     await supabase.from('nfe_itens').delete().eq('nota_id', nota.id);
@@ -183,6 +205,9 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
           </DropdownMenuSub>
           <DropdownMenuItem disabled={!autorizada} onClick={() => run('danfe', async () => { await gerarDanfePdf(nota!.id, 'a4', 'save'); })}>
             <FileDown size={14} className="mr-2" /> Gerar PDF DANFE
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!autorizada} onClick={abrirDevolucao}>
+            <Undo2 size={14} className="mr-2" /> Gerar devolução
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!excluivel} onClick={() => setExcluirOpen(true)} className="text-destructive">
@@ -236,6 +261,33 @@ export function BagyNfeMenu({ pedido, onGerarNfe }: { pedido: BagyPedidoMin; onG
             <Button variant="outline" onClick={() => setComplOpen(false)}>Voltar</Button>
             <Button disabled={!Number(complValor.replace(',', '.')) || busy === 'compl'} onClick={complementar}>
               {busy === 'compl' && <Loader2 size={14} className="mr-1 animate-spin" />} Emitir complementar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Devolução */}
+      <Dialog open={devOpen} onOpenChange={setDevOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Gerar devolução — NF-e nº {nota?.numero}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Emite uma nota de entrada vinculada à nota original. Ajuste a quantidade de cada item devolvido (0 = não devolve).</p>
+          <div className="space-y-2 max-h-64 overflow-auto">
+            {devItens.map(i => (
+              <div key={i.id} className="flex items-center gap-2 text-sm">
+                <span className="flex-1">{i.descricao} <span className="text-muted-foreground">({brl(Number(i.valor_unitario))} · vendido {Number(i.quantidade)})</span></span>
+                <Input type="number" min={0} max={Number(i.quantidade)} className="w-20 h-8"
+                  value={devQtd[i.id] ?? 0}
+                  onChange={e => setDevQtd(q => ({ ...q, [i.id]: Math.max(0, Math.min(Number(i.quantidade), Number(e.target.value) || 0)) }))} />
+              </div>
+            ))}
+          </div>
+          <div className="text-sm font-semibold">Total da devolução: {brl(devTotal)}</div>
+          <label className="text-xs font-semibold">Motivo da devolução *</label>
+          <Textarea value={devMotivo} onChange={e => setDevMotivo(e.target.value)} rows={2} placeholder="Ex: troca de tamanho, produto com defeito..." />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDevOpen(false)}>Voltar</Button>
+            <Button disabled={devTotal <= 0 || devMotivo.trim().length < 5 || busy === 'dev'} onClick={devolucao}>
+              {busy === 'dev' && <Loader2 size={14} className="mr-1 animate-spin" />} Emitir devolução
             </Button>
           </div>
         </DialogContent>
