@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Printer, Send } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Pencil, Printer, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { formatNcm } from '@/lib/fiscal/ncm';
+import { BagyPedidoEditDialog } from '@/components/fiscal/BagyPedidoEditDialog';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const docFmt = (d: string) => d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : d || '—';
@@ -20,11 +21,11 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Record<string, Resultado>>({});
+  const [editOpen, setEditOpen] = useState(false);
 
-  useEffect(() => {
-    if (!pedidoIds?.length) return;
-    setLoading(true); setIdx(0); setRes({});
-    prepararNotasBagy(pedidoIds, portalIdPorBagy)
+  const carregar = (ids: string[]) => {
+    setLoading(true);
+    return prepararNotasBagy(ids, portalIdPorBagy)
       .then(n => {
         setNotas(n);
         const r: Record<string, Resultado> = {};
@@ -33,6 +34,12 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
       })
       .catch(e => toast.error(e.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!pedidoIds?.length) return;
+    setIdx(0); setRes({}); setEditOpen(false);
+    carregar(pedidoIds);
   }, [pedidoIds]);
 
   const n = notas[idx];
@@ -137,6 +144,14 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
             </div>
 
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+              <Button
+                variant="outline"
+                disabled={busy || !!r?.autorizada || !portalIdPorBagy[n.bagyPedidoId]}
+                title={portalIdPorBagy[n.bagyPedidoId] ? 'Corrigir dados do pedido sem abrir a Bagy' : 'Pedido sem mapeamento no portal'}
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil size={16} className="mr-1" /> Editar pedido
+              </Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('etiqueta')}><Printer size={16} className="mr-1" /> Etiqueta</Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('a4')} title={r?.autorizada ? 'Imprimir DANFE' : 'Disponível depois da autorização'}><Printer size={16} className="mr-1" /> Imprimir NF-e</Button>
               <Button disabled={busy || !!r?.autorizada || n.erros.length > 0} onClick={confirmar}>
@@ -144,6 +159,14 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
               </Button>
             </div>
           </div>
+        )}
+        {n && portalIdPorBagy[n.bagyPedidoId] && (
+          <BagyPedidoEditDialog
+            pedidoId={portalIdPorBagy[n.bagyPedidoId]!}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            onSaved={() => { if (pedidoIds) carregar(pedidoIds); }}
+          />
         )}
       </DialogContent>
     </Dialog>
