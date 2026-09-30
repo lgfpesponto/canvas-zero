@@ -585,7 +585,7 @@ const RanchoChiquePedidosPage = () => {
                   })()}
 
                   {nfeAcesso && (
-                    <BagyNfeMenu pedido={p} onGerarNfe={() => setNfeIds([p.id])} />
+                    <BagyNfeMenu pedido={p} onGerarNfe={() => setNfeIds([p.id])} onChanged={load} />
                   )}
                 </div>
 

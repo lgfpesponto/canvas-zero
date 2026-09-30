@@ -18,6 +18,7 @@ import {
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { getFiscalProvider } from '@/lib/fiscal/provider';
 import { emitirComplementar, emitirDevolucao } from '@/lib/fiscal/nfeBagy';
+import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
 
 const brl = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -45,6 +46,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
 }) {
   const [nota, setNota] = useState<NotaRow | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [ccOpen, setCcOpen] = useState(false);
   const [complOpen, setComplOpen] = useState(false);
@@ -182,6 +184,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
           {sello.label}{nota.status === 'autorizada' ? ` nº ${nota.numero}` : ''}
         </span>
       )}
+      {pedido.id && <BagyPedidoEditDialog pedidoId={pedido.id} open={editOpen} onOpenChange={setEditOpen} onSaved={onChanged} />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label="Ações da NF-e">
@@ -189,6 +192,11 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          {pedido.id && !autorizada && (<>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <FileEdit size={14} className="mr-2" /> Editar pedido
+            </DropdownMenuItem>
+          </>)}
           {onGerarNfe && (<>
             <DropdownMenuItem onClick={onGerarNfe}>
               <Pencil size={14} className="mr-2" /> {nota ? 'Alterar rascunho' : 'Gerar NF-e'}
