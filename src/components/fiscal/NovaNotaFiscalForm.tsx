@@ -113,7 +113,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   const interno = !dest.uf || String(dest.uf).toUpperCase() === String(cfg?.uf ?? '').toUpperCase();
   const cfopPadrao = ex.cfopNat
     ? (interno ? '5' : '6') + ex.cfopNat.slice(1)
-    : dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5107' : '6107');
+    : dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5101' : '6107');
   const escolherNatureza = (cfop: string) => {
     const n = NATUREZAS.find(x => x[0] === cfop);
     setEx(s => ({ ...s, cfopNat: cfop }));
