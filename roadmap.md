@@ -7,3 +7,5 @@
 - [x] DANFE simplificado em etiqueta térmica 100 × 150 mm
 - [x] DANFE completo A4 para notas autorizadas
 - [x] Logo fiscal, CFOP de produção própria e percentuais aproximados de tributos configuráveis
+
+- [x] DANFE A4 no padrão visual do PDF enviado, sem preencher campos fiscais ausentes
