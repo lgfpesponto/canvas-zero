@@ -1680,6 +1680,7 @@ export type Database = {
       nfe_notas: {
         Row: {
           ambiente: number
+          bagy_pedido_id: string | null
           chave_acesso: string | null
           created_at: string
           danfe_pdf_url: string | null
@@ -1705,6 +1706,7 @@ export type Database = {
         }
         Insert: {
           ambiente: number
+          bagy_pedido_id?: string | null
           chave_acesso?: string | null
           created_at?: string
           danfe_pdf_url?: string | null
@@ -1730,6 +1732,7 @@ export type Database = {
         }
         Update: {
           ambiente?: number
+          bagy_pedido_id?: string | null
           chave_acesso?: string | null
           created_at?: string
           danfe_pdf_url?: string | null
@@ -1754,6 +1757,13 @@ export type Database = {
           xml_autorizado?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "nfe_notas_bagy_pedido_id_fkey"
+            columns: ["bagy_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "bagy_pedidos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "nfe_notas_destinatario_id_fkey"
             columns: ["destinatario_id"]

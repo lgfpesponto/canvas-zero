@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getOrderFinalValue } from '@/lib/order-logic';
+import { ncmPorDescricao } from './ncm';
 
 const UF_COD: Record<string, string> = {
   AC: '12', AL: '27', AM: '13', AP: '16', BA: '29', CE: '23', DF: '53', ES: '32', GO: '52', MA: '21',
@@ -73,6 +74,8 @@ export async function validarEmissao(pedidoId: string, destinatarioId: string | 
     const refNome = referenciaDoPedido(order);
     const { data } = await supabase.from('nfe_tributacao_referencias').select('*').ilike('referencia', refNome).maybeSingle();
     ref = data;
+    const regra = ncmPorDescricao(`${descricaoItem(order)} ${order.tipo_extra ?? ''}`);
+    if (ref && regra) ref = { ...ref, ncm: regra.ncm };
     if (!ref) erros.push(`Cadastre a referência tributária "${refNome}" na tela de Tributação.`);
     else {
       if (dig(ref.ncm).length !== 8) erros.push(`Referência "${refNome}" sem NCM válido (8 dígitos).`);
