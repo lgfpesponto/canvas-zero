@@ -48,7 +48,7 @@ const Header = () => {
       { label: 'Gestão', path: '/admin/configuracoes?tab=gestao' },
       { label: 'Sincronização atacado', path: '/admin/configuracoes?tab=atacado-sync' },
       { label: 'Financeiro', path: '/admin/configuracoes?tab=financeiro' },
-      ...(hasNfeAccess ? [{ label: 'NF-e', path: '/admin/configuracoes?tab=nfe' }] : []),
+      ...(hasNfeAccess ? [{ label: 'Configurações NF-e', path: '/admin/configuracoes?tab=nfe' }, { label: 'Notas Fiscais', path: '/admin/configuracoes?tab=notas-fiscais' }] : []),
     ] : []),
   ];
 
@@ -62,7 +62,7 @@ const Header = () => {
         ...(isBagyAccess ? [{ label: 'PEDIDOS BAGY', path: '/rancho-chique/pedidos' }] : []),
         ...(isAdmin && !isJuliana && role !== 'admin_producao' ? [{ label: 'USUÁRIOS', path: '/usuarios' }] : []),
         ...(isAdmin && role !== 'admin_producao' ? [{ label: 'CONFIGURAÇÕES', path: '/admin/configuracoes', subItems: configSubItems }] : []),
-        ...(hasNfeAccess && !isJuliana ? [{ label: 'NF-e', path: '/configuracoes/nfe' }] : []),
+        ...(hasNfeAccess && !isJuliana ? [{ label: 'Notas Fiscais', path: '/notas-fiscais' }, { label: 'NF-e', path: '/configuracoes/nfe' }] : []),
         ...(canSeeRevendedorView && !isAdminMaster ? [{ label: 'COMPROVANTES', path: '/financeiro/saldo' }] : []),
         { label: 'MEU PERFIL', path: '/perfil' },
       ]
