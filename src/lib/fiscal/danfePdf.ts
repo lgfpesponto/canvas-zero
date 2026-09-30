@@ -198,9 +198,9 @@ export function drawA4(data: FiscalData) {
   const vol = node(transp, 'vol');
   const duplicatas = Array.from(xml?.getElementsByTagName('dup') ?? []);
   const detalhes = Array.from(xml?.getElementsByTagName('det') ?? []);
-  const fmtXmlMoney = (tag: string, parent: Element | Document | null = totals) => {
+  const fmtXmlMoney = (tag: string, parent: Element | Document | null = totals, fallback: unknown = 0) => {
     const v = value(parent, tag);
-    return money(v || 0);
+    return v ? money(v) : money(fallback);
   };
   const fmtPercent = (tag: string, parent: Element | Document | null, decimals: number) => {
     const v = value(parent, tag);
@@ -300,14 +300,14 @@ export function drawA4(data: FiscalData) {
     const dx = x + i * (w / 3), dup = bills[i] ?? null;
     field('Número', value(dup, 'nDup'), dx, y, w / 9, 8);
     field('Vencimento', value(dup, 'dVenc'), dx + w / 9, y, w / 9, 8);
-    field('Valor', fmtXmlMoney('vDup', dup), dx + 2 * w / 9, y, w / 9, 8);
+    field('Valor', dup ? fmtXmlMoney('vDup', dup) : '', dx + 2 * w / 9, y, w / 9, 8);
   }
   y += 11;
   section('Cálculo do imposto');
   const tax1: [string, string][] = [['Base de cálculo do ICMS', 'vBC'], ['Valor do ICMS', 'vICMS'], ['Base de cálculo do ICMS Subst.', 'vBCST'], ['Valor do ICMS Subst.', 'vST'], ['Valor do FCP ST', 'vFCPST'], ['Valor total dos produtos', 'vProd']];
   const tax2: [string, string][] = [['Valor do frete', 'vFrete'], ['Valor do seguro', 'vSeg'], ['Desconto', 'vDesc'], ['Outras despesas acessórias', 'vOutro'], ['Valor do IPI', 'vIPI'], ['Valor total da nota', 'vNF']];
-  tax1.forEach(([label, tag], i) => field(label, fmtXmlMoney(tag) || (tag === 'vProd' ? money(data.nota.valor_produtos) : ''), x + i*w/6, y, w/6, 7)); y += 7;
-  tax2.forEach(([label, tag], i) => field(label, fmtXmlMoney(tag) || (tag === 'vNF' ? money(data.nota.valor_total) : ''), x + i*w/6, y, w/6, 7)); y += 10;
+  tax1.forEach(([label, tag], i) => field(label, fmtXmlMoney(tag, totals, tag === 'vProd' ? data.nota.valor_produtos : 0), x + i*w/6, y, w/6, 7)); y += 7;
+  tax2.forEach(([label, tag], i) => field(label, fmtXmlMoney(tag, totals, tag === 'vNF' ? data.nota.valor_total : 0), x + i*w/6, y, w/6, 7)); y += 10;
 
   section('Transportador/Volumes transportados');
   const freight: Record<string, string> = { '0': '0 - Por conta do remetente (CIF)', '1': '1 - Por conta do destinatário (FOB)', '2': '2 - Por conta de terceiros', '3': '3 - Transporte próprio remetente', '4': '4 - Transporte próprio destinatário', '9': '9 - Sem frete' };
