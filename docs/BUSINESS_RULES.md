@@ -10,6 +10,8 @@
 - Em homologação, ambos exibem “SEM VALOR FISCAL”.
 - Venda de produção própria usa CFOP 5101/6101 para contribuinte e 5107/6107 para não contribuinte, com escolha editável antes da emissão.
 - O total aproximado de tributos só aparece quando os percentuais federal e estadual estão configurados para todos os itens com valor.
+- Na emissão em massa da Bagy, **Enviar todas corretas** transmite sequencialmente apenas notas sem erros; as autorizadas saem da seleção e permanecem selecionados somente os pedidos inválidos ou rejeitados para correção.
+- A edição fiscal do pedido Bagy permite corrigir dados comerciais, endereço, envio e campos dos itens existentes, sem apagar itens nem alterar o payload original recebido da Bagy.
 
 ---
 

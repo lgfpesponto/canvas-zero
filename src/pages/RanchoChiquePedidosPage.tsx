@@ -821,7 +821,8 @@ const RanchoChiquePedidosPage = () => {
       <NfeBagyDialog
         pedidoIds={nfeIds}
         portalIdPorBagy={Object.fromEntries((nfeIds ?? []).map(id => { const pd = pedidos.find(x => x.id === id); return [id, pd ? getPrimaryPortalId(pd) : null]; }))}
-        onClose={() => setNfeIds(null)}
+        onRemainingChange={(ids) => setSelected(new Set(ids))}
+        onClose={() => { setNfeIds(null); load(); }}
       />
 
       <BagyFichaDialog

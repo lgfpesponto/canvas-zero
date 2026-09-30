@@ -9,3 +9,5 @@
 - [x] Logo fiscal, CFOP de produção própria e percentuais aproximados de tributos configuráveis
 
 - [x] DANFE A4 no padrão visual do PDF enviado, sem preencher campos fiscais ausentes
+- [x] NF-e Bagy em massa: enviar corretas e manter somente erros selecionados
+- [x] Edição fiscal completa dos dados existentes do pedido Bagy

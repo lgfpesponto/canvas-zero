@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 
 const num = (s: unknown) => Number(String(s ?? '').replace(',', '.')) || 0;
@@ -28,7 +29,7 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
     (async () => {
       const [a, b] = await Promise.all([
         supabase.from('bagy_pedidos').select('*').eq('id', pedidoId).maybeSingle(),
-        supabase.from('bagy_pedido_itens').select('id, nome_produto, variacao_nome, sku, quantidade, preco_unit, ncm').eq('pedido_id', pedidoId).order('created_at'),
+        supabase.from('bagy_pedido_itens').select('id, nome_produto, variacao_nome, sku, tamanho, cor, quantidade, preco_unit, ncm, status').eq('pedido_id', pedidoId).order('created_at'),
       ]);
       setP(a.data); setEnd((a.data?.endereco as any) || {}); setItens(b.data || []);
       setLoading(false);
@@ -52,12 +53,16 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
     try {
       const { error } = await supabase.from('bagy_pedidos').update({
         cliente_nome: p.cliente_nome, cliente_doc: p.cliente_doc, cliente_email: p.cliente_email, cliente_whats: p.cliente_whats,
-        endereco: end, frete: num(p.frete), desconto: num(p.desconto), total,
+        endereco: end, pagamento: p.pagamento, metodo_envio: p.metodo_envio,
+        tracking_code: p.tracking_code, tracking_url: p.tracking_url,
+        frete: num(p.frete), desconto: num(p.desconto), total,
       }).eq('id', pedidoId);
       if (error) throw error;
       for (const it of itens) {
         const { error: e2 } = await supabase.from('bagy_pedido_itens').update({
-          nome_produto: it.nome_produto, quantidade: Math.max(1, Math.round(num(it.quantidade))), preco_unit: num(it.preco_unit), ncm: dig(it.ncm) || null,
+          nome_produto: it.nome_produto, variacao_nome: it.variacao_nome, sku: it.sku, tamanho: it.tamanho, cor: it.cor,
+          quantidade: Math.max(1, Math.round(num(it.quantidade))), preco_unit: num(it.preco_unit), ncm: dig(it.ncm) || null,
+          status: it.status,
         }).eq('id', it.id);
         if (e2) throw e2;
       }
@@ -87,6 +92,7 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
                 {f('cliente_doc', 'CPF/CNPJ')}
                 {f('cliente_whats', 'WhatsApp')}
                 {f('cliente_email', 'E-mail', 'md:col-span-2')}
+                {f('pagamento', 'Forma de pagamento', 'md:col-span-2')}
               </div>
             </section>
             <section>
@@ -106,19 +112,28 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
               <h3 className="mb-2 text-sm font-bold">Itens</h3>
               <div className="space-y-2">
                 {itens.map((it, i) => (
-                  <div key={it.id} className="grid grid-cols-2 gap-2 rounded-md border p-2 md:grid-cols-[1fr_70px_100px_110px]">
-                    <Campo label={it.variacao_nome || it.sku || 'Produto'}><Input value={it.nome_produto ?? ''} onChange={ev => setItem(i, { nome_produto: ev.target.value })} /></Campo>
+                  <div key={it.id} className="grid grid-cols-2 gap-2 rounded-md border p-2 md:grid-cols-4">
+                    <Campo label="Produto" className="md:col-span-2"><Input value={it.nome_produto ?? ''} onChange={ev => setItem(i, { nome_produto: ev.target.value })} /></Campo>
+                    <Campo label="Variação"><Input value={it.variacao_nome ?? ''} onChange={ev => setItem(i, { variacao_nome: ev.target.value })} /></Campo>
+                    <Campo label="SKU"><Input value={it.sku ?? ''} onChange={ev => setItem(i, { sku: ev.target.value })} /></Campo>
+                    <Campo label="Tamanho"><Input value={it.tamanho ?? ''} onChange={ev => setItem(i, { tamanho: ev.target.value })} /></Campo>
+                    <Campo label="Cor"><Input value={it.cor ?? ''} onChange={ev => setItem(i, { cor: ev.target.value })} /></Campo>
                     <Campo label="Qtd"><Input inputMode="numeric" value={it.quantidade ?? ''} onChange={ev => setItem(i, { quantidade: ev.target.value })} /></Campo>
                     <Campo label="Valor unit."><Input inputMode="decimal" value={it.preco_unit ?? ''} onChange={ev => setItem(i, { preco_unit: ev.target.value })} /></Campo>
                     <Campo label="NCM"><Input value={it.ncm ?? ''} onChange={ev => setItem(i, { ncm: ev.target.value })} /></Campo>
+                    <Campo label="Situação" className="md:col-span-2"><Input value={it.status ?? ''} onChange={ev => setItem(i, { status: ev.target.value })} /></Campo>
                   </div>
                 ))}
               </div>
             </section>
             <section className="grid gap-3 md:grid-cols-4">
+              {f('metodo_envio', 'Método de envio', 'md:col-span-2')}
               {f('frete', 'Frete')}
               {f('desconto', 'Desconto')}
+              {f('tracking_code', 'Código de rastreio')}
+              {f('tracking_url', 'Link de rastreio', 'md:col-span-3')}
               <Campo label="Total" className="md:col-span-2"><Input disabled value={total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} /></Campo>
+              <Campo label="Erro registrado" className="md:col-span-2"><Textarea disabled value={p.erro ?? ''} /></Campo>
             </section>
             <p className="text-xs text-muted-foreground">As alterações ficam salvas no portal e são usadas na nota fiscal. A Bagy não é alterada.</p>
           </div>
