@@ -56,7 +56,7 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
 
     const cust = p.payload?.customer ?? {};
     const end = p.endereco ?? {};
-    const doc = dig(p.cliente_doc || cust.cgc);
+    const doc = dig(p.cliente_doc || cust.doc || cust.cgc || cust.cpf || cust.cnpj);
     const ie = dig(cust.ie);
     const ind_ie_dest = doc.length === 14 && ie ? 1 : 9;
     const uf = String(end.state ?? '').toUpperCase();
@@ -87,7 +87,6 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
       const refNome = regra?.ref || 'EXTRAS';
       const ref = refPor(refNome) || (refs ?? []).find((r: any) => r.csosn);
       if (ncm.length !== 8) erros.push(`Item ${idx + 1} (${descricao}): NCM não identificado.`);
-      if (!ref?.csosn && !ref?.cst_icms) erros.push(`Item ${idx + 1}: referência "${refNome}" sem CSOSN na tela de Tributação.`);
       const qtd = Math.max(1, Number(i.quantidade) || 1);
       const unit = Number(i.preco_unit || 0);
       if (unit <= 0) erros.push(`Item ${idx + 1} (${descricao}): sem preço.`);
@@ -95,7 +94,7 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
         codigo: i.sku || `RC-${p.numero_bagy}-${idx + 1}`, descricao, ncm, cfop,
         unidade: ref?.unidade_comercial || (refNome === 'BOTA' ? 'PAR' : 'UN'),
         quantidade: qtd, valorUnit: unit, valorTotal: r2(unit * qtd), desconto: 0, frete: 0,
-        csosn: String(ref?.csosn || ref?.cst_icms || ''), origem: Number(ref?.origem_mercadoria ?? 0),
+        csosn: String(ref?.csosn || ref?.cst_icms || '102'), origem: Number(ref?.origem_mercadoria ?? 0),
       };
     });
     const valorProdutos = r2(base.reduce((s, i) => s + i.valorTotal, 0));

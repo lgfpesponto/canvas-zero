@@ -332,7 +332,8 @@ Deno.serve(async (req) => {
       pick<string>(shippingAddr || {}, "recipient", "name", "receiver") ||
       pick<string>(order, "customer_name") ||
       null;
-    const clienteDoc = pick<string>(customer, "cpf", "document", "cnpj") || null;
+    const clienteDocRaw = pick<string>(customer, "doc", "cpf", "cgc", "document", "cnpj");
+    const clienteDoc = clienteDocRaw ? String(clienteDocRaw).replace(/\D/g, "") || null : null;
     const clienteEmail = pick<string>(customer, "email") || null;
     const clienteWhats = pick<string>(
       customer,
