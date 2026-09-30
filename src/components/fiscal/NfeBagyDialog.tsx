@@ -160,6 +160,14 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
             </div>
           </div>
         )}
+        {n && portalIdPorBagy[n.bagyPedidoId] && (
+          <BagyPedidoEditDialog
+            pedidoId={portalIdPorBagy[n.bagyPedidoId]!}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            onSaved={() => { if (pedidoIds) carregar(pedidoIds); }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
