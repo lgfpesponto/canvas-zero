@@ -212,3 +212,92 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
   } as any).eq('id', nota.id);
   return { notaId: nota.id, numero, autorizada, motivo };
 }
+
+/** Emite NFe complementar (finNFe=3) vinculada a uma nota autorizada. */
+export async function emitirComplementar(notaPaiId: string, valor: number, descricao: string) {
+  const [{ data: pai }, { data: cfg }] = await Promise.all([
+    supabase.from('nfe_notas').select('*').eq('id', notaPaiId).single(),
+    supabase.from('nfe_config').select('*').order('created_at').limit(1).maybeSingle(),
+  ]);
+  if (!pai?.chave_acesso) throw new Error('Nota original sem chave de acesso.');
+  if (pai.status !== 'autorizada') throw new Error('Só é possível complementar nota autorizada.');
+  if (!cfg) throw new Error('Emitente não configurado.');
+  const dest = pai.destinatario_snapshot as any;
+  const { data: num, error: nErr } = await supabase.rpc('reservar_numero_nfe');
+  if (nErr) throw new Error(nErr.message);
+  const { numero, serie, ambiente } = num as { numero: number; serie: number; ambiente: number };
+
+  const agora = new Date();
+  const cNF = String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+  const chave = calcularChave({ uf: cfg.uf, data: agora, cnpj: cfg.cnpj, modelo: 55, serie, numero, tpEmis: 1, cNF });
+  const dhEmi = new Date(agora.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 19) + '-03:00';
+  const interno = String(dest.uf).toUpperCase() === String(cfg.uf).toUpperCase();
+  const doc = dig(dest.cpf_cnpj);
+  const homolog = ambiente === 2;
+  const nomeDest = homolog ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : dest.nome;
+  const ref = await supabase.from('nfe_tributacao_referencias').select('*').ilike('referencia', 'EXTRAS').maybeSingle();
+  const csosn = String(ref.data?.csosn || ref.data?.cst_icms || '102');
+
+  const xml =
+    `<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe versao="4.00" Id="NFe${chave}">` +
+    `<ide><cUF>${UF_COD[cfg.uf]}</cUF><cNF>${cNF}</cNF><natOp>COMPLEMENTO DE VALOR</natOp><mod>55</mod>` +
+    `<serie>${serie}</serie><nNF>${numero}</nNF><dhEmi>${dhEmi}</dhEmi><tpNF>1</tpNF><idDest>${interno ? 1 : 2}</idDest>` +
+    `<cMunFG>${dig(cfg.cod_municipio)}</cMunFG><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${chave.slice(-1)}</cDV>` +
+    `<tpAmb>${ambiente}</tpAmb><finNFe>3</finNFe><indFinal>${dest.ind_ie_dest === 9 ? 1 : 0}</indFinal><indPres>9</indPres>` +
+    `<procEmi>0</procEmi><verProc>Portal7Estrivos 1.0</verProc></ide>` +
+    `<emit><CNPJ>${dig(cfg.cnpj)}</CNPJ>${tag('xNome', cfg.razao_social)}${tag('xFant', cfg.nome_fantasia)}` +
+    `<enderEmit>${tag('xLgr', cfg.logradouro)}${tag('nro', cfg.numero)}${tag('xCpl', cfg.complemento)}${tag('xBairro', cfg.bairro)}` +
+    `<cMun>${dig(cfg.cod_municipio)}</cMun>${tag('xMun', cfg.municipio)}<UF>${cfg.uf}</UF><CEP>${dig(cfg.cep)}</CEP>` +
+    `<cPais>1058</cPais><xPais>BRASIL</xPais>${tag('fone', dig(cfg.telefone))}</enderEmit>` +
+    `<IE>${dig(cfg.inscricao_estadual)}</IE><CRT>${cfg.crt}</CRT></emit>` +
+    `<dest>${doc.length === 14 ? `<CNPJ>${doc}</CNPJ>` : `<CPF>${doc}</CPF>`}${tag('xNome', nomeDest)}` +
+    `<enderDest>${tag('xLgr', dest.logradouro)}${tag('nro', dest.numero)}${tag('xCpl', dest.complemento)}${tag('xBairro', dest.bairro)}` +
+    `<cMun>${dig(dest.cod_municipio)}</cMun>${tag('xMun', dest.municipio)}<UF>${dest.uf}</UF><CEP>${dig(dest.cep)}</CEP>` +
+    `<cPais>1058</cPais><xPais>BRASIL</xPais>${tag('fone', dig(dest.telefone))}</enderDest>` +
+    `<indIEDest>${dest.ind_ie_dest}</indIEDest>${dest.ind_ie_dest === 1 ? tag('IE', dest.inscricao_estadual) : ''}${tag('email', dest.email)}</dest>` +
+    `<det nItem="1"><prod><cProd>COMPLEMENTO</cProd><cEAN>SEM GTIN</cEAN><xProd>${esc(descricao)}</xProd>` +
+    `<NCM>00000000</NCM><CFOP>${interno ? '5949' : '6949'}</CFOP><uCom>UN</uCom><qCom>1.0000</qCom>` +
+    `<vUnCom>${valor.toFixed(10)}</vUnCom><vProd>${n2(valor)}</vProd><cEANTrib>SEM GTIN</cEANTrib><uTrib>UN</uTrib>` +
+    `<qTrib>1.0000</qTrib><vUnTrib>${valor.toFixed(10)}</vUnTrib><indTot>1</indTot></prod>` +
+    `<imposto><ICMS><ICMSSN102><orig>0</orig><CSOSN>${esc(csosn)}</CSOSN></ICMSSN102></ICMS>` +
+    `<PIS><PISOutr><CST>99</CST><vBC>0.00</vBC><pPIS>0.00</pPIS><vPIS>0.00</vPIS></PISOutr></PIS>` +
+    `<COFINS><COFINSOutr><CST>99</CST><vBC>0.00</vBC><pCOFINS>0.00</pCOFINS><vCOFINS>0.00</vCOFINS></COFINSOutr></COFINS></imposto></det>` +
+    `<total><ICMSTot><vBC>0.00</vBC><vICMS>0.00</vICMS><vICMSDeson>0.00</vICMSDeson><vFCP>0.00</vFCP><vBCST>0.00</vBCST><vST>0.00</vST>` +
+    `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet><vProd>${n2(valor)}</vProd><vFrete>0.00</vFrete><vSeg>0.00</vSeg><vDesc>0.00</vDesc>` +
+    `<vII>0.00</vII><vIPI>0.00</vIPI><vIPIDevol>0.00</vIPIDevol><vPIS>0.00</vPIS><vCOFINS>0.00</vCOFINS><vOutro>0.00</vOutro>` +
+    `<vNF>${n2(valor)}</vNF></ICMSTot></total>` +
+    `<transp><modFrete>9</modFrete></transp>` +
+    `<pag><detPag><indPag>0</indPag><tPag>99</tPag><xPag>OUTROS</xPag><vPag>${n2(valor)}</vPag></detPag></pag>` +
+    `<infAdic><infCpl>${esc(`NFe complementar da NF-e ${pai.numero}/${pai.serie}.`)}</infCpl></infAdic>` +
+    `</infNFe></NFe>`;
+
+  const { data: nota, error } = await supabase.from('nfe_notas').insert({
+    pedido_id: pai.pedido_id, bagy_pedido_id: pai.bagy_pedido_id, numero, serie, modelo: 55, chave_acesso: chave, ambiente,
+    status: 'processando', natureza_operacao: 'COMPLEMENTO DE VALOR', valor_produtos: valor, valor_total: valor,
+    destinatario_snapshot: dest, observacoes: `NFe complementar da NF-e ${pai.numero}/${pai.serie}`,
+  } as any).select().single();
+  if (error) throw new Error(error.message);
+  await supabase.from('nfe_itens').insert({
+    nota_id: nota.id, ordem: 1, codigo: 'COMPLEMENTO', descricao, ncm: '00000000', cfop: interno ? '5949' : '6949',
+    unidade: 'UN', quantidade: 1, valor_unitario: valor, valor_total: valor, origem_mercadoria: 0,
+    cst_icms: csosn, cst_pis: '99', cst_cofins: '99',
+  } as any);
+
+  let resp;
+  try { resp = await chamar('autorizar', { xml, chave, refNFe: pai.chave_acesso }); }
+  catch (e: any) {
+    await supabase.from('nfe_notas').update({ status: 'erro', motivo_rejeicao: e.message } as any).eq('id', nota.id);
+    throw e;
+  }
+  const cStat = String(resp.cStat ?? '');
+  const autorizada = cStat === '100' || cStat === '150';
+  const motivo = `${cStat} - ${resp.xMotivo ?? resp.error ?? 'Sem retorno'}`;
+  await supabase.from('nfe_notas').update({
+    status: autorizada ? 'autorizada' : 'rejeitada',
+    protocolo: (resp.protocolo ?? resp.nProt ?? null) as any,
+    data_autorizacao: autorizada ? new Date().toISOString() : null,
+    motivo_rejeicao: autorizada ? null : motivo,
+    xml_assinado: (resp.xml ?? null) as any, xml_autorizado: (resp.xmlAutorizado ?? null) as any,
+  } as any).eq('id', nota.id);
+  return { notaId: nota.id, numero, autorizada, motivo };
+}
