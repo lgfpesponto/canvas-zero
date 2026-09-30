@@ -113,7 +113,7 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
       accD += it.desconto; accF += it.frete;
     });
     const valorTotal = r2(valorProdutos - desconto + frete);
-    if (valorTotal <= 0) erros.push('Nota sem valor.');
+    if (valorTotal < 0) erros.push('Desconto maior que o valor dos produtos.');
     const notaExistente = (notas ?? []).find((n: any) => n.bagy_pedido_id === id && n.status !== 'rejeitada' && n.status !== 'erro') ?? null;
     if (notaExistente?.status === 'autorizada') erros.push(`Já existe NF-e autorizada (nº ${notaExistente.numero}) para este pedido.`);
 
@@ -173,7 +173,9 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
     `<vII>0.00</vII><vIPI>0.00</vIPI><vIPIDevol>0.00</vIPIDevol><vPIS>0.00</vPIS><vCOFINS>0.00</vCOFINS><vOutro>${n2(r.outras ?? 0)}</vOutro>` +
     `<vNF>${n2(r.valorTotal)}</vNF></ICMSTot></total>` +
     `<transp><modFrete>${r.modFrete ?? (r.frete > 0 ? 0 : 9)}</modFrete></transp>` +
-    `<pag><detPag><indPag>0</indPag>${(r.tPag ?? '99') === '99' ? '<tPag>99</tPag><xPag>OUTROS</xPag>' : `<tPag>${r.tPag}</tPag>`}<vPag>${n2(r.valorTotal)}</vPag></detPag></pag>` +
+    (r.valorTotal <= 0
+      ? `<pag><detPag><tPag>90</tPag><vPag>0.00</vPag></detPag></pag>`
+      : `<pag><detPag><indPag>0</indPag>${(r.tPag ?? '99') === '99' ? '<tPag>99</tPag><xPag>OUTROS</xPag>' : `<tPag>${r.tPag}</tPag>`}<vPag>${n2(r.valorTotal)}</vPag></detPag></pag>`) +
     `<infAdic><infCpl>${esc(`${r.infCpl ? r.infCpl + ' ' : (r.numeroBagy ? `Pedido Bagy RC-${r.numeroBagy}. ` : '')}Documento emitido por ME ou EPP optante pelo Simples Nacional. Nao gera direito a credito fiscal de IPI.`)}</infCpl></infAdic>` +
     `</infNFe></NFe>`;
   return { xml, chave };
