@@ -67,16 +67,15 @@ Deno.serve(async (req) => {
       return json({ error: senhaErrada ? "Senha do certificado incorreta ou arquivo corrompido" : "Não foi possível ler o certificado digital", detalhe: m }, 422);
     }
 
-    // O proxy exige o XML da NF-e já assinado (XML-DSig enveloped, RSA-SHA1, C14N) no campo xmlAssinado.
+    // Apesar do nome, o campo xmlAssinado recebe o XML LIMPO (sem <Signature>):
+    // o proxy externo assina e embrulha no <enviNFe>. Não assinar aqui (evita assinatura dupla / rejeição 225).
     let extra: Record<string, unknown> = {};
     if (acao === "autorizar") {
-      const xml = String((payload as any).xmlAssinado ?? (payload as any).xml ?? "");
+      const xml = String((payload as any).xmlAssinado ?? (payload as any).xml ?? "")
+        .replace(/<\?xml[^>]*\?>/g, "").replace(/<Signature[\s\S]*?<\/Signature>/g, "").trim();
       if (!xml) return json({ error: "XML da nota não informado" }, 400);
-      try {
-        extra = { xmlAssinado: await assinarNfe(xml, keyPem, certPem) };
-      } catch (e) {
-        return json({ error: "Não foi possível assinar o XML da nota", detalhe: e instanceof Error ? e.message : String(e) }, 422);
-      }
+      extra = { xmlAssinado: xml };
+      void assinarNfe; void keyPem; void certPem;
     }
 
     const { data: cfg } = await sb.from("nfe_config").select("ambiente, uf").order("created_at").limit(1).maybeSingle();
