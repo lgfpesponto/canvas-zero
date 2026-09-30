@@ -181,7 +181,11 @@ const RanchoChiquePedidosPage = () => {
       setItensByPed(map);
       const nfeMap: Record<string, BagyNfeInfo> = {};
       (notas || []).forEach((nota: any) => {
-        if (nota.bagy_pedido_id && !nfeMap[nota.bagy_pedido_id]) nfeMap[nota.bagy_pedido_id] = nota;
+        if (!nota.bagy_pedido_id) return;
+        const atual = nfeMap[nota.bagy_pedido_id];
+        const ativa = ['autorizada', 'processando'].includes(nota.status);
+        const atualAtiva = atual && ['autorizada', 'processando'].includes(atual.status);
+        if (!atual || (ativa && !atualAtiva)) nfeMap[nota.bagy_pedido_id] = nota;
       });
       setNfeByPedido(nfeMap);
     } else {

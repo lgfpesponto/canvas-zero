@@ -64,8 +64,9 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
     let q = supabase
       .from('nfe_notas').select('id, numero, serie, status, chave_acesso, valor_total, valor_produtos, motivo_rejeicao, destinatario_snapshot, data_autorizacao, tipo_nota');
     q = notaId ? q.eq('id', notaId) : q.eq('bagy_pedido_id', pedidoProp?.id ?? '').eq('tipo_nota', 'normal');
-    const { data } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
-    setNota((data as NotaRow | null) ?? null);
+    const { data } = await q.order('created_at', { ascending: false }).limit(notaId ? 1 : 20);
+    const rows = (data ?? []) as NotaRow[];
+    setNota(rows.find(item => ['autorizada', 'processando'].includes(item.status)) ?? rows[0] ?? null);
   }, [notaId, pedidoProp?.id]);
   const dSnap: any = nota?.destinatario_snapshot || {};
   const pedido: BagyPedidoMin = pedidoProp ?? {
