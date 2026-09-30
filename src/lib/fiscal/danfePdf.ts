@@ -248,9 +248,12 @@ export async function gerarDanfePdf(notaId: string, mode: DanfeMode, action: 'sa
   const doc = mode === 'etiqueta' ? drawEtiqueta(data) : drawA4(data);
   const filename = `DANFE-${padNfe(data.nota.numero)}-${mode === 'etiqueta' ? 'Etiqueta' : 'A4'}.pdf`;
   if (action === 'print') {
+    // Abre o PDF em nova aba (o visualizador do navegador tem botão de imprimir).
+    // Imprimir via iframe falha: o leitor de PDF é de outra origem e bloqueia print().
+    doc.autoPrint();
     const url = URL.createObjectURL(doc.output('blob'));
-    const frame = document.createElement('iframe');
-    frame.style.display = 'none'; frame.src = url; document.body.appendChild(frame);
-    frame.onload = () => { frame.contentWindow?.print(); setTimeout(() => { URL.revokeObjectURL(url); frame.remove(); }, 60_000); };
+    const w = window.open(url, '_blank');
+    if (!w) doc.save(filename); // pop-up bloqueado → baixa o arquivo
+    setTimeout(() => URL.revokeObjectURL(url), 120_000);
   } else doc.save(filename);
 }
