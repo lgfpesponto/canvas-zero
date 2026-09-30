@@ -11,6 +11,7 @@ import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, Chevr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BagyFichaDialog, type BagyFichaQueueItem } from '@/components/bagy/BagyFichaDialog';
+import { BagyNfeMenu } from '@/components/fiscal/BagyNfeMenu';
 import { bagyLetterSuffix } from '@/lib/bagySuffix';
 import { NfeBagyDialog } from '@/components/fiscal/NfeBagyDialog';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
@@ -582,6 +583,10 @@ const RanchoChiquePedidosPage = () => {
                     }
                     return null;
                   })()}
+
+                  {nfeAcesso && (
+                    <BagyNfeMenu pedido={p} onGerarNfe={() => setNfeIds([p.id])} />
+                  )}
                 </div>
 
                 {selPedido?.id === p.id && (
