@@ -15,6 +15,7 @@ type Resultado = { notaId: string; numero: number; autorizada: boolean; motivo: 
 
 export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   pedidoIds: string[] | null; portalIdPorBagy: Record<string, string | null>; onClose: () => void;
+  onRemainingChange?: (ids: string[]) => void;
 }) {
   const [notas, setNotas] = useState<NotaRascunho[]>([]);
   const [idx, setIdx] = useState(0);
@@ -22,6 +23,7 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Record<string, Resultado>>({});
   const [editOpen, setEditOpen] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   const carregar = (ids: string[]) => {
     setLoading(true);
@@ -59,6 +61,45 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
       toast.error(e.message || String(e));
       setRes(prev => ({ ...prev, [n.bagyPedidoId]: { notaId: '', numero: 0, autorizada: false, motivo: e.message || String(e) } }));
     } finally { setBusy(false); }
+  }
+
+  async function confirmarTodas() {
+    const prontas = notas.filter(nota => nota.erros.length === 0 && !res[nota.bagyPedidoId]?.autorizada);
+    if (!prontas.length) {
+      toast.error('Nenhuma nota correta disponível para enviar.');
+      return;
+    }
+    setBusy(true);
+    setBulkProgress({ done: 0, total: prontas.length });
+    const resultados: Record<string, Resultado> = { ...res };
+    const manter = new Set(notas.filter(nota => nota.erros.length > 0).map(nota => nota.bagyPedidoId));
+    let autorizadas = 0;
+    let falhas = 0;
+    for (let i = 0; i < prontas.length; i++) {
+      const nota = prontas[i];
+      try {
+        const out = await transmitirNotaBagy(nota);
+        resultados[nota.bagyPedidoId] = out;
+        if (out.autorizada) autorizadas++;
+        else { falhas++; manter.add(nota.bagyPedidoId); }
+      } catch (e: any) {
+        falhas++;
+        manter.add(nota.bagyPedidoId);
+        resultados[nota.bagyPedidoId] = { notaId: '', numero: 0, autorizada: false, motivo: e.message || String(e) };
+      }
+      setRes({ ...resultados });
+      setBulkProgress({ done: i + 1, total: prontas.length });
+    }
+    const restantes = notas.filter(nota => manter.has(nota.bagyPedidoId));
+    const idsRestantes = restantes.map(nota => nota.bagyPedidoId);
+    setNotas(restantes);
+    setIdx(0);
+    onRemainingChange?.(idsRestantes);
+    if (autorizadas > 0) toast.success(`${autorizadas} NF-e autorizada(s).`);
+    if (falhas > 0) toast.error(`${falhas} nota(s) ficaram para correção.`);
+    setBulkProgress(null);
+    setBusy(false);
+    if (!restantes.length) onClose();
   }
 
   async function imprimir(modo: 'a4' | 'etiqueta') {
@@ -143,7 +184,16 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
               <span className="text-sm">Total da nota: <b>{brl(n.valorTotal)}</b></span>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
+              {notas.length > 1 && (
+                <Button
+                  disabled={busy || !notas.some(nota => nota.erros.length === 0 && !res[nota.bagyPedidoId]?.autorizada)}
+                  onClick={confirmarTodas}
+                >
+                  {bulkProgress ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Send size={16} className="mr-1" />}
+                  {bulkProgress ? `Enviando ${bulkProgress.done}/${bulkProgress.total}` : `Enviar todas corretas (${notas.filter(nota => nota.erros.length === 0 && !res[nota.bagyPedidoId]?.autorizada).length})`}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 disabled={busy || !!r?.autorizada}
@@ -154,7 +204,7 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
               </Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('etiqueta')}><Printer size={16} className="mr-1" /> Etiqueta</Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('a4')} title={r?.autorizada ? 'Imprimir DANFE' : 'Disponível depois da autorização'}><Printer size={16} className="mr-1" /> Imprimir NF-e</Button>
-              <Button disabled={busy || !!r?.autorizada || n.erros.length > 0} onClick={confirmar}>
+              <Button variant={notas.length > 1 ? 'outline' : 'default'} disabled={busy || !!r?.autorizada || n.erros.length > 0} onClick={confirmar}>
                 {busy ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Send size={16} className="mr-1" />} Confirmar e enviar à SEFAZ
               </Button>
             </div>
