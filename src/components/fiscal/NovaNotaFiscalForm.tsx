@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, ArrowLeft, ChevronDown, Eye, Loader2, Plus, Save, Send, Trash2 } from 'lucide-react';
 import { ncmPorDescricao, formatNcm } from '@/lib/fiscal/ncm';
 import { transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
@@ -22,25 +23,44 @@ const destVazio = {
   logradouro: '', numero: '', complemento: '', bairro: '', cep: '', cod_municipio: '', municipio: '', uf: '',
 };
 
-const NATUREZAS = ['VENDA DE MERCADORIA', 'REMESSA PARA CONSERTO', 'REMESSA EM BONIFICACAO', 'OUTRAS SAIDAS'];
+const NATUREZAS: [string, string][] = [
+  ['5101', 'VENDA NO ESTADO'], ['5102', 'VENDA NO ESTADO'], ['5202', 'DEVOLUÇÃO DE COMPRA'],
+  ['5901', 'REMESSA P/ INDUSTRIALIZAÇÃO'], ['5902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
+  ['5124', 'INDUSTRIALIZAÇÃO EFETUADA P/ OUTRA EMPRESA'], ['5910', 'REMESSA EM BONIFICAÇÃO'],
+  ['5915', 'REMESSA P/ CONSERTO'], ['5916', 'RETORNO DE CONSERTO'], ['6101', 'VENDA FORA DO ESTADO'],
+  ['6102', 'VENDA FORA DO ESTADO'], ['6902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
+];
 const PAGAMENTOS: [string, string][] = [['01', 'Dinheiro'], ['03', 'Cartão de crédito'], ['04', 'Cartão de débito'], ['15', 'Boleto'], ['17', 'PIX'], ['90', 'Sem pagamento'], ['99', 'Outros']];
+const agoraLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+const hojeMais = (dias: number) => { const d = new Date(); d.setDate(d.getDate() + dias); return d.toISOString().slice(0, 10); };
+type Parcela = { dias: string; venc: string; valor: string; forma: string; obs: string };
+const extraVazio = () => ({
+  loja: '', cnpjEmit: '', razaoEmit: '', cfopNat: '', dhEmi: agoraLocal(), dhSaida: agoraLocal(), vendedor: '',
+  transp: { razao: '', cnpj: '', ie: '', endereco: '', municipio: '', uf: '', placa: '', ufPlaca: '', rntc: '', qVol: '', esp: '', marca: '', nVol: '', pesoL: '', pesoB: '' },
+  entregaDif: false,
+  entrega: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
+  condPag: '', parcelas: [{ dias: '0', venc: hojeMais(0), valor: '', forma: '17', obs: '' }] as Parcela[],
+});
 
 function Secao({ titulo, children, aberta = true }: { titulo: string; children: React.ReactNode; aberta?: boolean }) {
   const [open, setOpen] = useState(aberta);
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 font-semibold">
-        {titulo} <ChevronDown size={16} className={open ? 'rotate-180 transition' : 'transition'} />
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card shadow-sm">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-3.5 text-sm font-bold">
+        {titulo} <ChevronDown size={16} className={open ? 'rotate-180 text-muted-foreground transition' : 'text-muted-foreground transition'} />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-4 pb-4">{children}</CollapsibleContent>
+      <CollapsibleContent className="px-5 pb-5">{children}</CollapsibleContent>
     </Collapsible>
   );
 }
-const Campo = ({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) => (
-  <div className={className}><label className="mb-1 block text-xs font-semibold">{label}</label>{children}</div>
+const Campo = ({ label, children, className = '', hint }: { label: string; children: React.ReactNode; className?: string; hint?: string }) => (
+  <div className={className}>
+    <label className="mb-1 block text-xs font-medium text-foreground/80">{label}</label>{children}
+    {hint && <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{hint}</p>}
+  </div>
 );
 const Sel = (p: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...p} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
+  <select {...p} className={`h-10 w-full rounded-md border border-input bg-background px-3 text-sm ${p.className ?? ''}`} />
 );
 
 export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId?: string | null; onClose: () => void }) {
@@ -63,6 +83,10 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [rascId, setRascId] = useState<string | null>(rascunhoId ?? null);
+  const [ex, setEx] = useState(extraVazio());
+  const setT = (k: string, v: string) => setEx(s => ({ ...s, transp: { ...s.transp, [k]: v } }));
+  const setE = (k: string, v: string) => setEx(s => ({ ...s, entrega: { ...s.entrega, [k]: v } }));
+  const setP = (i: number, patch: Partial<Parcela>) => setEx(s => ({ ...s, parcelas: s.parcelas.map((p, k) => k === i ? { ...p, ...patch } : p) }));
 
   useEffect(() => {
     (async () => {
@@ -80,13 +104,21 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
           setConsFinal(f.consFinal); setItens(f.itens); setFrete(f.frete); setSeguro(f.seguro); setOutras(f.outras);
           setDesconto(f.desconto); setModFrete(f.modFrete); setTPag(f.tPag); setPedidoExterno(f.pedidoExterno);
           setInfCpl(f.infCpl); setInfFisco(f.infFisco);
+          if (f.ex) setEx({ ...extraVazio(), ...f.ex });
         }
       }
     })();
   }, [rascunhoId]);
 
   const interno = !dest.uf || String(dest.uf).toUpperCase() === String(cfg?.uf ?? '').toUpperCase();
-  const cfopPadrao = dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5107' : '6107');
+  const cfopPadrao = ex.cfopNat
+    ? (interno ? '5' : '6') + ex.cfopNat.slice(1)
+    : dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5107' : '6107');
+  const escolherNatureza = (cfop: string) => {
+    const n = NATUREZAS.find(x => x[0] === cfop);
+    setEx(s => ({ ...s, cfopNat: cfop }));
+    if (n) setNatOp(n[1]);
+  };
 
   const escolherDest = (id: string) => {
     setDestId(id);
@@ -137,7 +169,18 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
     return e;
   }, [cfg, dest, itens, total]);
 
-  const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco });
+  const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco, ex });
+
+  const infExtras = () => {
+    const t = ex.transp, p: string[] = [];
+    if (t.razao) p.push(`Transportador: ${t.razao}${t.cnpj ? ` CNPJ ${t.cnpj}` : ''}${t.placa ? ` placa ${t.placa}${t.ufPlaca ? `/${t.ufPlaca}` : ''}` : ''}.`);
+    if (t.qVol) p.push(`Volumes: ${t.qVol}${t.esp ? ` ${t.esp}` : ''}${t.pesoB ? `, peso bruto ${t.pesoB} kg` : ''}${t.pesoL ? `, líquido ${t.pesoL} kg` : ''}.`);
+    if (ex.entregaDif) { const e = ex.entrega; p.push(`Entrega: ${e.logradouro}, ${e.numero} - ${e.bairro} - ${e.municipio}/${e.uf} CEP ${e.cep}.`); }
+    if (ex.condPag) p.push(`Pagamento: ${ex.condPag}.`);
+    if (ex.parcelas.length > 1) p.push(`Parcelas: ${ex.parcelas.map((x, i) => `${i + 1}) ${x.venc.split('-').reverse().join('/')} ${brl(num(x.valor))}`).join('; ')}.`);
+    if (ex.vendedor) p.push(`Vendedor: ${ex.vendedor}.`);
+    return p.join(' ');
+  };
 
   const salvarRascunho = async () => {
     setBusy('save');
@@ -180,10 +223,12 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       const destFinal = { ...dest, cep: dig(dest.cep), cod_municipio: dig(dest.cod_municipio), telefone: dig(dest.telefone), uf: String(dest.uf).toUpperCase() };
       delete (destFinal as any)._form;
       const r: NotaRascunho = {
-        bagyPedidoId: '', numeroBagy: '', portalOrderId: null, emitente: cfg, destinatario: destFinal, itens: itensNota,
+        bagyPedidoId: '', numeroBagy: '', portalOrderId: null,
+        emitente: { ...cfg, cnpj: dig(ex.cnpjEmit) || cfg?.cnpj, razao_social: ex.razaoEmit || cfg?.razao_social },
+        destinatario: destFinal, itens: itensNota,
         valorProdutos, desconto: d, frete: f, valorTotal: total, cfop: cfopPadrao, ambiente: cfg?.ambiente ?? 2, erros: [],
-        notaExistente: null, natOp, finNFe, indPres, indFinal: consFinal, tPag, modFrete, seguro: num(seguro), outras: num(outras),
-        infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco].filter(Boolean).join(' '),
+        notaExistente: null, natOp, finNFe, indPres, indFinal: consFinal, tPag: ex.parcelas[0]?.forma || tPag, modFrete, seguro: num(seguro), outras: num(outras),
+        infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco, infExtras()].filter(Boolean).join(' '),
         observacoes: `Nota avulsa${pedidoExterno ? ` — pedido ${pedidoExterno}` : ''}`,
       };
       const res = await transmitirNotaBagy(r);
@@ -229,15 +274,29 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
 
       <Secao titulo="Cabeçalho da nota">
         <div className="grid gap-3 md:grid-cols-4">
-          <Campo label="CNPJ emitente"><Input value={cfg?.cnpj ?? ''} disabled /></Campo>
-          <Campo label="Razão social emitente" className="md:col-span-2"><Input value={cfg?.razao_social ?? ''} disabled /></Campo>
-          <Campo label="Série / Número"><Input value={`${cfg?.serie ?? ''} / reservado na emissão`} disabled /></Campo>
-          <Campo label="Natureza da operação" className="md:col-span-2">
-            <Input list="naturezas" value={natOp} onChange={e => setNatOp(e.target.value.toUpperCase())} />
-            <datalist id="naturezas">{NATUREZAS.map(n => <option key={n} value={n} />)}</datalist>
+          <Campo label="Loja"><Input value={ex.loja || cfg?.nome_fantasia || ''} onChange={e => setEx({ ...ex, loja: e.target.value })} /></Campo>
+          <Campo label="CNPJ emitente" hint="Editável para esta nota (não altera cadastro)">
+            <Input value={ex.cnpjEmit || cfg?.cnpj || ''} onChange={e => setEx({ ...ex, cnpjEmit: e.target.value })} />
           </Campo>
+          <Campo label="Razão social emitente" className="md:col-span-2" hint="Editável para esta nota (não altera cadastro)">
+            <Input value={ex.razaoEmit || cfg?.razao_social || ''} onChange={e => setEx({ ...ex, razaoEmit: e.target.value })} />
+          </Campo>
+          <Campo label="Série"><Input value={cfg?.serie ?? 1} disabled /></Campo>
+          <Campo label="Número" hint="Reservado automaticamente na emissão (configurável em Tributação)">
+            <Input value="Automático" disabled className="bg-muted" />
+          </Campo>
+          <Campo label="Regime tributário"><Input value={`CRT ${cfg?.crt ?? 1}`} disabled /></Campo>
+          <div className="hidden md:block" />
+          <Campo label="Natureza da operação" className="md:col-span-2">
+            <Sel value={ex.cfopNat} onChange={e => escolherNatureza(e.target.value)}>
+              <option value="">{natOp || 'Selecione'}</option>
+              {NATUREZAS.map(([c, n]) => <option key={c} value={c}>{c} - {n}</option>)}
+            </Sel>
+          </Campo>
+          <Campo label="Data/hora emissão"><Input type="datetime-local" value={ex.dhEmi} onChange={e => setEx({ ...ex, dhEmi: e.target.value })} /></Campo>
+          <Campo label="Data/hora saída"><Input type="datetime-local" value={ex.dhSaida} onChange={e => setEx({ ...ex, dhSaida: e.target.value })} /></Campo>
           <Campo label="Finalidade"><Sel value={finNFe} onChange={e => setFinNFe(Number(e.target.value))}>
-            <option value={1}>1 - NF-e normal</option><option value={2}>2 - Complementar</option><option value={3}>3 - Ajuste</option>
+            <option value={1}>1 - NF-e normal</option><option value={2}>2 - Complementar</option><option value={3}>3 - Ajuste</option><option value={4}>4 - Devolução</option>
           </Sel></Campo>
           <Campo label="Indicador de presença"><Sel value={indPres} onChange={e => setIndPres(Number(e.target.value))}>
             <option value={1}>1 - Presencial</option><option value={2}>2 - Internet</option><option value={3}>3 - Teleatendimento</option><option value={9}>9 - Outros</option>
@@ -245,6 +304,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
           <Campo label="Consumidor final"><Sel value={consFinal} onChange={e => setConsFinal(Number(e.target.value))}>
             <option value={1}>Sim</option><option value={0}>Não</option>
           </Sel></Campo>
+          <Campo label="Vendedor"><Input value={ex.vendedor} onChange={e => setEx({ ...ex, vendedor: e.target.value })} /></Campo>
         </div>
       </Secao>
 
@@ -320,17 +380,64 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         </div>
       </Secao>
 
-      <Secao titulo="Transportador / volumes" aberta={false}>
-        <Campo label="Modalidade do frete" className="max-w-sm"><Sel value={modFrete} onChange={e => setModFrete(Number(e.target.value))}>
-          <option value={0}>0 - Por conta do emitente</option><option value={1}>1 - Por conta do destinatário</option>
-          <option value={2}>2 - Por conta de terceiros</option><option value={9}>9 - Sem frete</option>
-        </Sel></Campo>
+      <Secao titulo="Transportador / volumes">
+        <div className="grid gap-3 md:grid-cols-4">
+          <Campo label="Modalidade do frete"><Sel value={modFrete} onChange={e => setModFrete(Number(e.target.value))}>
+            <option value={0}>0 - Emitente</option><option value={1}>1 - Destinatário</option>
+            <option value={2}>2 - Terceiros</option><option value={9}>9 - Sem frete</option>
+          </Sel></Campo>
+          <div className="hidden md:col-span-3 md:block" />
+          {([['razao', 'Razão social'], ['cnpj', 'CNPJ'], ['ie', 'IE'], ['endereco', 'Endereço'], ['municipio', 'Município'], ['uf', 'UF'], ['placa', 'Placa'], ['ufPlaca', 'UF placa'], ['rntc', 'RNTC']] as const).map(([k, l]) => (
+            <Campo key={k} label={l}><Input value={ex.transp[k]} onChange={e => setT(k, e.target.value)} /></Campo>
+          ))}
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-6">
+          {([['qVol', 'Qtd volumes'], ['esp', 'Espécie'], ['marca', 'Marca'], ['nVol', 'Numeração'], ['pesoL', 'Peso líquido (kg)'], ['pesoB', 'Peso bruto (kg)']] as const).map(([k, l]) => (
+            <Campo key={k} label={l}><Input value={ex.transp[k]} onChange={e => setT(k, e.target.value)} /></Campo>
+          ))}
+        </div>
       </Secao>
 
-      <Secao titulo="Pagamento" aberta={false}>
-        <Campo label="Forma de pagamento" className="max-w-sm"><Sel value={tPag} onChange={e => setTPag(e.target.value)}>
-          {PAGAMENTOS.map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
-        </Sel></Campo>
+      <Secao titulo="Endereço de entrega">
+        <label className="flex items-center gap-2 text-xs">
+          <Switch checked={ex.entregaDif} onCheckedChange={v => setEx({ ...ex, entregaDif: v })} /> Entregar em endereço diferente do destinatário
+        </label>
+        {ex.entregaDif && (
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
+            {([['cep', 'CEP'], ['logradouro', 'Logradouro'], ['numero', 'Número'], ['bairro', 'Bairro'], ['municipio', 'Município'], ['uf', 'UF']] as const).map(([k, l]) => (
+              <Campo key={k} label={l}><Input value={ex.entrega[k]} onChange={e => setE(k, e.target.value)} /></Campo>
+            ))}
+          </div>
+        )}
+      </Secao>
+
+      <Secao titulo="Pagamento">
+        <Campo label="Condição de pagamento" className="max-w-sm">
+          <Input value={ex.condPag} placeholder="Ex.: PIX 1 dia" onChange={e => setEx({ ...ex, condPag: e.target.value })} />
+        </Campo>
+        <div className="mt-3 space-y-2">
+          <div className="hidden grid-cols-[48px_64px_160px_1fr_1fr_1fr_40px] gap-2 text-xs font-medium text-foreground/80 md:grid">
+            <span>Nº</span><span>Dias</span><span>Vencimento</span><span>Valor</span><span>Forma</span><span>Obs.</span><span />
+          </div>
+          {ex.parcelas.map((p, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 md:grid-cols-[48px_64px_160px_1fr_1fr_1fr_40px]">
+              <Input value={i + 1} disabled />
+              <Input inputMode="numeric" value={p.dias} onChange={e => setP(i, { dias: e.target.value, venc: hojeMais(Number(e.target.value) || 0) })} />
+              <Input type="date" value={p.venc} onChange={e => setP(i, { venc: e.target.value })} />
+              <Input inputMode="decimal" value={p.valor} placeholder={i === 0 && ex.parcelas.length === 1 ? String(total).replace('.', ',') : '0'} onChange={e => setP(i, { valor: e.target.value })} />
+              <Sel value={p.forma} onChange={e => setP(i, { forma: e.target.value })}>
+                {PAGAMENTOS.map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
+              </Sel>
+              <Input value={p.obs} placeholder="Obs." onChange={e => setP(i, { obs: e.target.value })} />
+              <Button variant="ghost" size="sm" disabled={ex.parcelas.length === 1} onClick={() => setEx(s => ({ ...s, parcelas: s.parcelas.filter((_, k) => k !== i) }))}>
+                <Trash2 size={14} className="text-destructive" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setEx(s => ({ ...s, parcelas: [...s.parcelas, { dias: '30', venc: hojeMais(30), valor: '', forma: s.parcelas[0]?.forma || '17', obs: '' }] }))}>
+            <Plus size={14} className="mr-1" /> Nova parcela
+          </Button>
+        </div>
       </Secao>
 
       <Secao titulo="Informações adicionais" aberta={false}>
