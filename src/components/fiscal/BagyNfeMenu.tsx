@@ -197,9 +197,9 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
               <FileEdit size={14} className="mr-2" /> Editar pedido
             </DropdownMenuItem>
           </>)}
-          {onGerarNfe && (<>
+          {onGerarNfe && !autorizada && (<>
             <DropdownMenuItem onClick={onGerarNfe}>
-              <Pencil size={14} className="mr-2" /> {nota ? 'Alterar rascunho' : 'Gerar NF-e'}
+              <Pencil size={14} className="mr-2" /> Gerar NF-e
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>)}
