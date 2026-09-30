@@ -11,3 +11,6 @@
 - [x] DANFE A4 no padrão visual do PDF enviado, sem preencher campos fiscais ausentes
 - [x] NF-e Bagy em massa: enviar corretas e manter somente erros selecionados
 - [x] Edição fiscal completa dos dados existentes do pedido Bagy
+- [x] Impedir NF-e normal duplicada por pedido Bagy
+- [x] Impressão A4 e etiqueta fiscal diretamente no pedido autorizado
+- [x] Campos fiscais vazios exibidos como zero no DANFE

@@ -12,6 +12,9 @@
 - O total aproximado de tributos só aparece quando os percentuais federal e estadual estão configurados para todos os itens com valor.
 - Na emissão em massa da Bagy, **Enviar todas corretas** transmite sequencialmente apenas notas sem erros; as autorizadas saem da seleção e permanecem selecionados somente os pedidos inválidos ou rejeitados para correção.
 - A edição fiscal do pedido Bagy permite corrigir dados comerciais, endereço, envio e campos dos itens existentes, sem apagar itens nem alterar o payload original recebido da Bagy.
+- Um pedido Bagy só pode ter uma NF-e normal ativa (processando ou autorizada); rejeição, erro e cancelamento permitem nova tentativa, enquanto notas complementares e devoluções não contam como duplicidade.
+- Os botões **Imprimir NF-e** e **Imprimir etiqueta NF-e** ficam disponíveis no pedido somente após autorização, com chave e protocolo.
+- Campos fiscais sem valor no DANFE são mostrados zerados: valores monetários com duas casas, ICMS com quatro casas e IPI com duas casas.
 
 ---
 

@@ -200,7 +200,11 @@ export function drawA4(data: FiscalData) {
   const detalhes = Array.from(xml?.getElementsByTagName('det') ?? []);
   const fmtXmlMoney = (tag: string, parent: Element | Document | null = totals) => {
     const v = value(parent, tag);
-    return v ? money(v) : '';
+    return money(v || 0);
+  };
+  const fmtPercent = (tag: string, parent: Element | Document | null, decimals: number) => {
+    const v = value(parent, tag);
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   };
   const rect = (bx: number, by: number, bw: number, bh: number) => { doc.setLineWidth(.17); doc.rect(bx, by, bw, bh); };
   const txt = (text: unknown, tx: number, ty: number, size = 6.6, bold = false, align: 'left' | 'center' | 'right' = 'left') => {
@@ -348,7 +352,7 @@ export function drawA4(data: FiscalData) {
     row([clean(item.codigo), clean(item.descricao), digits(item.ncm),
       `${clean(item.origem_mercadoria)}${clean(item.cst_icms)}`, clean(item.cfop), clean(item.unidade), qty(item.quantidade),
       money(item.valor_unitario), money(item.valor_total), fmtXmlMoney('vBC', icms), fmtXmlMoney('vICMS', icms),
-      fmtXmlMoney('vIPI', ipi), value(icms, 'pICMS'), value(ipi, 'pIPI')], y, height);
+      fmtXmlMoney('vIPI', ipi), fmtPercent('pICMS', icms, 4), fmtPercent('pIPI', ipi, 2)], y, height);
     y += height;
   }
   // Keep the following blocks together even for invoices with many items.

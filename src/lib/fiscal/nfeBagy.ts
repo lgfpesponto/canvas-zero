@@ -114,8 +114,13 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
     });
     const valorTotal = r2(valorProdutos - desconto + frete);
     if (valorTotal < 0) erros.push('Desconto maior que o valor dos produtos.');
-    const notaExistente = (notas ?? []).find((n: any) => n.bagy_pedido_id === id && n.status !== 'rejeitada' && n.status !== 'erro') ?? null;
+    const notaExistente = (notas ?? []).find((n: any) =>
+      n.bagy_pedido_id === id &&
+      (n.tipo_nota ?? 'normal') === 'normal' &&
+      ['processando', 'autorizada'].includes(n.status)
+    ) ?? null;
     if (notaExistente?.status === 'autorizada') erros.push(`Já existe NF-e autorizada (nº ${notaExistente.numero}) para este pedido.`);
+    if (notaExistente?.status === 'processando') erros.push(`Já existe uma NF-e sendo processada (nº ${notaExistente.numero}) para este pedido.`);
 
     return {
       bagyPedidoId: id, numeroBagy: p.numero_bagy, portalOrderId: portalIdPorBagy[id] ?? null,
@@ -184,6 +189,18 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
 /** Reserva número, grava e transmite para a SEFAZ. */
 export async function transmitirNotaBagy(r: NotaRascunho) {
   if (r.erros.length) throw new Error(r.erros.join('\n'));
+  if (r.bagyPedidoId && !r.bagyPedidoIdNull) {
+    const { data: ativa, error: consultaErro } = await supabase
+      .from('nfe_notas')
+      .select('numero, status')
+      .eq('bagy_pedido_id', r.bagyPedidoId)
+      .eq('tipo_nota', 'normal')
+      .in('status', ['processando', 'autorizada'])
+      .limit(1)
+      .maybeSingle();
+    if (consultaErro) throw new Error(consultaErro.message);
+    if (ativa) throw new Error(`Este pedido já possui a NF-e nº ${ativa.numero} ${ativa.status === 'autorizada' ? 'autorizada' : 'em processamento'}.`);
+  }
   const { data: num, error: nErr } = await supabase.rpc('reservar_numero_nfe');
   if (nErr) throw new Error(nErr.message);
   const { numero, serie, ambiente } = num as { numero: number; serie: number; ambiente: number };
@@ -191,10 +208,13 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
 
   const { data: nota, error } = await supabase.from('nfe_notas').insert({
     pedido_id: r.portalOrderId, bagy_pedido_id: r.bagyPedidoId || null, numero, serie, modelo: 55, chave_acesso: chave, ambiente,
-    status: 'processando', natureza_operacao: r.natOp || 'VENDA DE MERCADORIA', valor_produtos: r.valorProdutos, valor_total: r.valorTotal,
+    status: 'processando', tipo_nota: 'normal', natureza_operacao: r.natOp || 'VENDA DE MERCADORIA', valor_produtos: r.valorProdutos, valor_total: r.valorTotal,
     destinatario_snapshot: r.destinatario, observacoes: r.observacoes ?? `Pedido Bagy RC-${r.numeroBagy}`,
   } as any).select().single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === '23505') throw new Error('Este pedido já possui uma NF-e em processamento ou autorizada.');
+    throw new Error(error.message);
+  }
   await supabase.from('nfe_itens').insert(r.itens.map((it, k) => ({
     nota_id: nota.id, ordem: k + 1, codigo: it.codigo, descricao: it.descricao, ncm: it.ncm, cfop: it.cfop, unidade: it.unidade,
     quantidade: it.quantidade, valor_unitario: it.valorUnit, valor_total: it.valorTotal, origem_mercadoria: it.origem,
@@ -280,7 +300,7 @@ export async function emitirComplementar(notaPaiId: string, valor: number, descr
 
   const { data: nota, error } = await supabase.from('nfe_notas').insert({
     pedido_id: pai.pedido_id, bagy_pedido_id: pai.bagy_pedido_id, numero, serie, modelo: 55, chave_acesso: chave, ambiente,
-    status: 'processando', natureza_operacao: 'COMPLEMENTO DE VALOR', valor_produtos: valor, valor_total: valor,
+    status: 'processando', tipo_nota: 'complementar', natureza_operacao: 'COMPLEMENTO DE VALOR', valor_produtos: valor, valor_total: valor,
     destinatario_snapshot: dest, observacoes: `NFe complementar da NF-e ${pai.numero}/${pai.serie}`,
   } as any).select().single();
   if (error) throw new Error(error.message);
@@ -382,7 +402,7 @@ export async function emitirDevolucao(notaPaiId: string, itensDev: { itemId: str
 
   const { data: nota, error } = await supabase.from('nfe_notas').insert({
     pedido_id: pai.pedido_id, bagy_pedido_id: pai.bagy_pedido_id, numero, serie, modelo: 55, chave_acesso: chave, ambiente,
-    status: 'processando', natureza_operacao: natOp, valor_produtos: total, valor_total: total,
+    status: 'processando', tipo_nota: 'devolucao', natureza_operacao: natOp, valor_produtos: total, valor_total: total,
     destinatario_snapshot: dest, observacoes: `Devolução da NF-e ${pai.numero}/${pai.serie} — ${motivoDev}`,
   } as any).select().single();
   if (error) throw new Error(error.message);
