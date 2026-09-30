@@ -100,6 +100,12 @@ Deno.serve(async (req) => {
     let body: unknown;
     try { body = JSON.parse(text); } catch { body = { raw: text }; }
     console.log(`nfe-proxy ${acao} -> ${res.status}`);
+    // Devolve o XML assinado enviado, para ficar gravado na nota e permitir conferir rejeições de schema.
+    if (acao === "autorizar" && body && typeof body === "object" && extra.xmlAssinado) {
+      const b = body as Record<string, unknown>;
+      if (!b.xml) b.xml = extra.xmlAssinado;
+      if (String(b.cStat ?? "") === "225") console.log("xml 225:", String(extra.xmlAssinado).slice(0, 6000));
+    }
     return json(body, res.status);
   } catch (e) {
     const msg = e instanceof Error ? (e.name === "AbortError" ? "Proxy NF-e não respondeu a tempo" : e.message) : "Erro";
