@@ -144,6 +144,14 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose }: {
             </div>
 
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+              <Button
+                variant="outline"
+                disabled={busy || !!r?.autorizada || !portalIdPorBagy[n.bagyPedidoId]}
+                title={portalIdPorBagy[n.bagyPedidoId] ? 'Corrigir dados do pedido sem abrir a Bagy' : 'Pedido sem mapeamento no portal'}
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil size={16} className="mr-1" /> Editar pedido
+              </Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('etiqueta')}><Printer size={16} className="mr-1" /> Etiqueta</Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('a4')} title={r?.autorizada ? 'Imprimir DANFE' : 'Disponível depois da autorização'}><Printer size={16} className="mr-1" /> Imprimir NF-e</Button>
               <Button disabled={busy || !!r?.autorizada || n.erros.length > 0} onClick={confirmar}>
