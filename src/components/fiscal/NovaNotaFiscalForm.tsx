@@ -168,7 +168,18 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
     return e;
   }, [cfg, dest, itens, total]);
 
-  const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco });
+  const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco, ex });
+
+  const infExtras = () => {
+    const t = ex.transp, p: string[] = [];
+    if (t.razao) p.push(`Transportador: ${t.razao}${t.cnpj ? ` CNPJ ${t.cnpj}` : ''}${t.placa ? ` placa ${t.placa}${t.ufPlaca ? `/${t.ufPlaca}` : ''}` : ''}.`);
+    if (t.qVol) p.push(`Volumes: ${t.qVol}${t.esp ? ` ${t.esp}` : ''}${t.pesoB ? `, peso bruto ${t.pesoB} kg` : ''}${t.pesoL ? `, líquido ${t.pesoL} kg` : ''}.`);
+    if (ex.entregaDif) { const e = ex.entrega; p.push(`Entrega: ${e.logradouro}, ${e.numero} - ${e.bairro} - ${e.municipio}/${e.uf} CEP ${e.cep}.`); }
+    if (ex.condPag) p.push(`Pagamento: ${ex.condPag}.`);
+    if (ex.parcelas.length > 1) p.push(`Parcelas: ${ex.parcelas.map((x, i) => `${i + 1}) ${x.venc.split('-').reverse().join('/')} ${brl(num(x.valor))}`).join('; ')}.`);
+    if (ex.vendedor) p.push(`Vendedor: ${ex.vendedor}.`);
+    return p.join(' ');
+  };
 
   const salvarRascunho = async () => {
     setBusy('save');
@@ -211,10 +222,12 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       const destFinal = { ...dest, cep: dig(dest.cep), cod_municipio: dig(dest.cod_municipio), telefone: dig(dest.telefone), uf: String(dest.uf).toUpperCase() };
       delete (destFinal as any)._form;
       const r: NotaRascunho = {
-        bagyPedidoId: '', numeroBagy: '', portalOrderId: null, emitente: cfg, destinatario: destFinal, itens: itensNota,
+        bagyPedidoId: '', numeroBagy: '', portalOrderId: null,
+        emitente: { ...cfg, cnpj: dig(ex.cnpjEmit) || cfg?.cnpj, razao_social: ex.razaoEmit || cfg?.razao_social },
+        destinatario: destFinal, itens: itensNota,
         valorProdutos, desconto: d, frete: f, valorTotal: total, cfop: cfopPadrao, ambiente: cfg?.ambiente ?? 2, erros: [],
-        notaExistente: null, natOp, finNFe, indPres, indFinal: consFinal, tPag, modFrete, seguro: num(seguro), outras: num(outras),
-        infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco].filter(Boolean).join(' '),
+        notaExistente: null, natOp, finNFe, indPres, indFinal: consFinal, tPag: ex.parcelas[0]?.forma || tPag, modFrete, seguro: num(seguro), outras: num(outras),
+        infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco, infExtras()].filter(Boolean).join(' '),
         observacoes: `Nota avulsa${pedidoExterno ? ` — pedido ${pedidoExterno}` : ''}`,
       };
       const res = await transmitirNotaBagy(r);
