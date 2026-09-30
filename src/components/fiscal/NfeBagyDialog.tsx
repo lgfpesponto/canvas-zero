@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Printer, Send } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Pencil, Printer, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { formatNcm } from '@/lib/fiscal/ncm';
+import { BagyPedidoEditDialog } from '@/components/fiscal/BagyPedidoEditDialog';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const docFmt = (d: string) => d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : d || '—';
