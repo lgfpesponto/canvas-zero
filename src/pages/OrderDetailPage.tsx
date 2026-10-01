@@ -566,7 +566,7 @@ const OrderDetailPage = () => {
   const ultimaJustificativaValor = [...alteracoesAgrupadas].reverse().find(g => g.afetouValor && g.justificativa);
   const justificativaValorSalva = ultimaJustificativaValor?.justificativa || order.descontoJustificativa;
 
-  const fotoEstoque = (order.extraDetalhes as any)?.origem_estoque ? (order.extraDetalhes as any)?.foto_url : null;
+  const fotoEstoque = (order.extraDetalhes as any)?.foto_url || fotoEstoqueFallback;
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? (fotoEstoque && isHttpUrl(fotoEstoque) ? fotoEstoque : null);
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
 
@@ -679,6 +679,7 @@ const OrderDetailPage = () => {
           {/* ═══ Cabeçalho do Pedido — grid 2×2 + linha do prazo ═══ */}
           {(() => {
             const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
+            if (fotosValidas.length === 0 && fotoUrlAtual) fotosValidas.push(fotoUrlAtual);
             const temFoto = fotosValidas.length > 0;
             const dataHora = `${formatDateBR(order.dataCriacao)} — ${order.horaCriacao || ''}`.trim();
             const showVendedor = isAdmin;
