@@ -267,7 +267,12 @@ export type Database = {
           created_at: string
           desconto: number | null
           endereco: Json | null
+          envio_provider: string | null
+          envio_provider_id: string | null
+          envio_servico: string | null
           erro: string | null
+          etiqueta_gerada_em: string | null
+          etiqueta_path: string | null
           flag: string | null
           frete: number | null
           id: string
@@ -294,7 +299,12 @@ export type Database = {
           created_at?: string
           desconto?: number | null
           endereco?: Json | null
+          envio_provider?: string | null
+          envio_provider_id?: string | null
+          envio_servico?: string | null
           erro?: string | null
+          etiqueta_gerada_em?: string | null
+          etiqueta_path?: string | null
           flag?: string | null
           frete?: number | null
           id?: string
@@ -321,7 +331,12 @@ export type Database = {
           created_at?: string
           desconto?: number | null
           endereco?: Json | null
+          envio_provider?: string | null
+          envio_provider_id?: string | null
+          envio_servico?: string | null
           erro?: string | null
+          etiqueta_gerada_em?: string | null
+          etiqueta_path?: string | null
           flag?: string | null
           frete?: number | null
           id?: string

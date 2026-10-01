@@ -19,6 +19,8 @@ import { useNfeAccess } from '@/hooks/useNfeAccess';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { matchOrderBarcode } from '@/contexts/AuthContext';
 import { BagyPedidoView } from '@/components/bagy/BagyPedidoView';
+import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';
+import { rotuloServico } from '@/lib/envio';
 
 type BagyPedido = {
   id: string;
@@ -42,6 +44,8 @@ type BagyPedido = {
   payload: any;
   tracking_code?: string | null;
   tracking_url?: string | null;
+  envio_servico?: string | null;
+  etiqueta_path?: string | null;
 };
 
 
@@ -141,6 +145,8 @@ const RanchoChiquePedidosPage = () => {
   
   const [selPedido, setSelPedido] = useState<BagyPedido | null>(null);
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
+  const [envioDialog, setEnvioDialog] = useState<BagyPedido | null>(null);
+  const [loteCasado, setLoteCasado] = useState<string[] | null>(null);
   const [trackCode, setTrackCode] = useState('');
   const [trackUrl, setTrackUrl] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -741,6 +747,11 @@ const RanchoChiquePedidosPage = () => {
                         </TooltipTrigger>
                         {!nfeAutorizada && <TooltipContent>Disponível após a autorização da NF-e.</TooltipContent>}
                       </Tooltip></TooltipProvider>
+                      {nfeAcesso && (
+                        <Button size="sm" variant="outline" onClick={() => setEnvioDialog(p)}>
+                          <Package size={14} className="mr-1" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}{p.envio_servico ? ` (${rotuloServico(p.envio_servico)})` : ''}
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
                         <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
                       </Button>
@@ -824,8 +835,11 @@ const RanchoChiquePedidosPage = () => {
                 <Printer size={14} className="mr-1"/> DANFE Simplificada ({selectedNotaIds.length})
               </Button></span>
             </TooltipTrigger>
-            <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
+            <TooltipContent>Só as notas autorizadas da seleção.</TooltipContent>
           </Tooltip></TooltipProvider>
+          <Button size="sm" variant="outline" disabled={selectedNotaIds.length === 0} onClick={() => setLoteCasado(selectedNotaIds)}>
+            <Truck size={14} className="mr-1"/> DANFE + etiqueta de envio ({selectedNotaIds.length})
+          </Button>
         </div>
       )}
 
@@ -857,6 +871,8 @@ const RanchoChiquePedidosPage = () => {
 
       <DanfeViewerDialog notaId={danfeView?.id ?? null} mode={danfeView?.mode ?? 'a4'} onClose={() => setDanfeView(null)} />
       <DanfeViewerDialog notaIds={danfeLote} mode="etiqueta" onClose={() => setDanfeLote(null)} />
+      <DanfeViewerDialog notaIds={loteCasado} mode="etiqueta" casada onClose={() => setLoteCasado(null)} />
+      <EnvioEtiquetaDialog pedido={envioDialog} onClose={() => setEnvioDialog(null)} onDone={() => load()} />
 
       <Dialog open={fichasOpen} onOpenChange={setFichasOpen}>
         <DialogContent className="max-w-lg">

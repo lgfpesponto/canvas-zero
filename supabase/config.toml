@@ -32,3 +32,6 @@ verify_jwt = false
 
 
 
+
+[functions.envio-etiqueta]
+verify_jwt = false
