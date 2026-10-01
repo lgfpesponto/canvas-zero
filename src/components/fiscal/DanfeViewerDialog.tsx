@@ -3,14 +3,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Loader2, Printer, Download } from 'lucide-react';
 import { gerarDanfeBlobUrl, gerarDanfeLoteBlobUrl } from '@/lib/fiscal/danfePdf';
+import { carregarEtiquetasEnvio } from '@/lib/envio';
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 /** Mostra o DANFE dentro do portal (páginas desenhadas como imagem), com Imprimir e Baixar. */
-export function DanfeViewerDialog({ notaId, notaIds, mode, onClose }: {
-  notaId?: string | null; notaIds?: string[] | null; mode: 'a4' | 'etiqueta'; onClose: () => void;
+export function DanfeViewerDialog({ notaId, notaIds, mode, onClose, casada }: {
+  notaId?: string | null; notaIds?: string[] | null; casada?: boolean; mode: 'a4' | 'etiqueta'; onClose: () => void;
 }) {
   const ids = notaIds && notaIds.length ? notaIds : notaId ? [notaId] : [];
   const key = ids.join(',');
@@ -25,7 +26,7 @@ export function DanfeViewerDialog({ notaId, notaIds, mode, onClose }: {
     setDoc(null); setPages([]); setErr(null);
     (async () => {
       try {
-        const d = ids.length > 1 ? await gerarDanfeLoteBlobUrl(ids, mode) : await gerarDanfeBlobUrl(ids[0], mode);
+        const d = (ids.length > 1 || casada) ? await gerarDanfeLoteBlobUrl(ids, mode, casada ? await carregarEtiquetasEnvio(ids) : {}) : await gerarDanfeBlobUrl(ids[0], mode);
         urlRef.current = d.url;
         const pdf = await pdfjs.getDocument(d.url).promise;
         const imgs: string[] = [];
