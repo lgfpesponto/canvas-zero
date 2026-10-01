@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DanfeViewerDialog } from './DanfeViewerDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Pencil, Printer, Send } from 'lucide-react';
@@ -102,9 +103,10 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose, onRemaining
     if (!restantes.length) onClose();
   }
 
-  async function imprimir(modo: 'a4' | 'etiqueta') {
+  const [view, setView] = useState<{ id: string; mode: 'a4' | 'etiqueta' } | null>(null);
+  function imprimir(modo: 'a4' | 'etiqueta') {
     if (!r?.notaId) return;
-    try { await gerarDanfePdf(r.notaId, modo, 'print'); } catch (e: any) { toast.error(e.message); }
+    setView({ id: r.notaId, mode: modo });
   }
 
   return (
@@ -202,7 +204,7 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose, onRemaining
               >
                 <Pencil size={16} className="mr-1" /> Editar pedido
               </Button>
-              <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('etiqueta')}><Printer size={16} className="mr-1" /> Etiqueta</Button>
+              <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('etiqueta')}><Printer size={16} className="mr-1" /> DANFE Simplificada</Button>
               <Button variant="outline" disabled={!r?.autorizada} onClick={() => imprimir('a4')} title={r?.autorizada ? 'Imprimir DANFE' : 'Disponível depois da autorização'}><Printer size={16} className="mr-1" /> Imprimir NF-e</Button>
               <Button variant={notas.length > 1 ? 'outline' : 'default'} disabled={busy || !!r?.autorizada || n.erros.length > 0} onClick={confirmar}>
                 {busy ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Send size={16} className="mr-1" />} Confirmar e enviar à SEFAZ
@@ -218,6 +220,7 @@ export function NfeBagyDialog({ pedidoIds, portalIdPorBagy, onClose, onRemaining
             onSaved={() => { if (pedidoIds) carregar(pedidoIds); }}
           />
         )}
+        <DanfeViewerDialog notaId={view?.id ?? null} mode={view?.mode ?? 'a4'} onClose={() => setView(null)} />
       </DialogContent>
     </Dialog>
   );

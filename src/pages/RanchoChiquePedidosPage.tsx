@@ -150,6 +150,7 @@ const RanchoChiquePedidosPage = () => {
   const [nfeIds, setNfeIds] = useState<string[] | null>(null);
   const nfeAcesso = useNfeAccess();
   const [danfeView, setDanfeView] = useState<{ id: string; mode: 'a4' | 'etiqueta' } | null>(null);
+  const [danfeLote, setDanfeLote] = useState<string[] | null>(null);
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [fichasOpen, setFichasOpen] = useState(false);
@@ -301,6 +302,9 @@ const RanchoChiquePedidosPage = () => {
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
   const fichasPendentes = pedidos.filter(p => p.flag === 'aguardando_ficha' && (itensByPed[p.id] || []).some(i => i.status === 'aguardando_ficha' && !!i.template_id));
   const aguardFichaCount = fichasPendentes.length;
+  // Notas autorizadas da seleção, na ordem da lista (um cliente após o outro)
+  const selectedNotaIds = filtered.filter(p => selected.has(p.id)).map(p => nfeByPedido[p.id])
+    .filter(n => n && n.status === 'autorizada' && n.chave_acesso && n.protocolo).map(n => n!.id);
 
   const getPortalOrdersForPedido = (p: BagyPedido): PortalOrderInfo[] => {
     const linked = portalOrdersByBagy[p.bagy_order_id] || [];
@@ -565,12 +569,6 @@ const RanchoChiquePedidosPage = () => {
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
-        <select className="border rounded px-2 text-sm h-10" value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}>
-          <option value="todos">Toda situação interna</option>
-          <option value="pedido_criado">Pedido criado</option>
-          <option value="aguardando_ficha">Aguardando ficha</option>
-          <option value="erro_comprar_estoque">Erros</option>
-        </select>
       </div>
 
       {loading ? (
@@ -676,49 +674,6 @@ const RanchoChiquePedidosPage = () => {
                     </div>
                     )}
 
-                    <div>
-                      <div className="text-xs font-semibold text-muted-foreground mb-1">Itens (mapeamento no portal)</div>
-                      <div className="space-y-2">
-                        {itens.length === 0 && <div className="text-xs text-muted-foreground">Nenhum item.</div>}
-                        {itens.map(it => {
-                          const sb = ITEM_STATUS_BADGE[it.status] || { label: it.status.toUpperCase(), cls: 'bg-gray-400 text-white' };
-                          return (
-                            <div key={it.id} className="flex items-center gap-3 p-2 border rounded text-sm">
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">
-                                  {it.nome_produto || '—'}
-                                  {it.variacao_nome && <span className="text-muted-foreground font-normal"> — {it.variacao_nome}</span>}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {it.tamanho && <>Tam {it.tamanho} · </>}
-                                  Qtd {it.quantidade}
-                                  {it.sku && <> · SKU <span className="font-mono">{it.sku}</span></>}
-                                  {it.ncm && <> · NCM <span className="font-mono">{it.ncm}</span></>}
-                                </div>
-                              </div>
-                              <div className="text-sm font-semibold">{brl(it.preco_unit)}</div>
-                              {/* Quando aguardando_ficha: mostra só o botão azul (sem badge duplicado). */}
-                              {it.status === 'aguardando_ficha' ? (
-                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => gerarFichaItem(p, it)}>
-                                  <FileText size={14} className="mr-1" /> Gerar ficha
-                                </Button>
-                              ) : it.status === 'pedido_criado' && (it.order_id_portal || primaryPortalId) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(`/pedido/${it.order_id_portal || primaryPortalId}`)}
-                                  className={`text-[10px] font-bold px-2 py-1 rounded cursor-pointer bg-green-600 hover:bg-green-700 text-white`}
-                                  title="Abrir pedido detalhado"
-                                >
-                                  {it.quantidade > 1 && portalOrders.length > 1 ? 'VER PEDIDOS' : 'PEDIDO CRIADO'}
-                                </button>
-                              ) : it.status === 'aguardando_mapeamento' || it.status === 'sem_mapeamento' ? null : (
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
 
                     {portalOrders.length > 1 && (
                       <div className="rounded border p-2 space-y-2">
@@ -754,10 +709,6 @@ const RanchoChiquePedidosPage = () => {
                           </TooltipContent>
                         </Tooltip></TooltipProvider>
                       )}
-                      <Button size="sm" variant="outline" disabled={reprocessing} onClick={() => reprocessar(p)}>
-                        {reprocessing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RefreshCw size={14} className="mr-1" />}
-                        Reprocessar
-                      </Button>
                       {nfeAcesso && !nfeBloqueada && (
                         <Button size="sm" variant="outline" onClick={() => setNfeIds([p.id])}>
                           <FileText size={14} className="mr-1" /> Gerar NF-e
@@ -779,7 +730,7 @@ const RanchoChiquePedidosPage = () => {
                           <span>
                             <Button size="sm" variant="outline" disabled={!nfeAutorizada}
                               onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'etiqueta' })}>
-                              <Printer size={14} className="mr-1" /> Imprimir etiqueta
+                              <Printer size={14} className="mr-1" /> DANFE Simplificada
                             </Button>
                           </span>
                         </TooltipTrigger>
@@ -863,7 +814,10 @@ const RanchoChiquePedidosPage = () => {
           )}
           <TooltipProvider><Tooltip>
             <TooltipTrigger asChild>
-              <span><Button size="sm" variant="outline" disabled><Printer size={14} className="mr-1"/> Imprimir etiqueta</Button></span>
+              <span><Button size="sm" variant="outline" disabled={selectedNotaIds.length === 0}
+                onClick={() => setDanfeLote(selectedNotaIds)}>
+                <Printer size={14} className="mr-1"/> DANFE Simplificada ({selectedNotaIds.length})
+              </Button></span>
             </TooltipTrigger>
             <TooltipContent>Integração Melhor Envio em configuração.</TooltipContent>
           </Tooltip></TooltipProvider>
@@ -897,6 +851,7 @@ const RanchoChiquePedidosPage = () => {
       </Dialog>
 
       <DanfeViewerDialog notaId={danfeView?.id ?? null} mode={danfeView?.mode ?? 'a4'} onClose={() => setDanfeView(null)} />
+      <DanfeViewerDialog notaIds={danfeLote} mode="etiqueta" onClose={() => setDanfeLote(null)} />
 
       <Dialog open={fichasOpen} onOpenChange={setFichasOpen}>
         <DialogContent className="max-w-lg">

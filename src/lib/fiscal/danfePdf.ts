@@ -386,6 +386,28 @@ export async function gerarDanfeBlobUrl(notaId: string, mode: DanfeMode) {
   return { url: URL.createObjectURL(doc.output('blob')), filename };
 }
 
+/**
+ * Junta vários DANFEs num único PDF, na ordem recebida (um pedido após o outro).
+ * `extras[notaId]` permite intercalar páginas extras (ex.: etiqueta de envio) logo após a nota.
+ */
+export async function gerarDanfeLoteBlobUrl(notaIds: string[], mode: DanfeMode, extras: Record<string, ArrayBuffer | undefined> = {}) {
+  const { PDFDocument } = await import('pdf-lib');
+  const out = await PDFDocument.create();
+  for (const id of notaIds) {
+    const data = await loadDanfe(id, mode);
+    const doc = mode === 'etiqueta' ? drawEtiqueta(data) : drawA4(data);
+    const src = await PDFDocument.load(doc.output('arraybuffer'));
+    (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p));
+    const extra = extras[id];
+    if (extra) {
+      const ex = await PDFDocument.load(extra);
+      (await out.copyPages(ex, ex.getPageIndices())).forEach(p => out.addPage(p));
+    }
+  }
+  const bytes = await out.save();
+  return { url: URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' })), filename: `DANFE-Simplificada-lote-${notaIds.length}.pdf` };
+}
+
 export async function gerarDanfePdf(notaId: string, mode: DanfeMode, action: 'save' | 'print' = 'save') {
   const data = await loadDanfe(notaId, mode);
   const doc = mode === 'etiqueta' ? drawEtiqueta(data) : drawA4(data);
