@@ -1,4 +1,5 @@
 import React from 'react';
+import { isOrderEstoque } from '@/lib/orderEstoque';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, Pencil, Trash2, DollarSign } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
