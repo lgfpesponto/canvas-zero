@@ -4,3 +4,4 @@
 - The NF-e list (`NotasFiscaisPage`) and one-off invoices (`NovaNotaFiscalForm`) reuse `transmitirNotaBagy` and `BagyNfeMenu` (via `notaId`), so a single emission and action path covers every note.
 - Bulk Bagy NF-e authorization runs sequentially and retains only invalid or rejected orders in the selection; this prevents numbering conflicts and focuses correction work.
 - A Bagy order may have only one active normal NF-e (processing or authorized); complementary and return notes remain separate, preventing duplicate fiscal authorization.
+- Shipping labels go through edge function `envio-etiqueta` (Correios contract CWS / Melhor Envio / showroom pickup) and are stored in the private `etiquetas-envio` bucket; credentials never reach the browser.
