@@ -212,37 +212,42 @@ const RanchoChiquePedidosPage = () => {
       setNfeByPedido({});
     }
     const bagyOrderIds = Array.from(new Set((peds || []).map((p: any) => p.bagy_order_id).filter(Boolean))) as string[];
+    const cols = 'id, numero, bagy_order_id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status';
+    const ordsById = new Map<string, any>();
     if (bagyOrderIds.length > 0) {
       const ordParts = await Promise.all(chunk(bagyOrderIds).map(part =>
-        supabase
-          .from('orders')
-          .select('id, numero, bagy_order_id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
-          .in('bagy_order_id', part)
-          .order('numero', { ascending: true })
-          .then(r => r.data || []),
+        supabase.from('orders').select(cols).in('bagy_order_id', part).then(r => r.data || []),
       ));
-      const ords = ordParts.flat();
-      const sm: Record<string, OrderSyncInfo> = {};
-      const byBagy: Record<string, PortalOrderInfo[]> = {};
-      ords.forEach((o: any) => {
-        const info: PortalOrderInfo = {
-          id: o.id,
-          numero: o.numero || null,
-          bagy_order_id: o.bagy_order_id || null,
-          status: o.status || null,
-          bagy_last_sync_at: o.bagy_last_sync_at || null,
-          bagy_last_sync_error: o.bagy_last_sync_error || null,
-          bagy_last_sync_status: o.bagy_last_sync_status || null,
-        };
-        sm[o.id] = info;
-        if (info.bagy_order_id) (byBagy[info.bagy_order_id] ||= []).push(info);
-      });
-      setSyncByOrder(sm);
-      setPortalOrdersByBagy(byBagy);
-    } else {
-      setSyncByOrder({});
-      setPortalOrdersByBagy({});
+      ordParts.flat().forEach((o: any) => ordsById.set(o.id, o));
     }
+    // Vínculo por número: RC-{numero_bagy} e sufixos de pares (A, B, C… com ou sem hífen).
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data: rc } = await supabase.from('orders').select(cols)
+        .ilike('numero', 'RC-%').order('numero').range(from, from + 999);
+      (rc || []).forEach((o: any) => ordsById.set(o.id, o));
+      if (!rc || rc.length < 1000) break;
+    }
+    const bagyIdPorNumero: Record<string, string> = {};
+    (peds || []).forEach((p: any) => { if (p.numero_bagy) bagyIdPorNumero[String(p.numero_bagy)] = p.bagy_order_id; });
+    const baseNumero = (numero: string) => numero.trim().toUpperCase().replace(/^RC-?/, '').replace(/-?[A-Z]{1,2}$/, '');
+    const sm: Record<string, OrderSyncInfo> = {};
+    const byBagy: Record<string, PortalOrderInfo[]> = {};
+    Array.from(ordsById.values()).sort((a, b) => String(a.numero).localeCompare(String(b.numero))).forEach((o: any) => {
+      const bagyKey = o.bagy_order_id || bagyIdPorNumero[baseNumero(String(o.numero || ''))] || null;
+      const info: PortalOrderInfo = {
+        id: o.id,
+        numero: o.numero || null,
+        bagy_order_id: bagyKey,
+        status: o.status || null,
+        bagy_last_sync_at: o.bagy_last_sync_at || null,
+        bagy_last_sync_error: o.bagy_last_sync_error || null,
+        bagy_last_sync_status: o.bagy_last_sync_status || null,
+      };
+      sm[o.id] = info;
+      if (bagyKey) (byBagy[bagyKey] ||= []).push(info);
+    });
+    setSyncByOrder(sm);
+    setPortalOrdersByBagy(byBagy);
     } catch (e: any) {
       toast.error('Erro ao carregar pedidos Bagy: ' + (e?.message || e));
     } finally {
