@@ -16,6 +16,8 @@ import { bagyLetterSuffix } from '@/lib/bagySuffix';
 import { NfeBagyDialog } from '@/components/fiscal/NfeBagyDialog';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
+import { matchOrderBarcode } from '@/contexts/AuthContext';
+import { BagyPedidoView } from '@/components/bagy/BagyPedidoView';
 
 type BagyPedido = {
   id: string;
@@ -156,7 +158,7 @@ const RanchoChiquePedidosPage = () => {
       .select('*')
       .order('bagy_created_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(1000);
 
     if (error) {
       toast.error('Erro ao carregar pedidos Bagy: ' + error.message);
@@ -238,15 +240,33 @@ const RanchoChiquePedidosPage = () => {
       if (filtroFlag !== 'todos' && (p.flag || 'sem_flag') !== filtroFlag) return false;
       if (filtroStatusBagy !== 'todos' && (p.status_bagy || '').toLowerCase() !== filtroStatusBagy) return false;
       if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
+      const raw = search.trim();
+      const q = raw.toLowerCase();
+      if (
         p.numero_bagy.toLowerCase().includes(q) ||
+        `rc-${p.numero_bagy}`.toLowerCase().includes(q) ||
         (p.cliente_nome || '').toLowerCase().includes(q) ||
         (p.cliente_doc || '').toLowerCase().includes(q) ||
         (p.cliente_whats || '').toLowerCase().includes(q)
+      ) return true;
+      // Código de barras / número dos pedidos gerados no portal ("Meus pedidos")
+      const portal = [
+        ...(portalOrdersByBagy[p.bagy_order_id] || []),
+        ...(p.order_id_portal ? [{ id: p.order_id_portal, numero: null as string | null }] : []),
+      ];
+      return portal.some(o =>
+        matchOrderBarcode(raw.toUpperCase(), { id: o.id, numero: o.numero || '' }) ||
+        (o.numero || '').toLowerCase().includes(q)
       );
     });
-  }, [pedidos, search, filtroFlag, filtroStatusBagy]);
+  }, [pedidos, search, filtroFlag, filtroStatusBagy, portalOrdersByBagy]);
+
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search, filtroFlag, filtroStatusBagy]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
 
 
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
@@ -491,27 +511,10 @@ const RanchoChiquePedidosPage = () => {
 
 
 
-      {semMapCount > 0 && (
-        <div className="mb-3 p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-900 flex items-start gap-2 text-sm">
-          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-          <div>
-            <b>{semMapCount} pedido(s) com SKU não mapeado.</b> Cadastre o produto no Estoque
-            ou crie um modelo de ficha com o SKU correspondente — em seguida clique em "Reprocessar".
-          </div>
-        </div>
-      )}
-
-      {aguardFichaCount > 0 && (
-        <div className="mb-3 p-3 rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-900 flex items-start gap-2 text-sm">
-          <FileText size={18} className="shrink-0 mt-0.5" />
-          <div><b>{aguardFichaCount} pedido(s) aguardando geração de ficha.</b> Clique em "Gerar ficha" na lista abaixo.</div>
-        </div>
-      )}
-
       <div className="flex gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar nº Bagy, cliente, CPF, WhatsApp..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Input className="pl-9" placeholder="Buscar nº Bagy, nº do pedido, código de barras, cliente, CPF..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="border rounded px-2 text-sm h-10" value={filtroStatusBagy} onChange={e => setFiltroStatusBagy(e.target.value)}>
           <option value="todos">Todos status Bagy</option>
@@ -544,7 +547,7 @@ const RanchoChiquePedidosPage = () => {
           </div>
 
         <div className="space-y-2">
-          {filtered.map(p => {
+          {paged.map(p => {
             const itens = itensByPed[p.id] || [];
             const flag = p.flag ? FLAG_BADGE[p.flag] : null;
             const portalOrders = getPortalOrdersForPedido(p);
@@ -578,27 +581,6 @@ const RanchoChiquePedidosPage = () => {
                     <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
                   </button>
 
-                  {/* Slot de status interno — botão "Gerar ficha" substitui o badge quando aguardando_ficha (sem duplicar). */}
-                  {p.flag === 'aguardando_ficha' ? (
-                    <Button
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
-                      onClick={(e) => { e.stopPropagation(); const q = queueFromPedido(p); abrirFichaDialog(q); }}
-                    >
-                      <FileText size={14} className="mr-1" /> Gerar ficha
-                    </Button>
-                  ) : p.flag === 'pedido_criado' && primaryPortalId ? (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/pedido/${primaryPortalId}`); }}
-                      className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 cursor-pointer bg-green-600 hover:bg-green-700 text-white`}
-                      title="Abrir pedido detalhado"
-                    >
-                      PEDIDO CRIADO{portalOrders.length > 1 ? ` (${portalOrders.length})` : ''}
-                    </button>
-                  ) : flag ? (
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${flag.cls}`}>{flag.label}</span>
-                  ) : null}
 
                   {(() => {
                     if (syncError) {
@@ -621,41 +603,24 @@ const RanchoChiquePedidosPage = () => {
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-3 space-y-3 bg-background">
-                    <div className="grid sm:grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <div className="text-xs text-muted-foreground">Cliente</div>
-                        <div className="font-semibold">{p.cliente_nome || '—'}</div>
-                        {p.cliente_doc && <div className="text-xs">CPF/CNPJ: {p.cliente_doc}</div>}
-                        {p.cliente_whats && <div className="text-xs">WhatsApp: {p.cliente_whats}</div>}
-                        {p.cliente_email && <div className="text-xs">{p.cliente_email}</div>}
-                        {p.pagamento && <div className="text-xs mt-1">Pagamento: <b>{p.pagamento}</b></div>}
-                        <div className="text-xs">Total: <b>{brl(p.total)}</b></div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">Endereço</div>
-                        {p.endereco ? (
-                          <div className="text-xs whitespace-pre-line">
-                            {[p.endereco.street, p.endereco.number, p.endereco.complement].filter(Boolean).join(', ')}
-                            {p.endereco.neighborhood && `\n${p.endereco.neighborhood}`}
-                            {(p.endereco.city || p.endereco.state) && `\n${p.endereco.city || ''}${p.endereco.state ? ' / ' + p.endereco.state : ''}`}
-                            {p.endereco.zipcode && `\nCEP ${p.endereco.zipcode}`}
-                          </div>
-                        ) : <div className="text-xs text-muted-foreground">—</div>}
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground">Envio</div>
-                        <div className="text-xs">{p.metodo_envio || <span className="text-muted-foreground">— não informado —</span>}</div>
-                        {(p.frete ?? 0) > 0 && <div className="text-xs">Frete: <b>{brl(p.frete)}</b></div>}
-                        {p.tracking_code && (
-                          <div className="text-xs mt-1">
-                            Rastreio: <span className="font-mono">{p.tracking_code}</span>
-                          </div>
-                        )}
+                    <BagyPedidoView pedido={p} />
+
+                    <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Portal — situação interna</div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        {p.flag === 'aguardando_ficha' ? (
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => abrirFichaDialog(queueFromPedido(p))}>
+                            <FileText size={14} className="mr-1" /> Gerar ficha
+                          </Button>
+                        ) : flag ? (
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}{p.flag === 'pedido_criado' && portalOrders.length > 1 ? ` (${portalOrders.length})` : ''}</span>
+                        ) : null}
                       </div>
                     </div>
 
                     <div>
-                      <div className="text-xs font-semibold text-muted-foreground mb-1">Itens</div>
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">Itens (mapeamento no portal)</div>
                       <div className="space-y-2">
                         {itens.length === 0 && <div className="text-xs text-muted-foreground">Nenhum item.</div>}
                         {itens.map(it => {
@@ -793,6 +758,20 @@ const RanchoChiquePedidosPage = () => {
             );
           })}
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-2 mt-4 flex-wrap text-sm">
+            <span className="text-muted-foreground">
+              Exibindo {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, filtered.length)} de {filtered.length} pedidos
+            </span>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" disabled={pageSafe === 1} onClick={() => setPage(1)}>Primeira</Button>
+              <Button size="sm" variant="outline" disabled={pageSafe === 1} onClick={() => setPage(pageSafe - 1)}>Anterior</Button>
+              <span className="px-2">Página {pageSafe} de {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={pageSafe === totalPages} onClick={() => setPage(pageSafe + 1)}>Próxima</Button>
+              <Button size="sm" variant="outline" disabled={pageSafe === totalPages} onClick={() => setPage(totalPages)}>Última</Button>
+            </div>
+          </div>
+        )}
         </>
       )}
 
