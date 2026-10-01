@@ -1,4 +1,6 @@
-import { MessageCircle, MapPin } from 'lucide-react';
+import { MessageCircle, MapPin, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const brl = (n: unknown) => {
   const v = Number(n ?? 0);
@@ -47,7 +49,20 @@ const Card = ({ title, right, children, className = '' }: { title: string; right
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function BagyPedidoView({ pedido }: { pedido: any }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pl: any = pedido.payload || {};
+  const [fresh, setFresh] = useState<any>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncErr, setSyncErr] = useState<string | null>(null);
+  const sync = async () => {
+    setSyncing(true); setSyncErr(null);
+    const { data, error } = await supabase.functions.invoke('bagy-order-refresh', { body: { pedido_id: pedido.id } });
+    if (error || data?.error) setSyncErr(data?.error || error?.message || 'Falha');
+    else if (data?.payload) setFresh(data.payload);
+    setSyncing(false);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { sync(); }, [pedido.id]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pl: any = fresh || pedido.payload || {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const items: any[] = Array.isArray(pl.items) ? pl.items : [];
   const cust = pl.customer || {};
@@ -183,6 +198,10 @@ export function BagyPedidoView({ pedido }: { pedido: any }) {
           </Card>
 
           <Card title="Tags">
+            <button type="button" onClick={sync} disabled={syncing} className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Buscando na Bagy...' : 'Atualizar da Bagy'}
+            </button>
+            {syncErr && <div className="text-xs text-destructive mb-1">{syncErr}</div>}
             {tags.length > 0 ? (
               <div className="flex flex-wrap gap-1">{tags.map(t => <span key={t} className="text-xs font-medium px-2 py-1 rounded bg-primary text-primary-foreground">{t}</span>)}</div>
             ) : <div className="text-sm text-muted-foreground">Nenhuma tag recebida da Bagy.</div>}
