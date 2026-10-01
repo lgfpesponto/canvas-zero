@@ -153,6 +153,12 @@ const RanchoChiquePedidosPage = () => {
 
   const load = async () => {
     setLoading(true);
+    try {
+    const chunk = <T,>(arr: T[], n = 100): T[][] => {
+      const out: T[][] = [];
+      for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+      return out;
+    };
     const { data: peds, error } = await supabase
       .from('bagy_pedidos')
       .select('*')
@@ -162,27 +168,32 @@ const RanchoChiquePedidosPage = () => {
 
     if (error) {
       toast.error('Erro ao carregar pedidos Bagy: ' + error.message);
-      setLoading(false);
       return;
     }
     setPedidos((peds || []) as any);
     const ids = (peds || []).map((p: any) => p.id);
     if (ids.length > 0) {
-      const [{ data: itens }, { data: notas }] = await Promise.all([
-        supabase.from('bagy_pedido_itens').select('*').in('pedido_id', ids),
-        supabase.from('nfe_notas')
-          .select('id, numero, status, tipo_nota, chave_acesso, protocolo, bagy_pedido_id, created_at')
-          .in('bagy_pedido_id', ids)
-          .eq('tipo_nota', 'normal')
-          .order('created_at', { ascending: false }),
-      ]);
+      const parts = chunk(ids);
+      const results = await Promise.all(parts.map(async (part) => {
+        const [{ data: itens }, { data: notas }] = await Promise.all([
+          supabase.from('bagy_pedido_itens').select('*').in('pedido_id', part),
+          supabase.from('nfe_notas')
+            .select('id, numero, status, tipo_nota, chave_acesso, protocolo, bagy_pedido_id, created_at')
+            .in('bagy_pedido_id', part)
+            .eq('tipo_nota', 'normal')
+            .order('created_at', { ascending: false }),
+        ]);
+        return { itens: itens || [], notas: notas || [] };
+      }));
+      const itens = results.flatMap(r => r.itens);
+      const notas = results.flatMap(r => r.notas);
       const map: Record<string, BagyItem[]> = {};
-      (itens || []).forEach((i: any) => {
+      itens.forEach((i: any) => {
         (map[i.pedido_id] ||= []).push(i);
       });
       setItensByPed(map);
       const nfeMap: Record<string, BagyNfeInfo> = {};
-      (notas || []).forEach((nota: any) => {
+      notas.forEach((nota: any) => {
         if (!nota.bagy_pedido_id) return;
         const atual = nfeMap[nota.bagy_pedido_id];
         const ativa = ['autorizada', 'processando'].includes(nota.status);
@@ -194,17 +205,20 @@ const RanchoChiquePedidosPage = () => {
       setItensByPed({});
       setNfeByPedido({});
     }
-    // Carrega todos os pedidos do portal vinculados à Bagy (inclui RC-...A, B, C quando há mais de 1 par)
-    const bagyOrderIds = Array.from(new Set((peds || []).map((p: any) => p.bagy_order_id).filter(Boolean)));
+    const bagyOrderIds = Array.from(new Set((peds || []).map((p: any) => p.bagy_order_id).filter(Boolean))) as string[];
     if (bagyOrderIds.length > 0) {
-      const { data: ords } = await supabase
-        .from('orders')
-        .select('id, numero, bagy_order_id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
-        .in('bagy_order_id', bagyOrderIds)
-        .order('numero', { ascending: true });
+      const ordParts = await Promise.all(chunk(bagyOrderIds).map(part =>
+        supabase
+          .from('orders')
+          .select('id, numero, bagy_order_id, status, bagy_last_sync_at, bagy_last_sync_error, bagy_last_sync_status')
+          .in('bagy_order_id', part)
+          .order('numero', { ascending: true })
+          .then(r => r.data || []),
+      ));
+      const ords = ordParts.flat();
       const sm: Record<string, OrderSyncInfo> = {};
       const byBagy: Record<string, PortalOrderInfo[]> = {};
-      (ords || []).forEach((o: any) => {
+      ords.forEach((o: any) => {
         const info: PortalOrderInfo = {
           id: o.id,
           numero: o.numero || null,
@@ -223,7 +237,11 @@ const RanchoChiquePedidosPage = () => {
       setSyncByOrder({});
       setPortalOrdersByBagy({});
     }
-    setLoading(false);
+    } catch (e: any) {
+      toast.error('Erro ao carregar pedidos Bagy: ' + (e?.message || e));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
