@@ -405,7 +405,7 @@ export async function gerarDanfeLoteBlobUrl(notaIds: string[], mode: DanfeMode, 
     }
   }
   const bytes = await out.save();
-  return { url: URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })), filename: `DANFE-Simplificada-lote-${notaIds.length}.pdf` };
+  return { url: URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' })), filename: `DANFE-Simplificada-lote-${notaIds.length}.pdf` };
 }
 
 export async function gerarDanfePdf(notaId: string, mode: DanfeMode, action: 'save' | 'print' = 'save') {
