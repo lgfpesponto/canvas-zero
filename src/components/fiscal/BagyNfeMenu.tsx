@@ -19,6 +19,7 @@ import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { getFiscalProvider } from '@/lib/fiscal/provider';
 import { emitirComplementar, emitirDevolucao } from '@/lib/fiscal/nfeBagy';
 import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
+import { DanfeViewerDialog } from './DanfeViewerDialog';
 
 const brl = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -59,6 +60,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
   const [devItens, setDevItens] = useState<any[]>([]);
   const [devQtd, setDevQtd] = useState<Record<string, number>>({});
   const [devMotivo, setDevMotivo] = useState('');
+  const [viewSimpl, setViewSimpl] = useState(false);
 
   const load = useCallback(async () => {
     let q = supabase
@@ -187,6 +189,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
         </span>
       )}
       {pedido.id && <BagyPedidoEditDialog pedidoId={pedido.id} open={editOpen} onOpenChange={setEditOpen} onSaved={onChanged} />}
+      <DanfeViewerDialog notaId={viewSimpl ? nota?.id ?? null : null} mode="etiqueta" onClose={() => setViewSimpl(false)} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label="Ações da NF-e">
@@ -225,6 +228,9 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
           </DropdownMenuSub>
           <DropdownMenuItem disabled={!autorizada} onClick={() => run('danfe', async () => { await gerarDanfePdf(nota!.id, 'a4', 'save'); })}>
             <FileDown size={14} className="mr-2" /> Gerar PDF DANFE
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!autorizada} onClick={() => setViewSimpl(true)}>
+            <FileDown size={14} className="mr-2" /> Imprimir DANFE Simplificada
           </DropdownMenuItem>
           <DropdownMenuItem disabled={!autorizada} onClick={abrirDevolucao}>
             <Undo2 size={14} className="mr-2" /> Gerar devolução
