@@ -1,0 +1,207 @@
+// Gera etiqueta de envio (Correios contrato / Melhor Envio) ou marca retirada no showroom.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://esm.sh/zod@3.23.8";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+// Códigos de serviço do contrato Correios
+const CORREIOS: Record<string, string> = { PAC: "03298", SEDEX: "03220", MINI: "03220" };
+const CWS = "https://api.correios.com.br";
+const ME = "https://www.melhorenvio.com.br/api/v2";
+
+const Body = z.object({
+  acao: z.enum(["gerar", "cotar", "salvar_servico"]),
+  bagyPedidoId: z.string().uuid(),
+  servico: z.string().max(60).optional(), // PAC | SEDEX | MINI | RETIRADA | ME:<id>
+  peso: z.number().positive().max(30).optional(), // kg
+  altura: z.number().positive().max(150).optional(),
+  largura: z.number().positive().max(150).optional(),
+  comprimento: z.number().positive().max(150).optional(),
+});
+
+const dig = (s: unknown) => String(s ?? "").replace(/\D/g, "");
+
+export function detectarServico(metodo: string | null | undefined): string {
+  const m = String(metodo ?? "").toLowerCase();
+  if (/retir|showroom|loja/.test(m)) return "RETIRADA";
+  if (/sedex/.test(m)) return "SEDEX";
+  if (/mini/.test(m)) return "MINI";
+  if (/pac/.test(m)) return "PAC";
+  if (/jadlog|azul|loggi|latam|j&t|buslog|melhor/.test(m)) return "ME";
+  return "PAC";
+}
+
+async function correiosToken() {
+  const u = Deno.env.get("CORREIOS_USUARIO"), c = Deno.env.get("CORREIOS_CODIGO_ACESSO"), cartao = Deno.env.get("CORREIOS_CARTAO_POSTAGEM");
+  if (!u || !c || !cartao) throw new Error("Contrato Correios não configurado");
+  const r = await fetch(`${CWS}/token/v1/autentica/cartaopostagem`, {
+    method: "POST",
+    headers: { Authorization: "Basic " + btoa(`${u}:${c}`), "Content-Type": "application/json" },
+    body: JSON.stringify({ numero: cartao }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.token) throw new Error("Correios recusou o acesso: " + (j.msgs?.join(" ") || r.status));
+  return j.token as string;
+}
+
+function endCorreios(e: any) {
+  return {
+    cep: dig(e.cep), logradouro: e.logradouro || "", numero: e.numero || "S/N",
+    complemento: e.complemento || "", bairro: e.bairro || "", cidade: e.cidade || "", uf: e.uf || "",
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  try {
+    const auth = req.headers.get("Authorization");
+    if (!auth?.startsWith("Bearer ")) return json({ error: "Não autenticado" }, 401);
+    const sbUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: auth } },
+    });
+    const { data: u } = await sbUser.auth.getUser(auth.replace("Bearer ", ""));
+    if (!u?.user) return json({ error: "Não autenticado" }, 401);
+    const { data: ok } = await sbUser.rpc("has_nfe_access", { _user_id: u.user.id });
+    if (!ok) return json({ error: "Sem permissão" }, 403);
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const parsed = Body.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+    const b = parsed.data;
+
+    const { data: ped } = await sb.from("bagy_pedidos").select("*").eq("id", b.bagyPedidoId).maybeSingle();
+    if (!ped) return json({ error: "Pedido não encontrado" }, 404);
+    const servico = b.servico || ped.envio_servico || detectarServico(ped.metodo_envio);
+
+    if (b.acao === "salvar_servico") {
+      await sb.from("bagy_pedidos").update({ envio_servico: servico }).eq("id", ped.id);
+      return json({ ok: true, servico });
+    }
+
+    const { data: cfg } = await sb.from("nfe_config").select("*").order("created_at").limit(1).maybeSingle();
+    if (!cfg) return json({ error: "Configure os dados da empresa em Configurações NF-e" }, 412);
+    const { data: nota } = await sb.from("nfe_notas").select("numero,chave_acesso,valor_total,status")
+      .eq("bagy_pedido_id", ped.id).eq("tipo_nota", "normal").eq("status", "autorizada").maybeSingle();
+
+    const e = ped.endereco || {};
+    const dest = {
+      nome: ped.cliente_nome || "", doc: dig(ped.cliente_doc), email: ped.cliente_email || "",
+      fone: dig(ped.cliente_whats), cep: dig(e.cep || e.zipcode), logradouro: e.logradouro || e.street || e.rua || "",
+      numero: String(e.numero || e.number || "S/N"), complemento: e.complemento || e.complement || e.detail || "",
+      bairro: e.bairro || e.district || e.neighborhood || "", cidade: e.cidade || e.city || "", uf: e.uf || e.state || "",
+    };
+    if (dest.cep.length !== 8) return json({ error: "CEP do cliente inválido. Corrija em Editar pedido." }, 422);
+    const peso = b.peso ?? 2, alt = b.altura ?? 15, larg = b.largura ?? 30, comp = b.comprimento ?? 35;
+    const valor = Number(nota?.valor_total ?? ped.total ?? 0);
+
+    if (servico === "RETIRADA") {
+      await sb.from("bagy_pedidos").update({ envio_servico: "RETIRADA", envio_provider: "retirada" }).eq("id", ped.id);
+      return json({ ok: true, servico, mensagem: "Retirada no showroom — sem etiqueta de transporte." });
+    }
+
+    const meToken = Deno.env.get("MELHOR_ENVIO_TOKEN");
+    const meHeaders = { Authorization: `Bearer ${meToken}`, Accept: "application/json", "Content-Type": "application/json", "User-Agent": "Portal 7Estrivos (contato@7estrivos.com.br)" };
+
+    if (b.acao === "cotar") {
+      if (!meToken) return json({ error: "Token do Melhor Envio não configurado" }, 412);
+      const r = await fetch(`${ME}/me/shipment/calculate`, {
+        method: "POST", headers: meHeaders,
+        body: JSON.stringify({ from: { postal_code: dig(cfg.cep) }, to: { postal_code: dest.cep },
+          volumes: [{ height: alt, width: larg, length: comp, weight: peso }], options: { insurance_value: valor } }),
+      });
+      const j = await r.json().catch(() => []);
+      if (!r.ok) return json({ error: "Melhor Envio: " + (j.message || r.status) }, 502);
+      return json({ opcoes: (j as any[]).filter((o) => !o.error).map((o) => ({ id: o.id, nome: `${o.company?.name} ${o.name}`, preco: o.price, prazo: o.delivery_time })) });
+    }
+
+    // ===== gerar =====
+    if (ped.etiqueta_path) return json({ error: "Este pedido já tem etiqueta gerada." }, 409);
+    let pdf: Uint8Array; let rastreio = ""; let providerId = ""; let provider = "";
+
+    if (CORREIOS[servico]) {
+      provider = "correios";
+      const token = await correiosToken();
+      const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+      const body: Record<string, unknown> = {
+        remetente: { nome: cfg.razao_social, cpfCnpj: dig(cfg.cnpj), email: cfg.email || "", dddTelefone: dig(cfg.telefone).slice(0, 2), telefone: dig(cfg.telefone).slice(2),
+          endereco: endCorreios({ ...cfg, cidade: cfg.municipio }) },
+        destinatario: { nome: dest.nome, cpfCnpj: dest.doc, email: dest.email, dddCelular: dest.fone.slice(-11, -9), celular: dest.fone.slice(-9), endereco: endCorreios(dest) },
+        codigoServico: CORREIOS[servico],
+        pesoInformado: String(Math.round(peso * 1000)),
+        codigoFormatoObjetoInformado: "2",
+        alturaInformada: String(alt), larguraInformada: String(larg), comprimentoInformado: String(comp),
+        cienteObjetoNaoProibido: 1,
+        modalidadePagamento: "2",
+      };
+      if (nota?.chave_acesso) { body.numeroNotaFiscal = String(nota.numero); body.chaveNFe = nota.chave_acesso; }
+      else body.itensDeclaracaoConteudo = [{ conteudo: "Mercadoria", quantidade: "1", valor: valor.toFixed(2) }];
+      const r = await fetch(`${CWS}/prepostagem/v1/prepostagens`, { method: "POST", headers: h, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.id) return json({ error: "Correios: " + (j.msgs?.join(" ") || JSON.stringify(j).slice(0, 300)) }, 502);
+      providerId = j.id; rastreio = j.codigoObjeto || "";
+      const r2 = await fetch(`${CWS}/prepostagem/v1/prepostagens/rotulo/assincrono/pdf`, {
+        method: "POST", headers: h, body: JSON.stringify({ idsPrePostagem: [j.id], tipoRotulo: "P", formatoRotulo: "ET", layoutImpressao: "PADRAO" }),
+      });
+      const j2 = await r2.json().catch(() => ({}));
+      if (!r2.ok || !j2.idRecibo) return json({ error: "Correios (rótulo): " + (j2.msgs?.join(" ") || r2.status), rastreio }, 502);
+      let dados = "";
+      for (let i = 0; i < 10 && !dados; i++) {
+        await new Promise((s) => setTimeout(s, 1500));
+        const r3 = await fetch(`${CWS}/prepostagem/v1/prepostagens/rotulo/download/assincrono/${j2.idRecibo}`, { headers: h });
+        const j3 = await r3.json().catch(() => ({}));
+        if (r3.ok && j3.dados) dados = j3.dados;
+      }
+      if (!dados) return json({ error: "Correios demorou para gerar o rótulo. Tente de novo em instantes.", rastreio }, 504);
+      pdf = Uint8Array.from(atob(dados), (c) => c.charCodeAt(0));
+    } else {
+      provider = "melhorenvio";
+      if (!meToken) return json({ error: "Token do Melhor Envio não configurado" }, 412);
+      const svcId = Number(servico.replace(/^ME:?/, "")) || 0;
+      if (!svcId) return json({ error: "Escolha a transportadora do Melhor Envio (cotar primeiro)." }, 422);
+      const cart = await fetch(`${ME}/me/cart`, {
+        method: "POST", headers: meHeaders,
+        body: JSON.stringify({
+          service: svcId,
+          from: { name: cfg.razao_social, phone: dig(cfg.telefone), email: cfg.email, company_document: dig(cfg.cnpj), state_register: dig(cfg.inscricao_estadual),
+            address: cfg.logradouro, number: cfg.numero, complement: cfg.complemento, district: cfg.bairro, city: cfg.municipio, state_abbr: cfg.uf, postal_code: dig(cfg.cep), country_id: "BR" },
+          to: { name: dest.nome, phone: dest.fone, email: dest.email, ...(dest.doc.length === 14 ? { company_document: dest.doc } : { document: dest.doc }),
+            address: dest.logradouro, number: dest.numero, complement: dest.complemento, district: dest.bairro, city: dest.cidade, state_abbr: dest.uf, postal_code: dest.cep, country_id: "BR" },
+          products: [{ name: "Mercadoria", quantity: 1, unitary_value: valor }],
+          volumes: [{ height: alt, width: larg, length: comp, weight: peso }],
+          options: { insurance_value: valor, receipt: false, own_hand: false, non_commercial: !nota?.chave_acesso, ...(nota?.chave_acesso ? { invoice: { key: nota.chave_acesso } } : {}) },
+        }),
+      });
+      const cj = await cart.json().catch(() => ({}));
+      if (!cart.ok || !cj.id) return json({ error: "Melhor Envio: " + (cj.message || JSON.stringify(cj.errors || cj).slice(0, 300)) }, 502);
+      providerId = cj.id;
+      const co = await fetch(`${ME}/me/shipment/checkout`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
+      if (!co.ok) { const x = await co.json().catch(() => ({})); return json({ error: "Melhor Envio (pagamento): " + (x.message || co.status) + ". Verifique o saldo da carteira." }, 502); }
+      await fetch(`${ME}/me/shipment/generate`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
+      const pr = await fetch(`${ME}/me/shipment/print`, { method: "POST", headers: meHeaders, body: JSON.stringify({ mode: "public", orders: [cj.id] }) });
+      const pj = await pr.json().catch(() => ({}));
+      if (!pj.url) return json({ error: "Melhor Envio não devolveu a etiqueta." }, 502);
+      const pf = await fetch(pj.url); pdf = new Uint8Array(await pf.arrayBuffer());
+      const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
+      const tj = await tr.json().catch(() => ({}));
+      rastreio = tj?.[cj.id]?.tracking || tj?.[cj.id]?.melhorenvio_tracking || "";
+    }
+
+    const path = `${ped.id}/${Date.now()}.pdf`;
+    const up = await sb.storage.from("etiquetas-envio").upload(path, pdf, { contentType: "application/pdf", upsert: true });
+    if (up.error) return json({ error: "Falha ao salvar etiqueta: " + up.error.message }, 500);
+    await sb.from("bagy_pedidos").update({
+      envio_servico: servico, envio_provider: provider, envio_provider_id: providerId, etiqueta_path: path,
+      etiqueta_gerada_em: new Date().toISOString(),
+      ...(rastreio ? { tracking_code: rastreio, tracking_url: provider === "correios" ? `https://rastreamento.correios.com.br/app/index.php?objeto=${rastreio}` : `https://melhorrastreio.com.br/rastreio/${rastreio}` } : {}),
+    }).eq("id", ped.id);
+    return json({ ok: true, servico, rastreio, etiqueta_path: path });
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
