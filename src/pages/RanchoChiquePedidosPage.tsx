@@ -302,6 +302,9 @@ const RanchoChiquePedidosPage = () => {
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
   const fichasPendentes = pedidos.filter(p => p.flag === 'aguardando_ficha' && (itensByPed[p.id] || []).some(i => i.status === 'aguardando_ficha' && !!i.template_id));
   const aguardFichaCount = fichasPendentes.length;
+  // Notas autorizadas da seleção, na ordem da lista (um cliente após o outro)
+  const selectedNotaIds = filtered.filter(p => selected.has(p.id)).map(p => nfeByPedido[p.id])
+    .filter(n => n && n.status === 'autorizada' && n.chave_acesso && n.protocolo).map(n => n!.id);
 
   const getPortalOrdersForPedido = (p: BagyPedido): PortalOrderInfo[] => {
     const linked = portalOrdersByBagy[p.bagy_order_id] || [];

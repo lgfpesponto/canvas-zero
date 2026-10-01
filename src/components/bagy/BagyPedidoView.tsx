@@ -72,7 +72,6 @@ export function BagyPedidoView({ pedido, nota, statusLabel, onOpenNota, onOpenTr
           <span className="ml-2 text-xs text-muted-foreground">{fmtDate(pl.created_at || pedido.bagy_created_at || pedido.created_at)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-primary text-primary-foreground">{statusLabel || pedido.status_bagy}</span>
           <button type="button" onClick={sync} disabled={syncing} title="Atualizar da Bagy" className="text-muted-foreground hover:text-foreground">
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
           </button>
