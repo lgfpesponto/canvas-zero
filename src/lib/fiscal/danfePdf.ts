@@ -378,6 +378,14 @@ export function drawA4(data: FiscalData) {
   return doc;
 }
 
+/** Gera o DANFE em memória e devolve uma URL local para visualizar dentro do portal. */
+export async function gerarDanfeBlobUrl(notaId: string, mode: DanfeMode) {
+  const data = await loadDanfe(notaId, mode);
+  const doc = mode === 'etiqueta' ? drawEtiqueta(data) : drawA4(data);
+  const filename = `DANFE-${padNfe(data.nota.numero)}-${mode === 'etiqueta' ? 'Etiqueta' : 'A4'}.pdf`;
+  return { url: URL.createObjectURL(doc.output('blob')), filename };
+}
+
 export async function gerarDanfePdf(notaId: string, mode: DanfeMode, action: 'save' | 'print' = 'save') {
   const data = await loadDanfe(notaId, mode);
   const doc = mode === 'etiqueta' ? drawEtiqueta(data) : drawA4(data);
