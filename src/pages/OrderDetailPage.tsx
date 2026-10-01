@@ -82,6 +82,24 @@ const OrderDetailPage = () => {
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
 
+  // Pedido de estoque sem foto gravada: busca a foto no cadastro do Estoque pelo nome/tamanho.
+  const [fotoEstoqueFallback, setFotoEstoqueFallback] = useState<string | null>(null);
+  useEffect(() => {
+    setFotoEstoqueFallback(null);
+    if (!order || !isOrderEstoque(order)) return;
+    const det = (order.extraDetalhes || {}) as any;
+    if (det.foto_url || (order.fotos || []).some((f: string) => isHttpUrl(f))) return;
+    const desc: string = det.botas?.[0]?.descricaoProduto || det.descricaoProduto || '';
+    const m = desc.match(/^(.*?)\s+—\s+Tam\s+(\S+)/);
+    if (!m) return;
+    supabase.from('estoque_produtos').select('foto_url').eq('nome', m[1].trim()).eq('tamanho', m[2])
+      .not('foto_url', 'is', null).limit(1).then(({ data }) => {
+        const url = data?.[0]?.foto_url;
+        if (url) setFotoEstoqueFallback(url);
+      });
+  }, [order?.id]);
+
+
   // Atalhos de teclado: setas ← / → navegam entre pedidos.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
