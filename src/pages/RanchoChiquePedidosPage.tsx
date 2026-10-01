@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer, ShoppingCart, ArrowUpRight, ClipboardList } from 'lucide-react';
+import { DanfeViewerDialog } from '@/components/fiscal/DanfeViewerDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BagyFichaDialog, type BagyFichaQueueItem } from '@/components/bagy/BagyFichaDialog';
@@ -148,6 +149,10 @@ const RanchoChiquePedidosPage = () => {
   const [fichaQueue, setFichaQueue] = useState<BagyFichaQueueItem[] | null>(null);
   const [nfeIds, setNfeIds] = useState<string[] | null>(null);
   const nfeAcesso = useNfeAccess();
+  const [danfeView, setDanfeView] = useState<{ id: string; mode: 'a4' | 'etiqueta' } | null>(null);
+  const [dataIni, setDataIni] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const [fichasOpen, setFichasOpen] = useState(false);
 
   const allowed = role === 'admin_master' || role === 'admin_producao' || role === 'vendedor_comissao';
 
@@ -257,6 +262,12 @@ const RanchoChiquePedidosPage = () => {
     return pedidos.filter(p => {
       if (filtroFlag !== 'todos' && (p.flag || 'sem_flag') !== filtroFlag) return false;
       if (filtroStatusBagy !== 'todos' && (p.status_bagy || '').toLowerCase() !== filtroStatusBagy) return false;
+      if (dataIni || dataFim) {
+        const d = new Date(p.bagy_created_at || p.created_at);
+        const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (dataIni && dia < dataIni) return false;
+        if (dataFim && dia > dataFim) return false;
+      }
       if (!search.trim()) return true;
       const raw = search.trim();
       const q = raw.toLowerCase();
@@ -277,18 +288,19 @@ const RanchoChiquePedidosPage = () => {
         (o.numero || '').toLowerCase().includes(q)
       );
     });
-  }, [pedidos, search, filtroFlag, filtroStatusBagy, portalOrdersByBagy]);
+  }, [pedidos, search, filtroFlag, filtroStatusBagy, portalOrdersByBagy, dataIni, dataFim]);
 
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [search, filtroFlag, filtroStatusBagy]);
+  useEffect(() => { setPage(1); }, [search, filtroFlag, filtroStatusBagy, dataIni, dataFim]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
   const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
 
 
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
-  const aguardFichaCount = pedidos.filter(p => p.flag === 'aguardando_ficha').length;
+  const fichasPendentes = pedidos.filter(p => p.flag === 'aguardando_ficha' && (itensByPed[p.id] || []).some(i => i.status === 'aguardando_ficha' && !!i.template_id));
+  const aguardFichaCount = fichasPendentes.length;
 
   const getPortalOrdersForPedido = (p: BagyPedido): PortalOrderInfo[] => {
     const linked = portalOrdersByBagy[p.bagy_order_id] || [];
@@ -507,6 +519,12 @@ const RanchoChiquePedidosPage = () => {
           <Package /> Pedidos Bagy — Rancho Chique
         </h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="relative" onClick={() => setFichasOpen(true)} title="Pedidos com modelo rascunho aguardando ficha">
+            <ClipboardList size={16} className="mr-1" /> Fichas
+            {fichasPendentes.length > 0 && (
+              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center">{fichasPendentes.length}</span>
+            )}
+          </Button>
           {role === 'admin_master' && (
             <Button variant="outline" size="sm" onClick={async () => {
               const { data, error } = await supabase.functions.invoke('bagy-webhook-info');
@@ -534,6 +552,13 @@ const RanchoChiquePedidosPage = () => {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Buscar nº Bagy, nº do pedido, código de barras, cliente, CPF..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span>De</span>
+          <Input type="date" className="h-10 w-[150px]" value={dataIni} onChange={e => setDataIni(e.target.value)} aria-label="Data inicial" />
+          <span>até</span>
+          <Input type="date" className="h-10 w-[150px]" value={dataFim} onChange={e => setDataFim(e.target.value)} aria-label="Data final" />
+          {(dataIni || dataFim) && <Button size="sm" variant="ghost" onClick={() => { setDataIni(''); setDataFim(''); }}>Limpar</Button>}
+        </div>
         <select className="border rounded px-2 text-sm h-10" value={filtroStatusBagy} onChange={e => setFiltroStatusBagy(e.target.value)}>
           <option value="todos">Todos status Bagy</option>
           {STATUS_BAGY_FILTROS.map(s => (
@@ -544,7 +569,6 @@ const RanchoChiquePedidosPage = () => {
           <option value="todos">Toda situação interna</option>
           <option value="pedido_criado">Pedido criado</option>
           <option value="aguardando_ficha">Aguardando ficha</option>
-          <option value="aguardando_mapeamento">Sem mapeamento</option>
           <option value="erro_comprar_estoque">Erros</option>
         </select>
       </div>
@@ -603,7 +627,13 @@ const RanchoChiquePedidosPage = () => {
                       {p.tracking_code && <span title={`Etiqueta de transporte: ${p.tracking_code}`}><ShoppingCart size={15} /></span>}
                     </span>
                   </button>
-
+                  {primaryPortalId && (
+                    <button type="button" title="Abrir pedido em Meus Pedidos" aria-label="Abrir pedido em Meus Pedidos"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/pedido/${primaryPortalId}`); }}
+                      className="text-primary hover:bg-accent rounded p-1 shrink-0">
+                      <ArrowUpRight size={16} />
+                    </button>
+                  )}
 
                   {(() => {
                     if (syncError) {
@@ -620,16 +650,17 @@ const RanchoChiquePedidosPage = () => {
                   })()}
 
                   {nfeAcesso && (
-                    <BagyNfeMenu pedido={p} onGerarNfe={() => setNfeIds([p.id])} onChanged={load} />
+                    <BagyNfeMenu pedido={p} hideSello onGerarNfe={() => setNfeIds([p.id])} onChanged={load} />
                   )}
                 </div>
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-2 space-y-2 bg-background">
                     <BagyPedidoView pedido={p} nota={notaFiscal} statusLabel={STATUS_BAGY_LABEL[p.status_bagy]}
-                      onOpenNota={() => notaFiscal && (nfeAutorizada ? gerarDanfePdf(notaFiscal.id, 'a4', 'print').catch(e => toast.error(e.message)) : setNfeIds([p.id]))}
+                      onOpenNota={() => notaFiscal && (nfeAutorizada ? setDanfeView({ id: notaFiscal.id, mode: 'a4' }) : setNfeIds([p.id]))}
                       onOpenTracking={() => p.tracking_url ? window.open(p.tracking_url, '_blank') : (setTrackDialog(p), setTrackCode(p.tracking_code || ''), setTrackUrl(p.tracking_url || ''))} />
 
+                    {(p.flag === 'aguardando_ficha' || (flag && p.flag !== 'aguardando_mapeamento')) && (
                     <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
                       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Portal — situação interna</div>
                       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -643,6 +674,7 @@ const RanchoChiquePedidosPage = () => {
                         ) : null}
                       </div>
                     </div>
+                    )}
 
                     <div>
                       <div className="text-xs font-semibold text-muted-foreground mb-1">Itens (mapeamento no portal)</div>
@@ -679,7 +711,7 @@ const RanchoChiquePedidosPage = () => {
                                 >
                                   {it.quantidade > 1 && portalOrders.length > 1 ? 'VER PEDIDOS' : 'PEDIDO CRIADO'}
                                 </button>
-                              ) : (
+                              ) : it.status === 'aguardando_mapeamento' || it.status === 'sem_mapeamento' ? null : (
                                 <span className={`text-[10px] font-bold px-2 py-1 rounded ${sb.cls}`}>{sb.label}</span>
                               )}
                             </div>
@@ -735,7 +767,7 @@ const RanchoChiquePedidosPage = () => {
                         <TooltipTrigger asChild>
                           <span>
                             <Button size="sm" variant="outline" disabled={!nfeAutorizada}
-                              onClick={() => notaFiscal && gerarDanfePdf(notaFiscal.id, 'a4', 'print').catch(e => toast.error(e.message))}>
+                              onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'a4' })}>
                               <Printer size={14} className="mr-1" /> Imprimir NF-e
                             </Button>
                           </span>
@@ -746,8 +778,8 @@ const RanchoChiquePedidosPage = () => {
                         <TooltipTrigger asChild>
                           <span>
                             <Button size="sm" variant="outline" disabled={!nfeAutorizada}
-                              onClick={() => notaFiscal && gerarDanfePdf(notaFiscal.id, 'etiqueta', 'print').catch(e => toast.error(e.message))}>
-                              <Printer size={14} className="mr-1" /> Imprimir etiqueta NF-e
+                              onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'etiqueta' })}>
+                              <Printer size={14} className="mr-1" /> Imprimir etiqueta
                             </Button>
                           </span>
                         </TooltipTrigger>
@@ -861,6 +893,29 @@ const RanchoChiquePedidosPage = () => {
               <Button onClick={marcarDespachado}>Confirmar despacho</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <DanfeViewerDialog notaId={danfeView?.id ?? null} mode={danfeView?.mode ?? 'a4'} onClose={() => setDanfeView(null)} />
+
+      <Dialog open={fichasOpen} onOpenChange={setFichasOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Aguardando ficha ({fichasPendentes.length})</DialogTitle></DialogHeader>
+          {fichasPendentes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum pedido com modelo rascunho aguardando ficha.</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {fichasPendentes.map(p => (
+                <div key={p.id} className="flex items-center gap-2 border rounded p-2 text-sm">
+                  <span className="font-mono font-bold">RC-{p.numero_bagy}</span>
+                  <span className="flex-1 truncate">{p.cliente_nome || '—'}</span>
+                  <Button size="sm" onClick={() => { setFichasOpen(false); abrirFichaDialog(queueFromPedido(p)); }}>
+                    <FileText size={14} className="mr-1" /> Fazer ficha
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
