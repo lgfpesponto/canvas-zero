@@ -1,5 +1,4 @@
-import { Button } from '@/components/ui/button';
-import { ExternalLink, MessageCircle, MapPin } from 'lucide-react';
+import { MessageCircle, MapPin } from 'lucide-react';
 
 const brl = (n: unknown) => {
   const v = Number(n ?? 0);
@@ -70,7 +69,6 @@ export function BagyPedidoView({ pedido }: { pedido: any }) {
   const etapa = etapaAtual(pedido.status_bagy, pl.fulfillment_status, pl.payment_status);
   const enderecoTxt = [addr.street, addr.number].filter(Boolean).join(', ') + (addr.district || addr.neighborhood ? ` - ${addr.district || addr.neighborhood}` : '');
   const mapsQ = encodeURIComponent(`${enderecoTxt}, ${addr.city || ''} - ${addr.state || ''}, ${addr.zipcode || ''}`);
-  const statusUrl = pl.token ? `https://7estrivos.com.br/pedido/${pl.token}` : null;
   const embarque = ship.shipment_time != null && pl.created_at ? new Date(new Date(String(pl.created_at).replace(' ', 'T')).getTime() + Number(ship.shipment_time) * 86400000) : null;
   const entrega = ship.delivery_time != null && pl.created_at ? new Date(new Date(String(pl.created_at).replace(' ', 'T')).getTime() + Number(ship.delivery_time) * 86400000) : null;
 
@@ -183,20 +181,6 @@ export function BagyPedidoView({ pedido }: { pedido: any }) {
               })}
             </ol>
           </Card>
-
-          {statusUrl && (
-            <Card title="Link de status do pedido">
-              <p className="text-sm text-muted-foreground mb-3">Com o link do pedido o cliente poderá acompanhar o status sem precisar fazer login.</p>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full" asChild><a href={statusUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} className="mr-1" /> Abrir status do pedido</a></Button>
-                {waNum && (
-                  <Button className="w-full bg-green-700 hover:bg-green-800 text-white" asChild>
-                    <a href={`https://wa.me/55${waNum}?text=${encodeURIComponent(`Acompanhe seu pedido: ${statusUrl}`)}`} target="_blank" rel="noreferrer"><MessageCircle size={14} className="mr-1" /> Enviar por WhatsApp</a>
-                  </Button>
-                )}
-              </div>
-            </Card>
-          )}
 
           <Card title="Tags">
             {tags.length > 0 ? (
