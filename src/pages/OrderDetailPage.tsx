@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { isOrderEstoque } from '@/lib/orderEstoque';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, businessDaysRemaining, formatBrasiliaDate, formatBrasiliaTime, orderBarcodeValue, matchOrderBarcode, PRODUCTION_STATUSES, EXTRAS_STATUSES, BELT_STATUSES } from '@/contexts/AuthContext';
 import { getOrderDeadlineInfo, getTotalBizDays } from '@/lib/orderDeadline';
@@ -81,6 +82,24 @@ const OrderDetailPage = () => {
   const podeEditarPedido = useCanEditOrder(order);
   const { getByCategoria } = useCustomOptions();
   const { prevId, nextId, index: neighborIndex, total: neighborTotal } = useOrderNeighbors(id);
+
+  // Pedido de estoque sem foto gravada: busca a foto no cadastro do Estoque pelo nome/tamanho.
+  const [fotoEstoqueFallback, setFotoEstoqueFallback] = useState<string | null>(null);
+  useEffect(() => {
+    setFotoEstoqueFallback(null);
+    if (!order || !isOrderEstoque(order)) return;
+    const det = (order.extraDetalhes || {}) as any;
+    if (det.foto_url || (order.fotos || []).some((f: string) => isHttpUrl(f))) return;
+    const desc: string = det.botas?.[0]?.descricaoProduto || det.descricaoProduto || '';
+    const m = desc.match(/^(.*?)\s+—\s+Tam\s+(\S+)/);
+    if (!m) return;
+    supabase.from('estoque_produtos').select('foto_url').eq('nome', m[1].trim()).eq('tamanho', m[2])
+      .not('foto_url', 'is', null).limit(1).then(({ data }) => {
+        const url = data?.[0]?.foto_url;
+        if (url) setFotoEstoqueFallback(url);
+      });
+  }, [order?.id]);
+
 
   // Atalhos de teclado: setas ← / → navegam entre pedidos.
   useEffect(() => {
@@ -566,7 +585,7 @@ const OrderDetailPage = () => {
   const ultimaJustificativaValor = [...alteracoesAgrupadas].reverse().find(g => g.afetouValor && g.justificativa);
   const justificativaValorSalva = ultimaJustificativaValor?.justificativa || order.descontoJustificativa;
 
-  const fotoEstoque = (order.extraDetalhes as any)?.origem_estoque ? (order.extraDetalhes as any)?.foto_url : null;
+  const fotoEstoque = (order.extraDetalhes as any)?.foto_url || fotoEstoqueFallback;
   const fotoUrlAtual = (order.fotos || []).find(f => isHttpUrl(f)) ?? (fotoEstoque && isHttpUrl(fotoEstoque) ? fotoEstoque : null);
   const showFotoPanel = fotoOpen && !!fotoUrlAtual;
 
@@ -679,6 +698,7 @@ const OrderDetailPage = () => {
           {/* ═══ Cabeçalho do Pedido — grid 2×2 + linha do prazo ═══ */}
           {(() => {
             const fotosValidas = (order.fotos || []).filter(f => isHttpUrl(f));
+            if (fotosValidas.length === 0 && fotoUrlAtual) fotosValidas.push(fotoUrlAtual);
             const temFoto = fotosValidas.length > 0;
             const dataHora = `${formatDateBR(order.dataCriacao)} — ${order.horaCriacao || ''}`.trim();
             const showVendedor = isAdmin;

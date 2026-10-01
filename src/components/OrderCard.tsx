@@ -1,4 +1,5 @@
 import React from 'react';
+import { isOrderEstoque } from '@/lib/orderEstoque';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, Pencil, Trash2, DollarSign } from 'lucide-react';
 import { EXTRA_PRODUCT_NAME_MAP } from '@/lib/extrasConfig';
@@ -128,6 +129,7 @@ const OrderCard = React.memo(({
 
       {isAdmin && (
         <div className="flex items-center gap-1 flex-shrink-0">
+          {!isOrderEstoque(order) && (
           <button onClick={() => {
             const editPath = order.tipoExtra === 'cinto'
               ? `/pedido/${order.id}/editar-cinto`
@@ -138,6 +140,7 @@ const OrderCard = React.memo(({
           }} className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Editar pedido">
             <Pencil size={16} />
           </button>
+          )}
           {canDelete && (confirmDeleteId === order.id ? (
             <div className="flex items-center gap-1">
               <button onClick={() => onDelete(order.id)} className="px-2 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90">Confirmar</button>
