@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { calcularChave } from './montarXmlNfe';
-import { ncmPorDescricao } from './ncm';
+import { ncmPorDescricao, carregarRegrasNcm } from './ncm';
 import { chamar } from './proxyProvider';
 
 const UF_COD: Record<string, string> = {
