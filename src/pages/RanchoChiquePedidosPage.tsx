@@ -251,14 +251,22 @@ const RanchoChiquePedidosPage = () => {
     }
     const bagyIdPorNumero: Record<string, string> = {};
     (peds || []).forEach((p: any) => { if (p.numero_bagy) bagyIdPorNumero[String(p.numero_bagy).trim()] = p.bagy_order_id; });
-    const baseNumero = (numero: string) => {
-      const s = numero.trim().toUpperCase().replace(/^RC[-\s]?/, '');
-      return (s.match(/^\d+/)?.[0]) ?? s.split(/[\s-]/)[0];
+    const bagyIdPorPortal: Record<string, string> = {};
+    (peds || []).forEach((p: any) => {
+      if (p.order_id_portal) bagyIdPorPortal[p.order_id_portal] = p.bagy_order_id;
+      (itensByPedLocal[p.id] || []).forEach((i: any) => { if (i.order_id_portal) bagyIdPorPortal[i.order_id_portal] = p.bagy_order_id; });
+    });
+    // Procura qualquer sequência de dígitos do texto que seja um número Bagy conhecido
+    const acharBagy = (...txts: any[]) => {
+      for (const t of txts) {
+        for (const d of String(t || '').match(/\d+/g) || []) if (bagyIdPorNumero[d]) return bagyIdPorNumero[d];
+      }
+      return null;
     };
     const sm: Record<string, OrderSyncInfo> = {};
     const byBagy: Record<string, PortalOrderInfo[]> = {};
     Array.from(ordsById.values()).sort((a, b) => String(a.numero).localeCompare(String(b.numero))).forEach((o: any) => {
-      const bagyKey = o.bagy_order_id || bagyIdPorNumero[baseNumero(String(o.numero || ''))] || null;
+      const bagyKey = o.bagy_order_id || bagyIdPorPortal[o.id] || acharBagy(o.numero, o.numero_pedido_bota) || null;
       const info: PortalOrderInfo = {
         id: o.id,
         numero: o.numero || null,
