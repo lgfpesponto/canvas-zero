@@ -87,7 +87,8 @@ Deno.serve(async (req) => {
     const { data: cfg } = await sb.from("nfe_config").select("*").order("created_at").limit(1).maybeSingle();
     if (!cfg) return json({ error: "Configure os dados da empresa em Configurações NF-e" }, 412);
     const { data: nota } = await sb.from("nfe_notas").select("numero,chave_acesso,valor_total,status")
-      .eq("bagy_pedido_id", ped.id).eq("tipo_nota", "normal").eq("status", "autorizada").maybeSingle();
+      .eq("bagy_pedido_id", ped.id).eq("tipo_nota", "normal").eq("status", "autorizada")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
     const e = ped.endereco || {};
     const dest = {
@@ -128,10 +129,18 @@ Deno.serve(async (req) => {
       provider = "correios";
       const token = await correiosToken();
       const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+      // Telefone: remove +55; 11 dígitos = celular (DDD + 9), 10 = fixo (DDD + 8).
+      const fone = (raw: unknown) => {
+        let d = dig(raw);
+        if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+        if (d.length === 11) return { dddCelular: d.slice(0, 2), celular: d.slice(2) };
+        if (d.length === 10) return { dddTelefone: d.slice(0, 2), telefone: d.slice(2) };
+        return {};
+      };
       const body: Record<string, unknown> = {
-        remetente: { nome: cfg.razao_social, cpfCnpj: dig(cfg.cnpj), email: cfg.email || "", dddTelefone: dig(cfg.telefone).slice(0, 2), telefone: dig(cfg.telefone).slice(2),
+        remetente: { nome: cfg.razao_social, cpfCnpj: dig(cfg.cnpj), email: cfg.email || "", ...fone(cfg.telefone),
           endereco: endCorreios({ ...cfg, cidade: cfg.municipio }) },
-        destinatario: { nome: dest.nome, cpfCnpj: dest.doc, email: dest.email, dddCelular: dest.fone.slice(-11, -9), celular: dest.fone.slice(-9), endereco: endCorreios(dest) },
+        destinatario: { nome: dest.nome, cpfCnpj: dest.doc, email: dest.email, ...fone(dest.fone), endereco: endCorreios(dest) },
         codigoServico: CORREIOS[servico],
         pesoInformado: String(Math.round(peso * 1000)),
         codigoFormatoObjetoInformado: "2",
@@ -140,7 +149,14 @@ Deno.serve(async (req) => {
         modalidadePagamento: "2",
       };
       if (nota?.chave_acesso) { body.numeroNotaFiscal = String(nota.numero); body.chaveNFe = nota.chave_acesso; }
-      else body.itensDeclaracaoConteudo = [{ conteudo: "Mercadoria", quantidade: "1", valor: valor.toFixed(2) }];
+      // Correios exigem a declaração de conteúdo mesmo com NF-e (desde 15/09/2025).
+      const { data: itens } = await sb.from("bagy_pedido_itens").select("*").eq("pedido_id", ped.id);
+      const decl = (itens || []).map((i: any) => ({
+        conteudo: String(i.nome_produto || "Mercadoria").slice(0, 80).padEnd(5, "."),
+        quantidade: String(Math.max(1, Math.round(Number(i.quantidade) || 1))),
+        valor: (Number(i.preco_unit ?? 0) || 0).toFixed(2),
+      }));
+      body.itensDeclaracaoConteudo = decl.length ? decl : [{ conteudo: "Mercadoria", quantidade: "1", valor: valor.toFixed(2) }];
       const r = await fetch(`${CWS}/prepostagem/v1/prepostagens`, { method: "POST", headers: h, body: JSON.stringify(body) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) return json({ error: "Correios: " + (j.msgs?.join(" ") || JSON.stringify(j).slice(0, 300)) }, 502);
