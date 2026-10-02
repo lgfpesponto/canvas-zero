@@ -5,6 +5,7 @@ import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero'
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
 import { useNavigate, useLocation } from 'react-router-dom';
+import CalcEmitter, { type CalcData } from '@/components/calculadora/CalcEmitter';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { saveDraft, deleteDraft, Draft } from '@/lib/drafts';
@@ -403,9 +404,12 @@ export interface OrderPageProps {
   onComprarSaved?: () => void;
   /** Callback quando o usuário clica EDITAR no espelho durante o fluxo Comprar embarcado. */
   onComprarEditar?: () => void;
+  /** Modo calculadora de precificação: sem salvar, só emite preço/seleções. */
+  calcMode?: boolean;
+  onCalcChange?: (d: CalcData) => void;
 }
 
-const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar }: OrderPageProps = {}) => {
+const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved, onBagyCancel, finalizeBadge, comprarModeloOverride, onComprarSaved, onComprarEditar, calcMode, onCalcChange }: OrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, addOrderBatch, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { getByCategoria } = useCustomOptions();
   const { items: fichaItems, findFichaPrice, findFichaPriceContextual, getByCustomCategory, findFotoByName, loading: fichaLoading } = useFichaVariacoesLookup();
@@ -478,7 +482,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   const draftId_init = draftState?.id || '';
   const [draftId, setDraftId] = useState(draftId_init);
   const [productChoice, setProductChoice] = useState<'bota' | null>(() => {
-    if (draftState || comprarModelo) return 'bota';
+    if (calcMode || draftState || comprarModelo || templateInit) return 'bota';
     if (locState?.productChoice === 'bota') return 'bota';
     if (typeof window !== 'undefined') {
       const q = new URLSearchParams(window.location.search);
@@ -1124,6 +1128,17 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bagyPrefill, fichaLoading]);
 
+  /* ───── Orçamento da calculadora → vendedor Rancho Chique ───── */
+  useEffect(() => {
+    if (!(locState as any)?.fromOrcamento) return;
+    (async () => {
+      const { data: prof } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+      if (prof?.nome_completo) setVendedorSelecionado(prof.nome_completo);
+      toast.info('Ficha pré-preenchida pelo orçamento. Informe o número do pedido Bagy e complete os campos obrigatórios.');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ───── Comprar Modelo prefill: vem de /modelos → "Comprar" ───── */
   const comprarAppliedRef = useRef(false);
   useEffect(() => {
@@ -1391,6 +1406,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
   /* ───── submit ───── */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (calcMode) return;
     const isGradeVendedor = (isAdmin && (vendedorSelecionado === 'Estoque' || vendedorSelecionado === 'Juliana Cristina Ribeiro')) || isVendedorComum;
     const isEstoqueGrade = isGradeVendedor && gradeItems.length > 0;
     if (isAdminProducao && (!vendedorSelecionado || vendedorSelecionado === user?.nomeCompleto)) {
@@ -2209,7 +2225,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           <h1 className="text-3xl font-display font-bold">
             {tmpl.isEditing ? 'Editar Modelo' : mode === 'template' ? 'Criar Modelo' : 'Ficha de Produção'}
           </h1>
-          {mode === 'order' && (
+          {mode === 'order' && !calcMode && (
             <div className="hidden lg:flex flex-wrap items-center gap-3">
               <Button type="button" variant="outline" size="sm" onClick={() => setAtalhosAberto(true)}>
                 <Keyboard size={16} /> Atalhos
@@ -2229,7 +2245,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </div>
 
         {/* Mobile: botões fora da ficha, 2 por linha */}
-        {mode === 'order' && (
+        {mode === 'order' && !calcMode && (
           <div className="lg:hidden mb-4 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setAtalhosAberto(true)}>
@@ -2796,7 +2812,13 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
           {/* Link da foto agora vive na seção Identificação no topo */}
 
-          {mode === 'order' && (
+          {calcMode && (
+            <CalcEmitter
+              onChange={onCalcChange}
+              data={{ tipo: 'bota', total, formData: { ...buildFormData(), tamanho, genero }, grupos: mirrorGrouped }}
+            />
+          )}
+          {mode === 'order' && !calcMode && (
             <>
               {/* Quantidade */}
               <div className="flex items-center gap-3">
