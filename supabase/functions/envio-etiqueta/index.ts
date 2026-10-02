@@ -16,8 +16,9 @@ const CWS = "https://api.correios.com.br";
 const ME = "https://www.melhorenvio.com.br/api/v2";
 
 const Body = z.object({
-  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me"]),
+  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me", "pix_me"]),
   bagyPedidoId: z.string().uuid().optional(),
+  valor: z.number().min(1).max(20000).optional(),
   servico: z.string().max(60).optional(), // PAC | SEDEX | MINI | RETIRADA | ME:<id>
   peso: z.number().positive().max(30).optional(), // kg
   altura: z.number().positive().max(150).optional(),
@@ -82,6 +83,32 @@ Deno.serve(async (req) => {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) return json({ error: "Melhor Envio: " + (j.message || r.status) }, 502);
       return json({ saldo: Number(j.balance ?? 0), reservado: Number(j.reserved ?? 0) });
+    }
+    if (b.acao === "pix_me") {
+      const tk = Deno.env.get("MELHOR_ENVIO_TOKEN");
+      if (!tk) return json({ error: "Token do Melhor Envio não configurado" }, 412);
+      if (!b.valor) return json({ error: "Informe o valor" }, 400);
+      const r = await fetch(`${ME}/me/balance`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tk}`, Accept: "application/json", "Content-Type": "application/json", "User-Agent": "Portal 7Estrivos (contato@7estrivos.com.br)" },
+        body: JSON.stringify({ gateway: "yapay-transparente", slug: "pix", value: Number(b.valor.toFixed(2)) }),
+      });
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok) return json({ error: "Melhor Envio (Pix): " + (j.message || JSON.stringify(j.errors || j).slice(0, 300)) }, 502);
+      // Procura o código copia-e-cola, imagem do QR e link em qualquer nível da resposta.
+      let copia = "", imagem = "", link = "";
+      const walk = (o: any) => {
+        if (!o || typeof o !== "object") return;
+        for (const [k, v] of Object.entries(o)) {
+          if (typeof v === "string") {
+            if (!copia && v.startsWith("000201")) copia = v;
+            else if (!imagem && (v.startsWith("data:image") || (/qr/i.test(k) && /^https?:.*\.(png|jpe?g|svg)/i.test(v)))) imagem = v;
+            else if (!link && /^https?:\/\//.test(v)) link = v;
+          } else walk(v);
+        }
+      };
+      walk(j);
+      return json({ copia, imagem, link, id: j.id ?? j.transaction?.id ?? null });
     }
     if (!b.bagyPedidoId) return json({ error: "bagyPedidoId obrigatório" }, 400);
 
