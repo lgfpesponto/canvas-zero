@@ -1128,6 +1128,17 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bagyPrefill, fichaLoading]);
 
+  /* ───── Orçamento da calculadora → vendedor Rancho Chique ───── */
+  useEffect(() => {
+    if (!(locState as any)?.fromOrcamento) return;
+    (async () => {
+      const { data: prof } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+      if (prof?.nome_completo) setVendedorSelecionado(prof.nome_completo);
+      toast.info('Ficha pré-preenchida pelo orçamento. Informe o número do pedido Bagy e complete os campos obrigatórios.');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ───── Comprar Modelo prefill: vem de /modelos → "Comprar" ───── */
   const comprarAppliedRef = useRef(false);
   useEffect(() => {
