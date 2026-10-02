@@ -237,6 +237,16 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
     motivo_rejeicao: autorizada ? null : motivo,
     xml_assinado: (resp.xml ?? null) as any, xml_autorizado: (resp.xmlAutorizado ?? null) as any,
   } as any).eq('id', nota.id);
+  if (autorizada && nota.bagy_pedido_id) {
+    // Bagy → "Faturado" com número/série da nota (fila processada a cada minuto).
+    try {
+      const { data: bp } = await supabase.from('bagy_pedidos').select('bagy_order_id').eq('id', nota.bagy_pedido_id).maybeSingle();
+      if (bp?.bagy_order_id) {
+        const { error: qErr } = await supabase.from('bagy_status_sync_queue').insert({ bagy_order_id: bp.bagy_order_id, target_status: 'invoiced', nf_numero: `${numero}/${serie}` } as any);
+        if (qErr) console.warn('Fila Bagy (faturado):', qErr.message);
+      }
+    } catch (e) { console.warn('Fila Bagy (faturado):', e); }
+  }
   return { notaId: nota.id, numero, autorizada, motivo };
 }
 

@@ -200,6 +200,13 @@ Deno.serve(async (req) => {
       etiqueta_gerada_em: new Date().toISOString(),
       ...(rastreio ? { tracking_code: rastreio, tracking_url: provider === "correios" ? `https://rastreamento.correios.com.br/app/index.php?objeto=${rastreio}` : `https://melhorrastreio.com.br/rastreio/${rastreio}` } : {}),
     }).eq("id", ped.id);
+    if (rastreio && ped.bagy_order_id) {
+      // Bagy → "Despachado" com código e link de rastreio (fila processada a cada minuto).
+      await sb.from("bagy_status_sync_queue").insert({
+        bagy_order_id: ped.bagy_order_id, target_status: "shipped", tracking_code: rastreio,
+        tracking_url: provider === "correios" ? `https://rastreamento.correios.com.br/app/index.php?objeto=${rastreio}` : `https://melhorrastreio.com.br/rastreio/${rastreio}`,
+      });
+    }
     return json({ ok: true, servico, rastreio, etiqueta_path: path });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
