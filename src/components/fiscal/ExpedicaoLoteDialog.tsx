@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Pencil, Printer, RefreshCw, Send, Truck, Wallet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Printer, QrCode, RefreshCw, Send, Truck, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
@@ -9,12 +9,13 @@ import { chamarEnvio, detectarServico, rotuloServico } from '@/lib/envio';
 import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
 import { DanfeViewerDialog } from './DanfeViewerDialog';
 import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';
+import { PixMelhorEnvioDialog } from '@/components/envio/PixMelhorEnvioDialog';
 
 type St = 'aguardando' | 'enviando' | 'ok' | 'erro';
 type Linha = {
   id: string; numero: string; cliente: string;
   nfe: St; nfeMsg: string; notaId: string | null; notaNum: number | null;
-  etq: St; etqMsg: string; rastreio: string | null; servico: string; metodo: string;
+  etq: St; etqMsg: string; rastreio: string | null; servico: string; metodo: string; frete: number;
 };
 
 const Icone = ({ s }: { s: St }) => s === 'ok' ? <CheckCircle2 size={16} className="text-primary" />
@@ -33,6 +34,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const [envioPed, setEnvioPed] = useState<any>(null);
   const [casado, setCasado] = useState<string[] | null>(null);
   const [saldo, setSaldo] = useState<number | null | 'erro'>(null);
+  const [pixOpen, setPixOpen] = useState(false);
 
   const upd = (id: string, p: Partial<Linha>) => setLinhas(ls => ls.map(l => l.id === id ? { ...l, ...p } : l));
 
@@ -46,7 +48,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
     try {
       const [notas, { data: peds }] = await Promise.all([
         prepararNotasBagy(ids, portalIdPorBagy),
-        supabase.from('bagy_pedidos').select('id,numero_bagy,cliente_nome,etiqueta_path,tracking_code,envio_servico,metodo_envio').in('id', ids),
+        supabase.from('bagy_pedidos').select('id,numero_bagy,cliente_nome,etiqueta_path,tracking_code,envio_servico,metodo_envio,frete').in('id', ids),
       ]);
       const m: Record<string, NotaRascunho> = {}; notas.forEach(n => { m[n.bagyPedidoId] = n; });
       setRasc(m);
@@ -64,7 +66,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
           notaId: aut ? n.notaExistente.id : null, notaNum: aut ? n.notaExistente.numero : null,
           etq: (p.etiqueta_path || retirada) ? 'ok' : (old?.etq === 'erro' ? 'erro' : 'aguardando'),
           etqMsg: p.etiqueta_path || retirada ? '' : old?.etq === 'erro' ? old.etqMsg : '', rastreio: p.tracking_code ?? null,
-          servico, metodo: p.metodo_envio ?? '',
+          servico, metodo: p.metodo_envio ?? '', frete: Number(p.frete ?? 0) || 0,
         };
       }));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
@@ -122,6 +124,10 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
 
   const lista = corrigir ? linhas.filter(l => corrigir.includes(l.id)) : linhas;
   const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const meLinhas = linhas.filter(l => (l.servico === 'ME' || l.servico.startsWith('ME:')) && l.etq !== 'ok');
+  const totalME = meLinhas.reduce((s, l) => s + l.frete, 0);
+  const saldoNum = typeof saldo === 'number' ? saldo : null;
+  const faltaME = Math.max(0, totalME - (saldoNum ?? 0));
 
   return (
     <Dialog open={!!pedidoIds} onOpenChange={o => !o && !busy && onClose()}>
@@ -131,8 +137,11 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
           <Wallet size={14} />
           <span>Saldo Melhor Envio: <b>{saldo === null ? '...' : saldo === 'erro' ? 'indisponível' : brl(saldo)}</b></span>
           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={carregarSaldo}><RefreshCw size={12} /></Button>
-          <Button size="sm" variant="outline" className="h-7 ml-auto" asChild>
-            <a href="https://melhorenvio.com.br/painel/gerenciar/carteira" target="_blank" rel="noreferrer"><ExternalLink size={12} className="mr-1" /> Recarregar carteira</a>
+          {meLinhas.length > 0 && (
+            <span>· Fretes Melhor Envio ({meLinhas.length}): <b>{brl(totalME)}</b>{saldoNum !== null && <> · {faltaME > 0 ? <>falta <b className="text-destructive">{brl(faltaME)}</b></> : <b className="text-primary">saldo suficiente</b>}</>}</span>
+          )}
+          <Button size="sm" className="h-7 ml-auto" onClick={() => setPixOpen(true)}>
+            <QrCode size={12} className="mr-1" /> {meLinhas.length ? `Pagar fretes via Pix (${brl(faltaME > 0 ? faltaME : totalME)})` : 'Recarregar via Pix'}
           </Button>
         </div>
         {loading && !linhas.length ? (
@@ -194,6 +203,8 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
         )}
         <EnvioEtiquetaDialog pedido={envioPed} onClose={() => setEnvioPed(null)} onDone={() => { if (pedidoIds) carregar(pedidoIds); }} />
         <DanfeViewerDialog notaIds={casado} mode="etiqueta" casada onClose={() => setCasado(null)} />
+        <PixMelhorEnvioDialog open={pixOpen} sugerido={faltaME > 0 ? faltaME : (totalME || 50)} totalFretes={totalME} qtd={meLinhas.length}
+          saldoAtual={saldoNum} onClose={() => setPixOpen(false)} onPago={carregarSaldo} />
       </DialogContent>
     </Dialog>
   );
