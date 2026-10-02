@@ -561,7 +561,7 @@ const RanchoChiquePedidosPage = () => {
       const ord = await fetchOrderByScan(raw).catch(() => null);
       if (ord) {
         alvo = pedidos.find(p => portalDe(p).some(o => o.id === ord.id))
-          || pedidos.find(p => (`${ord.numero} ${(ord as any).numeroPedidoBota || ''}`.match(/\d+/g) || []).includes(p.numero_bagy));
+          || pedidos.find(p => ((`${ord.numero} ${(ord as any).numeroPedidoBota || ''}`.match(/\d+/g) || []) as string[]).includes(p.numero_bagy));
       }
     }
     if (!alvo && filtered.length === 1) alvo = filtered[0];
