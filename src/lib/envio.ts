@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { etiquetaTermica } from '@/lib/etiquetaCorreios';
 
 export const SERVICOS_ENVIO = [
   { value: 'PAC', label: 'Correios PAC (contrato)' },
@@ -51,10 +52,11 @@ export async function carregarEtiquetasEnvio(notaIds: string[]) {
   const { data: peds } = await supabase.from('bagy_pedidos').select('id,etiqueta_path' as any).in('id', pedIds);
   const pathPorPed = new Map((peds ?? []).map((p: any) => [p.id, p.etiqueta_path]));
   for (const n of notas ?? []) {
-    const path = pathPorPed.get((n as any).bagy_pedido_id);
+    const pedId = (n as any).bagy_pedido_id;
+    const path = pathPorPed.get(pedId);
     if (!path) continue;
-    const { data } = await supabase.storage.from('etiquetas-envio').download(path);
-    if (data) out[(n as any).id] = await data.arrayBuffer();
+    const buf = await etiquetaTermica(pedId, path);
+    if (buf) out[(n as any).id] = buf;
   }
   return out;
 }
@@ -68,9 +70,9 @@ export async function gerarEtiquetasLoteBlobUrl(bagyPedidoIds: string[]) {
   for (const id of bagyPedidoIds) {
     const path = pathPorPed.get(id);
     if (!path) continue;
-    const { data } = await supabase.storage.from('etiquetas-envio').download(path);
-    if (!data) continue;
-    const src = await PDFDocument.load(await data.arrayBuffer());
+    const buf = await etiquetaTermica(id, path);
+    if (!buf) continue;
+    const src = await PDFDocument.load(buf);
     (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p));
   }
   if (out.getPageCount() === 0) throw new Error('Nenhuma etiqueta de envio gerada nesses pedidos.');
