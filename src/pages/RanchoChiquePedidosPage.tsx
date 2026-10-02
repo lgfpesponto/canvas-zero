@@ -362,7 +362,13 @@ const RanchoChiquePedidosPage = () => {
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
   // Fila de fichas: aprovados a partir do corte, sem pedido em Meus Pedidos e não dispensados
   const FICHA_CORTE_ISO = '2026-10-02T03:00:00Z'; // 02/10/2026 00:00 (Brasília)
-  const itensSemFicha = (p: BagyPedido) => (itensByPed[p.id] || []).filter(i => !i.order_id_portal);
+  // Só bota, texana, botina ou cinto geram ficha (brindes como chaveiro são ignorados)
+  const ehProdutoFicha = (nome?: string | null) => {
+    const n = (nome || '').toLowerCase();
+    if (/chaveiro|brinde/.test(n)) return false;
+    return /\b(bota|botas|texana|texanas|botina|botinas|cinto|cintos)\b/.test(n);
+  };
+  const itensSemFicha = (p: BagyPedido) => (itensByPed[p.id] || []).filter(i => !i.order_id_portal && ehProdutoFicha(i.nome_produto));
   const fichasPendentes = pedidos.filter(p =>
     p.status_bagy === 'approved' &&
     p.flag !== 'ficha_dispensada' &&
@@ -440,7 +446,7 @@ const RanchoChiquePedidosPage = () => {
    * Se houver mais de 1 par no pedido inteiro (soma das quantidades), aplica sufixo A/B/C...
    */
   const queueFromPedido = (p: BagyPedido): BagyFichaQueueItem[] => {
-    const itens = (itensByPed[p.id] || []).filter(i => !i.order_id_portal && (i.status === 'aguardando_ficha' || fichasPendentes.some(f => f.id === p.id)));
+    const itens = (itensByPed[p.id] || []).filter(i => !i.order_id_portal && ehProdutoFicha(i.nome_produto) && (i.status === 'aguardando_ficha' || fichasPendentes.some(f => f.id === p.id)));
     const totalPares = itens.reduce((s, i) => s + Math.max(1, i.quantidade || 1), 0);
     const numeroBase = `RC-${p.numero_bagy}`;
     const out: BagyFichaQueueItem[] = [];
