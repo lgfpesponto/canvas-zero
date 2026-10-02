@@ -16,8 +16,8 @@ const CWS = "https://api.correios.com.br";
 const ME = "https://www.melhorenvio.com.br/api/v2";
 
 const Body = z.object({
-  acao: z.enum(["gerar", "cotar", "salvar_servico"]),
-  bagyPedidoId: z.string().uuid(),
+  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me"]),
+  bagyPedidoId: z.string().uuid().optional(),
   servico: z.string().max(60).optional(), // PAC | SEDEX | MINI | RETIRADA | ME:<id>
   peso: z.number().positive().max(30).optional(), // kg
   altura: z.number().positive().max(150).optional(),
@@ -74,6 +74,16 @@ Deno.serve(async (req) => {
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
     const b = parsed.data;
+
+    if (b.acao === "saldo_me") {
+      const tk = Deno.env.get("MELHOR_ENVIO_TOKEN");
+      if (!tk) return json({ error: "Token do Melhor Envio não configurado" }, 412);
+      const r = await fetch(`${ME}/me/balance`, { headers: { Authorization: `Bearer ${tk}`, Accept: "application/json", "User-Agent": "Portal 7Estrivos (contato@7estrivos.com.br)" } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return json({ error: "Melhor Envio: " + (j.message || r.status) }, 502);
+      return json({ saldo: Number(j.balance ?? 0), reservado: Number(j.reserved ?? 0) });
+    }
+    if (!b.bagyPedidoId) return json({ error: "bagyPedidoId obrigatório" }, 400);
 
     const { data: ped } = await sb.from("bagy_pedidos").select("*").eq("id", b.bagyPedidoId).maybeSingle();
     if (!ped) return json({ error: "Pedido não encontrado" }, 404);
