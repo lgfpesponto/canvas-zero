@@ -173,12 +173,6 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                 </>
               ) : (
                 <>
-                  {(nfeErros.length > 0 || etqErros.length > 0) && (
-                    <Button variant="outline" className="border-destructive text-destructive" disabled={!!busy}
-                      onClick={() => setCorrigir([...new Set([...nfeErros, ...etqErros].map(l => l.id))])}>
-                      <AlertTriangle size={16} className="mr-1" /> Corrigir erros ({new Set([...nfeErros, ...etqErros].map(l => l.id)).size})
-                    </Button>
-                  )}
                   <Button variant={jaEnviou ? 'outline' : 'default'} disabled={!!busy || prontasSefaz === 0} onClick={enviarSefaz}>
                     {busy === 'nfe' ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Send size={16} className="mr-1" />}
                     {jaEnviou ? 'Enviar à SEFAZ (pendentes/erros)' : 'Enviar para SEFAZ'} ({prontasSefaz})
