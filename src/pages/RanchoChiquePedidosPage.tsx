@@ -465,7 +465,7 @@ const RanchoChiquePedidosPage = () => {
     if (primaryPortalId) {
       const ids = getPortalOrdersForPedido(trackDialog).map(o => o.id);
       const targetIds = ids.length > 0 ? ids : [primaryPortalId];
-      await supabase.from('orders').update({ status: 'Despachado' } as any).in('id', targetIds);
+      const { avancarBaixaSite } = await import('@/lib/baixaSite'); await avancarBaixaSite(trackDialog.id);
       await sincronizarBagy(targetIds, { silent: false });
     } else {
       toast.success('Rastreio salvo. Vincule o pedido ao portal para sincronizar com a Bagy.');

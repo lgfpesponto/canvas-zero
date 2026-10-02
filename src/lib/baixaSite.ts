@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { formatBrasiliaDate, formatBrasiliaTime } from '@/lib/utils';
+import { formatBrasiliaDate, formatBrasiliaTime } from '@/contexts/AuthContext';
 
 export const BAIXA_SITE = 'Baixa Site (Despachado)';
 const ETAPAS_LIBERADAS = ['Baixa Montagem', 'Revisão', 'Expedição'];
