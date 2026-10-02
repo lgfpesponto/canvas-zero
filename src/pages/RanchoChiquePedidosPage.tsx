@@ -1,6 +1,17 @@
 import { ExpedicaoLoteDialog } from '@/components/fiscal/ExpedicaoLoteDialog';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { fetchOrderByScan } from '@/hooks/useOrders';
+
+const beep = (ok: boolean) => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = ok ? 1200 : 400; gain.gain.value = 0.3;
+    osc.start(); osc.stop(ctx.currentTime + (ok ? 0.15 : 0.3));
+  } catch {}
+};
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -140,7 +151,16 @@ const RanchoChiquePedidosPage = () => {
   const [portalOrdersByBagy, setPortalOrdersByBagy] = useState<Record<string, PortalOrderInfo[]>>({});
   const [nfeByPedido, setNfeByPedido] = useState<Record<string, BagyNfeInfo>>({});
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearchState] = useState(() => searchParams.get('q') || '');
+  const setSearch = (v: string) => {
+    setSearchState(v);
+    const sp = new URLSearchParams(searchParams);
+    if (v) sp.set('q', v); else sp.delete('q');
+    setSearchParams(sp, { replace: true });
+  };
+  const searchRef = useRef<HTMLInputElement>(null);
+  const goPortal = (id: string) => navigate(`/pedido/${id}`, { state: { from: `/rancho-chique/pedidos${search ? `?q=${encodeURIComponent(search)}` : ''}` } });
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
   const [filtroStatusBagy, setFiltroStatusBagy] = useState<string>('todos');
   const [reprocessing, setReprocessing] = useState(false);
@@ -525,6 +545,35 @@ const RanchoChiquePedidosPage = () => {
   };
   const clearSelection = () => setSelected(new Set());
 
+  // Leitor de código de barras: Enter seleciona o pedido, limpa e mantém o foco
+  const handleScanEnter = async () => {
+    const raw = search.trim();
+    if (!raw) return;
+    const up = raw.toUpperCase();
+    const digits = raw.replace(/\D/g, '');
+    const portalDe = (p: BagyPedido) => [
+      ...(portalOrdersByBagy[p.bagy_order_id] || []),
+      ...(p.order_id_portal ? [{ id: p.order_id_portal, numero: null as string | null }] : []),
+    ];
+    let alvo = pedidos.find(p => p.numero_bagy === raw || (digits.length >= 8 && p.numero_bagy === digits)
+      || portalDe(p).some(o => matchOrderBarcode(up, { id: o.id, numero: o.numero || '' })));
+    if (!alvo) {
+      const ord = await fetchOrderByScan(raw).catch(() => null);
+      if (ord) {
+        alvo = pedidos.find(p => portalDe(p).some(o => o.id === ord.id))
+          || pedidos.find(p => ((`${ord.numero} ${(ord as any).numeroPedidoBota || ''}`.match(/\d+/g) || []) as string[]).includes(p.numero_bagy));
+      }
+    }
+    if (!alvo && filtered.length === 1) alvo = filtered[0];
+    setSearch('');
+    requestAnimationFrame(() => searchRef.current?.focus());
+    if (!alvo) { beep(false); toast.error(`Pedido não encontrado: ${raw}`); return; }
+    if (selected.has(alvo.id)) { beep(false); toast.warning(`Pedido ${alvo.numero_bagy} já está selecionado`); return; }
+    setSelected(prev => new Set(prev).add(alvo!.id));
+    beep(true);
+    toast.success(`Selecionado: ${alvo.numero_bagy} — ${alvo.cliente_nome || ''}`);
+  };
+
   // Os ids de portal correspondentes aos pedidos selecionados (subset elegível para sync)
   const selectedPortalIds = useMemo(() => {
     const byId = new Map(pedidos.map(p => [p.id, p]));
@@ -596,7 +645,9 @@ const RanchoChiquePedidosPage = () => {
       <div className="flex gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar nº Bagy, nº do pedido, código de barras, cliente, CPF..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Input ref={searchRef} autoFocus className="pl-9" placeholder="Buscar ou escanear código de barras (Enter seleciona)..." value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleScanEnter(); } }} />
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <span>De</span>

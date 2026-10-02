@@ -107,8 +107,8 @@ const OrderDetailPage = () => {
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      if (e.key === 'ArrowLeft' && prevId) { e.preventDefault(); navigate('/pedido/' + prevId + location.search); }
-      else if (e.key === 'ArrowRight' && nextId) { e.preventDefault(); navigate('/pedido/' + nextId + location.search); }
+      if (e.key === 'ArrowLeft' && prevId) { e.preventDefault(); navigate('/pedido/' + prevId + location.search, { state: location.state }); }
+      else if (e.key === 'ArrowRight' && nextId) { e.preventDefault(); navigate('/pedido/' + nextId + location.search, { state: location.state }); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -152,7 +152,7 @@ const OrderDetailPage = () => {
           toggle(order.id);
         }
         setScanValue('');
-        navigate('/pedido/' + match.id + location.search);
+        navigate('/pedido/' + match.id + location.search, { state: location.state });
       } else {
         toast.error('Pedido não encontrado.');
         setScanValue('');
@@ -596,7 +596,11 @@ const OrderDetailPage = () => {
         {!isPreview && (<>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => navigate(`/relatorios${location.search}`)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => {
+              const from = (location.state as any)?.from;
+              if (typeof from === 'string' && from.startsWith('/rancho-chique/pedidos')) navigate(from);
+              else navigate(`/relatorios${location.search}`);
+            }} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft size={16} /> Voltar
             </button>
             <div className="flex items-center gap-1 ml-2">
@@ -604,7 +608,7 @@ const OrderDetailPage = () => {
                 variant="outline"
                 size="sm"
                 disabled={!prevId}
-                onClick={() => prevId && navigate('/pedido/' + prevId + location.search)}
+                onClick={() => prevId && navigate('/pedido/' + prevId + location.search, { state: location.state })}
                 title="Pedido anterior (←)"
                 aria-label="Pedido anterior"
               >
@@ -619,7 +623,7 @@ const OrderDetailPage = () => {
                 variant="outline"
                 size="sm"
                 disabled={!nextId}
-                onClick={() => nextId && navigate('/pedido/' + nextId + location.search)}
+                onClick={() => nextId && navigate('/pedido/' + nextId + location.search, { state: location.state })}
                 title="Próximo pedido (→)"
                 aria-label="Próximo pedido"
               >
