@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, SkipForward, X } from 'lucide-react';
+import { Loader2, SkipForward, X, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderPage from '@/pages/OrderPage';
 import BeltOrderPage from '@/pages/BeltOrderPage';
@@ -53,6 +53,7 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
   const [skipped, setSkipped] = useState(0);
   // remount key força OrderPage a recriar (estado limpo) a cada item
   const [mountKey, setMountKey] = useState(0);
+  const [full, setFull] = useState(false);
 
   // Reset quando abre
   useEffect(() => {
@@ -150,7 +151,9 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) finishFlow(false); }}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[95vh] overflow-y-auto p-0">
+      <DialogContent className={full
+        ? 'max-w-none w-screen h-screen max-h-screen rounded-none sm:rounded-none overflow-y-auto p-0'
+        : 'max-w-5xl w-[95vw] max-h-[95vh] overflow-y-auto p-0'}>
         <div className="flex items-center justify-between px-4 py-2 border-b bg-card sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <span className="font-display font-bold text-sm">
@@ -163,6 +166,10 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setFull(f => !f)} title={full ? 'Reduzir' : 'Tela cheia'}>
+              {full ? <Minimize2 size={14} className="mr-1" /> : <Maximize2 size={14} className="mr-1" />}
+              {full ? 'Reduzir' : 'Tela cheia'}
+            </Button>
             {total > 1 && idx < total - 1 && (
               <Button size="sm" variant="ghost" onClick={() => advance(false, 'Pulado.')}>
                 <SkipForward size={14} className="mr-1" /> Pular este

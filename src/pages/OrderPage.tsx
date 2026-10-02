@@ -1078,7 +1078,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
         if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
         if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
-        if (bagyPrefill.fotoUrl) setFotoUrl(bagyPrefill.fotoUrl);
+        if (bagyPrefill.fotoUrl) { setFotoUrl(bagyPrefill.fotoUrl); if (isHttpUrl(bagyPrefill.fotoUrl)) setMostrarFotoPainel(true); }
         const { data: prof0 } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
         if (prof0?.nome_completo) setVendedorSelecionado(prof0.nome_completo);
         toast.info(`Pedido ${bagyPrefill.numero} sem modelo rascunho: preencha a ficha e salve.`);
@@ -1106,7 +1106,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
       if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
       if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
       if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
-      if (bagyPrefill.fotoUrl) setFotoUrl(bagyPrefill.fotoUrl);
+      if (bagyPrefill.fotoUrl) { setFotoUrl(bagyPrefill.fotoUrl); if (isHttpUrl(bagyPrefill.fotoUrl)) setMostrarFotoPainel(true); }
       // Vendedor = Rancho Chique (resolve pelo user 'site')
       const { data: prof } = await supabase
         .from('profiles')
