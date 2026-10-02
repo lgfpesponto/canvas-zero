@@ -126,7 +126,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   return (
     <Dialog open={!!pedidoIds} onOpenChange={o => !o && !busy && onClose()}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{corrigir ? 'Corrigir erros' : `Expedição em lote (${linhas.length} pedidos)`}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{corrigir ? 'Corrigir erros' : `Notas em lista (${linhas.length} pedidos)`}</DialogTitle></DialogHeader>
         <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/40 px-3 py-2 text-xs">
           <Wallet size={14} />
           <span>Saldo Melhor Envio: <b>{saldo === null ? '...' : saldo === 'erro' ? 'indisponível' : brl(saldo)}</b></span>
@@ -146,7 +146,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                     <div className="font-mono font-bold">RC-{l.numero}</div>
                     <div className="text-xs text-muted-foreground truncate">{l.cliente || '—'}</div>
                     <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${l.servico === 'RETIRADA' ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`} title={l.metodo}>
-                      {rotuloServico(l.servico) || '—'}
+                      {rotuloServico(l.servico, l.metodo) || '—'}
                     </span>
                   </div>
                   <div className="flex gap-1.5 items-start"><Icone s={l.nfe} /><div className="text-xs flex-1">
@@ -181,7 +181,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                   )}
                   <Button variant={jaEnviou ? 'outline' : 'default'} disabled={!!busy || prontasSefaz === 0} onClick={enviarSefaz}>
                     {busy === 'nfe' ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Send size={16} className="mr-1" />}
-                    {jaEnviou ? 'Reenviar à SEFAZ' : 'Enviar todas à SEFAZ'} ({prontasSefaz})
+                    {jaEnviou ? 'Enviar à SEFAZ (pendentes/erros)' : 'Enviar para SEFAZ'} ({prontasSefaz})
                   </Button>
                   <Button variant={prontasEtq ? 'default' : 'outline'} disabled={!!busy || prontasEtq === 0} onClick={gerarEtiquetas}>
                     {busy === 'etq' ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Truck size={16} className="mr-1" />} Gerar etiquetas ({prontasEtq})

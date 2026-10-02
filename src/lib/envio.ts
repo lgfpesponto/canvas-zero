@@ -20,9 +20,9 @@ export function detectarServico(metodo?: string | null): string {
   return 'PAC';
 }
 
-export function rotuloServico(s?: string | null) {
+export function rotuloServico(s?: string | null, metodo?: string | null) {
   if (!s) return '';
-  if (s.startsWith('ME:')) return 'Melhor Envio';
+  if (s === 'ME' || s.startsWith('ME:')) return metodo ? `Melhor Envio · ${metodo}` : 'Melhor Envio';
   return SERVICOS_ENVIO.find(x => x.value === s)?.label ?? s;
 }
 
