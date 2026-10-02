@@ -730,7 +730,7 @@ const RanchoChiquePedidosPage = () => {
                   <div className="border-t p-2 space-y-2 bg-background">
                     <BagyPedidoView pedido={p} nota={notaFiscal} statusLabel={STATUS_BAGY_LABEL[p.status_bagy]}
                       onOpenNota={() => notaFiscal && (nfeAutorizada ? setDanfeView({ id: notaFiscal.id, mode: 'a4' }) : setNfeIds([p.id]))}
-                      onOpenTracking={() => p.tracking_url ? window.open(p.tracking_url, '_blank') : (setTrackDialog(p), setTrackCode(p.tracking_code || ''), setTrackUrl(p.tracking_url || ''))} />
+                      onOpenTracking={() => p.etiqueta_path ? setLoteEtiquetas([p.id]) : p.tracking_url ? window.open(p.tracking_url, '_blank') : (setTrackDialog(p), setTrackCode(p.tracking_code || ''), setTrackUrl(p.tracking_url || ''))} />
 
                     {flag && p.flag !== 'aguardando_mapeamento' && (
                     <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
