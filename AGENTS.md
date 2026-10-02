@@ -8,3 +8,4 @@
 
 - A Bagy NF-e return (devolução) marks the original normal note as `devolvida`, which frees a new normal note for the exchange order (TROCA+number); the history stays intact and only one active note exists.
 - The Bagy order list loads without `payload` and links portal orders with one candidate query, matching numbers in memory; this avoids slow ILIKE scans.
+- The pricing calculator (`/calculadora`) embeds `OrderPage`/`BeltOrderPage` with `calcMode`, receiving price and selections through `CalcEmitter`; this reuses the real production form instead of duplicating price rules.

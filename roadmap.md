@@ -14,3 +14,4 @@
 - [x] Impedir NF-e normal duplicada por pedido Bagy
 - [x] Impressão A4 e etiqueta fiscal diretamente no pedido autorizado
 - [x] Campos fiscais vazios exibidos como zero no DANFE
+- [x] Calculadora de precificação (Rancho Chique + admin master): config de custos, cartão 3x/Pix, discriminação com copiar, orçamentos → fazer ficha
