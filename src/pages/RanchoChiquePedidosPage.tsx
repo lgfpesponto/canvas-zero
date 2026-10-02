@@ -189,6 +189,7 @@ const RanchoChiquePedidosPage = () => {
     }
     setPedidos((peds || []) as any);
     const ids = (peds || []).map((p: any) => p.id);
+    let itensByPedLocal: Record<string, any[]> = {};
     if (ids.length > 0) {
       const parts = chunk(ids);
       const results = await Promise.all(parts.map(async (part) => {
@@ -209,6 +210,7 @@ const RanchoChiquePedidosPage = () => {
         (map[i.pedido_id] ||= []).push(i);
       });
       setItensByPed(map);
+      itensByPedLocal = map;
       const nfeMap: Record<string, BagyNfeInfo> = {};
       notas.forEach((nota: any) => {
         if (!nota.bagy_pedido_id) return;
