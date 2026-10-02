@@ -438,5 +438,9 @@ export async function emitirDevolucao(notaPaiId: string, itensDev: { itemId: str
     motivo_rejeicao: autorizada ? null : motivo,
     xml_assinado: (resp.xml ?? null) as any, xml_autorizado: (resp.xmlAutorizado ?? null) as any,
   } as any).eq('id', nota.id);
+  // Nota original fica salva como "devolvida": libera uma nova NF-e normal (troca) para o mesmo pedido.
+  if (autorizada && pai.tipo_nota === 'normal') {
+    await supabase.from('nfe_notas').update({ status: 'devolvida' } as any).eq('id', pai.id);
+  }
   return { notaId: nota.id, numero, autorizada, motivo };
 }
