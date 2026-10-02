@@ -1069,6 +1069,20 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (bagyPrefillAppliedRef.current || !bagyPrefill || fichaLoading) return;
     bagyPrefillAppliedRef.current = true;
     (async () => {
+      if (!bagyPrefill.templateId) {
+        // Sem SKU mapeado: ficha em branco só com os dados do pedido
+        setProductChoice('bota');
+        setMode('order');
+        if (bagyPrefill.numero) setNumeroPedido(bagyPrefill.numero);
+        if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
+        if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
+        if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
+        if (bagyPrefill.fotoUrl) setFotoUrl(bagyPrefill.fotoUrl);
+        const { data: prof0 } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+        if (prof0?.nome_completo) setVendedorSelecionado(prof0.nome_completo);
+        toast.info(`Pedido ${bagyPrefill.numero} sem modelo rascunho: preencha a ficha e salve.`);
+        return;
+      }
       const { data: tmplRow } = await supabase
         .from('order_templates')
         .select('id, nome, form_data, genero, sku, tamanhos_skus')
