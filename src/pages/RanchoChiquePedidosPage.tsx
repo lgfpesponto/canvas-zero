@@ -189,6 +189,7 @@ const RanchoChiquePedidosPage = () => {
     }
     setPedidos((peds || []) as any);
     const ids = (peds || []).map((p: any) => p.id);
+    let itensByPedLocal: Record<string, any[]> = {};
     if (ids.length > 0) {
       const parts = chunk(ids);
       const results = await Promise.all(parts.map(async (part) => {
@@ -209,6 +210,7 @@ const RanchoChiquePedidosPage = () => {
         (map[i.pedido_id] ||= []).push(i);
       });
       setItensByPed(map);
+      itensByPedLocal = map;
       const nfeMap: Record<string, BagyNfeInfo> = {};
       notas.forEach((nota: any) => {
         if (!nota.bagy_pedido_id) return;
@@ -231,25 +233,40 @@ const RanchoChiquePedidosPage = () => {
       ));
       ordParts.flat().forEach((o: any) => ordsById.set(o.id, o));
     }
-    // Vínculo por número: aceita "RC-123", "123", "123 01", "123-02", "123A", "RC-123 01"...
-    // Identifica pelo número do pedido Bagy no início; o que vier depois é sufixo de par.
+    // Vínculo por número: o número Bagy pode aparecer em qualquer posição do número do pedido
+    // ("RC-123", "123 01", "PALMI-123", "#123") ou no campo de pedido associado.
     const numerosBagy = Array.from(new Set((peds || []).map((p: any) => String(p.numero_bagy || '').trim()).filter(n => /^[\w-]+$/.test(n))));
-    const numParts = await Promise.all(chunk(numerosBagy, 40).map(part =>
-      supabase.from('orders').select(cols)
-        .or(part.flatMap(n => [`numero.ilike.${n}%`, `numero.ilike.RC-${n}%`, `numero.ilike.RC ${n}%`]).join(','))
+    const numParts = await Promise.all(chunk(numerosBagy, 30).map(part =>
+      supabase.from('orders').select(cols + ', numero_pedido_bota')
+        .or(part.flatMap(n => [`numero.ilike.%${n}%`, `numero_pedido_bota.ilike.%${n}%`]).join(','))
         .limit(1000).then(r => r.data || []),
     ));
     numParts.flat().forEach((o: any) => ordsById.set(o.id, o));
+    // Também vincula pelos itens Bagy que já apontam para um pedido do portal
+    const itemPortalIds = Array.from(new Set(Object.values(itensByPedLocal).flat().map((i: any) => i.order_id_portal).concat((peds || []).map((p: any) => p.order_id_portal)).filter(Boolean))) as string[];
+    const faltando = itemPortalIds.filter(id => !ordsById.has(id));
+    if (faltando.length) {
+      const extra = await Promise.all(chunk(faltando).map(part => supabase.from('orders').select(cols).in('id', part).then(r => r.data || [])));
+      extra.flat().forEach((o: any) => ordsById.set(o.id, o));
+    }
     const bagyIdPorNumero: Record<string, string> = {};
     (peds || []).forEach((p: any) => { if (p.numero_bagy) bagyIdPorNumero[String(p.numero_bagy).trim()] = p.bagy_order_id; });
-    const baseNumero = (numero: string) => {
-      const s = numero.trim().toUpperCase().replace(/^RC[-\s]?/, '');
-      return (s.match(/^\d+/)?.[0]) ?? s.split(/[\s-]/)[0];
+    const bagyIdPorPortal: Record<string, string> = {};
+    (peds || []).forEach((p: any) => {
+      if (p.order_id_portal) bagyIdPorPortal[p.order_id_portal] = p.bagy_order_id;
+      (itensByPedLocal[p.id] || []).forEach((i: any) => { if (i.order_id_portal) bagyIdPorPortal[i.order_id_portal] = p.bagy_order_id; });
+    });
+    // Procura qualquer sequência de dígitos do texto que seja um número Bagy conhecido
+    const acharBagy = (...txts: any[]) => {
+      for (const t of txts) {
+        for (const d of String(t || '').match(/\d+/g) || []) if (bagyIdPorNumero[d]) return bagyIdPorNumero[d];
+      }
+      return null;
     };
     const sm: Record<string, OrderSyncInfo> = {};
     const byBagy: Record<string, PortalOrderInfo[]> = {};
     Array.from(ordsById.values()).sort((a, b) => String(a.numero).localeCompare(String(b.numero))).forEach((o: any) => {
-      const bagyKey = o.bagy_order_id || bagyIdPorNumero[baseNumero(String(o.numero || ''))] || null;
+      const bagyKey = o.bagy_order_id || bagyIdPorPortal[o.id] || acharBagy(o.numero, o.numero_pedido_bota) || null;
       const info: PortalOrderInfo = {
         id: o.id,
         numero: o.numero || null,
@@ -671,7 +688,39 @@ const RanchoChiquePedidosPage = () => {
                   })()}
 
                   {nfeAcesso && (
-                    <BagyNfeMenu pedido={p} hideSello onGerarNfe={() => setNfeIds([p.id])} onChanged={load} />
+                    <BagyNfeMenu pedido={p} hideSello onGerarNfe={() => setNfeIds([p.id])} onChanged={load}
+                      extraItems={<>
+                        {p.flag === 'aguardando_ficha' && (
+                          <DropdownMenuItem onClick={() => abrirFichaDialog(queueFromPedido(p))}>
+                            <FileText size={14} className="mr-2" /> Gerar ficha
+                          </DropdownMenuItem>
+                        )}
+                        {primaryPortalId && (
+                          <DropdownMenuItem onClick={() => navigate(`/pedido/${primaryPortalId}`)}>
+                            <ExternalLink size={14} className="mr-2" /> Ver pedido no portal
+                          </DropdownMenuItem>
+                        )}
+                        {displayPortalIds.length > 0 && (
+                          <DropdownMenuItem disabled={syncing} onClick={() => sincronizarBagy(displayPortalIds)}>
+                            <Send size={14} className="mr-2" /> Atualizar status na Bagy
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem disabled={!nfeAutorizada} onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'a4' })}>
+                          <Printer size={14} className="mr-2" /> Imprimir NF-e
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEnvioDialog(p)}>
+                          <Package size={14} className="mr-2" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={!p.etiqueta_path} onClick={() => setLoteEtiquetas([p.id])}>
+                          <Printer size={14} className="mr-2" /> Imprimir etiqueta
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={!p.etiqueta_path || !nfeAutorizada} onClick={() => notaFiscal && setLoteCasado([notaFiscal.id])}>
+                          <Printer size={14} className="mr-2" /> DANFE Simplificada + etiqueta
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
+                          <Truck size={14} className="mr-2" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
+                        </DropdownMenuItem>
+                      </>} />
                   )}
                 </div>
 
@@ -681,19 +730,10 @@ const RanchoChiquePedidosPage = () => {
                       onOpenNota={() => notaFiscal && (nfeAutorizada ? setDanfeView({ id: notaFiscal.id, mode: 'a4' }) : setNfeIds([p.id]))}
                       onOpenTracking={() => p.tracking_url ? window.open(p.tracking_url, '_blank') : (setTrackDialog(p), setTrackCode(p.tracking_code || ''), setTrackUrl(p.tracking_url || ''))} />
 
-                    {(p.flag === 'aguardando_ficha' || (flag && p.flag !== 'aguardando_mapeamento')) && (
+                    {flag && p.flag !== 'aguardando_mapeamento' && (
                     <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
                       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Portal — situação interna</div>
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        {p.flag === 'aguardando_ficha' ? (
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => abrirFichaDialog(queueFromPedido(p))}>
-                            <FileText size={14} className="mr-1" /> Gerar ficha
-                          </Button>
-                        ) : flag ? (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}{p.flag === 'pedido_criado' && portalOrders.length > 1 ? ` (${portalOrders.length})` : ''}</span>
-                        ) : null}
-                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded ${flag.cls}`}>{flag.label}{p.flag === 'pedido_criado' && portalOrders.length > 1 ? ` (${portalOrders.length})` : ''}</span>
                     </div>
                     )}
 
@@ -711,73 +751,6 @@ const RanchoChiquePedidosPage = () => {
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-2 pt-2 border-t">
-                      {primaryPortalId && (
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/pedido/${primaryPortalId}`)}>
-                          <ExternalLink size={14} className="mr-1" /> {portalOrders.length > 1 ? 'Ver primeiro pedido' : 'Ver pedido no portal'}
-                        </Button>
-                      )}
-                      {displayPortalIds.length > 0 && (
-                        <TooltipProvider><Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="sm" variant="default" disabled={syncing}
-                              onClick={() => sincronizarBagy(displayPortalIds)}>
-                              {syncing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Send size={14} className="mr-1" />}
-                              Atualizar status na Bagy{displayPortalIds.length > 1 ? ` (${displayPortalIds.length})` : ''}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            Envia o status atual do portal pra Bagy agora.<br/>
-                            Use depois de mudar a etapa, faturar (emitir NF) ou despachar (com rastreio).
-                          </TooltipContent>
-                        </Tooltip></TooltipProvider>
-                      )}
-                      {nfeAcesso && !nfeBloqueada && (
-                        <Button size="sm" variant="outline" onClick={() => setNfeIds([p.id])}>
-                          <FileText size={14} className="mr-1" /> Gerar NF-e
-                        </Button>
-                      )}
-                      <TooltipProvider><Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button size="sm" variant="outline" disabled={!nfeAutorizada}
-                              onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'a4' })}>
-                              <Printer size={14} className="mr-1" /> Imprimir NF-e
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        {!nfeAutorizada && <TooltipContent>Disponível após a autorização da NF-e.</TooltipContent>}
-                      </Tooltip></TooltipProvider>
-                      <TooltipProvider><Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button size="sm" variant="outline" disabled={!nfeAutorizada}
-                              onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'etiqueta' })}>
-                              <Printer size={14} className="mr-1" /> DANFE Simplificada
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        {!nfeAutorizada && <TooltipContent>Disponível após a autorização da NF-e.</TooltipContent>}
-                      </Tooltip></TooltipProvider>
-                      {p.etiqueta_path && (
-                        <Button size="sm" onClick={() => setLoteEtiquetas([p.id])}>
-                          <Printer size={14} className="mr-1" /> Imprimir etiqueta
-                        </Button>
-                      )}
-                      {p.etiqueta_path && nfeAutorizada && notaFiscal && (
-                        <Button size="sm" onClick={() => setLoteCasado([notaFiscal.id])}>
-                          <Printer size={14} className="mr-1" /> DANFE Simplificada + etiqueta
-                        </Button>
-                      )}
-                      {nfeAcesso && (
-                        <Button size="sm" variant="outline" onClick={() => setEnvioDialog(p)}>
-                          <Package size={14} className="mr-1" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}{p.envio_servico ? ` (${rotuloServico(p.envio_servico, p.metodo_envio)})` : ''}
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
-                        <Truck size={14} className="mr-1" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
-                      </Button>
-                    </div>
 
 
 
@@ -909,6 +882,16 @@ const RanchoChiquePedidosPage = () => {
                   <span className="flex-1 truncate">{p.cliente_nome || '—'}</span>
                   <Button size="sm" onClick={() => { setFichasOpen(false); abrirFichaDialog(queueFromPedido(p)); }}>
                     <FileText size={14} className="mr-1" /> Fazer ficha
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" title="Excluir da fila (sem fazer ficha)" aria-label="Excluir da fila"
+                    onClick={async () => {
+                      if (!confirm(`Tirar RC-${p.numero_bagy} da fila de fichas? O pedido Bagy continua salvo.`)) return;
+                      const { error } = await supabase.from('bagy_pedidos').update({ flag: 'ficha_dispensada' } as any).eq('id', p.id);
+                      if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
+                      setPedidos(prev => prev.map(x => x.id === p.id ? { ...x, flag: 'ficha_dispensada' } : x));
+                      toast.success('Removido da fila de fichas.');
+                    }}>
+                    <XCircle size={16} />
                   </Button>
                 </div>
               ))}

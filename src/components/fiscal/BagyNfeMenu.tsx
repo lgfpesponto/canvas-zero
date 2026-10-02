@@ -42,8 +42,9 @@ const STATUS_SELLO: Record<string, { label: string; cls: string }> = {
   processando: { label: 'NF-e PROCESSANDO', cls: 'bg-yellow-500 text-white' },
 };
 
-export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged, hideSello }: {
+export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged, hideSello, extraItems }: {
   pedido?: BagyPedidoMin; onGerarNfe?: () => void; notaId?: string; onChanged?: () => void; hideSello?: boolean;
+  extraItems?: React.ReactNode;
 }) {
   const [nota, setNota] = useState<NotaRow | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -196,7 +197,8 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
             {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-64 max-h-[80vh] overflow-y-auto">
+          {extraItems && (<>{extraItems}<DropdownMenuSeparator /></>)}
           {pedido.id && !autorizada && (<>
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <FileEdit size={14} className="mr-2" /> Editar pedido
