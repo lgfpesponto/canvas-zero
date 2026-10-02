@@ -1,3 +1,4 @@
+import { ExpedicaoLoteDialog } from '@/components/fiscal/ExpedicaoLoteDialog';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -147,6 +148,7 @@ const RanchoChiquePedidosPage = () => {
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [envioDialog, setEnvioDialog] = useState<BagyPedido | null>(null);
   const [loteCasado, setLoteCasado] = useState<string[] | null>(null);
+  const [expedIds, setExpedIds] = useState<string[] | null>(null);
   const [loteEtiquetas, setLoteEtiquetas] = useState<string[] | null>(null);
   const [trackCode, setTrackCode] = useState('');
   const [trackUrl, setTrackUrl] = useState('');
@@ -841,6 +843,9 @@ const RanchoChiquePedidosPage = () => {
           {nfeAcesso && (
             <Button size="sm" variant="outline" onClick={() => setNfeIds(Array.from(selected))}><FileText size={14} className="mr-1"/> Gerar NF-e ({selected.size})</Button>
           )}
+          {nfeAcesso && (
+            <Button size="sm" onClick={() => setExpedIds(Array.from(selected))}><Send size={14} className="mr-1"/> Enviar todas à SEFAZ ({selected.size})</Button>
+          )}
           <TooltipProvider><Tooltip>
             <TooltipTrigger asChild>
               <span><Button size="sm" variant="outline" disabled={selectedNotaIds.length === 0}
@@ -912,6 +917,11 @@ const RanchoChiquePedidosPage = () => {
         </DialogContent>
       </Dialog>
 
+      <ExpedicaoLoteDialog
+        pedidoIds={expedIds}
+        portalIdPorBagy={Object.fromEntries((expedIds ?? []).map(id => { const pd = pedidos.find(x => x.id === id); return [id, pd ? getPrimaryPortalId(pd) : null]; }))}
+        onClose={() => { setExpedIds(null); load(); }}
+      />
       <NfeBagyDialog
         pedidoIds={nfeIds}
         portalIdPorBagy={Object.fromEntries((nfeIds ?? []).map(id => { const pd = pedidos.find(x => x.id === id); return [id, pd ? getPrimaryPortalId(pd) : null]; }))}
