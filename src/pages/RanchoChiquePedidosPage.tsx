@@ -1,6 +1,17 @@
 import { ExpedicaoLoteDialog } from '@/components/fiscal/ExpedicaoLoteDialog';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { fetchOrderByScan } from '@/hooks/useOrders';
+
+const beep = (ok: boolean) => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = ok ? 1200 : 400; gain.gain.value = 0.3;
+    osc.start(); osc.stop(ctx.currentTime + (ok ? 0.15 : 0.3));
+  } catch {}
+};
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -140,7 +151,16 @@ const RanchoChiquePedidosPage = () => {
   const [portalOrdersByBagy, setPortalOrdersByBagy] = useState<Record<string, PortalOrderInfo[]>>({});
   const [nfeByPedido, setNfeByPedido] = useState<Record<string, BagyNfeInfo>>({});
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearchState] = useState(() => searchParams.get('q') || '');
+  const setSearch = (v: string) => {
+    setSearchState(v);
+    const sp = new URLSearchParams(searchParams);
+    if (v) sp.set('q', v); else sp.delete('q');
+    setSearchParams(sp, { replace: true });
+  };
+  const searchRef = useRef<HTMLInputElement>(null);
+  const goPortal = (id: string) => navigate(`/pedido/${id}`, { state: { from: `/rancho-chique/pedidos${search ? `?q=${encodeURIComponent(search)}` : ''}` } });
   const [filtroFlag, setFiltroFlag] = useState<string>('todos');
   const [filtroStatusBagy, setFiltroStatusBagy] = useState<string>('todos');
   const [reprocessing, setReprocessing] = useState(false);
