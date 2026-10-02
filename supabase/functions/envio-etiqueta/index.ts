@@ -152,9 +152,9 @@ Deno.serve(async (req) => {
       // Correios exigem a declaração de conteúdo mesmo com NF-e (desde 15/09/2025).
       const { data: itens } = await sb.from("bagy_pedido_itens").select("*").eq("pedido_id", ped.id);
       const decl = (itens || []).map((i: any) => ({
-        conteudo: String(i.produto_nome || i.nome || i.descricao || "Mercadoria").slice(0, 80).padEnd(5, "."),
+        conteudo: String(i.nome_produto || "Mercadoria").slice(0, 80).padEnd(5, "."),
         quantidade: String(Math.max(1, Math.round(Number(i.quantidade) || 1))),
-        valor: (Number(i.valor_unitario ?? i.preco ?? 0) || 0).toFixed(2),
+        valor: (Number(i.preco_unit ?? 0) || 0).toFixed(2),
       }));
       body.itensDeclaracaoConteudo = decl.length ? decl : [{ conteudo: "Mercadoria", quantidade: "1", valor: valor.toFixed(2) }];
       const r = await fetch(`${CWS}/prepostagem/v1/prepostagens`, { method: "POST", headers: h, body: JSON.stringify(body) });
