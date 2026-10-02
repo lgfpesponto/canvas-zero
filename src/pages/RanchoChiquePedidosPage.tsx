@@ -147,6 +147,7 @@ const RanchoChiquePedidosPage = () => {
   const [trackDialog, setTrackDialog] = useState<BagyPedido | null>(null);
   const [envioDialog, setEnvioDialog] = useState<BagyPedido | null>(null);
   const [loteCasado, setLoteCasado] = useState<string[] | null>(null);
+  const [loteEtiquetas, setLoteEtiquetas] = useState<string[] | null>(null);
   const [trackCode, setTrackCode] = useState('');
   const [trackUrl, setTrackUrl] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -316,6 +317,8 @@ const RanchoChiquePedidosPage = () => {
   // Notas autorizadas da seleção, na ordem da lista (um cliente após o outro)
   const selectedNotaIds = filtered.filter(p => selected.has(p.id)).map(p => nfeByPedido[p.id])
     .filter(n => n && n.status === 'autorizada' && n.chave_acesso && n.protocolo).map(n => n!.id);
+
+  const selectedEtiquetaIds = filtered.filter(p => selected.has(p.id) && !!p.etiqueta_path).map(p => p.id);
 
   const getPortalOrdersForPedido = (p: BagyPedido): PortalOrderInfo[] => {
     const linked = portalOrdersByBagy[p.bagy_order_id] || [];
@@ -747,6 +750,16 @@ const RanchoChiquePedidosPage = () => {
                         </TooltipTrigger>
                         {!nfeAutorizada && <TooltipContent>Disponível após a autorização da NF-e.</TooltipContent>}
                       </Tooltip></TooltipProvider>
+                      {p.etiqueta_path && (
+                        <Button size="sm" onClick={() => setLoteEtiquetas([p.id])}>
+                          <Printer size={14} className="mr-1" /> Imprimir etiqueta
+                        </Button>
+                      )}
+                      {p.etiqueta_path && nfeAutorizada && notaFiscal && (
+                        <Button size="sm" onClick={() => setLoteCasado([notaFiscal.id])}>
+                          <Printer size={14} className="mr-1" /> DANFE Simplificada + etiqueta
+                        </Button>
+                      )}
                       {nfeAcesso && (
                         <Button size="sm" variant="outline" onClick={() => setEnvioDialog(p)}>
                           <Package size={14} className="mr-1" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}{p.envio_servico ? ` (${rotuloServico(p.envio_servico)})` : ''}
@@ -837,6 +850,9 @@ const RanchoChiquePedidosPage = () => {
             </TooltipTrigger>
             <TooltipContent>Só as notas autorizadas da seleção.</TooltipContent>
           </Tooltip></TooltipProvider>
+          <Button size="sm" variant="outline" disabled={selectedEtiquetaIds.length === 0} onClick={() => setLoteEtiquetas(selectedEtiquetaIds)}>
+            <Printer size={14} className="mr-1"/> Imprimir etiquetas ({selectedEtiquetaIds.length})
+          </Button>
           <Button size="sm" variant="outline" disabled={selectedNotaIds.length === 0} onClick={() => setLoteCasado(selectedNotaIds)}>
             <Truck size={14} className="mr-1"/> DANFE + etiqueta de envio ({selectedNotaIds.length})
           </Button>
@@ -872,6 +888,7 @@ const RanchoChiquePedidosPage = () => {
       <DanfeViewerDialog notaId={danfeView?.id ?? null} mode={danfeView?.mode ?? 'a4'} onClose={() => setDanfeView(null)} />
       <DanfeViewerDialog notaIds={danfeLote} mode="etiqueta" onClose={() => setDanfeLote(null)} />
       <DanfeViewerDialog notaIds={loteCasado} mode="etiqueta" casada onClose={() => setLoteCasado(null)} />
+      <DanfeViewerDialog etiquetaPedidoIds={loteEtiquetas} mode="etiqueta" onClose={() => setLoteEtiquetas(null)} />
       <EnvioEtiquetaDialog pedido={envioDialog} onClose={() => setEnvioDialog(null)} onDone={() => load()} />
 
       <Dialog open={fichasOpen} onOpenChange={setFichasOpen}>
