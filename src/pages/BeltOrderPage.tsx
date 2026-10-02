@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TrocaDevolucaoBanner } from '@/components/fiscal/TrocaDevolucaoBanner';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime, lastAddOrderErrorMessage } from '@/contexts/AuthContext';
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
@@ -806,6 +807,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
                 <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!(estoqueJaCriado && vendedor === 'Estoque') && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
                 <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado && vendedor === 'Estoque' ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!(estoqueJaCriado && vendedor === 'Estoque')} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
                 {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                  <div className="mt-1"><TrocaDevolucaoBanner numero={numeroPedido} /></div>
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
