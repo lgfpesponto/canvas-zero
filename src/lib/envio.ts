@@ -58,3 +58,22 @@ export async function carregarEtiquetasEnvio(notaIds: string[]) {
   }
   return out;
 }
+
+/** Junta as etiquetas de envio dos pedidos (na ordem recebida) num único PDF. */
+export async function gerarEtiquetasLoteBlobUrl(bagyPedidoIds: string[]) {
+  const { PDFDocument } = await import('pdf-lib');
+  const { data: peds } = await supabase.from('bagy_pedidos').select('id,etiqueta_path' as any).in('id', bagyPedidoIds);
+  const pathPorPed = new Map((peds ?? []).map((p: any) => [p.id, p.etiqueta_path]));
+  const out = await PDFDocument.create();
+  for (const id of bagyPedidoIds) {
+    const path = pathPorPed.get(id);
+    if (!path) continue;
+    const { data } = await supabase.storage.from('etiquetas-envio').download(path);
+    if (!data) continue;
+    const src = await PDFDocument.load(await data.arrayBuffer());
+    (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p));
+  }
+  if (out.getPageCount() === 0) throw new Error('Nenhuma etiqueta de envio gerada nesses pedidos.');
+  const bytes = await out.save();
+  return { url: URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' })), filename: `Etiquetas-envio-${bagyPedidoIds.length}.pdf` };
+}

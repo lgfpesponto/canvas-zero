@@ -3,17 +3,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Loader2, Printer, Download } from 'lucide-react';
 import { gerarDanfeBlobUrl, gerarDanfeLoteBlobUrl } from '@/lib/fiscal/danfePdf';
-import { carregarEtiquetasEnvio } from '@/lib/envio';
+import { carregarEtiquetasEnvio, gerarEtiquetasLoteBlobUrl } from '@/lib/envio';
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 /** Mostra o DANFE dentro do portal (páginas desenhadas como imagem), com Imprimir e Baixar. */
-export function DanfeViewerDialog({ notaId, notaIds, mode, onClose, casada }: {
-  notaId?: string | null; notaIds?: string[] | null; casada?: boolean; mode: 'a4' | 'etiqueta'; onClose: () => void;
+export function DanfeViewerDialog({ notaId, notaIds, mode, onClose, casada, etiquetaPedidoIds }: {
+  notaId?: string | null; notaIds?: string[] | null; casada?: boolean; etiquetaPedidoIds?: string[] | null; mode: 'a4' | 'etiqueta'; onClose: () => void;
 }) {
-  const ids = notaIds && notaIds.length ? notaIds : notaId ? [notaId] : [];
+  const soEtiqueta = !!(etiquetaPedidoIds && etiquetaPedidoIds.length);
+  const ids = soEtiqueta ? etiquetaPedidoIds! : notaIds && notaIds.length ? notaIds : notaId ? [notaId] : [];
   const key = ids.join(',');
   const [doc, setDoc] = useState<{ url: string; filename: string } | null>(null);
   const [pages, setPages] = useState<string[]>([]);
@@ -26,7 +27,7 @@ export function DanfeViewerDialog({ notaId, notaIds, mode, onClose, casada }: {
     setDoc(null); setPages([]); setErr(null);
     (async () => {
       try {
-        const d = (ids.length > 1 || casada) ? await gerarDanfeLoteBlobUrl(ids, mode, casada ? await carregarEtiquetasEnvio(ids) : {}) : await gerarDanfeBlobUrl(ids[0], mode);
+        const d = soEtiqueta ? await gerarEtiquetasLoteBlobUrl(ids) : (ids.length > 1 || casada) ? await gerarDanfeLoteBlobUrl(ids, mode, casada ? await carregarEtiquetasEnvio(ids) : {}) : await gerarDanfeBlobUrl(ids[0], mode);
         urlRef.current = d.url;
         const pdf = await pdfjs.getDocument(d.url).promise;
         const imgs: string[] = [];
@@ -58,7 +59,7 @@ export function DanfeViewerDialog({ notaId, notaIds, mode, onClose, casada }: {
     const a = document.createElement('a'); a.href = doc.url; a.download = doc.filename; a.click();
   };
 
-  const titulo = mode === 'etiqueta' ? `DANFE Simplificada${ids.length > 1 ? ` (${ids.length} notas)` : ''}` : 'NF-e (DANFE)';
+  const titulo = soEtiqueta ? `Etiqueta de envio${ids.length > 1 ? ` (${ids.length})` : ''}` : casada ? `DANFE Simplificada + etiqueta${ids.length > 1 ? ` (${ids.length} pedidos)` : ''}` : mode === 'etiqueta' ? `DANFE Simplificada${ids.length > 1 ? ` (${ids.length} notas)` : ''}` : 'NF-e (DANFE)';
   return (
     <Dialog open={ids.length > 0} onOpenChange={o => !o && onClose()}>
       <DialogContent className={mode === 'etiqueta' ? 'max-w-md' : 'max-w-4xl'}>
