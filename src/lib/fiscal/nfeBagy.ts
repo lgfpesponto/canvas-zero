@@ -246,6 +246,8 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
         if (qErr) console.warn('Fila Bagy (faturado):', qErr.message);
       }
     } catch (e) { console.warn('Fila Bagy (faturado):', e); }
+    const { avancarBaixaSite } = await import('@/lib/baixaSite');
+    await avancarBaixaSite(nota.bagy_pedido_id);
   }
   return { notaId: nota.id, numero, autorizada, motivo };
 }
