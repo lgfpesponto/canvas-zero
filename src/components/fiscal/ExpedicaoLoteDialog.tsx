@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Printer, RefreshCw
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
-import { chamarEnvio, detectarServico } from '@/lib/envio';
+import { chamarEnvio, detectarServico, rotuloServico } from '@/lib/envio';
 import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
 import { DanfeViewerDialog } from './DanfeViewerDialog';
 import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';
@@ -14,7 +14,7 @@ type St = 'aguardando' | 'enviando' | 'ok' | 'erro';
 type Linha = {
   id: string; numero: string; cliente: string;
   nfe: St; nfeMsg: string; notaId: string | null; notaNum: number | null;
-  etq: St; etqMsg: string; rastreio: string | null;
+  etq: St; etqMsg: string; rastreio: string | null; servico: string; metodo: string;
 };
 
 const Icone = ({ s }: { s: St }) => s === 'ok' ? <CheckCircle2 size={16} className="text-primary" />
@@ -32,15 +32,21 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const [editId, setEditId] = useState<string | null>(null);
   const [envioPed, setEnvioPed] = useState<any>(null);
   const [casado, setCasado] = useState<string[] | null>(null);
+  const [saldo, setSaldo] = useState<number | null | 'erro'>(null);
 
   const upd = (id: string, p: Partial<Linha>) => setLinhas(ls => ls.map(l => l.id === id ? { ...l, ...p } : l));
+
+  async function carregarSaldo() {
+    setSaldo(null);
+    try { const r = await chamarEnvio({ acao: 'saldo_me' }); setSaldo(Number(r.saldo ?? 0)); } catch { setSaldo('erro'); }
+  }
 
   async function carregar(ids: string[]) {
     setLoading(true);
     try {
       const [notas, { data: peds }] = await Promise.all([
         prepararNotasBagy(ids, portalIdPorBagy),
-        supabase.from('bagy_pedidos').select('id,numero_bagy,cliente_nome,etiqueta_path,tracking_code').in('id', ids),
+        supabase.from('bagy_pedidos').select('id,numero_bagy,cliente_nome,etiqueta_path,tracking_code,envio_servico,metodo_envio').in('id', ids),
       ]);
       const m: Record<string, NotaRascunho> = {}; notas.forEach(n => { m[n.bagyPedidoId] = n; });
       setRasc(m);
@@ -49,19 +55,22 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
         const old = prev.find(l => l.id === id);
         const aut = n?.notaExistente?.status === 'autorizada';
         const erroCad = !aut && n?.erros.length ? n.erros.join(' · ') : '';
+        const servico = p.envio_servico || detectarServico(p.metodo_envio);
+        const retirada = servico === 'RETIRADA';
         return {
           id, numero: p.numero_bagy ?? n?.numeroBagy ?? '?', cliente: p.cliente_nome ?? '',
           nfe: aut ? 'ok' : erroCad ? 'erro' : (old?.nfe === 'erro' ? 'erro' : 'aguardando'),
           nfeMsg: aut ? '' : erroCad || (old?.nfe === 'erro' ? old.nfeMsg : ''),
           notaId: aut ? n.notaExistente.id : null, notaNum: aut ? n.notaExistente.numero : null,
-          etq: p.etiqueta_path ? 'ok' : (old?.etq === 'erro' ? 'erro' : 'aguardando'),
-          etqMsg: p.etiqueta_path ? '' : old?.etq === 'erro' ? old.etqMsg : '', rastreio: p.tracking_code ?? null,
+          etq: (p.etiqueta_path || retirada) ? 'ok' : (old?.etq === 'erro' ? 'erro' : 'aguardando'),
+          etqMsg: p.etiqueta_path || retirada ? '' : old?.etq === 'erro' ? old.etqMsg : '', rastreio: p.tracking_code ?? null,
+          servico, metodo: p.metodo_envio ?? '',
         };
       }));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   }
 
-  useEffect(() => { if (pedidoIds?.length) { setLinhas([]); setCorrigir(null); carregar(pedidoIds); } }, [pedidoIds]);
+  useEffect(() => { if (pedidoIds?.length) { setLinhas([]); setCorrigir(null); carregar(pedidoIds); carregarSaldo(); } }, [pedidoIds]);
 
   async function enviarSefaz() {
     const alvo = linhas.filter(l => l.nfe !== 'ok' && rasc[l.id] && rasc[l.id].erros.length === 0);
