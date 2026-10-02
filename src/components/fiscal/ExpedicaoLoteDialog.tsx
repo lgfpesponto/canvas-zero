@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Printer, RefreshCw, Send, Truck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, Pencil, Printer, RefreshCw, Send, Truck, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
@@ -89,7 +89,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
 
   async function gerarEtiquetas() {
     const { data: peds } = await supabase.from('bagy_pedidos').select('id,envio_servico,metodo_envio,etiqueta_path').in('id', linhas.map(l => l.id));
-    const alvo = linhas.filter(l => l.nfe === 'ok' && l.etq !== 'ok');
+    const alvo = linhas.filter(l => l.nfe === 'ok' && l.etq !== 'ok' && l.servico !== 'RETIRADA');
     if (!alvo.length) { toast.error('Nenhum pedido com nota autorizada aguardando etiqueta.'); return; }
     setBusy('etq');
     for (const l of alvo) {
@@ -115,34 +115,49 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const nfeErros = linhas.filter(l => l.nfe === 'erro');
   const etqErros = linhas.filter(l => l.etq === 'erro');
   const prontasSefaz = linhas.filter(l => l.nfe !== 'ok' && rasc[l.id]?.erros.length === 0).length;
-  const prontasEtq = linhas.filter(l => l.nfe === 'ok' && l.etq !== 'ok').length;
+  const prontasEtq = linhas.filter(l => l.nfe === 'ok' && l.etq !== 'ok' && l.servico !== 'RETIRADA').length;
   const imprimiveis = [...linhas].filter(l => l.nfe === 'ok' && l.etq === 'ok' && l.notaId)
     .sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR')).map(l => l.notaId!);
   const jaEnviou = linhas.some(l => l.nfe === 'ok' || l.nfe === 'erro');
 
   const lista = corrigir ? linhas.filter(l => corrigir.includes(l.id)) : linhas;
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
     <Dialog open={!!pedidoIds} onOpenChange={o => !o && !busy && onClose()}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{corrigir ? 'Corrigir erros' : `Expedição em lote (${linhas.length} pedidos)`}</DialogTitle></DialogHeader>
+        <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/40 px-3 py-2 text-xs">
+          <Wallet size={14} />
+          <span>Saldo Melhor Envio: <b>{saldo === null ? '...' : saldo === 'erro' ? 'indisponível' : brl(saldo)}</b></span>
+          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={carregarSaldo}><RefreshCw size={12} /></Button>
+          <Button size="sm" variant="outline" className="h-7 ml-auto" asChild>
+            <a href="https://melhorenvio.com.br/painel/gerenciar/carteira" target="_blank" rel="noreferrer"><ExternalLink size={12} className="mr-1" /> Recarregar carteira</a>
+          </Button>
+        </div>
         {loading && !linhas.length ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 className="animate-spin mr-2" /> Gerando notas...</div>
         ) : (
           <div className="space-y-3 text-sm">
             <div className="rounded border divide-y">
               {lista.map(l => (
-                <div key={l.id} className="p-2 grid md:grid-cols-[1fr_1.2fr_1.2fr_auto] gap-2 items-start">
-                  <div><div className="font-mono font-bold">RC-{l.numero}</div><div className="text-xs text-muted-foreground truncate">{l.cliente || '—'}</div></div>
-                  <div className="flex gap-1.5"><Icone s={l.nfe} /><div className="text-xs">
+                <div key={l.id} className="p-2 grid md:grid-cols-[1fr_1.2fr_1.4fr] gap-2 items-start">
+                  <div>
+                    <div className="font-mono font-bold">RC-{l.numero}</div>
+                    <div className="text-xs text-muted-foreground truncate">{l.cliente || '—'}</div>
+                    <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${l.servico === 'RETIRADA' ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground'}`} title={l.metodo}>
+                      {rotuloServico(l.servico) || '—'}
+                    </span>
+                  </div>
+                  <div className="flex gap-1.5 items-start"><Icone s={l.nfe} /><div className="text-xs flex-1">
                     <b>NF-e:</b> {l.nfe === 'ok' ? `nº ${l.notaNum} autorizada` : l.nfe === 'enviando' ? 'enviando à SEFAZ...' : l.nfe === 'erro' ? <span className="text-destructive">{l.nfeMsg}</span> : 'aguardando'}
-                  </div></div>
-                  <div className="flex gap-1.5"><Icone s={l.etq} /><div className="text-xs">
-                    <b>Etiqueta:</b> {l.etq === 'ok' ? (l.rastreio || 'gerada') : l.etq === 'enviando' ? 'gerando...' : l.etq === 'erro' ? <span className="text-destructive">{l.etqMsg}</span> : 'aguardando'}
-                  </div></div>
-                  <div className="flex gap-1">
-                    {l.nfe === 'erro' && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => setEditId(l.id)}><Pencil size={14} className="mr-1" /> Editar</Button>}
-                    {l.etq === 'erro' && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => abrirEnvio(l.id)}><Truck size={14} className="mr-1" /> Envio</Button>}
+                  </div>
+                    {l.nfe !== 'ok' && <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar nota" disabled={!!busy} onClick={() => setEditId(l.id)}><Pencil size={14} /></Button>}
+                  </div>
+                  <div className="flex gap-1.5 items-start"><Icone s={l.etq} /><div className="text-xs flex-1">
+                    <b>Etiqueta:</b> {l.servico === 'RETIRADA' ? 'Retirada no showroom — só a nota' : l.etq === 'ok' ? (l.rastreio || 'gerada') : l.etq === 'enviando' ? 'gerando...' : l.etq === 'erro' ? <span className="text-destructive">{l.etqMsg}</span> : 'aguardando'}
+                  </div>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar envio (peso, medidas, tipo)" disabled={!!busy} onClick={() => abrirEnvio(l.id)}><Pencil size={14} /></Button>
                   </div>
                 </div>
               ))}
