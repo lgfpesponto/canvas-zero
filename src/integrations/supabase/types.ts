@@ -526,6 +526,78 @@ export type Database = {
         }
         Relationships: []
       }
+      calc_orcamentos: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          discriminacao: string | null
+          form_data: Json
+          id: string
+          nome: string
+          preco_cartao: number
+          preco_custo: number
+          preco_pix: number
+          tipo: string
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          discriminacao?: string | null
+          form_data?: Json
+          id?: string
+          nome: string
+          preco_cartao?: number
+          preco_custo?: number
+          preco_pix?: number
+          tipo?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          discriminacao?: string | null
+          form_data?: Json
+          id?: string
+          nome?: string
+          preco_cartao?: number
+          preco_custo?: number
+          preco_pix?: number
+          tipo?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      calc_preco_itens: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          tipo: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       comprovante_notificacoes: {
         Row: {
           comprovante_id: string
@@ -3481,6 +3553,7 @@ export type Database = {
         }[]
       }
       get_vendedores_distinct: { Args: never; Returns: string[] }
+      has_calc_access: { Args: { _uid: string }; Returns: boolean }
       has_nfe_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
