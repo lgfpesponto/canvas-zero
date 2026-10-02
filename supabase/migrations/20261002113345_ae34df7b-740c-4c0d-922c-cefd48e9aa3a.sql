@@ -1,0 +1,1 @@
+CREATE POLICY bagy_status_sync_insert_nfe ON public.bagy_status_sync_queue FOR INSERT TO authenticated WITH CHECK (public.has_nfe_access(auth.uid()) AND target_status IN ('invoiced','shipped'));
