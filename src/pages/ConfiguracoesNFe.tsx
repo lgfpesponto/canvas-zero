@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Upload, ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { NcmRegrasCard } from "@/components/fiscal/NcmRegrasCard";
 
 type NFeConfig = {
   id?: string;
@@ -239,6 +240,7 @@ export default function ConfiguracoesNFe() {
           </div>
         </CardContent>
       </Card>
+      <NcmRegrasCard />
 
       <div className="flex flex-wrap gap-2">
         <Button onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar configurações"}</Button>

@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Trash2, Undo2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Undo2 } from 'lucide-react';
 import { SERVICOS_ENVIO, detectarServico, rotuloServico } from '@/lib/envio';
-import { ncmPorDescricao } from '@/lib/fiscal/ncm';
+import { ncmPorDescricao, carregarRegrasNcm } from '@/lib/fiscal/ncm';
 
 const num = (s: unknown) => Number(String(s ?? '').replace(',', '.')) || 0;
 const dig = (s: unknown) => String(s ?? '').replace(/\D/g, '');
@@ -29,6 +29,7 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
     if (!open) return;
     setLoading(true);
     (async () => {
+      await carregarRegrasNcm(true);
       const [a, b] = await Promise.all([
         supabase.from('bagy_pedidos').select('*').eq('id', pedidoId).maybeSingle(),
         supabase.from('bagy_pedido_itens').select('id, nome_produto, variacao_nome, sku, tamanho, cor, quantidade, preco_unit, ncm, status').eq('pedido_id', pedidoId).order('created_at'),
@@ -62,6 +63,18 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
       }).eq('id', pedidoId);
       if (error) throw error;
       for (const it of itens) {
+        if (it._novo) {
+          if (it.status === 'removido' || !String(it.nome_produto ?? '').trim()) continue;
+          const nomeP = String(it.nome_produto).trim();
+          const { error: e3 } = await supabase.from('bagy_pedido_itens').insert({
+            pedido_id: pedidoId, nome_produto: nomeP, variacao_nome: it.variacao_nome || null, sku: it.sku || null,
+            tamanho: it.tamanho || null, cor: it.cor || null, quantidade: Math.max(1, Math.round(num(it.quantidade))),
+            preco_unit: num(it.preco_unit), ncm: dig(it.ncm) || ncmPorDescricao(`${nomeP} ${it.variacao_nome ?? ''}`)?.ncm || null,
+            status: 'manual', payload: { adicionado_manual: true },
+          });
+          if (e3) throw e3;
+          continue;
+        }
         const { error: e2 } = await supabase.from('bagy_pedido_itens').update({
           nome_produto: it.nome_produto, variacao_nome: it.variacao_nome, sku: it.sku, tamanho: it.tamanho, cor: it.cor,
           quantidade: Math.max(1, Math.round(num(it.quantidade))), preco_unit: num(it.preco_unit), ncm: dig(it.ncm) || null,
@@ -112,7 +125,12 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
               </div>
             </section>
             <section>
-              <h3 className="mb-2 text-sm font-bold">Itens da nota</h3>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-bold">Itens da nota</h3>
+                <Button type="button" size="sm" variant="outline" onClick={() => setItens(a => [...a, { id: `novo-${Date.now()}`, _novo: true, nome_produto: '', variacao_nome: '', sku: '', tamanho: '', cor: '', quantidade: 1, preco_unit: '', ncm: '', status: 'manual' }])}>
+                  <Plus size={14} className="mr-1" /> Adicionar produto
+                </Button>
+              </div>
               <div className="space-y-2">
                 {itens.map((it, i) => {
                   const removido = it.status === 'removido';
@@ -120,7 +138,7 @@ export function BagyPedidoEditDialog({ pedidoId, open, onOpenChange, onSaved }: 
                   return (
                   <div key={it.id} className={`grid grid-cols-2 gap-2 rounded-md border p-2 md:grid-cols-6 ${removido ? 'opacity-50' : ''}`}>
                     <div className="col-span-2 flex items-center justify-between md:col-span-6">
-                      <span className="text-xs font-semibold">Item {i + 1}{removido ? ' — fora da nota' : ''}</span>
+                      <span className="text-xs font-semibold">Item {i + 1}{it._novo ? ' (novo)' : ''}{removido ? ' — fora da nota' : ''}</span>
                       <Button type="button" size="sm" variant="ghost" onClick={() => setItem(i, { status: removido ? (it._statusAnt || 'brinde') : 'removido', _statusAnt: removido ? undefined : it.status })}>
                         {removido ? <><Undo2 size={14} className="mr-1" /> Voltar</> : <><Trash2 size={14} className="mr-1" /> Remover da nota</>}
                       </Button>

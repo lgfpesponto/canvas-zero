@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { calcularChave } from './montarXmlNfe';
-import { ncmPorDescricao } from './ncm';
+import { ncmPorDescricao, carregarRegrasNcm } from './ncm';
 import { chamar } from './proxyProvider';
 
 const UF_COD: Record<string, string> = {
@@ -33,6 +33,7 @@ export interface NotaRascunho {
 
 /** Monta os rascunhos das notas (sem reservar número nem falar com a SEFAZ). */
 export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Record<string, string | null>): Promise<NotaRascunho[]> {
+  await carregarRegrasNcm(true);
   const [{ data: cfg }, { data: peds }, { data: itens }, { data: refs }, { data: notas }] = await Promise.all([
     supabase.from('nfe_config').select('*').order('created_at').limit(1).maybeSingle(),
     supabase.from('bagy_pedidos').select('*').in('id', pedidoIds),

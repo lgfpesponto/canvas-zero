@@ -1692,6 +1692,36 @@ export type Database = {
           },
         ]
       }
+      nfe_ncm_regras: {
+        Row: {
+          created_at: string
+          id: string
+          ncm: string
+          ordem: number
+          palavras: string
+          referencia: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ncm: string
+          ordem?: number
+          palavras: string
+          referencia?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ncm?: string
+          ordem?: number
+          palavras?: string
+          referencia?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nfe_notas: {
         Row: {
           ambiente: number
