@@ -229,16 +229,21 @@ const RanchoChiquePedidosPage = () => {
       ));
       ordParts.flat().forEach((o: any) => ordsById.set(o.id, o));
     }
-    // Vínculo por número: RC-{numero_bagy} e sufixos de pares (A, B, C… com ou sem hífen).
-    for (let from = 0; from < 20000; from += 1000) {
-      const { data: rc } = await supabase.from('orders').select(cols)
-        .ilike('numero', 'RC-%').order('numero').range(from, from + 999);
-      (rc || []).forEach((o: any) => ordsById.set(o.id, o));
-      if (!rc || rc.length < 1000) break;
-    }
+    // Vínculo por número: aceita "RC-123", "123", "123 01", "123-02", "123A", "RC-123 01"...
+    // Identifica pelo número do pedido Bagy no início; o que vier depois é sufixo de par.
+    const numerosBagy = Array.from(new Set((peds || []).map((p: any) => String(p.numero_bagy || '').trim()).filter(n => /^[\w-]+$/.test(n))));
+    const numParts = await Promise.all(chunk(numerosBagy, 40).map(part =>
+      supabase.from('orders').select(cols)
+        .or(part.flatMap(n => [`numero.ilike.${n}%`, `numero.ilike.RC-${n}%`, `numero.ilike.RC ${n}%`]).join(','))
+        .limit(1000).then(r => r.data || []),
+    ));
+    numParts.flat().forEach((o: any) => ordsById.set(o.id, o));
     const bagyIdPorNumero: Record<string, string> = {};
-    (peds || []).forEach((p: any) => { if (p.numero_bagy) bagyIdPorNumero[String(p.numero_bagy)] = p.bagy_order_id; });
-    const baseNumero = (numero: string) => numero.trim().toUpperCase().replace(/^RC-?/, '').replace(/-?[A-Z]{1,2}$/, '');
+    (peds || []).forEach((p: any) => { if (p.numero_bagy) bagyIdPorNumero[String(p.numero_bagy).trim()] = p.bagy_order_id; });
+    const baseNumero = (numero: string) => {
+      const s = numero.trim().toUpperCase().replace(/^RC[-\s]?/, '');
+      return (s.match(/^\d+/)?.[0]) ?? s.split(/[\s-]/)[0];
+    };
     const sm: Record<string, OrderSyncInfo> = {};
     const byBagy: Record<string, PortalOrderInfo[]> = {};
     Array.from(ordsById.values()).sort((a, b) => String(a.numero).localeCompare(String(b.numero))).forEach((o: any) => {
