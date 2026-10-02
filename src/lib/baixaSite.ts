@@ -28,7 +28,7 @@ export async function avancarBaixaSite(bagyPedidoId: string) {
       const { data: porNum } = await supabase.from('orders').select(cols).ilike('numero', `%${num}%`);
       (porNum || []).forEach((o: any) => {
         // Só aceita o número exato (não confunde com números maiores)
-        if ((String(o.numero).match(/\d+/g) || []).includes(num)) encontrados.set(o.id, o);
+        if (((String(o.numero).match(/\d+/g) || []) as string[]).includes(num)) encontrados.set(o.id, o);
       });
     }
     const faltando = [...ids].filter(id => !encontrados.has(id));
