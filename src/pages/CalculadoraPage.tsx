@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Calculator, Settings, Copy, Eraser, Save, Trash2, Plus, ArrowUp, ArrowDown, FileText, Pencil } from 'lucide-react';
+import { Calculator, Settings, Copy, Eraser, Save, Trash2, Plus, ArrowUp, ArrowDown, FileText, Pencil, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,6 +63,7 @@ export default function CalculadoraPage() {
   const [nome, setNome] = useState('');
   const [whats, setWhats] = useState('');
   const [orcs, setOrcs] = useState<Orcamento[]>([]);
+  const [orcsOpen, setOrcsOpen] = useState(false);
   const [verOrc, setVerOrc] = useState<Orcamento | null>(null);
 
   const loadItens = async () => {
@@ -192,7 +193,8 @@ export default function CalculadoraPage() {
       <div className="flex flex-wrap items-center gap-3 mb-4 px-2">
         <Calculator className="text-primary" />
         <h1 className="text-2xl font-display font-bold">Calculadora de precificação</h1>
-        <Button size="icon" variant="outline" className="ml-auto" onClick={abrirCfg} title="Configuração da calculadora"><Settings size={18} /></Button>
+        <Button variant="outline" className="ml-auto relative" onClick={() => setOrcsOpen(true)} title="Orçamentos salvos"><FolderOpen size={18} />{orcs.length > 0 && <span className="text-xs font-semibold">{orcs.length}</span>}</Button>
+        <Button size="icon" variant="outline" onClick={abrirCfg} title="Configuração da calculadora"><Settings size={18} /></Button>
       </div>
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
@@ -214,24 +216,6 @@ export default function CalculadoraPage() {
             {botoesAdd}
           </div>
 
-          <div className="bg-card rounded-xl p-4 western-shadow">
-            <h2 className="font-bold mb-2">Orçamentos ({orcs.length})</h2>
-            {orcs.length === 0 && <p className="text-sm text-muted-foreground">Nenhum orçamento salvo.</p>}
-            <div className="space-y-2 max-h-[420px] overflow-auto">
-              {orcs.map(o => (
-                <div key={o.id} className="border border-border rounded-md p-2 text-sm flex flex-wrap items-center gap-2">
-                  <div className="flex-1 min-w-[180px]">
-                    <button className="text-left font-semibold hover:underline" onClick={() => setVerOrc(o)}>{o.nome}</button>
-                    <div className="text-xs text-muted-foreground">{o.whatsapp || 'sem WhatsApp'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {itensDoOrc(o).length} item(ns)</div>
-                    <div className="text-xs">Cartão {brl(Number(o.preco_cartao))} · Pix {brl(Number(o.preco_pix))}</div>
-                  </div>
-                  <Button size="sm" onClick={() => setVerOrc(o)}><FileText size={14} /> Fazer ficha</Button>
-                  {o.discriminacao && <Button size="sm" variant="outline" onClick={() => copiar(o.discriminacao!)}><Copy size={14} /></Button>}
-                  <Button size="sm" variant="ghost" onClick={() => excluirOrc(o.id)} title="Remover"><Trash2 size={14} /></Button>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         <aside className="lg:sticky lg:top-24 space-y-3">
@@ -296,6 +280,30 @@ export default function CalculadoraPage() {
             </div>
           )}
           <DialogFooter><Button onClick={salvarExtra}><Save size={16} /> Salvar item</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={orcsOpen} onOpenChange={setOrcsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Orçamentos salvos ({orcs.length})</DialogTitle></DialogHeader>
+          <div>
+            
+            {orcs.length === 0 && <p className="text-sm text-muted-foreground">Nenhum orçamento salvo.</p>}
+            <div className="space-y-2 max-h-[65vh] overflow-auto">
+              {orcs.map(o => (
+                <div key={o.id} className="border border-border rounded-md p-2 text-sm flex flex-wrap items-center gap-2">
+                  <div className="flex-1 min-w-[180px]">
+                    <button className="text-left font-semibold hover:underline" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}>{o.nome}</button>
+                    <div className="text-xs text-muted-foreground">{o.whatsapp || 'sem WhatsApp'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {itensDoOrc(o).length} item(ns)</div>
+                    <div className="text-xs">Cartão {brl(Number(o.preco_cartao))} · Pix {brl(Number(o.preco_pix))}</div>
+                  </div>
+                  <Button size="sm" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}><FileText size={14} /> Fazer ficha</Button>
+                  {o.discriminacao && <Button size="sm" variant="outline" onClick={() => copiar(o.discriminacao!)}><Copy size={14} /></Button>}
+                  <Button size="sm" variant="ghost" onClick={() => excluirOrc(o.id)} title="Remover"><Trash2 size={14} /></Button>
+                </div>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
