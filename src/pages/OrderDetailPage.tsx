@@ -596,7 +596,11 @@ const OrderDetailPage = () => {
         {!isPreview && (<>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => navigate(`/relatorios${location.search}`)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => {
+              const from = (location.state as any)?.from;
+              if (typeof from === 'string' && from.startsWith('/rancho-chique/pedidos')) navigate(from);
+              else navigate(`/relatorios${location.search}`);
+            }} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft size={16} /> Voltar
             </button>
             <div className="flex items-center gap-1 ml-2">

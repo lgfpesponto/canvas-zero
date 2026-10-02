@@ -545,6 +545,35 @@ const RanchoChiquePedidosPage = () => {
   };
   const clearSelection = () => setSelected(new Set());
 
+  // Leitor de código de barras: Enter seleciona o pedido, limpa e mantém o foco
+  const handleScanEnter = async () => {
+    const raw = search.trim();
+    if (!raw) return;
+    const up = raw.toUpperCase();
+    const digits = raw.replace(/\D/g, '');
+    const portalDe = (p: BagyPedido) => [
+      ...(portalOrdersByBagy[p.bagy_order_id] || []),
+      ...(p.order_id_portal ? [{ id: p.order_id_portal, numero: null as string | null }] : []),
+    ];
+    let alvo = pedidos.find(p => p.numero_bagy === raw || (digits.length >= 8 && p.numero_bagy === digits)
+      || portalDe(p).some(o => matchOrderBarcode(up, { id: o.id, numero: o.numero || '' })));
+    if (!alvo) {
+      const ord = await fetchOrderByScan(raw).catch(() => null);
+      if (ord) {
+        alvo = pedidos.find(p => portalDe(p).some(o => o.id === ord.id))
+          || pedidos.find(p => (`${ord.numero} ${(ord as any).numeroPedidoBota || ''}`.match(/\d+/g) || []).includes(p.numero_bagy));
+      }
+    }
+    if (!alvo && filtered.length === 1) alvo = filtered[0];
+    setSearch('');
+    requestAnimationFrame(() => searchRef.current?.focus());
+    if (!alvo) { beep(false); toast.error(`Pedido não encontrado: ${raw}`); return; }
+    if (selected.has(alvo.id)) { beep(false); toast.warning(`Pedido ${alvo.numero_bagy} já está selecionado`); return; }
+    setSelected(prev => new Set(prev).add(alvo!.id));
+    beep(true);
+    toast.success(`Selecionado: ${alvo.numero_bagy} — ${alvo.cliente_nome || ''}`);
+  };
+
   // Os ids de portal correspondentes aos pedidos selecionados (subset elegível para sync)
   const selectedPortalIds = useMemo(() => {
     const byId = new Map(pedidos.map(p => [p.id, p]));
@@ -616,7 +645,9 @@ const RanchoChiquePedidosPage = () => {
       <div className="flex gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar nº Bagy, nº do pedido, código de barras, cliente, CPF..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Input ref={searchRef} autoFocus className="pl-9" placeholder="Buscar ou escanear código de barras (Enter seleciona)..." value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleScanEnter(); } }} />
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <span>De</span>
