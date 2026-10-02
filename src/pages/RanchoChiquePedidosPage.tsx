@@ -771,7 +771,7 @@ const RanchoChiquePedidosPage = () => {
                       )}
                       {nfeAcesso && (
                         <Button size="sm" variant="outline" onClick={() => setEnvioDialog(p)}>
-                          <Package size={14} className="mr-1" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}{p.envio_servico ? ` (${rotuloServico(p.envio_servico)})` : ''}
+                          <Package size={14} className="mr-1" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}{p.envio_servico ? ` (${rotuloServico(p.envio_servico, p.metodo_envio)})` : ''}
                         </Button>
                       )}
                       <Button size="sm" variant="outline" onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
