@@ -2313,7 +2313,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
             <Section title="Identificação" id="ficha-identificacao">
               {/* Link da Foto de Referência (Drive) — primeiro campo */}
               <div>
-                <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive)<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Link da Foto de Referência" defaultTipo="texto" /></label>
+                <label className={cls.label + ' inline-flex items-center'}>Link da Foto de Referência (Google Drive){!calcMode && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Link da Foto de Referência" defaultTipo="texto" /></label>
                 <div className="flex items-center gap-2">
                   <Link2 size={16} className="text-muted-foreground flex-shrink-0" />
                   <input
@@ -2342,9 +2342,9 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
 
               <div className="grid sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={cls.label + ' inline-flex items-center'}>Vendedor<span className="text-destructive ml-0.5">*</span><FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
+                  <label className={cls.label + ' inline-flex items-center'}>Vendedor{!calcMode && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Vendedor" defaultTipo="texto" /></label>
                   {isAdmin ? (
-                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} data-ficha-filled="false" className={cls.select} required>
+                    <select value={vendedorSelecionado} onChange={e => setVendedorSelecionado(e.target.value)} data-ficha-filled="false" className={cls.select} required={!calcMode}>
                       {isAdminProducao && !vendedorSelecionado && <option value="">Selecione um vendedor</option>}
                       {!isAdminProducao && !vendedorSelecionado && <option value="">Selecione...</option>}
                       {allProfiles.filter(p => !(isAdminProducao && p.nomeUsuario?.toLowerCase() === 'fernanda')).map(p => (
@@ -2357,8 +2357,8 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   )}
                 </div>
                 <div>
-                  <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!estoqueJaCriado && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
-                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
+                  <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!estoqueJaCriado && !calcMode && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
+                  <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!calcMode && !estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
                   {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
                   <div className="mt-1"><TrocaDevolucaoBanner numero={numeroPedido} /></div>
                 </div>
@@ -2443,7 +2443,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                 ) : (
                   <SelectField label="Tamanho" value={tamanho} onChange={v => { setTamanho(v); const allowed = getModelosForTamanho(v); if (modelo && !allowed.find(m => m.label === modelo)) { setModelo(''); setSolado(''); setFormatoBico(''); setCorSola(''); setCorVira(''); } else if (modelo && solado) { const bicos = getBicosForModeloSolado(modelo, solado, v); if (formatoBico && !bicos.includes(formatoBico)) { setFormatoBico(bicos.length === 1 ? bicos[0] : ''); setCorSola(''); } } }} options={TAMANHOS} required />
                 )}
-                <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required />
+                <SelectField label="Gênero" value={genero} onChange={setGenero} options={GENEROS} required={!calcMode} />
                 <SelectField label="Modelo" value={modelo} onChange={handleModeloChange} options={getModelosForTamanho(tamanho)} required />
               </div>
 
