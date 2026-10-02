@@ -39,10 +39,19 @@ export function BagyPedidoView({ pedido, nota, statusLabel, onOpenNota, onOpenTr
     else if (data?.payload) setFresh(data.payload);
     setSyncing(false);
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { sync(); }, [pedido.id]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pl: any = fresh || pedido.payload || {};
+  const [stored, setStored] = useState<any>(null);
+  useEffect(() => {
+    sync();
+    if (!pedido.payload) {
+      supabase.from('bagy_pedidos').select('payload').eq('id', pedido.id).maybeSingle()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .then(({ data }) => setStored((data as any)?.payload ?? null));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedido.id]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pl: any = fresh || pedido.payload || stored || {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const items: any[] = Array.isArray(pl.items) ? pl.items : [];
   const cust = pl.customer || {};
