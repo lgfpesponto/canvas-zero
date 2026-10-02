@@ -36,7 +36,18 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
   };
   const cotar = async () => {
     setBusy(true);
-    try { const r = await chamarEnvio({ acao: 'cotar', bagyPedidoId: pedido.id, ...medidas }); setOpcoes(r.opcoes || []); if (!r.opcoes?.length) toast.info('Nenhuma transportadora disponível'); }
+    try {
+      const r = await chamarEnvio({ acao: 'cotar', bagyPedidoId: pedido.id, ...medidas });
+      const ops = r.opcoes || [];
+      setOpcoes(ops);
+      if (!ops.length) toast.info('Nenhuma transportadora disponível');
+      else if (!meId && pedido.metodo_envio) {
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const m = norm(pedido.metodo_envio);
+        const hit = ops.find((o: any) => m.includes(norm(o.nome)) || norm(o.nome).includes(m));
+        if (hit) setMeId(String(hit.id));
+      }
+    }
     catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
   const gerar = async () => {

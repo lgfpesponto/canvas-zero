@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer, ShoppingCart, ArrowUpRight, ClipboardList } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ExternalLink, FileText, Package, Truck, ChevronDown, ChevronRight, Search, Send, CheckCircle2, XCircle, Loader2, Printer, ShoppingCart, ArrowUpRight, ClipboardList, Plus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DanfeViewerDialog } from '@/components/fiscal/DanfeViewerDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -160,6 +161,7 @@ const RanchoChiquePedidosPage = () => {
   const nfeAcesso = useNfeAccess();
   const [danfeView, setDanfeView] = useState<{ id: string; mode: 'a4' | 'etiqueta' } | null>(null);
   const [danfeLote, setDanfeLote] = useState<string[] | null>(null);
+  const [danfeLoteA4, setDanfeLoteA4] = useState<string[] | null>(null);
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [fichasOpen, setFichasOpen] = useState(false);
@@ -824,21 +826,6 @@ const RanchoChiquePedidosPage = () => {
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary shadow-2xl rounded-2xl px-4 py-2 flex items-center gap-2 flex-wrap max-w-[95vw]">
           <span className="text-sm font-semibold">{selected.size} selecionado(s)</span>
           <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
-          <Button size="sm" variant="outline" disabled={reprocessing}
-            onClick={() => reprocessarBulk(Array.from(selected))}>
-            {reprocessing
-              ? <><Loader2 size={14} className="mr-1 animate-spin"/> Reprocessando...</>
-              : <><RefreshCw size={14} className="mr-1"/> Reprocessar</>}
-          </Button>
-          {(() => {
-            const fichaCount = queueFromSelection().length;
-            return (
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={fichaCount === 0}
-                onClick={() => abrirFichaDialog(queueFromSelection())}>
-                <FileText size={14} className="mr-1"/> Gerar fichas ({fichaCount})
-              </Button>
-            );
-          })()}
           <Button size="sm" disabled={syncing || selectedPortalIds.length === 0}
             onClick={() => sincronizarBagy(selectedPortalIds)}>
             {syncing
@@ -846,26 +833,33 @@ const RanchoChiquePedidosPage = () => {
               : <><Send size={14} className="mr-1"/> Atualizar Bagy ({selectedPortalIds.length}/{selected.size})</>}
           </Button>
           {nfeAcesso && (
-            <Button size="sm" variant="outline" onClick={() => setNfeIds(Array.from(selected))}><FileText size={14} className="mr-1"/> Gerar NF-e ({selected.size})</Button>
+            <Button size="sm" onClick={() => setExpedIds(Array.from(selected))}><FileText size={14} className="mr-1"/> Gerar notas em lista ({selected.size})</Button>
           )}
-          {nfeAcesso && (
-            <Button size="sm" onClick={() => setExpedIds(Array.from(selected))}><Send size={14} className="mr-1"/> Enviar todas à SEFAZ ({selected.size})</Button>
-          )}
-          <TooltipProvider><Tooltip>
-            <TooltipTrigger asChild>
-              <span><Button size="sm" variant="outline" disabled={selectedNotaIds.length === 0}
-                onClick={() => setDanfeLote(selectedNotaIds)}>
-                <Printer size={14} className="mr-1"/> DANFE Simplificada ({selectedNotaIds.length})
-              </Button></span>
-            </TooltipTrigger>
-            <TooltipContent>Só as notas autorizadas da seleção.</TooltipContent>
-          </Tooltip></TooltipProvider>
-          <Button size="sm" variant="outline" disabled={selectedEtiquetaIds.length === 0} onClick={() => setLoteEtiquetas(selectedEtiquetaIds)}>
-            <Printer size={14} className="mr-1"/> Imprimir etiquetas ({selectedEtiquetaIds.length})
-          </Button>
-          <Button size="sm" variant="outline" disabled={selectedNotaIds.length === 0} onClick={() => setLoteCasado(selectedNotaIds)}>
-            <Truck size={14} className="mr-1"/> DANFE + etiqueta de envio ({selectedNotaIds.length})
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" title="Mais opções"><Plus size={16}/></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top">
+              <DropdownMenuItem disabled={selectedNotaIds.length === 0} onClick={() => setDanfeLoteA4(selectedNotaIds)}>
+                <FileText size={14} className="mr-2"/> Imprimir só notas (A4) ({selectedNotaIds.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={selectedEtiquetaIds.length === 0} onClick={() => setLoteEtiquetas(selectedEtiquetaIds)}>
+                <Truck size={14} className="mr-2"/> Imprimir só etiquetas ({selectedEtiquetaIds.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={selectedNotaIds.length === 0} onClick={() => setDanfeView({ id: selectedNotaIds[0], mode: 'etiqueta' })}>
+                <Printer size={14} className="mr-2"/> Imprimir só DANFE simplificada
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={selectedNotaIds.length === 0} onClick={() => setDanfeLote(selectedNotaIds)}>
+                <Printer size={14} className="mr-2"/> DANFE simplificada em lote ({selectedNotaIds.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={selectedNotaIds.length === 0} onClick={() => setLoteCasado(selectedNotaIds)}>
+                <Truck size={14} className="mr-2"/> DANFE + etiqueta ({selectedNotaIds.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={queueFromSelection().length === 0} onClick={() => abrirFichaDialog(queueFromSelection())}>
+                <ClipboardList size={14} className="mr-2"/> Gerar fichas ({queueFromSelection().length})
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -897,6 +891,7 @@ const RanchoChiquePedidosPage = () => {
 
       <DanfeViewerDialog notaId={danfeView?.id ?? null} mode={danfeView?.mode ?? 'a4'} onClose={() => setDanfeView(null)} />
       <DanfeViewerDialog notaIds={danfeLote} mode="etiqueta" onClose={() => setDanfeLote(null)} />
+      <DanfeViewerDialog notaIds={danfeLoteA4} mode="a4" onClose={() => setDanfeLoteA4(null)} />
       <DanfeViewerDialog notaIds={loteCasado} mode="etiqueta" casada onClose={() => setLoteCasado(null)} />
       <DanfeViewerDialog etiquetaPedidoIds={loteEtiquetas} mode="etiqueta" onClose={() => setLoteEtiquetas(null)} />
       <EnvioEtiquetaDialog pedido={envioDialog} onClose={() => setEnvioDialog(null)} onDone={() => load()} />
