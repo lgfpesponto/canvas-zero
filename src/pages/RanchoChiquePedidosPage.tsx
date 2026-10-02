@@ -660,6 +660,7 @@ const RanchoChiquePedidosPage = () => {
                     <div className="flex-1 min-w-0 text-sm truncate">{p.cliente_nome || '—'}</div>
                     <div className="text-xs text-muted-foreground hidden sm:block">{new Date(p.bagy_created_at || p.created_at).toLocaleString('pt-BR')}</div>
                     <div className="text-sm font-semibold">{brl(p.total)}</div>
+                    {portalOrders.some(o => /^TROCA/i.test(o.numero || '')) && <Badge>TROCA</Badge>}
                     <Badge variant="outline">{STATUS_BAGY_LABEL[p.status_bagy] || p.status_bagy}</Badge>
                     <span className="flex items-center gap-1 text-primary shrink-0">
                       {notaFiscal && <span title={`NF-e nº ${notaFiscal.numero} (${notaFiscal.status})`}><FileText size={15} /></span>}
@@ -728,6 +729,13 @@ const RanchoChiquePedidosPage = () => {
 
                 {selPedido?.id === p.id && (
                   <div className="border-t p-2 space-y-2 bg-background">
+                    {portalOrders.some(o => /^TROCA/i.test(o.numero || '')) && (
+                      <div className="rounded border border-primary bg-primary/10 p-2 text-sm">
+                        <span className="font-semibold">Foi gerada troca:</span>{' '}
+                        {portalOrders.filter(o => /^TROCA/i.test(o.numero || '')).map(o => o.numero).join(', ')}
+                        {notaFiscal?.status === 'devolvida' && ' · nota original devolvida — gere a nova NF-e pelos 3 pontinhos.'}
+                      </div>
+                    )}
                     <BagyPedidoView pedido={p} nota={notaFiscal} statusLabel={STATUS_BAGY_LABEL[p.status_bagy]}
                       onOpenNota={() => notaFiscal && (nfeAutorizada ? setDanfeView({ id: notaFiscal.id, mode: 'a4' }) : setNfeIds([p.id]))}
                       onOpenTracking={() => p.etiqueta_path ? setLoteEtiquetas([p.id]) : p.tracking_url ? window.open(p.tracking_url, '_blank') : (setTrackDialog(p), setTrackCode(p.tracking_code || ''), setTrackUrl(p.tracking_url || ''))} />
