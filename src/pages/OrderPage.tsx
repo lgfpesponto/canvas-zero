@@ -2280,7 +2280,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
         </Dialog>
 
         <div className="relative">
-        <div className="hidden min-[1500px]:block fixed left-4 top-28 z-30">
+        <div className={calcMode ? "hidden" : "hidden min-[1500px]:block fixed left-4 top-28 z-30"}>
           <FichaCategoriaMenu menuRef={menuRef} items={categoriasFicha} className="block" />
         </div>
         <form ref={formRef} onSubmit={mode === 'template' ? (e) => { e.preventDefault(); tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate(); } : handleSubmit} className="w-full min-w-0 bg-card rounded-xl p-6 md:p-8 western-shadow space-y-6">
