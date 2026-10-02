@@ -4,6 +4,7 @@ import { useAuth, formatBrasiliaDate, formatBrasiliaTime, lastAddOrderErrorMessa
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
 import { useCheckDuplicateOrder, DUPLICATE_MSG } from '@/hooks/useCheckDuplicateOrder';
+import CalcEmitter, { type CalcData } from '@/components/calculadora/CalcEmitter';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -68,9 +69,11 @@ export interface BeltOrderPageProps {
   /** Pré-preenchimento vindo da fila de fichas Bagy (sem modelo rascunho). */
   bagyPrefill?: { numero: string; cliente?: string; whatsapp?: string; tamanho?: string; bagyOrderId: string } | null;
   onBagySaved?: () => void;
+  calcMode?: boolean;
+  onCalcChange?: (d: CalcData) => void;
 }
 
-const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar, bagyPrefill, onBagySaved }: BeltOrderPageProps = {}) => {
+const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar, bagyPrefill, onBagySaved, calcMode, onCalcChange }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { findFotoByName, items: fichaItems } = useFichaVariacoesLookup();
   // Normaliza + mescla lista hardcoded com variações do editor de ficha (campos do cinto).
@@ -292,6 +295,23 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comprarModelo]);
 
+  // Prefill vindo de orçamento da calculadora
+  const orcAppliedRef = useRef(false);
+  useEffect(() => {
+    const st = location.state as any;
+    if (!st?.fromOrcamento || orcAppliedRef.current) return;
+    orcAppliedRef.current = true;
+    populateFromTemplate(st.templateData || {});
+    if (st.templateData?.cliente) setCliente(st.templateData.cliente);
+    if (st.templateData?.clienteWhatsapp) setClienteWhatsapp(st.templateData.clienteWhatsapp);
+    (async () => {
+      const { data: prof } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+      if (prof?.nome_completo) setVendedor(prof.nome_completo);
+    })();
+    toast.info('Ficha pré-preenchida pelo orçamento. Informe o número do pedido Bagy e complete os campos obrigatórios.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Prefill da fila de fichas Bagy (cinto sem modelo rascunho)
   const bagyAppliedRef = useRef(false);
   useEffect(() => {
@@ -429,6 +449,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (calcMode) return;
     if (mode === 'template') {
       tmpl.isEditing ? handleUpdateTemplate() : handleSaveTemplate();
       return;
@@ -693,7 +714,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
           <h1 className="text-3xl font-display font-bold">
             {tmpl.isEditing ? 'Editar Modelo — Cinto' : isTemplate ? 'Criar Modelo — Cinto' : 'Ficha de Produção — Cinto'}
           </h1>
-          {!isTemplate && (
+          {!isTemplate && !calcMode && (
             <>
               <Button
                 type="button"
@@ -983,7 +1004,23 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
 
           {/* Observação vive dentro da Identificação (topo) */}
 
-          {!isTemplate && (
+          {calcMode && (
+            <CalcEmitter
+              onChange={onCalcChange}
+              data={{
+                tipo: 'cinto', total, formData: buildBeltFormData(),
+                grupos: [{ categoria: 'Cinto', itens: ([
+                  ['Tamanho', tamanho], ['Couro', [tipoCouro, corCouro].filter(Boolean).join(' ')],
+                  ['Bordado P', bordadoP ? [bordadoPDesc, bordadoPCor].filter(Boolean).join(' - ') || 'Sim' : ''],
+                  ['Nome bordado', nomeBordado ? [nomeBordadoDesc, nomeBordadoCor, nomeBordadoFonte].filter(Boolean).join(' - ') || 'Sim' : ''],
+                  ['Carimbo', [carimbo, carimboDesc, carimboOnde].filter(Boolean).join(' - ')],
+                  ['Fivela', [fivela, fivelaOutroDesc].filter(Boolean).join(' - ')],
+                  ['Adicional', adicionalDesc], ['Observação', observacao],
+                ] as [string, string][]).filter(([, v]) => v && v.trim()) }],
+              }}
+            />
+          )}
+          {!isTemplate && !calcMode && (
             <>
               {/* Quantidade */}
               <div className="flex items-center gap-3">
