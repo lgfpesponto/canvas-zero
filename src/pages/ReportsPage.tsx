@@ -923,7 +923,7 @@ const ReportsPage = () => {
       title: 'Imprimir Fichas Adesivas?',
       description: (
         <ReportConfirmSummary
-          intro="Cada bota ou cinto vira uma ficha vertical de 10 × 15 cm para a impressora térmica."
+          intro="Cada bota ou cinto vira uma etiqueta adesiva 60 × 40 mm (nº do pedido, código de barras e modelo)."
           destaque={{ label: 'Fichas a imprimir', value: `${list.length} ficha${list.length !== 1 ? 's' : ''}` }}
           linhas={[
             ...(ignored > 0 ? [{ label: 'Outros produtos ignorados', value: ignored.toLocaleString('pt-BR') }] : []),
@@ -1640,7 +1640,7 @@ const ReportsPage = () => {
             >
               {(ordersLoading || preparingReport)
                 ? <><Loader2 size={16} className="animate-spin" /> CARREGANDO…</>
-                : <><Printer size={16} /> IMPRIMIR FICHA ADESIVA</>}
+                : <><Printer size={16} /> IMPRIMIR ADESIVA 60×40</>}
             </Button>
 
           </div>

@@ -112,7 +112,7 @@ function abbrevBico(value: unknown): string {
   return (clean(value) || 'quadrado').replace(/\bfino\b/gi, 'BF').toUpperCase();
 }
 
-/** Gera uma ficha vertical de 100 × 150 mm, própria para impressora térmica. */
+/** Etiqueta adesiva 60 × 40 mm: nº do pedido, código de barras e modelo, com marca d'água 7ESTRIVOS. */
 export async function generateFichaAdesivaPDF(
   orders: Order[],
   meta?: { userName?: string },
@@ -121,243 +121,54 @@ export async function generateFichaAdesivaPDF(
   const ignored = orders.length - list.length;
   if (list.length === 0) return { generated: 0, ignored };
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
-  const pageWidth = 100;
-  const pageHeight = 150;
-  const margin = 4;
-  const contentWidth = pageWidth - margin * 2;
+  const W = 60;
+  const H = 40;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [W, H] });
 
   for (let index = 0; index < list.length; index += 1) {
     const order = list[index];
-    if (index > 0) doc.addPage([100, 150], 'portrait');
-
+    if (index > 0) doc.addPage([W, H], 'landscape');
     const isBelt = order.tipoExtra === 'cinto';
-    const detail = order.extraDetalhes || {};
     const code = clean(order.numero).replace(/^7E-/, '');
-    const size = isBelt ? beltSize(order) : [order.tamanho, order.genero ? order.genero.slice(0, 3).toLowerCase() : ''].filter(Boolean).join(' ');
-    const model = isBelt ? 'Cinto' : lower(order.modelo);
+    const model = isBelt ? 'CINTO' : (clean(order.modelo).toUpperCase() || '—');
 
-    doc.setDrawColor(0, 0, 0);
+    // Marca d'água discreta ao fundo
+    doc.setTextColor(225, 225, 225);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('7ESTRIVOS', W / 2, H / 2 + 3, { align: 'center' });
+
     doc.setTextColor(0, 0, 0);
-    doc.setLineWidth(0.3);
+    // Nº do pedido no topo
+    let size = 14;
+    doc.setFontSize(size);
+    while (doc.getTextWidth(code) > W - 4 && size > 7) { size -= 0.5; doc.setFontSize(size); }
+    doc.text(code, W / 2, 6.5, { align: 'center' });
 
-    const qrSize = 19;
-    let qrDataUrl = '';
-    const photo = order.fotos?.find(url => typeof url === 'string' && url.startsWith('http'));
-    if (photo) {
-      try {
-        qrDataUrl = await QRCode.toDataURL(photo, { width: 280, margin: 1 });
-      } catch {
-        qrDataUrl = '';
-      }
-    }
-
-    const headerGap = 5;
-    const headerColWidth = (contentWidth - headerGap) / 2;
-    const headerRightX = margin + headerColWidth + headerGap;
-    const headerFontSize = 10.8;
-    const headerLineHeight = 4.7;
-    const headerRowGap = 1;
-    const measureHeaderField = (label: string, value: string) => {
-      doc.setFontSize(headerFontSize);
-      doc.setFont('helvetica', 'bold');
-      const labelWidth = doc.getTextWidth(label) + 1.1;
-      return { labelWidth, lines: wrapText(doc, value, Math.max(8, headerColWidth - labelWidth)) };
-    };
-
-    // Colunas independentes: quando o cliente não aparece, "Modelo" sobe — sem linha vazia.
-    const col1Fields = [
-      { label: 'Código:', value: code },
-      { label: 'Data:', value: orderDate(order) || '—' },
-      { label: 'Tamanho:', value: size || '—' },
-    ];
-    const col2Fields = [
-      { label: 'Vendedor:', value: shortVendorName(order.vendedor) },
-      ...(canShowCliente(order.vendedor) ? [{ label: 'Cliente:', value: clean(order.cliente) || '—' }] : []),
-      { label: 'Modelo:', value: model || '—' },
-    ];
-
-    const drawHeaderColumn = (fields: Array<{ label: string; value: string }>, x: number) => {
-      let y = 8;
-      for (const field of fields) {
-        const measured = measureHeaderField(field.label, field.value);
-        doc.setFontSize(headerFontSize);
-        doc.setFont('helvetica', 'bold');
-        doc.text(field.label, x, y);
-        doc.text(measured.lines, x + measured.labelWidth, y);
-        y += measured.lines.length * headerLineHeight + headerRowGap;
-      }
-      return y - headerRowGap;
-    };
-
-    const headerBottom = Math.max(
-      drawHeaderColumn(col1Fields, margin),
-      drawHeaderColumn(col2Fields, headerRightX),
-    ) + 0.5;
-    doc.line(margin, headerBottom, pageWidth - margin, headerBottom);
-    // Divisória vertical entre as duas colunas do cabeçalho.
-    const headerMidX = margin + headerColWidth + headerGap / 2;
-    doc.line(headerMidX, 8, headerMidX, headerBottom);
-
-    type Section = { title: string; values: string[] };
-    const sections: Section[] = [];
-    if (order.observacao) sections.push({ title: 'OBSERVAÇÃO', values: [clean(order.observacao)] });
-    if (!isBelt) {
-      const pesponto = bootPesponto(order);
-      const metals = bootMetals(order);
-      const extras = bootExtras(order);
-      if (pesponto.length) sections.push({ title: 'PESPONTO', values: pesponto });
-      if (order.acessorios) sections.push({ title: 'ACESSÓRIOS', values: [clean(order.acessorios)] });
-      if (metals.length) sections.push({ title: 'METAIS', values: metals });
-      if (extras.length) sections.push({ title: 'EXTRAS', values: extras });
-    } else {
-      const beltAccessories = [
-        detail.fivela ? `Fivela: ${detail.fivela}${detail.fivelaOutroDesc ? ` ${detail.fivelaOutroDesc}` : ''}` : '',
-        detail.bordadoP === 'Tem' ? `Bordado: ${detail.bordadoPDesc || 'sim'}` : '',
-        detail.nomeBordado === 'Tem' ? `Nome: ${detail.nomeBordadoDesc || 'sim'}` : '',
-        detail.carimbo ? `Carimbo: ${detail.carimbo}${detail.carimboDesc ? ` ${detail.carimboDesc}` : ''}` : '',
-      ].filter(Boolean);
-      if (beltAccessories.length) sections.push({ title: 'ACESSÓRIOS', values: beltAccessories });
-    }
-
-    const stubTop = 120;
-    const qrY = stubTop - qrSize - 2;
-    const bodyTop = headerBottom;
-    const bodyBottom = stubTop - 2;
-    const bodyGap = 5;
-    const bodyColWidth = (contentWidth - bodyGap) / 2;
-    const bodyRightX = margin + bodyColWidth + bodyGap;
-    let bodyFontSize = headerFontSize;
-    let lineHeight = 4.6;
-    const titleFontSize = headerFontSize;
-    const sectionTitleHeight = 6.8;
-    const sectionGap = 2;
-
-    const bodyTopPadding = 2.5;
-    type LaidOutSection = Section & { lines: string[]; height: number };
-    const layoutSections = (fontSize: number, lh: number): LaidOutSection[] => {
-      doc.setFontSize(fontSize);
-      doc.setFont('helvetica', 'bold');
-      return sections.map(section => {
-        const lines = section.values.flatMap(value => wrapText(doc, value, bodyColWidth - 2));
-        return { ...section, lines, height: sectionTitleHeight + lines.length * lh + sectionGap };
-      });
-    };
-
-    const placeSections = (items: LaidOutSection[]) => {
-      const placements: Array<LaidOutSection & { column: number; y: number }> = [];
-      const limits = [bodyBottom, qrDataUrl ? qrY - 1 : bodyBottom];
-      let column = 0;
-      let y = bodyTop + bodyTopPadding;
-      for (const section of items) {
-        if (y + section.height > limits[column] && column === 0) {
-          column = 1;
-          y = bodyTop + bodyTopPadding;
-        }
-        if (y + section.height > limits[column]) return null;
-        placements.push({ ...section, column, y });
-        y += section.height;
-      }
-      return placements;
-    };
-
-    let laidOut = layoutSections(bodyFontSize, lineHeight);
-    let placements = placeSections(laidOut);
-    while (!placements && bodyFontSize > 6) {
-      bodyFontSize -= 0.25;
-      lineHeight = Math.max(3, bodyFontSize * 0.43);
-      laidOut = layoutSections(bodyFontSize, lineHeight);
-      placements = placeSections(laidOut);
-    }
-
-    // Divisórias horizontais entre categorias dentro da mesma coluna.
-    const sectionStarted: boolean[] = [false, false];
-    for (const section of placements || []) {
-      const x = section.column === 0 ? margin : bodyRightX;
-      const colRight = section.column === 0 ? margin + bodyColWidth : pageWidth - margin;
-      if (sectionStarted[section.column]) {
-        doc.line(x, section.y - sectionGap / 2, colRight, section.y - sectionGap / 2);
-      }
-      sectionStarted[section.column] = true;
-      doc.setFontSize(titleFontSize);
-      doc.setFont('helvetica', 'bold');
-      doc.text(section.title, x, section.y + 3.3);
-      doc.setFontSize(bodyFontSize);
-      doc.setFont('helvetica', 'bold');
-      if (section.lines.length) {
-        doc.text(section.lines, x + 1, section.y + sectionTitleHeight + 0.8, {
-          lineHeightFactor: lineHeight / (bodyFontSize * 0.352778),
-        });
-      }
-    }
-
-    if (qrDataUrl) {
-      try {
-        doc.addImage(qrDataUrl, 'PNG', pageWidth - margin - qrSize, qrY, qrSize, qrSize);
-      } catch {
-        // Mantém a ficha legível mesmo se o navegador não conseguir inserir a imagem.
-      }
-    }
-
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(margin, stubTop, pageWidth - margin, stubTop);
-    doc.setLineDashPattern([], 0);
-
+    // Código de barras no centro
     const barcode = barcodeDataUrl(orderBarcodeValue(order.numero, order.id));
     if (barcode) {
-      try {
-        doc.addImage(barcode, 'PNG', margin, stubTop + 3, 46, 14);
-      } catch {
-        // Mantém a ficha legível mesmo se o navegador não conseguir gerar a imagem.
-      }
+      try { doc.addImage(barcode, 'PNG', 3, 8.5, W - 6, 16); } catch { /* segue sem imagem */ }
     }
 
-    doc.setFontSize(7.8);
-    doc.setFont('helvetica', 'bold');
-    doc.text(code, margin + 23, stubTop + 20.5, { align: 'center' });
+    // Modelo embaixo
+    let ms = 11;
+    doc.setFontSize(ms);
+    let lines = wrapText(doc, model, W - 4);
+    while (lines.length > 2 && ms > 6) { ms -= 0.5; doc.setFontSize(ms); lines = wrapText(doc, model, W - 4); }
+    doc.text(lines.slice(0, 2), W / 2, lines.length > 1 ? 29.5 : 31, { align: 'center', lineHeightFactor: 1.05 });
 
-    const stubX = 53;
-    const stubWidth = pageWidth - margin - stubX;
-    const isRustica = order.solado === 'Rústica';
-    const vira = !isRustica && ['rosa', 'preto'].includes(lower(order.corVira)) ? ` VIRA ${clean(order.corVira).toUpperCase()}` : '';
-    const soleValues = isBelt
-      ? [[size || '—', 'CINTO'].join(' ')]
-      : [
-          [size || '—', abbrevSolado(order.solado || 'borracha'), isRustica ? '' : abbrevCorSola(order.corSola)].filter(Boolean).join(' '),
-          `${abbrevBico(order.formatoBico)}${vira}`,
-          order.forma ? `FORMA: ${order.forma}` : '',
-        ].filter(Boolean);
-
-    let stubFontSize = 8.8;
-    let stubLineHeight = 3.9;
-    let soleLines: string[] = [];
-    const fitStub = () => {
-      doc.setFontSize(stubFontSize);
-      doc.setFont('helvetica', 'bold');
-      soleLines = soleValues.flatMap(line => wrapText(doc, line.toUpperCase(), stubWidth));
-    };
-    fitStub();
-    while (soleLines.length * stubLineHeight > 18.5 && stubFontSize > 7) {
-      stubFontSize -= 0.25;
-      stubLineHeight = Math.max(3.1, stubFontSize * 0.44);
-      fitStub();
-    }
-    doc.setFontSize(stubFontSize);
-    doc.setFont('helvetica', 'bold');
-    doc.text(soleLines, stubX, stubTop + 5, {
-      lineHeightFactor: stubLineHeight / (stubFontSize * 0.352778),
-    });
-
-    doc.setFontSize(5.5);
-    doc.setFont('helvetica', 'bold');
-    doc.text('7ESTRIVOS', margin, pageHeight - 2.5);
-    doc.text(`${index + 1}/${list.length}`, pageWidth - margin, pageHeight - 2.5, { align: 'right' });
+    doc.setFontSize(5);
+    doc.setTextColor(120, 120, 120);
+    doc.text('7ESTRIVOS', 2, H - 1.5);
+    doc.text(`${index + 1}/${list.length}`, W - 2, H - 1.5, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
   }
 
   const now = new Date();
   const date = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
   const time = `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
-  void recordPrintHistory(list.map(order => order.id), 'Ficha de Produção Adesiva', meta?.userName || '');
-  doc.save(`Fichas Adesivas - ${date} - ${time}.pdf`);
+  void recordPrintHistory(list.map(order => order.id), 'Etiqueta Adesiva 60x40', meta?.userName || '');
+  doc.save(`Etiquetas 60x40 - ${date} - ${time}.pdf`);
   return { generated: list.length, ignored };
 }
