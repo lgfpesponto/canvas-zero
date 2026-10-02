@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { TrocaDevolucaoBanner } from '@/components/fiscal/TrocaDevolucaoBanner';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime, lastAddOrderErrorMessage } from '@/contexts/AuthContext';
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
@@ -1069,6 +1070,20 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
     if (bagyPrefillAppliedRef.current || !bagyPrefill || fichaLoading) return;
     bagyPrefillAppliedRef.current = true;
     (async () => {
+      if (!bagyPrefill.templateId) {
+        // Sem SKU mapeado: ficha em branco só com os dados do pedido
+        setProductChoice('bota');
+        setMode('order');
+        if (bagyPrefill.numero) setNumeroPedido(bagyPrefill.numero);
+        if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
+        if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
+        if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
+        if (bagyPrefill.fotoUrl) setFotoUrl(bagyPrefill.fotoUrl);
+        const { data: prof0 } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+        if (prof0?.nome_completo) setVendedorSelecionado(prof0.nome_completo);
+        toast.info(`Pedido ${bagyPrefill.numero} sem modelo rascunho: preencha a ficha e salve.`);
+        return;
+      }
       const { data: tmplRow } = await supabase
         .from('order_templates')
         .select('id, nome, form_data, genero, sku, tamanhos_skus')
@@ -2329,6 +2344,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
                   <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!estoqueJaCriado && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="texto" /></label>
                   <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!estoqueJaCriado} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
                   {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                  <div className="mt-1"><TrocaDevolucaoBanner numero={numeroPedido} /></div>
                 </div>
                 {vendedorSelecionado === 'Estoque' ? (
                   <div>

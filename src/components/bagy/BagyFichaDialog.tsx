@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, SkipForward, X } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderPage from '@/pages/OrderPage';
+import BeltOrderPage from '@/pages/BeltOrderPage';
 
 export type BagyFichaQueueItem = {
   pedidoId: string;
@@ -26,7 +27,8 @@ interface Props {
 }
 
 type Resolved = {
-  templateId: string;
+  templateId: string | null;
+  tipo: 'bota' | 'cinto';
   numero: string;
   cliente: string;
   whatsapp: string;
@@ -77,17 +79,17 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
             .select('id, bagy_order_id, numero_bagy, cliente_nome, cliente_whats')
             .eq('id', current.pedidoId).maybeSingle(),
           supabase.from('bagy_pedido_itens')
-            .select('id, sku, tamanho, quantidade, foto_url, template_id')
+            .select('id, sku, nome_produto, tamanho, quantidade, foto_url, template_id')
             .eq('id', current.itemId).maybeSingle(),
         ]);
         if (cancel) return;
         if (!p || !it) { advance(false, 'Item Bagy não encontrado.'); return; }
-        if (!it.template_id) { advance(false, 'Item sem template (SKU não mapeado).'); return; }
+        const tipo: 'bota' | 'cinto' = /cinto/i.test(it.nome_produto || '') ? 'cinto' : 'bota';
 
         // foto + tamanho: tenta override pelo template
         let fotoUrl: string | null = it.foto_url;
         let tamanho: string | null = it.tamanho || null;
-        try {
+        if (it.template_id) try {
           const { data: tpl } = await supabase
             .from('order_templates')
             .select('foto_url, tamanhos_skus')
@@ -102,6 +104,7 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
 
         setResolved({
           templateId: it.template_id,
+          tipo,
           numero: current.numeroOverride || `RC-${p.numero_bagy}`,
           cliente: p.cliente_nome || '',
           whatsapp: p.cliente_whats || '',
@@ -176,12 +179,18 @@ export function BagyFichaDialog({ open, queue, onClose, onFinished }: Props) {
             <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
               <Loader2 size={18} className="animate-spin" /> Carregando ficha...
             </div>
+          ) : resolved.tipo === 'cinto' ? (
+            <BeltOrderPage
+              key={mountKey}
+              bagyPrefill={{ numero: resolved.numero, cliente: resolved.cliente, whatsapp: resolved.whatsapp, tamanho: resolved.tamanho, bagyOrderId: resolved.bagyOrderId }}
+              onBagySaved={() => advance(true)}
+            />
           ) : (
             <OrderPage
               key={mountKey}
               embedded
               bagyPrefillOverride={resolved}
-              autoShowMirror
+              autoShowMirror={!!resolved.templateId}
               finalizeBadge={total > 1 ? `(${current}/${total})` : undefined}
               onBagySaved={() => advance(true)}
               onBagyCancel={() => advance(false, 'Pulado.')}

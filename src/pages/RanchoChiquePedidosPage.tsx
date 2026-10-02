@@ -360,7 +360,20 @@ const RanchoChiquePedidosPage = () => {
 
 
   const semMapCount = pedidos.filter(p => p.flag === 'aguardando_mapeamento').length;
-  const fichasPendentes = pedidos.filter(p => p.flag === 'aguardando_ficha' && (itensByPed[p.id] || []).some(i => i.status === 'aguardando_ficha' && !!i.template_id));
+  // Fila de fichas: aprovados a partir do corte, sem pedido em Meus Pedidos e não dispensados
+  const FICHA_CORTE_ISO = '2026-10-02T03:00:00Z'; // 02/10/2026 00:00 (Brasília)
+  const itensSemFicha = (p: BagyPedido) => (itensByPed[p.id] || []).filter(i => !i.order_id_portal);
+  const fichasPendentes = pedidos.filter(p =>
+    p.status_bagy === 'approved' &&
+    p.flag !== 'ficha_dispensada' &&
+    (p.bagy_created_at || p.created_at) >= FICHA_CORTE_ISO &&
+    !p.order_id_portal &&
+    (portalOrdersByBagy[p.bagy_order_id] || []).length === 0 &&
+    itensSemFicha(p).length > 0
+  );
+  const fichasComSku = fichasPendentes.filter(p => itensSemFicha(p).some(i => !!i.template_id));
+  const fichasSemSku = fichasPendentes.filter(p => !itensSemFicha(p).some(i => !!i.template_id));
+  const [fichasAba, setFichasAba] = useState<'com' | 'sem'>('com');
   const aguardFichaCount = fichasPendentes.length;
   // Notas autorizadas da seleção, na ordem da lista (um cliente após o outro)
   const selectedNotaIds = filtered.filter(p => selected.has(p.id)).map(p => nfeByPedido[p.id])
@@ -427,7 +440,7 @@ const RanchoChiquePedidosPage = () => {
    * Se houver mais de 1 par no pedido inteiro (soma das quantidades), aplica sufixo A/B/C...
    */
   const queueFromPedido = (p: BagyPedido): BagyFichaQueueItem[] => {
-    const itens = (itensByPed[p.id] || []).filter(i => i.status === 'aguardando_ficha' && !!i.template_id);
+    const itens = (itensByPed[p.id] || []).filter(i => !i.order_id_portal && (i.status === 'aguardando_ficha' || fichasPendentes.some(f => f.id === p.id)));
     const totalPares = itens.reduce((s, i) => s + Math.max(1, i.quantidade || 1), 0);
     const numeroBase = `RC-${p.numero_bagy}`;
     const out: BagyFichaQueueItem[] = [];
@@ -933,31 +946,51 @@ const RanchoChiquePedidosPage = () => {
       <Dialog open={fichasOpen} onOpenChange={setFichasOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Aguardando ficha ({fichasPendentes.length})</DialogTitle></DialogHeader>
-          {fichasPendentes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum pedido com modelo rascunho aguardando ficha.</p>
-          ) : (
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {fichasPendentes.map(p => (
-                <div key={p.id} className="flex items-center gap-2 border rounded p-2 text-sm">
-                  <span className="font-mono font-bold">RC-{p.numero_bagy}</span>
-                  <span className="flex-1 truncate">{p.cliente_nome || '—'}</span>
-                  <Button size="sm" onClick={() => { setFichasOpen(false); abrirFichaDialog(queueFromPedido(p)); }}>
-                    <FileText size={14} className="mr-1" /> Fazer ficha
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" title="Excluir da fila (sem fazer ficha)" aria-label="Excluir da fila"
-                    onClick={async () => {
-                      if (!confirm(`Tirar RC-${p.numero_bagy} da fila de fichas? O pedido Bagy continua salvo.`)) return;
-                      const { error } = await supabase.from('bagy_pedidos').update({ flag: 'ficha_dispensada' } as any).eq('id', p.id);
-                      if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
-                      setPedidos(prev => prev.map(x => x.id === p.id ? { ...x, flag: 'ficha_dispensada' } : x));
-                      toast.success('Removido da fila de fichas.');
-                    }}>
-                    <XCircle size={16} />
-                  </Button>
+          <p className="text-xs text-muted-foreground -mt-2">Pedidos aprovados a partir de 02/10/2026 que ainda não estão em Meus Pedidos.</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant={fichasAba === 'com' ? 'default' : 'outline'} onClick={() => setFichasAba('com')}>Com SKU ({fichasComSku.length})</Button>
+            <Button size="sm" variant={fichasAba === 'sem' ? 'default' : 'outline'} onClick={() => setFichasAba('sem')}>Sem SKU ({fichasSemSku.length})</Button>
+          </div>
+          {(() => {
+            const lista = fichasAba === 'com' ? fichasComSku : fichasSemSku;
+            if (lista.length === 0) return <p className="text-sm text-muted-foreground">Nenhum pedido nesta aba.</p>;
+            return (
+              <>
+                <Button size="sm" variant="secondary" onClick={() => {
+                  const q = lista.flatMap(p => queueFromPedido(p));
+                  setFichasOpen(false); abrirFichaDialog(q);
+                }}>
+                  <FileText size={14} className="mr-1" /> Fazer fichas em sequência ({lista.length})
+                </Button>
+                <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+                  {lista.map(p => {
+                    const nomes = itensSemFicha(p).map(i => i.nome_produto).filter(Boolean).join(', ');
+                    return (
+                      <div key={p.id} className="flex items-center gap-2 border rounded p-2 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex gap-2"><span className="font-mono font-bold">RC-{p.numero_bagy}</span><span className="truncate">{p.cliente_nome || '—'}</span></div>
+                          {nomes && <div className="text-xs text-muted-foreground truncate">{nomes}</div>}
+                        </div>
+                        <Button size="sm" onClick={() => { setFichasOpen(false); abrirFichaDialog(queueFromPedido(p)); }}>
+                          <FileText size={14} className="mr-1" /> Fazer ficha
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" title="Excluir da fila (sem fazer ficha)" aria-label="Excluir da fila"
+                          onClick={async () => {
+                            if (!confirm(`Tirar RC-${p.numero_bagy} da fila de fichas? O pedido Bagy continua salvo.`)) return;
+                            const { error } = await supabase.from('bagy_pedidos').update({ flag: 'ficha_dispensada' } as any).eq('id', p.id);
+                            if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
+                            setPedidos(prev => prev.map(x => x.id === p.id ? { ...x, flag: 'ficha_dispensada' } : x));
+                            toast.success('Removido da fila de fichas.');
+                          }}>
+                          <XCircle size={16} />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

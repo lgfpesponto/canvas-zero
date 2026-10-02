@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TrocaDevolucaoBanner } from '@/components/fiscal/TrocaDevolucaoBanner';
 import { useAuth, formatBrasiliaDate, formatBrasiliaTime, lastAddOrderErrorMessage } from '@/contexts/AuthContext';
 import { useAutoOrderNumero, garantirPrefixo } from '@/hooks/useAutoOrderNumero';
 import { PrazoProducaoBox } from '@/components/ficha-edit/PrazoProducaoBox';
@@ -64,9 +65,12 @@ export interface BeltOrderPageProps {
   } | null;
   onComprarSaved?: () => void;
   onComprarEditar?: () => void;
+  /** Pré-preenchimento vindo da fila de fichas Bagy (sem modelo rascunho). */
+  bagyPrefill?: { numero: string; cliente?: string; whatsapp?: string; tamanho?: string; bagyOrderId: string } | null;
+  onBagySaved?: () => void;
 }
 
-const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar }: BeltOrderPageProps = {}) => {
+const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar, bagyPrefill, onBagySaved }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { findFotoByName, items: fichaItems } = useFichaVariacoesLookup();
   // Normaliza + mescla lista hardcoded com variações do editor de ficha (campos do cinto).
@@ -287,6 +291,22 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comprarModelo]);
+
+  // Prefill da fila de fichas Bagy (cinto sem modelo rascunho)
+  const bagyAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!bagyPrefill || bagyAppliedRef.current) return;
+    bagyAppliedRef.current = true;
+    setNumeroPedido(bagyPrefill.numero);
+    if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
+    if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
+    if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
+    (async () => {
+      const { data: prof } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+      if (prof?.nome_completo) setVendedor(prof.nome_completo);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bagyPrefill]);
 
 
 
@@ -569,8 +589,15 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           navigate('/estoque');
           return;
         }
+        if (bagyPrefill && numeroSalvo !== '(novo)') {
+          try {
+            const { data: ord } = await supabase.from('orders').select('id').eq('numero', numeroSalvo).maybeSingle();
+            if (ord?.id) await supabase.from('orders').update({ bagy_order_id: bagyPrefill.bagyOrderId } as any).eq('id', ord.id);
+          } catch (e) { console.error('bagy link cinto', e); }
+        }
         toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
-        if (comprarMode && onComprarSaved) onComprarSaved();
+        if (bagyPrefill && onBagySaved) onBagySaved();
+        else if (comprarMode && onComprarSaved) onComprarSaved();
         else resetForm();
       } else {
         toast.error(lastAddOrderErrorMessage());
@@ -780,6 +807,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
                 <label className={cls.label + ' inline-flex items-center'}>Número do Pedido{!(estoqueJaCriado && vendedor === 'Estoque') && <span className="text-destructive ml-0.5">*</span>}<FichaFieldControls labelText="Número do Pedido" defaultTipo="selecao" /></label>
                 <input type="text" value={numeroPedido} onChange={e => setNumeroPedido(numeroIsAuto ? garantirPrefixo(e.target.value, numeroPrefixo) : e.target.value)} placeholder={estoqueJaCriado && vendedor === 'Estoque' ? 'Opcional (estoque pré-cadastro)' : 'Ex: 7E-20250001'} required={!(estoqueJaCriado && vendedor === 'Estoque')} className={`${cls.input} ${(orderDuplicate && !estoqueJaCriado) ? 'border-destructive' : ''}`} />
                 {orderDuplicate && !estoqueJaCriado && <p className="text-xs text-destructive mt-1">{DUPLICATE_MSG}</p>}
+                  <div className="mt-1"><TrocaDevolucaoBanner numero={numeroPedido} /></div>
               </div>
               <div>
                 <label className={cls.label + ' inline-flex items-center'}>Cliente<FichaFieldControls labelText="Cliente" defaultTipo="texto" /></label>
