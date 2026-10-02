@@ -178,7 +178,8 @@ const RanchoChiquePedidosPage = () => {
     };
     const { data: peds, error } = await supabase
       .from('bagy_pedidos')
-      .select('*')
+      // Sem `payload` (JSON pesado): o detalhe busca sob demanda.
+      .select('bagy_created_at,bagy_order_id,cliente_doc,cliente_email,cliente_nome,cliente_whats,created_at,desconto,endereco,envio_provider,envio_provider_id,envio_servico,erro,etiqueta_gerada_em,etiqueta_path,flag,frete,id,metodo_envio,numero_bagy,order_id_portal,pagamento,processado_em,status_bagy,status_bagy_anterior,total,tracking_code,tracking_url,updated_at')
       .order('bagy_created_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(1000);
@@ -233,15 +234,16 @@ const RanchoChiquePedidosPage = () => {
       ));
       ordParts.flat().forEach((o: any) => ordsById.set(o.id, o));
     }
-    // Vínculo por número: o número Bagy pode aparecer em qualquer posição do número do pedido
-    // ("RC-123", "123 01", "PALMI-123", "#123") ou no campo de pedido associado.
-    const numerosBagy = Array.from(new Set((peds || []).map((p: any) => String(p.numero_bagy || '').trim()).filter(n => /^[\w-]+$/.test(n))));
-    const numParts = await Promise.all(chunk(numerosBagy, 30).map(part =>
-      supabase.from('orders').select(cols + ', numero_pedido_bota')
-        .or(part.flatMap(n => [`numero.ilike.%${n}%`, `numero_pedido_bota.ilike.%${n}%`]).join(','))
-        .limit(1000).then(r => r.data || []),
-    ));
-    numParts.flat().forEach((o: any) => ordsById.set(o.id, o));
+    // Vínculo por número: busca única e rápida dos candidatos (Rancho Chique, RC, TROCA, 17/18...)
+    // e casa o número Bagy em memória (qualquer sequência de dígitos do número do pedido).
+    const candCols = cols + ', numero_pedido_bota';
+    const candFilter = 'vendedor.eq.Rancho Chique,numero.ilike.RC%,numero.ilike.TROCA%,numero.ilike.17%,numero.ilike.18%,numero_pedido_bota.ilike.RC%,numero_pedido_bota.ilike.17%';
+    for (let from = 0; from < 10000; from += 1000) {
+      const { data: cand } = await supabase.from('orders').select(candCols).or(candFilter)
+        .order('created_at', { ascending: false }).range(from, from + 999);
+      (cand || []).forEach((o: any) => ordsById.set(o.id, o));
+      if (!cand || cand.length < 1000) break;
+    }
     // Também vincula pelos itens Bagy que já apontam para um pedido do portal
     const itemPortalIds = Array.from(new Set(Object.values(itensByPedLocal).flat().map((i: any) => i.order_id_portal).concat((peds || []).map((p: any) => p.order_id_portal)).filter(Boolean))) as string[];
     const faltando = itemPortalIds.filter(id => !ordsById.has(id));
