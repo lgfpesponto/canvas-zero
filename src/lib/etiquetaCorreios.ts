@@ -79,7 +79,7 @@ export async function desenharEtiquetaCorreios(pedidoId: string): Promise<ArrayB
   doc.setFontSize(8.5);
   info('Pedido:', `RC-${ped.numero_bagy}`);
   if (nota?.numero) info('Nota Fiscal:', String(nota.numero).padStart(6, '0'));
-  info('Loja:', 'Site Bagy');
+  info('Loja:', 'Rancho Chique');
   y += 28;
   // Remetente
   doc.setFontSize(8.5);
