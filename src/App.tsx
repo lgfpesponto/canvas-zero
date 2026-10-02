@@ -19,6 +19,7 @@ import PiecesReportPage from "./pages/PiecesReportPage";
 import ProfilePage from "./pages/ProfilePage";
 import DraftsPage from "./pages/DraftsPage";
 import BeltOrderPage from "./pages/BeltOrderPage";
+import CalculadoraPage from "./pages/CalculadoraPage";
 import ExtrasPage from "./pages/ExtrasPage";
 import EstoquePage from "./pages/EstoquePage";
 import DynamicOrderPage from "./pages/DynamicOrderPage";
@@ -154,6 +155,7 @@ const App = () => (
             <Route path="/extras" element={<ExtrasPage />} />
             <Route path="/estoque" element={<EstoquePage />} />
             <Route path="/pedido-cinto" element={<BeltOrderPage />} />
+            <Route path="/calculadora" element={<CalculadoraPage />} />
             <Route path="/pedido/:id" element={<OrderDetailPage />} />
             <Route path="/pedido/:id/editar" element={<EditOrderPage />} />
             <Route path="/pedido/:id/editar-extra" element={<EditExtrasPage />} />

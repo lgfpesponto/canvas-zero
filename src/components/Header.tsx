@@ -2,7 +2,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
 import { useNfeAccess } from '@/hooks/useNfeAccess';
-import { Menu, X, LogOut, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Menu, X, LogOut, AlertTriangle, ChevronDown, Calculator } from 'lucide-react';
+import { useCalcAccess } from '@/hooks/useCalcAccess';
 import { useState, useEffect } from 'react';
 import logo from '@/assets/logo-7estrivos.png';
 import NotificacoesBell from '@/components/NotificacoesBell';
@@ -14,6 +15,7 @@ const Header = () => {
   const { isLoggedIn, user, isAdmin, role, logout, loading: authLoading } = useAuth();
   const { canSeeRevendedorView, isAdminMaster } = useFinanceiroSaldoAccess();
   const hasNfeAccess = useNfeAccess();
+  const calcAccess = useCalcAccess();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const [storageWarning, setStorageWarning] = useState<{ percent: number } | null>(null);
@@ -136,6 +138,11 @@ const Header = () => {
           })}
           {showAsLogged && isLoggedIn && (
             <>
+              {calcAccess && (
+                <Link to="/calculadora" title="Calculadora de precificação" className={`p-2 rounded-md transition-colors ${isPathActive('/calculadora') ? 'bg-primary text-primary-foreground' : 'text-primary hover:bg-primary/10'}`}>
+                  <Calculator size={20} />
+                </Link>
+              )}
               <NotificacoesBell />
               <button
                 onClick={logout}
@@ -150,6 +157,9 @@ const Header = () => {
 
         {/* Mobile: bell + menu button */}
         <div className="flex items-center gap-1 md:hidden">
+          {showAsLogged && isLoggedIn && calcAccess && (
+            <Link to="/calculadora" title="Calculadora de precificação" className="p-2 text-primary"><Calculator size={20} /></Link>
+          )}
           {showAsLogged && isLoggedIn && <NotificacoesBell />}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
