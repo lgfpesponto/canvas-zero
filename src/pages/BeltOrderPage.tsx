@@ -291,6 +291,22 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comprarModelo]);
 
+  // Prefill da fila de fichas Bagy (cinto sem modelo rascunho)
+  const bagyAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!bagyPrefill || bagyAppliedRef.current) return;
+    bagyAppliedRef.current = true;
+    setNumeroPedido(bagyPrefill.numero);
+    if (bagyPrefill.cliente) setCliente(bagyPrefill.cliente);
+    if (bagyPrefill.whatsapp) setClienteWhatsapp(bagyPrefill.whatsapp);
+    if (bagyPrefill.tamanho) setTamanho(bagyPrefill.tamanho);
+    (async () => {
+      const { data: prof } = await supabase.from('profiles').select('nome_completo').eq('nome_usuario', 'site').maybeSingle();
+      if (prof?.nome_completo) setVendedor(prof.nome_completo);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bagyPrefill]);
+
 
 
   // Filter templates that belong to belts only
