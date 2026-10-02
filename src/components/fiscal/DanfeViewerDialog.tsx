@@ -47,7 +47,7 @@ export function DanfeViewerDialog({ notaId, notaIds, mode, onClose, casada, etiq
   }, [key, mode]);
 
   const imprimir = () => {
-    const size = mode === 'etiqueta' ? '100mm 150mm' : 'A4';
+    const size = (mode === 'etiqueta' || soEtiqueta) ? '100mm 150mm' : 'A4';
     const w = window.open('', '_blank');
     if (!w) { baixar(); return; }
     w.document.write(`<html><head><title>${doc?.filename || 'DANFE'}</title><style>@page{size:${size};margin:0}body{margin:0}img{width:100%;display:block;page-break-after:always}</style></head><body>${pages.map(p => `<img src="${p}">`).join('')}</body></html>`);

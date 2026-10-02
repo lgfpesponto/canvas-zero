@@ -46,7 +46,7 @@ function extractInfCpl(xml: unknown) {
   } catch { return ''; }
 }
 
-async function imageAsDataUrl(path: string, monochrome: boolean) {
+export async function imageAsDataUrl(path: string, monochrome: boolean) {
   const { data } = await supabase.storage.from('nfe-certificados').createSignedUrl(path, 120);
   if (!data?.signedUrl) return undefined;
   const blob = await fetch(data.signedUrl).then(r => r.blob());
