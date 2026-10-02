@@ -883,6 +883,16 @@ const RanchoChiquePedidosPage = () => {
                   <Button size="sm" onClick={() => { setFichasOpen(false); abrirFichaDialog(queueFromPedido(p)); }}>
                     <FileText size={14} className="mr-1" /> Fazer ficha
                   </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" title="Excluir da fila (sem fazer ficha)" aria-label="Excluir da fila"
+                    onClick={async () => {
+                      if (!confirm(`Tirar RC-${p.numero_bagy} da fila de fichas? O pedido Bagy continua salvo.`)) return;
+                      const { error } = await supabase.from('bagy_pedidos').update({ flag: 'ficha_dispensada' } as any).eq('id', p.id);
+                      if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
+                      setPedidos(prev => prev.map(x => x.id === p.id ? { ...x, flag: 'ficha_dispensada' } : x));
+                      toast.success('Removido da fila de fichas.');
+                    }}>
+                    <XCircle size={16} />
+                  </Button>
                 </div>
               ))}
             </div>
