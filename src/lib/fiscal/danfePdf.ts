@@ -83,7 +83,7 @@ export async function imageAsDataUrl(path: string, monochrome: boolean) {
 async function loadDanfe(notaId: string, mode: DanfeMode): Promise<FiscalData> {
   const { data: nota, error } = await supabase.from('nfe_notas').select('*').eq('id', notaId).single();
   if (error || !nota) throw new Error('Nota fiscal não encontrada.');
-  if (nota.status !== 'autorizada' || !nota.chave_acesso || !nota.protocolo) throw new Error('O DANFE só pode ser gerado para uma NF-e autorizada.');
+  if (!['autorizada', 'devolvida'].includes(nota.status) || !nota.chave_acesso || !nota.protocolo) throw new Error('O DANFE só pode ser gerado para uma NF-e autorizada.');
   const [{ data: config }, { data: itens }, { data: order }] = await Promise.all([
     supabase.from('nfe_config').select('*').order('created_at').limit(1).single(),
     supabase.from('nfe_itens').select('*').eq('nota_id', notaId).order('ordem'),

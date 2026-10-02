@@ -163,7 +163,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
   const devolucao = () => run('dev', async () => {
     if (!nota) return;
     const r = await emitirDevolucao(nota.id, devItens.map(i => ({ itemId: i.id, quantidade: devQtd[i.id] || 0 })), devMotivo.trim());
-    if (r.autorizada) toast.success(`NF-e de devolução nº ${r.numero} autorizada.`);
+    if (r.autorizada) toast.success(`NF-e de devolução nº ${r.numero} autorizada. Nota original marcada como devolvida — já pode gerar a nova nota da troca (TROCA${pedidoProp?.numero_bagy ?? ''}).`, { duration: 10000 });
     else toast.error(`Devolução rejeitada: ${r.motivo}`);
     setDevOpen(false); setDevMotivo('');
   });
