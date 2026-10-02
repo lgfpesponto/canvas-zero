@@ -64,9 +64,12 @@ export interface BeltOrderPageProps {
   } | null;
   onComprarSaved?: () => void;
   onComprarEditar?: () => void;
+  /** Pré-preenchimento vindo da fila de fichas Bagy (sem modelo rascunho). */
+  bagyPrefill?: { numero: string; cliente?: string; whatsapp?: string; tamanho?: string; bagyOrderId: string } | null;
+  onBagySaved?: () => void;
 }
 
-const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar }: BeltOrderPageProps = {}) => {
+const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar, bagyPrefill, onBagySaved }: BeltOrderPageProps = {}) => {
   const { isLoggedIn, user, addOrder, isAdmin, allProfiles, loading: authLoading } = useAuth();
   const { findFotoByName, items: fichaItems } = useFichaVariacoesLookup();
   // Normaliza + mescla lista hardcoded com variações do editor de ficha (campos do cinto).
@@ -569,8 +572,15 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar 
           navigate('/estoque');
           return;
         }
+        if (bagyPrefill && numeroSalvo !== '(novo)') {
+          try {
+            const { data: ord } = await supabase.from('orders').select('id').eq('numero', numeroSalvo).maybeSingle();
+            if (ord?.id) await supabase.from('orders').update({ bagy_order_id: bagyPrefill.bagyOrderId } as any).eq('id', ord.id);
+          } catch (e) { console.error('bagy link cinto', e); }
+        }
         toast.success(`Cinto ${numeroSalvo} lançado em Meus Pedidos!`, { position: 'bottom-right' });
-        if (comprarMode && onComprarSaved) onComprarSaved();
+        if (bagyPrefill && onBagySaved) onBagySaved();
+        else if (comprarMode && onComprarSaved) onComprarSaved();
         else resetForm();
       } else {
         toast.error(lastAddOrderErrorMessage());
