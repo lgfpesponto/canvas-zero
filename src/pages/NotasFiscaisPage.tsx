@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Pencil, Plus } from 'lucide-react';
 import { BagyNfeMenu } from '@/components/fiscal/BagyNfeMenu';
 import NovaNotaFiscalForm from '@/components/fiscal/NovaNotaFiscalForm';
-import { useNfeAccess } from '@/hooks/useNfeAccess';
+import { useNfeAccess, useNfePagesAccess } from "@/hooks/useNfeAccess";
 
 const brl = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const POR_PAGINA = 20;
@@ -151,7 +151,7 @@ export function NotasFiscaisInner() {
 }
 
 export default function NotasFiscaisPage() {
-  const acesso = useNfeAccess();
+  const acesso = useNfePagesAccess();
   if (!acesso) return <div className="p-8 text-center text-muted-foreground">Sem acesso às notas fiscais.</div>;
   return <div className="min-h-screen bg-background px-4 py-8 md:px-8"><div className="mx-auto max-w-7xl"><NotasFiscaisInner /></div></div>;
 }

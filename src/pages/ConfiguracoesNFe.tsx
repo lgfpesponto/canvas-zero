@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useNfeAccess } from "@/hooks/useNfeAccess";
+import { useNfeAccess, useNfePagesAccess } from "@/hooks/useNfeAccess";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +33,7 @@ const EMPTY: NFeConfig = {
 };
 
 export default function ConfiguracoesNFe() {
-  const allowed = useNfeAccess();
+  const allowed = useNfePagesAccess();
   const [cfg, setCfg] = useState<NFeConfig>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
