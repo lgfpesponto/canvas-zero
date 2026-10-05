@@ -1,3 +1,4 @@
+import { explicarRejeicao, validarSchemaDestinatario } from './diagnosticoSefaz';
 import { supabase } from '@/integrations/supabase/client';
 import { calcularChave } from './montarXmlNfe';
 import { ncmPorDescricao, carregarRegrasNcm } from './ncm';
@@ -120,6 +121,7 @@ export async function prepararNotasBagy(pedidoIds: string[], portalIdPorBagy: Re
       (n.tipo_nota ?? 'normal') === 'normal' &&
       ['processando', 'autorizada'].includes(n.status)
     ) ?? null;
+    erros.push(...validarSchemaDestinatario(destinatario, base));
     if (notaExistente?.status === 'autorizada') erros.push(`Já existe NF-e autorizada (nº ${notaExistente.numero}) para este pedido.`);
     if (notaExistente?.status === 'processando') erros.push(`Já existe uma NF-e sendo processada (nº ${notaExistente.numero}) para este pedido.`);
 
@@ -230,7 +232,7 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
   }
   const cStat = String(resp.cStat ?? '');
   const autorizada = cStat === '100' || cStat === '150';
-  const motivo = `${cStat} - ${resp.xMotivo ?? resp.error ?? 'Sem retorno'}`;
+  const motivo = explicarRejeicao(cStat, String(resp.xMotivo ?? resp.error ?? 'Sem retorno'), (r as any)?.destinatario, (r as any)?.itens);
   await supabase.from('nfe_notas').update({
     status: autorizada ? 'autorizada' : 'rejeitada',
     protocolo: (resp.protocolo ?? resp.nProt ?? null) as any,
