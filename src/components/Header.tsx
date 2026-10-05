@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFinanceiroSaldoAccess } from '@/hooks/useFinanceiroSaldoAccess';
-import { useNfeAccess } from '@/hooks/useNfeAccess';
+import { useNfeAccess, useNfePagesAccess } from "@/hooks/useNfeAccess";
 import { Menu, X, LogOut, AlertTriangle, ChevronDown, Calculator } from 'lucide-react';
 import { useCalcAccess } from '@/hooks/useCalcAccess';
 import { useState, useEffect } from 'react';
@@ -14,7 +14,7 @@ type NavItem = { label: string; path: string; subItems?: SubItem[] };
 const Header = () => {
   const { isLoggedIn, user, isAdmin, role, logout, loading: authLoading } = useAuth();
   const { canSeeRevendedorView, isAdminMaster } = useFinanceiroSaldoAccess();
-  const hasNfeAccess = useNfeAccess();
+  const hasNfeAccess = useNfePagesAccess();
   const calcAccess = useCalcAccess();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();

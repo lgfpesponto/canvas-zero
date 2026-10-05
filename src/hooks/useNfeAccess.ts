@@ -9,3 +9,11 @@ export function useNfeAccess(): boolean {
   if (role && NFE_ALLOWED_ROLES.has(role)) return true;
   return NFE_ALLOWED_NAMES.has(user.nomeCompleto);
 }
+
+/** Acesso às páginas "Notas Fiscais" e "Configuração NF-e" — o usuário site (Rancho Chique) não vê. */
+export function useNfePagesAccess(): boolean {
+  const { user } = useAuth();
+  const base = useNfeAccess();
+  if (!user || !base) return false;
+  return user.nomeUsuario !== 'site' && user.nomeCompleto !== 'Rancho Chique';
+}
