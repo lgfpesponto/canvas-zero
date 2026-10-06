@@ -38,9 +38,14 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
 
   const upd = (id: string, p: Partial<Linha>) => setLinhas(ls => ls.map(l => l.id === id ? { ...l, ...p } : l));
 
+  const [carrinho, setCarrinho] = useState<{ total: number; qtd: number; falta: number } | null>(null);
   async function carregarSaldo() {
     setSaldo(null);
-    try { const r = await chamarEnvio({ acao: 'saldo_me' }); setSaldo(Number(r.saldo ?? 0)); } catch { setSaldo('erro'); }
+    try {
+      const r = await chamarEnvio({ acao: 'carrinho_me' });
+      setSaldo(Number(r.saldo ?? 0));
+      setCarrinho({ total: Number(r.total ?? 0), qtd: Number(r.qtd ?? 0), falta: Number(r.falta ?? 0) });
+    } catch { setSaldo('erro'); setCarrinho(null); }
   }
 
   async function carregar(ids: string[]) {
@@ -106,6 +111,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
       } catch (e: any) { upd(l.id, { etq: 'erro', etqMsg: e.message || String(e) }); }
     }
     setBusy(null);
+    carregarSaldo();
     if (pedidoIds) await carregar(pedidoIds);
   }
 
@@ -137,11 +143,11 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
           <Wallet size={14} />
           <span>Saldo Melhor Envio: <b>{saldo === null ? '...' : saldo === 'erro' ? 'indisponível' : brl(saldo)}</b></span>
           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={carregarSaldo}><RefreshCw size={12} /></Button>
-          {meLinhas.length > 0 && (
-            <span>· Fretes Melhor Envio ({meLinhas.length}): <b>{brl(totalME)}</b>{saldoNum !== null && <> · {faltaME > 0 ? <>falta <b className="text-destructive">{brl(faltaME)}</b></> : <b className="text-primary">saldo suficiente</b>}</>}</span>
+          {carrinho && (
+            <span>· Carrinho Melhor Envio ({carrinho.qtd}): <b>{brl(carrinho.total)}</b> · {carrinho.falta > 0 ? <>falta <b className="text-destructive">{brl(carrinho.falta)}</b></> : <b className="text-primary">saldo suficiente</b>}</span>
           )}
           <Button size="sm" className="h-7 ml-auto" onClick={() => setPixOpen(true)}>
-            <QrCode size={12} className="mr-1" /> {meLinhas.length ? `Pagar fretes via Pix (${brl(faltaME > 0 ? faltaME : totalME)})` : 'Recarregar via Pix'}
+            <QrCode size={12} className="mr-1" /> {carrinho && carrinho.falta > 0 ? `Pagar carrinho via Pix (${brl(carrinho.falta)})` : 'Recarregar via Pix'}
           </Button>
         </div>
         {loading && !linhas.length ? (
@@ -203,7 +209,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
         )}
         <EnvioEtiquetaDialog pedido={envioPed} onClose={() => setEnvioPed(null)} onDone={() => { if (pedidoIds) carregar(pedidoIds); }} />
         <DanfeViewerDialog notaIds={casado} mode="etiqueta" casada onClose={() => setCasado(null)} />
-        <PixMelhorEnvioDialog open={pixOpen} sugerido={faltaME > 0 ? faltaME : (totalME || 50)} totalFretes={totalME} qtd={meLinhas.length}
+        <PixMelhorEnvioDialog open={pixOpen} sugerido={carrinho?.falta ?? 0} totalFretes={carrinho?.total ?? 0} qtd={carrinho?.qtd ?? 0}
           saldoAtual={saldoNum} onClose={() => setPixOpen(false)} onPago={carregarSaldo} />
       </DialogContent>
     </Dialog>

@@ -16,7 +16,7 @@ const CWS = "https://api.correios.com.br";
 const ME = "https://www.melhorenvio.com.br/api/v2";
 
 const Body = z.object({
-  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me", "pix_me"]),
+  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me", "pix_me", "carrinho_me"]),
   bagyPedidoId: z.string().uuid().optional(),
   valor: z.number().min(1).max(20000).optional(),
   servico: z.string().max(60).optional(), // PAC | SEDEX | MINI | RETIRADA | ME:<id>
@@ -83,6 +83,20 @@ Deno.serve(async (req) => {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) return json({ error: "Melhor Envio: " + (j.message || r.status) }, 502);
       return json({ saldo: Number(j.balance ?? 0), reservado: Number(j.reserved ?? 0) });
+    }
+    if (b.acao === "carrinho_me") {
+      // Valor real do carrinho calculado pelo próprio Melhor Envio + saldo da carteira.
+      const tk = Deno.env.get("MELHOR_ENVIO_TOKEN");
+      if (!tk) return json({ error: "Token do Melhor Envio não configurado" }, 412);
+      const h = { Authorization: `Bearer ${tk}`, Accept: "application/json", "User-Agent": "Portal 7Estrivos (contato@7estrivos.com.br)" };
+      const [rc, rb] = await Promise.all([fetch(`${ME}/me/cart`, { headers: h }), fetch(`${ME}/me/balance`, { headers: h })]);
+      const cj: any = await rc.json().catch(() => ({}));
+      const bj: any = await rb.json().catch(() => ({}));
+      if (!rc.ok) return json({ error: "Melhor Envio (carrinho): " + (cj.message || rc.status) }, 502);
+      const itens: any[] = Array.isArray(cj) ? cj : (cj.data ?? []);
+      const total = itens.reduce((s, i) => s + (Number(i.price) || 0), 0);
+      const saldo = Number(bj.balance ?? 0);
+      return json({ total: Math.round(total * 100) / 100, qtd: itens.length, saldo, falta: Math.max(0, Math.round((total - saldo) * 100) / 100) });
     }
     if (b.acao === "pix_me") {
       const tk = Deno.env.get("MELHOR_ENVIO_TOKEN");
@@ -217,6 +231,14 @@ Deno.serve(async (req) => {
       if (!meToken) return json({ error: "Token do Melhor Envio não configurado" }, 412);
       const svcId = Number(servico.replace(/^ME:?/, "")) || 0;
       if (!svcId) return json({ error: "Escolha a transportadora do Melhor Envio (cotar primeiro)." }, 422);
+      // Reaproveita o item que já está no carrinho (tentativa anterior sem saldo) em vez de duplicar.
+      let cartId = "";
+      if (ped.envio_provider === "melhorenvio" && ped.envio_provider_id) {
+        const ck = await fetch(`${ME}/me/orders/${ped.envio_provider_id}`, { headers: meHeaders });
+        const oj: any = await ck.json().catch(() => ({}));
+        if (ck.ok && oj?.id && !["canceled", "cancelled"].includes(String(oj.status))) cartId = oj.id;
+      }
+      if (!cartId) {
       const cart = await fetch(`${ME}/me/cart`, {
         method: "POST", headers: meHeaders,
         body: JSON.stringify({
@@ -232,17 +254,32 @@ Deno.serve(async (req) => {
       });
       const cj = await cart.json().catch(() => ({}));
       if (!cart.ok || !cj.id) return json({ error: "Melhor Envio: " + (cj.message || JSON.stringify(cj.errors || cj).slice(0, 300)) }, 502);
-      providerId = cj.id;
-      const co = await fetch(`${ME}/me/shipment/checkout`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
-      if (!co.ok) { const x = await co.json().catch(() => ({})); return json({ error: "Melhor Envio (pagamento): " + (x.message || co.status) + ". Verifique o saldo da carteira." }, 502); }
-      await fetch(`${ME}/me/shipment/generate`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
-      const pr = await fetch(`${ME}/me/shipment/print`, { method: "POST", headers: meHeaders, body: JSON.stringify({ mode: "public", orders: [cj.id] }) });
-      const pj = await pr.json().catch(() => ({}));
-      if (!pj.url) return json({ error: "Melhor Envio não devolveu a etiqueta." }, 502);
-      const pf = await fetch(pj.url); pdf = new Uint8Array(await pf.arrayBuffer());
-      const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
+      cartId = cj.id;
+      await sb.from("bagy_pedidos").update({ envio_servico: servico, envio_provider: "melhorenvio", envio_provider_id: cartId }).eq("id", ped.id);
+      }
+      providerId = cartId;
+      const oSt = await fetch(`${ME}/me/orders/${cartId}`, { headers: meHeaders }).then((r) => r.json()).catch(() => ({}));
+      if (!["released", "generated", "posted", "paid"].includes(String(oSt?.status))) {
+        const co = await fetch(`${ME}/me/shipment/checkout`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
+        if (!co.ok) {
+          const x = await co.json().catch(() => ({}));
+          return json({ error: `Melhor Envio: saldo insuficiente para pagar este frete (R$ ${Number(oSt?.price ?? 0).toFixed(2)}). Pague o carrinho via Pix e gere de novo. ${x.message || ""}`.trim() }, 402);
+        }
+      }
+      await fetch(`${ME}/me/shipment/generate`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
+      // A geração é assíncrona: espera a etiqueta ficar pronta.
+      let url = "";
+      for (let i = 0; i < 8 && !url; i++) {
+        await new Promise((s) => setTimeout(s, 1500));
+        const pr = await fetch(`${ME}/me/shipment/print`, { method: "POST", headers: meHeaders, body: JSON.stringify({ mode: "public", orders: [cartId] }) });
+        const pj = await pr.json().catch(() => ({}));
+        if (pr.ok && pj.url) url = pj.url;
+      }
+      if (!url) return json({ error: "Frete pago, mas o Melhor Envio ainda está gerando a etiqueta. Clique em gerar de novo em instantes." }, 504);
+      const pf = await fetch(url); pdf = new Uint8Array(await pf.arrayBuffer());
+      const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
       const tj = await tr.json().catch(() => ({}));
-      rastreio = tj?.[cj.id]?.tracking || tj?.[cj.id]?.melhorenvio_tracking || "";
+      rastreio = tj?.[cartId]?.tracking || tj?.[cartId]?.melhorenvio_tracking || "";
     }
 
     const path = `${ped.id}/${Date.now()}.pdf`;
