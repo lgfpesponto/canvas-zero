@@ -34,7 +34,12 @@ export function detectarServico(metodo: string | null | undefined): string {
   if (/sedex/.test(m)) return "SEDEX";
   if (/mini/.test(m)) return "MINI";
   if (/pac/.test(m)) return "PAC";
-  if (/jadlog|azul|loggi|latam|j&t|buslog|melhor/.test(m)) return "ME";
+  if (/jadlog|azul|loggi|latam|j&t|jet|buslog|melhor/.test(m)) {
+    const id = m.match(/^\s*(\d{1,3})\s*-/)?.[1];
+    if (id) return `ME:${id}`;
+    for (const [re, sid] of [[/loggi/, 31], [/j&t|\bjet\b/, 33], [/jadlog.*\.?com\b/, 4], [/jadlog/, 3], [/azul/, 15], [/latam/, 12], [/buslog/, 22]] as [RegExp, number][]) if (re.test(m)) return `ME:${sid}`;
+    return "ME";
+  }
   return "PAC";
 }
 

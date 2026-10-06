@@ -16,7 +16,12 @@ export function detectarServico(metodo?: string | null): string {
   if (/sedex/.test(m)) return 'SEDEX';
   if (/mini/.test(m)) return 'MINI';
   if (/pac/.test(m)) return 'PAC';
-  if (/jadlog|azul|loggi|latam|j&t|buslog|melhor/.test(m)) return 'ME';
+  if (/jadlog|azul|loggi|latam|j&t|jet|buslog|melhor/.test(m)) {
+    const id = m.match(/^\s*(\d{1,3})\s*-/)?.[1];
+    if (id) return `ME:${id}`;
+    for (const [re, sid] of [[/loggi/, 31], [/j&t|\bjet\b/, 33], [/jadlog.*\.?com\b/, 4], [/jadlog/, 3], [/azul/, 15], [/latam/, 12], [/buslog/, 22]] as [RegExp, number][]) if (re.test(m)) return `ME:${sid}`;
+    return 'ME';
+  }
   return 'PAC';
 }
 
@@ -78,4 +83,25 @@ export async function gerarEtiquetasLoteBlobUrl(bagyPedidoIds: string[]) {
   if (out.getPageCount() === 0) throw new Error('Nenhuma etiqueta de envio gerada nesses pedidos.');
   const bytes = await out.save();
   return { url: URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' })), filename: `Etiquetas-envio-${bagyPedidoIds.length}.pdf` };
+}
+
+/** Transportadoras do Melhor Envio (ID de serviço). */
+export const TRANSPORTADORAS_ME = [
+  { id: '31', nome: 'Loggi Express' },
+  { id: '33', nome: 'J&T Standard' },
+  { id: '3', nome: 'Jadlog .Package' },
+  { id: '4', nome: 'Jadlog .Com' },
+  { id: '15', nome: 'Azul Cargo Expresso' },
+  { id: '12', nome: 'LATAM Cargo' },
+  { id: '22', nome: 'Buslog Rodoviário' },
+  { id: '1', nome: 'Correios PAC (Melhor Envio)' },
+  { id: '2', nome: 'Correios SEDEX (Melhor Envio)' },
+];
+
+/** Serviço efetivo: se salvo só "ME", tenta detectar a transportadora pela modalidade Bagy. */
+export function servicoEfetivo(salvo?: string | null, metodo?: string | null) {
+  const det = detectarServico(metodo);
+  if (!salvo) return det;
+  if (salvo === 'ME' && det.startsWith('ME:')) return det;
+  return salvo;
 }

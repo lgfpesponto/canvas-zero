@@ -62,7 +62,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
         const old = prev.find(l => l.id === id);
         const aut = n?.notaExistente?.status === 'autorizada';
         const erroCad = !aut && n?.erros.length ? n.erros.join(' · ') : '';
-        const servico = p.envio_servico || detectarServico(p.metodo_envio);
+        const servico = servicoEfetivo(p.envio_servico, p.metodo_envio);
         const retirada = servico === 'RETIRADA';
         return {
           id, numero: p.numero_bagy ?? n?.numeroBagy ?? '?', cliente: p.cliente_nome ?? '',
@@ -102,7 +102,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
     for (const l of alvo) {
       const p: any = (peds ?? []).find((x: any) => x.id === l.id);
       if (p?.etiqueta_path) { upd(l.id, { etq: 'ok' }); continue; }
-      const servico = p?.envio_servico || detectarServico(p?.metodo_envio);
+      const servico = servicoEfetivo(p?.envio_servico, p?.metodo_envio);
       upd(l.id, { etq: 'enviando', etqMsg: '' });
       if (servico === 'ME') { upd(l.id, { etq: 'erro', etqMsg: 'Escolha a transportadora do Melhor Envio.' }); continue; }
       try {
