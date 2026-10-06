@@ -133,7 +133,9 @@ Deno.serve(async (req) => {
 
     const { data: ped } = await sb.from("bagy_pedidos").select("*").eq("id", b.bagyPedidoId).maybeSingle();
     if (!ped) return json({ error: "Pedido não encontrado" }, 404);
-    const servico = b.servico || ped.envio_servico || detectarServico(ped.metodo_envio);
+    const salvoSvc = b.servico || ped.envio_servico;
+    const detSvc = detectarServico(ped.metodo_envio);
+    const servico = !salvoSvc ? detSvc : (salvoSvc === "ME" && detSvc.startsWith("ME:") ? detSvc : salvoSvc);
 
     if (b.acao === "salvar_servico") {
       await sb.from("bagy_pedidos").update({ envio_servico: servico }).eq("id", ped.id);

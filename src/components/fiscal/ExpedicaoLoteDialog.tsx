@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Printer, QrCode, R
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
-import { chamarEnvio, detectarServico, rotuloServico } from '@/lib/envio';
+import { chamarEnvio, detectarServico, rotuloServico, servicoEfetivo } from '@/lib/envio';
 import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
 import { DanfeViewerDialog } from './DanfeViewerDialog';
 import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';

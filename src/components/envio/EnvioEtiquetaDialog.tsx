@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Truck } from 'lucide-react';
-import { SERVICOS_ENVIO, chamarEnvio, detectarServico, urlEtiqueta } from '@/lib/envio';
+import { SERVICOS_ENVIO, TRANSPORTADORAS_ME, chamarEnvio, servicoEfetivo, urlEtiqueta } from '@/lib/envio';
 
 type Ped = { id: string; numero_bagy: string; metodo_envio: string | null; envio_servico?: string | null; etiqueta_path?: string | null; tracking_code?: string | null };
 
@@ -19,7 +19,7 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
 
   useEffect(() => {
     if (!pedido) return;
-    const s = pedido.envio_servico || detectarServico(pedido.metodo_envio);
+    const s = servicoEfetivo(pedido.envio_servico, pedido.metodo_envio);
     setServico(s.startsWith('ME') ? 'ME' : s);
     setMeId(s.startsWith('ME:') ? s.slice(3) : '');
     setOpcoes([]);
@@ -90,13 +90,15 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
               )}
               {servico === 'ME' && (
                 <div className="space-y-2">
-                  <Button size="sm" variant="outline" onClick={cotar} disabled={busy}>Cotar transportadoras</Button>
-                  {opcoes.length > 0 && (
-                    <Select value={meId} onValueChange={setMeId}>
-                      <SelectTrigger><SelectValue placeholder="Escolha a transportadora" /></SelectTrigger>
-                      <SelectContent>{opcoes.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.nome} — R$ {o.preco} — {o.prazo} dias</SelectItem>)}</SelectContent>
-                    </Select>
-                  )}
+                  <Button size="sm" variant="outline" onClick={cotar} disabled={busy}>Cotar preços</Button>
+                  <Select value={meId} onValueChange={setMeId}>
+                    <SelectTrigger><SelectValue placeholder="Escolha a transportadora" /></SelectTrigger>
+                    <SelectContent>
+                      {(opcoes.length ? opcoes.map(o => ({ id: String(o.id), nome: `${o.nome} — R$ ${o.preco} — ${o.prazo} dias` })) : TRANSPORTADORAS_ME)
+                        .concat(meId && !opcoes.some(o => String(o.id) === meId) && !TRANSPORTADORAS_ME.some(t => t.id === meId) ? [{ id: meId, nome: `Serviço ${meId}` }] : [])
+                        .map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-2">
