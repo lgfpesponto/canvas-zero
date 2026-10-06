@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       const bj: any = await rb.json().catch(() => ({}));
       if (!rc.ok) return json({ error: "Melhor Envio (carrinho): " + (cj.message || rc.status) }, 502);
       const itens: any[] = Array.isArray(cj) ? cj : (cj.data ?? []);
-      const total = itens.reduce((s, i) => s + (Number(i.price) || 0) - (Number(i.discount) || 0) * 0, 0);
+      const total = itens.reduce((s, i) => s + (Number(i.price) || 0), 0);
       const saldo = Number(bj.balance ?? 0);
       return json({ total: Math.round(total * 100) / 100, qtd: itens.length, saldo, falta: Math.max(0, Math.round((total - saldo) * 100) / 100) });
     }
