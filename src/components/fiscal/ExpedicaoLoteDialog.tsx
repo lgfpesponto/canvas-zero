@@ -95,13 +95,13 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   }
 
   async function gerarEtiquetas() {
-    const { data: peds } = await supabase.from('bagy_pedidos').select('id,envio_servico,metodo_envio,etiqueta_path').in('id', linhas.map(l => l.id));
-    const alvo = linhas.filter(l => l.nfe === 'ok' && l.etq !== 'ok' && l.servico !== 'RETIRADA');
+    const { data: peds } = await supabase.from('bagy_pedidos').select('id,envio_servico,metodo_envio,etiqueta_path,tracking_code').in('id', linhas.map(l => l.id));
+    const alvo = linhas.filter(l => l.nfe === 'ok' && (l.etq !== 'ok' || !l.rastreio) && l.servico !== 'RETIRADA');
     if (!alvo.length) { toast.error('Nenhum pedido com nota autorizada aguardando etiqueta.'); return; }
     setBusy('etq');
     for (const l of alvo) {
       const p: any = (peds ?? []).find((x: any) => x.id === l.id);
-      if (p?.etiqueta_path) { upd(l.id, { etq: 'ok' }); continue; }
+      if (p?.etiqueta_path && p?.tracking_code) { upd(l.id, { etq: 'ok' }); continue; }
       const servico = servicoEfetivo(p?.envio_servico, p?.metodo_envio);
       upd(l.id, { etq: 'enviando', etqMsg: '' });
       if (servico === 'ME') { upd(l.id, { etq: 'erro', etqMsg: 'Escolha a transportadora do Melhor Envio.' }); continue; }
