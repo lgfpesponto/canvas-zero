@@ -180,7 +180,15 @@ Deno.serve(async (req) => {
     }
 
     // ===== gerar =====
-    if (ped.etiqueta_path) return json({ error: "Este pedido já tem etiqueta gerada." }, 409);
+    // Etiqueta já existe: só deixa refazer (sem nova cobrança) se for Melhor Envio com arquivo inválido ou sem rastreio.
+    const pathAntigo: string | null = ped.etiqueta_path || null;
+    if (pathAntigo) {
+      let valido = false;
+      const { data: old } = await sb.storage.from("etiquetas-envio").download(pathAntigo);
+      if (old) { const h = new Uint8Array(await old.slice(0, 4).arrayBuffer()); valido = h[0] === 0x25 && h[1] === 0x50 && h[2] === 0x44 && h[3] === 0x46; }
+      const podeRefazer = ped.envio_provider === "melhorenvio" && ped.envio_provider_id && (!valido || !ped.tracking_code);
+      if (!podeRefazer) return json({ error: "Este pedido já tem etiqueta gerada." }, 409);
+    }
     let pdf: Uint8Array; let rastreio = ""; let providerId = ""; let provider = "";
 
     if (CORREIOS[servico]) {
@@ -318,6 +326,7 @@ Deno.serve(async (req) => {
       etiqueta_gerada_em: new Date().toISOString(),
       ...(rastreio ? { tracking_code: rastreio, tracking_url: provider === "correios" ? `https://rastreamento.correios.com.br/app/index.php?objeto=${rastreio}` : `https://melhorrastreio.com.br/rastreio/${rastreio}` } : {}),
     }).eq("id", ped.id);
+    if (pathAntigo && pathAntigo !== path) await sb.storage.from("etiquetas-envio").remove([pathAntigo]);
     if (rastreio && ped.bagy_order_id) {
       // Bagy → "Despachado" com código e link de rastreio (fila processada a cada minuto).
       await sb.from("bagy_status_sync_queue").insert({
