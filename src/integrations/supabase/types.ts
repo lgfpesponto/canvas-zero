@@ -2794,6 +2794,8 @@ export type Database = {
           dup_legado: boolean
           enviado_por: string
           id: string
+          id_transacao: string | null
+          instituicao_origem: string | null
           motivo_reprovacao: string | null
           observacao: string | null
           pagador_documento: string | null
@@ -2814,6 +2816,8 @@ export type Database = {
           dup_legado?: boolean
           enviado_por: string
           id?: string
+          id_transacao?: string | null
+          instituicao_origem?: string | null
           motivo_reprovacao?: string | null
           observacao?: string | null
           pagador_documento?: string | null
@@ -2834,6 +2838,8 @@ export type Database = {
           dup_legado?: boolean
           enviado_por?: string
           id?: string
+          id_transacao?: string | null
+          instituicao_origem?: string | null
           motivo_reprovacao?: string | null
           observacao?: string | null
           pagador_documento?: string | null
