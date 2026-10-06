@@ -277,9 +277,9 @@ Deno.serve(async (req) => {
       }
       if (!url) return json({ error: "Frete pago, mas o Melhor Envio ainda está gerando a etiqueta. Clique em gerar de novo em instantes." }, 504);
       const pf = await fetch(url); pdf = new Uint8Array(await pf.arrayBuffer());
-      const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cj.id] }) });
+      const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
       const tj = await tr.json().catch(() => ({}));
-      rastreio = tj?.[cj.id]?.tracking || tj?.[cj.id]?.melhorenvio_tracking || "";
+      rastreio = tj?.[cartId]?.tracking || tj?.[cartId]?.melhorenvio_tracking || "";
     }
 
     const path = `${ped.id}/${Date.now()}.pdf`;
