@@ -288,19 +288,31 @@ Deno.serve(async (req) => {
       const isPdf = (u8: Uint8Array) => u8.length > 4 && u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46;
       const authOnly = { Authorization: meHeaders.Authorization, "User-Agent": meHeaders["User-Agent"], Accept: "application/pdf" };
       let got: Uint8Array | null = null;
+      // Baixa uma URL; se vier JSON com link (S3), segue o link SEM token (S3 rejeita Bearer).
+      const baixarPdf = async (url: string, comAuth: boolean, depth = 0): Promise<Uint8Array | null> => {
+        if (depth > 2) return null;
+        const r = await fetch(url, { headers: comAuth ? authOnly : { Accept: "application/pdf" } }).catch(() => null);
+        if (!r?.ok) return null;
+        const u8 = new Uint8Array(await r.arrayBuffer());
+        if (isPdf(u8)) return u8;
+        const txt = new TextDecoder().decode(u8);
+        let link: string | null = null;
+        try { const j = JSON.parse(txt); link = j.url || j.link || j.pdf || j.data?.url || (Array.isArray(j) ? j[0]?.url : null); } catch { /* html */ }
+        if (!link) { const m = txt.match(/https?:\/\/[^"'\s<>]+\.pdf[^"'\s<>]*/i) || txt.match(/https?:\/\/[^"'\s<>]*amazonaws\.com[^"'\s<>]*/i); link = m ? m[0].replace(/&amp;/g, "&") : null; }
+        if (!link || link === url) return null;
+        const externo = !link.includes("melhorenvio.com.br");
+        return baixarPdf(link, !externo, depth + 1);
+      };
       for (let i = 0; i < 10 && !got; i++) {
         if (i) await new Promise((s) => setTimeout(s, 1500));
+        got = await baixarPdf(`${ME}/me/imprimir/pdf/${cartId}`, true);
+        if (got) break;
         for (const mode of ["private", "public"]) {
           const pr = await fetch(`${ME}/me/shipment/print`, { method: "POST", headers: meHeaders, body: JSON.stringify({ mode, orders: [cartId] }) });
           const pj = await pr.json().catch(() => ({}));
           if (!pr.ok || !pj.url) continue;
-          const pf = await fetch(pj.url, { headers: authOnly });
-          const u8 = new Uint8Array(await pf.arrayBuffer());
-          if (isPdf(u8)) { got = u8; break; }
-        }
-        if (!got) {
-          const pf = await fetch(`${ME}/me/imprimir/pdf/${cartId}`, { headers: authOnly }).catch(() => null);
-          if (pf?.ok) { const u8 = new Uint8Array(await pf.arrayBuffer()); if (isPdf(u8)) got = u8; }
+          got = await baixarPdf(pj.url, String(pj.url).includes("melhorenvio.com.br"));
+          if (got) break;
         }
       }
       if (!got) return json({ error: "Frete pago, mas o Melhor Envio ainda está gerando a etiqueta. Clique em gerar de novo em instantes (não cobra de novo)." }, 504);
