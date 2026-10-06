@@ -327,7 +327,7 @@ Deno.serve(async (req) => {
       ...(rastreio ? { tracking_code: rastreio, tracking_url: provider === "correios" ? `https://rastreamento.correios.com.br/app/index.php?objeto=${rastreio}` : `https://melhorrastreio.com.br/rastreio/${rastreio}` } : {}),
     }).eq("id", ped.id);
     if (pathAntigo && pathAntigo !== path) await sb.storage.from("etiquetas-envio").remove([pathAntigo]);
-    if (rastreio && ped.bagy_order_id) {
+    if (rastreio && ped.bagy_order_id && rastreio !== ped.tracking_code) {
       // Bagy → "Despachado" com código e link de rastreio (fila processada a cada minuto).
       await sb.from("bagy_status_sync_queue").insert({
         bagy_order_id: ped.bagy_order_id, target_status: "shipped", tracking_code: rastreio,

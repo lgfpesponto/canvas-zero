@@ -95,10 +95,26 @@ export async function etiquetaTermica(pedidoId: string, path: string | null): Pr
   const propria = await desenharEtiquetaCorreios(pedidoId);
   if (propria) return propria;
   if (!path) return null;
-  const { data } = await supabase.storage.from('etiquetas-envio').download(path);
-  if (!data) return null;
+  const baixar = async (p: string) => {
+    const { data } = await supabase.storage.from('etiquetas-envio').download(p);
+    if (!data) return null;
+    const buf = await data.arrayBuffer();
+    const h = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
+    return h[0] === 0x25 && h[1] === 0x50 && h[2] === 0x44 && h[3] === 0x46 ? buf : null;
+  };
+  let buf = await baixar(path);
+  if (!buf) {
+    // Arquivo salvo não é PDF (ex.: página HTML antiga do Melhor Envio): rebaixa o PDF oficial, sem nova cobrança.
+    const { data, error } = await supabase.functions.invoke('envio-etiqueta', { body: { acao: 'gerar', bagyPedidoId: pedidoId } });
+    const novo = !error && (data as any)?.etiqueta_path;
+    if (novo) buf = await baixar(novo);
+  }
+  if (!buf) {
+    console.warn('Etiqueta de envio inválida para o pedido', pedidoId);
+    return null;
+  }
   const { PDFDocument } = await import('pdf-lib');
-  const src = await PDFDocument.load(await data.arrayBuffer());
+  const src = await PDFDocument.load(buf);
   const out = await PDFDocument.create();
   const W = 283.46, H = 425.2; // 100x150 mm
   for (const pg of src.getPages()) {
