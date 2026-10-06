@@ -273,20 +273,41 @@ Deno.serve(async (req) => {
           return json({ error: `Melhor Envio: saldo insuficiente para pagar este frete (R$ ${Number(oSt?.price ?? 0).toFixed(2)}). Pague o carrinho via Pix e gere de novo. ${x.message || ""}`.trim() }, 402);
         }
       }
-      await fetch(`${ME}/me/shipment/generate`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
-      // A geração é assíncrona: espera a etiqueta ficar pronta.
-      let url = "";
-      for (let i = 0; i < 8 && !url; i++) {
-        await new Promise((s) => setTimeout(s, 1500));
-        const pr = await fetch(`${ME}/me/shipment/print`, { method: "POST", headers: meHeaders, body: JSON.stringify({ mode: "public", orders: [cartId] }) });
-        const pj = await pr.json().catch(() => ({}));
-        if (pr.ok && pj.url) url = pj.url;
+      if (!["generated", "posted"].includes(String(oSt?.status))) {
+        await fetch(`${ME}/me/shipment/generate`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
       }
-      if (!url) return json({ error: "Frete pago, mas o Melhor Envio ainda está gerando a etiqueta. Clique em gerar de novo em instantes." }, 504);
-      const pf = await fetch(url); pdf = new Uint8Array(await pf.arrayBuffer());
-      const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
-      const tj = await tr.json().catch(() => ({}));
-      rastreio = tj?.[cartId]?.tracking || tj?.[cartId]?.melhorenvio_tracking || "";
+      // A geração é assíncrona: espera a etiqueta ficar pronta e baixa o PDF real (não a página HTML).
+      const isPdf = (u8: Uint8Array) => u8.length > 4 && u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46;
+      const authOnly = { Authorization: meHeaders.Authorization, "User-Agent": meHeaders["User-Agent"], Accept: "application/pdf" };
+      let got: Uint8Array | null = null;
+      for (let i = 0; i < 10 && !got; i++) {
+        if (i) await new Promise((s) => setTimeout(s, 1500));
+        for (const mode of ["private", "public"]) {
+          const pr = await fetch(`${ME}/me/shipment/print`, { method: "POST", headers: meHeaders, body: JSON.stringify({ mode, orders: [cartId] }) });
+          const pj = await pr.json().catch(() => ({}));
+          if (!pr.ok || !pj.url) continue;
+          const pf = await fetch(pj.url, { headers: authOnly });
+          const u8 = new Uint8Array(await pf.arrayBuffer());
+          if (isPdf(u8)) { got = u8; break; }
+        }
+        if (!got) {
+          const pf = await fetch(`${ME}/me/imprimir/pdf/${cartId}`, { headers: authOnly }).catch(() => null);
+          if (pf?.ok) { const u8 = new Uint8Array(await pf.arrayBuffer()); if (isPdf(u8)) got = u8; }
+        }
+      }
+      if (!got) return json({ error: "Frete pago, mas o Melhor Envio ainda está gerando a etiqueta. Clique em gerar de novo em instantes (não cobra de novo)." }, 504);
+      pdf = got;
+      // Rastreio pode demorar alguns segundos para a transportadora devolver.
+      for (let i = 0; i < 5 && !rastreio; i++) {
+        if (i) await new Promise((s) => setTimeout(s, 2000));
+        const tr = await fetch(`${ME}/me/shipment/tracking`, { method: "POST", headers: meHeaders, body: JSON.stringify({ orders: [cartId] }) });
+        const tj = await tr.json().catch(() => ({}));
+        rastreio = tj?.[cartId]?.tracking || tj?.[cartId]?.melhorenvio_tracking || "";
+        if (!rastreio) {
+          const oj: any = await fetch(`${ME}/me/orders/${cartId}`, { headers: meHeaders }).then((r) => r.json()).catch(() => ({}));
+          rastreio = oj?.tracking || oj?.self_tracking || "";
+        }
+      }
     }
 
     const path = `${ped.id}/${Date.now()}.pdf`;
