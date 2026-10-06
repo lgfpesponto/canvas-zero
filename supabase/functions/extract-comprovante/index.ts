@@ -133,6 +133,8 @@ Extraia EXATAMENTE estes dados e retorne via tool call:
 - origem_documento: CPF ou CNPJ de quem PAGOU (apenas dígitos)
 - destinatario_nome: nome completo de quem RECEBEU o pagamento (conta de DESTINO / creditada)
 - destinatario_documento: CPF ou CNPJ de quem RECEBEU (apenas dígitos, sem máscara)
+- id_transacao: ID da transação Pix (E2E, começa com E + 31 caracteres) ou, se não houver, o código/número da transação/autenticação
+- instituicao_origem: banco/instituição de quem PAGOU (ex.: Mercado Pago, Stone)
 - descricao: breve descrição se disponível (ex: "PIX enviado", "TED")
 
 IMPORTANTÍSSIMO sobre ORIGEM x DESTINO:
@@ -223,6 +225,8 @@ NUNCA invente dados.`;
                 origem_documento: { type: 'string', description: 'Apenas dígitos' },
                 destinatario_nome: { type: 'string' },
                 destinatario_documento: { type: 'string', description: 'Apenas dígitos' },
+                id_transacao: { type: 'string' },
+                instituicao_origem: { type: 'string' },
                 descricao: { type: 'string' },
               },
               required: ['data_pagamento', 'valor', 'valor_texto', 'destinatario_nome', 'destinatario_documento'],
@@ -321,6 +325,8 @@ NUNCA invente dados.`;
       origem_documento: origemDoc,
       tipo,
       descricao: extracted.descricao || '',
+      id_transacao: String(extracted.id_transacao || '').replace(/\s+/g, '').trim(),
+      instituicao_origem: String(extracted.instituicao_origem || '').trim(),
 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

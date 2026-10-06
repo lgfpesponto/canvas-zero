@@ -47,6 +47,8 @@ interface ExtractedItem {
   pagador_nome: string;
   pagador_documento: string;
   tipo_detectado: 'empresa' | 'fornecedor';
+  id_transacao?: string;
+  instituicao_origem?: string;
   observacao: string;
 }
 
@@ -68,7 +70,7 @@ function normPagadorKey(doc?: string | null, nome?: string | null): string {
  */
 async function findDuplicate(
   vendedor: string,
-  item: Pick<ExtractedItem, 'hash' | 'valor' | 'data_pagamento' | 'pagador_nome' | 'pagador_documento'>
+  item: Pick<ExtractedItem, 'hash' | 'valor' | 'data_pagamento' | 'pagador_nome' | 'pagador_documento' | 'id_transacao' | 'instituicao_origem'>
 ): Promise<string | null> {
   if (!vendedor || !item.valor || !item.data_pagamento) return null;
 
@@ -83,9 +85,19 @@ async function findDuplicate(
     return `Este mesmo arquivo já foi enviado para ${vendedor} (${formatCurrency(Number(ex.valor))} em ${formatDateBR(String(ex.data_pagamento))}).`;
   }
 
+  const idt = (item.id_transacao || '').trim().toUpperCase();
+  if (idt) {
+    const { data: dupId } = await supabase.from('revendedor_comprovantes' as any)
+      .select('valor, data_pagamento').eq('vendedor', vendedor).ilike('id_transacao', idt).limit(1);
+    if (dupId && dupId.length) {
+      const ex: any = dupId[0];
+      return `O ID de transação ${idt} já foi enviado para ${vendedor} (${formatCurrency(Number(ex.valor))} em ${formatDateBR(String(ex.data_pagamento))}).`;
+    }
+  }
+  const norm = (s?: string | null) => (s || '').trim().toUpperCase();
   const { data: sameValueDate } = await supabase
     .from('revendedor_comprovantes' as any)
-    .select('id, created_at, pagador_nome, pagador_documento, data_pagamento, valor')
+    .select('id, created_at, pagador_nome, pagador_documento, data_pagamento, valor, id_transacao, instituicao_origem')
     .eq('vendedor', vendedor)
     .eq('valor', item.valor)
     .eq('data_pagamento', item.data_pagamento);
@@ -93,6 +105,9 @@ async function findDuplicate(
   const alvo = normPagadorKey(item.pagador_documento, item.pagador_nome);
   const existente: any = (sameValueDate || []).find(
     (r: any) => normPagadorKey(r.pagador_documento, r.pagador_nome) === alvo
+      // ID de transação ou banco de origem diferentes = comprovantes diferentes
+      && !idt
+      && !(norm(r.instituicao_origem) && norm(item.instituicao_origem) && norm(r.instituicao_origem) !== norm(item.instituicao_origem))
   );
   if (existente) {
     const pagador = (item.pagador_nome || existente.pagador_nome || '').trim();
@@ -202,6 +217,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
         valor: parseCurrencyInput(data.valor),
         pagador_nome: data.destinatario_nome_original || data.destinatario || '',
         pagador_documento: data.destinatario_documento || '',
+        id_transacao: data.id_transacao || '',
+        instituicao_origem: data.instituicao_origem || '',
         tipo_detectado: (data.tipo === 'empresa' ? 'empresa' : 'fornecedor') as 'empresa' | 'fornecedor',
       };
 
@@ -355,6 +372,8 @@ export const EnviarComprovanteDialog = ({ open, onOpenChange, vendedor, onSaved 
           pagador_nome: it.pagador_nome || null,
           pagador_documento: it.pagador_documento || null,
           tipo_detectado: it.tipo_detectado,
+          id_transacao: it.id_transacao || null,
+          instituicao_origem: it.instituicao_origem || null,
           cobranca_snapshot_id: cobrancaId || null,
 
         });
