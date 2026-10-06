@@ -54,7 +54,7 @@ export function PixMelhorEnvioDialog({ open, sugerido, totalFretes, qtd, saldoAt
         <DialogHeader><DialogTitle>Pagar fretes Melhor Envio (Pix)</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="rounded border bg-muted/40 p-2 text-xs space-y-0.5">
-            <div>Fretes Melhor Envio na lista: <b>{qtd}</b> — total <b>{brl(totalFretes)}</b></div>
+            <div>Carrinho Melhor Envio: <b>{qtd}</b> envio(s) — total <b>{brl(totalFretes)}</b></div>
             <div>Saldo atual: <b>{saldoAtual === null ? '—' : brl(saldoAtual)}</b></div>
           </div>
           {!pix ? (

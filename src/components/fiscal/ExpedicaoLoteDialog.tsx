@@ -111,6 +111,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
       } catch (e: any) { upd(l.id, { etq: 'erro', etqMsg: e.message || String(e) }); }
     }
     setBusy(null);
+    carregarSaldo();
     if (pedidoIds) await carregar(pedidoIds);
   }
 
@@ -208,7 +209,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
         )}
         <EnvioEtiquetaDialog pedido={envioPed} onClose={() => setEnvioPed(null)} onDone={() => { if (pedidoIds) carregar(pedidoIds); }} />
         <DanfeViewerDialog notaIds={casado} mode="etiqueta" casada onClose={() => setCasado(null)} />
-        <PixMelhorEnvioDialog open={pixOpen} sugerido={faltaME > 0 ? faltaME : (totalME || 50)} totalFretes={totalME} qtd={meLinhas.length}
+        <PixMelhorEnvioDialog open={pixOpen} sugerido={carrinho?.falta ?? 0} totalFretes={carrinho?.total ?? 0} qtd={carrinho?.qtd ?? 0}
           saldoAtual={saldoNum} onClose={() => setPixOpen(false)} onPago={carregarSaldo} />
       </DialogContent>
     </Dialog>
