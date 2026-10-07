@@ -133,7 +133,6 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   async function imprimirME() {
     try {
       await abrirEtiquetasME(imprimiveisME.map(l => l.id));
-      setDanfeME(imprimiveisME.map(l => l.notaId!));
     } catch (e: any) { toast.error(e.message || 'Falha ao abrir etiquetas do Melhor Envio'); }
   }
   const jaEnviou = linhas.some(l => l.nfe === 'ok' || l.nfe === 'erro');
@@ -209,9 +208,14 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                     <Printer size={16} className="mr-1" /> Imprimir DANFE + etiqueta ({imprimiveis.length})
                   </Button>
                   {imprimiveisME.length > 0 && (
-                    <Button disabled={!!busy} onClick={imprimirME} title="Abre as etiquetas oficiais do Melhor Envio (sem login) e gera as DANFEs na mesma ordem">
-                      <Printer size={16} className="mr-1" /> Imprimir DANFE + etiqueta ME ({imprimiveisME.length})
-                    </Button>
+                    <>
+                      <Button disabled={!!busy} onClick={() => setDanfeME(imprimiveisME.map(l => l.notaId!))}>
+                        <Printer size={16} className="mr-1" /> Imprimir DANFE ME ({imprimiveisME.length})
+                      </Button>
+                      <Button disabled={!!busy} onClick={imprimirME} title="Abre a página do Melhor Envio para imprimir as etiquetas">
+                        <Truck size={16} className="mr-1" /> Imprimir etiqueta ME ({imprimiveisME.length})
+                      </Button>
+                    </>
                   )}
                 </>
               )}
