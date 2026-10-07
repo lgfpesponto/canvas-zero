@@ -384,6 +384,18 @@ const RanchoChiquePedidosPage = () => {
   // Notas autorizadas da seleção, na ordem da lista (um cliente após o outro)
   const selectedNotaIds = filtered.filter(p => selected.has(p.id)).map(p => nfeByPedido[p.id])
     .filter(n => n && n.status === 'autorizada' && n.chave_acesso && n.protocolo).map(n => n!.id);
+  // Separação Correios x Melhor Envio para não imprimir a mesma nota duas vezes (agrupado por cliente).
+  const notaOk = (p: BagyPedido) => { const n = nfeByPedido[p.id]; return n && n.status === 'autorizada' && n.chave_acesso && n.protocolo ? n.id : null; };
+  const selPorCliente = filtered.filter(p => selected.has(p.id))
+    .sort((a, b) => (a.cliente_nome || '').localeCompare(b.cliente_nome || '', 'pt-BR'));
+  const selectedMEPedidos = selPorCliente.filter(p => ehMelhorEnvio(p as any) && !!(p as any).envio_provider_id && notaOk(p));
+  const selectedCasadoIds = selPorCliente.filter(p => !ehMelhorEnvio(p as any)).map(notaOk).filter(Boolean) as string[];
+  async function imprimirME() {
+    try {
+      await abrirEtiquetasME(selectedMEPedidos.map(p => p.id));
+      setDanfeLote(selectedMEPedidos.map(p => notaOk(p)!));
+    } catch (e: any) { toast.error(e.message || 'Falha ao abrir etiquetas do Melhor Envio'); }
+  }
 
   const selectedEtiquetaIds = filtered.filter(p => selected.has(p.id) && !!p.etiqueta_path).map(p => p.id);
 
@@ -905,8 +917,11 @@ const RanchoChiquePedidosPage = () => {
               <DropdownMenuItem disabled={selectedNotaIds.length === 0} onClick={() => setDanfeLote(selectedNotaIds)}>
                 <Printer size={14} className="mr-2"/> DANFE simplificada em lote ({selectedNotaIds.length})
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={selectedNotaIds.length === 0} onClick={() => setLoteCasado(selectedNotaIds)}>
-                <Truck size={14} className="mr-2"/> DANFE + etiqueta ({selectedNotaIds.length})
+              <DropdownMenuItem disabled={selectedCasadoIds.length === 0} onClick={() => setLoteCasado(selectedCasadoIds)}>
+                <Truck size={14} className="mr-2"/> DANFE + etiqueta ({selectedCasadoIds.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={selectedMEPedidos.length === 0} onClick={imprimirME}>
+                <Truck size={14} className="mr-2"/> DANFE + etiqueta ME ({selectedMEPedidos.length})
               </DropdownMenuItem>
               <DropdownMenuItem disabled={queueFromSelection().length === 0} onClick={() => abrirFichaDialog(queueFromSelection())}>
                 <ClipboardList size={14} className="mr-2"/> Gerar fichas ({queueFromSelection().length})

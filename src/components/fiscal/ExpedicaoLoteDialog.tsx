@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Printer, QrCode, R
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { prepararNotasBagy, transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
-import { chamarEnvio, detectarServico, rotuloServico, servicoEfetivo } from '@/lib/envio';
+import { abrirEtiquetasME, chamarEnvio, detectarServico, rotuloServico, servicoEfetivo } from '@/lib/envio';
 import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
 import { DanfeViewerDialog } from './DanfeViewerDialog';
 import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';
@@ -33,6 +33,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const [editId, setEditId] = useState<string | null>(null);
   const [envioPed, setEnvioPed] = useState<any>(null);
   const [casado, setCasado] = useState<string[] | null>(null);
+  const [danfeME, setDanfeME] = useState<string[] | null>(null);
   const [saldo, setSaldo] = useState<number | null | 'erro'>(null);
   const [pixOpen, setPixOpen] = useState(false);
 
@@ -124,8 +125,17 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
   const etqErros = linhas.filter(l => l.etq === 'erro');
   const prontasSefaz = linhas.filter(l => l.nfe !== 'ok' && rasc[l.id]?.erros.length === 0).length;
   const prontasEtq = linhas.filter(l => l.nfe === 'ok' && l.etq !== 'ok' && l.servico !== 'RETIRADA').length;
-  const imprimiveis = [...linhas].filter(l => l.nfe === 'ok' && l.etq === 'ok' && l.notaId)
-    .sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR')).map(l => l.notaId!);
+  const isME = (l: Linha) => l.servico.startsWith('ME');
+  const ordenadas = [...linhas].filter(l => l.nfe === 'ok' && l.etq === 'ok' && l.notaId)
+    .sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR'));
+  const imprimiveis = ordenadas.filter(l => !isME(l)).map(l => l.notaId!);
+  const imprimiveisME = ordenadas.filter(isME);
+  async function imprimirME() {
+    try {
+      await abrirEtiquetasME(imprimiveisME.map(l => l.id));
+      setDanfeME(imprimiveisME.map(l => l.notaId!));
+    } catch (e: any) { toast.error(e.message || 'Falha ao abrir etiquetas do Melhor Envio'); }
+  }
   const jaEnviou = linhas.some(l => l.nfe === 'ok' || l.nfe === 'erro');
 
   const lista = corrigir ? linhas.filter(l => corrigir.includes(l.id)) : linhas;
@@ -198,6 +208,11 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                   <Button disabled={!!busy || imprimiveis.length === 0} onClick={() => setCasado(imprimiveis)}>
                     <Printer size={16} className="mr-1" /> Imprimir DANFE + etiqueta ({imprimiveis.length})
                   </Button>
+                  {imprimiveisME.length > 0 && (
+                    <Button disabled={!!busy} onClick={imprimirME} title="Abre as etiquetas oficiais do Melhor Envio (sem login) e gera as DANFEs na mesma ordem">
+                      <Printer size={16} className="mr-1" /> Imprimir DANFE + etiqueta ME ({imprimiveisME.length})
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -209,6 +224,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
         )}
         <EnvioEtiquetaDialog pedido={envioPed} onClose={() => setEnvioPed(null)} onDone={() => { if (pedidoIds) carregar(pedidoIds); }} />
         <DanfeViewerDialog notaIds={casado} mode="etiqueta" casada onClose={() => setCasado(null)} />
+        <DanfeViewerDialog notaIds={danfeME} mode="etiqueta" onClose={() => setDanfeME(null)} />
         <PixMelhorEnvioDialog open={pixOpen} sugerido={carrinho?.falta ?? 0} totalFretes={carrinho?.total ?? 0} qtd={carrinho?.qtd ?? 0}
           saldoAtual={saldoNum} onClose={() => setPixOpen(false)} onPago={carregarSaldo} />
       </DialogContent>
