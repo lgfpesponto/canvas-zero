@@ -16,7 +16,8 @@ const CWS = "https://api.correios.com.br";
 const ME = "https://www.melhorenvio.com.br/api/v2";
 
 const Body = z.object({
-  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me", "pix_me", "carrinho_me"]),
+  acao: z.enum(["gerar", "cotar", "salvar_servico", "saldo_me", "pix_me", "carrinho_me", "imprimir_me"]),
+  bagyPedidoIds: z.array(z.string().uuid()).max(200).optional(),
   bagyPedidoId: z.string().uuid().optional(),
   valor: z.number().min(1).max(20000).optional(),
   servico: z.string().max(60).optional(), // PAC | SEDEX | MINI | RETIRADA | ME:<id>
@@ -88,6 +89,24 @@ Deno.serve(async (req) => {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) return json({ error: "Melhor Envio: " + (j.message || r.status) }, 502);
       return json({ saldo: Number(j.balance ?? 0), reservado: Number(j.reserved ?? 0) });
+    }
+    if (b.acao === "imprimir_me") {
+      // Link público de impressão (sem login) com as etiquetas oficiais, na ordem recebida.
+      const tk = Deno.env.get("MELHOR_ENVIO_TOKEN");
+      if (!tk) return json({ error: "Token do Melhor Envio não configurado" }, 412);
+      const ids = b.bagyPedidoIds ?? [];
+      const { data: ps } = await sb.from("bagy_pedidos").select("id,envio_provider,envio_provider_id").in("id", ids);
+      const orders = ids.map((id) => (ps ?? []).find((p: any) => p.id === id))
+        .filter((p: any) => p?.envio_provider === "melhorenvio" && p.envio_provider_id).map((p: any) => p.envio_provider_id);
+      if (!orders.length) return json({ error: "Nenhum pedido com etiqueta do Melhor Envio gerada." }, 422);
+      const r = await fetch(`${ME}/me/shipment/print`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tk}`, Accept: "application/json", "Content-Type": "application/json", "User-Agent": "Portal 7Estrivos (contato@7estrivos.com.br)" },
+        body: JSON.stringify({ mode: "public", orders }),
+      });
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok || !j.url) return json({ error: "Melhor Envio: " + (j.message || JSON.stringify(j.errors || j).slice(0, 300)) }, 502);
+      return json({ url: j.url, qtd: orders.length });
     }
     if (b.acao === "carrinho_me") {
       // Valor real do carrinho calculado pelo próprio Melhor Envio + saldo da carteira.
