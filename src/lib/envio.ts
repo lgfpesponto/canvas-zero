@@ -105,3 +105,21 @@ export function servicoEfetivo(salvo?: string | null, metodo?: string | null) {
   if (salvo === 'ME' && det.startsWith('ME:')) return det;
   return salvo;
 }
+
+/** Pedido enviado pelo Melhor Envio (transportadora escolhida no ME). */
+export function ehMelhorEnvio(p: { envio_provider?: string | null; envio_servico?: string | null; metodo_envio?: string | null }) {
+  return p.envio_provider === 'melhorenvio' || servicoEfetivo(p.envio_servico, p.metodo_envio).startsWith('ME');
+}
+
+/** Abre a página pública (sem login) do Melhor Envio com as etiquetas oficiais, na ordem informada. */
+export async function abrirEtiquetasME(bagyPedidoIds: string[]) {
+  const w = window.open('', '_blank'); // abre já no clique para o navegador não bloquear
+  try {
+    const r = await chamarEnvio({ acao: 'imprimir_me', bagyPedidoIds });
+    if (w) w.location.href = r.url; else window.location.href = r.url;
+    return r.qtd as number;
+  } catch (e) {
+    w?.close();
+    throw e;
+  }
+}
