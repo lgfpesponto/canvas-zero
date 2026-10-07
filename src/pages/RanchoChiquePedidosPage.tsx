@@ -396,7 +396,7 @@ const RanchoChiquePedidosPage = () => {
     } catch (e: any) { toast.error(e.message || 'Falha ao abrir etiquetas do Melhor Envio'); }
   }
 
-  const selectedEtiquetaIds = filtered.filter(p => selected.has(p.id) && !!p.etiqueta_path).map(p => p.id);
+  const selectedEtiquetaIds = filtered.filter(p => selected.has(p.id) && !!p.etiqueta_path && !ehMelhorEnvio(p as any)).map(p => p.id);
 
   const getPortalOrdersForPedido = (p: BagyPedido): PortalOrderInfo[] => {
     const linked = portalOrdersByBagy[p.bagy_order_id] || [];
@@ -795,12 +795,23 @@ const RanchoChiquePedidosPage = () => {
                         <DropdownMenuItem onClick={() => setEnvioDialog(p)}>
                           <Package size={14} className="mr-2" /> {p.etiqueta_path ? 'Etiqueta de envio' : 'Gerar etiqueta de envio'}
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled={!p.etiqueta_path} onClick={() => setLoteEtiquetas([p.id])}>
-                          <Printer size={14} className="mr-2" /> Imprimir etiqueta
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled={!p.etiqueta_path || !nfeAutorizada} onClick={() => notaFiscal && setLoteCasado([notaFiscal.id])}>
-                          <Printer size={14} className="mr-2" /> DANFE Simplificada + etiqueta
-                        </DropdownMenuItem>
+                        {ehMelhorEnvio(p as any) ? (<>
+                          <DropdownMenuItem disabled={!nfeAutorizada} onClick={() => notaFiscal && setDanfeView({ id: notaFiscal.id, mode: 'etiqueta' })}>
+                            <Printer size={14} className="mr-2" /> Imprimir DANFE ME
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!(p as any).envio_provider_id} onClick={async () => {
+                            try { await abrirEtiquetasME([p.id]); } catch (e: any) { toast.error(e.message || 'Falha ao abrir etiqueta do Melhor Envio'); }
+                          }}>
+                            <Truck size={14} className="mr-2" /> Imprimir etiqueta ME
+                          </DropdownMenuItem>
+                        </>) : (<>
+                          <DropdownMenuItem disabled={!p.etiqueta_path} onClick={() => setLoteEtiquetas([p.id])}>
+                            <Printer size={14} className="mr-2" /> Imprimir etiqueta
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!p.etiqueta_path || !nfeAutorizada} onClick={() => notaFiscal && setLoteCasado([notaFiscal.id])}>
+                            <Printer size={14} className="mr-2" /> DANFE Simplificada + etiqueta
+                          </DropdownMenuItem>
+                        </>)}
                         <DropdownMenuItem onClick={() => { setTrackDialog(p); setTrackCode(p.tracking_code || ''); setTrackUrl(p.tracking_url || ''); }}>
                           <Truck size={14} className="mr-2" /> {p.tracking_code ? 'Editar rastreio' : 'Marcar despachado + rastreio'}
                         </DropdownMenuItem>
