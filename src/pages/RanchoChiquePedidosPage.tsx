@@ -33,7 +33,7 @@ import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { matchOrderBarcode } from '@/contexts/AuthContext';
 import { BagyPedidoView } from '@/components/bagy/BagyPedidoView';
 import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';
-import { rotuloServico } from '@/lib/envio';
+import { abrirEtiquetasME, ehMelhorEnvio, rotuloServico } from '@/lib/envio';
 
 type BagyPedido = {
   id: string;
