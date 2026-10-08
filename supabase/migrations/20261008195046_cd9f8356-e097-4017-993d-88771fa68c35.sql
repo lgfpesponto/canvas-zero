@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_orders_preco_regra_versao_created ON public.orders (preco_regra_versao, created_at);

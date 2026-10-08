@@ -393,7 +393,7 @@ Deno.serve(async (req) => {
 
     let body: any = {};
     try { body = await req.json(); } catch {}
-    const batchSize = Math.min(Math.max(Number(body?.batch_size) || 500, 1), 1000);
+    const batchSize = Math.min(Math.max(Number(body?.batch_size) || 100, 1), 200);
 
     // Versão atual
     const { data: counterRow } = await supabase
