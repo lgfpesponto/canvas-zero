@@ -30,7 +30,7 @@ export default function PrecoReconciler() {
       if (cancelled || n >= MAX_BATCHES_PER_SESSION) return;
       try {
         const { data, error } = await supabase.functions.invoke('reconciliar-precos', {
-          body: { batch_size: 500 },
+          body: { batch_size: 100 },
         });
         if (error) {
           console.warn('[PrecoReconciler] edge erro', error.message);
