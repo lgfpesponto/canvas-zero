@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Truck } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { SERVICOS_ENVIO, TRANSPORTADORAS_ME, chamarEnvio, servicoEfetivo, urlEtiqueta } from '@/lib/envio';
 
 type Ped = { id: string; numero_bagy: string; metodo_envio: string | null; envio_servico?: string | null; etiqueta_path?: string | null; tracking_code?: string | null };
@@ -16,6 +17,10 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
   const [peso, setPeso] = useState('2');
   const [dim, setDim] = useState({ altura: '15', largura: '30', comprimento: '35' });
   const [busy, setBusy] = useState(false);
+  const [end, setEnd] = useState<any>({});
+  const [endOrig, setEndOrig] = useState<string>('{}');
+  const dig = (v: any) => String(v ?? '').replace(/\D/g, '');
+  const campo = (e: any, ...k: string[]) => { for (const x of k) if (e?.[x]) return String(e[x]); return ''; };
 
   useEffect(() => {
     if (!pedido) return;
@@ -23,20 +28,42 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
     setServico(s.startsWith('ME') ? 'ME' : s);
     setMeId(s.startsWith('ME:') ? s.slice(3) : '');
     setOpcoes([]);
+    supabase.from('bagy_pedidos').select('endereco').eq('id', pedido.id).maybeSingle().then(({ data }) => {
+      const e: any = data?.endereco || {};
+      const n = { cep: campo(e, 'cep', 'zipcode'), logradouro: campo(e, 'logradouro', 'street', 'rua'), numero: campo(e, 'numero', 'number'),
+        complemento: campo(e, 'complemento', 'complement', 'detail'), bairro: campo(e, 'bairro', 'district', 'neighborhood'), cidade: campo(e, 'cidade', 'city'), uf: campo(e, 'uf', 'state') };
+      (n as any)._raw = e; setEnd(n); setEndOrig(JSON.stringify(n));
+    });
   }, [pedido]);
 
   if (!pedido) return null;
   const medidas = { peso: Number(peso), altura: Number(dim.altura), largura: Number(dim.largura), comprimento: Number(dim.comprimento) };
   const servFinal = servico === 'ME' ? (meId ? `ME:${meId}` : 'ME') : servico;
 
+  const buscarCep = async (cep: string) => {
+    if (dig(cep).length !== 8) return;
+    try { const r = await fetch(`https://viacep.com.br/ws/${dig(cep)}/json/`).then(x => x.json());
+      if (r.erro) toast.error('CEP não encontrado'); else setEnd((e: any) => ({ ...e, logradouro: r.logradouro || e.logradouro, bairro: r.bairro || e.bairro, cidade: r.localidade, uf: r.uf, ibge: r.ibge }));
+    } catch { /* ignore */ }
+  };
+  const salvarEndereco = async () => {
+    if (JSON.stringify(end) === endOrig) return;
+    const { _raw, ibge, ...f } = end;
+    const novo = { ...(_raw || {}), ...f, cep: dig(f.cep), zipcode: dig(f.cep), street: f.logradouro, number: f.numero, complement: f.complemento,
+      district: f.bairro, city: f.cidade, state: f.uf, ...(ibge ? { city_ibge_id: ibge } : {}) };
+    const { error } = await supabase.from('bagy_pedidos').update({ endereco: novo } as any).eq('id', pedido!.id);
+    if (error) throw new Error('Falha ao salvar endereço: ' + error.message);
+    setEndOrig(JSON.stringify(end));
+  };
   const salvar = async () => {
     setBusy(true);
-    try { await chamarEnvio({ acao: 'salvar_servico', bagyPedidoId: pedido.id, servico: servFinal }); toast.success('Forma de envio salva'); onDone(); }
+    try { await salvarEndereco(); await chamarEnvio({ acao: 'salvar_servico', bagyPedidoId: pedido.id, servico: servFinal }); toast.success('Forma de envio salva'); onDone(); }
     catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
   const cotar = async () => {
     setBusy(true);
     try {
+      await salvarEndereco();
       const r = await chamarEnvio({ acao: 'cotar', bagyPedidoId: pedido.id, ...medidas });
       const ops = r.opcoes || [];
       setOpcoes(ops);
@@ -53,6 +80,7 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
   const gerar = async () => {
     setBusy(true);
     try {
+      await salvarEndereco();
       const r = await chamarEnvio({ acao: 'gerar', bagyPedidoId: pedido.id, servico: servFinal, ...medidas });
       toast.success(r.mensagem || `Etiqueta gerada${r.rastreio ? ` — rastreio ${r.rastreio}` : ''}`);
       if (r.etiqueta_path) window.open(await urlEtiqueta(r.etiqueta_path), '_blank');
@@ -80,6 +108,20 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
                   <SelectContent>{SERVICOS_ENVIO.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              {servico !== 'RETIRADA' && (
+                <div className="space-y-2 rounded border p-2">
+                  <label className="text-xs font-semibold">Endereço de entrega</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div><label className="text-xs">CEP</label><Input value={end.cep || ''} onChange={e => setEnd({ ...end, cep: e.target.value })} onBlur={e => buscarCep(e.target.value)} /></div>
+                    <div className="col-span-2"><label className="text-xs">Rua</label><Input value={end.logradouro || ''} onChange={e => setEnd({ ...end, logradouro: e.target.value })} /></div>
+                    <div><label className="text-xs">Número</label><Input value={end.numero || ''} onChange={e => setEnd({ ...end, numero: e.target.value })} /></div>
+                    <div className="col-span-2"><label className="text-xs">Complemento</label><Input value={end.complemento || ''} onChange={e => setEnd({ ...end, complemento: e.target.value })} /></div>
+                    <div><label className="text-xs">Bairro</label><Input value={end.bairro || ''} onChange={e => setEnd({ ...end, bairro: e.target.value })} /></div>
+                    <div><label className="text-xs">Cidade</label><Input value={end.cidade || ''} onChange={e => setEnd({ ...end, cidade: e.target.value })} /></div>
+                    <div><label className="text-xs">UF</label><Input maxLength={2} value={end.uf || ''} onChange={e => setEnd({ ...end, uf: e.target.value.toUpperCase() })} /></div>
+                  </div>
+                </div>
+              )}
               {servico !== 'RETIRADA' && (
                 <div className="grid grid-cols-4 gap-2">
                   <div><label className="text-xs">Peso (kg)</label><Input value={peso} onChange={e => setPeso(e.target.value)} /></div>

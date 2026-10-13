@@ -176,7 +176,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                   <div className="flex gap-1.5 items-start"><Icone s={l.nfe} /><div className="text-xs flex-1">
                     <b>NF-e:</b> {l.nfe === 'ok' ? `nº ${l.notaNum} autorizada` : l.nfe === 'enviando' ? 'enviando à SEFAZ...' : l.nfe === 'erro' ? <span className="text-destructive">{l.nfeMsg}</span> : 'aguardando'}
                   </div>
-                    {l.nfe !== 'ok' && <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar nota" disabled={!!busy} onClick={() => setEditId(l.id)}><Pencil size={14} /></Button>}
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title={l.nfe === 'ok' ? 'Editar pedido (endereço do cliente)' : 'Editar nota'} disabled={!!busy} onClick={() => setEditId(l.id)}><Pencil size={14} /></Button>
                   </div>
                   <div className="flex gap-1.5 items-start"><Icone s={l.etq} /><div className="text-xs flex-1">
                     <b>Etiqueta:</b> {l.servico === 'RETIRADA' ? 'Retirada no showroom — só a nota' : l.etq === 'ok' ? (l.rastreio || 'gerada') : l.etq === 'enviando' ? 'gerando...' : l.etq === 'erro' ? <span className="text-destructive">{l.etqMsg}</span> : 'aguardando'}
