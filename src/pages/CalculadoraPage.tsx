@@ -90,8 +90,17 @@ export default function CalculadoraPage() {
 
   const discriminacao = useMemo(() => {
     const L: string[] = [`*Orçamento ${new Date().toLocaleDateString('pt-BR')} — ${rotuloMod(modo)}*`, ''];
-    L.push(`💳 Cartão: ${brl(precos.cartao)} em até 3x sem juros de ${brl(precos.parcela)}`);
-    L.push(`💰 Pix: ${brl(precos.pix)} (10% de desconto)`);
+    if (modo === 'atacado') {
+      const metade = Math.round(precos.pix / 2 * 100) / 100;
+      L.push(`💰 Total no Pix: ${brl(precos.pix)} (${qtdTotal} ${qtdTotal === 1 ? 'par/item' : 'pares/itens'})`);
+      L.push(`• 50% de entrada para iniciar a produção: ${brl(metade)}`);
+      L.push(`• 50% restante após pronto, antes do despacho: ${brl(Math.round((precos.pix - metade) * 100) / 100)}`);
+      L.push('• Valor sem frete (frete cobrado à parte)');
+      L.push('• Pagamento somente via Pix');
+    } else {
+      L.push(`💳 Cartão: ${brl(precos.cartao)} em até 3x sem juros de ${brl(precos.parcela)}`);
+      L.push(`💰 Pix: ${brl(precos.pix)} (10% de desconto)`);
+    }
     L.push('');
     lista.forEach((it, idx) => {
       L.push(`*Item ${idx + 1}: ${rotuloTipo(it.tipo)}*`);
@@ -243,9 +252,15 @@ export default function CalculadoraPage() {
                 <span className="text-sm font-bold uppercase">Preço de venda</span>
                 <span className="rounded-full bg-primary px-3 py-0.5 text-xs font-bold uppercase text-primary-foreground">{rotuloMod(modo)}</span>
               </div>
-              <div className="flex justify-between font-bold text-lg"><span>Cartão</span><span className="text-primary">{brl(precos.cartao)}</span></div>
-              <div className="text-sm text-muted-foreground text-right">3x sem juros de {brl(precos.parcela)}</div>
-              <div className="flex justify-between font-bold text-lg pt-1 border-t border-border"><span>Pix (−10%)</span><span>{brl(precos.pix)}</span></div>
+              {modo === 'atacado' ? (<>
+                <div className="flex justify-between font-bold text-lg"><span>Pix (sem frete)</span><span className="text-primary">{brl(precos.pix)}</span></div>
+                <div className="flex justify-between text-sm"><span>50% entrada (produção)</span><b>{brl(precos.pix / 2)}</b></div>
+                <div className="flex justify-between text-sm"><span>50% antes do despacho</span><b>{brl(precos.pix / 2)}</b></div>
+              </>) : (<>
+                <div className="flex justify-between font-bold text-lg"><span>Cartão</span><span className="text-primary">{brl(precos.cartao)}</span></div>
+                <div className="text-sm text-muted-foreground text-right">3x sem juros de {brl(precos.parcela)}</div>
+                <div className="flex justify-between font-bold text-lg pt-1 border-t border-border"><span>Pix (−10%)</span><span>{brl(precos.pix)}</span></div>
+              </>)}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={limpar}><Eraser size={16} /> Limpar</Button>
