@@ -152,10 +152,24 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   }));
   const addReferencia = (id: string) => {
     const r = refs.find(x => x.id === id); if (!r) return;
+    const ncmRef = dig(r.ncm);
+    const ncm = ncmRef.length === 8 ? ncmRef : (ncmPorDescricao(`${r.referencia} ${r.descricao ?? ''}`)?.ncm || '');
     setItens(arr => [...arr.filter(x => x.descricao || x.valor), {
-      ...itemVazio(), codigo: r.referencia, descricao: r.descricao || r.referencia, ncm: dig(r.ncm),
+      ...itemVazio(), codigo: r.referencia, descricao: r.descricao || r.referencia, ncm,
       cfop: r.cfop_padrao || '', unidade: r.unidade_comercial || 'UN', csosn: r.csosn || r.cst_icms || '',
     }]);
+  };
+  // CFOP sempre ajustado ao estado do destinatário: 5xxx dentro do estado, 6xxx fora.
+  // Venda (5101/6101/6107) segue PF/PJ: fora do estado PF = 6107, PJ/contribuinte = 6101.
+  const cfopEfetivo = (c: string) => {
+    const v = dig(c);
+    if (v.length !== 4) return cfopPadrao;
+    if (['5101', '6101', '6107'].includes(v)) {
+      if (interno) return '5101';
+      return dest.ind_ie_dest === 1 || dig(dest.cpf_cnpj).length === 14 ? '6101' : '6107';
+    }
+    if (v[0] === '5' || v[0] === '6') return (interno ? '5' : '6') + v.slice(1);
+    return v;
   };
 
   const valorProdutos = r2(itens.reduce((s, it) => s + num(it.qtd) * num(it.valor), 0));
@@ -242,7 +256,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         const di = last ? r2(d - dAcum) : r2(d * vt / qtdTotal); dAcum += di;
         const ref = refs.find(r => r.referencia === it.codigo);
         return {
-          codigo: it.codigo || String(k + 1), descricao: it.descricao, ncm: dig(it.ncm), cfop: it.cfop || cfopPadrao,
+          codigo: it.codigo || String(k + 1), descricao: it.descricao, ncm: dig(it.ncm), cfop: cfopEfetivo(it.cfop || cfopPadrao),
           unidade: it.unidade || 'UN', quantidade: num(it.qtd), valorUnit: num(it.valor), valorTotal: vt,
           desconto: di, frete: fi, csosn: it.csosn, origem: Number(ref?.origem_mercadoria ?? 0),
         };
