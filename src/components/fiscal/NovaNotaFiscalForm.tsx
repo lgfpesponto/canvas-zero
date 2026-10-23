@@ -235,6 +235,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         destinatario: destFinal, itens: itensNota,
         valorProdutos, desconto: d, frete: f, valorTotal: total, cfop: cfopPadrao, ambiente: cfg?.ambiente ?? 2, erros: [],
         notaExistente: null, natOp, finNFe, indPres, indFinal: consFinal, tPag: ex.parcelas[0]?.forma || tPag, modFrete, seguro: num(seguro), outras: num(outras),
+        transportador: ex.transp, entrega: ex.entregaDif ? ex.entrega : undefined,
         infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco, infExtras()].filter(Boolean).join(' '),
         observacoes: `Nota avulsa${pedidoExterno ? ` — pedido ${pedidoExterno}` : ''}`,
       };
@@ -412,7 +413,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         {ex.entregaDif && (
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             {([['cep', 'CEP'], ['logradouro', 'Logradouro'], ['numero', 'Número'], ['bairro', 'Bairro'], ['municipio', 'Município'], ['uf', 'UF']] as const).map(([k, l]) => (
-              <Campo key={k} label={l}><Input value={ex.entrega[k]} onChange={e => setE(k, e.target.value)} /></Campo>
+              <Campo key={k} label={l}><Input value={ex.entrega[k]} onChange={e => setE(k, e.target.value)} {...(k === 'cep' ? { onBlur: buscarCepEntrega } : {})} /></Campo>
             ))}
           </div>
         )}
