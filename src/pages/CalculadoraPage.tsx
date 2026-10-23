@@ -88,15 +88,21 @@ export default function CalculadoraPage() {
   const precos = useMemo(() => calcularPrecos(custo, itens.filter(i => (i.modalidade || 'varejo') === modo)), [custo, itens, modo]);
   const qtdTotal = lista.reduce((s, i) => s + (i.qtd || 1), 0);
 
+  const pagamentoAtacado = useMemo(() => {
+    const metade = Math.round(precos.pix / 2 * 100) / 100;
+    return [
+      `💰 Total no Pix: ${brl(precos.pix)} (${qtdTotal} ${qtdTotal === 1 ? 'par/item' : 'pares/itens'})`,
+      `• 50% de entrada para iniciar a produção: ${brl(metade)}`,
+      `• 50% restante após pronto, antes do despacho: ${brl(Math.round((precos.pix - metade) * 100) / 100)}`,
+      '• Valor sem frete (frete cobrado à parte)',
+      '• Pagamento somente via Pix',
+    ].join('\n');
+  }, [precos, qtdTotal]);
+
   const discriminacao = useMemo(() => {
     const L: string[] = [`*Orçamento ${new Date().toLocaleDateString('pt-BR')} — ${rotuloMod(modo)}*`, ''];
     if (modo === 'atacado') {
-      const metade = Math.round(precos.pix / 2 * 100) / 100;
-      L.push(`💰 Total no Pix: ${brl(precos.pix)} (${qtdTotal} ${qtdTotal === 1 ? 'par/item' : 'pares/itens'})`);
-      L.push(`• 50% de entrada para iniciar a produção: ${brl(metade)}`);
-      L.push(`• 50% restante após pronto, antes do despacho: ${brl(Math.round((precos.pix - metade) * 100) / 100)}`);
-      L.push('• Valor sem frete (frete cobrado à parte)');
-      L.push('• Pagamento somente via Pix');
+      L.push(`💰 Valor no Pix: ${brl(precos.pix)}${qtdTotal > 1 ? ` (${brl(precos.pix / qtdTotal)} por par/item)` : ''}`);
     } else {
       L.push(`💳 Cartão: ${brl(precos.cartao)} em até 3x sem juros de ${brl(precos.parcela)}`);
       L.push(`💰 Pix: ${brl(precos.pix)} (10% de desconto)`);
@@ -241,6 +247,13 @@ export default function CalculadoraPage() {
               <Button size="sm" variant="outline" onClick={() => copiar(discriminacao)}><Copy size={14} /> Copiar</Button>
             </div>
             <pre className="whitespace-pre-wrap text-xs bg-muted rounded-md p-3 max-h-72 overflow-auto font-sans">{discriminacao}</pre>
+            {modo === 'atacado' && (<>
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold">Pedido concreto</h2>
+                <Button size="sm" variant="outline" onClick={() => copiar(pagamentoAtacado)}><Copy size={14} /> Copiar</Button>
+              </div>
+              <pre className="whitespace-pre-wrap text-xs bg-muted rounded-md p-3 font-sans">{pagamentoAtacado}</pre>
+            </>)}
             <div className="flex justify-between text-sm"><span>Preço de custo</span><b>{brl(custo)}</b></div>
             <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
               {(['varejo', 'atacado'] as const).map(m => (
