@@ -351,25 +351,34 @@ export default function CalculadoraPage() {
       </Dialog>
 
       <Dialog open={orcsOpen} onOpenChange={setOrcsOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Orçamentos salvos ({orcs.length})</DialogTitle></DialogHeader>
-          <div>
-            
-            {orcs.length === 0 && <p className="text-sm text-muted-foreground">Nenhum orçamento salvo.</p>}
-            <div className="space-y-2 max-h-[65vh] overflow-auto">
-              {orcs.map(o => (
-                <div key={o.id} className="border border-border rounded-md p-2 text-sm flex flex-wrap items-center gap-2">
-                  <div className="flex-1 min-w-[180px]">
-                    <button className="text-left font-semibold hover:underline" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}>{o.nome}</button>
-                    <div className="text-xs text-muted-foreground">{o.whatsapp || 'sem WhatsApp'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {itensDoOrc(o).length} item(ns)</div>
-                    <div className="text-xs">Cartão {brl(Number(o.preco_cartao))} · Pix {brl(Number(o.preco_pix))}</div>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader><DialogTitle>Orçamentos salvos ({orcsFiltrados.length}{orcsFiltrados.length !== orcs.length ? ` de ${orcs.length}` : ''})</DialogTitle></DialogHeader>
+          <div className="flex flex-wrap gap-2 items-end">
+            <Input className="flex-1 min-w-[200px]" placeholder="Buscar por nome ou WhatsApp..." value={busca} onChange={e => setBusca(e.target.value)} />
+            <div><label className="text-xs text-muted-foreground block">De</label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
+            <div><label className="text-xs text-muted-foreground block">Até</label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
+            {(busca || dataIni || dataFim) && <Button variant="ghost" size="sm" onClick={() => { setBusca(''); setDataIni(''); setDataFim(''); }}>Limpar</Button>}
+          </div>
+          {orcs.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum orçamento salvo.</p>}
+          {orcs.length > 0 && orcsFiltrados.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum orçamento encontrado.</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[65vh] overflow-y-auto pr-1">
+            {orcsFiltrados.map(o => (
+              <div key={o.id} className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
+                <button type="button" className="w-full h-48 sm:h-40 bg-background relative block" title="Abrir orçamento" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}>
+                  <OrcFoto url={fotoDoOrc(o)} nome={o.nome} />
+                </button>
+                <div className="p-3 flex flex-col gap-1 flex-1 text-sm">
+                  <span className="font-semibold line-clamp-2 leading-tight" title={o.nome}>{o.nome}</span>
+                  <span className="text-xs text-muted-foreground">{o.whatsapp || 'sem WhatsApp'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {itensDoOrc(o).length} item(ns)</span>
+                  <span className="text-xs">Cartão {brl(Number(o.preco_cartao))} · Pix {brl(Number(o.preco_pix))}</span>
+                  <div className="flex items-center gap-1.5 mt-auto pt-2">
+                    <Button size="sm" className="flex-1" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}><FileText size={14} /> Fazer ficha</Button>
+                    {o.discriminacao && <Button size="sm" variant="outline" className="h-9 w-9 p-0" title="Copiar mensagem" onClick={() => copiar(o.discriminacao!)}><Copy size={14} /></Button>}
+                    <Button size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => excluirOrc(o.id)} title="Remover"><Trash2 size={14} /></Button>
                   </div>
-                  <Button size="sm" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}><FileText size={14} /> Fazer ficha</Button>
-                  {o.discriminacao && <Button size="sm" variant="outline" onClick={() => copiar(o.discriminacao!)}><Copy size={14} /></Button>}
-                  <Button size="sm" variant="ghost" onClick={() => excluirOrc(o.id)} title="Remover"><Trash2 size={14} /></Button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
