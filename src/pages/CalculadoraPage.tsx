@@ -58,7 +58,9 @@ export default function CalculadoraPage() {
   const [extraEd, setExtraEd] = useState<{ uid?: string; produtoId: string; nome: string; descricao: string; preco: string; qtd: string } | null>(null);
   const [extrasProd, setExtrasProd] = useState<ExtraProd[]>([]);
   const [itens, setItens] = useState<Item[]>([]);
+  const [modo, setModo] = useState<Modalidade>('varejo');
   const [cfgOpen, setCfgOpen] = useState(false);
+  const [cfgModo, setCfgModo] = useState<Modalidade>('varejo');
   const [cfgDraft, setCfgDraft] = useState<Item[]>([]);
   const [removidos, setRemovidos] = useState<string[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -70,7 +72,7 @@ export default function CalculadoraPage() {
 
   const loadItens = async () => {
     const { data: rows } = await db.from('calc_preco_itens').select('*').order('ordem');
-    setItens((rows || []).map((r: any) => ({ ...r, valor: Number(r.valor) })));
+    setItens((rows || []).map((r: any) => ({ ...r, valor: Number(r.valor), modalidade: r.modalidade === 'atacado' ? 'atacado' : 'varejo' })));
   };
   const loadOrcs = async () => {
     const { data: rows } = await db.from('calc_orcamentos').select('*').order('created_at', { ascending: false }).limit(200);
@@ -83,11 +85,11 @@ export default function CalculadoraPage() {
   }, [hasAccess]);
 
   const custo = useMemo(() => lista.reduce((s, i) => s + (Number(i.custo) || 0), 0), [lista]);
-  const precos = useMemo(() => calcularPrecos(custo, itens), [custo, itens]);
+  const precos = useMemo(() => calcularPrecos(custo, itens.filter(i => (i.modalidade || 'varejo') === modo)), [custo, itens, modo]);
   const qtdTotal = lista.reduce((s, i) => s + (i.qtd || 1), 0);
 
   const discriminacao = useMemo(() => {
-    const L: string[] = [`*Orçamento ${new Date().toLocaleDateString('pt-BR')}*`, ''];
+    const L: string[] = [`*Orçamento ${new Date().toLocaleDateString('pt-BR')} — ${rotuloMod(modo)}*`, ''];
     L.push(`💳 Cartão: ${brl(precos.cartao)} em até 3x sem juros de ${brl(precos.parcela)}`);
     L.push(`💰 Pix: ${brl(precos.pix)} (10% de desconto)`);
     L.push('');
