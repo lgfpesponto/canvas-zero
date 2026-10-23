@@ -209,9 +209,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
     finally { setBusy(null); }
   };
 
-  const emitir = async () => {
-    setBusy('emit');
-    try {
+  const montarRascunho = (): NotaRascunho => {
       const qtdTotal = itens.reduce((s, it) => s + num(it.qtd) * num(it.valor), 0) || 1;
       let fAcum = 0, dAcum = 0;
       const f = num(frete), d = num(desconto);
@@ -229,7 +227,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       });
       const destFinal = { ...dest, cep: dig(dest.cep), cod_municipio: dig(dest.cod_municipio), telefone: dig(dest.telefone), uf: String(dest.uf).toUpperCase() };
       delete (destFinal as any)._form;
-      const r: NotaRascunho = {
+      return {
         bagyPedidoId: '', numeroBagy: '', portalOrderId: null,
         emitente: { ...cfg, cnpj: dig(ex.cnpjEmit) || cfg?.cnpj, razao_social: ex.razaoEmit || cfg?.razao_social },
         destinatario: destFinal, itens: itensNota,
@@ -239,12 +237,36 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco, infExtras()].filter(Boolean).join(' '),
         observacoes: `Nota avulsa${pedidoExterno ? ` — pedido ${pedidoExterno}` : ''}`,
       };
+  };
+
+  const [previaUrl, setPreviaUrl] = useState<string | null>(null);
+  const abrirConferencia = async () => {
+    setPreview(true); setPreviaUrl(null);
+    if (!cfg || erros.length) return;
+    try {
+      const { gerarDanfePreviaBlobUrl } = await import('@/lib/fiscal/danfePdf');
+      setPreviaUrl(await gerarDanfePreviaBlobUrl(montarRascunho()));
+    } catch (e: any) { toast.error(`Não foi possível montar a prévia: ${e.message}`); }
+  };
+
+  const emitir = async () => {
+    setBusy('emit');
+    try {
+      const r = montarRascunho();
       const res = await transmitirNotaBagy(r);
-      if (rascId) await supabase.from('nfe_notas').delete().eq('id', rascId);
-      if (res.autorizada) { toast.success(`NF-e nº ${res.numero} autorizada.`); onClose(); }
-      else toast.error(`NF-e rejeitada: ${res.motivo}`);
+      if (res.autorizada) {
+        // Só descarta o rascunho quando a SEFAZ autoriza; rejeitada mantém tudo para corrigir.
+        if (rascId) await supabase.from('nfe_notas').delete().eq('id', rascId);
+        toast.success(`NF-e nº ${res.numero} autorizada.`); onClose();
+      } else {
+        // Guarda o formulário na nota rejeitada para permitir "Duplicar e corrigir".
+        await supabase.from('nfe_notas').update({ destinatario_snapshot: { ...r.destinatario, _form: formState() } } as any).eq('id', res.notaId);
+        setRejeicao(res.motivo);
+        await salvarRascunho(res.motivo);
+        toast.error(`NF-e rejeitada: ${res.motivo}`, { duration: 15000 });
+      }
       setPreview(false);
-    } catch (e: any) { toast.error(e.message || 'Falha na emissão.'); }
+    } catch (e: any) { setRejeicao(e.message); toast.error(e.message || 'Falha na emissão.'); }
     finally { setBusy(null); }
   };
 
