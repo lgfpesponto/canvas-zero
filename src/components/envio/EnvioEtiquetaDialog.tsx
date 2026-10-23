@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Truck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { SERVICOS_ENVIO, TRANSPORTADORAS_ME, chamarEnvio, servicoEfetivo, urlEtiqueta } from '@/lib/envio';
+import { avisosEndereco } from '@/lib/envioLimites';
 
 type Ped = { id: string; numero_bagy: string; metodo_envio: string | null; envio_servico?: string | null; etiqueta_path?: string | null; tracking_code?: string | null };
 
@@ -21,6 +22,7 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
   const [endOrig, setEndOrig] = useState<string>('{}');
   const dig = (v: any) => String(v ?? '').replace(/\D/g, '');
   const campo = (e: any, ...k: string[]) => { for (const x of k) if (e?.[x]) return String(e[x]); return ''; };
+  const avisos = avisosEndereco(end);
 
   useEffect(() => {
     if (!pedido) return;
@@ -120,6 +122,13 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
                     <div><label className="text-xs">Cidade</label><Input value={end.cidade || ''} onChange={e => setEnd({ ...end, cidade: e.target.value })} /></div>
                     <div><label className="text-xs">UF</label><Input maxLength={2} value={end.uf || ''} onChange={e => setEnd({ ...end, uf: e.target.value.toUpperCase() })} /></div>
                   </div>
+                  {avisos.length > 0 && (
+                    <div className="rounded border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                      <b>A etiqueta vai dar erro na transportadora.</b> Encurte aqui antes de gerar:
+                      <ul className="list-disc pl-4">{avisos.map(a => <li key={a}>{a}</li>)}</ul>
+                      Dica: abrevie (Edifício → Ed., Apartamento → Ap., Sala → Sl.) e deixe só números no campo Número.
+                    </div>
+                  )}
                 </div>
               )}
               {servico !== 'RETIRADA' && (
@@ -145,7 +154,7 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
               )}
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={salvar} disabled={busy}>Só salvar forma de envio</Button>
-                <Button onClick={gerar} disabled={busy || (servico === 'ME' && !meId)}>
+                <Button onClick={gerar} disabled={busy || (servico === 'ME' && !meId) || (servico !== 'RETIRADA' && avisos.length > 0)}>
                   {busy ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Truck size={14} className="mr-1" />}
                   {servico === 'RETIRADA' ? 'Confirmar retirada' : 'Gerar etiqueta'}
                 </Button>

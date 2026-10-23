@@ -10,12 +10,13 @@ import { BagyPedidoEditDialog } from './BagyPedidoEditDialog';
 import { DanfeViewerDialog } from './DanfeViewerDialog';
 import { EnvioEtiquetaDialog } from '@/components/envio/EnvioEtiquetaDialog';
 import { PixMelhorEnvioDialog } from '@/components/envio/PixMelhorEnvioDialog';
+import { avisosEndereco, lerEnderecoBagy } from '@/lib/envioLimites';
 
 type St = 'aguardando' | 'enviando' | 'ok' | 'erro';
 type Linha = {
   id: string; numero: string; cliente: string;
   nfe: St; nfeMsg: string; notaId: string | null; notaNum: number | null;
-  etq: St; etqMsg: string; rastreio: string | null; servico: string; metodo: string; frete: number;
+  etq: St; etqMsg: string; rastreio: string | null; servico: string; metodo: string; frete: number; avisos: string[];
 };
 
 const Icone = ({ s }: { s: St }) => s === 'ok' ? <CheckCircle2 size={16} className="text-primary" />
@@ -54,7 +55,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
     try {
       const [notas, { data: peds }] = await Promise.all([
         prepararNotasBagy(ids, portalIdPorBagy),
-        supabase.from('bagy_pedidos').select('id,numero_bagy,cliente_nome,etiqueta_path,tracking_code,envio_servico,metodo_envio,frete').in('id', ids),
+        supabase.from('bagy_pedidos').select('id,numero_bagy,cliente_nome,etiqueta_path,tracking_code,envio_servico,metodo_envio,frete,endereco').in('id', ids),
       ]);
       const m: Record<string, NotaRascunho> = {}; notas.forEach(n => { m[n.bagyPedidoId] = n; });
       setRasc(m);
@@ -73,6 +74,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
           etq: (p.etiqueta_path || retirada) ? 'ok' : (old?.etq === 'erro' ? 'erro' : 'aguardando'),
           etqMsg: p.etiqueta_path || retirada ? '' : old?.etq === 'erro' ? old.etqMsg : '', rastreio: p.tracking_code ?? null,
           servico, metodo: p.metodo_envio ?? '', frete: Number(p.frete ?? 0) || 0,
+          avisos: retirada ? [] : avisosEndereco(lerEnderecoBagy(p.endereco, p.endereco?.receiver || p.cliente_nome)),
         };
       }));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
@@ -104,6 +106,7 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
       const p: any = (peds ?? []).find((x: any) => x.id === l.id);
       if (p?.etiqueta_path && p?.tracking_code) { upd(l.id, { etq: 'ok' }); continue; }
       const servico = servicoEfetivo(p?.envio_servico, p?.metodo_envio);
+      if (l.avisos.length) { upd(l.id, { etq: 'erro', etqMsg: 'Endereço passa do limite da transportadora — corrija pelo lápis.' }); continue; }
       upd(l.id, { etq: 'enviando', etqMsg: '' });
       if (servico === 'ME') { upd(l.id, { etq: 'erro', etqMsg: 'Escolha a transportadora do Melhor Envio.' }); continue; }
       try {
@@ -180,6 +183,12 @@ export function ExpedicaoLoteDialog({ pedidoIds, portalIdPorBagy, onClose }: {
                   </div>
                   <div className="flex gap-1.5 items-start"><Icone s={l.etq} /><div className="text-xs flex-1">
                     <b>Etiqueta:</b> {l.servico === 'RETIRADA' ? 'Retirada no showroom — só a nota' : l.etq === 'ok' ? (l.rastreio || 'gerada') : l.etq === 'enviando' ? 'gerando...' : l.etq === 'erro' ? <span className="text-destructive">{l.etqMsg}</span> : 'aguardando'}
+                    {l.etq !== 'ok' && l.servico !== 'RETIRADA' && l.avisos.length > 0 && (
+                      <div className="mt-1 rounded border border-destructive/50 bg-destructive/10 p-1.5 text-destructive">
+                        <b>Vai dar erro ao gerar.</b> Clique no lápis ao lado e encurte:
+                        <ul className="list-disc pl-4">{l.avisos.map(a => <li key={a}>{a}</li>)}</ul>
+                      </div>
+                    )}
                   </div>
                     <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar envio (peso, medidas, tipo)" disabled={!!busy} onClick={() => abrirEnvio(l.id)}><Pencil size={14} /></Button>
                   </div>

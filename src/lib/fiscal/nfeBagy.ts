@@ -171,8 +171,10 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
   // Entrega em endereço diferente: só vai como tag se tiver o código IBGE (exigido pela SEFAZ);
   // sem ele, o endereço continua saindo nas informações complementares.
   const ent = r.entrega;
-  const entrega = ent && ent.logradouro && dig(ent.cod_municipio).length === 7
-    ? `<entrega>${tag('xLgr', ent.logradouro)}${tag('nro', ent.numero || 'S/N')}${tag('xBairro', ent.bairro)}` +
+  // Schema 4.00: <entrega> exige CNPJ ou CPF do recebedor antes do endereço (sem isso = rejeição 225).
+  const docEnt = doc.length === 14 ? `<CNPJ>${doc}</CNPJ>` : doc.length === 11 ? `<CPF>${doc}</CPF>` : '';
+  const entrega = ent && ent.logradouro && dig(ent.cod_municipio).length === 7 && docEnt
+    ? `<entrega>${docEnt}${tag('xNome', nomeDest)}${tag('xLgr', ent.logradouro)}${tag('nro', ent.numero || 'S/N')}${tag('xBairro', ent.bairro)}` +
       `<cMun>${dig(ent.cod_municipio)}</cMun>${tag('xMun', ent.municipio)}<UF>${esc(String(ent.uf ?? '').toUpperCase())}</UF>${tag('CEP', dig(ent.cep))}</entrega>`
     : '';
 
@@ -181,7 +183,7 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
       ? `<ICMSSN101><orig>${it.origem}</orig><CSOSN>101</CSOSN><pCredSN>0.00</pCredSN><vCredICMSSN>0.00</vCredICMSSN></ICMSSN101>`
       : `<ICMSSN102><orig>${it.origem}</orig><CSOSN>${esc(it.csosn)}</CSOSN></ICMSSN102>`;
     return `<det nItem="${k + 1}"><prod><cProd>${esc(it.codigo)}</cProd><cEAN>SEM GTIN</cEAN><xProd>${esc(it.descricao)}</xProd>` +
-      `<NCM>${it.ncm}</NCM><CFOP>${it.cfop}</CFOP><uCom>${esc(it.unidade)}</uCom><qCom>${it.quantidade.toFixed(4)}</qCom>` +
+      `<NCM>${it.ncm}</NCM><CFOP>${!interno && String(it.cfop).startsWith('5') ? '6' + String(it.cfop).slice(1) : it.cfop}</CFOP><uCom>${esc(it.unidade)}</uCom><qCom>${it.quantidade.toFixed(4)}</qCom>` +
       `<vUnCom>${it.valorUnit.toFixed(10)}</vUnCom><vProd>${n2(it.valorTotal)}</vProd><cEANTrib>SEM GTIN</cEANTrib><uTrib>${esc(it.unidade)}</uTrib>` +
       `<qTrib>${it.quantidade.toFixed(4)}</qTrib><vUnTrib>${it.valorUnit.toFixed(10)}</vUnTrib>` +
       (it.frete > 0 ? `<vFrete>${n2(it.frete)}</vFrete>` : '') + (it.desconto > 0 ? `<vDesc>${n2(it.desconto)}</vDesc>` : '') +
