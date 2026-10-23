@@ -422,3 +422,26 @@ export async function gerarDanfePdf(notaId: string, mode: DanfeMode, action: 'sa
     setTimeout(() => URL.revokeObjectURL(url), 120_000);
   } else doc.save(filename);
 }
+/** Prévia do DANFE A4 a partir do rascunho em tela (sem SEFAZ, sem valor fiscal). */
+export async function gerarDanfePreviaBlobUrl(r: import('./nfeBagy').NotaRascunho) {
+  const { montarXmlPrevia } = await import('./nfeBagy');
+  const { xml, chave } = montarXmlPrevia(r);
+  const { data: config } = await supabase.from('nfe_config').select('*').order('created_at').limit(1).single();
+  if (!config) throw new Error('Configuração do emitente não encontrada.');
+  const itens = r.itens.map((it, k) => ({
+    ordem: k + 1, codigo: it.codigo, descricao: it.descricao, ncm: it.ncm, cfop: it.cfop, unidade: it.unidade,
+    quantidade: it.quantidade, valor_unitario: it.valorUnit, valor_total: it.valorTotal, origem_mercadoria: it.origem, cst_icms: it.csosn,
+  }));
+  const ncms = [...new Set(itens.map(i => clean(i.ncm)).filter(Boolean))];
+  const { data: refs } = ncms.length
+    ? await supabase.from('nfe_tributacao_referencias').select('ncm, aliq_tributos_federais, aliq_tributos_estaduais').in('ncm', ncms)
+    : { data: [] };
+  const logo = config.logo_path ? await imageAsDataUrl(config.logo_path, false).catch(() => undefined) : undefined;
+  const nota = {
+    numero: 0, serie: config.serie ?? 1, chave_acesso: chave, protocolo: 'PRÉVIA — SEM VALOR FISCAL', data_autorizacao: null,
+    data_emissao: new Date().toISOString(), natureza_operacao: r.natOp, valor_total: r.valorTotal, valor_produtos: r.valorProdutos,
+    ambiente: 2, xml_assinado: xml, status: 'rascunho',
+  };
+  const data: FiscalData = { nota, config: { ...config, ...r.emitente }, dest: r.destinatario, itens, order: null, refs: refs ?? [], logo, infCpl: extractInfCpl(xml) };
+  return URL.createObjectURL(drawA4(data).output('blob'));
+}

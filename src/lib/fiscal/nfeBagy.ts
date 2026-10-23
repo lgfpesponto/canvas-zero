@@ -482,3 +482,8 @@ export async function emitirDevolucao(notaPaiId: string, itensDev: { itemId: str
   }
   return { notaId: nota.id, numero, autorizada, motivo };
 }
+
+/** XML de prévia (sem número reservado e sem transmitir) usado na conferência em PDF. */
+export function montarXmlPrevia(r: NotaRascunho) {
+  return montarXml(r, 0, Number(r.emitente?.serie ?? 1), Number(r.ambiente ?? 2));
+}
