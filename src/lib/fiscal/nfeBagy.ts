@@ -152,6 +152,30 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
   const nomeDest = homolog ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : dest.nome;
   const doc = dig(dest.cpf_cnpj);
 
+  // Transportador, veículo e volumes (nota avulsa) — saem na seção própria do DANFE.
+  const tr = r.transportador;
+  const docTr = dig(tr?.cnpj);
+  const transporta = tr && (tr.razao || docTr)
+    ? `<transporta>${docTr.length === 14 ? `<CNPJ>${docTr}</CNPJ>` : docTr.length === 11 ? `<CPF>${docTr}</CPF>` : ''}${tag('xNome', tr.razao)}${tag('IE', dig(tr.ie))}${tag('xEnder', tr.endereco)}${tag('xMun', tr.municipio)}${tag('UF', String(tr.uf ?? '').toUpperCase())}</transporta>`
+    : '';
+  const placa = String(tr?.placa ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const veic = tr && placa
+    ? `<veicTransp><placa>${placa}</placa><UF>${esc(String(tr.ufPlaca ?? '').toUpperCase())}</UF>${tag('RNTC', tr.rntc)}</veicTransp>`
+    : '';
+  const numTr = (v: unknown) => Number(String(v ?? '').replace(/\./g, '').replace(',', '.')) || 0;
+  const qVol = numTr(tr?.qVol);
+  const vol = tr && qVol > 0
+    ? `<vol><qVol>${qVol}</qVol>${tag('esp', tr.esp)}${tag('marca', tr.marca)}${tag('nVol', tr.nVol)}` +
+      `${numTr(tr.pesoL) > 0 ? `<pesoL>${numTr(tr.pesoL).toFixed(3)}</pesoL>` : ''}${numTr(tr.pesoB) > 0 ? `<pesoB>${numTr(tr.pesoB).toFixed(3)}</pesoB>` : ''}</vol>`
+    : '';
+  // Entrega em endereço diferente: só vai como tag se tiver o código IBGE (exigido pela SEFAZ);
+  // sem ele, o endereço continua saindo nas informações complementares.
+  const ent = r.entrega;
+  const entrega = ent && ent.logradouro && dig(ent.cod_municipio).length === 7
+    ? `<entrega>${tag('xLgr', ent.logradouro)}${tag('nro', ent.numero || 'S/N')}${tag('xBairro', ent.bairro)}` +
+      `<cMun>${dig(ent.cod_municipio)}</cMun>${tag('xMun', ent.municipio)}<UF>${esc(String(ent.uf ?? '').toUpperCase())}</UF>${tag('CEP', dig(ent.cep))}</entrega>`
+    : '';
+
   const dets = r.itens.map((it, k) => {
     const icms = it.csosn === '101'
       ? `<ICMSSN101><orig>${it.origem}</orig><CSOSN>101</CSOSN><pCredSN>0.00</pCredSN><vCredICMSSN>0.00</vCredICMSSN></ICMSSN101>`
