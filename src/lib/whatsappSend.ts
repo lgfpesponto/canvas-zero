@@ -52,7 +52,8 @@ export function buildTrackingMessage(p: TrackingMessageParams): string {
   const nomeLoja = (p.nomeLoja || '').trim() || '7 Estrivos';
   return (
     `Olá ${cliente}! Seu pedido ${p.numero} da loja ${nomeLoja} foi cadastrado. ` +
-    `Acompanhe a produção em tempo real com esse link: ${p.link}`
+    `Acompanhe a produção em tempo real com esse link: ${p.link}\n\n` +
+    `Se estiver algo errado no link me avisar por favor!`
   );
 }
 

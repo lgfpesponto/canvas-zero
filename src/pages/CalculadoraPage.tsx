@@ -13,7 +13,9 @@ import BeltOrderPage from './BeltOrderPage';
 import type { CalcData } from '@/components/calculadora/CalcEmitter';
 import { useCalcAccess } from '@/hooks/useCalcAccess';
 
-type Item = { id?: string; nome: string; tipo: 'real' | 'percentual'; valor: number; ordem: number };
+type Modalidade = 'varejo' | 'atacado';
+type Item = { id?: string; nome: string; tipo: 'real' | 'percentual'; valor: number; ordem: number; modalidade?: Modalidade };
+const rotuloMod = (m: Modalidade) => (m === 'atacado' ? 'Atacado' : 'Varejo');
 type ItemOrc = {
   uid: string; tipo: 'bota' | 'cinto' | 'extra'; custo: number; qtd: number;
   formData: Record<string, any>; grupos: { categoria: string; itens: [string, string][] }[];
@@ -56,7 +58,9 @@ export default function CalculadoraPage() {
   const [extraEd, setExtraEd] = useState<{ uid?: string; produtoId: string; nome: string; descricao: string; preco: string; qtd: string } | null>(null);
   const [extrasProd, setExtrasProd] = useState<ExtraProd[]>([]);
   const [itens, setItens] = useState<Item[]>([]);
+  const [modo, setModo] = useState<Modalidade>('varejo');
   const [cfgOpen, setCfgOpen] = useState(false);
+  const [cfgModo, setCfgModo] = useState<Modalidade>('varejo');
   const [cfgDraft, setCfgDraft] = useState<Item[]>([]);
   const [removidos, setRemovidos] = useState<string[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -68,7 +72,7 @@ export default function CalculadoraPage() {
 
   const loadItens = async () => {
     const { data: rows } = await db.from('calc_preco_itens').select('*').order('ordem');
-    setItens((rows || []).map((r: any) => ({ ...r, valor: Number(r.valor) })));
+    setItens((rows || []).map((r: any) => ({ ...r, valor: Number(r.valor), modalidade: r.modalidade === 'atacado' ? 'atacado' : 'varejo' })));
   };
   const loadOrcs = async () => {
     const { data: rows } = await db.from('calc_orcamentos').select('*').order('created_at', { ascending: false }).limit(200);
@@ -81,11 +85,11 @@ export default function CalculadoraPage() {
   }, [hasAccess]);
 
   const custo = useMemo(() => lista.reduce((s, i) => s + (Number(i.custo) || 0), 0), [lista]);
-  const precos = useMemo(() => calcularPrecos(custo, itens), [custo, itens]);
+  const precos = useMemo(() => calcularPrecos(custo, itens.filter(i => (i.modalidade || 'varejo') === modo)), [custo, itens, modo]);
   const qtdTotal = lista.reduce((s, i) => s + (i.qtd || 1), 0);
 
   const discriminacao = useMemo(() => {
-    const L: string[] = [`*Orçamento ${new Date().toLocaleDateString('pt-BR')}*`, ''];
+    const L: string[] = [`*Orçamento ${new Date().toLocaleDateString('pt-BR')} — ${rotuloMod(modo)}*`, ''];
     L.push(`💳 Cartão: ${brl(precos.cartao)} em até 3x sem juros de ${brl(precos.parcela)}`);
     L.push(`💰 Pix: ${brl(precos.pix)} (10% de desconto)`);
     L.push('');
@@ -102,7 +106,7 @@ export default function CalculadoraPage() {
     });
     L.push(`Quantidade de itens: ${qtdTotal}`);
     return L.join('\n');
-  }, [lista, precos, qtdTotal]);
+  }, [lista, precos, qtdTotal, modo]);
 
   if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>;
   if (!user || !hasAccess) return <Navigate to="/" replace />;
@@ -162,17 +166,20 @@ export default function CalculadoraPage() {
   };
   const carregarOrc = (o: Orcamento) => { setLista(itensDoOrc(o).map(i => ({ ...i, uid: crypto.randomUUID() }))); setVerOrc(null); toast.success('Orçamento carregado para edição.'); };
 
-  const abrirCfg = () => { setCfgDraft(itens.map(i => ({ ...i }))); setRemovidos([]); setCfgOpen(true); };
-  const moverCfg = (idx: number, d: number) => {
-    const arr = [...cfgDraft]; const j = idx + d; if (j < 0 || j >= arr.length) return;
-    [arr[idx], arr[j]] = [arr[j], arr[idx]]; setCfgDraft(arr);
+  const abrirCfg = () => { setCfgDraft(itens.map(i => ({ ...i }))); setRemovidos([]); setCfgModo(modo); setCfgOpen(true); };
+  const cfgVisiveis = cfgDraft.map((i, k) => ({ i, k })).filter(x => (x.i.modalidade || 'varejo') === cfgModo);
+  const moverCfg = (pos: number, d: number) => {
+    const a = cfgVisiveis[pos], b = cfgVisiveis[pos + d]; if (!a || !b) return;
+    const arr = [...cfgDraft]; [arr[a.k], arr[b.k]] = [arr[b.k], arr[a.k]]; setCfgDraft(arr);
   };
   const salvarCfg = async () => {
     if (cfgDraft.some(i => !i.nome.trim())) { toast.error('Preencha o nome de todos os itens.'); return; }
     for (const id of removidos) await db.from('calc_preco_itens').delete().eq('id', id);
+    const cont: Record<string, number> = {};
     for (let k = 0; k < cfgDraft.length; k++) {
       const i = cfgDraft[k];
-      const row = { nome: i.nome.trim(), tipo: i.tipo, valor: Number(i.valor) || 0, ordem: k + 1 };
+      const m = i.modalidade || 'varejo'; cont[m] = (cont[m] || 0) + 1;
+      const row = { nome: i.nome.trim(), tipo: i.tipo, valor: Number(i.valor) || 0, ordem: cont[m], modalidade: m };
       const { error } = i.id ? await db.from('calc_preco_itens').update(row).eq('id', i.id) : await db.from('calc_preco_itens').insert(row);
       if (error) { toast.error('Erro: ' + error.message); return; }
     }
@@ -226,8 +233,16 @@ export default function CalculadoraPage() {
             </div>
             <pre className="whitespace-pre-wrap text-xs bg-muted rounded-md p-3 max-h-72 overflow-auto font-sans">{discriminacao}</pre>
             <div className="flex justify-between text-sm"><span>Preço de custo</span><b>{brl(custo)}</b></div>
-            <div className="rounded-lg bg-muted p-3 space-y-1">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">Preço de venda</div>
+            <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+              {(['varejo', 'atacado'] as const).map(m => (
+                <Button key={m} type="button" size="sm" variant={modo === m ? 'default' : 'ghost'} onClick={() => setModo(m)}>{rotuloMod(m)}</Button>
+              ))}
+            </div>
+            <div className="rounded-lg bg-muted p-3 space-y-1 border-2 border-primary">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold uppercase">Preço de venda</span>
+                <span className="rounded-full bg-primary px-3 py-0.5 text-xs font-bold uppercase text-primary-foreground">{rotuloMod(modo)}</span>
+              </div>
               <div className="flex justify-between font-bold text-lg"><span>Cartão</span><span className="text-primary">{brl(precos.cartao)}</span></div>
               <div className="text-sm text-muted-foreground text-right">3x sem juros de {brl(precos.parcela)}</div>
               <div className="flex justify-between font-bold text-lg pt-1 border-t border-border"><span>Pix (−10%)</span><span>{brl(precos.pix)}</span></div>
@@ -343,13 +358,19 @@ export default function CalculadoraPage() {
       <Dialog open={cfgOpen} onOpenChange={setCfgOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Configuração da calculadora</DialogTitle></DialogHeader>
-          <p className="text-xs text-muted-foreground">Os itens são somados ao custo nesta ordem. Itens em % incidem sobre o valor acumulado até ele.</p>
+          <div className="flex gap-2">
+            {(['varejo', 'atacado'] as const).map(m => (
+              <Button key={m} type="button" size="sm" variant={cfgModo === m ? 'default' : 'outline'} onClick={() => setCfgModo(m)}>{rotuloMod(m)}</Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">Tarifas de <b>{rotuloMod(cfgModo)}</b>: somadas ao custo nesta ordem. Itens em % incidem sobre o valor acumulado até ele.</p>
           <div className="space-y-2 max-h-[60vh] overflow-auto">
-            {cfgDraft.map((i, idx) => (
-              <div key={i.id || idx} className="flex items-center gap-2">
+            {cfgVisiveis.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tarifa cadastrada para {rotuloMod(cfgModo)}.</p>}
+            {cfgVisiveis.map(({ i, k: idx }, pos) => (
+              <div key={i.id || `n${idx}`} className="flex items-center gap-2">
                 <div className="flex flex-col">
-                  <button type="button" onClick={() => moverCfg(idx, -1)} className="text-muted-foreground hover:text-foreground"><ArrowUp size={14} /></button>
-                  <button type="button" onClick={() => moverCfg(idx, 1)} className="text-muted-foreground hover:text-foreground"><ArrowDown size={14} /></button>
+                  <button type="button" onClick={() => moverCfg(pos, -1)} className="text-muted-foreground hover:text-foreground"><ArrowUp size={14} /></button>
+                  <button type="button" onClick={() => moverCfg(pos, 1)} className="text-muted-foreground hover:text-foreground"><ArrowDown size={14} /></button>
                 </div>
                 <Input className="flex-1" value={i.nome} onChange={e => setCfgDraft(d => d.map((x, k) => k === idx ? { ...x, nome: e.target.value } : x))} />
                 <div className="flex">
@@ -365,7 +386,7 @@ export default function CalculadoraPage() {
             ))}
           </div>
           <DialogFooter className="sm:justify-between">
-            <Button variant="outline" onClick={() => setCfgDraft(d => [...d, { nome: '', tipo: 'real', valor: 0, ordem: d.length + 1 }])}><Plus size={16} /> Adicionar item</Button>
+            <Button variant="outline" onClick={() => setCfgDraft(d => [...d, { nome: '', tipo: 'real', valor: 0, ordem: d.length + 1, modalidade: cfgModo }])}><Plus size={16} /> Adicionar item</Button>
             <Button onClick={salvarCfg}><Save size={16} /> Salvar</Button>
           </DialogFooter>
         </DialogContent>
