@@ -38,7 +38,7 @@ const extraVazio = () => ({
   loja: '', cnpjEmit: '', razaoEmit: '', cfopNat: '', dhEmi: agoraLocal(), dhSaida: agoraLocal(), vendedor: '',
   transp: { razao: '', cnpj: '', ie: '', endereco: '', municipio: '', uf: '', placa: '', ufPlaca: '', rntc: '', qVol: '', esp: '', marca: '', nVol: '', pesoL: '', pesoB: '' },
   entregaDif: false,
-  entrega: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
+  entrega: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '', cod_municipio: '' },
   condPag: '', parcelas: [{ dias: '0', venc: hojeMais(0), valor: '', forma: '17', obs: '' }] as Parcela[],
 });
 
@@ -132,6 +132,13 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       if (!r.erro) setDest((d: any) => ({ ...d, logradouro: r.logradouro || d.logradouro, bairro: r.bairro || d.bairro, municipio: r.localidade, uf: r.uf, cod_municipio: r.ibge }));
     } catch { /* ignore */ }
   };
+  const buscarCepEntrega = async () => {
+    const cep = dig(ex.entrega.cep); if (cep.length !== 8) return;
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`).then(x => x.json());
+      if (!r.erro) setEx(s => ({ ...s, entrega: { ...s.entrega, logradouro: r.logradouro || s.entrega.logradouro, bairro: r.bairro || s.entrega.bairro, municipio: r.localidade, uf: r.uf, cod_municipio: r.ibge } }));
+    } catch { /* ignore */ }
+  };
   const setItem = (i: number, patch: Partial<Item>) => setItens(arr => arr.map((it, k) => {
     if (k !== i) return it;
     const n = { ...it, ...patch };
@@ -171,10 +178,10 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
 
   const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco, ex });
 
+  // Transportador e volumes saem nas tags próprias do XML (seção "Transportador/Volumes" do DANFE);
+  // aqui ficam só os textos que não têm campo próprio no layout.
   const infExtras = () => {
-    const t = ex.transp, p: string[] = [];
-    if (t.razao) p.push(`Transportador: ${t.razao}${t.cnpj ? ` CNPJ ${t.cnpj}` : ''}${t.placa ? ` placa ${t.placa}${t.ufPlaca ? `/${t.ufPlaca}` : ''}` : ''}.`);
-    if (t.qVol) p.push(`Volumes: ${t.qVol}${t.esp ? ` ${t.esp}` : ''}${t.pesoB ? `, peso bruto ${t.pesoB} kg` : ''}${t.pesoL ? `, líquido ${t.pesoL} kg` : ''}.`);
+    const p: string[] = [];
     if (ex.entregaDif) { const e = ex.entrega; p.push(`Entrega: ${e.logradouro}, ${e.numero} - ${e.bairro} - ${e.municipio}/${e.uf} CEP ${e.cep}.`); }
     if (ex.condPag) p.push(`Pagamento: ${ex.condPag}.`);
     if (ex.parcelas.length > 1) p.push(`Parcelas: ${ex.parcelas.map((x, i) => `${i + 1}) ${x.venc.split('-').reverse().join('/')} ${brl(num(x.valor))}`).join('; ')}.`);
@@ -228,6 +235,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         destinatario: destFinal, itens: itensNota,
         valorProdutos, desconto: d, frete: f, valorTotal: total, cfop: cfopPadrao, ambiente: cfg?.ambiente ?? 2, erros: [],
         notaExistente: null, natOp, finNFe, indPres, indFinal: consFinal, tPag: ex.parcelas[0]?.forma || tPag, modFrete, seguro: num(seguro), outras: num(outras),
+        transportador: ex.transp, entrega: ex.entregaDif ? ex.entrega : undefined,
         infCpl: [pedidoExterno && `Pedido ${pedidoExterno}.`, infCpl, infFisco, infExtras()].filter(Boolean).join(' '),
         observacoes: `Nota avulsa${pedidoExterno ? ` — pedido ${pedidoExterno}` : ''}`,
       };
@@ -405,7 +413,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
         {ex.entregaDif && (
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             {([['cep', 'CEP'], ['logradouro', 'Logradouro'], ['numero', 'Número'], ['bairro', 'Bairro'], ['municipio', 'Município'], ['uf', 'UF']] as const).map(([k, l]) => (
-              <Campo key={k} label={l}><Input value={ex.entrega[k]} onChange={e => setE(k, e.target.value)} /></Campo>
+              <Campo key={k} label={l}><Input value={ex.entrega[k]} onChange={e => setE(k, e.target.value)} {...(k === 'cep' ? { onBlur: buscarCepEntrega } : {})} /></Campo>
             ))}
           </div>
         )}

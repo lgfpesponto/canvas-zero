@@ -30,6 +30,14 @@ export interface NotaRascunho {
   /** Campos opcionais usados na emissão avulsa. */
   natOp?: string; finNFe?: number; indPres?: number; indFinal?: number; infCpl?: string; observacoes?: string;
   tPag?: string; modFrete?: number; seguro?: number; outras?: number; bagyPedidoIdNull?: boolean;
+  /** Transportador e volumes (emissão avulsa). */
+  transportador?: {
+    razao?: string; cnpj?: string; ie?: string; endereco?: string; municipio?: string; uf?: string;
+    placa?: string; ufPlaca?: string; rntc?: string;
+    qVol?: string; esp?: string; marca?: string; nVol?: string; pesoL?: string; pesoB?: string;
+  } | null;
+  /** Endereço de entrega diferente do destinatário (emissão avulsa). */
+  entrega?: { logradouro?: string; numero?: string; bairro?: string; municipio?: string; uf?: string; cep?: string; cod_municipio?: string } | null;
 }
 
 /** Monta os rascunhos das notas (sem reservar número nem falar com a SEFAZ). */
@@ -144,6 +152,30 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
   const nomeDest = homolog ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : dest.nome;
   const doc = dig(dest.cpf_cnpj);
 
+  // Transportador, veículo e volumes (nota avulsa) — saem na seção própria do DANFE.
+  const tr = r.transportador;
+  const docTr = dig(tr?.cnpj);
+  const transporta = tr && (tr.razao || docTr)
+    ? `<transporta>${docTr.length === 14 ? `<CNPJ>${docTr}</CNPJ>` : docTr.length === 11 ? `<CPF>${docTr}</CPF>` : ''}${tag('xNome', tr.razao)}${tag('IE', dig(tr.ie))}${tag('xEnder', tr.endereco)}${tag('xMun', tr.municipio)}${tag('UF', String(tr.uf ?? '').toUpperCase())}</transporta>`
+    : '';
+  const placa = String(tr?.placa ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const veic = tr && placa
+    ? `<veicTransp><placa>${placa}</placa><UF>${esc(String(tr.ufPlaca ?? '').toUpperCase())}</UF>${tag('RNTC', tr.rntc)}</veicTransp>`
+    : '';
+  const numTr = (v: unknown) => Number(String(v ?? '').replace(/\./g, '').replace(',', '.')) || 0;
+  const qVol = numTr(tr?.qVol);
+  const vol = tr && qVol > 0
+    ? `<vol><qVol>${qVol}</qVol>${tag('esp', tr.esp)}${tag('marca', tr.marca)}${tag('nVol', tr.nVol)}` +
+      `${numTr(tr.pesoL) > 0 ? `<pesoL>${numTr(tr.pesoL).toFixed(3)}</pesoL>` : ''}${numTr(tr.pesoB) > 0 ? `<pesoB>${numTr(tr.pesoB).toFixed(3)}</pesoB>` : ''}</vol>`
+    : '';
+  // Entrega em endereço diferente: só vai como tag se tiver o código IBGE (exigido pela SEFAZ);
+  // sem ele, o endereço continua saindo nas informações complementares.
+  const ent = r.entrega;
+  const entrega = ent && ent.logradouro && dig(ent.cod_municipio).length === 7
+    ? `<entrega>${tag('xLgr', ent.logradouro)}${tag('nro', ent.numero || 'S/N')}${tag('xBairro', ent.bairro)}` +
+      `<cMun>${dig(ent.cod_municipio)}</cMun>${tag('xMun', ent.municipio)}<UF>${esc(String(ent.uf ?? '').toUpperCase())}</UF>${tag('CEP', dig(ent.cep))}</entrega>`
+    : '';
+
   const dets = r.itens.map((it, k) => {
     const icms = it.csosn === '101'
       ? `<ICMSSN101><orig>${it.origem}</orig><CSOSN>101</CSOSN><pCredSN>0.00</pCredSN><vCredICMSSN>0.00</vCredICMSSN></ICMSSN101>`
@@ -175,12 +207,13 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
     `<cMun>${dest.cod_municipio}</cMun>${tag('xMun', dest.municipio)}<UF>${dest.uf}</UF><CEP>${dest.cep}</CEP>` +
     `<cPais>1058</cPais><xPais>BRASIL</xPais>${tag('fone', dest.telefone)}</enderDest>` +
     `<indIEDest>${dest.ind_ie_dest}</indIEDest>${dest.ind_ie_dest === 1 ? tag('IE', dest.inscricao_estadual) : ''}${tag('email', dest.email)}</dest>` +
+    entrega +
     dets +
     `<total><ICMSTot><vBC>0.00</vBC><vICMS>0.00</vICMS><vICMSDeson>0.00</vICMSDeson><vFCP>0.00</vFCP><vBCST>0.00</vBCST><vST>0.00</vST>` +
     `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet><vProd>${n2(r.valorProdutos)}</vProd><vFrete>${n2(r.frete)}</vFrete><vSeg>${n2(r.seguro ?? 0)}</vSeg><vDesc>${n2(r.desconto)}</vDesc>` +
     `<vII>0.00</vII><vIPI>0.00</vIPI><vIPIDevol>0.00</vIPIDevol><vPIS>0.00</vPIS><vCOFINS>0.00</vCOFINS><vOutro>${n2(r.outras ?? 0)}</vOutro>` +
     `<vNF>${n2(r.valorTotal)}</vNF></ICMSTot></total>` +
-    `<transp><modFrete>${r.modFrete ?? (r.frete > 0 ? 0 : 9)}</modFrete></transp>` +
+    `<transp><modFrete>${r.modFrete ?? (r.frete > 0 ? 0 : 9)}</modFrete>${transporta}${veic}${vol}</transp>` +
     (r.valorTotal <= 0
       ? `<pag><detPag><tPag>90</tPag><vPag>0.00</vPag></detPag></pag>`
       : `<pag><detPag><indPag>0</indPag>${(r.tPag ?? '99') === '99' ? '<tPag>99</tPag><xPag>OUTROS</xPag>' : `<tPag>${r.tPag}</tPag>`}<vPag>${n2(r.valorTotal)}</vPag></detPag></pag>`) +
