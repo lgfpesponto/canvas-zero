@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, ArrowLeft, ChevronDown, Eye, Loader2, Plus, Save, Send, Trash2 } from 'lucide-react';
 import { ncmPorDescricao, formatNcm } from '@/lib/fiscal/ncm';
 import { transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
+import { validarSchemaDestinatario } from '@/lib/fiscal/diagnosticoSefaz';
 
 const brl = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dig = (s: unknown) => String(s ?? '').replace(/\D/g, '');
@@ -81,6 +82,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   const [pedidoExterno, setPedidoExterno] = useState('');
   const [infCpl, setInfCpl] = useState(''); const [infFisco, setInfFisco] = useState('');
   const [preview, setPreview] = useState(false);
+  const [rejeicao, setRejeicao] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [rascId, setRascId] = useState<string | null>(rascunhoId ?? null);
   const [ex, setEx] = useState(extraVazio());
@@ -97,15 +99,18 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       ]);
       setCfg(c.data); setRefs(r.data || []); setDests(d.data || []);
       if (rascunhoId) {
-        const { data } = await supabase.from('nfe_notas').select('destinatario_snapshot').eq('id', rascunhoId).maybeSingle();
+        const { data } = await supabase.from('nfe_notas').select('destinatario_snapshot, motivo_rejeicao').eq('id', rascunhoId).maybeSingle();
         const f = (data?.destinatario_snapshot as any)?._form;
         if (f) {
-          setDest(f.dest); setDestId(f.destId || ''); setNatOp(f.natOp); setFinNFe(f.finNFe); setIndPres(f.indPres);
-          setConsFinal(f.consFinal); setItens(f.itens); setFrete(f.frete); setSeguro(f.seguro); setOutras(f.outras);
-          setDesconto(f.desconto); setModFrete(f.modFrete); setTPag(f.tPag); setPedidoExterno(f.pedidoExterno);
-          setInfCpl(f.infCpl); setInfFisco(f.infFisco);
-          if (f.ex) setEx({ ...extraVazio(), ...f.ex });
+          if (f.dest) setDest({ ...destVazio, ...f.dest }); setDestId(f.destId || ''); if (f.natOp) setNatOp(f.natOp);
+          if (f.finNFe != null) setFinNFe(f.finNFe); if (f.indPres != null) setIndPres(f.indPres);
+          if (f.consFinal != null) setConsFinal(f.consFinal); if (Array.isArray(f.itens) && f.itens.length) setItens(f.itens);
+          setFrete(f.frete ?? ''); setSeguro(f.seguro ?? ''); setOutras(f.outras ?? '');
+          setDesconto(f.desconto ?? ''); if (f.modFrete != null) setModFrete(f.modFrete); if (f.tPag) setTPag(f.tPag); setPedidoExterno(f.pedidoExterno ?? '');
+          setInfCpl(f.infCpl ?? ''); setInfFisco(f.infFisco ?? '');
+          if (f.ex) setEx({ ...extraVazio(), ...f.ex, transp: { ...extraVazio().transp, ...(f.ex.transp || {}) }, entrega: { ...extraVazio().entrega, ...(f.ex.entrega || {}) } });
         }
+        setRejeicao(f?._rejeicao || data?.motivo_rejeicao || null);
       }
     })();
   }, [rascunhoId]);
@@ -173,8 +178,23 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       if (!it.csosn) e.push(`CSOSN do item ${i + 1}`);
     });
     if (total <= 0) e.push('Total da nota deve ser maior que zero');
-    return e;
-  }, [cfg, dest, itens, total]);
+    // Limites de tamanho exigidos pela SEFAZ (evita rejeição 225).
+    e.push(...validarSchemaDestinatario(dest, itens));
+    const t = ex.transp;
+    ([['razao', 'Transportador: razão social', 60], ['endereco', 'Transportador: endereço', 60], ['municipio', 'Transportador: município', 60], ['ie', 'Transportador: IE', 14], ['rntc', 'Transportador: RNTC', 20], ['esp', 'Volumes: espécie', 60], ['marca', 'Volumes: marca', 60], ['nVol', 'Volumes: numeração', 60]] as const)
+      .forEach(([k, rot, max]) => { const v = String((t as any)[k] ?? '').trim(); if (v.length > max) e.push(`${rot} tem ${v.length} caracteres (máximo ${max}). Encurte.`); });
+    const placa = String(t.placa ?? '').replace(/[^A-Za-z0-9]/g, '');
+    if (placa && placa.length !== 7) e.push('Placa do veículo deve ter 7 letras/números (ex.: ABC1D23).');
+    if (placa && !t.ufPlaca) e.push('Informe a UF da placa do veículo.');
+    const dTr = dig(t.cnpj); if (dTr && dTr.length !== 11 && dTr.length !== 14) e.push('CNPJ/CPF do transportador inválido.');
+    if (ex.entregaDif) {
+      const en = ex.entrega;
+      if (String(en.logradouro).length > 60) e.push('Entrega: rua com mais de 60 caracteres.');
+      if (String(en.bairro).length > 60) e.push('Entrega: bairro com mais de 60 caracteres.');
+    }
+    if (String(infCpl + infFisco).length > 4000) e.push('Informações complementares passam de 4000 caracteres.');
+    return [...new Set(e)];
+  }, [cfg, dest, itens, total, ex, infCpl, infFisco]);
 
   const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco, ex });
 
@@ -189,12 +209,14 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
     return p.join(' ');
   };
 
-  const salvarRascunho = async () => {
-    setBusy('save');
+  const salvarRascunho = async (motivoRejeicao?: string) => {
+    setBusy(b => b ?? 'save');
     try {
+      const mot = typeof motivoRejeicao === 'string' ? motivoRejeicao : rejeicao;
       const row = {
         numero: 0, serie: cfg?.serie ?? 1, modelo: 55, ambiente: cfg?.ambiente ?? 2, status: 'rascunho', natureza_operacao: natOp,
-        valor_produtos: valorProdutos, valor_total: total, destinatario_snapshot: { ...dest, _form: formState() },
+        valor_produtos: valorProdutos, valor_total: total, destinatario_snapshot: { ...dest, _form: { ...formState(), _rejeicao: mot || null } },
+        motivo_rejeicao: mot || null,
         observacoes: 'Nota avulsa (rascunho)',
       };
       if (rascId) {
