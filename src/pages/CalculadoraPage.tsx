@@ -109,10 +109,10 @@ export default function CalculadoraPage() {
       L.push(`💰 Valor no Pix: ${brl(precos.pix)}${qtdTotal > 1 ? ` (${brl(precos.pix / qtdTotal)} por par/item)` : ''}`);
     } else {
       const c = precos.cartao + freteNum;
+      if (freteGratis) L.push('🚚 Frete: Grátis');
+      else if (freteNum > 0) L.push(`🚚 Frete: ${brl(freteNum)} (já incluso nos valores abaixo)`);
       L.push(`💳 Cartão: ${brl(c)} em até 3x sem juros de ${brl(c / 3)}`);
       L.push(`💰 Pix: ${brl(precos.pix + freteNum)} (10% de desconto)`);
-      if (freteGratis) L.push('🚚 Frete: Grátis');
-      else if (freteNum > 0) L.push(`🚚 Frete: ${brl(freteNum)} (já incluso nos valores)`);
     }
     L.push('');
     lista.forEach((it, idx) => {
