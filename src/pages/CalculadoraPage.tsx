@@ -111,16 +111,31 @@ export default function CalculadoraPage() {
   const [busca, setBusca] = useState('');
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [orcAba, setOrcAba] = useState<Modalidade>('varejo');
+  const [orcSelFicha, setOrcSelFicha] = useState<Record<string, Set<string>>>({});
+  const [orcFiltroOpen, setOrcFiltroOpen] = useState(false);
+  const [orcPag, setOrcPag] = useState(1);
+  const orcFichaKeys = useFichaFilterKeys(['bota', 'cinto']);
+  const snapsDoOrc = (o: Orcamento): Record<string, unknown>[] =>
+    (Array.isArray(o.form_data?.itens) ? o.form_data.itens : [{ formData: o.form_data }]).map((it: any) => it?.formData || {});
+  const orcFichaOptions = useMemo(() => buildFichaOptions(orcs.flatMap(snapsDoOrc), s => s, orcFichaKeys), [orcs, orcFichaKeys]);
   const orcsFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return orcs.filter(o => {
+      if (modoDoOrc(o) !== orcAba) return false;
       if (q && !`${o.nome} ${o.whatsapp || ''}`.toLowerCase().includes(q)) return false;
       const d = new Date(o.created_at).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
       if (dataIni && d < dataIni) return false;
       if (dataFim && d > dataFim) return false;
+      if (countActiveFicha(orcSelFicha) > 0 && !snapsDoOrc(o).some(s => matchesFichaFilters(s, orcSelFicha, orcFichaKeys))) return false;
       return true;
     });
-  }, [orcs, busca, dataIni, dataFim]);
+  }, [orcs, busca, dataIni, dataFim, orcAba, orcSelFicha, orcFichaKeys]);
+  useEffect(() => { setOrcPag(1); }, [busca, dataIni, dataFim, orcAba, orcSelFicha]);
+  const ORC_PAG = 6;
+  const orcTotalPag = Math.max(1, Math.ceil(orcsFiltrados.length / ORC_PAG));
+  const orcPagAtual = Math.min(orcPag, orcTotalPag);
+  const orcsPagina = orcsFiltrados.slice((orcPagAtual - 1) * ORC_PAG, orcPagAtual * ORC_PAG);
 
   const loadItens = async () => {
     const { data: rows } = await db.from('calc_preco_itens').select('*').order('ordem');
@@ -220,7 +235,7 @@ export default function CalculadoraPage() {
     if (!nome.trim()) { toast.error('Informe o nome.'); return; }
     const tipos = Array.from(new Set(lista.map(i => i.tipo)));
     const { error } = await db.from('calc_orcamentos').insert({
-      nome: nome.trim(), whatsapp: whats.trim() || null, tipo: tipos.length === 1 ? tipos[0] : 'multi', form_data: { itens: lista },
+      nome: nome.trim(), whatsapp: whats.trim() || null, tipo: tipos.length === 1 ? tipos[0] : 'multi', form_data: { itens: lista, modo },
       discriminacao, preco_custo: custo, preco_cartao: precos.cartao, preco_pix: precos.pix, criado_por: user.id,
     });
     if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
@@ -401,35 +416,54 @@ export default function CalculadoraPage() {
       </Dialog>
 
       <Dialog open={orcsOpen} onOpenChange={setOrcsOpen}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader><DialogTitle>Orçamentos salvos ({orcsFiltrados.length}{orcsFiltrados.length !== orcs.length ? ` de ${orcs.length}` : ''})</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Orçamentos salvos</DialogTitle></DialogHeader>
+          <div className="flex gap-1 border-b border-border">
+            {(['varejo', 'atacado'] as const).map(m => (
+              <button key={m} type="button" onClick={() => setOrcAba(m)}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${orcAba === m ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                {rotuloMod(m)} ({orcs.filter(o => modoDoOrc(o) === m).length})
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-2 items-end">
             <Input className="flex-1 min-w-[200px]" placeholder="Buscar por nome ou WhatsApp..." value={busca} onChange={e => setBusca(e.target.value)} />
             <div><label className="text-xs text-muted-foreground block">De</label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
             <div><label className="text-xs text-muted-foreground block">Até</label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
-            {(busca || dataIni || dataFim) && <Button variant="ghost" size="sm" onClick={() => { setBusca(''); setDataIni(''); setDataFim(''); }}>Limpar</Button>}
+            <Button type="button" variant="outline" onClick={() => setOrcFiltroOpen(true)} className="gap-1 shrink-0">
+              <Filter size={14} /> Filtros da ficha
+              {countActiveFicha(orcSelFicha) > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5">{countActiveFicha(orcSelFicha)}</Badge>}
+            </Button>
+            {(busca || dataIni || dataFim || countActiveFicha(orcSelFicha) > 0) && <Button variant="ghost" size="sm" onClick={() => { setBusca(''); setDataIni(''); setDataFim(''); setOrcSelFicha({}); }}>Limpar</Button>}
           </div>
-          {orcs.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum orçamento salvo.</p>}
-          {orcs.length > 0 && orcsFiltrados.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum orçamento encontrado.</p>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[65vh] overflow-y-auto pr-1">
-            {orcsFiltrados.map(o => (
-              <div key={o.id} className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
-                <button type="button" className="w-full h-48 sm:h-40 bg-background relative block" title="Abrir orçamento" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}>
-                  <OrcFoto url={fotoDoOrc(o)} nome={o.nome} />
-                </button>
-                <div className="p-3 flex flex-col gap-1 flex-1 text-sm">
-                  <span className="font-semibold line-clamp-2 leading-tight" title={o.nome}>{o.nome}</span>
-                  <span className="text-xs text-muted-foreground">{o.whatsapp || 'sem WhatsApp'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {itensDoOrc(o).length} item(ns)</span>
-                  <span className="text-xs">Cartão {brl(Number(o.preco_cartao))} · Pix {brl(Number(o.preco_pix))}</span>
-                  <div className="flex items-center gap-1.5 mt-auto pt-2">
-                    <Button size="sm" className="flex-1" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}><FileText size={14} /> Fazer ficha</Button>
-                    {o.discriminacao && <Button size="sm" variant="outline" className="h-9 w-9 p-0" title="Copiar mensagem" onClick={() => copiar(o.discriminacao!)}><Copy size={14} /></Button>}
-                    <Button size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => excluirOrc(o.id)} title="Remover"><Trash2 size={14} /></Button>
+          <FichaFiltersDialog open={orcFiltroOpen} onOpenChange={setOrcFiltroOpen} fichaOptions={orcFichaOptions} selFicha={orcSelFicha}
+            onToggle={(k, v) => setOrcSelFicha(prev => { const cur = new Set(prev[k] || []); if (cur.has(v)) cur.delete(v); else cur.add(v); return { ...prev, [k]: cur }; })}
+            onClear={() => setOrcSelFicha({})} keys={orcFichaKeys} />
+          {orcsFiltrados.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum orçamento encontrado.</p>}
+          {orcsPagina.length > 0 && (
+            <div className="flex items-stretch gap-2">
+              {orcTotalPag > 1 && <Button size="sm" variant="ghost" className="h-auto w-10 shrink-0" disabled={orcPagAtual <= 1} onClick={() => setOrcPag(p => Math.max(1, p - 1))} aria-label="Página anterior"><ChevronLeft size={20} /></Button>}
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {orcsPagina.map(o => (
+                  <div key={o.id} className="bg-muted rounded-lg overflow-hidden border border-border flex flex-col">
+                    <OrcFoto urls={fotosDoOrc(o)} nome={o.nome} />
+                    <div className="p-3 flex flex-col gap-1 flex-1 text-sm">
+                      <button type="button" className="font-semibold text-left leading-tight hover:underline" title="Abrir mensagem completa" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}>{o.nome}</button>
+                      <span className="text-xs text-muted-foreground">{o.whatsapp || 'sem WhatsApp'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {itensDoOrc(o).length} item(ns)</span>
+                      <span className="text-xs">{modoDoOrc(o) === 'atacado' ? `Pix ${brl(Number(o.preco_pix))}` : `Cartão ${brl(Number(o.preco_cartao))} · Pix ${brl(Number(o.preco_pix))}`}</span>
+                      <div className="flex items-center gap-1.5 mt-auto pt-2">
+                        <Button size="sm" className="flex-1" onClick={() => { setOrcsOpen(false); setVerOrc(o); }}><FileText size={14} /> Fazer ficha</Button>
+                        {o.discriminacao && <Button size="sm" variant="outline" className="h-9 w-9 p-0" title="Copiar mensagem" onClick={() => copiar(o.discriminacao!)}><Copy size={14} /></Button>}
+                        <Button size="sm" variant="outline" className="h-9 w-9 p-0" onClick={() => excluirOrc(o.id)} title="Remover"><Trash2 size={14} /></Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+              {orcTotalPag > 1 && <Button size="sm" variant="ghost" className="h-auto w-10 shrink-0" disabled={orcPagAtual >= orcTotalPag} onClick={() => setOrcPag(p => Math.min(orcTotalPag, p + 1))} aria-label="Próxima página"><ChevronRight size={20} /></Button>}
+            </div>
+          )}
+          {orcTotalPag > 1 && <p className="text-center text-xs text-muted-foreground">Página {orcPagAtual} de {orcTotalPag}</p>}
         </DialogContent>
       </Dialog>
 
