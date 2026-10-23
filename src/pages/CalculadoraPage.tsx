@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Calculator, Settings, Copy, Eraser, Save, Trash2, Plus, ArrowUp, ArrowDown, FileText, Pencil, FolderOpen } from 'lucide-react';
+import { Calculator, Settings, Copy, Eraser, Save, Trash2, Plus, ArrowUp, ArrowDown, FileText, Pencil, FolderOpen, ImageOff } from 'lucide-react';
+import { isDriveUrl, isHttpUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +37,17 @@ const resumoItem = (it: ItemOrc) => {
   const m = it.grupos.flatMap(g => g.itens).find(([k]) => /modelo/i.test(k));
   return m ? String(m[1]) : rotuloTipo(it.tipo);
 };
+const fotoDoOrc = (o: Orcamento): string => {
+  const its = Array.isArray(o.form_data?.itens) ? o.form_data.itens : [{ formData: o.form_data }];
+  for (const it of its) { const u = String(it?.formData?.fotoUrl || '').trim(); if (isHttpUrl(u)) return u; }
+  return '';
+};
+function OrcFoto({ url, nome }: { url: string; nome: string }) {
+  const [err, setErr] = useState(false);
+  if (!url || err) return <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground"><ImageOff size={24} /><span className="text-xs mt-1">Sem foto</span></div>;
+  const src = isDriveUrl(url) ? (toDriveImageUrl(url) || url) : url;
+  return <img src={src} alt={nome} referrerPolicy="no-referrer" onError={() => setErr(true)} className="absolute inset-0 w-full h-full object-contain" />;
+}
 
 export function calcularPrecos(custo: number, itens: Item[]) {
   let acc = custo;
@@ -71,6 +83,19 @@ export default function CalculadoraPage() {
   const [orcs, setOrcs] = useState<Orcamento[]>([]);
   const [orcsOpen, setOrcsOpen] = useState(false);
   const [verOrc, setVerOrc] = useState<Orcamento | null>(null);
+  const [busca, setBusca] = useState('');
+  const [dataIni, setDataIni] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const orcsFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return orcs.filter(o => {
+      if (q && !`${o.nome} ${o.whatsapp || ''}`.toLowerCase().includes(q)) return false;
+      const d = new Date(o.created_at).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      if (dataIni && d < dataIni) return false;
+      if (dataFim && d > dataFim) return false;
+      return true;
+    });
+  }, [orcs, busca, dataIni, dataFim]);
 
   const loadItens = async () => {
     const { data: rows } = await db.from('calc_preco_itens').select('*').order('ordem');
