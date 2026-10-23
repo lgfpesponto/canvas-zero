@@ -2815,7 +2815,7 @@ const OrderPage = ({ embedded, bagyPrefillOverride, autoShowMirror, onBagySaved,
           {calcMode && (
             <CalcEmitter
               onChange={onCalcChange}
-              data={{ tipo: 'bota', total, formData: { ...buildFormData(), tamanho, genero }, grupos: mirrorGrouped }}
+              data={{ tipo: 'bota', total, formData: { ...buildFormData(), tamanho, genero, fotoUrl: fotoUrl.trim() }, grupos: mirrorGrouped }}
             />
           )}
           {mode === 'order' && !calcMode && (

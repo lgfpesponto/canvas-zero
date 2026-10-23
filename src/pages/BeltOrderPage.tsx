@@ -1008,7 +1008,7 @@ const BeltOrderPage = ({ comprarModeloOverride, onComprarSaved, onComprarEditar,
             <CalcEmitter
               onChange={onCalcChange}
               data={{
-                tipo: 'cinto', total, formData: buildBeltFormData(),
+                tipo: 'cinto', total, formData: { ...buildBeltFormData(), fotoUrl: fotoUrl.trim() },
                 grupos: [{ categoria: 'Cinto', itens: ([
                   ['Tamanho', tamanho], ['Couro', [tipoCouro, corCouro].filter(Boolean).join(' ')],
                   ['Bordado P', bordadoP ? [bordadoPDesc, bordadoPCor].filter(Boolean).join(' - ') || 'Sim' : ''],
