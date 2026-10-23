@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, ArrowLeft, ChevronDown, Eye, Loader2, Plus, Save, Send, Trash2 } from 'lucide-react';
-import { ncmPorDescricao, formatNcm } from '@/lib/fiscal/ncm';
+import { ncmPorDescricao, formatNcm, carregarRegrasNcm } from '@/lib/fiscal/ncm';
 import { transmitirNotaBagy, type NotaRascunho } from '@/lib/fiscal/nfeBagy';
 import { validarSchemaDestinatario } from '@/lib/fiscal/diagnosticoSefaz';
 
@@ -92,6 +92,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
 
   useEffect(() => {
     (async () => {
+      await carregarRegrasNcm(true);
       const [c, r, d] = await Promise.all([
         supabase.from('nfe_config').select('*').order('created_at').limit(1).maybeSingle(),
         supabase.from('nfe_tributacao_referencias').select('*').order('referencia'),
@@ -147,7 +148,7 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   const setItem = (i: number, patch: Partial<Item>) => setItens(arr => arr.map((it, k) => {
     if (k !== i) return it;
     const n = { ...it, ...patch };
-    if (patch.descricao !== undefined) { const regra = ncmPorDescricao(patch.descricao); if (regra) n.ncm = regra.ncm; }
+    if (patch.descricao !== undefined || patch.codigo !== undefined) { const regra = ncmPorDescricao(`${n.descricao} ${n.codigo}`); if (regra && (patch.descricao !== undefined || !dig(n.ncm))) n.ncm = regra.ncm; }
     return n;
   }));
   const addReferencia = (id: string) => {
@@ -426,7 +427,8 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
                   <td className="p-1"><Input className="min-w-[200px]" value={it.descricao} onChange={e => setItem(i, { descricao: e.target.value })} /></td>
                   <td className="p-1"><Input className="w-28" value={it.ncm} onChange={e => setItem(i, { ncm: e.target.value })} />
                     {dig(it.ncm).length === 8 && <span className="text-[10px] text-muted-foreground">{formatNcm(dig(it.ncm))}</span>}</td>
-                  <td className="p-1"><Input className="w-20" value={it.cfop} placeholder={cfopPadrao} onChange={e => setItem(i, { cfop: e.target.value })} /></td>
+                  <td className="p-1"><Input className="w-20" value={it.cfop} placeholder={cfopPadrao} onChange={e => setItem(i, { cfop: e.target.value })} />
+                    {cfopEfetivo(it.cfop || cfopPadrao) !== dig(it.cfop) && <span className="text-[10px] text-muted-foreground">vai {cfopEfetivo(it.cfop || cfopPadrao)}</span>}</td>
                   <td className="p-1"><Input className="w-16" value={it.csosn} onChange={e => setItem(i, { csosn: e.target.value })} /></td>
                   <td className="p-1"><Input className="w-14" value={it.unidade} onChange={e => setItem(i, { unidade: e.target.value.toUpperCase() })} /></td>
                   <td className="p-1"><Input className="w-16" inputMode="decimal" value={it.qtd} onChange={e => setItem(i, { qtd: e.target.value })} /></td>
