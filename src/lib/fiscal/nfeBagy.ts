@@ -213,7 +213,7 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
     `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet><vProd>${n2(r.valorProdutos)}</vProd><vFrete>${n2(r.frete)}</vFrete><vSeg>${n2(r.seguro ?? 0)}</vSeg><vDesc>${n2(r.desconto)}</vDesc>` +
     `<vII>0.00</vII><vIPI>0.00</vIPI><vIPIDevol>0.00</vIPIDevol><vPIS>0.00</vPIS><vCOFINS>0.00</vCOFINS><vOutro>${n2(r.outras ?? 0)}</vOutro>` +
     `<vNF>${n2(r.valorTotal)}</vNF></ICMSTot></total>` +
-    `<transp><modFrete>${r.modFrete ?? (r.frete > 0 ? 0 : 9)}</modFrete></transp>` +
+    `<transp><modFrete>${r.modFrete ?? (r.frete > 0 ? 0 : 9)}</modFrete>${transporta}${veic}${vol}</transp>` +
     (r.valorTotal <= 0
       ? `<pag><detPag><tPag>90</tPag><vPag>0.00</vPag></detPag></pag>`
       : `<pag><detPag><indPag>0</indPag>${(r.tPag ?? '99') === '99' ? '<tPag>99</tPag><xPag>OUTROS</xPag>' : `<tPag>${r.tPag}</tPag>`}<vPag>${n2(r.valorTotal)}</vPag></detPag></pag>`) +
