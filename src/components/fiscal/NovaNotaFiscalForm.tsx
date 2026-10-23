@@ -38,7 +38,7 @@ const extraVazio = () => ({
   loja: '', cnpjEmit: '', razaoEmit: '', cfopNat: '', dhEmi: agoraLocal(), dhSaida: agoraLocal(), vendedor: '',
   transp: { razao: '', cnpj: '', ie: '', endereco: '', municipio: '', uf: '', placa: '', ufPlaca: '', rntc: '', qVol: '', esp: '', marca: '', nVol: '', pesoL: '', pesoB: '' },
   entregaDif: false,
-  entrega: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
+  entrega: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '', cod_municipio: '' },
   condPag: '', parcelas: [{ dias: '0', venc: hojeMais(0), valor: '', forma: '17', obs: '' }] as Parcela[],
 });
 
@@ -171,10 +171,10 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
 
   const formState = () => ({ dest, destId, natOp, finNFe, indPres, consFinal, itens, frete, seguro, outras, desconto, modFrete, tPag, pedidoExterno, infCpl, infFisco, ex });
 
+  // Transportador e volumes saem nas tags próprias do XML (seção "Transportador/Volumes" do DANFE);
+  // aqui ficam só os textos que não têm campo próprio no layout.
   const infExtras = () => {
-    const t = ex.transp, p: string[] = [];
-    if (t.razao) p.push(`Transportador: ${t.razao}${t.cnpj ? ` CNPJ ${t.cnpj}` : ''}${t.placa ? ` placa ${t.placa}${t.ufPlaca ? `/${t.ufPlaca}` : ''}` : ''}.`);
-    if (t.qVol) p.push(`Volumes: ${t.qVol}${t.esp ? ` ${t.esp}` : ''}${t.pesoB ? `, peso bruto ${t.pesoB} kg` : ''}${t.pesoL ? `, líquido ${t.pesoL} kg` : ''}.`);
+    const p: string[] = [];
     if (ex.entregaDif) { const e = ex.entrega; p.push(`Entrega: ${e.logradouro}, ${e.numero} - ${e.bairro} - ${e.municipio}/${e.uf} CEP ${e.cep}.`); }
     if (ex.condPag) p.push(`Pagamento: ${ex.condPag}.`);
     if (ex.parcelas.length > 1) p.push(`Parcelas: ${ex.parcelas.map((x, i) => `${i + 1}) ${x.venc.split('-').reverse().join('/')} ${brl(num(x.valor))}`).join('; ')}.`);
