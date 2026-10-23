@@ -309,13 +309,20 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPreview(true)}><Eye size={14} className="mr-1" /> Pré-visualizar</Button>
-          <Button variant="outline" size="sm" disabled={busy === 'save'} onClick={salvarRascunho}>
+          <Button variant="outline" size="sm" onClick={abrirConferencia}><Eye size={14} className="mr-1" /> Pré-visualizar</Button>
+          <Button variant="outline" size="sm" disabled={busy === 'save'} onClick={() => salvarRascunho()}>
             {busy === 'save' ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />} Salvar rascunho
           </Button>
-          <Button size="sm" disabled={erros.length > 0} onClick={() => setPreview(true)}><Send size={14} className="mr-1" /> Emitir NF-e</Button>
+          <Button size="sm" disabled={erros.length > 0} onClick={abrirConferencia}><Send size={14} className="mr-1" /> Emitir NF-e</Button>
         </div>
       </div>
+
+      {rejeicao && (
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} /> Motivo da rejeição da SEFAZ — corrija e envie novamente</div>
+          <p className="ml-6 mt-1 text-xs">{rejeicao}</p>
+        </div>
+      )}
 
       {erros.length > 0 && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
@@ -501,8 +508,13 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       </Secao>
 
       <Dialog open={preview} onOpenChange={setPreview}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[95vh] max-w-5xl overflow-y-auto">
           <DialogHeader><DialogTitle>Conferir nota antes de enviar</DialogTitle></DialogHeader>
+          {erros.length === 0 && (
+            previaUrl
+              ? <iframe title="Prévia do DANFE" src={previaUrl} className="h-[65vh] w-full rounded border" />
+              : <div className="flex h-24 items-center justify-center text-sm text-muted-foreground"><Loader2 size={16} className="mr-2 animate-spin" /> Montando prévia do DANFE…</div>
+          )}
           <div className="space-y-2 text-sm">
             <p><b>Natureza:</b> {natOp}</p>
             <p><b>Destinatário:</b> {dest.nome || '—'} — {dest.cpf_cnpj || '—'}</p>
