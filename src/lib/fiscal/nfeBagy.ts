@@ -207,6 +207,7 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
     `<cMun>${dest.cod_municipio}</cMun>${tag('xMun', dest.municipio)}<UF>${dest.uf}</UF><CEP>${dest.cep}</CEP>` +
     `<cPais>1058</cPais><xPais>BRASIL</xPais>${tag('fone', dest.telefone)}</enderDest>` +
     `<indIEDest>${dest.ind_ie_dest}</indIEDest>${dest.ind_ie_dest === 1 ? tag('IE', dest.inscricao_estadual) : ''}${tag('email', dest.email)}</dest>` +
+    entrega +
     dets +
     `<total><ICMSTot><vBC>0.00</vBC><vICMS>0.00</vICMS><vICMSDeson>0.00</vICMSDeson><vFCP>0.00</vFCP><vBCST>0.00</vBCST><vST>0.00</vST>` +
     `<vFCPST>0.00</vFCPST><vFCPSTRet>0.00</vFCPSTRet><vProd>${n2(r.valorProdutos)}</vProd><vFrete>${n2(r.frete)}</vFrete><vSeg>${n2(r.seguro ?? 0)}</vSeg><vDesc>${n2(r.desconto)}</vDesc>` +
