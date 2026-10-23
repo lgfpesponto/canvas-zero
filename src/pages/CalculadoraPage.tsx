@@ -13,7 +13,9 @@ import BeltOrderPage from './BeltOrderPage';
 import type { CalcData } from '@/components/calculadora/CalcEmitter';
 import { useCalcAccess } from '@/hooks/useCalcAccess';
 
-type Item = { id?: string; nome: string; tipo: 'real' | 'percentual'; valor: number; ordem: number };
+type Modalidade = 'varejo' | 'atacado';
+type Item = { id?: string; nome: string; tipo: 'real' | 'percentual'; valor: number; ordem: number; modalidade?: Modalidade };
+const rotuloMod = (m: Modalidade) => (m === 'atacado' ? 'Atacado' : 'Varejo');
 type ItemOrc = {
   uid: string; tipo: 'bota' | 'cinto' | 'extra'; custo: number; qtd: number;
   formData: Record<string, any>; grupos: { categoria: string; itens: [string, string][] }[];
