@@ -132,6 +132,13 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
       if (!r.erro) setDest((d: any) => ({ ...d, logradouro: r.logradouro || d.logradouro, bairro: r.bairro || d.bairro, municipio: r.localidade, uf: r.uf, cod_municipio: r.ibge }));
     } catch { /* ignore */ }
   };
+  const buscarCepEntrega = async () => {
+    const cep = dig(ex.entrega.cep); if (cep.length !== 8) return;
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`).then(x => x.json());
+      if (!r.erro) setEx(s => ({ ...s, entrega: { ...s.entrega, logradouro: r.logradouro || s.entrega.logradouro, bairro: r.bairro || s.entrega.bairro, municipio: r.localidade, uf: r.uf, cod_municipio: r.ibge } }));
+    } catch { /* ignore */ }
+  };
   const setItem = (i: number, patch: Partial<Item>) => setItens(arr => arr.map((it, k) => {
     if (k !== i) return it;
     const n = { ...it, ...patch };
