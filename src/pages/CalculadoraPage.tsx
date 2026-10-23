@@ -59,6 +59,8 @@ export default function CalculadoraPage() {
   const [extrasProd, setExtrasProd] = useState<ExtraProd[]>([]);
   const [itens, setItens] = useState<Item[]>([]);
   const [modo, setModo] = useState<Modalidade>('varejo');
+  const [frete, setFrete] = useState('');
+  const [freteGratis, setFreteGratis] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
   const [cfgModo, setCfgModo] = useState<Modalidade>('varejo');
   const [cfgDraft, setCfgDraft] = useState<Item[]>([]);
@@ -87,6 +89,8 @@ export default function CalculadoraPage() {
   const custo = useMemo(() => lista.reduce((s, i) => s + (Number(i.custo) || 0), 0), [lista]);
   const precos = useMemo(() => calcularPrecos(custo, itens.filter(i => (i.modalidade || 'varejo') === modo)), [custo, itens, modo]);
   const qtdTotal = lista.reduce((s, i) => s + (i.qtd || 1), 0);
+  const freteNum = modo === 'varejo' && !freteGratis
+    ? Math.max(0, Number(frete.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')) || 0) : 0;
 
   const pagamentoAtacado = useMemo(() => {
     const metade = Math.round(precos.pix / 2 * 100) / 100;
@@ -104,8 +108,11 @@ export default function CalculadoraPage() {
     if (modo === 'atacado') {
       L.push(`💰 Valor no Pix: ${brl(precos.pix)}${qtdTotal > 1 ? ` (${brl(precos.pix / qtdTotal)} por par/item)` : ''}`);
     } else {
-      L.push(`💳 Cartão: ${brl(precos.cartao)} em até 3x sem juros de ${brl(precos.parcela)}`);
-      L.push(`💰 Pix: ${brl(precos.pix)} (10% de desconto)`);
+      const c = precos.cartao + freteNum;
+      L.push(`💳 Cartão: ${brl(c)} em até 3x sem juros de ${brl(c / 3)}`);
+      L.push(`💰 Pix: ${brl(precos.pix + freteNum)} (10% de desconto)`);
+      if (freteGratis) L.push('🚚 Frete: Grátis');
+      else if (freteNum > 0) L.push(`🚚 Frete: ${brl(freteNum)} (já incluso nos valores)`);
     }
     L.push('');
     lista.forEach((it, idx) => {
@@ -121,7 +128,7 @@ export default function CalculadoraPage() {
     });
     L.push(`Quantidade de itens: ${qtdTotal}`);
     return L.join('\n');
-  }, [lista, precos, qtdTotal, modo]);
+  }, [lista, precos, qtdTotal, modo, freteNum, freteGratis]);
 
   if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>;
   if (!user || !hasAccess) return <Navigate to="/" replace />;
@@ -260,6 +267,18 @@ export default function CalculadoraPage() {
                 <Button key={m} type="button" size="sm" variant={modo === m ? 'default' : 'ghost'} onClick={() => setModo(m)}>{rotuloMod(m)}</Button>
               ))}
             </div>
+            {modo === 'varejo' && (
+              <div className="rounded-md border border-border p-2 space-y-2">
+                <label className="text-sm font-medium block">Valor do frete (opcional)</label>
+                <input type="text" inputMode="decimal" placeholder="R$ 0,00" disabled={freteGratis}
+                  value={frete} onChange={e => setFrete(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm disabled:opacity-50" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={freteGratis} onChange={e => setFreteGratis(e.target.checked)} />
+                  Mostrar "Frete grátis" na mensagem
+                </label>
+              </div>
+            )}
             <div className="rounded-lg bg-muted p-3 space-y-1 border-2 border-primary">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold uppercase">Preço de venda</span>
@@ -270,9 +289,10 @@ export default function CalculadoraPage() {
                 <div className="flex justify-between text-sm"><span>50% entrada (produção)</span><b>{brl(precos.pix / 2)}</b></div>
                 <div className="flex justify-between text-sm"><span>50% antes do despacho</span><b>{brl(precos.pix / 2)}</b></div>
               </>) : (<>
-                <div className="flex justify-between font-bold text-lg"><span>Cartão</span><span className="text-primary">{brl(precos.cartao)}</span></div>
-                <div className="text-sm text-muted-foreground text-right">3x sem juros de {brl(precos.parcela)}</div>
-                <div className="flex justify-between font-bold text-lg pt-1 border-t border-border"><span>Pix (−10%)</span><span>{brl(precos.pix)}</span></div>
+                <div className="flex justify-between font-bold text-lg"><span>Cartão</span><span className="text-primary">{brl(precos.cartao + freteNum)}</span></div>
+                <div className="text-sm text-muted-foreground text-right">3x sem juros de {brl((precos.cartao + freteNum) / 3)}</div>
+                <div className="flex justify-between font-bold text-lg pt-1 border-t border-border"><span>Pix (−10%)</span><span>{brl(precos.pix + freteNum)}</span></div>
+                {freteNum > 0 && <div className="text-xs text-muted-foreground text-right">inclui frete de {brl(freteNum)}</div>}
               </>)}
             </div>
             <div className="grid grid-cols-2 gap-2">
