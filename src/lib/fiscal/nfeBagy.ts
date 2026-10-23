@@ -30,6 +30,14 @@ export interface NotaRascunho {
   /** Campos opcionais usados na emissão avulsa. */
   natOp?: string; finNFe?: number; indPres?: number; indFinal?: number; infCpl?: string; observacoes?: string;
   tPag?: string; modFrete?: number; seguro?: number; outras?: number; bagyPedidoIdNull?: boolean;
+  /** Transportador e volumes (emissão avulsa). */
+  transportador?: {
+    razao?: string; cnpj?: string; ie?: string; endereco?: string; municipio?: string; uf?: string;
+    placa?: string; ufPlaca?: string; rntc?: string;
+    qVol?: string; esp?: string; marca?: string; nVol?: string; pesoL?: string; pesoB?: string;
+  } | null;
+  /** Endereço de entrega diferente do destinatário (emissão avulsa). */
+  entrega?: { logradouro?: string; numero?: string; bairro?: string; municipio?: string; uf?: string; cep?: string; cod_municipio?: string } | null;
 }
 
 /** Monta os rascunhos das notas (sem reservar número nem falar com a SEFAZ). */
