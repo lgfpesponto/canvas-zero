@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Pencil, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Filter, Pencil, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { BagyNfeMenu } from '@/components/fiscal/BagyNfeMenu';
 import NovaNotaFiscalForm from '@/components/fiscal/NovaNotaFiscalForm';
 import { useNfeAccess, useNfePagesAccess } from "@/hooks/useNfeAccess";
@@ -57,6 +58,29 @@ export function NotasFiscaisInner() {
   const paginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA));
   const pag = Math.min(pagina, paginas);
   const visiveis = filtradas.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA);
+
+  // Copia a nota rejeitada para um novo rascunho (a original fica no histórico) e abre para corrigir.
+  const duplicar = async (n: any) => {
+    const snap = (n.destinatario_snapshot ?? {}) as any;
+    let form = snap._form;
+    if (!form) {
+      const { data: its } = await supabase.from('nfe_itens').select('*').eq('nota_id', n.id).order('ordem');
+      const { _form, ...dest } = snap;
+      form = {
+        dest, natOp: n.natureza_operacao,
+        itens: (its || []).map((i: any) => ({ codigo: i.codigo || '', descricao: i.descricao || '', ncm: i.ncm || '', cfop: i.cfop || '', unidade: i.unidade || 'UN',
+          qtd: String(i.quantidade ?? 1).replace('.', ','), valor: String(i.valor_unitario ?? '').replace('.', ','), csosn: i.cst_icms || '' })),
+      };
+    }
+    const { data, error } = await supabase.from('nfe_notas').insert({
+      numero: 0, serie: n.serie, modelo: 55, ambiente: n.ambiente, status: 'rascunho', natureza_operacao: n.natureza_operacao,
+      valor_total: n.valor_total, destinatario_snapshot: { ...snap, _form: { ...form, _rejeicao: n.motivo_rejeicao || null } },
+      motivo_rejeicao: n.motivo_rejeicao, observacoes: `Nota avulsa (rascunho) — cópia da NF-e ${n.numero} rejeitada`,
+    } as any).select('id').single();
+    if (error) { toast.error(error.message); return; }
+    toast.success('Rascunho criado a partir da nota rejeitada.');
+    setEditor({ id: data.id });
+  };
 
   if (editor) return <NovaNotaFiscalForm rascunhoId={editor.id} onClose={() => { setEditor(null); load(); }} />;
 
@@ -129,7 +153,14 @@ export function NotasFiscaisInner() {
                 <td className="p-2 text-right">
                   {n.status === 'rascunho'
                     ? <Button size="sm" variant="ghost" onClick={() => setEditor({ id: n.id })}><Pencil size={14} className="mr-1" /> Continuar</Button>
-                    : <BagyNfeMenu notaId={n.id} hideSello onChanged={load} />}
+                    : (<div className="flex items-center justify-end gap-1">
+                        {['rejeitada', 'erro'].includes(n.status) && !n.bagy_pedido_id && (
+                          <Button size="sm" variant="outline" title={n.motivo_rejeicao || undefined} onClick={() => duplicar(n)}>
+                            <Copy size={14} className="mr-1" /> Duplicar e corrigir
+                          </Button>
+                        )}
+                        <BagyNfeMenu notaId={n.id} hideSello onChanged={load} />
+                      </div>)}
                 </td>
               </tr>
             ))}
