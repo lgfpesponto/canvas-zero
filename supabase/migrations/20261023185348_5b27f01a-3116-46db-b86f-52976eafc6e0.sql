@@ -1,0 +1,1 @@
+ALTER TABLE public.calc_preco_itens ADD COLUMN IF NOT EXISTS modalidade text NOT NULL DEFAULT 'varejo';
