@@ -95,11 +95,15 @@ export default function CalculadoraPage() {
   const pagamentoAtacado = useMemo(() => {
     const metade = Math.round(precos.pix / 2 * 100) / 100;
     return [
-      `💰 Total no Pix: ${brl(precos.pix)} (${qtdTotal} ${qtdTotal === 1 ? 'par/item' : 'pares/itens'})`,
+      `*Orçamento ${new Date().toLocaleDateString('pt-BR')} — Atacado*`,
+      '',
+      `💰 Total no Pix: ${brl(precos.pix)}`,
       `• 50% de entrada para iniciar a produção: ${brl(metade)}`,
       `• 50% restante após pronto, antes do despacho: ${brl(Math.round((precos.pix - metade) * 100) / 100)}`,
       '• Valor sem frete (frete cobrado à parte)',
       '• Pagamento somente via Pix',
+      '',
+      `Quantidade de itens: ${qtdTotal}`,
     ].join('\n');
   }, [precos, qtdTotal]);
 
