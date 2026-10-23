@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Calculator, Settings, Copy, Eraser, Save, Trash2, Plus, ArrowUp, ArrowDown, FileText, Pencil, FolderOpen, ImageOff } from 'lucide-react';
+import { Calculator, Settings, Copy, Eraser, Save, Trash2, Plus, ArrowUp, ArrowDown, FileText, Pencil, FolderOpen, ImageOff, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import FichaFiltersDialog from '@/components/common/FichaFiltersDialog';
+import { buildFichaOptions, matchesFichaFilters, countActiveFicha, useFichaFilterKeys } from '@/lib/fichaFilterKeys';
+import { Badge } from '@/components/ui/badge';
 import { isDriveUrl, isHttpUrl, toDriveImageUrl } from '@/lib/driveUrl';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,16 +40,38 @@ const resumoItem = (it: ItemOrc) => {
   const m = it.grupos.flatMap(g => g.itens).find(([k]) => /modelo/i.test(k));
   return m ? String(m[1]) : rotuloTipo(it.tipo);
 };
-const fotoDoOrc = (o: Orcamento): string => {
+const fotosDoOrc = (o: Orcamento): string[] => {
   const its = Array.isArray(o.form_data?.itens) ? o.form_data.itens : [{ formData: o.form_data }];
-  for (const it of its) { const u = String(it?.formData?.fotoUrl || '').trim(); if (isHttpUrl(u)) return u; }
-  return '';
+  const out: string[] = [];
+  for (const it of its) { const u = String(it?.formData?.fotoUrl || '').trim(); if (isHttpUrl(u) && !out.includes(u)) out.push(u); }
+  return out;
 };
-function OrcFoto({ url, nome }: { url: string; nome: string }) {
-  const [err, setErr] = useState(false);
-  if (!url || err) return <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground"><ImageOff size={24} /><span className="text-xs mt-1">Sem foto</span></div>;
-  const src = isDriveUrl(url) ? (toDriveImageUrl(url) || url) : url;
-  return <img src={src} alt={nome} referrerPolicy="no-referrer" onError={() => setErr(true)} className="absolute inset-0 w-full h-full object-contain" />;
+const modoDoOrc = (o: Orcamento): Modalidade => {
+  const m = o.form_data?.modo;
+  if (m === 'atacado' || m === 'varejo') return m;
+  return /atacado/i.test(`${o.nome} ${(o.discriminacao || '').split('\n')[0]}`) ? 'atacado' : 'varejo';
+};
+function OrcFoto({ urls, nome }: { urls: string[]; nome: string }) {
+  const [i, setI] = useState(0);
+  const [errs, setErrs] = useState<Record<number, boolean>>({});
+  const url = urls[i];
+  const src = url ? (isDriveUrl(url) ? (toDriveImageUrl(url) || url) : url) : '';
+  return (
+    <div className="w-full h-48 sm:h-40 bg-background relative flex items-center justify-center overflow-hidden">
+      {src && !errs[i]
+        ? <img src={src} alt={nome} referrerPolicy="no-referrer" onError={() => setErrs(e => ({ ...e, [i]: true }))} className="w-full h-full object-contain" />
+        : <div className="flex flex-col items-center text-muted-foreground"><ImageOff size={24} /><span className="text-xs mt-1">Sem foto</span></div>}
+      {urls.length > 1 && (
+        <>
+          <button type="button" aria-label="Foto anterior" onClick={() => setI(v => (v - 1 + urls.length) % urls.length)}
+            className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-background/80 border border-border p-1 hover:bg-background"><ChevronLeft size={16} /></button>
+          <button type="button" aria-label="Próxima foto" onClick={() => setI(v => (v + 1) % urls.length)}
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-background/80 border border-border p-1 hover:bg-background"><ChevronRight size={16} /></button>
+          <span className="absolute bottom-1 right-2 text-[10px] bg-background/80 rounded px-1.5">{i + 1}/{urls.length}</span>
+        </>
+      )}
+    </div>
+  );
 }
 
 export function calcularPrecos(custo: number, itens: Item[]) {
