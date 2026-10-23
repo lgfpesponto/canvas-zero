@@ -1,3 +1,4 @@
+import { completarFormComXml } from '@/lib/fiscal/resgatarXml';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,9 @@ export function NotasFiscaisInner() {
           qtd: String(i.quantidade ?? 1).replace('.', ','), valor: String(i.valor_unitario ?? '').replace('.', ','), csosn: i.cst_icms || '' })),
       };
     }
+    // Resgata frete, desconto, transportadora, volumes e entrega direto do XML enviado à SEFAZ.
+    const { data: xr } = await supabase.from('nfe_notas').select('xml_assinado, xml_autorizado').eq('id', n.id).maybeSingle();
+    form = completarFormComXml(form, (xr as any)?.xml_assinado || (xr as any)?.xml_autorizado);
     const { data, error } = await supabase.from('nfe_notas').insert({
       numero: 0, serie: n.serie, modelo: 55, ambiente: n.ambiente, status: 'rascunho', natureza_operacao: n.natureza_operacao,
       valor_total: n.valor_total, destinatario_snapshot: { ...snap, _form: { ...form, _rejeicao: n.motivo_rejeicao || null } },
