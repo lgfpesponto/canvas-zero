@@ -225,6 +225,27 @@ function montarXml(r: NotaRascunho, numero: number, serie: number, ambiente: num
 }
 
 /** Reserva número, grava e transmite para a SEFAZ. */
+/** Arquiva a etiqueta antiga no histórico do pedido e libera a emissão de uma nova etiqueta. */
+async function liberarNovaEtiqueta(bagyPedidoId: string, motivo: string) {
+  const { data: bp } = await supabase.from('bagy_pedidos')
+    .select('payload, etiqueta_path, tracking_code, tracking_url, envio_provider, envio_provider_id, envio_servico, etiqueta_gerada_em')
+    .eq('id', bagyPedidoId).maybeSingle();
+  if (!bp || !(bp.etiqueta_path || bp.tracking_code || bp.envio_provider_id)) return;
+  const payload: any = (bp.payload && typeof bp.payload === 'object') ? bp.payload : {};
+  const anteriores = Array.isArray(payload.envios_anteriores) ? payload.envios_anteriores : [];
+  anteriores.push({
+    motivo, arquivado_em: new Date().toISOString(),
+    etiqueta_path: bp.etiqueta_path, tracking_code: bp.tracking_code, tracking_url: bp.tracking_url,
+    envio_provider: bp.envio_provider, envio_provider_id: bp.envio_provider_id, envio_servico: bp.envio_servico,
+    etiqueta_gerada_em: bp.etiqueta_gerada_em,
+  });
+  const { error } = await supabase.from('bagy_pedidos').update({
+    payload: { ...payload, envios_anteriores: anteriores },
+    etiqueta_path: null, tracking_code: null, tracking_url: null, envio_provider_id: null, etiqueta_gerada_em: null,
+  } as any).eq('id', bagyPedidoId);
+  if (error) console.warn('Liberar nova etiqueta:', error.message);
+}
+
 export async function transmitirNotaBagy(r: NotaRascunho) {
   if (r.erros.length) throw new Error(r.erros.join('\n'));
   if (r.bagyPedidoId && !r.bagyPedidoIdNull) {
