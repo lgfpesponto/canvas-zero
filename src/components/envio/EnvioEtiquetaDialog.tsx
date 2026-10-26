@@ -31,6 +31,7 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
     setServico(s.startsWith('ME') ? 'ME' : s);
     setMeId(s.startsWith('ME:') ? s.slice(3) : '');
     setOpcoes([]);
+    setLiberada(false);
     supabase.from('bagy_pedidos').select('endereco').eq('id', pedido.id).maybeSingle().then(({ data }) => {
       const e: any = data?.endereco || {};
       const n = { cep: campo(e, 'cep', 'zipcode'), logradouro: campo(e, 'logradouro', 'street', 'rua'), numero: campo(e, 'numero', 'number'),
@@ -97,10 +98,38 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
         <DialogHeader><DialogTitle>Etiqueta de envio — RC-{pedido.numero_bagy}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           <p className="text-muted-foreground">Escolhido na Bagy: <b>{pedido.metodo_envio || '—'}</b></p>
-          {pedido.etiqueta_path ? (
+          {pedido.etiqueta_path && !liberada ? (
             <div className="space-y-2">
               <p>Etiqueta já gerada{pedido.tracking_code ? <> — rastreio <b className="font-mono">{pedido.tracking_code}</b></> : null}.</p>
-              <Button size="sm" onClick={async () => window.open(await urlEtiqueta(pedido.etiqueta_path!), '_blank')}>Abrir etiqueta</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={async () => window.open(await urlEtiqueta(pedido.etiqueta_path!), '_blank')}>Abrir etiqueta</Button>
+                <Button size="sm" variant="outline" disabled={busy} onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const { data: bp } = await supabase.from('bagy_pedidos')
+                      .select('payload, etiqueta_path, tracking_code, tracking_url, envio_provider, envio_provider_id, envio_servico, etiqueta_gerada_em')
+                      .eq('id', pedido.id).maybeSingle();
+                    if (bp && (bp.etiqueta_path || bp.tracking_code || bp.envio_provider_id)) {
+                      const payload: any = (bp.payload && typeof bp.payload === 'object') ? bp.payload : {};
+                      const anteriores = Array.isArray(payload.envios_anteriores) ? payload.envios_anteriores : [];
+                      anteriores.push({
+                        motivo: 'nova_etiqueta_manual', arquivado_em: new Date().toISOString(),
+                        etiqueta_path: bp.etiqueta_path, tracking_code: bp.tracking_code, tracking_url: bp.tracking_url,
+                        envio_provider: bp.envio_provider, envio_provider_id: bp.envio_provider_id, envio_servico: bp.envio_servico,
+                        etiqueta_gerada_em: bp.etiqueta_gerada_em,
+                      });
+                      const { error } = await supabase.from('bagy_pedidos').update({
+                        payload: { ...payload, envios_anteriores: anteriores },
+                        etiqueta_path: null, tracking_code: null, tracking_url: null, envio_provider_id: null, etiqueta_gerada_em: null,
+                      } as any).eq('id', pedido.id);
+                      if (error) throw new Error(error.message);
+                    }
+                    setLiberada(true);
+                    toast.success('Etiqueta antiga guardada no histórico. Gere a nova abaixo.');
+                  } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+                }}>Gerar nova etiqueta</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">A etiqueta atual fica guardada no histórico do pedido.</p>
             </div>
           ) : (
             <>
