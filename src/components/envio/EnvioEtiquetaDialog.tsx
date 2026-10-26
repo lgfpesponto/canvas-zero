@@ -18,6 +18,7 @@ export function EnvioEtiquetaDialog({ pedido, onClose, onDone }: { pedido: Ped |
   const [peso, setPeso] = useState('2');
   const [dim, setDim] = useState({ altura: '15', largura: '30', comprimento: '35' });
   const [busy, setBusy] = useState(false);
+  const [liberada, setLiberada] = useState(false);
   const [end, setEnd] = useState<any>({});
   const [endOrig, setEndOrig] = useState<string>('{}');
   const dig = (v: any) => String(v ?? '').replace(/\D/g, '');
