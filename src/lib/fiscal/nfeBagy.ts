@@ -305,6 +305,8 @@ export async function transmitirNotaBagy(r: NotaRascunho) {
         if (qErr) console.warn('Fila Bagy (faturado):', qErr.message);
       }
     } catch (e) { console.warn('Fila Bagy (faturado):', e); }
+    // Nova NF-e autorizada: a etiqueta do envio anterior não vale mais — arquiva e libera uma nova.
+    await liberarNovaEtiqueta(nota.bagy_pedido_id, 'nova_nf_e_emitida');
     const { avancarBaixaSite } = await import('@/lib/baixaSite');
     await avancarBaixaSite(nota.bagy_pedido_id);
   }
