@@ -481,6 +481,27 @@ export async function emitirDevolucao(notaPaiId: string, itensDev: { itemId: str
   // Nota original fica salva como "devolvida": libera uma nova NF-e normal (troca) para o mesmo pedido.
   if (autorizada && pai.tipo_nota === 'normal') {
     await supabase.from('nfe_notas').update({ status: 'devolvida' } as any).eq('id', pai.id);
+    // A nova nota da troca precisa de nova etiqueta: arquiva a etiqueta antiga no histórico e libera o pedido.
+    if (pai.bagy_pedido_id) {
+      const { data: bp } = await supabase.from('bagy_pedidos')
+        .select('payload, etiqueta_path, tracking_code, tracking_url, envio_provider, envio_provider_id, envio_servico, etiqueta_gerada_em')
+        .eq('id', pai.bagy_pedido_id).maybeSingle();
+      if (bp && (bp.etiqueta_path || bp.tracking_code || bp.envio_provider_id)) {
+        const payload: any = (bp.payload && typeof bp.payload === 'object') ? bp.payload : {};
+        const anteriores = Array.isArray(payload.envios_anteriores) ? payload.envios_anteriores : [];
+        anteriores.push({
+          nota_devolvida: `${pai.numero}/${pai.serie}`, arquivado_em: new Date().toISOString(),
+          etiqueta_path: bp.etiqueta_path, tracking_code: bp.tracking_code, tracking_url: bp.tracking_url,
+          envio_provider: bp.envio_provider, envio_provider_id: bp.envio_provider_id, envio_servico: bp.envio_servico,
+          etiqueta_gerada_em: bp.etiqueta_gerada_em,
+        });
+        const { error: eErr } = await supabase.from('bagy_pedidos').update({
+          payload: { ...payload, envios_anteriores: anteriores },
+          etiqueta_path: null, tracking_code: null, tracking_url: null, envio_provider_id: null, etiqueta_gerada_em: null,
+        } as any).eq('id', pai.bagy_pedido_id);
+        if (eErr) console.warn('Liberar nova etiqueta:', eErr.message);
+      }
+    }
   }
   return { notaId: nota.id, numero, autorizada, motivo };
 }
