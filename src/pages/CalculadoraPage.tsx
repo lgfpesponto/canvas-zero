@@ -154,7 +154,7 @@ export default function CalculadoraPage() {
   }, [hasAccess]);
 
   const custo = useMemo(() => lista.reduce((s, i) => s + (Number(i.custo) || 0), 0), [lista]);
-  const precos = useMemo(() => calcularPrecos(custo, itens.filter(i => (i.modalidade || 'varejo') === modo)), [custo, itens, modo]);
+  const precos = useMemo(() => calcularPrecos(custo, itens.filter(i => (i.modalidade || 'varejo') === modo), modo), [custo, itens, modo]);
   const qtdTotal = lista.reduce((s, i) => s + (i.qtd || 1), 0);
   const freteNum = modo === 'varejo' && !freteGratis
     ? Math.max(0, Number(frete.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')) || 0) : 0;
