@@ -74,13 +74,15 @@ function OrcFoto({ urls, nome }: { urls: string[]; nome: string }) {
   );
 }
 
-export function calcularPrecos(custo: number, itens: Item[]) {
+export function calcularPrecos(custo: number, itens: Item[], modo: Modalidade = 'varejo') {
   let acc = custo;
   [...itens].sort((a, b) => a.ordem - b.ordem).forEach(i => {
     acc += i.tipo === 'percentual' ? acc * (Number(i.valor) || 0) / 100 : Number(i.valor) || 0;
   });
   const cartao = Math.round(acc * 100) / 100;
-  return { cartao, parcela: cartao / 3, pix: Math.round(cartao * 0.9 * 100) / 100 };
+  // Atacado: Pix é o valor integral (sem desconto). Varejo: Pix = cartão − 10%.
+  const pix = modo === 'atacado' ? cartao : Math.round(cartao * 0.9 * 100) / 100;
+  return { cartao, parcela: cartao / 3, pix };
 }
 
 export default function CalculadoraPage() {
