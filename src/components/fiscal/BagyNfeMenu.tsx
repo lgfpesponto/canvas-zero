@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
   MoreVertical, Pencil, Mail, MessageCircle, Eye, Ban, MoreHorizontal,
-  FileEdit, FilePlus2, FileDown, Trash2, Loader2, Undo2,
+  FileEdit, FilePlus2, FileDown, Trash2, Loader2, Undo2, FileCode,
 } from 'lucide-react';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { getFiscalProvider } from '@/lib/fiscal/provider';
