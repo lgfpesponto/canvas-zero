@@ -243,7 +243,7 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 30000);
           })}>
-            <FileText size={14} className="mr-2" /> Baixar XML
+            <FileCode size={14} className="mr-2" /> Baixar XML
           </DropdownMenuItem>
           <DropdownMenuItem disabled={!autorizada} onClick={() => setViewSimpl(true)}>
             <FileDown size={14} className="mr-2" /> Imprimir DANFE Simplificada
