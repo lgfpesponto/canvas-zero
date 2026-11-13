@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
   MoreVertical, Pencil, Mail, MessageCircle, Eye, Ban, MoreHorizontal,
-  FileEdit, FilePlus2, FileDown, Trash2, Loader2, Undo2,
+  FileEdit, FilePlus2, FileDown, Trash2, Loader2, Undo2, FileCode,
 } from 'lucide-react';
 import { gerarDanfePdf } from '@/lib/fiscal/danfePdf';
 import { getFiscalProvider } from '@/lib/fiscal/provider';
@@ -230,6 +230,20 @@ export function BagyNfeMenu({ pedido: pedidoProp, onGerarNfe, notaId, onChanged,
           </DropdownMenuSub>
           <DropdownMenuItem disabled={!autorizada} onClick={() => run('danfe', async () => { await gerarDanfePdf(nota!.id, 'a4', 'save'); })}>
             <FileDown size={14} className="mr-2" /> Gerar PDF DANFE
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!autorizada} onClick={() => run('xml', async () => {
+            const { data, error } = await supabase.from('nfe_notas').select('xml_autorizado, xml_assinado, chave_acesso, numero').eq('id', nota!.id).maybeSingle();
+            if (error) throw error;
+            const xml = (data as any)?.xml_autorizado || (data as any)?.xml_assinado;
+            if (!xml) { toast.error('XML não encontrado para esta nota.'); return; }
+            const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${(data as any)?.chave_acesso || 'nfe-' + (data as any)?.numero}-nfe.xml`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 30000);
+          })}>
+            <FileCode size={14} className="mr-2" /> Baixar XML
           </DropdownMenuItem>
           <DropdownMenuItem disabled={!autorizada} onClick={() => setViewSimpl(true)}>
             <FileDown size={14} className="mr-2" /> Imprimir DANFE Simplificada
