@@ -29,7 +29,7 @@ const NATUREZAS: [string, string][] = [
   ['5901', 'REMESSA P/ INDUSTRIALIZAÇÃO'], ['5902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
   ['5124', 'INDUSTRIALIZAÇÃO EFETUADA P/ OUTRA EMPRESA'], ['5910', 'REMESSA EM BONIFICAÇÃO'],
   ['5915', 'REMESSA P/ CONSERTO'], ['5916', 'RETORNO DE CONSERTO'], ['6101', 'VENDA FORA DO ESTADO'],
-  ['6102', 'VENDA FORA DO ESTADO'], ['6902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
+  ['6102', 'VENDA FORA DO ESTADO'], ['6107', 'VENDA DE PRODUÇÃO A NÃO CONTRIBUINTE'], ['6902', 'RETORNO DE INDUSTRIALIZAÇÃO'],
 ];
 const PAGAMENTOS: [string, string][] = [['01', 'Dinheiro'], ['03', 'Cartão de crédito'], ['04', 'Cartão de débito'], ['15', 'Boleto'], ['17', 'PIX'], ['90', 'Sem pagamento'], ['99', 'Outros']];
 const agoraLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
@@ -117,13 +117,16 @@ export default function NovaNotaFiscalForm({ rascunhoId, onClose }: { rascunhoId
   }, [rascunhoId]);
 
   const interno = !dest.uf || String(dest.uf).toUpperCase() === String(cfg?.uf ?? '').toUpperCase();
-  const cfopPadrao = ex.cfopNat
+  const cfopPadrao = ex.cfopNat === '6107'
+    ? (interno ? '5101' : '6107')
+    : ex.cfopNat
     ? (interno ? '5' : '6') + ex.cfopNat.slice(1)
     : dest.ind_ie_dest === 1 ? (interno ? '5101' : '6101') : (interno ? '5101' : '6107');
   const escolherNatureza = (cfop: string) => {
     const n = NATUREZAS.find(x => x[0] === cfop);
     setEx(s => ({ ...s, cfopNat: cfop }));
     if (n) setNatOp(n[1]);
+    if (cfop === '6107') setConsFinal(1);
   };
 
   const escolherDest = (id: string) => {
